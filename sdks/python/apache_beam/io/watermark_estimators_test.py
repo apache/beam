@@ -32,6 +32,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class MonotonicWatermarkEstimatorTest(unittest.TestCase):
+
   def test_initialize_from_state(self):
     timestamp = Timestamp(10)
     watermark_estimator = MonotonicWatermarkEstimator(timestamp)
@@ -60,6 +61,7 @@ class MonotonicWatermarkEstimatorTest(unittest.TestCase):
 
 
 class WalltimeWatermarkEstimatorTest(unittest.TestCase):
+
   @mock.patch('apache_beam.utils.timestamp.Timestamp.now')
   def test_initialization(self, mock_timestamp):
     now_time = Timestamp.now() - Duration(10)
@@ -84,6 +86,7 @@ class WalltimeWatermarkEstimatorTest(unittest.TestCase):
 
 
 class ManualWatermarkEstimatorTest(unittest.TestCase):
+
   def test_initialization(self):
     watermark_estimator = ManualWatermarkEstimator(None)
     self.assertIsNone(watermark_estimator.get_estimator_state())

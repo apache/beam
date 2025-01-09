@@ -27,6 +27,7 @@ class ShardedKey(object):
     key: The user key.
     shard_id: An opaque byte string that uniquely represents a shard of the key.
   """
+
   def __init__(
       self,
       key,

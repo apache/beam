@@ -639,6 +639,7 @@ def _build_quantilebuffer_test_data():
 class ApproximateQuantilesBufferTest(unittest.TestCase):
   """ Approximate Quantiles Buffer Tests to ensure we are calculating the
   optimal buffers."""
+
   @parameterized.expand(_build_quantilebuffer_test_data)
   def test_efficiency(
       self, epsilon, maxInputSize, expectedNumBuffers, expectedBufferSize):

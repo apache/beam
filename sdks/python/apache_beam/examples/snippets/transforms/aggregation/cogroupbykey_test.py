@@ -51,6 +51,7 @@ def check_plants(actual):
     'apache_beam.examples.snippets.transforms.aggregation.cogroupbykey.print',
     str)
 class CoGroupByKeyTest(unittest.TestCase):
+
   def test_cogroupbykey(self):
     cogroupbykey.cogroupbykey(check_plants)
 

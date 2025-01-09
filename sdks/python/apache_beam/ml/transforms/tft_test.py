@@ -41,6 +41,7 @@ if not tft:
 
 
 class ScaleZScoreTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -109,6 +110,7 @@ class ScaleZScoreTest(unittest.TestCase):
 
 
 class ScaleTo01Test(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -156,6 +158,7 @@ class ScaleTo01Test(unittest.TestCase):
 
 
 class ScaleToGaussianTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -282,6 +285,7 @@ class ScaleToGaussianTest(unittest.TestCase):
 
 
 class BucketizeTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -331,6 +335,7 @@ class BucketizeTest(unittest.TestCase):
 
 
 class ApplyBucketsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -365,6 +370,7 @@ class ApplyBucketsTest(unittest.TestCase):
 
 
 class ApplyBucketsWithInterpolationTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -395,6 +401,7 @@ class ApplyBucketsWithInterpolationTest(unittest.TestCase):
 
 
 class ComputeAndApplyVocabTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -404,13 +411,19 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
   def test_compute_and_apply_vocabulary_inputs(self):
     num_elements = 100
     num_instances = num_elements + 1
-    input_data = [{
-        'x': '%.10i' % i,  # Front-padded to facilitate lexicographic sorting.
-    } for i in range(num_instances)]
+    input_data = [
+        {
+            'x': '%.10i' %
+            i,  # Front-padded to facilitate lexicographic sorting.
+        } for i in range(num_instances)
+    ]
 
-    expected_data = [{
-        'x': (len(input_data) - 1) - i, # Due to reverse lexicographic sorting.
-    } for i in range(len(input_data))]
+    expected_data = [
+        {
+            'x': (len(input_data) - 1) -
+            i,  # Due to reverse lexicographic sorting.
+        } for i in range(len(input_data))
+    ]
 
     with beam.Pipeline() as p:
       actual_data = (
@@ -594,6 +607,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
 
 
 class TFIDIFTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -641,6 +655,7 @@ class TFIDIFTest(unittest.TestCase):
 
 
 class ScaleToMinMaxTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -687,6 +702,7 @@ class ScaleToMinMaxTest(unittest.TestCase):
 
 
 class NGramsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -804,6 +820,7 @@ class NGramsTest(unittest.TestCase):
 
 
 class BagOfWordsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -963,6 +980,7 @@ class BagOfWordsTest(unittest.TestCase):
 
 
 class HashStringsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -1040,6 +1058,7 @@ class HashStringsTest(unittest.TestCase):
 
 
 class DeduplicateTensorPerRowTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 

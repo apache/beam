@@ -96,6 +96,7 @@ class ParseGameEventFn(beam.DoFn):
 
   The human-readable time string is not used here.
   """
+
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()
@@ -123,6 +124,7 @@ class ExtractAndSumScore(beam.PTransform):
   The constructor argument `field` determines whether 'team' or 'user' info is
   extracted.
   """
+
   def __init__(self, field):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()
@@ -140,6 +142,7 @@ class ExtractAndSumScore(beam.PTransform):
 
 
 class UserScore(beam.PTransform):
+
   def expand(self, pcoll):
     return (
         pcoll

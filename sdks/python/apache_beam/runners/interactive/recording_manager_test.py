@@ -45,6 +45,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 class MockPipelineResult(beam.runners.runner.PipelineResult):
   """Mock class for controlling a PipelineResult."""
+
   def __init__(self):
     self._state = PipelineState.RUNNING
 
@@ -63,6 +64,7 @@ class MockPipelineResult(beam.runners.runner.PipelineResult):
 
 
 class ElementStreamTest(unittest.TestCase):
+
   def setUp(self):
     self.cache = InMemoryCache()
     self.p = beam.Pipeline()
@@ -142,6 +144,7 @@ class ElementStreamTest(unittest.TestCase):
 
   def test_read_duration(self):
     """Test that the stream only reads a 'duration' of elements."""
+
     def as_windowed_value(element):
       return WindowedValueHolder(WindowedValue(element, 0, []))
 
@@ -184,6 +187,7 @@ class ElementStreamTest(unittest.TestCase):
 
 
 class RecordingTest(unittest.TestCase):
+
   def test_computed(self):
     """Tests that a PCollection is marked as computed only in a complete state.
 
@@ -284,6 +288,7 @@ class RecordingTest(unittest.TestCase):
 
 
 class RecordingManagerTest(unittest.TestCase):
+
   def test_basic_execution(self):
     """A basic pipeline to be used as a smoke test."""
 
@@ -361,6 +366,7 @@ class RecordingManagerTest(unittest.TestCase):
     ie.current_env().track_user_pipelines()
 
     class SemaphoreLimiter(Limiter):
+
       def __init__(self):
         self.triggered = False
 
@@ -503,6 +509,7 @@ class RecordingManagerTest(unittest.TestCase):
     # written to cache. This is used to make ensure that the pipeline is
     # functioning properly and that there are no data races with the test.
     class SizeLimiter(Limiter):
+
       def __init__(self, p):
         self.pipeline = p
         self._rm = None

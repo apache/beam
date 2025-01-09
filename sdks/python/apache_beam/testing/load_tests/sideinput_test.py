@@ -106,8 +106,10 @@ class SideInputTest(LoadTest):
           'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
 
   def test(self):
+
     class SequenceSideInputTestDoFn(beam.DoFn):
       """Iterate over first n side_input elements."""
+
       def __init__(self, first_n: int):
         self._first_n = first_n
 
@@ -126,6 +128,7 @@ class SideInputTest(LoadTest):
 
     class MappingSideInputTestDoFn(beam.DoFn):
       """Iterates over first n keys in the dictionary and checks the value."""
+
       def __init__(self, first_n: int):
         self._first_n = first_n
 
@@ -142,6 +145,7 @@ class SideInputTest(LoadTest):
     class AssignTimestamps(beam.DoFn):
       """Produces timestamped values. Timestamps are equal to the value of the
       element."""
+
       def __init__(self):
         # Avoid having to use save_main_session
         self.window = window
@@ -150,6 +154,7 @@ class SideInputTest(LoadTest):
         yield self.window.TimestampedValue(element, element)
 
     class GetSyntheticSDFOptions(beam.DoFn):
+
       def __init__(
           self, elements_per_record: int, key_size: int, value_size: int):
         self.elements_per_record = elements_per_record

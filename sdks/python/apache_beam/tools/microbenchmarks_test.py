@@ -28,6 +28,7 @@ from apache_beam.tools import utils
 
 
 class MicrobenchmarksTest(unittest.TestCase):
+
   def test_coders_microbenchmark(self):
     # Right now, we don't evaluate performance impact, only check that
     # microbenchmark code can successfully run.

@@ -38,6 +38,7 @@ from apache_beam.typehints.schemas_test import get_test_beam_schemas_protos
 
 @pytest.mark.uses_pyarrow
 class ArrowTypeCompatibilityTest(unittest.TestCase):
+
   @parameterized.expand([(beam_schema, )
                          for beam_schema in get_test_beam_schemas_protos()])
   def test_beam_schema_survives_roundtrip(self, beam_schema):
@@ -45,6 +46,7 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
         arrow_schema_from_beam_schema(beam_schema))
 
     self.assertEqual(beam_schema, roundtripped)
+
 
 @parameterized_class([
     {
@@ -88,18 +90,17 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
     {
         'batch_typehint': pa.Array,
         'element_typehint': row_type.RowTypeConstraint.from_fields([
-                    ("bar", Optional[float]),  # noqa: F821
-                    ("baz", Optional[str]),  # noqa: F821
+            ("bar", Optional[float]),  # noqa: F821
+            ("baz", Optional[str]),  # noqa: F821
         ]),
-        'batch': pa.array([
-            {
-                'bar': i / 100, 'baz': str(i)
-            } if i % 7 else None for i in range(100)
-        ]),
+        'batch': pa.array([{
+            'bar': i / 100, 'baz': str(i)
+        } if i % 7 else None for i in range(100)]),
     }
 ])
 @pytest.mark.uses_pyarrow
 class ArrowBatchConverterTest(unittest.TestCase):
+
   def create_batch_converter(self):
     return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
@@ -194,20 +195,21 @@ class ArrowBatchConverterTest(unittest.TestCase):
 
 
 class ArrowBatchConverterErrorsTest(unittest.TestCase):
+
   @parameterized.expand([
-    (
-      pa.RecordBatch,
-      row_type.RowTypeConstraint.from_fields([
-                    ("bar", Optional[float]),  # noqa: F821
-                    ("baz", Optional[str]),  # noqa: F821
-                    ]),
-      r'batch type must be pa\.Table or pa\.Array',
-    ),
-    (
-      pa.Table,
-      Any,
-      r'Element type .* must be compatible with Beam Schemas',
-    ),
+      (
+          pa.RecordBatch,
+          row_type.RowTypeConstraint.from_fields([
+              ("bar", Optional[float]),  # noqa: F821
+              ("baz", Optional[str]),  # noqa: F821
+          ]),
+          r'batch type must be pa\.Table or pa\.Array',
+      ),
+      (
+          pa.Table,
+          Any,
+          r'Element type .* must be compatible with Beam Schemas',
+      ),
   ])
   def test_construction_errors(
       self, batch_typehint, element_typehint, error_regex):

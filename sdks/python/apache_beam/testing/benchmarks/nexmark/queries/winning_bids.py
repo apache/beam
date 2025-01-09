@@ -44,6 +44,7 @@ from apache_beam.utils.timestamp import Duration
 
 class AuctionOrBidWindow(IntervalWindow):
   """Windows for open auctions and bids."""
+
   def __init__(self, start, end, auction_id, is_auction_window):
     super().__init__(start, end)
     self.auction = auction_id
@@ -71,6 +72,7 @@ class AuctionOrBidWindow(IntervalWindow):
 
 
 class AuctionOrBidWindowCoder(FastCoder):
+
   def _create_impl(self):
     return AuctionOrBidWindowCoderImpl()
 
@@ -98,6 +100,7 @@ class AuctionOrBidWindowCoderImpl(coder_impl.StreamCoderImpl):
 
 
 class AuctionOrBidWindowFn(WindowFn):
+
   def __init__(self, expected_duration_micro):
     self.expected_duration = expected_duration_micro
 
@@ -145,6 +148,7 @@ class AuctionOrBidWindowFn(WindowFn):
 
 
 class JoinAuctionBidFn(beam.DoFn):
+
   @staticmethod
   def higher_bid(bid, other):
     if bid.price > other.price:
@@ -171,6 +175,7 @@ class JoinAuctionBidFn(beam.DoFn):
 
 
 class WinningBids(beam.PTransform):
+
   def __init__(self):
     #TODO: change this to be calculated by event generation
     expected_duration = 16667000

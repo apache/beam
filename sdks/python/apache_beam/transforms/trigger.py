@@ -78,12 +78,14 @@ class _StateTag(metaclass=ABCMeta):
   """An identifier used to store and retrieve typed, combinable state.
 
   The given tag must be unique for this step."""
+
   def __init__(self, tag):
     self.tag = tag
 
 
 class _ReadModifyWriteStateTag(_StateTag):
   """StateTag pointing to an element."""
+
   def __repr__(self):
     return 'ValueStateTag(%s)' % (self.tag)
 
@@ -93,6 +95,7 @@ class _ReadModifyWriteStateTag(_StateTag):
 
 class _SetStateTag(_StateTag):
   """StateTag pointing to an element."""
+
   def __repr__(self):
     return 'SetStateTag({tag})'.format(tag=self.tag)
 
@@ -122,6 +125,7 @@ class _CombiningValueStateTag(_StateTag):
     return _CombiningValueStateTag(prefix + self.tag, self.combine_fn)
 
   def without_extraction(self):
+
     class NoExtractionCombineFn(core.CombineFn):
       setup = self.combine_fn.setup
       create_accumulator = self.combine_fn.create_accumulator
@@ -136,6 +140,7 @@ class _CombiningValueStateTag(_StateTag):
 
 class _ListStateTag(_StateTag):
   """StateTag pointing to a list of elements."""
+
   def __repr__(self):
     return 'ListStateTag(%s)' % self.tag
 
@@ -144,6 +149,7 @@ class _ListStateTag(_StateTag):
 
 
 class _WatermarkHoldStateTag(_StateTag):
+
   def __init__(self, tag, timestamp_combiner_impl):
     super().__init__(tag)
     self.timestamp_combiner_impl = timestamp_combiner_impl
@@ -192,6 +198,7 @@ class TriggerFn(metaclass=ABCMeta):
 
   See https://beam.apache.org/documentation/programming-guide/#triggers
   """
+
   @abstractmethod
   def on_element(self, element, window, context):
     """Called when a new element arrives in a window.
@@ -320,6 +327,7 @@ class TriggerFn(metaclass=ABCMeta):
 
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
+
   def __init__(self):
     pass
 
@@ -424,6 +432,7 @@ class AfterProcessingTime(TriggerFn):
 
 class Always(TriggerFn):
   """Repeatedly invoke the given trigger, never finishing."""
+
   def __init__(self):
     pass
 
@@ -472,6 +481,7 @@ class _Never(TriggerFn):
 
   Data may still be released at window closing.
   """
+
   def __init__(self):
     pass
 
@@ -695,6 +705,7 @@ class AfterCount(TriggerFn):
 
 class Repeatedly(TriggerFn):
   """Repeatedly invoke the given trigger, never finishing."""
+
   def __init__(self, underlying):
     self.underlying = underlying
 
@@ -743,6 +754,7 @@ class Repeatedly(TriggerFn):
 
 
 class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
+
   def __init__(self, *triggers):
     self.triggers = triggers
 
@@ -774,8 +786,7 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
     return self.combine_op(
         trigger.should_fire(
             time_domain, watermark, window, self._sub_context(context, ix))
-        for ix,
-        trigger in enumerate(self.triggers))
+        for ix, trigger in enumerate(self.triggers))
 
   def on_fire(self, watermark, window, context):
     finished = []
@@ -936,6 +947,7 @@ class AfterEach(TriggerFn):
 
 
 class OrFinally(AfterAny):
+
   @staticmethod
   def from_runner_api(proto, context):
     return OrFinally(
@@ -953,6 +965,7 @@ class OrFinally(AfterAny):
 
 
 class TriggerContext(object):
+
   def __init__(self, outer, window, clock):
     self._outer = outer
     self._window = window
@@ -979,6 +992,7 @@ class TriggerContext(object):
 
 class NestedContext(object):
   """Namespaced context useful for defining composite triggers."""
+
   def __init__(self, outer, prefix):
     self._outer = outer
     self._prefix = prefix
@@ -1008,6 +1022,7 @@ class SimpleState(metaclass=ABCMeta):
 
   Only timers must hold the watermark (by their timestamp).
   """
+
   @abstractmethod
   def set_timer(
       self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
@@ -1042,6 +1057,7 @@ class UnmergedState(SimpleState):
 
   This class must be implemented by each backend.
   """
+
   @abstractmethod
   def set_global_state(self, tag, value):
     pass
@@ -1195,6 +1211,7 @@ def create_trigger_driver(
 
 class TriggerDriver(metaclass=ABCMeta):
   """Breaks a series of bundle and timer firings into window (pane)s."""
+
   @abstractmethod
   def process_elements(
       self,
@@ -1236,6 +1253,7 @@ class TriggerDriver(metaclass=ABCMeta):
 
 class _UnwindowedValues(observable.ObservableMixin):
   """Exposes iterable of windowed values as iterable of unwindowed values."""
+
   def __init__(self, windowed_values):
     super().__init__()
     self._windowed_values = windowed_values
@@ -1303,6 +1321,7 @@ class BatchGlobalTriggerDriver(TriggerDriver):
 
 class CombiningTriggerDriver(TriggerDriver):
   """Uses a phased_combine_fn to process output of wrapped TriggerDriver."""
+
   def __init__(self, phased_combine_fn, underlying):
     self.phased_combine_fn = phased_combine_fn
     self.underlying = underlying
@@ -1383,6 +1402,7 @@ class GeneralTriggerDriver(TriggerDriver):
         merged_away = {}
 
         class TriggerMergeContext(WindowFn.MergeContext):
+
           def merge(_, to_be_merged, merge_result):  # pylint: disable=no-self-argument
             for window in to_be_merged:
               if window != merge_result:
@@ -1419,8 +1439,8 @@ class GeneralTriggerDriver(TriggerDriver):
           (
               element_output_time for element_output_time in (
                   self.timestamp_combiner_impl.assign_output_time(
-                      window, timestamp) for unused_value,
-                  timestamp in elements)
+                      window, timestamp)
+                  for unused_value, timestamp in elements)
               if element_output_time >= output_watermark))
       if output_time is not None:
         state.add_state(window, self.WATERMARK_HOLD, output_time)
@@ -1519,6 +1539,7 @@ class InMemoryUnmergedState(UnmergedState):
 
   Used for batch and testing.
   """
+
   def __init__(self, defensive_copy=False):
     # TODO(robertwb): Clean defensive_copy. It is too expensive in production.
     self.timers = collections.defaultdict(dict)

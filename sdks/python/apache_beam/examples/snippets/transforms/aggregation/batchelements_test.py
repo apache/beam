@@ -57,6 +57,7 @@ def identity(x):
     identity)
 # pylint: enable=line-too-long
 class BatchElementsTest(unittest.TestCase):
+
   def test_batchelements(self):
     batchelements.batchelements(check_batches)
 

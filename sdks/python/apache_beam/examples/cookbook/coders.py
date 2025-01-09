@@ -44,6 +44,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 class JsonCoder(Coder):
   """A JSON coder interpreting each line as a JSON string."""
+
   def encode(self, x):
     return json.dumps(x).encode('utf-8')
 

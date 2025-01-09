@@ -94,6 +94,7 @@ SAFE_WINDOW_FNS = set(
 
 
 class Buffer(Protocol):
+
   def __iter__(self) -> Iterator[bytes]:
     pass
 
@@ -105,6 +106,7 @@ class Buffer(Protocol):
 
 
 class PartitionableBuffer(Buffer, Protocol):
+
   def copy(self) -> 'PartitionableBuffer':
     pass
 
@@ -124,6 +126,7 @@ class PartitionableBuffer(Buffer, Protocol):
 
 class ListBuffer:
   """Used to support parititioning of a list."""
+
   def __init__(self, coder_impl: Optional[CoderImpl]) -> None:
     self._coder_impl = coder_impl or CoderImpl()
     self._inputs: List[bytes] = []
@@ -190,6 +193,7 @@ class ListBuffer:
 
 class GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
+
   def __init__(
       self,
       pre_grouped_coder: coders.Coder,
@@ -251,7 +255,8 @@ class GroupingBuffer(object):
                 index=0,
                 nonspeculative_index=0)).with_value
         windowed_key_values = lambda key, values: [
-            globally_window((key, values))]
+            globally_window((key, values))
+        ]
       else:
         # TODO(pabloem, BEAM-7514): Trigger driver needs access to the clock
         #   note that this only comes through if windowing is default - but what
@@ -292,6 +297,7 @@ class GroupingBuffer(object):
 
 class WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
+
   def __init__(
       self,
       access_pattern: beam_runner_api_pb2.FunctionSpec,
@@ -382,7 +388,9 @@ class _ProcessingQueueManager(object):
        the time is the real time point at which the inputs should be scheduled,
        and inputs are dictionaries mapping PCollection name to data buffers.
   """
+
   class KeyedQueue(Generic[QUEUE_KEY_TYPE]):
+
     def __init__(self) -> None:
       self._q: typing.Deque[Tuple[QUEUE_KEY_TYPE,
                                   DataInput]] = collections.deque()
@@ -551,6 +559,7 @@ class GenericMergingWindowFn(window.WindowFn):
     """Creates a ProcessBundleDescriptor for invoking the WindowFn's
     merge operation.
     """
+
     def make_channel_payload(coder_id: str) -> bytes:
       data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
       if data_api_service_descriptor:
@@ -661,6 +670,7 @@ class FnApiRunnerExecutionContext(object):
        PCollection IDs to list that functions as buffer for the
        ``beam.PCollection``.
  """
+
   def __init__(
       self,
       stages: List[translations.Stage],
@@ -990,6 +1000,7 @@ class FnApiRunnerExecutionContext(object):
 
 
 class BundleContextManager(object):
+
   def __init__(
       self,
       execution_context: FnApiRunnerExecutionContext,
@@ -1169,8 +1180,8 @@ class BundleContextManager(object):
           input_pcoll in proto.outputs.values()):
         return read_id
       # The GrpcRead is followed by the SDF/Truncate -> SDF/Process.
-      if (proto.spec.urn ==
-          common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
+      if (proto.spec.urn
+          == common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
           input_pcoll in proto.outputs.values()):
         read_input = list(
             self.process_bundle_descriptor.transforms[read_id].inputs.values()

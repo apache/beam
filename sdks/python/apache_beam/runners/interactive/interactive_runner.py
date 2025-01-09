@@ -54,6 +54,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
   Allows interactively building and running Beam Python pipelines.
   """
+
   def __init__(
       self,
       underlying_runner=None,
@@ -189,6 +190,7 @@ class InteractiveRunner(runners.PipelineRunner):
       # TODO: make the StreamingCacheManager and TestStreamServiceController
       # constructed when the InteractiveEnvironment is imported.
       class TestStreamVisitor(PipelineVisitor):
+
         def visit_transform(self, transform_node):
           from apache_beam.testing.test_stream import TestStream
           if (isinstance(transform_node.transform, TestStream) and
@@ -299,6 +301,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
+
   def __init__(self, underlying_result, pipeline_instrument):
     """Constructor of PipelineResult.
 

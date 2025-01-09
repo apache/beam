@@ -58,6 +58,7 @@ def context(element, timestamp):
 
 
 class ReifyWindowsFn(core.DoFn):
+
   def process(self, element, window=core.DoFn.WindowParam):
     key, values = element
     yield "%s @ %s" % (key, window), values
@@ -67,6 +68,7 @@ class TestCustomWindows(NonMergingWindowFn):
   """A custom non merging window fn which assigns elements into interval windows
   [0, 3), [3, 5) and [5, element timestamp) based on the element timestamps.
   """
+
   def assign(self, context):
     timestamp = context.timestamp
     if timestamp < 3:
@@ -81,6 +83,7 @@ class TestCustomWindows(NonMergingWindowFn):
 
 
 class WindowTest(unittest.TestCase):
+
   def test_timestamped_value_cmp(self):
     self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2))
     self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.0))
@@ -145,6 +148,7 @@ class WindowTest(unittest.TestCase):
       running = set()
 
       class TestMergeContext(WindowFn.MergeContext):
+
         def __init__(self):
           super().__init__(running)
 
@@ -346,6 +350,7 @@ class WindowTest(unittest.TestCase):
 
 
 class RunnerApiTest(unittest.TestCase):
+
   def test_windowfn_encoding(self):
     for window_fn in (GlobalWindows(),
                       FixedWindows(37),

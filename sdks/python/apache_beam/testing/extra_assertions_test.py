@@ -26,6 +26,7 @@ from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 
 
 class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
+
   def test_assert_array_count_equal_strings(self):
     data1 = ["±♠Ωℑ", "hello", "world"]
     data2 = ["hello", "±♠Ωℑ", "world"]

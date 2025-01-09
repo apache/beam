@@ -24,6 +24,7 @@ from apache_beam.typehints.batch import N
 
 
 class PytorchBatchConverter(BatchConverter):
+
   def __init__(
       self,
       batch_type,
@@ -88,7 +89,9 @@ class PytorchBatchConverter(BatchConverter):
 
 
 class PytorchTypeHint():
+
   class PytorchTypeConstraint(typehints.TypeConstraint):
+
     def __init__(self, dtype, shape=()):
       self.dtype = dtype
       self.shape = shape
@@ -136,7 +139,8 @@ class PytorchTypeHint():
         raise ValueError
     else:
       dtype = value
-      return self.PytorchTypeConstraint(dtype, shape=(N, ))
+      return self.PytorchTypeConstraint(
+          dtype, shape=(N, ))
 
 
 PytorchTensor = PytorchTypeHint()

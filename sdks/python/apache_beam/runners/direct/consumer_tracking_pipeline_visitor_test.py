@@ -40,6 +40,7 @@ from apache_beam.transforms import ParDo
 
 
 class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
+
   def setUp(self):
     self.pipeline = Pipeline(DirectRunner())
     self.visitor = ConsumerTrackingPipelineVisitor()
@@ -66,7 +67,9 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     self.assertEqual(len(self.visitor.step_names), 3)
 
   def test_side_inputs(self):
+
     class SplitNumbersFn(DoFn):
+
       def process(self, element):
         if element < 0:
           yield pvalue.TaggedOutput('tag_negative', element)
@@ -74,6 +77,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
           yield element
 
     class ProcessNumbersFn(DoFn):
+
       def process(self, element, negatives):
         yield element
 
@@ -148,14 +152,12 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     # Convert to string to assert they are equal.
     out_of_order_labels = {
         str(k): [str(t) for t in value_to_consumer]
-        for k,
-        value_to_consumer in v_out_of_order.value_to_consumers.items()
+        for k, value_to_consumer in v_out_of_order.value_to_consumers.items()
     }
 
     original_labels = {
         str(k): [str(t) for t in value_to_consumer]
-        for k,
-        value_to_consumer in v_original.value_to_consumers.items()
+        for k, value_to_consumer in v_original.value_to_consumers.items()
     }
     self.assertDictEqual(out_of_order_labels, original_labels)
 

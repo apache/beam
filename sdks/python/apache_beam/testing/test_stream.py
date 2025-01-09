@@ -58,6 +58,7 @@ __all__ = [
 @total_ordering
 class Event(metaclass=ABCMeta):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
+
   @abstractmethod
   def __eq__(self, other):
     raise NotImplementedError
@@ -101,6 +102,7 @@ class Event(metaclass=ABCMeta):  # type: ignore[misc]
 
 class ElementEvent(Event):
   """Element-producing test stream event."""
+
   def __init__(self, timestamped_values, tag=None):
     self.timestamped_values = timestamped_values
     self.tag = tag
@@ -142,6 +144,7 @@ class ElementEvent(Event):
 
 class WatermarkEvent(Event):
   """Watermark-advancing test stream event."""
+
   def __init__(self, new_watermark, tag=None):
     self.new_watermark = Timestamp.of(new_watermark)
     self.tag = tag
@@ -177,6 +180,7 @@ class WatermarkEvent(Event):
 
 class ProcessingTimeEvent(Event):
   """Processing time-advancing test stream event."""
+
   def __init__(self, advance_by):
     self.advance_by = Duration.of(advance_by)
 
@@ -213,6 +217,7 @@ class WindowedValueHolderMeta(type):
   The override is needed because WindowedValueHolder elements encoded then
   decoded become Row elements.
   """
+
   def __instancecheck__(cls, other):
     """Checks if a beam.Row typed instance is a WindowedValueHolder.
     """
@@ -268,6 +273,7 @@ class TestStream(PTransform):
   output or only one output tag has been used. Otherwise a dictionary of output
   names to PCollections will be returned.
   """
+
   def __init__(
       self,
       coder=coders.FastPrimitivesCoder(),
@@ -423,6 +429,7 @@ class TestStream(PTransform):
 
 
 class TimingInfo(object):
+
   def __init__(self, processing_time, watermark):
     self._processing_time = Timestamp.of(processing_time)
     self._watermark = Timestamp.of(watermark)
@@ -468,6 +475,7 @@ class ReverseTestStream(PTransform):
   and elements come in order and are outputted in the same order that they came
   in.
   """
+
   def __init__(
       self, sample_resolution_sec, output_tag, coder=None, output_format=None):
     self._sample_resolution_sec = sample_resolution_sec

@@ -66,6 +66,7 @@ class EntityWrapper(object):
 
   Namespace and project are taken from the parent key.
   """
+
   def __init__(self, kind, parent_key):
     self._kind = kind
     self._parent_key = parent_key

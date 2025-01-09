@@ -208,6 +208,7 @@ def visualize(
     tl = Timeloop()
 
     def dynamic_plotting(stream, pv, tl, include_window_info, display_facets):
+
       @tl.job(interval=timedelta(seconds=dynamic_plotting_interval))
       def continuous_update_display():  # pylint: disable=unused-variable
         # Always creates a new PCollVisualization instance when the
@@ -285,6 +286,7 @@ class PCollectionVisualization(object):
   access current interactive environment for materialized PCollection data at
   the moment of self instantiation through cache.
   """
+
   def __init__(
       self,
       stream,

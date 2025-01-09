@@ -49,6 +49,7 @@ class PubSubMessageMatcher(BaseMatcher):
   This matcher can block the test and keep pulling messages from given
   subscription until all expected messages are shown or timeout.
   """
+
   def __init__(
       self,
       project,

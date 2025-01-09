@@ -89,6 +89,7 @@ DIALECT_OUTPUT_EXPECTED = [('apple', ), ('orange', )]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__

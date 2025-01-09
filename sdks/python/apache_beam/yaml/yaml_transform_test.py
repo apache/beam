@@ -54,16 +54,19 @@ class CreateInts(beam.PTransform):
 
 
 class SumGlobally(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | beam.CombineGlobally(sum).without_defaults()
 
 
 class SizeLimiter(beam.PTransform):
+
   def __init__(self, limit, error_handling):
     self._limit = limit
     self._error_handling = error_handling
 
   def expand(self, pcoll):
+
     def raise_on_big(row):
       if len(row.element) > self._limit:
         raise ValueError(row.element)
@@ -84,6 +87,7 @@ TEST_PROVIDERS = {
 
 
 class YamlTransformE2ETest(unittest.TestCase):
+
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -417,6 +421,7 @@ class YamlTransformE2ETest(unittest.TestCase):
 
 
 class ErrorHandlingTest(unittest.TestCase):
+
   def test_error_handling_outputs(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -582,6 +587,7 @@ class ErrorHandlingTest(unittest.TestCase):
 
 
 class YamlWindowingTest(unittest.TestCase):
+
   def test_explicit_window_into(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -719,10 +725,11 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
   provider (as identified by name) was used, along with any prior history
   of the given element.
   """
+
   def __init__(self, name, transform_names):
     super().__init__({
-        transform_name:
-        lambda: beam.Map(lambda x: (x if type(x) == tuple else ()) + (name, ))
+        transform_name: lambda: beam.Map(
+            lambda x: (x if type(x) == tuple else ()) + (name, ))
         for transform_name in transform_names.strip().split()
     })
     self._name = name
@@ -774,8 +781,7 @@ class ProviderAffinityTest(unittest.TestCase):
               'provider1',
               # All of the providers vend A, but since the input was produced
               # by provider1, we prefer to use that again.
-              'provider1',
-              # Similarly for C.
+              'provider1',  # Similarly for C.
               'provider1')]),
           label='StartWith1')
 
@@ -795,10 +801,8 @@ class ProviderAffinityTest(unittest.TestCase):
           result2,
           equal_to([(
               # provider2 was necessarily chosen for P2
-              'provider2',
-              # Unlike above, we choose provider2 to implement A.
-              'provider2',
-              # Likewise for C.
+              'provider2',  # Unlike above, we choose provider2 to implement A.
+              'provider2',  # Likewise for C.
               'provider2')]),
           label='StartWith2')
 
@@ -848,6 +852,7 @@ class ProviderAffinityTest(unittest.TestCase):
 @beam.transforms.ptransform.annotate_yaml
 class LinearTransform(beam.PTransform):
   """A transform used for testing annotate_yaml."""
+
   def __init__(self, a, b):
     self._a = a
     self._b = b

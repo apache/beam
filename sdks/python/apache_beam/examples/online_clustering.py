@@ -37,6 +37,7 @@ from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 class SaveModel(core.DoFn):
   """Saves trained clustering model to persistent storage"""
+
   def __init__(self, checkpoints_path: str):
     self.checkpoints_path = checkpoints_path
 
@@ -64,6 +65,7 @@ class SaveModel(core.DoFn):
 class AssignClusterLabelsFn(core.DoFn):
   """Takes a trained model and input data and labels
    all data instances using the trained model."""
+
   def process(self, batch, model, model_id):
     cluster_labels = model.predict(batch)
     for e, i in zip(batch, cluster_labels):
@@ -72,6 +74,7 @@ class AssignClusterLabelsFn(core.DoFn):
 
 class SelectLatestModelState(core.CombineFn):
   """Selects that latest version of a model after training"""
+
   def create_accumulator(self):
     # create and initialise accumulator
     return None, 0
@@ -178,6 +181,7 @@ class OnlineKMeans(ClusteringAlgorithm):
 class ConvertToNumpyArray(core.DoFn):
   """Helper function to convert incoming data
   to numpy arrays that are accepted by sklearn"""
+
   def process(self, element, *args, **kwargs):
     if isinstance(element, (tuple, list)):
       yield np.array(element)
@@ -190,6 +194,7 @@ class ConvertToNumpyArray(core.DoFn):
 
 
 class ClusteringPreprocessing(ptransform.PTransform):
+
   def __init__(
       self, n_clusters: int, batch_size: int, is_batched: bool = False):
     """ Preprocessing for Clustering Transformation
@@ -235,6 +240,7 @@ class ClusteringPreprocessing(ptransform.PTransform):
 
 
 class OnlineClustering(ptransform.PTransform):
+
   def __init__(
       self,
       clustering_algorithm,
@@ -303,6 +309,7 @@ class OnlineClustering(ptransform.PTransform):
 
 
 class AssignClusterLabelsRunInference(ptransform.PTransform):
+
   def __init__(self, checkpoints_path):
     super().__init__()
     self.clustering_model = SklearnModelHandlerNumpy(
@@ -318,6 +325,7 @@ class AssignClusterLabelsRunInference(ptransform.PTransform):
 
 
 class AssignClusterLabelsInMemoryModel(ptransform.PTransform):
+
   def __init__(
       self, model, n_clusters, batch_size, is_batched=False, model_id=None):
     self.model = model

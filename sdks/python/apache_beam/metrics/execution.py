@@ -70,6 +70,7 @@ class MetricKey(object):
   and any extra label metadata added by the runner specific metric collection
   service.
   """
+
   def __init__(self, step, metric, labels=None):
     """Initializes ``MetricKey``.
 
@@ -110,6 +111,7 @@ class MetricResult(object):
     attempted: The logical updates of the metric. This attribute's type is that
       of metric type result (e.g. int, DistributionResult, GaugeResult).
   """
+
   def __init__(self, key, committed, attempted):
     """Initializes ``MetricResult``.
     Args:
@@ -150,6 +152,7 @@ class _MetricsEnvironment(object):
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
+
   def current_container(self):
     """Returns the current MetricsContainer."""
     sampler = statesampler.get_current_tracker()
@@ -167,6 +170,7 @@ MetricsEnvironment = _MetricsEnvironment()
 
 class _TypedMetricName(object):
   """Like MetricName, but also stores the cell type of the metric."""
+
   def __init__(
       self,
       cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
@@ -201,6 +205,7 @@ _DEFAULT = None  # type: Any
 
 class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
+
   def __init__(
       self,
       cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
@@ -238,6 +243,7 @@ class MetricsContainer(object):
 
   Or the metrics associated with the process/SDK harness. I.e. memory usage.
   """
+
   def __init__(self, step_name):
     self.step_name = step_name
     self.lock = threading.Lock()
@@ -287,32 +293,27 @@ class MetricsContainer(object):
     """
     counters = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == CounterCell
+        for k, v in self.metrics.items() if k.cell_type == CounterCell
     }
 
     distributions = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == DistributionCell
+        for k, v in self.metrics.items() if k.cell_type == DistributionCell
     }
 
     gauges = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == GaugeCell
+        for k, v in self.metrics.items() if k.cell_type == GaugeCell
     }
 
     string_sets = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == StringSetCell
+        for k, v in self.metrics.items() if k.cell_type == StringSetCell
     }
 
     bounded_tries = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == BoundedTrieCell
+        for k, v in self.metrics.items() if k.cell_type == BoundedTrieCell
     }
 
     return MetricUpdates(
@@ -320,8 +321,8 @@ class MetricsContainer(object):
 
   def to_runner_api(self):
     return [
-        cell.to_runner_api_user_metric(key.metric_name) for key,
-        cell in self.metrics.items()
+        cell.to_runner_api_user_metric(key.metric_name)
+        for key, cell in self.metrics.items()
     ]
 
   def to_runner_api_monitoring_infos(self, transform_id):
@@ -332,8 +333,7 @@ class MetricsContainer(object):
       items = list(self.metrics.items())
     all_metrics = [
         cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
-        for key,
-        cell in items
+        for key, cell in items
     ]
     return {
         monitoring_infos.to_key(mi): mi
@@ -364,6 +364,7 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
+
   def __init__(
       self,
       counters=None,  # type: Optional[Dict[MetricKey, int]]

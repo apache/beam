@@ -31,6 +31,7 @@ from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class EstimatePiIT(unittest.TestCase):
+
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_estimate_pi_output_file(self):

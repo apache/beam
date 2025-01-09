@@ -51,6 +51,7 @@ class RowCoder(FastCoder):
 
   Implements the beam:coder:row:v1 standard coder spec.
   """
+
   def __init__(self, schema, force_deterministic=False):
     """Initializes a :class:`RowCoder`.
 
@@ -189,6 +190,7 @@ def _nonnull_coder_from_type(field_type):
 
 
 class LogicalTypeCoder(FastCoder):
+
   def __init__(self, logical_type, representation_coder):
     self.logical_type = logical_type
     self.representation_coder = representation_coder

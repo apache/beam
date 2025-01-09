@@ -104,6 +104,7 @@ class _SharedControlBlock(object):
   We need this so we can call constructors for distinct Shared elements in the
   SharedMap concurrently.
   """
+
   def __init__(self):
     self._lock = threading.Lock()
     self._ref = None
@@ -192,6 +193,7 @@ class _SharedMap(object):
   Related issues:
     BEAM-562 - DoFn reuse
   """
+
   def __init__(self):
     # Lock that protects cache_map
     self._lock = threading.Lock()

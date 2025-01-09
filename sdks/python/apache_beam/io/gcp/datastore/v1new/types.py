@@ -37,6 +37,7 @@ __all__ = ['Query', 'Key', 'Entity']
 
 
 class Query(object):
+
   def __init__(
       self,
       kind=None,
@@ -152,6 +153,7 @@ class Query(object):
 
 
 class Key(object):
+
   def __init__(
       self,
       path_elements: List[Union[str, int]],
@@ -228,6 +230,7 @@ class Key(object):
 
 
 class Entity(object):
+
   def __init__(self, key: Key, exclude_from_indexes: Iterable[str] = ()):
     """
     Represents a Datastore entity.

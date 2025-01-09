@@ -34,6 +34,7 @@ class MovingSum(object):
   convenience we expose the count of entries as well so this doubles as a
   moving average tracker.
   """
+
   def __init__(self, window_ms, bucket_ms):
     if window_ms < bucket_ms or bucket_ms <= 0:
       raise ValueError("window_ms >= bucket_ms > 0 please")

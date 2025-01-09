@@ -118,6 +118,7 @@ def get_gcs_file_http(file_name):
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class DICOMIoIntegrationTest(unittest.TestCase):
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')

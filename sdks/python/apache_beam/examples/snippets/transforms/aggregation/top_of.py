@@ -48,12 +48,11 @@ def top_of(test=None):
             '🌽 Corn',
         ])
         | 'Shortest names' >> beam.combiners.Top.Of(
-            2,             # number of elements
-            key=len,       # optional, defaults to the element itself
+            2,  # number of elements
+            key=len,  # optional, defaults to the element itself
             reverse=True,  # optional, defaults to False (largest/descending)
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END top_of]
     if test:
       test(shortest_elements)

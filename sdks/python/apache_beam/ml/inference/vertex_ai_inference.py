@@ -62,6 +62,7 @@ def _retry_on_appropriate_gcp_error(exception):
 class VertexAIModelHandlerJSON(ModelHandler[Any,
                                             PredictionResult,
                                             aiplatform.Endpoint]):
+
   def __init__(
       self,
       endpoint_id: str,

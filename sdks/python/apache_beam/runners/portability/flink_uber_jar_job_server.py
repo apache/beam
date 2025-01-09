@@ -42,6 +42,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   The jar contains the Beam pipeline definition, dependencies, and
   the pipeline artifacts.
   """
+
   def __init__(self, master_url, options):
     super().__init__()
     self._master_url = master_url
@@ -107,6 +108,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
 class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
   """Runs a single Beam job on Flink by staging all contents into a Jar
   and uploading it via the Flink Rest API."""
+
   def __init__(
       self,
       master_url,
@@ -213,6 +215,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
       return state, timestamp
 
   def get_state_stream(self):
+
     def _state_iter():
       sleep_secs = 1.0
       while True:

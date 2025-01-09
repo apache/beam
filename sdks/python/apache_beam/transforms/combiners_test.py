@@ -62,6 +62,7 @@ class SortedConcatWithCounters(beam.CombineFn):
   """CombineFn for incrementing three different counters:
      counter, distribution, gauge,
      at the same time concatenating words."""
+
   def __init__(self):
     beam.CombineFn.__init__(self)
     self.word_counter = Metrics.counter(self.__class__, 'word_counter')
@@ -91,6 +92,7 @@ class SortedConcatWithCounters(beam.CombineFn):
 
 
 class CombineTest(unittest.TestCase):
+
   def test_builtin_combines(self):
     with TestPipeline() as pipeline:
 
@@ -208,6 +210,7 @@ class CombineTest(unittest.TestCase):
                      [('a', [4, 3, 2])])
 
   def test_sharded_top_combine_fn(self):
+
     def test_combine_fn(combine_fn, shards, expected):
       accumulators = [
           combine_fn.add_inputs(combine_fn.create_accumulator(), shard)
@@ -222,6 +225,7 @@ class CombineTest(unittest.TestCase):
         [1000, 999, 999, 998, 998])
 
   def test_combine_per_key_top_display_data(self):
+
     def individual_test_per_key_dd(combineFn):
       transform = beam.CombinePerKey(combineFn)
       dd = DisplayData.create_from(transform)
@@ -238,6 +242,7 @@ class CombineTest(unittest.TestCase):
     individual_test_per_key_dd(combine.Largest(5))
 
   def test_combine_sample_display_data(self):
+
     def individual_test_per_key_dd(sampleFn, n):
       trs = [sampleFn(n)]
       for transform in trs:
@@ -289,7 +294,9 @@ class CombineTest(unittest.TestCase):
       assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='kbot')
 
   def test_top_no_compact(self):
+
     class TopCombineFnNoCompact(combine.TopCombineFn):
+
       def compact(self, accumulator):
         return accumulator
 
@@ -312,6 +319,7 @@ class CombineTest(unittest.TestCase):
       assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='KBot')
 
   def test_global_sample(self):
+
     def is_good_sample(actual):
       assert len(actual) == 1
       assert sorted(actual[0]) in [[1, 1, 2], [1, 2, 2]], actual
@@ -343,6 +351,7 @@ class CombineTest(unittest.TestCase):
       result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
       def matcher():
+
         def match(actual):
           for _, samples in actual:
             equal_to([3])([len(samples)])
@@ -402,6 +411,7 @@ class CombineTest(unittest.TestCase):
           CountedAccumulator.count += 1
 
     class CountedAccumulatorCombineFn(beam.CombineFn):
+
       def create_accumulator(self):
         return CountedAccumulator()
 
@@ -433,6 +443,7 @@ class CombineTest(unittest.TestCase):
           | 'to list wo defaults' >> combine.ToList().without_defaults())
 
       def matcher(expected):
+
         def match(actual):
           equal_to(expected[0])(actual[0])
 
@@ -457,6 +468,7 @@ class CombineTest(unittest.TestCase):
           | 'to dict wo defaults' >> combine.ToDict().without_defaults())
 
       def matcher():
+
         def match(actual):
           equal_to([1])([len(actual)])
           equal_to(pairs)(actual[0].items())
@@ -481,6 +493,7 @@ class CombineTest(unittest.TestCase):
         | 'to set wo defaults' >> combine.ToSet().without_defaults())
 
     def matcher(expected):
+
       def match(actual):
         equal_to(expected[0])(actual[0])
 
@@ -500,7 +513,9 @@ class CombineTest(unittest.TestCase):
       assert_that(result, equal_to([]))
 
   def test_combine_globally_with_default_side_input(self):
+
     class SideInputCombine(PTransform):
+
       def expand(self, pcoll):
         side = pcoll | CombineGlobally(sum).as_singleton_view()
         main = pcoll.pipeline | Create([None])
@@ -792,6 +807,7 @@ class CombineTest(unittest.TestCase):
 
 
 class LatestTest(unittest.TestCase):
+
   def test_globally(self):
     l = [
         window.TimestampedValue(3, 100),
@@ -845,6 +861,7 @@ class LatestTest(unittest.TestCase):
 
 
 class LatestCombineFnTest(unittest.TestCase):
+
   def setUp(self):
     self.fn = combine.LatestCombineFn()
 
@@ -891,7 +908,9 @@ class LatestCombineFnTest(unittest.TestCase):
 
 @pytest.mark.it_validatesrunner
 class CombineValuesTest(unittest.TestCase):
+
   def test_gbk_immediately_followed_by_combine(self):
+
     def merge(vals):
       return "".join(vals)
 
@@ -912,6 +931,7 @@ class CombineValuesTest(unittest.TestCase):
 #
 @pytest.mark.it_validatesrunner
 class TimestampCombinerTest(unittest.TestCase):
+
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""
     options = PipelineOptions(streaming=True)
@@ -980,6 +1000,7 @@ class TimestampCombinerTest(unittest.TestCase):
 
 
 class CombineGloballyTest(unittest.TestCase):
+
   def test_combine_globally_for_unbounded_source_with_default(self):
     # this error is logged since the below combination is ill-defined.
     with self.assertLogs() as captured_logs:

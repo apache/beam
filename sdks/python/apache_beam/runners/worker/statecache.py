@@ -58,6 +58,7 @@ class WeightedValue(object):
   :arg weight The associated weight of the value. If unspecified, the objects
   size will be used.
   """
+
   def __init__(self, value: Any, weight: int) -> None:
     self._value = value
     if weight <= 0:
@@ -74,6 +75,7 @@ class WeightedValue(object):
 
 class CacheAware(object):
   """Allows cache users to override what objects are measured."""
+
   def __init__(self) -> None:
     pass
 
@@ -168,6 +170,7 @@ def get_deep_size(*objs: Any) -> int:
 
 class _LoadingValue(WeightedValue):
   """Allows concurrent users of the cache to wait for a value to be loaded."""
+
   def __init__(self) -> None:
     super().__init__(None, 1)
     self._wait_event = threading.Event()
@@ -210,6 +213,7 @@ class StateCache(object):
 
   :arg max_weight The maximum weight of entries to store in the cache in bytes.
   """
+
   def __init__(self, max_weight: int) -> None:
     _LOGGER.info('Creating state cache with size %s', max_weight)
     self._max_weight = max_weight

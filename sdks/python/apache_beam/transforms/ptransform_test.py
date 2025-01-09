@@ -69,6 +69,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class PTransformTest(unittest.TestCase):
+
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
@@ -113,7 +114,9 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(t.annotations(), {'test': 'value', 'another': 'value'})
 
   def test_do_with_do_fn(self):
+
     class AddNDoFn(beam.DoFn):
+
       def process(self, element, addon):
         return [element + addon]
 
@@ -123,7 +126,9 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to([11, 12, 13]))
 
   def test_do_with_unconstructed_do_fn(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self):
         pass
 
@@ -206,6 +211,7 @@ class PTransformTest(unittest.TestCase):
     from apache_beam.io.utils import CountingSource
 
     class CounterDoFn(beam.DoFn):
+
       def __init__(self):
         # This counter is unused.
         self.received_records = Metrics.counter(
@@ -229,8 +235,10 @@ class PTransformTest(unittest.TestCase):
 
   @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_yield(self):
+
     class SomeDoFn(beam.DoFn):
       """A custom DoFn using yield."""
+
       def process(self, element):
         yield element
         if element % 2 == 0:
@@ -248,6 +256,7 @@ class PTransformTest(unittest.TestCase):
 
   @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_return(self):
+
     def some_fn(v):
       if v % 2 == 0:
         return [v, pvalue.TaggedOutput('even', v)]
@@ -267,9 +276,8 @@ class PTransformTest(unittest.TestCase):
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
       results = nums | 'ClassifyNumbers' >> beam.FlatMap(
           lambda x: [
-              x,
-              pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x),
-              pvalue.TaggedOutput('extra', x)
+              x, pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x), pvalue
+              .TaggedOutput('extra', x)
           ]).with_outputs()
       assert_that(results[None], equal_to([1, 2, 3, 4]))
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
@@ -305,7 +313,9 @@ class PTransformTest(unittest.TestCase):
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
   def test_do_fn_with_finish(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element):
         pass
 
@@ -318,6 +328,7 @@ class PTransformTest(unittest.TestCase):
 
       # May have many bundles, but each has a start and finish.
       def matcher():
+
         def match(actual):
           equal_to(['finish'])(list(set(actual)))
           equal_to([1])([actual.count('finish')])
@@ -330,6 +341,7 @@ class PTransformTest(unittest.TestCase):
     windowfn = window.FixedWindows(2)
 
     class MyDoFn(beam.DoFn):
+
       def process(self, element):
         yield TimestampedValue('process' + str(element), 5)
 
@@ -343,9 +355,8 @@ class PTransformTest(unittest.TestCase):
           | beam.ParDo(MyDoFn())
           | WindowInto(windowfn)
           | 'create tuple' >> beam.Map(
-              lambda v,
-              t=beam.DoFn.TimestampParam,
-              w=beam.DoFn.WindowParam: (v, t, w.start, w.end)))
+              lambda v, t=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
+              (v, t, w.start, w.end)))
       expected_process = [
           ('process1', Timestamp(5), Timestamp(4), Timestamp(6))
       ]
@@ -354,7 +365,9 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to(expected_process + expected_finish))
 
   def test_do_fn_with_start(self):
+
     class MyDoFn(beam.DoFn):
+
       def __init__(self):
         self.state = 'init'
 
@@ -372,6 +385,7 @@ class PTransformTest(unittest.TestCase):
 
       # May have many bundles, but each has a start and finish.
       def matcher():
+
         def match(actual):
           equal_to(['started'])(list(set(actual)))
           equal_to([1])([actual.count('started')])
@@ -381,7 +395,9 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, matcher())
 
   def test_do_fn_with_start_error(self):
+
     class MyDoFn(beam.DoFn):
+
       def start_bundle(self):
         return [1]
 
@@ -419,6 +435,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to([2, 4]))
 
   class _MeanCombineFn(beam.CombineFn):
+
     def create_accumulator(self):
       return (0, 0)
 
@@ -457,8 +474,7 @@ class PTransformTest(unittest.TestCase):
       divisor = pipeline | 'Divisor' >> beam.Create([2])
       result = pcoll | 'Max' >> beam.CombineGlobally(
           # Multiples of divisor only.
-          lambda vals,
-          d: max(v for v in vals if v % d == 0),
+          lambda vals, d: max(v for v in vals if v % d == 0),
           pvalue.AsSingleton(divisor)).without_defaults()
       filt_vals = [v for v in values if v % 2 == 0]
       assert_that(result, equal_to([max(filt_vals)]))
@@ -492,8 +508,7 @@ class PTransformTest(unittest.TestCase):
           ([('a', x) for x in vals_1] + [('b', x) for x in vals_2]))
       divisor = pipeline | 'Divisor' >> beam.Create([2])
       result = pcoll | beam.CombinePerKey(
-          lambda vals,
-          d: max(v for v in vals if v % d == 0),
+          lambda vals, d: max(v for v in vals if v % d == 0),
           pvalue.AsSingleton(divisor))  # Multiples of divisor only.
       m_1 = max(v for v in vals_1 if v % 2 == 0)
       m_2 = max(v for v in vals_2 if v % 2 == 0)
@@ -544,7 +559,9 @@ class PTransformTest(unittest.TestCase):
       assert_that(pcoll, equal_to([(1, [1, 2, 3, 4])]))
 
   def test_group_by_key_reiteration(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, gbk_result):
         key, value_list = gbk_result
         sum_val = 0
@@ -566,6 +583,7 @@ class PTransformTest(unittest.TestCase):
     global MyObject  # for pickling of the class instance
 
     class MyObject:
+
       def __init__(self, value):
         self.value = value
 
@@ -576,6 +594,7 @@ class PTransformTest(unittest.TestCase):
         return hash(self.value)
 
     class MyObjectCoder(beam.coders.Coder):
+
       def encode(self, o):
         return pickle.dumps((o.value, random.random()))
 
@@ -589,6 +608,7 @@ class PTransformTest(unittest.TestCase):
         return MyObject
 
     class MydeterministicObjectCoder(beam.coders.Coder):
+
       def encode(self, o):
         return pickle.dumps(o.value)
 
@@ -650,7 +670,9 @@ class PTransformTest(unittest.TestCase):
         assert_that(grouped, equal_to([[None]]))
 
   def test_partition_with_partition_fn(self):
+
     class SomePartitionFn(beam.PartitionFn):
+
       def partition_for(self, element, num_partitions, offset):
         return (element % 3) + offset
 
@@ -687,10 +709,7 @@ class PTransformTest(unittest.TestCase):
       side_input = pipeline | 'Side Input' >> beam.Create([100, 1000])
       partitions = (
           pcoll | 'part' >> beam.Partition(
-              lambda e,
-              n,
-              offset,
-              si_list: ((e + len(si_list)) % 3) + offset,
+              lambda e, n, offset, si_list: ((e + len(si_list)) % 3) + offset,
               4,
               1,
               pvalue.AsList(side_input)))
@@ -864,7 +883,9 @@ class PTransformTest(unittest.TestCase):
                           join_input | beam.CoGroupByKey() | SortLists)
 
   def test_multi_input_ptransform(self):
+
     class DisjointUnion(PTransform):
+
       def expand(self, pcollections):
         return (
             pcollections
@@ -876,12 +897,14 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual([1, 2, 3], sorted(([1, 2], [2, 3]) | DisjointUnion()))
 
   def test_apply_to_crazy_pvaluish(self):
+
     class NestedFlatten(PTransform):
       """A PTransform taking and returning nested PValueish.
 
       Takes as input a list of dicts, and returns a dict with the corresponding
       values flattened.
       """
+
       def _extract_input_pvalues(self, pvalueish):
         pvalueish = list(pvalueish)
         return pvalueish, sum([list(p.values()) for p in pvalueish], [])
@@ -909,6 +932,7 @@ class PTransformTest(unittest.TestCase):
     MinMax = collections.namedtuple('MinMax', ['min', 'max'])
 
     class MinMaxTransform(PTransform):
+
       def expand(self, pcoll):
         return MinMax(
             min=pcoll | beam.CombineGlobally(min).without_defaults(),
@@ -922,7 +946,9 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(sorted(flat), [1, 8])
 
   def test_tuple_twice(self):
+
     class Duplicate(PTransform):
+
       def expand(self, pcoll):
         return pcoll, pcoll
 
@@ -943,7 +969,9 @@ class PTransformTest(unittest.TestCase):
 
 
 class TestGroupBy(unittest.TestCase):
+
   def test_lambdas(self):
+
     def normalize(key, values):
       return tuple(key) if isinstance(key, tuple) else key, sorted(values)
 
@@ -971,11 +999,14 @@ class TestGroupBy(unittest.TestCase):
           'GroupTwo')
 
   def test_fields(self):
+
     def normalize(key, values):
       if isinstance(key, tuple):
         key = beam.Row(
-            **{name: value
-               for name, value in zip(type(key)._fields, key)})
+            **{
+                name: value
+                for name, value in zip(type(key)._fields, key)
+            })
       return key, sorted(v.value for v in values)
 
     with TestPipeline() as p:
@@ -1022,10 +1053,13 @@ class TestGroupBy(unittest.TestCase):
           'GroupSquareNonzero')
 
   def test_aggregate(self):
+
     def named_tuple_to_row(t):
       return beam.Row(
-          **{name: value
-             for name, value in zip(type(t)._fields, t)})
+          **{
+              name: value
+              for name, value in zip(type(t)._fields, t)
+          })
 
     with TestPipeline() as p:
       pcoll = p | beam.Create(range(-2, 3)) | beam.Map(
@@ -1034,15 +1068,15 @@ class TestGroupBy(unittest.TestCase):
 
       assert_that(
           pcoll
-          | beam.GroupBy('square', big=lambda x: x.value > 1)
-            .aggregate_field('value', sum, 'sum')
-            .aggregate_field(lambda x: x.sign == 1, all, 'positive')
+          | beam.GroupBy('square', big=lambda x: x.value > 1).aggregate_field(
+              'value', sum, 'sum').aggregate_field(
+                  lambda x: x.sign == 1, all, 'positive')
           | beam.Map(named_tuple_to_row),
           equal_to([
-              beam.Row(square=0, big=False, sum=0, positive=False),   # [0],
-              beam.Row(square=1, big=False, sum=0, positive=False),   # [-1, 1]
+              beam.Row(square=0, big=False, sum=0, positive=False),  # [0],
+              beam.Row(square=1, big=False, sum=0, positive=False),  # [-1, 1]
               beam.Row(square=4, big=False, sum=-2, positive=False),  # [-2]
-              beam.Row(square=4, big=True, sum=2, positive=True),     # [2]
+              beam.Row(square=4, big=True, sum=2, positive=True),  # [2]
           ]))
 
   def test_pickled_field(self):
@@ -1059,6 +1093,7 @@ class TestGroupBy(unittest.TestCase):
 
 
 class SelectTest(unittest.TestCase):
+
   def test_simple(self):
     with TestPipeline() as p:
       rows = (
@@ -1109,6 +1144,7 @@ def SamplePTransform(pcoll):
 
 
 class PTransformLabelsTest(unittest.TestCase):
+
   class CustomTransform(beam.PTransform):
 
     pardo: Optional[beam.PTransform] = None
@@ -1184,6 +1220,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.assertEqual(expected_label, re.sub(r'\d{3,}', '#', actual_label))
 
   def test_default_labels(self):
+
     def my_function(*args):
       pass
 
@@ -1198,6 +1235,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.check_label(beam.CombinePerKey(sum), 'CombinePerKey(sum)')
 
     class MyDoFn(beam.DoFn):
+
       def process(self, unused_element):
         pass
 
@@ -1212,6 +1250,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.check_label('TestCPK' >> beam.CombinePerKey(sum), 'TestCPK')
 
     class MyDoFn(beam.DoFn):
+
       def process(self, unused_element):
         pass
 
@@ -1219,6 +1258,7 @@ class PTransformLabelsTest(unittest.TestCase):
 
 
 class PTransformTestDisplayData(unittest.TestCase):
+
   def test_map_named_function(self):
     tr = beam.Map(len)
     dd = DisplayData.create_from(tr)
@@ -1269,6 +1309,7 @@ class PTransformTestDisplayData(unittest.TestCase):
 
 
 class PTransformTypeCheckTestCase(TypeHintTestCase):
+
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
@@ -1277,9 +1318,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p = TestPipeline()
 
   def test_do_fn_pipeline_pipeline_type_check_satisfied(self):
+
     @with_input_types(int, int)
     @with_output_types(int)
     class AddWithFive(beam.DoFn):
+
       def process(self, element, five):
         return [element + five]
 
@@ -1292,9 +1335,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_do_fn_pipeline_pipeline_type_check_violated(self):
+
     @with_input_types(str, str)
     @with_output_types(str)
     class ToUpperCaseWithPrefix(beam.DoFn):
+
       def process(self, element, prefix):
         return [prefix + element.upper()]
 
@@ -1311,6 +1356,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     @with_input_types(int, int)
     @with_output_types(int)
     class AddWithNum(beam.DoFn):
+
       def process(self, element, num):
         return [element + num]
 
@@ -1328,6 +1374,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     @with_input_types(int, int)
     @with_output_types(int)
     class AddWithNum(beam.DoFn):
+
       def process(self, element, num):
         return [element + num]
 
@@ -1340,6 +1387,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       self.p.run()
 
   def test_pardo_does_not_type_check_using_type_hint_decorators(self):
+
     @with_input_types(a=int)
     @with_output_types(typing.List[str])
     def int_to_str(a):
@@ -1355,6 +1403,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'ToStr' >> beam.FlatMap(int_to_str))
 
   def test_pardo_properly_type_checks_using_type_hint_decorators(self):
+
     @with_input_types(a=str)
     @with_output_types(typing.List[str])
     def to_all_upper_case(a):
@@ -1422,6 +1471,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_map_does_not_type_check_using_type_hints_decorator(self):
+
     @with_input_types(s=str)
     @with_output_types(str)
     def upper(s):
@@ -1437,6 +1487,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Upper' >> beam.Map(upper))
 
   def test_map_properly_type_checks_using_type_hints_decorator(self):
+
     @with_input_types(a=bool)
     @with_output_types(int)
     def bool_to_int(a):
@@ -1475,6 +1526,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_filter_does_not_type_check_using_type_hints_decorator(self):
+
     @with_input_types(a=float)
     def more_than_half(a):
       return a > 0.50
@@ -1488,6 +1540,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Half' >> beam.Filter(more_than_half))
 
   def test_filter_type_checks_using_type_hints_decorator(self):
+
     @with_input_types(b=int)
     def half(b):
       return bool(random.choice([0, 1]))
@@ -1501,6 +1554,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
             int).with_output_types(bool))
 
   def test_pardo_like_inheriting_output_types_from_annotation(self):
+
     def fn1(x: str) -> int:
       return 1
 
@@ -1891,6 +1945,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead found 1.0, an instance of {}.".format(int, float))
 
   def test_combine_properly_pipeline_type_checks_using_decorator(self):
+
     @with_output_types(int)
     @with_input_types(ints=typing.Iterable[int])
     def sum_ints(ints):
@@ -1906,6 +1961,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_combine_properly_pipeline_type_checks_without_decorator(self):
+
     def sum_ints(ints):
       return sum(ints)
 
@@ -1919,6 +1975,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_combine_func_type_hint_does_not_take_iterable_using_decorator(self):
+
     @with_output_types(int)
     @with_input_types(a=int)
     def bad_combine(a):
@@ -1937,6 +1994,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_combine_pipeline_type_propagation_using_decorators(self):
+
     @with_output_types(int)
     @with_input_types(ints=typing.Iterable[int])
     def sum_ints(ints):
@@ -2006,6 +2064,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
             with_input_types(str).with_output_types(str)))
 
     def matcher(expected):
+
       def match(actual):
         equal_to(expected)(list(actual[0]))
 
@@ -2378,6 +2437,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertCompatible(typing.Iterable[int], d.element_type)
 
     def matcher(expected_len):
+
       def match(actual):
         equal_to([expected_len])([len(actual[0])])
 
@@ -2397,6 +2457,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertCompatible(typing.Iterable[int], d.element_type)
 
     def matcher(expected_len):
+
       def match(actual):
         equal_to([expected_len])([len(actual[0])])
 
@@ -2417,6 +2478,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         typing.Tuple[int, typing.Iterable[int]], d.element_type)
 
     def matcher(expected_len):
+
       def match(actual):
         for _, sample in actual:
           equal_to([expected_len])([len(sample)])
@@ -2440,6 +2502,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         typing.Tuple[int, typing.Iterable[int]], d.element_type)
 
     def matcher(expected_len):
+
       def match(actual):
         for _, sample in actual:
           equal_to([expected_len])([len(sample)])
@@ -2458,6 +2521,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertCompatible(typing.List[int], d.element_type)
 
     def matcher(expected):
+
       def match(actual):
         equal_to(expected)(actual[0])
 
@@ -2477,6 +2541,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertCompatible(typing.List[str], d.element_type)
 
     def matcher(expected):
+
       def match(actual):
         equal_to(expected)(actual[0])
 
@@ -2598,6 +2663,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
 @parameterized_class([{'use_subprocess': False}, {'use_subprocess': True}])
 class DeadLettersTest(unittest.TestCase):
+
   @classmethod
   def die(cls, x):
     if cls.use_subprocess:
@@ -2761,6 +2827,7 @@ class DeadLettersTest(unittest.TestCase):
       return
 
     class CounterDoFn(beam.DoFn):
+
       def __init__(self):
         self.records_counter = Metrics.counter(self.__class__, 'recordsCounter')
 
@@ -2875,7 +2942,9 @@ class DeadLettersTest(unittest.TestCase):
 
 
 class TestPTransformFn(TypeHintTestCase):
+
   def test_type_checking_fail(self):
+
     @beam.ptransform_fn
     def MyTransform(pcoll):
       return pcoll | beam.ParDo(lambda x: [x]).with_output_types(str)
@@ -2886,6 +2955,7 @@ class TestPTransformFn(TypeHintTestCase):
       _ = (p | beam.Create([1, 2]) | MyTransform().with_output_types(int))
 
   def test_type_checking_success(self):
+
     @beam.ptransform_fn
     def MyTransform(pcoll):
       return pcoll | beam.ParDo(lambda x: [x]).with_output_types(int)
@@ -2908,6 +2978,7 @@ class TestPTransformFn(TypeHintTestCase):
 
 
 class PickledObject(object):
+
   def __init__(self, value):
     self.value = value
 

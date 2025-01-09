@@ -65,6 +65,7 @@ class BackgroundCachingJob(object):
   In both situations, the background source recording job should be treated as
   done successfully.
   """
+
   def __init__(self, pipeline_result, limiters):
     self._pipeline_result = pipeline_result
     self._result_lock = threading.RLock()

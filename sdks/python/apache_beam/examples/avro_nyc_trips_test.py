@@ -29,6 +29,7 @@ from apache_beam.testing.util import equal_to
 
 
 class AvroNycTripsTest(unittest.TestCase):
+
   def test_create_key_with_service_and_day(self):
     RECORDS = [
         {

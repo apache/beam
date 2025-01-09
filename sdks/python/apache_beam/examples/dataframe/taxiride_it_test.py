@@ -34,6 +34,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class TaxirideIT(unittest.TestCase):
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.outdir = (

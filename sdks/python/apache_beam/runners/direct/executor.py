@@ -49,7 +49,9 @@ _LOGGER = logging.getLogger(__name__)
 
 class _ExecutorService(object):
   """Thread pool for executing tasks in parallel."""
+
   class CallableTask(object):
+
     def call(self, state_sampler):
       pass
 
@@ -145,6 +147,7 @@ class _ExecutorService(object):
 
 
 class _TransformEvaluationState(object):
+
   def __init__(self, executor_service, scheduled: Set['TransformExecutor']):
     self.executor_service = executor_service
     self.scheduled = scheduled
@@ -178,6 +181,7 @@ class _SerialEvaluationState(_TransformEvaluationState):
   A principal use of this is for evaluators that keeps a global state such as
   _GroupByKeyOnly.
   """
+
   def __init__(self, executor_service, scheduled):
     super().__init__(executor_service, scheduled)
     self.serial_queue = collections.deque()
@@ -210,6 +214,7 @@ class _TransformExecutorServices(object):
   Controls the concurrency as appropriate for the applied transform the executor
   exists for.
   """
+
   def __init__(self, executor_service: _ExecutorService) -> None:
     self._executor_service = executor_service
     self._scheduled: Set[TransformExecutor] = set()
@@ -240,6 +245,7 @@ class _CompletionCallback(object):
   that are triggered due to the arrival of elements from an upstream transform,
   or for a source transform.
   """
+
   def __init__(
       self,
       evaluation_context: 'EvaluationContext',
@@ -408,6 +414,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
 class Executor(object):
   """For internal use only; no backwards-compatibility guarantees."""
+
   def __init__(self, *args, **kwargs):
     self._executor = _ExecutorServiceParallelExecutor(*args, **kwargs)
 
@@ -513,6 +520,7 @@ class _ExecutorServiceParallelExecutor(object):
 
   class _TypedUpdateQueue(object):
     """Type checking update queue with blocking and non-blocking operations."""
+
     def __init__(self, item_type):
       self._item_type = item_type
       self._queue = queue.Queue()
@@ -544,6 +552,7 @@ class _ExecutorServiceParallelExecutor(object):
 
   class _ExecutorUpdate(object):
     """An internal status update on the state of the executor."""
+
     def __init__(
         self,
         transform_executor,
@@ -565,12 +574,14 @@ class _ExecutorServiceParallelExecutor(object):
     Used for awaiting the completion to decide whether to return normally or
     raise an exception.
     """
+
     def __init__(self, exception=None):
       self.finished = exception is not None
       self.exception = exception
 
   class _MonitorTask(_ExecutorService.CallableTask):
     """MonitorTask continuously runs to ensure that pipeline makes progress."""
+
     def __init__(self, executor: '_ExecutorServiceParallelExecutor') -> None:
       self._executor = executor
 

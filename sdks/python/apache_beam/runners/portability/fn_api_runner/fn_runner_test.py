@@ -95,6 +95,7 @@ def _matcher_or_equal_to(value_or_matcher):
 
 def has_urn_and_labels(mi, urn, labels):
   """Returns true if it the monitoring_info contains the labels and urn."""
+
   def contains_labels(mi, labels):
     # Check all the labels and their values exist in the monitoring_info
     return all(item in mi.labels.items() for item in labels.items())
@@ -103,6 +104,7 @@ def has_urn_and_labels(mi, urn, labels):
 
 
 class FnApiRunnerTest(unittest.TestCase):
+
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner(is_drain=is_drain))
 
@@ -138,7 +140,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([6, 12, 18]))
 
   def test_batch_pardo_override_type_inference(self):
+
     class ArrayMultiplyDoFnOverride(beam.DoFn):
+
       def process_batch(self, batch, *unused_args,
                         **unused_kwargs) -> Iterator[np.ndarray]:
         assert isinstance(batch, np.ndarray)
@@ -207,7 +211,9 @@ class FnApiRunnerTest(unittest.TestCase):
         assert_that(res, equal_to([9, 15, 21]))
 
   def test_batch_pardo_fusion_break(self):
+
     class NormalizeDoFn(beam.DoFn):
+
       @no_type_check
       def process_batch(
           self,
@@ -238,7 +244,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([-2, 0, 2]))
 
   def test_batch_pardo_dofn_params(self):
+
     class ConsumeParamsDoFn(beam.DoFn):
+
       @no_type_check
       def process_batch(
           self,
@@ -269,7 +277,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([0, 1, 0, 3, 0, 5, 0, 7, 0, 9]))
 
   def test_batch_pardo_window_param(self):
+
     class PerWindowDoFn(beam.DoFn):
+
       @no_type_check
       def process_batch(
           self,
@@ -296,7 +306,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([0, 0, 0, 0, 0, 25, 30, 35, 40, 45]))
 
   def test_batch_pardo_overlapping_windows(self):
+
     class PerWindowDoFn(beam.DoFn):
+
       @no_type_check
       def process_batch(self,
                         batch: np.ndarray,
@@ -318,15 +330,32 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(window.SlidingWindows(size=5, period=3))
           | beam.ParDo(PerWindowDoFn()))
 
-      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
-                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
-                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
-                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
-                                 9*9                        # [ 9, 14)
-                                 ]))
+      assert_that(
+          res,
+          equal_to([
+              0 * -3,
+              1 * -3,  # [-3, 2)
+              0 * 0,
+              1 * 0,
+              2 * 0,
+              3 * 0,
+              4 * 0,  # [ 0, 5)
+              3 * 3,
+              4 * 3,
+              5 * 3,
+              6 * 3,
+              7 * 3,  # [ 3, 8)
+              6 * 6,
+              7 * 6,
+              8 * 6,
+              9 * 6,  # [ 6, 11)
+              9 * 9  # [ 9, 14)
+          ]))
 
   def test_batch_to_element_pardo(self):
+
     class ArraySumDoFn(beam.DoFn):
+
       @beam.DoFn.yields_elements
       def process_batch(self, batch: np.ndarray, *unused_args,
                         **unused_kwargs) -> Iterator[np.int64]:
@@ -348,7 +377,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([99 * 50 * 2]))
 
   def test_element_to_batch_pardo(self):
+
     class ArrayProduceDoFn(beam.DoFn):
+
       @beam.DoFn.yields_batches
       def process(self, element: np.int64, *unused_args,
                   **unused_kwargs) -> Iterator[np.ndarray]:
@@ -388,6 +419,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([(i * 2) + 3 for i in range(5000)]))
 
   def test_pardo_side_outputs(self):
+
     def tee(elem, *tags):
       for tag in tags:
         if tag in elem:
@@ -402,6 +434,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(xy.y, equal_to(['y', 'xy']), label='y')
 
   def test_pardo_side_and_main_outputs(self):
+
     def even_odd(elem):
       yield elem
       yield beam.pvalue.TaggedOutput('odd' if elem % 2 else 'even', elem)
@@ -421,6 +454,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(unnamed.odd, equal_to([1, 3]), label='unnamed.odd')
 
   def test_pardo_side_inputs(self):
+
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -565,15 +599,12 @@ class FnApiRunnerTest(unittest.TestCase):
       side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | 'first map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              lambda k, d, l: (k, sorted(d[k]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side))
           | 'second map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              lambda k, d, l:
+              (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side)),
           equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
@@ -593,6 +624,7 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', [1, 3]), ('b', [2])]))
 
   def test_pardo_unfusable_side_inputs(self):
+
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -604,6 +636,7 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
   def test_pardo_unfusable_side_inputs_with_separation(self):
+
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -625,6 +658,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     # TODO(ccy): State isn't detected with Map/FlatMap.
     class AddIndex(beam.DoFn):
+
       def process(
           self,
           kv,
@@ -649,6 +683,7 @@ class FnApiRunnerTest(unittest.TestCase):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
+
       def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
         unused_key, ts = element
         timer.set(ts)
@@ -679,6 +714,7 @@ class FnApiRunnerTest(unittest.TestCase):
     state_spec = userstate.CombiningValueStateSpec('num_called', sum)
 
     class TimerDoFn(beam.DoFn):
+
       def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
         unused_key, ts = element
         timer.set(ts)
@@ -711,6 +747,7 @@ class FnApiRunnerTest(unittest.TestCase):
         'clear_timer', userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
+
       def process(
           self,
           element,
@@ -762,6 +799,7 @@ class FnApiRunnerTest(unittest.TestCase):
     buffer_size = 3
 
     class BufferDoFn(beam.DoFn):
+
       def process(
           self,
           kv,
@@ -818,6 +856,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, is_buffered_correctly)
 
   def test_pardo_dynamic_timer(self):
+
     class DynamicTimerDoFn(beam.DoFn):
       dynamic_timer_spec = userstate.TimerSpec(
           'dynamic_timer', userstate.TimeDomain.WATERMARK)
@@ -842,7 +881,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to([('key1', 10), ('key2', 20), ('key3', 30)]))
 
   def test_sdf(self):
+
     class ExpandingStringsDoFn(beam.DoFn):
+
       def process(
           self,
           element,
@@ -860,7 +901,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(list(''.join(data))))
 
   def test_sdf_with_dofn_as_restriction_provider(self):
+
     class ExpandingStringsDoFn(beam.DoFn, ExpandStringsProvider):
+
       def process(
           self, element, restriction_tracker=beam.DoFn.RestrictionParam()):
         assert isinstance(restriction_tracker, RestrictionTrackerView)
@@ -875,7 +918,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(list(''.join(data))))
 
   def test_sdf_with_check_done_failed(self):
+
     class ExpandingStringsDoFn(beam.DoFn):
+
       def process(
           self,
           element,
@@ -894,7 +939,9 @@ class FnApiRunnerTest(unittest.TestCase):
         _ = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
 
   def test_sdf_with_watermark_tracking(self):
+
     class ExpandingStringsDoFn(beam.DoFn):
+
       def process(
           self,
           element,
@@ -920,7 +967,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(list(''.join(data))))
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
+
     class ExpandingStringsDoFn(beam.DoFn, beam.WatermarkEstimatorProvider):
+
       def initial_estimator_state(self, element, restriction):
         return None
 
@@ -955,6 +1004,7 @@ class FnApiRunnerTest(unittest.TestCase):
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
 
     class ExpandStringsDoFn(beam.DoFn):
+
       def process(
           self,
           element,
@@ -990,7 +1040,9 @@ class FnApiRunnerTest(unittest.TestCase):
     self.run_sdf_initiated_checkpointing(is_drain=True)
 
   def test_sdf_default_truncate_when_bounded(self):
+
     class SimpleSDF(beam.DoFn):
+
       def process(
           self,
           element,
@@ -1007,7 +1059,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(range(10)))
 
   def test_sdf_default_truncate_when_unbounded(self):
+
     class SimpleSDF(beam.DoFn):
+
       def process(
           self,
           element,
@@ -1024,7 +1078,9 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to([]))
 
   def test_sdf_with_truncate(self):
+
     class SimpleSDF(beam.DoFn):
+
       def process(
           self,
           element,
@@ -1145,8 +1201,7 @@ class FnApiRunnerTest(unittest.TestCase):
       side_input_res = (
           big
           | beam.Map(
-              lambda x,
-              side: (x[0], side.count(x[0])),
+              lambda x, side: (x[0], side.count(x[0])),
               beam.pvalue.AsList(big | beam.Map(lambda x: x[0]))))
       assert_that(
           side_input_res,
@@ -1177,6 +1232,7 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertNotIn('StageB', message)
 
   def test_error_traceback_includes_user_code(self):
+
     def first(x):
       return second(x)
 
@@ -1200,7 +1256,9 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertIn('third', message)
 
   def test_no_subtransform_composite(self):
+
     class First(beam.PTransform):
+
       def expand(self, pcolls):
         return pcolls[0]
 
@@ -1265,6 +1323,7 @@ class FnApiRunnerTest(unittest.TestCase):
       raise Exception('raise exception when calling callback')
 
     class FinalizebleDoFnWithException(beam.DoFn):
+
       def process(
           self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
         bundle_finalizer.register(raise_expetion)
@@ -1281,6 +1340,7 @@ class FnApiRunnerTest(unittest.TestCase):
     event_recorder = EventRecorder(tempfile.gettempdir())
 
     class FinalizableSplittableDoFn(beam.DoFn):
+
       def process(
           self,
           element,
@@ -1349,6 +1409,7 @@ class FnApiRunnerTest(unittest.TestCase):
     # provider pipeline options
     # pylint: disable=unused-variable
     class FooOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -1371,6 +1432,7 @@ class FnApiRunnerTest(unittest.TestCase):
       return max(values)
 
     class PackableCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -1424,6 +1486,7 @@ class FnApiRunnerTest(unittest.TestCase):
 # upon repeating bundle processing due to unncessarily incrementing
 # the sampling counter.
 class FnApiRunnerMetricsTest(unittest.TestCase):
+
   def assert_has_counter(
       self, mon_infos, urn, labels, value=None, ge_value=None):
     # TODO(ajamato): Consider adding a matcher framework
@@ -1498,7 +1561,9 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
   def test_element_count_metrics(self):
+
     class GenerateTwoOutputs(beam.DoFn):
+
       def process(self, element):
         yield str(element) + '1'
         yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
@@ -1506,6 +1571,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
 
     class PassThrough(beam.DoFn):
+
       def process(self, element):
         yield element
 
@@ -1737,14 +1803,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         | beam.GroupByKey()
         | 'm_out' >> beam.FlatMap(
             lambda x: [
-                1,
-                2,
-                3,
-                4,
-                5,
-                beam.pvalue.TaggedOutput('once', x),
-                beam.pvalue.TaggedOutput('twice', x),
-                beam.pvalue.TaggedOutput('twice', x)
+                1, 2, 3, 4, 5, beam.pvalue.TaggedOutput('once', x), beam.pvalue.
+                TaggedOutput('twice', x), beam.pvalue.TaggedOutput('twice', x)
             ]))
 
     res = p.run()
@@ -1812,6 +1872,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
+
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
@@ -1821,6 +1882,7 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
+
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
@@ -1833,6 +1895,7 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
+
   def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
@@ -1862,6 +1925,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
+
   def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(
         direct_num_workers=2, direct_running_mode='multi_threading')
@@ -1892,6 +1956,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
+
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain))
@@ -1901,6 +1966,7 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
+
   def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
@@ -1930,6 +1996,7 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
+
   def create_pipeline(self, is_drain=False):
     # Must be GRPC so we can send data and split requests concurrent
     # to the bundle process request.
@@ -2073,6 +2140,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
       raise
 
   def test_nosplit_sdf(self):
+
     def split_manager(num_elements):
       yield
 
@@ -2109,6 +2177,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     # Define an SDF that for each input x produces [(x, k) for k in range(x)].
 
     class EnumerateProvider(beam.transforms.core.RestrictionProvider):
+
       def initial_restriction(self, element):
         return restriction_trackers.OffsetRange(0, element)
 
@@ -2126,6 +2195,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         return True
 
     class EnumerateSdf(beam.DoFn):
+
       def process(
           self,
           element,
@@ -2157,6 +2227,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     elements = [str(x) for x in range(100)]
 
     class BundleCountingDoFn(beam.DoFn):
+
       def process(self, element):
         time.sleep(0.005)
         yield element
@@ -2198,6 +2269,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
 class ElementCounter(object):
   """Used to wait until a certain number of elements are seen."""
+
   def __init__(self):
     self._cv = threading.Condition()
     self.reset()
@@ -2221,6 +2293,7 @@ class ElementCounter(object):
       self._breakpoints[value].append(event)
 
     class Breakpoint(object):
+
       @staticmethod
       def wait(timeout=10):
         with self._cv:
@@ -2257,6 +2330,7 @@ class EventRecorder(object):
   The reason why records are written into a tmp file is, the in-memory dataset
   cannot keep callback records when passing into one DoFn.
   """
+
   def __init__(self, tmp_dir):
     self.tmp_dir = os.path.join(tmp_dir, uuid.uuid4().hex)
     os.mkdir(self.tmp_dir)
@@ -2283,6 +2357,7 @@ class EventRecorder(object):
 
 class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
   """A RestrictionProvider that used for sdf related tests."""
+
   def initial_restriction(self, element):
     return restriction_trackers.OffsetRange(0, len(element))
 
@@ -2299,11 +2374,13 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
 
 class UnboundedOffsetRestrictionTracker(
     restriction_trackers.OffsetRestrictionTracker):
+
   def is_bounded(self):
     return False
 
 
 class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
+
   def __init__(self, use_bounded_offset_range, checkpoint_only=False):
     self.use_bounded_offset_range = use_bounded_offset_range
     self.checkpoint_only = checkpoint_only
@@ -2316,6 +2393,7 @@ class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
 
       class CheckpointOnlyOffsetRestrictionTracker(
           restriction_trackers.OffsetRestrictionTracker):
+
         def try_split(self, unused_fraction_of_remainder):
           return super().try_split(0.0)
 
@@ -2332,6 +2410,7 @@ class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
 
 
 class OffsetRangeProviderWithTruncate(OffsetRangeProvider):
+
   def __init__(self):
     super().__init__(True)
 
@@ -2341,6 +2420,7 @@ class OffsetRangeProviderWithTruncate(OffsetRangeProvider):
 
 
 class FnApiBasedLullLoggingTest(unittest.TestCase):
+
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
@@ -2369,6 +2449,7 @@ class StateBackedTestElementType(object):
 
 @pytest.mark.it_validatesrunner
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
+
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(use_state_iterables=True))
@@ -2394,6 +2475,7 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
 
 # TODO(robertwb): Why does pickling break when this is inlined?
 class CustomMergingWindowFn(window.WindowFn):
+
   def assign(self, assign_context):
     return [
         window.IntervalWindow(
@@ -2413,6 +2495,7 @@ class CustomMergingWindowFn(window.WindowFn):
 
 
 class ColoredFixedWindow(window.BoundedWindow):
+
   def __init__(self, end, color):
     super().__init__(end)
     self.color = color
@@ -2441,6 +2524,7 @@ class ColoredFixedWindowCoder(beam.coders.Coder):
 
 
 class EvenOddWindows(window.NonMergingWindowFn):
+
   def assign(self, context):
     timestamp = context.timestamp
     return [
@@ -2454,6 +2538,7 @@ class EvenOddWindows(window.NonMergingWindowFn):
 
 
 class ExpectingSideInputsFn(beam.DoFn):
+
   def __init__(self, name):
     self._name = name
 
@@ -2468,6 +2553,7 @@ class ExpectingSideInputsFn(beam.DoFn):
 
 
 class ArrayMultiplyDoFn(beam.DoFn):
+
   def process_batch(self, batch: np.ndarray, *unused_args,
                     **unused_kwargs) -> Iterator[np.ndarray]:
     assert isinstance(batch, np.ndarray)
@@ -2483,6 +2569,7 @@ class ArrayMultiplyDoFn(beam.DoFn):
 
 
 class ListPlusOneDoFn(beam.DoFn):
+
   def process_batch(self, batch: List[np.int64], *unused_args,
                     **unused_kwargs) -> Iterator[List[np.int64]]:
     assert isinstance(batch, list)

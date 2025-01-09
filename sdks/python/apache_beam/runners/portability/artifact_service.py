@@ -95,6 +95,7 @@ class ArtifactRetrievalService(
 
 class ArtifactStagingService(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
+
   def __init__(
       self,
       file_writer: Callable[[str, Optional[str]], Tuple[BinaryIO, str]],
@@ -142,6 +143,7 @@ class ArtifactStagingService(
     requests = _QueueIter()
 
     class ForwardingRetrievalService(object):
+
       def ResolveArtifactss(self, request):
         requests.put(
             beam_artifact_api_pb2.ArtifactRequestWrapper(
@@ -162,8 +164,7 @@ class ArtifactStagingService(
         for key, dependencies in dependency_sets.items():
           dependency_sets[key] = list(
               resolve_as_files(
-                  ForwardingRetrievalService(),
-                  lambda name: self._file_writer(
+                  ForwardingRetrievalService(), lambda name: self._file_writer(
                       os.path.join(staging_token, name)),
                   dependencies))
         requests.done()
@@ -258,6 +259,7 @@ def offer_artifacts(
 
 
 class BeamFilesystemHandler(object):
+
   def __init__(self, root):
     self._root = root
 

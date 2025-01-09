@@ -24,6 +24,7 @@ from apache_beam.runners.portability.job_server import JavaJarJobServer
 
 
 class JavaJarJobServerStub(JavaJarJobServer):
+
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
@@ -47,6 +48,7 @@ class JavaJarJobServerStub(JavaJarJobServer):
 
 
 class JavaJarJobServerTest(unittest.TestCase):
+
   def test_subprocess_cmd_and_endpoint(self):
     pipeline_options = PipelineOptions([
         '--job_port=8099',

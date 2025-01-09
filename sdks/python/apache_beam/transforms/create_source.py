@@ -23,6 +23,7 @@ from apache_beam.transforms.core import Create
 
 class _CreateSource(iobase.BoundedSource):
   """Internal source that is used by Create()"""
+
   def __init__(self, serialized_values, coder):
     self._coder = coder
     self._serialized_values = []

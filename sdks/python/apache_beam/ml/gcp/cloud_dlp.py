@@ -56,6 +56,7 @@ class MaskDetectedDetails(PTransform):
       }, inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
 
   """
+
   def __init__(
       self,
       project=None,
@@ -138,6 +139,7 @@ class InspectForDetails(PTransform):
       pipeline | InspectForDetails(project='example-gcp-project',
                 inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
   """
+
   def __init__(
       self,
       project=None,
@@ -181,6 +183,7 @@ class InspectForDetails(PTransform):
 
 
 class _DeidentifyFn(DoFn):
+
   def __init__(self, config=None, timeout=None, project=None, client=None):
     self.config = config
     self.timeout = timeout
@@ -204,6 +207,7 @@ class _DeidentifyFn(DoFn):
 
 
 class _InspectFn(DoFn):
+
   def __init__(self, config=None, timeout=None, project=None):
     self.config = config
     self.timeout = timeout

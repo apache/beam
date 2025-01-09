@@ -88,6 +88,7 @@ _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.9', '3.10', '3.11', '3.12']
 
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
+
   def __init__(
       self,
       packages,
@@ -229,8 +230,8 @@ class Environment(object):
       container_image = dataflow.SdkHarnessContainerImage()
       container_image.containerImage = container_image_url
       container_image.useSingleCorePerContainer = (
-          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn not in
-          environment.capabilities)
+          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn
+          not in environment.capabilities)
       container_image.environmentId = id
       for capability in environment.capabilities:
         container_image.capabilities.append(capability)
@@ -316,7 +317,9 @@ class Environment(object):
 
 class Job(object):
   """Wrapper for a dataflow Job protobuf."""
+
   def __str__(self):
+
     def encode_shortstrings(input_buffer, errors='strict'):
       """Encoder (from Unicode) that suppresses long base64 strings."""
       original_len = len(input_buffer)
@@ -485,6 +488,7 @@ class DataflowApplicationClient(object):
   _HASH_CHUNK_SIZE = 1024 * 8
   _GCS_CACHE_PREFIX = "artifact_cache"
   """A Dataflow API client used by application code to create and query jobs."""
+
   def __init__(self, options, root_staging_location=None):
     """Initializes a Dataflow API client object."""
     self.standard_options = options.view_as(StandardOptions)
@@ -1054,10 +1058,9 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState in [
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
-        ]):
+        if (job.name == job_name and job.currentState
+            in [dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+                dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -1066,6 +1069,7 @@ class DataflowApplicationClient(object):
 
 class MetricUpdateTranslators(object):
   """Translators between accumulators and dataflow metric updates."""
+
   @staticmethod
   def translate_boolean(accumulator, metric_update_proto):
     metric_update_proto.boolean = accumulator.value
@@ -1099,6 +1103,7 @@ class MetricUpdateTranslators(object):
 
 
 class _LegacyDataflowStager(Stager):
+
   def __init__(self, dataflow_application_client):
     super().__init__()
     self._dataflow_application_client = dataflow_application_client
@@ -1215,9 +1220,8 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if ('%s.%s' %
-      (sys.version_info[0],
-       sys.version_info[1]) in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
+  if ('%s.%s' % (sys.version_info[0], sys.version_info[1])
+      in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
     return
 
   if 'dev' in beam_version.__version__:

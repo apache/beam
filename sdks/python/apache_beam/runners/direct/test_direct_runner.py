@@ -29,6 +29,7 @@ __all__ = ['TestDirectRunner']
 
 
 class TestDirectRunner(DirectRunner):
+
   def run_pipeline(self, pipeline, options):
     """Execute test pipeline and verify test matcher"""
     test_options = options.view_as(TestOptions)

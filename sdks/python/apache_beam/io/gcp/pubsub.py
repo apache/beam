@@ -87,6 +87,7 @@ class PubsubMessage(object):
     ordering_key: (str) If non-empty, identifies related messages for which
       publish order is respected by the PubSub subscription.
   """
+
   def __init__(
       self,
       data,
@@ -286,6 +287,7 @@ class ReadFromPubSub(PTransform):
 
 
 class _AddMetricsPassThrough(DoFn):
+
   def __init__(self, project, topic=None, sub=None):
     self.project = project
     self.topic = topic
@@ -317,6 +319,7 @@ def ReadStringsFromPubSub(topic=None, subscription=None, id_label=None):
 
 class _ReadStringsFromPubSub(PTransform):
   """This class is deprecated. Use ``ReadFromPubSub`` instead."""
+
   def __init__(self, topic=None, subscription=None, id_label=None):
     super().__init__()
     self.topic = topic
@@ -340,6 +343,7 @@ def WriteStringsToPubSub(topic):
 
 class _WriteStringsToPubSub(PTransform):
   """This class is deprecated. Use ``WriteToPubSub`` instead."""
+
   def __init__(self, topic):
     """Initializes ``_WriteStringsToPubSub``.
 
@@ -356,6 +360,7 @@ class _WriteStringsToPubSub(PTransform):
 
 
 class _AddMetricsAndMap(DoFn):
+
   def __init__(self, fn, project, topic=None):
     self.project = project
     self.topic = topic
@@ -492,6 +497,7 @@ class _PubSubSource(iobase.SourceBase):
     with_attributes: If False, will fetch just message data. Otherwise,
       fetches ``PubsubMessage`` protobufs.
   """
+
   def __init__(
       self,
       topic: Optional[str] = None,
@@ -547,6 +553,7 @@ class _PubSubSink(object):
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
   """
+
   def __init__(
       self,
       topic: str,
@@ -615,6 +622,7 @@ class MultipleReadFromPubSub(PTransform):
     results = pipeline | MultipleReadFromPubSub(
                 [topic_1, topic_2, subscription_1])
   """
+
   def __init__(
       self,
       pubsub_source_descriptors: List[PubSubSourceDescriptor],

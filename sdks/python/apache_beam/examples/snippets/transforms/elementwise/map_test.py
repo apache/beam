@@ -88,6 +88,7 @@ def check_plant_details(actual):
     'apache_beam.examples.snippets.transforms.elementwise.map_context.print',
     str)
 class MapTest(unittest.TestCase):
+
   def test_map_simple(self):
     map_simple.map_simple(check_plants)
 
@@ -116,6 +117,7 @@ class MapTest(unittest.TestCase):
     import re
 
     def check_nonces(output):
+
       def shares_same_nonces(elements):
         s = set(re.search(r'\d+ \d+', e).group(0) for e in elements)
         assert len(s) == 1, s

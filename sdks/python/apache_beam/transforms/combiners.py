@@ -74,6 +74,7 @@ TimestampType = Union[int, float, Timestamp, Duration]
 
 class CombinerWithoutDefaults(ptransform.PTransform):
   """Super class to inherit without_defaults to built-in Combiners."""
+
   def __init__(self, has_defaults=True):
     super().__init__()
     self.has_defaults = has_defaults
@@ -89,8 +90,10 @@ class CombinerWithoutDefaults(ptransform.PTransform):
 
 class Mean(object):
   """Combiners for computing arithmetic means of elements."""
+
   class Globally(CombinerWithoutDefaults):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
+
     def expand(self, pcoll):
       if self.has_defaults:
         return pcoll | core.CombineGlobally(MeanCombineFn())
@@ -99,6 +102,7 @@ class Mean(object):
 
   class PerKey(ptransform.PTransform):
     """combiners.Mean.PerKey finds the means of the values for each key."""
+
     def expand(self, pcoll):
       return pcoll | core.CombinePerKey(MeanCombineFn())
 
@@ -109,6 +113,7 @@ class Mean(object):
 @with_output_types(float)
 class MeanCombineFn(core.CombineFn):
   """CombineFn for computing an arithmetic mean."""
+
   def create_accumulator(self):
     return (0, 0)
 
@@ -136,10 +141,12 @@ class MeanCombineFn(core.CombineFn):
 
 class Count(object):
   """Combiners for counting elements."""
+
   @with_input_types(T)
   @with_output_types(int)
   class Globally(CombinerWithoutDefaults):
     """combiners.Count.Globally counts the total number of elements."""
+
     def expand(self, pcoll):
       if self.has_defaults:
         return pcoll | core.CombineGlobally(CountCombineFn())
@@ -150,6 +157,7 @@ class Count(object):
   @with_output_types(Tuple[K, int])
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
+
     def expand(self, pcoll):
       return pcoll | core.CombinePerKey(CountCombineFn())
 
@@ -157,6 +165,7 @@ class Count(object):
   @with_output_types(Tuple[T, int])
   class PerElement(ptransform.PTransform):
     """combiners.Count.PerElement counts how many times each element occurs."""
+
     def expand(self, pcoll):
       paired_with_void_type = typehints.Tuple[pcoll.element_type, Any]
       output_type = typehints.KV[pcoll.element_type, int]
@@ -172,6 +181,7 @@ class Count(object):
 @with_output_types(int)
 class CountCombineFn(core.CombineFn):
   """CombineFn for computing PCollection size."""
+
   def create_accumulator(self):
     return 0
 
@@ -201,6 +211,7 @@ class Top(object):
     to which it is applied, where "greatest" is determined by a
     function supplied as the `key` or `reverse` arguments.
     """
+
     def __init__(self, n, key=None, reverse=False):
       """Creates a global Top operation.
 
@@ -256,6 +267,7 @@ class Top(object):
     "greatest" is determined by a function supplied as the `key` or
     `reverse` arguments.
     """
+
     def __init__(self, n, key=None, reverse=False):
       """Creates a per-key Top operation.
 
@@ -325,6 +337,7 @@ class Top(object):
 @with_input_types(T)
 @with_output_types(Tuple[None, List[T]])
 class _TopPerBundle(core.DoFn):
+
   def __init__(self, n, key, reverse):
     self._n = n
     self._compare = operator.gt if reverse else None
@@ -359,6 +372,7 @@ class _TopPerBundle(core.DoFn):
 @with_input_types(Tuple[None, Iterable[List[T]]])
 @with_output_types(List[T])
 class _MergeTopPerBundle(core.DoFn):
+
   def __init__(self, n, key, reverse):
     self._n = n
     self._compare = operator.gt if reverse else None
@@ -433,6 +447,7 @@ class TopCombineFn(core.CombineFn):
     reverse: (optional) whether to order things smallest to largest, rather
         than largest to smallest
   """
+
   def __init__(self, n, key=None, reverse=False):
     self._n = n
     self._compare = operator.gt if reverse else operator.lt
@@ -546,11 +561,13 @@ class TopCombineFn(core.CombineFn):
 
 
 class Largest(TopCombineFn):
+
   def default_label(self):
     return 'Largest(%s)' % self._n
 
 
 class Smallest(TopCombineFn):
+
   def __init__(self, n):
     super().__init__(n, reverse=True)
 
@@ -567,6 +584,7 @@ class Sample(object):
   @with_output_types(List[T])
   class FixedSizeGlobally(CombinerWithoutDefaults):
     """Sample n elements from the input PCollection without replacement."""
+
     def __init__(self, n):
       super().__init__()
       self._n = n
@@ -588,6 +606,7 @@ class Sample(object):
   @with_output_types(Tuple[K, List[V]])
   class FixedSizePerKey(ptransform.PTransform):
     """Sample n elements associated with each key without replacement."""
+
     def __init__(self, n):
       self._n = n
 
@@ -605,6 +624,7 @@ class Sample(object):
 @with_output_types(List[T])
 class SampleCombineFn(core.CombineFn):
   """CombineFn for all Sample transforms."""
+
   def __init__(self, n):
     super().__init__()
     # Most of this combiner's work is done by a TopCombineFn. We could just
@@ -640,6 +660,7 @@ class SampleCombineFn(core.CombineFn):
 
 
 class _TupleCombineFnBase(core.CombineFn):
+
   def __init__(self, *combiners, merge_accumulators_batch_size=None):
     self._combiners = [core.CombineFn.maybe_from_callable(c) for c in combiners]
     self._named_combiners = combiners
@@ -680,21 +701,21 @@ class _TupleCombineFnBase(core.CombineFn):
       if len(accumulators_batch) == 1:
         break
       result = [
-          c.merge_accumulators(a, *args, **kwargs) for c,
-          a in zip(self._combiners, zip(*accumulators_batch))
+          c.merge_accumulators(a, *args, **kwargs)
+          for c, a in zip(self._combiners, zip(*accumulators_batch))
       ]
     return result
 
   def compact(self, accumulator, *args, **kwargs):
     return [
-        c.compact(a, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator)
+        c.compact(a, *args, **kwargs)
+        for c, a in zip(self._combiners, accumulator)
     ]
 
   def extract_output(self, accumulator, *args, **kwargs):
     return tuple(
-        c.extract_output(a, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator))
+        c.extract_output(a, *args, **kwargs)
+        for c, a in zip(self._combiners, accumulator))
 
   def teardown(self, *args, **kwargs):
     for c in reversed(self._combiners):
@@ -708,11 +729,11 @@ class TupleCombineFn(_TupleCombineFnBase):
   combining the k-th element of each tuple with the k-th CombineFn,
   outputting a new N-tuple of combined values.
   """
+
   def add_input(self, accumulator, element, *args, **kwargs):
     return [
-        c.add_input(a, e, *args, **kwargs) for c,
-        a,
-        e in zip(self._combiners, accumulator, element)
+        c.add_input(a, e, *args, **kwargs)
+        for c, a, e in zip(self._combiners, accumulator, element)
     ]
 
   def with_common_input(self):
@@ -726,10 +747,11 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
   applying each CombineFn to each input, producing an N-tuple of
   the outputs corresponding to each of the N CombineFn's outputs.
   """
+
   def add_input(self, accumulator, element, *args, **kwargs):
     return [
-        c.add_input(a, element, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator)
+        c.add_input(a, element, *args, **kwargs)
+        for c, a in zip(self._combiners, accumulator)
     ]
 
 
@@ -737,6 +759,7 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 @with_output_types(List[T])
 class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
+
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
@@ -749,6 +772,7 @@ class ToList(CombinerWithoutDefaults):
 @with_output_types(List[T])
 class ToListCombineFn(core.CombineFn):
   """CombineFn for to_list."""
+
   def create_accumulator(self):
     return []
 
@@ -767,6 +791,7 @@ class ToListCombineFn(core.CombineFn):
 @with_output_types(T)
 class ConcatListCombineFn(core.CombineFn):
   """CombineFn for concatenating lists together."""
+
   def create_accumulator(self):
     return []
 
@@ -789,6 +814,7 @@ class ToDict(CombinerWithoutDefaults):
   If multiple values are associated with the same key, only one of the values
   will be present in the resulting dict.
   """
+
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
@@ -801,6 +827,7 @@ class ToDict(CombinerWithoutDefaults):
 @with_output_types(Dict[K, V])
 class ToDictCombineFn(core.CombineFn):
   """CombineFn for to_dict."""
+
   def create_accumulator(self):
     return {}
 
@@ -823,6 +850,7 @@ class ToDictCombineFn(core.CombineFn):
 @with_output_types(Set[T])
 class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
+
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
@@ -835,6 +863,7 @@ class ToSet(CombinerWithoutDefaults):
 @with_output_types(Set[T])
 class ToSetCombineFn(core.CombineFn):
   """CombineFn for ToSet."""
+
   def create_accumulator(self):
     return set()
 
@@ -851,6 +880,7 @@ class ToSetCombineFn(core.CombineFn):
 
 class _CurriedFn(core.CombineFn):
   """Wrapped CombineFn with extra arguments."""
+
   def __init__(self, fn, args, kwargs):
     self.fn = fn
     self.args = args
@@ -890,6 +920,7 @@ def curry_combine_fn(fn, args, kwargs):
 
 class PhasedCombineFnExecutor(object):
   """Executor for phases of combine operations."""
+
   def __init__(self, phase, fn, args, kwargs):
 
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
@@ -927,11 +958,13 @@ class PhasedCombineFnExecutor(object):
 
 class Latest(object):
   """Combiners for computing the latest element"""
+
   @with_input_types(T)
   @with_output_types(T)
   class Globally(CombinerWithoutDefaults):
     """Compute the element with the latest timestamp from a
     PCollection."""
+
     @staticmethod
     def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
       return [(element, timestamp)]
@@ -955,6 +988,7 @@ class Latest(object):
   class PerKey(ptransform.PTransform):
     """Compute elements with the latest timestamp for each key
     from a keyed PCollection"""
+
     @staticmethod
     def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
       key, value = element
@@ -973,6 +1007,7 @@ class Latest(object):
 class LatestCombineFn(core.CombineFn):
   """CombineFn to get the element with the latest timestamp
   from a PCollection."""
+
   def create_accumulator(self):
     return (None, window.MIN_TIMESTAMP)
 

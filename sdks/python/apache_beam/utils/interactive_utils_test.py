@@ -43,6 +43,7 @@ def corrupted_ipython():
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class IPythonTest(unittest.TestCase):
+
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
   def test_is_in_ipython_when_in_ipython_kernel(self, kernel):
     self.assertTrue(is_in_ipython())

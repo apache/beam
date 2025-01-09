@@ -76,6 +76,7 @@ __all__ = [
 class _ArrowTableToRowDictionaries(DoFn):
   """ A DoFn that consumes an Arrow table and yields a python dictionary for
   each row in the table."""
+
   def process(self, table, with_filename=False):
     if with_filename:
       file_name = table[0]
@@ -94,6 +95,7 @@ class _ArrowTableToRowDictionaries(DoFn):
 
 class _RowDictionariesToArrowTable(DoFn):
   """ A DoFn that consumes python dictionarys and yields a pyarrow table."""
+
   def __init__(
       self,
       schema,
@@ -154,6 +156,7 @@ class _RowDictionariesToArrowTable(DoFn):
 
 
 class _ArrowTableToBeamRows(DoFn):
+
   def __init__(self, beam_type):
     self._beam_type = beam_type
 
@@ -166,6 +169,7 @@ class _ArrowTableToBeamRows(DoFn):
 
 
 class _BeamRowsToArrowTable(DoFn):
+
   @DoFn.yields_elements
   def process_batch(self, element: pa.Table) -> Iterator[pa.Table]:
     yield element
@@ -175,6 +179,7 @@ class ReadFromParquetBatched(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files as a `PCollection` of `pyarrow.Table`. This `PTransform` is
      currently experimental. No backward-compatibility guarantees."""
+
   def __init__(
       self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
     """ Initializes :class:`~ReadFromParquetBatched`
@@ -232,6 +237,7 @@ class ReadFromParquetBatched(PTransform):
 
 class ReadFromParquet(PTransform):
   """A `PTransform` for reading Parquet files."""
+
   def __init__(
       self,
       file_pattern=None,
@@ -370,6 +376,7 @@ class ReadAllFromParquetBatched(PTransform):
 
 
 class ReadAllFromParquet(PTransform):
+
   def __init__(self, with_filename=False, **kwargs):
     self._with_filename = with_filename
     self._read_batches = ReadAllFromParquetBatched(
@@ -381,6 +388,7 @@ class ReadAllFromParquet(PTransform):
 
 
 class _ParquetUtils(object):
+
   @staticmethod
   def find_first_row_group_index(pf, start_offset):
     for i in range(_ParquetUtils.get_number_of_row_groups(pf)):
@@ -406,6 +414,7 @@ class _ParquetUtils(object):
 class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
+
   def __init__(
       self, file_pattern, min_bundle_size=0, validate=False, columns=None):
     super().__init__(
@@ -464,6 +473,7 @@ _create_parquet_source = _ParquetSource
 class WriteToParquet(PTransform):
   """A ``PTransform`` for writing parquet files.
   """
+
   def __init__(
       self,
       file_path_prefix,
@@ -599,6 +609,7 @@ class WriteToParquetBatched(PTransform):
     This ``PTransform`` is currently experimental. No backward-compatibility
     guarantees.
   """
+
   def __init__(
       self,
       file_path_prefix,
@@ -724,6 +735,7 @@ def _create_parquet_sink(
 
 class _ParquetSink(filebasedsink.FileBasedSink):
   """A sink for parquet files from batches."""
+
   def __init__(
       self,
       file_path_prefix,

@@ -241,6 +241,7 @@ def _determine_splittability_from_compression_type(file_path, compression_type):
 
 class _SingleFileSource(iobase.BoundedSource):
   """Denotes a source for a specific file type."""
+
   def __init__(
       self,
       file_based_source,
@@ -339,6 +340,7 @@ class _SingleFileSource(iobase.BoundedSource):
 
 
 class _ExpandIntoRanges(DoFn):
+
   def __init__(
       self, splittable, compression_type, desired_bundle_size, min_bundle_size):
     self._desired_bundle_size = desired_bundle_size
@@ -372,6 +374,7 @@ class _ExpandIntoRanges(DoFn):
 
 
 class _ReadRange(DoFn):
+
   def __init__(
       self,
       source_from_file: Union[str, iobase.BoundedSource],
@@ -406,6 +409,7 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
+
   def __init__(
       self,
       splittable: bool,

@@ -25,6 +25,7 @@ from apache_beam.utils import multi_process_shared
 
 
 class CallableCounter(object):
+
   def __init__(self, start=0):
     self.running = start
     self.lock = threading.Lock()
@@ -42,6 +43,7 @@ class CallableCounter(object):
 
 
 class Counter(object):
+
   def __init__(self, start=0):
     self.running = start
     self.lock = threading.Lock()
@@ -59,6 +61,7 @@ class Counter(object):
 
 
 class CounterWithBadAttr(object):
+
   def __init__(self, start=0):
     self.running = start
     self.lock = threading.Lock()
@@ -83,6 +86,7 @@ class CounterWithBadAttr(object):
 
 
 class MultiProcessSharedTest(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     cls.shared = multi_process_shared.MultiProcessShared(

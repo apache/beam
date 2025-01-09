@@ -54,6 +54,7 @@ class AnnotateVideo(PTransform):
   bytes base64-encoded video data.
   Accepts an `AsDict` side input that maps each video to a video context.
   """
+
   def __init__(
       self,
       features,
@@ -119,6 +120,7 @@ class _VideoAnnotateFn(DoFn):
   service and outputs an element with the return result of the API
   (``google.cloud.videointelligence_v1.AnnotateVideoResponse``).
   """
+
   def __init__(self, features, location_id, metadata, timeout):
     super().__init__()
     self._client = None
@@ -171,6 +173,7 @@ class AnnotateVideoWithContext(AnnotateVideo):
   where the former is either an URI (e.g. a GCS URI) or
   bytes base64-encoded video data
   """
+
   def __init__(self, features, location_id=None, metadata=None, timeout=120):
     """
       Args:
@@ -209,6 +212,7 @@ class _VideoAnnotateFnWithContext(_VideoAnnotateFn):
   an element with the return result of the API
   (``google.cloud.videointelligence_v1.AnnotateVideoResponse``).
   """
+
   def __init__(self, features, location_id, metadata, timeout):
     super().__init__(
         features=features,

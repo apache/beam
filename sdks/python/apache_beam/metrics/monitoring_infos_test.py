@@ -25,6 +25,7 @@ from apache_beam.metrics.cells import StringSetCell
 
 
 class MonitoringInfosTest(unittest.TestCase):
+
   def test_parse_namespace_and_name_for_nonuser_metric(self):
     input = monitoring_infos.create_monitoring_info(
         "beam:dummy:metric", "typeurn", None)

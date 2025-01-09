@@ -39,6 +39,7 @@ from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 
 class RunnerApiTest(unittest.TestCase):
+
   def test_environment_encoding(self):
     for environment in (DockerEnvironment(),
                         DockerEnvironment(container_image='img'),
@@ -84,6 +85,7 @@ class RunnerApiTest(unittest.TestCase):
 
 
 class EnvironmentOptionsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.tmp_dir = tempfile.TemporaryDirectory()
     self.actual_mkdtemp = tempfile.mkdtemp

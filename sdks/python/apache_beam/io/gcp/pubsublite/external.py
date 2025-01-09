@@ -46,6 +46,7 @@ class _ReadExternal(ExternalTransform):
 
     Experimental; no backwards-compatibility guarantees.
   """
+
   def __init__(
       self,
       subscription_path,
@@ -86,6 +87,7 @@ class _WriteExternal(ExternalTransform):
 
     Experimental; no backwards-compatibility guarantees.
   """
+
   def __init__(
       self,
       topic_path,

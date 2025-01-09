@@ -49,6 +49,7 @@ def format_sample(contents, count=1000):
 
 class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
   """Creates the DOT representation of an interactive pipeline. Thread-safe."""
+
   def __init__(
       self,
       pipeline,

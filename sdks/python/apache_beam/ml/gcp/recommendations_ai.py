@@ -87,6 +87,7 @@ class CreateCatalogItem(PTransform):
         project='example-gcp-project',
         catalog_name='my-catalog')
     """
+
   def __init__(
       self,
       project: str = None,
@@ -131,6 +132,7 @@ class CreateCatalogItem(PTransform):
 
 
 class _CreateCatalogItemFn(DoFn):
+
   def __init__(
       self,
       project: str = None,
@@ -181,6 +183,7 @@ class ImportCatalogItems(PTransform):
           project='example-gcp-project',
           catalog_name='my-catalog')
     """
+
   def __init__(
       self,
       max_batch_size: int = 5000,
@@ -229,6 +232,7 @@ class ImportCatalogItems(PTransform):
 
 
 class _ImportCatalogItemsFn(DoFn):
+
   def __init__(
       self,
       project=None,
@@ -282,6 +286,7 @@ class WriteUserEvent(PTransform):
           catalog_name='my-catalog',
           event_store='my_event_store')
     """
+
   def __init__(
       self,
       project: str = None,
@@ -380,6 +385,7 @@ class ImportUserEvents(PTransform):
           catalog_name='my-catalog',
           event_store='my_event_store')
     """
+
   def __init__(
       self,
       max_batch_size: int = 5000,
@@ -487,6 +493,7 @@ class PredictUserEvent(PTransform):
           event_store='my_event_store',
           placement_id='recently_viewed_default')
     """
+
   def __init__(
       self,
       project: str = None,

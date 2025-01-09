@@ -78,6 +78,7 @@ class PostProcessor(beam.DoFn):
   of the words in BERT’s vocabulary. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
+
   def __init__(self, bert_tokenizer: BertTokenizer):
     super().__init__()
     self.bert_tokenizer = bert_tokenizer
@@ -165,6 +166,7 @@ def run(
     Restricting max_batch_size to 1 means there is only 1 example per `batch`
     in the run_inference() call.
     """
+
     def batch_elements_kwargs(self):
       return {'max_batch_size': 1}
 
@@ -181,18 +183,19 @@ def run(
   bert_tokenizer = BertTokenizer.from_pretrained(known_args.bert_tokenizer)
 
   if not known_args.input:
-    text = (pipeline | 'CreateSentences' >> beam.Create([
-      'The capital of France is Paris .',
-      'It is raining cats and dogs .',
-      'He looked up and saw the sun and stars .',
-      'Today is Monday and tomorrow is Tuesday .',
-      'There are 5 coconuts on this palm tree .',
-      'The richest person in the world is not here .',
-      'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
-      'This audiobook is sure to liquefy your brain .',
-      'The secret ingredient to his wonderful life was gratitude .',
-      'The biggest animal in the world is the whale .',
-    ]))
+    text = (
+        pipeline | 'CreateSentences' >> beam.Create([
+            'The capital of France is Paris .',
+            'It is raining cats and dogs .',
+            'He looked up and saw the sun and stars .',
+            'Today is Monday and tomorrow is Tuesday .',
+            'There are 5 coconuts on this palm tree .',
+            'The richest person in the world is not here .',
+            'Malls are amazing places to shop because you can find everything you need under one roof .',  # pylint: disable=line-too-long
+            'This audiobook is sure to liquefy your brain .',
+            'The secret ingredient to his wonderful life was gratitude .',
+            'The biggest animal in the world is the whale .',
+        ]))
   else:
     text = (
         pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))

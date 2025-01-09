@@ -62,6 +62,7 @@ def skip(runners):
     runners = [runners]
 
   def inner(fn):
+
     @wraps(fn)
     def wrapped(self):
       if self.runner_name in runners:
@@ -603,6 +604,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
 
 
 class ReadNewTypesTests(BigQueryReadIntegrationTests):
+
   @classmethod
   def setUpClass(cls):
     super(ReadNewTypesTests, cls).setUpClass()
@@ -824,6 +826,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
 
 
 class ReadInteractiveRunnerTests(BigQueryReadIntegrationTests):
+
   @skip(['PortableRunner', 'FlinkRunner'])
   @pytest.mark.it_postcommit
   def test_read_in_interactive_runner(self):

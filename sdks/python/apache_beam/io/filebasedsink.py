@@ -427,6 +427,7 @@ class FileBasedSink(iobase.Sink):
 class FileBasedSinkWriter(iobase.Writer):
   """The writer for FileBasedSink.
   """
+
   def __init__(self, sink, temp_shard_path):
     self.sink = sink
     self.temp_shard_path = temp_shard_path
@@ -440,10 +441,10 @@ class FileBasedSinkWriter(iobase.Writer):
   def at_capacity(self):
     return (
         self.sink.max_records_per_shard and
-        self.num_records_written >= self.sink.max_records_per_shard
-    ) or (
-        self.sink.max_bytes_per_shard and
-        self.sink.byte_counter.bytes_written >= self.sink.max_bytes_per_shard)
+        self.num_records_written >= self.sink.max_records_per_shard) or (
+            self.sink.max_bytes_per_shard and
+            self.sink.byte_counter.bytes_written
+            >= self.sink.max_bytes_per_shard)
 
   def close(self):
     self.sink.close(self.temp_handle)
@@ -451,6 +452,7 @@ class FileBasedSinkWriter(iobase.Writer):
 
 
 class _ByteCountingWriter:
+
   def __init__(self, writer):
     self.writer = writer
     self.bytes_written = 0

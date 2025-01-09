@@ -23,6 +23,7 @@ IGNORED = object()
 
 class MetricStructuredNameMatcher(BaseMatcher):
   """Matches a MetricStructuredName."""
+
   def __init__(self, name=IGNORED, origin=IGNORED, context=IGNORED):
     """Creates a MetricsStructuredNameMatcher.
 
@@ -69,6 +70,7 @@ class MetricStructuredNameMatcher(BaseMatcher):
 
 class MetricUpdateMatcher(BaseMatcher):
   """Matches a metrics update protocol buffer."""
+
   def __init__(
       self, cumulative=IGNORED, name=IGNORED, scalar=IGNORED, kind=IGNORED):
     """Creates a MetricUpdateMatcher.

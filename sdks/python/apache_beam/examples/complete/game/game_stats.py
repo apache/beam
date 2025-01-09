@@ -104,6 +104,7 @@ class ParseGameEventFn(beam.DoFn):
 
   The human-readable time string is not used here.
   """
+
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()
@@ -130,6 +131,7 @@ class ExtractAndSumScore(beam.PTransform):
   The constructor argument `field` determines whether 'team' or 'user' info is
   extracted.
   """
+
   def __init__(self, field):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()
@@ -150,6 +152,7 @@ class TeamScoresDict(beam.DoFn):
   formats everything together into a dictionary. The dictionary is in the format
   {'bigquery_column': value}
   """
+
   def process(self, team_score, window=beam.DoFn.WindowParam):
     team, score = team_score
     start = timestamp2str(int(window.start))
@@ -163,6 +166,7 @@ class TeamScoresDict(beam.DoFn):
 
 class WriteToBigQuery(beam.PTransform):
   """Generate, format, and write BigQuery table row information."""
+
   def __init__(self, table_name, dataset, schema, project):
     """Initializes the transform.
     Args:
@@ -231,6 +235,7 @@ class CalculateSpammyUsers(beam.PTransform):
 
 class UserSessionActivity(beam.DoFn):
   """Calculate and output an element's session duration, in seconds."""
+
   def process(self, elem, window=beam.DoFn.WindowParam):
     yield (window.end.micros - window.start.micros) // 1000000
 

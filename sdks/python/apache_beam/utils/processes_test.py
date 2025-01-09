@@ -28,6 +28,7 @@ from apache_beam.utils import processes
 
 
 class Exec(unittest.TestCase):
+
   def setUp(self):
     pass
 
@@ -85,6 +86,7 @@ class Exec(unittest.TestCase):
 
 
 class TestErrorHandlingCheckCall(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
@@ -133,6 +135,7 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
 
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
@@ -174,6 +177,7 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
 
 
 class TestErrorHandlingCall(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\

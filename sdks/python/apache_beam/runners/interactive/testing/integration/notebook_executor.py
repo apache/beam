@@ -40,6 +40,7 @@ except ImportError:
 class NotebookExecutor(object):
   """Executor that reads notebooks, executes it and gathers outputs into static
   HTML pages that can be served."""
+
   def __init__(self, path: str) -> None:
 
     assert _interactive_integration_ready, (
@@ -148,6 +149,7 @@ def _extract_html(output, sink):
 
 class IFrameParser(HTMLParser):
   """A parser to extract iframe content from given HTML."""
+
   def __init__(self):
     self._srcdocs = []
     super().__init__()

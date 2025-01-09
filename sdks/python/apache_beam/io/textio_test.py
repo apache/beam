@@ -52,6 +52,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class DummyCoder(coders.Coder):
+
   def encode(self, x):
     raise ValueError
 
@@ -1444,6 +1445,7 @@ class TextSourceTest(unittest.TestCase):
 
 
 class TextSinkTest(unittest.TestCase):
+
   def setUp(self):
     super().setUp()
     self.lines = [b'Line %d' % d for d in range(100)]
@@ -1712,6 +1714,7 @@ class TextSinkTest(unittest.TestCase):
 
 
 class CsvTest(unittest.TestCase):
+
   def test_csv_read_write(self):
     records = [beam.Row(a='str', b=ix) for ix in range(3)]
     with tempfile.TemporaryDirectory() as dest:
@@ -1770,6 +1773,7 @@ class CsvTest(unittest.TestCase):
 
 
 class JsonTest(unittest.TestCase):
+
   def test_json_read_write(self):
     records = [beam.Row(a='str', b=ix) for ix in range(3)]
     with tempfile.TemporaryDirectory() as dest:

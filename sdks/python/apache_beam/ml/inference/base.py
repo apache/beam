@@ -155,6 +155,7 @@ class KeyModelPathMapping(Generic[KeyT]):
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
+
   def __init__(self):
     """Environment variables are set using a dict named 'env_vars' before
     loading the model. Child classes can accept this dict as a kwarg."""
@@ -345,6 +346,7 @@ class _ModelManager:
   single copy of each model into a multi_process_shared object and then
   return a lookup key for that object.
   """
+
   def __init__(self, mh_map: Dict[str, ModelHandler]):
     """
     Args:
@@ -453,6 +455,7 @@ class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
   `KeyModelMapping(['key1', 'key2'], myMh)`, all examples with keys `key1`
   or `key2` will be run against the model defined by the `myMh` ModelHandler.
   """
+
   def __init__(
       self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
     self.keys = keys
@@ -463,6 +466,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
                                      Tuple[KeyT, PredictionT],
                                      Union[ModelT, _ModelManager]]):
+
   def __init__(
       self,
       unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
@@ -849,6 +853,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                                           Union[PredictionT,
                                                 Tuple[KeyT, PredictionT]],
                                           ModelT]):
+
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
     """A ModelHandler that takes examples that might have keys and returns
     predictions that might have keys.
@@ -945,6 +950,7 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
                               ModelHandler[Sequence[ExampleT],
                                            PredictionT,
                                            ModelT]):
+
   def __init__(self, base: ModelHandler[ExampleT, PredictionT, ModelT]):
     """A ModelHandler that skips batching in RunInference.
 
@@ -1006,6 +1012,7 @@ class _PreProcessingModelHandler(Generic[ExampleT,
                                          PreProcessT],
                                  ModelHandler[PreProcessT, PredictionT,
                                               ModelT]):
+
   def __init__(
       self,
       base: ModelHandler[ExampleT, PredictionT, ModelT],
@@ -1071,6 +1078,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
                                           ModelT,
                                           PostProcessT],
                                   ModelHandler[ExampleT, PostProcessT, ModelT]):
+
   def __init__(
       self,
       base: ModelHandler[ExampleT, PredictionT, ModelT],
@@ -1134,6 +1142,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
 class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
                                                           Iterable[ExampleT]]],
                                    beam.PCollection[PredictionT]]):
+
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
@@ -1430,6 +1439,7 @@ class _MetricsCollector:
   """
   A metrics collector that tracks ML related performance and memory usage.
   """
+
   def __init__(self, namespace: str, prefix: str = ''):
     """
     Args:
@@ -1496,6 +1506,7 @@ class _ModelRoutingStrategy():
   different models. Currently only supports round-robin, but can be extended
   to support other protocols if needed.
   """
+
   def __init__(self):
     self._cur_index = 0
 
@@ -1510,6 +1521,7 @@ class _ModelStatus():
     Currently, this only includes whether or not the model is valid. Uses the
     model tag to map models to metadata.
   """
+
   def __init__(self, share_model_across_processes: bool):
     self._active_tags = set()
     self._invalid_tags = set()
@@ -1615,6 +1627,7 @@ class _SharedModelWrapper():
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
   """
+
   def __init__(self, models: List[Any], model_tag: str):
     self.models = models
     if len(models) > 1:
@@ -1636,6 +1649,7 @@ class _SharedModelWrapper():
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
+
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
@@ -1672,6 +1686,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       side_input_model_path: Optional[Union[str,
                                             List[KeyModelPathMapping]]] = None
   ) -> _SharedModelWrapper:
+
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()

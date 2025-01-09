@@ -48,6 +48,7 @@ class ArtifactsFetcher:
 
   This is intended to be used for testing purposes only.
   """
+
   def __init__(self, artifact_location: str):
     tempdir = tempfile.mkdtemp()
     if artifact_location.startswith('gs://'):

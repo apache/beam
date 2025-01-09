@@ -20,6 +20,7 @@ import numpy as np
 
 
 class ExtraAssertionsMixin(object):
+
   def assertUnhashableCountEqual(self, data1, data2):
     """Assert that two containers have the same items, with special treatment
     for numpy arrays.

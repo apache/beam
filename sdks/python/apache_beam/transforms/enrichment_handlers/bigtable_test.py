@@ -26,6 +26,7 @@ except ImportError:
 
 
 class TestBigTableEnrichmentHandler(unittest.TestCase):
+
   @parameterized.expand([('product_id', _row_key_fn), ('', None)])
   def test_bigtable_enrichment_invalid_args(self, row_key, row_key_fn):
     with self.assertRaises(ValueError):

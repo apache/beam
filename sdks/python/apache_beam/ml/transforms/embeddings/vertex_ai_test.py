@@ -48,6 +48,7 @@ model_name: str = "textembedding-gecko@002"
 @unittest.skipIf(
     VertexAITextEmbeddings is None, 'Vertex AI Python SDK is not installed.')
 class VertexAIEmbeddingsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_test')
     self.gcs_artifact_location = os.path.join(
@@ -251,6 +252,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
 @unittest.skipIf(
     VertexAIImageEmbeddings is None, 'Vertex AI Python SDK is not installed.')
 class VertexAIImageEmbeddingsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_image_test')
     self.gcs_artifact_location = os.path.join(

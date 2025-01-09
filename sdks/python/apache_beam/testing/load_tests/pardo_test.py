@@ -87,6 +87,7 @@ from apache_beam.transforms import userstate
 
 
 class ParDoTest(LoadTest):
+
   def __init__(self):
     super().__init__()
     self.iterations = self.get_option_or_default('iterations')
@@ -100,7 +101,9 @@ class ParDoTest(LoadTest):
           'state_cache_size=1000')
 
   def test(self):
+
     class BaseCounterOperation(beam.DoFn):
+
       def __init__(self, number_of_counters, number_of_operations):
         self.number_of_operations = number_of_operations
         self.counters = []
@@ -124,6 +127,7 @@ class ParDoTest(LoadTest):
         yield element
 
     class CounterOperation(BaseCounterOperation):
+
       def process(self, element):
         for _ in range(self.number_of_operations):
           for counter in self.counters:

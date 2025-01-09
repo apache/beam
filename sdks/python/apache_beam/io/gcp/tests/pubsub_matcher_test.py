@@ -40,6 +40,7 @@ except ImportError:
 @mock.patch('time.sleep', return_value=None)
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class PubSubMatcherTest(unittest.TestCase):
+
   def setUp(self):
     self.mock_presult = mock.MagicMock()
 

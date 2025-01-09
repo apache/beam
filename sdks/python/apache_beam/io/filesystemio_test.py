@@ -32,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FakeDownloader(filesystemio.Downloader):
+
   def __init__(self, data):
     self._data = data
     self.last_read_size = -1
@@ -46,6 +47,7 @@ class FakeDownloader(filesystemio.Downloader):
 
 
 class FakeUploader(filesystemio.Uploader):
+
   def __init__(self):
     self.data = b''
     self.last_write_size = -1
@@ -64,6 +66,7 @@ class FakeUploader(filesystemio.Uploader):
 
 
 class TestDownloaderStream(unittest.TestCase):
+
   def test_file_attributes(self):
     downloader = FakeDownloader(data=None)
     stream = filesystemio.DownloaderStream(downloader)
@@ -102,6 +105,7 @@ class TestDownloaderStream(unittest.TestCase):
 
 
 class TestUploaderStream(unittest.TestCase):
+
   def test_file_attributes(self):
     uploader = FakeUploader()
     stream = filesystemio.UploaderStream(uploader)
@@ -147,6 +151,7 @@ class TestUploaderStream(unittest.TestCase):
 
 
 class TestPipeStream(unittest.TestCase):
+
   def _read_and_verify(self, stream, expected, buffer_size, success):
     data_list = []
     bytes_read = 0

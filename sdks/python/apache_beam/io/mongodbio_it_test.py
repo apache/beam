@@ -33,6 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class GenerateDocs(beam.DoFn):
+
   def process(self, num_docs, *args, **kwargs):
     for i in range(num_docs):
       yield {'number': i, 'number_mod_2': i % 2, 'number_mod_3': i % 3}

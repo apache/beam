@@ -84,6 +84,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
+
   def __init__(
       self,
       model_name: str,
@@ -168,6 +169,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
 
 
 class VertexAITextEmbeddings(EmbeddingsManager):
+
   def __init__(
       self,
       model_name: str,
@@ -224,6 +226,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
 
 
 class _VertexAIImageEmbeddingHandler(ModelHandler):
+
   def __init__(
       self,
       model_name: str,
@@ -296,6 +299,7 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
 
 
 class VertexAIImageEmbeddings(EmbeddingsManager):
+
   def __init__(
       self,
       model_name: str,

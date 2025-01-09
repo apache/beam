@@ -52,6 +52,7 @@ class Document(object):
     from_gcs (bool): Whether the content should be interpret as a Google Cloud
       Storage URI. The default value is :data:`False`.
   """
+
   def __init__(
       self,
       content: str,
@@ -108,6 +109,7 @@ def AnnotateText(
 @beam.typehints.with_input_types(Document)
 @beam.typehints.with_output_types(language_v1.AnnotateTextResponse)
 class _AnnotateTextFn(beam.DoFn):
+
   def __init__(
       self,
       features: Union[Mapping[str, bool],

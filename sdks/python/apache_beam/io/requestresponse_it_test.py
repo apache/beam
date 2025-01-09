@@ -55,6 +55,7 @@ class EchoITOptions(PipelineOptions):
       -infra/mock-apis#integration for details on how to acquire values
       required by ``EchoITOptions``.
       """
+
   @classmethod
   def _add_argparse_args(cls, parser) -> None:
     parser.add_argument(
@@ -92,6 +93,7 @@ class EchoHTTPCaller(Caller[Request, EchoResponse]):
   """Implements ``Caller`` to call the ``EchoServiceGrpc``'s HTTP handler.
     The purpose of ``EchoHTTPCaller`` is to support integration tests.
     """
+
   def __init__(self, url: str):
     self.url = url + _HTTP_PATH
 
@@ -129,6 +131,7 @@ class EchoHTTPCaller(Caller[Request, EchoResponse]):
 
 class ValidateResponse(beam.DoFn):
   """Validates response received from Mock API server."""
+
   def process(self, element, *args, **kwargs):
     if (element.id != 'echo-should-never-exceed-quota' or
         element.payload != _PAYLOAD):
@@ -172,6 +175,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
 
 class ValidateCacheResponses(beam.DoFn):
   """Validates that the responses are fetched from the cache."""
+
   def process(self, element, *args, **kwargs):
     if not element[1] or 'cached-' not in element[1]:
       raise ValueError(
@@ -181,12 +185,14 @@ class ValidateCacheResponses(beam.DoFn):
 
 class ValidateCallerResponses(beam.DoFn):
   """Validates that the responses are fetched from the caller."""
+
   def process(self, element, *args, **kwargs):
     if not element[1] or 'ACK-' not in element[1]:
       raise ValueError('responses not fetched from caller when they should.')
 
 
 class FakeCallerForCache(Caller[str, str]):
+
   def __init__(self, use_cache: bool = False):
     self.use_cache = use_cache
 
@@ -205,6 +211,7 @@ class FakeCallerForCache(Caller[str, str]):
 
 @pytest.mark.uses_testcontainer
 class TestRedisCache(unittest.TestCase):
+
   def setUp(self) -> None:
     self.retries = 3
     self._start_container()

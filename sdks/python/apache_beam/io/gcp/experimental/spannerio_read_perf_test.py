@@ -79,6 +79,7 @@ except ImportError:
 
 
 class SpannerReadPerfTest(LoadTest):
+
   def __init__(self):
     super().__init__()
     self.project = self.pipeline.get_option('project')
@@ -113,6 +114,7 @@ class SpannerReadPerfTest(LoadTest):
     Runs an additional pipeline which creates test data and waits for its
     completion.
     """
+
     def format_record(record):
       import base64
       return base64.b64encode(record[1])

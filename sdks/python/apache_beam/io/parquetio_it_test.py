@@ -46,6 +46,7 @@ except ImportError:
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 class TestParquetIT(unittest.TestCase):
+
   def setUp(self):
     pass
 
@@ -117,6 +118,7 @@ class TestParquetIT(unittest.TestCase):
 
 
 class ProducerFn(DoFn):
+
   def __init__(self, number):
     super().__init__()
     self._number = number

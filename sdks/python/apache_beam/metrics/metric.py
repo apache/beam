@@ -61,6 +61,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class Metrics(object):
   """Lets users create/access metric objects during pipeline execution."""
+
   @staticmethod
   def get_namespace(namespace: Union[Type, str]) -> str:
     if isinstance(namespace, type):
@@ -155,6 +156,7 @@ class Metrics(object):
 
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
+
     def __init__(
         self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
@@ -166,24 +168,28 @@ class Metrics(object):
 
   class DelegatingDistribution(Distribution):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingStringSet(StringSet):
     """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingBoundedTrie(BoundedTrie):
     """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.add = MetricUpdater(cells.BoundedTrieCell, metric_name)  # type: ignore[method-assign]
@@ -280,6 +286,7 @@ class MetricsFilter(object):
 
   Note: This class only supports user defined metrics.
   """
+
   def __init__(self) -> None:
     self._names: Set[str] = set()
     self._namespaces: Set[str] = set()

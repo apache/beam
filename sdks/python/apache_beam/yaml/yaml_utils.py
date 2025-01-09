@@ -24,12 +24,14 @@ from yaml import SafeLoader
 
 class SafeLineLoader(SafeLoader):
   """A yaml loader that attaches line information to mappings and strings."""
+
   class TaggedString(str):
     """A string class to which we can attach metadata.
 
     This is primarily used to trace a string's origin back to its place in a
     yaml file.
     """
+
     def __reduce__(self):
       # Pickle as an ordinary string.
       return str, (str(self), )
@@ -55,8 +57,8 @@ class SafeLineLoader(SafeLoader):
   def strip_metadata(cls, spec, tagged_str=True):
     if isinstance(spec, Mapping):
       return {
-          cls.strip_metadata(key, tagged_str):
-          cls.strip_metadata(value, tagged_str)
+          cls.strip_metadata(key, tagged_str): cls.strip_metadata(
+              value, tagged_str)
           for (key, value) in spec.items()
           if key not in ('__line__', '__uuid__')
       }

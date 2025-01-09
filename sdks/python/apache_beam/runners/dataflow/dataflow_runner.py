@@ -165,8 +165,8 @@ class DataflowRunner(PipelineRunner):
 
           # Check that job is in a post-preparation state before starting the
           # final countdown.
-          if (str(response.currentState) not in ('JOB_STATE_PENDING',
-                                                 'JOB_STATE_QUEUED')):
+          if (str(response.currentState)
+              not in ('JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
             # The job has failed; ensure we see any final error messages.
             sleep_secs = 1.0  # poll faster during the final countdown
             final_countdown_timer_secs -= sleep_secs
@@ -244,6 +244,7 @@ class DataflowRunner(PipelineRunner):
       TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
       we could directly replace the coder instead of mutating the element type.
       """
+
       def visit_transform(self, transform_node):
         if isinstance(transform_node.transform, ParDo):
           new_side_inputs = []
@@ -284,6 +285,7 @@ class DataflowRunner(PipelineRunner):
       """A visitor that replaces the element type for input ``PCollections``s of
        a ``Flatten`` transform with that of the output ``PCollection``.
       """
+
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
@@ -306,6 +308,7 @@ class DataflowRunner(PipelineRunner):
       """Checks if `CombineFn` has non-default setup or teardown methods.
       If yes, raises `ValueError`.
       """
+
       def visit_transform(self, applied_transform):
         transform = applied_transform.transform
         if isinstance(transform, core.ParDo) and isinstance(
@@ -562,6 +565,7 @@ class DataflowRunner(PipelineRunner):
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):
   """Wraps a side input as a dataflow-compatible side input."""
+
   def _view_options(self):
     return {
         'data': self._data,
@@ -661,6 +665,7 @@ def _is_runner_v2_disabled(options):
 
 class _DataflowIterableSideInput(_DataflowSideInput):
   """Wraps an iterable side input as dataflow-compatible side input."""
+
   def __init__(self, side_input):
     # pylint: disable=protected-access
     self.pvalue = side_input.pvalue
@@ -675,6 +680,7 @@ class _DataflowIterableSideInput(_DataflowSideInput):
 
 class _DataflowMultimapSideInput(_DataflowSideInput):
   """Wraps a multimap side input as dataflow-compatible side input."""
+
   def __init__(self, side_input):
     # pylint: disable=protected-access
     self.pvalue = side_input.pvalue
@@ -689,6 +695,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
 
 class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
+
   def __init__(self, job, runner):
     """Initialize a new DataflowPipelineResult instance.
 
@@ -848,6 +855,7 @@ class DataflowPipelineResult(PipelineResult):
 
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
+
   def __init__(self, msg, result):
     super().__init__(msg)
     self.result = result

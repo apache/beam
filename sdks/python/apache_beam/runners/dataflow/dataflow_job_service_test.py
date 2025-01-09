@@ -33,6 +33,7 @@ except ImportError:
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class DirectPipelineResultTest(unittest.TestCase):
+
   def test_dry_run(self):
     # Not an integration test that actually runs on Dataflow,
     # but does exercise (most of) the translation and setup code,
@@ -58,6 +59,7 @@ class DirectPipelineResultTest(unittest.TestCase):
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class DirectPipelineTemplateTest(unittest.TestCase):
+
   def test_template(self):
     job_servicer = local_job_service.LocalJobServicer(
         None, beam_job_type=dataflow_job_service.DataflowBeamJob)

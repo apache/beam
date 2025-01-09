@@ -26,6 +26,7 @@ from apache_beam.metrics.metricbase import MetricName
 
 
 class TestMetricKey(unittest.TestCase):
+
   def test_equality_for_key_with_labels(self):
     test_labels = {'label1', 'value1'}
     test_object = MetricKey(
@@ -73,6 +74,7 @@ class TestMetricKey(unittest.TestCase):
 
 
 class TestMetricsContainer(unittest.TestCase):
+
   def test_add_to_counter(self):
     mc = MetricsContainer('astep')
     counter = mc.get_counter(MetricName('namespace', 'name'))

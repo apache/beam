@@ -45,6 +45,7 @@ MAX_TEST_RETRIES = 3
 class AckCaller(Caller[str, str]):
   """AckCaller acknowledges the incoming request by returning a
   request with ACK."""
+
   def __enter__(self):
     pass
 
@@ -58,6 +59,7 @@ class AckCaller(Caller[str, str]):
 class CallerWithTimeout(AckCaller):
   """CallerWithTimeout sleeps for 2 seconds before responding.
   Used to test timeout in RequestResponseIO."""
+
   def __call__(self, request: str, *args, **kwargs):
     time.sleep(2)
     return f"ACK: {request}"
@@ -66,12 +68,14 @@ class CallerWithTimeout(AckCaller):
 class CallerWithRuntimeError(AckCaller):
   """CallerWithRuntimeError raises a `RuntimeError` for RequestResponseIO
   to raise a UserCodeExecutionException."""
+
   def __call__(self, request: str, *args, **kwargs):
     if not request:
       raise RuntimeError("Exception expected, not an error.")
 
 
 class CallerThatRetries(AckCaller):
+
   def __init__(self):
     self.count = -1
 
@@ -86,6 +90,7 @@ class CallerThatRetries(AckCaller):
 
 
 class TestCaller(unittest.TestCase):
+
   def test_valid_call(self):
     caller = AckCaller()
     with TestPipeline() as test_pipeline:

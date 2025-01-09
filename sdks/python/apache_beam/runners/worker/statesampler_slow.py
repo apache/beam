@@ -24,6 +24,7 @@ from apache_beam.utils import counters
 
 
 class StateSampler(object):
+
   def __init__(self, sampling_period_ms):
     self._state_stack = [
         ScopedState(self, counters.CounterName('unknown'), None)
@@ -73,6 +74,7 @@ class StateSampler(object):
 
 
 class ScopedState(object):
+
   def __init__(
       self,
       sampler: StateSampler,

@@ -47,6 +47,7 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
 class LineSource(FileBasedSource):
+
   def read_records(self, file_name, range_tracker):
     f = self.open_file(file_name)
     try:
@@ -178,7 +179,9 @@ def write_pattern(lines_per_file, no_data=False):
 
 
 class TestConcatSource(unittest.TestCase):
+
   class DummySource(iobase.BoundedSource):
+
     def __init__(self, values):
       self._values = values
 
@@ -252,6 +255,7 @@ class TestConcatSource(unittest.TestCase):
 
 
 class TestFileBasedSource(unittest.TestCase):
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -584,10 +588,12 @@ class TestFileBasedSource(unittest.TestCase):
       assert_that(pcoll, equal_to(lines))
 
   def test_splits_get_coder_from_fbs(self):
+
     class DummyCoder(object):
       val = 12345
 
     class FileBasedSourceWithCoder(LineSource):
+
       def default_output_coder(self):
         return DummyCoder()
 
@@ -601,6 +607,7 @@ class TestFileBasedSource(unittest.TestCase):
 
 
 class TestSingleFileSource(unittest.TestCase):
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.

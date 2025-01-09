@@ -54,7 +54,9 @@ except ImportError:
 
 # Mock runners to use for validations.
 class MockRunners(object):
+
   class DataflowRunner(object):
+
     def get_default_gcp_region(self):
       # Return a default so we don't have to specify --region in every test
       # (unless specifically testing it).
@@ -62,16 +64,19 @@ class MockRunners(object):
 
 
 class MockGoogleCloudOptionsNoBucket(GoogleCloudOptions):
+
   def _create_default_gcs_bucket(self):
     return None
 
 
 class MockGoogleCloudOptionsWithBucket(GoogleCloudOptions):
+
   def _create_default_gcs_bucket(self):
     return "gs://default/bucket"
 
 
 class PipelineOptionsTest(unittest.TestCase):
+
   def setUp(self):
     # Reset runtime options to avoid side-effects caused by other tests.
     # Note that is_accessible assertions require runtime_options to
@@ -185,6 +190,7 @@ class PipelineOptionsTest(unittest.TestCase):
 
   # Used for testing newly added flags.
   class MockOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--mock_flag', action='store_true', help='mock flag')
@@ -196,6 +202,7 @@ class PipelineOptionsTest(unittest.TestCase):
 
   # Use with MockOptions in test cases where multiple option classes are needed.
   class FakeOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--fake_flag', action='store_true', help='fake flag')
@@ -296,7 +303,9 @@ class PipelineOptionsTest(unittest.TestCase):
         expected.get('mock_json_option', {}))
 
   def test_none_from_dictionary(self):
+
     class NoneDefaultOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--test_arg_none', default=None, type=int)
@@ -525,12 +534,15 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(options.get_all_options()['template_location'], None)
 
   def test_redefine_options(self):
+
     class TestRedefinedOptions(PipelineOptions):  # pylint: disable=unused-variable
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
 
     class TestRedefinedOptions(PipelineOptions):  # pylint: disable=function-redefined
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
@@ -544,7 +556,9 @@ class PipelineOptionsTest(unittest.TestCase):
   # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.
   # The number will grow per file as tests are added.
   def test_value_provider_options(self):
+
     class UserOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(

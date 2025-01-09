@@ -31,6 +31,7 @@ import apache_beam as beam
 
 
 class RoundTripFn(beam.DoFn):
+
   def process(self, element):
     coder = element.CODER
     byte_value = coder.encode(element)

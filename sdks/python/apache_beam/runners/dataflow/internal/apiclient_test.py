@@ -60,6 +60,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
+
   @unittest.skip("Enable once BEAM-1080 is fixed.")
   def test_create_application_client(self):
     pipeline_options = PipelineOptions()
@@ -1671,6 +1672,7 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(pipeline, pipeline_expected)
 
   def test_stage_file_with_retry(self):
+
     def effect(self, *args, **kwargs):
       nonlocal count
       count += 1
@@ -1679,6 +1681,7 @@ class UtilTest(unittest.TestCase):
         raise Exception("This exception is raised for testing purpose.")
 
     class Unseekable(io.IOBase):
+
       def seekable(self):
         return False
 

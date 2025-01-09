@@ -42,6 +42,7 @@ from apache_beam.io.filesystem import FileSystem
 
 
 class TestingFileSystem(FileSystem):
+
   def __init__(self, pipeline_options, has_dirs=False):
     super().__init__(pipeline_options)
     self._has_dirs = has_dirs
@@ -112,6 +113,7 @@ class TestingFileSystem(FileSystem):
 
 
 class TestFileSystem(unittest.TestCase):
+
   def setUp(self):
     self.fs = TestingFileSystem(pipeline_options=None)
 
@@ -210,8 +212,8 @@ class TestFileSystem(unittest.TestCase):
         # It's a filter function of type (str, int) -> bool
         # that returns true for expected objects
         filter_func = expected_object_names
-        expected_object_names = [(short_path, size) for short_path,
-                                 size in objects
+        expected_object_names = [(short_path, size)
+                                 for short_path, size in objects
                                  if filter_func(short_path, size)]
 
     for object_name, size in objects:
@@ -219,8 +221,7 @@ class TestFileSystem(unittest.TestCase):
       self.fs._insert_random_file(file_name, size)
 
     expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
-                           for object_name,
-                           size in expected_object_names]
+                           for object_name, size in expected_object_names]
     actual_file_names = [
         (file_metadata.path, file_metadata.size_in_bytes)
         for file_metadata in self._flatten_match(self.fs.match([file_pattern]))
@@ -258,6 +259,7 @@ class TestFileSystem(unittest.TestCase):
 
 
 class TestFileSystemWithDirs(TestFileSystem):
+
   def setUp(self):
     self.fs = TestingFileSystem(pipeline_options=None, has_dirs=True)
 

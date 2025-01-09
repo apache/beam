@@ -53,6 +53,7 @@ def check_elements_with_mean_value_per_key(actual):
     'apache_beam.examples.snippets.transforms.aggregation.mean_per_key.print',
     str)
 class MeanTest(unittest.TestCase):
+
   def test_mean_globally(self):
     mean_globally.mean_globally(check_mean_element)
 

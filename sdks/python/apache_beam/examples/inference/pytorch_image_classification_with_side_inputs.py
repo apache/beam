@@ -115,6 +115,7 @@ class PostProcessor(beam.DoFn):
   Return filename, prediction and the model id used to perform the
   prediction
   """
+
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
     prediction = torch.argmax(prediction_result.inference, dim=0)

@@ -28,6 +28,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class UtilTest(unittest.TestCase):
+
   def test_assert_matches_stdout_object(self):
     expected = [
         "{'a': '🍓', 'b': True}",

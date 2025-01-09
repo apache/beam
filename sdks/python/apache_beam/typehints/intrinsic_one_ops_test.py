@@ -27,6 +27,7 @@ from apache_beam.typehints import intrinsic_one_ops
 
 
 class IntrinsicOneOpsTest(unittest.TestCase):
+
   def test_unary_intrinsic_ops_are_in_the_same_order_as_in_cpython(self):
     if sys.version_info >= (3, 12):
       dis_order = dis.__dict__['_intrinsic_1_descs']

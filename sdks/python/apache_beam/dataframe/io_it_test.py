@@ -40,6 +40,7 @@ except ImportError:
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ReadUsingReadGbqTests(unittest.TestCase):
+
   @pytest.mark.it_postcommit
   def test_ReadGbq(self):
     from apache_beam.dataframe import convert

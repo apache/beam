@@ -35,6 +35,7 @@ except ImportError:
 
 @unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
 class TestMatchers(unittest.TestCase):
+
   def test_structured_name_matcher_basic(self):
     metric_name = dataflow.MetricStructuredName()
     metric_name.name = 'metric1'

@@ -29,6 +29,7 @@ from apache_beam.testing.util import assert_that
 
 
 def in_between(lower, upper):
+
   def _in_between(actual):
     _, _, estimate = actual[0]
     if estimate < lower or estimate > upper:
@@ -39,6 +40,7 @@ def in_between(lower, upper):
 
 
 class EstimatePiTest(unittest.TestCase):
+
   def test_basics(self):
     with TestPipeline() as p:
       result = p | 'Estimate' >> estimate_pi.EstimatePiTransform(5000)

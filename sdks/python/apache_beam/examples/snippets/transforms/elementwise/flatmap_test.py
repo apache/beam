@@ -91,6 +91,7 @@ def check_valid_plants(actual):
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_side_inputs_dict.print',
     str)
 class FlatMapTest(unittest.TestCase):
+
   def test_flatmap_simple(self):
     flatmap_simple.flatmap_simple(check_plants)
 

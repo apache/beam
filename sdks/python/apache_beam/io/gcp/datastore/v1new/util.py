@@ -46,6 +46,7 @@ class MovingSum(object):
   convenience we expose the count of entries as well so this doubles as a
   moving average tracker.
   """
+
   def __init__(self, window_ms, bucket_ms):
     if window_ms < bucket_ms or bucket_ms <= 0:
       raise ValueError("window_ms >= bucket_ms > 0 please")
@@ -110,6 +111,7 @@ class MovingSum(object):
 
 class DynamicBatchSizer(object):
   """Determines request sizes for future Datastore RPCs."""
+
   def __init__(self):
     self._commit_time_per_entity_ms = MovingSum(
         window_ms=120000, bucket_ms=10000)

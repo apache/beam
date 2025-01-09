@@ -68,6 +68,7 @@ Row(x=array([3]))
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch('sys.stdout', new_callable=StringIO)
 class MLTransformStdOutTest(unittest.TestCase):
+
   def test_mltransform_compute_and_apply_vocab(self, mock_stdout):
     mltransform_compute_and_apply_vocabulary()
     predicted = mock_stdout.getvalue().splitlines()

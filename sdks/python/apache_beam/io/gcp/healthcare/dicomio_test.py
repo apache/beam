@@ -165,6 +165,7 @@ class TestFormatToQido(unittest.TestCase):
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomSearch(unittest.TestCase):
+
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_successful_search(self, MockClient):
     input_dict = {}
@@ -334,6 +335,7 @@ class TestDicomSearch(unittest.TestCase):
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
+
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_store_byte_file(self, MockClient):
     input_dict = {}

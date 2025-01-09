@@ -45,8 +45,11 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class DoFnSignatureTest(unittest.TestCase):
+
   def test_dofn_validate_process_error(self):
+
     class MyDoFn(DoFn):
+
       def process(self, element, w1=DoFn.WindowParam, w2=DoFn.WindowParam):
         pass
 
@@ -54,7 +57,9 @@ class DoFnSignatureTest(unittest.TestCase):
       DoFnSignature(MyDoFn())
 
   def test_dofn_get_defaults(self):
+
     class MyDoFn(DoFn):
+
       def process(self, element, w=DoFn.WindowParam):
         pass
 
@@ -64,7 +69,9 @@ class DoFnSignatureTest(unittest.TestCase):
 
   @unittest.skip('BEAM-5878')
   def test_dofn_get_defaults_kwonly(self):
+
     class MyDoFn(DoFn):
+
       def process(self, element, *, w=DoFn.WindowParam):
         pass
 
@@ -73,7 +80,9 @@ class DoFnSignatureTest(unittest.TestCase):
     self.assertEqual(signature.process_method.defaults, [DoFn.WindowParam])
 
   def test_dofn_validate_start_bundle_error(self):
+
     class MyDoFn(DoFn):
+
       def process(self, element):
         pass
 
@@ -84,7 +93,9 @@ class DoFnSignatureTest(unittest.TestCase):
       DoFnSignature(MyDoFn())
 
   def test_dofn_validate_finish_bundle_error(self):
+
     class MyDoFn(DoFn):
+
       def process(self, element):
         pass
 
@@ -95,12 +106,15 @@ class DoFnSignatureTest(unittest.TestCase):
       DoFnSignature(MyDoFn())
 
   def test_unbounded_element_process_fn(self):
+
     class UnboundedDoFn(DoFn):
+
       @DoFn.unbounded_per_element()
       def process(self, element):
         pass
 
     class BoundedDoFn(DoFn):
+
       def process(self, element):
         pass
 
@@ -118,14 +132,18 @@ class DoFnProcessTest(unittest.TestCase):
     DoFnProcessTest.all_records = []
 
   def record_dofn(self):
+
     class RecordDoFn(DoFn):
+
       def process(self, element):
         DoFnProcessTest.all_records.append(element)
 
     return RecordDoFn()
 
   def test_dofn_process_keyparam(self):
+
     class DoFnProcessWithKeyparam(DoFn):
+
       def process(self, element, mykey=DoFn.KeyParam):
         yield "{key}-verify".format(key=mykey)
 
@@ -147,7 +165,9 @@ class DoFnProcessTest(unittest.TestCase):
                      sorted(DoFnProcessTest.all_records))
 
   def test_dofn_process_keyparam_error_no_key(self):
+
     class DoFnProcessWithKeyparam(DoFn):
+
       def process(self, element, mykey=DoFn.KeyParam):
         yield "{key}-verify".format(key=mykey)
 
@@ -158,12 +178,15 @@ class DoFnProcessTest(unittest.TestCase):
       (p | test_stream | beam.ParDo(DoFnProcessWithKeyparam()))
 
   def test_pardo_with_unbounded_per_element_dofn(self):
+
     class UnboundedDoFn(beam.DoFn):
+
       @beam.DoFn.unbounded_per_element()
       def process(self, element):
         pass
 
     class BoundedDoFn(beam.DoFn):
+
       def process(self, element):
         pass
 
@@ -177,11 +200,13 @@ class DoFnProcessTest(unittest.TestCase):
 
 
 class TestOffsetRestrictionProvider(RestrictionProvider):
+
   def restriction_size(self, element, restriction):
     return restriction.size()
 
 
 class PerWindowInvokerSplitTest(unittest.TestCase):
+
   def setUp(self):
     self.window1 = IntervalWindow(0, 10)
     self.window2 = IntervalWindow(10, 20)
@@ -424,7 +449,10 @@ class PerWindowInvokerSplitTest(unittest.TestCase):
             expected_primary_split,
             expected_primary_windows,
         ))
-    hc.assert_that(residuals, hc.contains_inanyorder(expected_residual_split, ))
+    hc.assert_that(
+        residuals, hc.contains_inanyorder(
+            expected_residual_split,
+        ))
     self.assertEqual(stop_index, 3)
 
   def test_window_observing_split_on_first_window_fallback(self):
@@ -588,6 +616,7 @@ class PerWindowInvokerSplitTest(unittest.TestCase):
 
 
 class UtilitiesTest(unittest.TestCase):
+
   def test_equal_environments_merged(self):
     pipeline_proto = merge_common_environments(
         beam_runner_api_pb2.Pipeline(

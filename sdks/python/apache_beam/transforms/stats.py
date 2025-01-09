@@ -145,6 +145,7 @@ class ApproximateUnique(object):
   @typehints.with_output_types(int)
   class Globally(PTransform):
     """ Approximate.Globally approximate number of unique values"""
+
     def __init__(self, size=None, error=None):
       self._sample_size = ApproximateUnique.parse_input_params(size, error)
 
@@ -159,6 +160,7 @@ class ApproximateUnique(object):
   @typehints.with_output_types(typing.Tuple[K, int])
   class PerKey(PTransform):
     """ Approximate.PerKey approximate number of unique values per key"""
+
     def __init__(self, size=None, error=None):
       self._sample_size = ApproximateUnique.parse_input_params(size, error)
 
@@ -242,6 +244,7 @@ class ApproximateUniqueCombineFn(CombineFn):
   ApproximateUniqueCombineFn computes an estimate of the number of
   unique values that were combined.
   """
+
   def __init__(self, sample_size, coder):
     self._sample_size = sample_size
     coder = coders.typecoders.registry.verify_deterministic(
@@ -306,6 +309,7 @@ class ApproximateQuantiles(object):
 
     out: [0, 2, 5, 7, 100]
   """
+
   @staticmethod
   def _display_data(num_quantiles, key, reverse, weighted, input_batched):
     return {
@@ -343,6 +347,7 @@ class ApproximateQuantiles(object):
         weighted. Provides a way to accumulate multiple elements at a time more
         efficiently.
     """
+
     def __init__(
         self,
         num_quantiles,
@@ -398,6 +403,7 @@ class ApproximateQuantiles(object):
         weighted. Provides a way to accumulate multiple elements at a time more
         efficiently.
     """
+
     def __init__(
         self,
         num_quantiles,
@@ -431,6 +437,7 @@ class ApproximateQuantiles(object):
 
 class _QuantileSpec(object):
   """Quantiles computation specifications."""
+
   def __init__(self, buffer_size, num_buffers, weighted, key, reverse):
     # type: (int, int, bool, Any, bool) -> None
     self.buffer_size = buffer_size
@@ -476,6 +483,7 @@ class _QuantileBuffer(object):
   """A single buffer in the sense of the referenced algorithm.
   (see http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
+
   def __init__(
       self, elements, weights, weighted, level=0, min_val=None, max_val=None):
     # type: (List, List, bool, int, Any, Any) -> None
@@ -509,6 +517,7 @@ class _QuantileState(object):
   """
   Compact summarization of a collection on which quantiles can be estimated.
   """
+
   def __init__(self, unbuffered_elements, unbuffered_weights, buffers, spec):
     # type: (List, List, List[_QuantileBuffer], _QuantileSpec) -> None
     self.buffers = buffers

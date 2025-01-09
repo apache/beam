@@ -135,6 +135,7 @@ class InteractiveEnvironment(object):
   also visualize and introspect those PCollections in user code since they have
   handles to the variables.
   """
+
   def __init__(self):
     # Registers a cleanup routine when system exits.
     atexit.register(self.cleanup)
@@ -462,8 +463,7 @@ class InteractiveEnvironment(object):
     """Returns a description of the recording for all watched pipelnes."""
     return {
         self.pipeline_id_to_pipeline(pid): rm.describe()
-        for pid,
-        rm in self._recording_managers.items()
+        for pid, rm in self._recording_managers.items()
     }
 
   def set_pipeline_result(self, pipeline, result):

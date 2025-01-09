@@ -39,6 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class TestDataflowRunner(DataflowRunner):
+
   def run_pipeline(self, pipeline, options):
     """Execute test pipeline and verify test matcher"""
     test_options = options.view_as(TestOptions)

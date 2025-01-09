@@ -168,6 +168,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     self.assertEqual(tracker.try_split(3), None)
 
   def test_synthetic_source(self):
+
     def assert_size(element, expected_size):
       assert len(element) == expected_size
 

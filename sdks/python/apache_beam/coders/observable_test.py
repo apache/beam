@@ -37,7 +37,9 @@ class ObservableMixinTest(unittest.TestCase):
     self.observed_keys.append(key)
 
   def test_observable(self):
+
     class Watched(observable.ObservableMixin):
+
       def __iter__(self):
         for i in (1, 4, 3):
           self.notify_observers(i, key='a%d' % i)

@@ -34,6 +34,7 @@ from apache_beam.utils.histogram import LinearBucket
 
 
 class MetricLoggerTest(unittest.TestCase):
+
   @patch('apache_beam.internal.metrics.metric._LOGGER')
   def test_log_metrics(self, mock_logger):
     logger = MetricLogger()
@@ -44,6 +45,7 @@ class MetricLoggerTest(unittest.TestCase):
     logger.log_metrics()
 
     class Contains(str):
+
       def __eq__(self, other):
         return self in other
 
@@ -52,6 +54,7 @@ class MetricLoggerTest(unittest.TestCase):
 
 
 class MetricsTest(unittest.TestCase):
+
   def test_create_process_wide(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
     statesampler.set_current_tracker(sampler)

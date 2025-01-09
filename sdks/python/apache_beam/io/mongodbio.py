@@ -113,6 +113,7 @@ __all__ = ["ReadFromMongoDB", "WriteToMongoDB"]
 
 class ReadFromMongoDB(PTransform):
   """A ``PTransform`` to read MongoDB documents into a ``PCollection``."""
+
   def __init__(
       self,
       uri="mongodb://localhost:27017",
@@ -169,6 +170,7 @@ class ReadFromMongoDB(PTransform):
 
 class _ObjectIdRangeTracker(OrderedPositionRangeTracker):
   """RangeTracker for tracking mongodb _id of bson ObjectId type."""
+
   def position_to_fraction(
       self,
       pos: ObjectId,
@@ -242,6 +244,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
   implementations may invoke methods of ``_BoundedMongoSource`` objects through
   multi-threaded and/or reentrant execution modes.
   """
+
   def __init__(
       self,
       uri=None,
@@ -458,12 +461,12 @@ class _BoundedMongoSource(iobase.BoundedSource):
     with MongoClient(self.uri, **self.spec) as client:
       name_space = "%s.%s" % (self.db, self.coll)
       return client[self.db].command(
-        "splitVector",
-        name_space,
-        keyPattern={"_id": 1},  # Ascending index
-        min={"_id": start_pos},
-        max={"_id": end_pos},
-        maxChunkSize=desired_chunk_size_in_mb,
+          "splitVector",
+          name_space,
+          keyPattern={"_id": 1},  # Ascending index
+          min={"_id": start_pos},
+          max={"_id": end_pos},
+          maxChunkSize=desired_chunk_size_in_mb,
       )["splitKeys"]
 
   def _get_auto_buckets(
@@ -584,6 +587,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
 class _ObjectIdHelper:
   """A Utility class to manipulate bson object ids."""
+
   @classmethod
   def id_to_int(cls, _id: Union[int, ObjectId]) -> int:
     """
@@ -670,6 +674,7 @@ class WriteToMongoDB(PTransform):
   with different unique IDs.
 
   """
+
   def __init__(
       self,
       uri="mongodb://localhost:27017",
@@ -718,6 +723,7 @@ class WriteToMongoDB(PTransform):
 
 
 class _GenerateObjectIdFn(DoFn):
+
   def process(self, element, *args, **kwargs):
     # if _id field already exist we keep it as it is, otherwise the ptransform
     # generates a new _id field to achieve idempotent write to mongodb.
@@ -734,6 +740,7 @@ class _GenerateObjectIdFn(DoFn):
 
 
 class _WriteMongoFn(DoFn):
+
   def __init__(
       self, uri=None, db=None, coll=None, batch_size=100, extra_params=None):
     if extra_params is None:
@@ -769,6 +776,7 @@ class _WriteMongoFn(DoFn):
 
 
 class _MongoSink:
+
   def __init__(self, uri=None, db=None, coll=None, extra_params=None):
     if extra_params is None:
       extra_params = {}

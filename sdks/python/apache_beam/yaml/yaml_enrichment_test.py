@@ -28,6 +28,7 @@ from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class FakeEnrichmentTransform:
+
   def __init__(self, enrichment_handler, handler_config, timeout=30):
     self._enrichment_handler = enrichment_handler
     self._handler_config = handler_config
@@ -41,6 +42,7 @@ class FakeEnrichmentTransform:
 
 
 class EnrichmentTransformTest(unittest.TestCase):
+
   def test_enrichment_with_bigquery(self):
     input_data = [
         Row(label="item1", rank=0),

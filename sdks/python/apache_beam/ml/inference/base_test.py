@@ -48,11 +48,13 @@ from apache_beam.utils import multi_process_shared
 
 
 class FakeModel:
+
   def predict(self, example: int) -> int:
     return example + 1
 
 
 class FakeStatefulModel:
+
   def __init__(self, state: int):
     if state == 100:
       raise Exception('Oh no')
@@ -66,6 +68,7 @@ class FakeStatefulModel:
 
 
 class FakeSlowModel:
+
   def __init__(self, sleep_on_load_seconds=0, file_path_write_on_del=None):
 
     self._file_path_write_on_del = file_path_write_on_del
@@ -82,6 +85,7 @@ class FakeSlowModel:
 
 
 class FakeIncrementingModel:
+
   def __init__(self):
     self._state = 0
 
@@ -91,6 +95,7 @@ class FakeIncrementingModel:
 
 
 class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
+
   def __init__(
       self,
       sleep_on_load: int,
@@ -119,6 +124,7 @@ class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
+
   def __init__(
       self,
       clock=None,
@@ -189,6 +195,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
+
   def __init__(
       self,
       clock=None,
@@ -233,6 +240,7 @@ class FakeModelHandlerReturnsPredictionResult(
 
 
 class FakeModelHandlerNoEnvVars(base.ModelHandler[int, int, FakeModel]):
+
   def __init__(
       self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
     self._fake_clock = clock
@@ -265,6 +273,7 @@ class FakeModelHandlerNoEnvVars(base.ModelHandler[int, int, FakeModel]):
 
 
 class FakeClock:
+
   def __init__(self):
     # Start at 10 seconds.
     self.current_time_ns = 10_000_000_000
@@ -274,11 +283,13 @@ class FakeClock:
 
 
 class ExtractInferences(beam.DoFn):
+
   def process(self, prediction_result):
     yield prediction_result.inference
 
 
 class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
+
   def run_inference(self, batch, unused_model, inference_args=None):
     if len(batch) < 100:
       raise ValueError('Unexpectedly small batch')
@@ -289,6 +300,7 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
 
 
 class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
+
   def run_inference(self, batch, unused_model, inference_args=None):
     raise ValueError(
         'run_inference should not be called because error should already be '
@@ -296,6 +308,7 @@ class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
 
 
 class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
+
   def run_inference(self, batch, unused_model, inference_args=None):
     if not inference_args:
       raise ValueError('inference_args should exist')
@@ -306,6 +319,7 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
 
 
 class RunInferenceBaseTest(unittest.TestCase):
+
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -498,6 +512,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertLess(load_latency_dist_aggregate.committed.count, 12)
 
   def test_keyed_many_model_handlers_validation(self):
+
     def mult_two(example: str) -> int:
       return int(example) * 2
 
@@ -612,6 +627,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
 
   def test_run_inference_preprocessing(self):
+
     def mult_two(example: str) -> int:
       return int(example) * 2
 
@@ -632,6 +648,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_preprocessing_multiple_fns(self):
+
     def add_one(example: str) -> int:
       return int(example) + 1
 
@@ -648,6 +665,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_postprocessing(self):
+
     def mult_two(example: int) -> str:
       return str(example * 2)
 
@@ -660,6 +678,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_postprocessing_multiple_fns(self):
+
     def add_one(example: int) -> str:
       return str(int(example) + 1)
 
@@ -676,6 +695,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_preprocessing_dlq(self):
+
     def mult_two(example: str) -> int:
       if example == "5":
         raise Exception("TEST")
@@ -700,6 +720,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
   def test_run_inference_postprocessing_dlq(self):
+
     def mult_two(example: int) -> str:
       if example == 6:
         raise Exception("TEST")
@@ -724,6 +745,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
   def test_run_inference_pre_and_post_processing_dlq(self):
+
     def mult_two_pre(example: str) -> int:
       if example == "5":
         raise Exception("TEST")
@@ -767,15 +789,15 @@ class RunInferenceBaseTest(unittest.TestCase):
           label='assert:failures_post')
 
   def test_run_inference_keyed_pre_and_post_processing(self):
+
     def mult_two(element):
       return (element[0], element[1] * 2)
 
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [
-          (i, ((example * 2) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      expected = [(i, ((example * 2) + 1) * 2)
+                  for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(
           base.KeyedModelHandler(FakeModelHandler()).with_preprocess_fn(
@@ -783,6 +805,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_maybe_keyed_pre_and_post_processing(self):
+
     def mult_two(element):
       return element * 2
 
@@ -793,9 +816,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
       expected = [((2 * example) + 1) * 2 for example in examples]
-      keyed_expected = [
-          (i, ((2 * example) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      keyed_expected = [(i, ((2 * example) + 1) * 2)
+                        for i, example in enumerate(examples)]
       model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
 
       pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
@@ -1071,6 +1093,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     # If this test fails, likely third party implementations of
     # ModelHandler will break.
     class ThirdPartyHandler(base.ModelHandler[int, int, FakeModel]):
+
       def __init__(self, custom_parameter=None):
         pass
 
@@ -1225,6 +1248,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     # applying GroupByKey to utilize windowing according to
     # https://beam.apache.org/documentation/programming-guide/#windowing-bounded-collections
     class _EmitElement(beam.DoFn):
+
       def process(self, element):
         for e in element:
           yield e
@@ -1323,6 +1347,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     ])
 
     class _EmitElement(beam.DoFn):
+
       def process(self, element):
         for e in element:
           yield e
@@ -1424,6 +1449,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     ])
 
     class _EmitElement(beam.DoFn):
+
       def process(self, element):
         for e in element:
           yield e
@@ -1499,6 +1525,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     # applying GroupByKey to utilize windowing according to
     # https://beam.apache.org/documentation/programming-guide/#windowing-bounded-collections
     class _EmitElement(beam.DoFn):
+
       def process(self, element):
         for e in element:
           yield e

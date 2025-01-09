@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 class PipelineGraphRenderer(BeamPlugin, metaclass=abc.ABCMeta):
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
+
   @classmethod
   @abc.abstractmethod
   def option(cls) -> str:
@@ -61,6 +62,7 @@ class PipelineGraphRenderer(BeamPlugin, metaclass=abc.ABCMeta):
 class MuteRenderer(PipelineGraphRenderer):
   """Use this renderer to mute the pipeline display.
   """
+
   @classmethod
   def option(cls) -> str:
     return 'mute'
@@ -72,6 +74,7 @@ class MuteRenderer(PipelineGraphRenderer):
 class TextRenderer(PipelineGraphRenderer):
   """This renderer simply returns the dot representation in text format.
   """
+
   @classmethod
   def option(cls) -> str:
     return 'text'
@@ -87,6 +90,7 @@ class PydotRenderer(PipelineGraphRenderer):
     1. The software Graphviz: https://www.graphviz.org/
     2. The python module pydot: https://pypi.org/project/pydot/
   """
+
   @classmethod
   def option(cls) -> str:
     return 'graph'

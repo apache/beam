@@ -40,6 +40,7 @@ except ImportError:
 
 @unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
 class GCSFileSystemTest(unittest.TestCase):
+
   def setUp(self):
     pipeline_options = PipelineOptions()
     self.fs = gcsfilesystem.GCSFileSystem(pipeline_options=pipeline_options)
@@ -189,10 +190,8 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.copy.side_effect = exception
 
     # Issue batch rename.
-    expected_results = {
-        (s, d): exception
-        for s, d in zip(sources, destinations)
-    }
+    expected_results = {(s, d): exception
+                        for s, d in zip(sources, destinations)}
 
     # Issue batch copy.
     with self.assertRaisesRegex(BeamIOError,

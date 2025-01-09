@@ -145,6 +145,7 @@ def initial_splitting_zipf(
 class SyntheticStep(beam.DoFn):
   """A DoFn of which behavior can be controlled through prespecified parameters.
   """
+
   def __init__(
       self,
       per_element_delay_sec=0,
@@ -189,6 +190,7 @@ class SyntheticStep(beam.DoFn):
 
 class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
   """An OffsetRangeTracker that doesn't allow splitting. """
+
   def try_split(self, split_offset):
     pass  # Don't split.
 
@@ -207,6 +209,7 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
   If initial_splitting_uneven_chunks, produces uneven chunks.
 
   """
+
   def __init__(
       self,
       num_records,
@@ -264,10 +267,12 @@ def get_synthetic_sdf_step(
     size_estimate_override=None,
 ):
   """A function which returns a SyntheticSDFStep with given parameters. """
+
   class SyntheticSDFStep(beam.DoFn):
     """A SplittableDoFn of which behavior can be controlled through prespecified
        parameters.
     """
+
     def __init__(
         self,
         per_element_delay_sec_arg,
@@ -335,6 +340,7 @@ def get_synthetic_sdf_step(
 class SyntheticSource(iobase.BoundedSource):
   """A custom source of a specified size.
   """
+
   def __init__(self, input_spec):
     """Initiates a synthetic source.
 
@@ -344,6 +350,7 @@ class SyntheticSource(iobase.BoundedSource):
     Raises:
       ValueError: if input parameters are invalid.
     """
+
     def maybe_parse_byte_size(s):
       return parse_byte_size(s) if isinstance(s, str) else int(s)
 
@@ -506,6 +513,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     }
 
   """
+
   def initial_restriction(self, element):
     return OffsetRange(0, element['num_records'])
 
@@ -591,6 +599,7 @@ class SyntheticSDFAsSource(beam.DoFn):
     During runtime, the DoFnRunner.process_with_sized_restriction() will feed
     a 'RestrictionTracker' based on a restriction to SDF.process().
   """
+
   def process(
       self,
       element,
@@ -606,6 +615,7 @@ class SyntheticSDFAsSource(beam.DoFn):
 
 
 class ShuffleBarrier(beam.PTransform):
+
   def expand(self, pc):
     return (
         pc
@@ -615,13 +625,13 @@ class ShuffleBarrier(beam.PTransform):
 
 
 class SideInputBarrier(beam.PTransform):
+
   def expand(self, pc):
     return (
         pc
         | beam.Map(rotate_key)
         | beam.Map(
-            lambda elem,
-            ignored: elem,
+            lambda elem, ignored: elem,
             beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 
@@ -641,6 +651,7 @@ def merge_using_gbk(name, pc1, pc2):
 
 def merge_using_side_input(name, pc1, pc2):
   """Merges two given PCollections using side inputs."""
+
   def join_fn(val, _):  # Ignoring side input
     return val
 
@@ -658,7 +669,9 @@ def expand_using_gbk(name, pc):
 
 def expand_using_second_output(name, pc):
   """Expands a given PCollection into two copies using side outputs."""
+
   class ExpandFn(beam.DoFn):
+
     def process(self, element):
       yield beam.pvalue.TaggedOutput('second_out', element)
       yield element
@@ -906,6 +919,7 @@ if __name__ == '__main__':
 
 class StatefulLoadGenerator(beam.PTransform):
   """A PTransform for generating random data using Timers API."""
+
   def __init__(self, input_options, num_keys=100):
     self.num_records = input_options['num_records']
     self.key_size = input_options['key_size']
@@ -914,6 +928,7 @@ class StatefulLoadGenerator(beam.PTransform):
 
   @typehints.with_output_types(Tuple[bytes, bytes])
   class GenerateKeys(beam.DoFn):
+
     def __init__(self, num_keys, key_size):
       self.num_keys = num_keys
       self.key_size = key_size

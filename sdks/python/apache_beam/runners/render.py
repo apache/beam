@@ -90,6 +90,7 @@ DEFAULT_HIGHLIGHT_STYLE = (
 
 class RenderOptions(pipeline_options.PipelineOptions):
   """Rendering options."""
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -133,6 +134,7 @@ class RenderOptions(pipeline_options.PipelineOptions):
 
 
 class PipelineRenderer:
+
   def __init__(self, pipeline, options):
     self.pipeline = pipeline
     self.options = options
@@ -151,9 +153,8 @@ class PipelineRenderer:
     if options.render_leaf_composite_nodes:
       is_leaf = lambda transform_id: any(
           re.match(
-              pattern,
-              self.pipeline.components.transforms[transform_id].unique_name)
-          for patterns in options.render_leaf_composite_nodes
+              pattern, self.pipeline.components.transforms[transform_id].
+              unique_name) for patterns in options.render_leaf_composite_nodes
           for pattern in patterns.split(','))
       self.leaf_composites = set()
 
@@ -441,6 +442,7 @@ class RenderRunner(runner.PipelineRunner):
       # TODO: If this gets more complex, we could consider taking on a
       # framework like Flask as a dependency.
       class RequestHandler(http.server.BaseHTTPRequestHandler):
+
         def do_GET(self):
           parts = urllib.parse.urlparse(self.path)
           args = urllib.parse.parse_qs(parts.query)
@@ -471,6 +473,7 @@ class RenderRunner(runner.PipelineRunner):
 
 
 class RenderPipelineResult(runner.PipelineResult):
+
   def __init__(self, server):
     super().__init__(runner.PipelineState.RUNNING)
     self.server = server
@@ -548,7 +551,9 @@ def render_one(options):
 
 
 def run_server(options):
+
   class RenderBeamJob(local_job_service.BeamJob):
+
     def _invoke_runner(self):
       return RenderRunner().run_portable_pipeline(
           self._pipeline_proto,

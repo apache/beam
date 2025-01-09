@@ -32,6 +32,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class LoadTestOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -91,6 +92,7 @@ class LoadTest(object):
   If using InfluxDB with Basic HTTP authentication enabled, provide the
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
   """
+
   def __init__(self, metrics_namespace=None):
     # Be sure to set blocking to false for timeout_ms to work properly
     self.pipeline = TestPipeline(is_integration_test=True, blocking=False)

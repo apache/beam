@@ -62,6 +62,7 @@ def check_or_interleave(hint, value, var):
 
 
 def check_type_hints(f):
+
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
     hints = get_type_hints(f)
@@ -115,6 +116,7 @@ class NonBuiltInGeneric(typing.NamedTuple('Entry', [('Field1', T),
 
 
 class TypeHintTestCase(unittest.TestCase):
+
   def assertCompatible(self, base, sub):  # pylint: disable=invalid-name
     base, sub = native_type_compatibility.convert_to_beam_types([base, sub])
     self.assertTrue(
@@ -128,6 +130,7 @@ class TypeHintTestCase(unittest.TestCase):
 
 
 class TypeVariableTestCase(TypeHintTestCase):
+
   def test_eq_with_name_check(self):
     use_name_in_eq = True
     self.assertNotEqual(
@@ -150,6 +153,7 @@ class TypeVariableTestCase(TypeHintTestCase):
 
 
 class AnyTypeConstraintTestCase(TypeHintTestCase):
+
   def test_any_compatibility(self):
     self.assertCompatible(typehints.Any, typehints.List[int])
     self.assertCompatible(typehints.Any, DummyTestClass1)
@@ -185,6 +189,7 @@ class AnyTypeConstraintTestCase(TypeHintTestCase):
 
 
 class UnionHintTestCase(TypeHintTestCase):
+
   def test_getitem_must_be_valid_type_param_cant_be_object_instance(self):
     with self.assertRaises(TypeError) as e:
       typehints.Union[5]
@@ -348,6 +353,7 @@ class UnionHintTestCase(TypeHintTestCase):
 
 
 class OptionalHintTestCase(TypeHintTestCase):
+
   def test_getitem_sequence_not_allowed(self):
     with self.assertRaises(TypeError) as e:
       typehints.Optional[int, str]
@@ -369,6 +375,7 @@ class OptionalHintTestCase(TypeHintTestCase):
 
 
 class TupleHintTestCase(TypeHintTestCase):
+
   def test_getitem_invalid_ellipsis_type_param(self):
     error_msg = (
         'Ellipsis can only be used to type-hint an arbitrary length '
@@ -553,6 +560,7 @@ class TupleHintTestCase(TypeHintTestCase):
 
 
 class ListHintTestCase(TypeHintTestCase):
+
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError):
       typehints.List[4]
@@ -627,6 +635,7 @@ class ListHintTestCase(TypeHintTestCase):
 
 
 class KVHintTestCase(TypeHintTestCase):
+
   def test_getitem_param_must_be_tuple(self):
     with self.assertRaises(TypeError) as e:
       typehints.KV[4]
@@ -657,6 +666,7 @@ class KVHintTestCase(TypeHintTestCase):
 
 
 class DictHintTestCase(TypeHintTestCase):
+
   def test_getitem_param_must_be_tuple(self):
     with self.assertRaises(TypeError) as e:
       typehints.Dict[4]
@@ -775,7 +785,9 @@ class DictHintTestCase(TypeHintTestCase):
 
 
 class BaseSetHintTest:
+
   class CommonTests(TypeHintTestCase):
+
     def test_getitem_invalid_composite_type_param(self):
       try:
         self.beam_type[list]
@@ -847,6 +859,7 @@ class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
 
 
 class CollectionHintTestCase(TypeHintTestCase):
+
   def test_type_constraint_compatibility(self):
     self.assertCompatible(typehints.Collection[int], typehints.Set[int])
     self.assertCompatible(typehints.Iterable[int], typehints.Collection[int])
@@ -876,6 +889,7 @@ class CollectionHintTestCase(TypeHintTestCase):
 
 
 class IterableHintTestCase(TypeHintTestCase):
+
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError) as e:
       typehints.Iterable[5]
@@ -960,7 +974,9 @@ class IterableHintTestCase(TypeHintTestCase):
 
 
 class TestGeneratorWrapper(TypeHintTestCase):
+
   def test_functions_as_regular_generator(self):
+
     def count(n):
       for i in range(n):
         yield i
@@ -978,6 +994,7 @@ class TestGeneratorWrapper(TypeHintTestCase):
 
 
 class GeneratorHintTestCase(TypeHintTestCase):
+
   def test_repr(self):
     hint = typehints.Iterator[typehints.Set[str]]
     self.assertEqual('Iterator[Set[<class \'str\'>]]', repr(hint))
@@ -992,6 +1009,7 @@ class GeneratorHintTestCase(TypeHintTestCase):
         typehints.Iterator[int], typehints.Generator[int, None, None])
 
   def test_generator_return_hint_invalid_yield_type(self):
+
     @check_type_hints
     @with_output_types(typehints.Iterator[int])
     def all_upper(s):
@@ -1009,6 +1027,7 @@ class GeneratorHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_generator_argument_hint_invalid_yield_type(self):
+
     def wrong_yield_gen():
       for e in ['a', 'b']:
         yield e
@@ -1030,6 +1049,7 @@ class GeneratorHintTestCase(TypeHintTestCase):
 
 
 class TakesDecoratorTestCase(TypeHintTestCase):
+
   def test_must_be_primitive_type_or_constraint(self):
     with self.assertRaises(TypeError) as e:
       t = [1, 2]
@@ -1058,6 +1078,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_basic_type_assertion(self):
+
     @check_type_hints
     @with_input_types(a=int)
     def foo(a):
@@ -1073,6 +1094,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_composite_type_assertion(self):
+
     @check_type_hints
     @with_input_types(a=typehints.List[int])
     def foo(a):
@@ -1090,6 +1112,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
           e.exception.args[0])
 
   def test_valid_simple_type_arguments(self):
+
     @with_input_types(a=str)
     def upper(a):
       return a.upper()
@@ -1098,6 +1121,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
     self.assertEqual('M', upper('m'))
 
   def test_any_argument_type_hint(self):
+
     @check_type_hints
     @with_input_types(a=typehints.Any)
     def foo(a):
@@ -1106,6 +1130,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
     self.assertEqual(4, foo('m'))
 
   def test_valid_mix_positional_and_keyword_arguments(self):
+
     @check_type_hints
     @with_input_types(typehints.List[int], elem=typehints.List[int])
     def combine(container, elem):
@@ -1114,6 +1139,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
     self.assertEqual([1, 2, 3], combine([1, 2], [3]))
 
   def test_invalid_only_positional_arguments(self):
+
     @check_type_hints
     @with_input_types(int, int)
     def sub(a, b):
@@ -1130,6 +1156,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_valid_only_positional_arguments(self):
+
     @with_input_types(int, int)
     def add(a, b):
       return a + b
@@ -1138,7 +1165,9 @@ class TakesDecoratorTestCase(TypeHintTestCase):
 
 
 class InputDecoratorTestCase(TypeHintTestCase):
+
   def test_valid_hint(self):
+
     @with_input_types(int, int)
     def unused_add(a, b):
       return a + b
@@ -1167,7 +1196,9 @@ class InputDecoratorTestCase(TypeHintTestCase):
 
 
 class OutputDecoratorTestCase(TypeHintTestCase):
+
   def test_valid_hint(self):
+
     @with_output_types(int)
     def unused_foo():
       return 5
@@ -1208,6 +1239,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
         return 4, 'f'
 
   def test_type_check_violation(self):
+
     @check_type_hints
     @with_output_types(int)
     def foo(a):
@@ -1224,6 +1256,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_type_check_simple_type(self):
+
     @check_type_hints
     @with_output_types(str)
     def upper(a):
@@ -1232,6 +1265,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
     self.assertEqual('TEST', upper('test'))
 
   def test_type_check_composite_type(self):
+
     @check_type_hints
     @with_output_types(typehints.List[typehints.Tuple[int, int]])
     def bar():
@@ -1240,6 +1274,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
     self.assertEqual([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)], bar())
 
   def test_any_return_type_hint(self):
+
     @check_type_hints
     @with_output_types(typehints.Any)
     def bar():
@@ -1249,7 +1284,9 @@ class OutputDecoratorTestCase(TypeHintTestCase):
 
 
 class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
+
   def test_enable_and_disable_type_checking_takes(self):
+
     @with_input_types(a=int)
     def int_to_str(a):
       return str(a)
@@ -1270,6 +1307,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
       int_to_str('a')
 
   def test_enable_and_disable_type_checking_returns(self):
+
     @with_output_types(str)
     def int_to_str(a):
       return a
@@ -1290,6 +1328,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
       int_to_str(9)
 
   def test_valid_mix_pos_and_keyword_with_both_orders(self):
+
     @with_input_types(str, start=int)
     @with_output_types(str)
     def to_upper_with_slice(string, start):
@@ -1298,6 +1337,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     self.assertEqual('ELLO', to_upper_with_slice('hello', 1))
 
   def test_simple_takes_and_returns_hints(self):
+
     @check_type_hints
     @with_output_types(str)
     @with_input_types(a=str)
@@ -1322,6 +1362,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
       to_lower('a')
 
   def test_composite_takes_and_returns_hints(self):
+
     @check_type_hints
     @with_input_types(it=typehints.List[int])
     @with_output_types(typehints.List[typehints.Tuple[int, int]])
@@ -1347,6 +1388,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
 
 
 class DecoratorHelpers(TypeHintTestCase):
+
   def test_hint_helper(self):
     self.assertTrue(is_consistent_with(Any, int))
     self.assertTrue(is_consistent_with(int, Any))
@@ -1363,6 +1405,7 @@ class DecoratorHelpers(TypeHintTestCase):
         _positional_arg_hints(['x', 'y'], {'x': int}))
 
   def test_getcallargs_forhints(self):
+
     def func(a, b_c, *d):
       return a, b_c, d
 
@@ -1402,6 +1445,7 @@ class DecoratorHelpers(TypeHintTestCase):
 
 
 class TestGetYieldedType(unittest.TestCase):
+
   def test_iterables(self):
     self.assertEqual(int, typehints.get_yielded_type(typehints.Iterable[int]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.Iterator[int]))
@@ -1419,6 +1463,7 @@ class TestGetYieldedType(unittest.TestCase):
 
 
 class TestCoerceToKvType(TypeHintTestCase):
+
   def test_coercion_success(self):
     cases = [
         ((Any, ), typehints.KV[Any, Any]),
@@ -1445,7 +1490,9 @@ class TestCoerceToKvType(TypeHintTestCase):
 
 
 class TestParDoAnnotations(unittest.TestCase):
+
   def test_with_side_input(self):
+
     class MyDoFn(DoFn):
       def process(self, element: float, side_input: str) -> \
           Iterable[KV[str, float]]:
@@ -1456,7 +1503,9 @@ class TestParDoAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((KV[str, float], ), {}))
 
   def test_pep484_annotations(self):
+
     class MyDoFn(DoFn):
+
       def process(self, element: int) -> Iterable[str]:
         pass
 
@@ -1466,8 +1515,11 @@ class TestParDoAnnotations(unittest.TestCase):
 
 
 class TestPTransformAnnotations(unittest.TestCase):
+
   def test_pep484_annotations(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
@@ -1476,7 +1528,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_annotations_without_input_pcollection_wrapper(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: int) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
@@ -1491,7 +1545,9 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertIn(error_str, log.output[0])
 
   def test_annotations_without_output_pcollection_wrapper(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PCollection[int]) -> str:
         return pcoll | Map(lambda num: str(num))
 
@@ -1508,7 +1564,9 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertEqual(th.output_types, None)
 
   def test_annotations_without_input_internal_type(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PCollection) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
@@ -1517,7 +1575,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_annotations_without_output_internal_type(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PCollection[int]) -> PCollection:
         return pcoll | Map(lambda num: str(num))
 
@@ -1526,7 +1586,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_without_any_internal_type(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PCollection) -> PCollection:
         return pcoll | Map(lambda num: str(num))
 
@@ -1535,7 +1597,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_without_input_typehint(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
@@ -1544,7 +1608,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_annotations_without_output_typehint(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PCollection[int]):
         return pcoll | Map(lambda num: str(num))
 
@@ -1553,7 +1619,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_without_any_typehints(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll):
         return pcoll | Map(lambda num: str(num))
 
@@ -1562,7 +1630,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, None)
 
   def test_annotations_with_pbegin(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: PBegin):
         return pcoll | Map(lambda num: str(num))
 
@@ -1571,7 +1641,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_with_pdone(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll) -> PDone:
         return pcoll | Map(lambda num: str(num))
 
@@ -1580,7 +1652,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_with_none_input(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: None) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
@@ -1597,7 +1671,9 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_annotations_with_none_output(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll) -> None:
         return pcoll | Map(lambda num: str(num))
 
@@ -1606,7 +1682,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_with_arbitrary_output(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll) -> str:
         return pcoll | Map(lambda num: str(num))
 
@@ -1615,7 +1693,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.output_types, None)
 
   def test_annotations_with_arbitrary_input_and_output(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: int) -> str:
         return pcoll | Map(lambda num: str(num))
 
@@ -1639,7 +1719,9 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertEqual(th.output_types, None)
 
   def test_typing_module_annotations_are_converted_to_beam_annotations(self):
+
     class MyPTransform(PTransform):
+
       def expand(
           self, pcoll: PCollection[typing.Dict[str, str]]
       ) -> PCollection[typing.Dict[str, str]]:
@@ -1650,6 +1732,7 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.input_types, ((typehints.Dict[str, str], ), {}))
 
   def test_nested_typing_annotations_are_converted_to_beam_annotations(self):
+
     class MyPTransform(PTransform):
       def expand(self, pcoll:
          PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]) \
@@ -1667,7 +1750,9 @@ class TestPTransformAnnotations(unittest.TestCase):
                                                              float]], ), {}))
 
   def test_mixed_annotations_are_converted_to_beam_annotations(self):
+
     class MyPTransform(PTransform):
+
       def expand(self, pcoll: typing.Any) -> typehints.Any:
         return pcoll
 
@@ -1687,6 +1772,7 @@ class TestPTransformAnnotations(unittest.TestCase):
 
 
 class TestNonBuiltInGenerics(unittest.TestCase):
+
   def test_no_error_thrown(self):
     input = NonBuiltInGeneric[str]
     output = typehints.normalize(input)

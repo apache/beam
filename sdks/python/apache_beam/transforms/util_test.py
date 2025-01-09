@@ -82,6 +82,7 @@ warnings.filterwarnings(
 
 
 class CoGroupByKeyTest(unittest.TestCase):
+
   def test_co_group_by_key_on_tuple(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
@@ -182,6 +183,7 @@ class CoGroupByKeyTest(unittest.TestCase):
 
 
 class FakeClock(object):
+
   def __init__(self, now=time.time()):
     self._now = now
 
@@ -288,8 +290,8 @@ class BatchElementsTest(unittest.TestCase):
           | beam.Create(range(3), reshuffle=False)
           | util.BatchElements(min_batch_size=2, max_batch_size=2)
           | beam.Map(
-              lambda batch,
-              timestamp=beam.DoFn.TimestampParam: (len(batch), timestamp)))
+              lambda batch, timestamp=beam.DoFn.TimestampParam:
+              (len(batch), timestamp)))
       assert_that(
           res,
           equal_to([
@@ -301,12 +303,19 @@ class BatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create([
-              'a', 'a',                # First batch.
-              'aaaaaaaaaa',            # Second batch.
-              'aaaaa', 'aaaaa',        # Third batch.
-              'a', 'aaaaaaa', 'a', 'a' # Fourth batch.
-              ], reshuffle=False)
+          | beam.Create(
+              [
+                  'a',
+                  'a',  # First batch.
+                  'aaaaaaaaaa',  # Second batch.
+                  'aaaaa',
+                  'aaaaa',  # Third batch.
+                  'a',
+                  'aaaaaaa',
+                  'a',
+                  'a'  # Fourth batch.
+              ],
+              reshuffle=False)
           | util.BatchElements(
               min_batch_size=10, max_batch_size=10, element_size_fn=len)
           | beam.Map(lambda batch: ''.join(batch))
@@ -330,10 +339,10 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(
           res,
           equal_to([
-              'a' * (1+2), # Elements in [1, 3)
-              'a' * (3+4), # Elements in [3, 6)
+              'a' * (1 + 2),  # Elements in [1, 3)
+              'a' * (3 + 4),  # Elements in [3, 6)
               'a' * 5,
-              'a' * 6, # Elements in [6, 9)
+              'a' * 6,  # Elements in [6, 9)
               'a' * 7,
           ]))
 
@@ -552,8 +561,8 @@ class BatchElementsTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     test_stream = (
         TestStream().add_elements([
-            TimestampedValue(value, start_time + i) for i,
-            value in enumerate(BatchElementsTest._create_test_data())
+            TimestampedValue(value, start_time + i)
+            for i, value in enumerate(BatchElementsTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -651,11 +660,13 @@ class BatchElementsTest(unittest.TestCase):
 
 
 class IdentityWindowTest(unittest.TestCase):
+
   def test_window_preserved(self):
     expected_timestamp = timestamp.Timestamp(5)
     expected_window = window.IntervalWindow(1.0, 2.0)
 
     class AddWindowDoFn(beam.DoFn):
+
       def process(self, element):
         yield WindowedValue(element, expected_timestamp, [expected_window])
 
@@ -691,6 +702,7 @@ class IdentityWindowTest(unittest.TestCase):
     expected_window = window.GlobalWindow()
 
     class AddTimestampDoFn(beam.DoFn):
+
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
@@ -728,6 +740,7 @@ class IdentityWindowTest(unittest.TestCase):
 
 
 class ReshuffleTest(unittest.TestCase):
+
   def test_reshuffle_contents_unchanged(self):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
@@ -794,14 +807,13 @@ class ReshuffleTest(unittest.TestCase):
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
       expected_data = [
           TestWindowedValue(v, t - .001, [w])
-          for (v, t, w) in [((1, contains_in_any_order([2, 1])),
-                             4.0,
-                             IntervalWindow(1.0, 4.0)),
-                            ((2, contains_in_any_order([2, 1])),
-                             4.0,
+          for (v, t, w) in [((1, contains_in_any_order([2, 1])), 4.0,
                              IntervalWindow(1.0, 4.0)), (
-                                 (3, [1]), 3.0, IntervalWindow(1.0, 3.0)), (
-                                     (1, [4]), 6.0, IntervalWindow(4.0, 6.0))]
+                                 (2, contains_in_any_order([2, 1])), 4.0,
+                                 IntervalWindow(1.0, 4.0)), ((
+                                     3, [1]), 3.0, IntervalWindow(1.0, 3.0)), ((
+                                         1,
+                                         [4]), 6.0, IntervalWindow(4.0, 6.0))]
       ]
       before_reshuffle = (
           pipeline
@@ -828,13 +840,12 @@ class ReshuffleTest(unittest.TestCase):
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
       expected_windows = [
           TestWindowedValue(v, t, [w])
-          for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-              (2, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-                  (3, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-                      (1, 2), 2.0, IntervalWindow(2.0, 4.0)), (
+          for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+              2, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+                  3, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+                      1, 2), 2.0, IntervalWindow(2.0, 4.0)), (
                           (2, 2), 2.0,
-                          IntervalWindow(2.0, 4.0)), ((1, 4),
-                                                      4.0,
+                          IntervalWindow(2.0, 4.0)), ((1, 4), 4.0,
                                                       IntervalWindow(4.0, 6.0))]
       ]
       expected_merged_windows = [
@@ -843,8 +854,7 @@ class ReshuffleTest(unittest.TestCase):
                w) in [((1, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                    (2, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                        (3, [1]), 3.0,
-                       IntervalWindow(1.0, 3.0)), ((1, [4]),
-                                                   6.0,
+                       IntervalWindow(1.0, 3.0)), ((1, [4]), 6.0,
                                                    IntervalWindow(4.0, 6.0))]
       ]
       before_reshuffle = (
@@ -1012,6 +1022,7 @@ class ReshuffleTest(unittest.TestCase):
 
 
 class WithKeysTest(unittest.TestCase):
+
   def setUp(self):
     self.l = [1, 2, 3]
 
@@ -1019,7 +1030,8 @@ class WithKeysTest(unittest.TestCase):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys('k')
-      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)],
+                                      ))
 
   def test_callable_k(self):
     with TestPipeline() as p:
@@ -1044,9 +1056,7 @@ class WithKeysTest(unittest.TestCase):
       si1 = AsList(p | "side input 1" >> beam.Create([1, 2, 3]))
       si2 = AsSingleton(p | "side input 2" >> beam.Create([10]))
       with_keys = pc | util.WithKeys(
-          lambda x,
-          the_list,
-          the_singleton: x + sum(the_list) + the_singleton,
+          lambda x, the_list, the_singleton: x + sum(the_list) + the_singleton,
           si1,
           the_singleton=si2)
       assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
@@ -1129,8 +1139,8 @@ class GroupIntoBatchesTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     test_stream = (
         TestStream().add_elements([
-            TimestampedValue(value, start_time + i) for i,
-            value in enumerate(GroupIntoBatchesTest._create_test_data())
+            TimestampedValue(value, start_time + i)
+            for i, value in enumerate(GroupIntoBatchesTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -1287,6 +1297,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
 
 
 class ToStringTest(unittest.TestCase):
+
   def test_tostring_elements(self):
     with TestPipeline() as p:
       result = (p | beam.Create([1, 1, 2, 3]) | util.ToString.Element())
@@ -1324,6 +1335,7 @@ class ToStringTest(unittest.TestCase):
 
 
 class LogElementsTest(unittest.TestCase):
+
   @pytest.fixture(scope="function")
   def _capture_stdout_log(request, capsys):
     with TestPipeline() as p:
@@ -1389,6 +1401,7 @@ class LogElementsTest(unittest.TestCase):
 
 
 class ReifyTest(unittest.TestCase):
+
   def test_timestamp(self):
     l = [
         TimestampedValue('a', 100),
@@ -1476,6 +1489,7 @@ class ReifyTest(unittest.TestCase):
 
 
 class RegexTest(unittest.TestCase):
+
   def test_find(self):
     with TestPipeline() as p:
       result = (
@@ -1842,6 +1856,7 @@ class TeeTest(unittest.TestCase):
 
 
 class WaitOnTest(unittest.TestCase):
+
   def test_find(self):
     # We need shared reference that survives pickling.
     def increment_global_counter():

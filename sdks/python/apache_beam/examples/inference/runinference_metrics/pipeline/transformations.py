@@ -27,6 +27,7 @@ from transformers import DistilBertTokenizer
 
 class CustomPytorchModelHandlerKeyedTensor(PytorchModelHandlerKeyedTensor):
   """Wrapper around PytorchModelHandlerKeyedTensor to load a model on CPU."""
+
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model = self._model_class(**self._model_params)
@@ -43,6 +44,7 @@ class HuggingFaceStripBatchingWrapper(DistilBertForSequenceClassification):
     as a list of dicts instead of a dict of lists. Another workaround
     can be found here where they disable batching instead.
     https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py"""
+
   def forward(self, **kwargs):
     output = super().forward(**kwargs)
     return [dict(zip(output, v)) for v in zip(*output.values())]
@@ -50,6 +52,7 @@ class HuggingFaceStripBatchingWrapper(DistilBertForSequenceClassification):
 
 class Tokenize(beam.DoFn):
   """A DoFn for tokenizing texts"""
+
   def __init__(self, model_name: str):
     """Initialises a tokenizer based on the model_name"""
     self._model_name = model_name
@@ -75,6 +78,7 @@ class Tokenize(beam.DoFn):
 
 class PostProcessor(beam.DoFn):
   """Postprocess the RunInference output"""
+
   def process(self, element):
     """
         Takes the input text and the prediction result, and returns a dictionary

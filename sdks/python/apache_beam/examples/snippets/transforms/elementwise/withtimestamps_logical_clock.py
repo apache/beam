@@ -38,6 +38,7 @@ def withtimestamps_logical_clock(test=None):
   import apache_beam as beam
 
   class GetTimestamp(beam.DoFn):
+
     def process(self, plant, timestamp=beam.DoFn.TimestampParam):
       event_id = int(timestamp.micros / 1e6)  # equivalent to seconds
       yield '{} - {}'.format(event_id, plant['name'])

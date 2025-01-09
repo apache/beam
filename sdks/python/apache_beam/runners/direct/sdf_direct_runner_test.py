@@ -41,6 +41,7 @@ from apache_beam.transforms.window import TimestampedValue
 
 
 class ReadFilesProvider(RestrictionProvider):
+
   def initial_restriction(self, element):
     size = os.path.getsize(element)
     return OffsetRange(0, size)
@@ -53,6 +54,7 @@ class ReadFilesProvider(RestrictionProvider):
 
 
 class ReadFiles(DoFn):
+
   def __init__(self, resume_count=None):
     self._resume_count = resume_count
 
@@ -92,6 +94,7 @@ class ReadFiles(DoFn):
 
 
 class ExpandStringsProvider(RestrictionProvider):
+
   def initial_restriction(self, element):
     return OffsetRange(0, len(element[0]))
 
@@ -109,6 +112,7 @@ class ExpandStringsProvider(RestrictionProvider):
 
 
 class ExpandStrings(DoFn):
+
   def __init__(self, record_window=False):
     self._record_window = record_window
 
@@ -145,6 +149,7 @@ class ExpandStrings(DoFn):
 
 
 class SDFDirectRunnerTest(unittest.TestCase):
+
   def setUp(self):
     super().setUp()
     # Importing following for DirectRunner SDF implemenation for testing.

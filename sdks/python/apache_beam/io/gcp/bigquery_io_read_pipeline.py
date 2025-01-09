@@ -37,6 +37,7 @@ from apache_beam.testing.util import equal_to
 
 
 class RowToStringWithSlowDown(beam.DoFn):
+
   def process(self, element, num_slow=0, *args, **kwargs):
 
     if num_slow == 0:

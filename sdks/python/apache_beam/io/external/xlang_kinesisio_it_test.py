@@ -79,6 +79,7 @@ RECORD = b'record' + str(uuid.uuid4()).encode()
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner,
     'Do not run this test on precommit suites.')
 class CrossLanguageKinesisIOTest(unittest.TestCase):
+
   @unittest.skipUnless(
       TestPipeline().get_option('aws_kinesis_stream'),
       'Cannot test on real aws without pipeline options provided')
@@ -242,6 +243,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
 
 
 class KinesisHelper:
+
   def __init__(self, access_key, secret_key, region, service_endpoint):
     self.kinesis_client = boto3.client(
         service_name='kinesis',

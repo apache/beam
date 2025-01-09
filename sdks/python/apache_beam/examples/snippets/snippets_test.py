@@ -92,6 +92,7 @@ except ImportError:
 
 class ParDoTest(unittest.TestCase):
   """Tests for model/par-do."""
+
   def test_pardo(self):
     # Note: "words" and "ComputeWordLengthFn" are referenced by name in
     # the text of the doc.
@@ -100,6 +101,7 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_pardo]
     class ComputeWordLengthFn(beam.DoFn):
+
       def process(self, element):
         return [len(element)]
 
@@ -116,6 +118,7 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_yield]
     class ComputeWordLengthFn(beam.DoFn):
+
       def process(self, element):
         yield len(element)
 
@@ -209,6 +212,7 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_side_input_dofn]
     class FilterUsingLength(beam.DoFn):
+
       def process(self, element, lower_bound, upper_bound=float('inf')):
         if lower_bound <= len(element) <= upper_bound:
           yield element
@@ -220,6 +224,7 @@ class ParDoTest(unittest.TestCase):
   def test_pardo_with_tagged_outputs(self):
     # [START model_pardo_emitting_values_on_tagged_outputs]
     class ProcessWords(beam.DoFn):
+
       def process(self, element, cutoff_length, marker):
         if len(element) <= cutoff_length:
           # Emit this short word to the main output.
@@ -289,6 +294,7 @@ class ParDoTest(unittest.TestCase):
 
 
 class TypeHintsTest(unittest.TestCase):
+
   def test_bad_types(self):
     # [START type_hints_missing_define_numbers]
     p = TestPipeline()
@@ -322,6 +328,7 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_do_fn]
       @beam.typehints.with_input_types(int)
       class FilterEvensDoFn(beam.DoFn):
+
         def process(self, element):
           if element % 2 == 0:
             yield element
@@ -340,6 +347,7 @@ class TypeHintsTest(unittest.TestCase):
     @beam.typehints.with_input_types(T)
     @beam.typehints.with_output_types(Tuple[int, T])
     class MyTransform(beam.PTransform):
+
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
 
@@ -362,6 +370,7 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     # pylint: disable=unused-variable
     class FilterEvensDoFn(beam.DoFn):
+
       def process(self, element):
         if element % 2 == 0:
           yield element
@@ -383,6 +392,7 @@ class TypeHintsTest(unittest.TestCase):
       from typing import Iterable
 
       class TypedFilterEvensDoFn(beam.DoFn):
+
         def process(self, element: int) -> Iterable[int]:
           if element % 2 == 0:
             yield element
@@ -397,6 +407,7 @@ class TypeHintsTest(unittest.TestCase):
       from typing import List, Optional
 
       class FilterEvensDoubleDoFn(beam.DoFn):
+
         def process(self, element: int) -> Optional[List[int]]:
           if element % 2 == 0:
             return [element, element]
@@ -420,6 +431,7 @@ class TypeHintsTest(unittest.TestCase):
       from apache_beam.pvalue import PCollection
 
       class IntToStr(beam.PTransform):
+
         def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
           return pcoll | beam.Map(lambda elem: str(elem))
 
@@ -463,11 +475,13 @@ class TypeHintsTest(unittest.TestCase):
       from typing import Tuple
 
       class Player(object):
+
         def __init__(self, team, name):
           self.team = team
           self.name = name
 
       class PlayerCoder(beam.coders.Coder):
+
         def encode(self, player):
           return ('%s:%s' % (player.team, player.name)).encode('utf-8')
 
@@ -502,11 +516,13 @@ class SnippetsTest(unittest.TestCase):
 
     To be used for testing.
     """
+
     def __init__(self, file_to_read=None, compression_type=None):
       self.file_to_read = file_to_read
       self.compression_type = compression_type
 
     class ReadDoFn(beam.DoFn):
+
       def __init__(self, file_to_read, compression_type):
         self.file_to_read = file_to_read
         self.compression_type = compression_type
@@ -541,10 +557,12 @@ class SnippetsTest(unittest.TestCase):
 
     To be used for testing.
     """
+
     def __init__(self, file_to_write=None, file_name_suffix=''):
       self.file_to_write = file_to_write
 
     class WriteDoFn(beam.DoFn):
+
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None
@@ -643,6 +661,7 @@ class SnippetsTest(unittest.TestCase):
     tempdir_name = tempfile.mkdtemp()
 
     class SimpleKV(object):
+
       def __init__(self, tmp_dir):
         self._dummy_token = 'dummy_token'
         self._tmp_dir = tmp_dir
@@ -841,6 +860,7 @@ class SnippetsTest(unittest.TestCase):
   @mock.patch('apache_beam.io.ReadFromPubSub')
   @mock.patch('apache_beam.io.WriteToPubSub')
   def test_examples_wordcount_streaming(self, *unused_mocks):
+
     def FakeReadFromPubSub(topic=None, subscription=None, values=None):
       expected_topic = topic
       expected_subscription = subscription
@@ -853,6 +873,7 @@ class SnippetsTest(unittest.TestCase):
       return _inner
 
     class AssertTransform(beam.PTransform):
+
       def __init__(self, matcher):
         self.matcher = matcher
 
@@ -998,8 +1019,8 @@ class SnippetsTest(unittest.TestCase):
     ]
     # [END model_group_by_key_cogroupbykey_tuple_formatted_outputs]
     expected_results = [
-        '%s; %s; %s' % (name, info['emails'], info['phones']) for name,
-        info in results
+        '%s; %s; %s' % (name, info['emails'], info['phones'])
+        for name, info in results
     ]
     self.assertEqual(expected_results, formatted_results)
     self.assertEqual(formatted_results, self.get_output(result_path))
@@ -1017,6 +1038,7 @@ class SnippetsTest(unittest.TestCase):
     # [START metrics_usage_example]
     class FilterTextFn(beam.DoFn):
       """A DoFn that filters for a specific key based on a regex."""
+
       def __init__(self, pattern):
         self.pattern = pattern
         # A custom metric can track values in your pipeline as it runs. Create
@@ -1192,6 +1214,7 @@ class SnippetsTest(unittest.TestCase):
 
 class CombineTest(unittest.TestCase):
   """Tests for model/combine."""
+
   def test_global_sum(self):
     pc = [1, 2, 3]
     # [START global_sum]
@@ -1259,6 +1282,7 @@ class CombineTest(unittest.TestCase):
 
     # [START combine_custom_average_define]
     class AverageFn(beam.CombineFn):
+
       def create_accumulator(self):
         return (0.0, 0)
 
@@ -1380,6 +1404,7 @@ class CombineTest(unittest.TestCase):
 
       # [START setting_timestamp]
       class AddTimestampDoFn(beam.DoFn):
+
         def process(self, element):
           # Extract the numeric Unix seconds-since-epoch timestamp to be
           # associated with the current log entry.
@@ -1403,10 +1428,12 @@ class CombineTest(unittest.TestCase):
 
 class PTransformTest(unittest.TestCase):
   """Tests for PTransform."""
+
   def test_composite(self):
 
     # [START model_composite_transform]
     class ComputeWordLengths(beam.PTransform):
+
       def expand(self, pcoll):
         # Transform logic goes here.
         return pcoll | beam.Map(lambda x: len(x))
@@ -1420,6 +1447,7 @@ class PTransformTest(unittest.TestCase):
 
 class SlowlyChangingSideInputsTest(unittest.TestCase):
   """Tests for PTransform."""
+
   def test_side_input_slow_update(self):
     temp_file = tempfile.NamedTemporaryFile(delete=True)
     src_file_pattern = temp_file.name
@@ -1441,12 +1469,13 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
         for j in range(count):
           f.write('f' + idstr + 'a' + str(j) + '\n')
 
-    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
-                                   first_ts + 1,  # First window
-                                   first_ts + 8,  # Second window
-                                   first_ts + 15,  # Third window
-                                   first_ts + 22,  # Fourth window
-                                   ])
+    sample_main_input_elements = ([
+        first_ts - 2,  # no output due to no SI
+        first_ts + 1,  # First window
+        first_ts + 8,  # Second window
+        first_ts + 15,  # Third window
+        first_ts + 22,  # Fourth window
+    ])
 
     pipeline, pipeline_result = snippets.side_input_slow_update(
       src_file_pattern, first_ts, last_ts, interval,

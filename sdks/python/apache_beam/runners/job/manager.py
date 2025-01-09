@@ -34,6 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 class DockerRPCManager(object):
   """A native co-process to start a contianer that speaks the JobApi
   """
+
   def __init__(self, run_command=None):
     # TODO(BEAM-2431): Change this to a docker container from a command.
     self.process = subprocess.Popen([

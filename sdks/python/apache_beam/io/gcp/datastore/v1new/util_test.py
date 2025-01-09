@@ -66,6 +66,7 @@ class MovingSumTest(unittest.TestCase):
 
 
 class DynamicWriteBatcherTest(unittest.TestCase):
+
   def setUp(self):
     self._batcher = util.DynamicBatchSizer()
 

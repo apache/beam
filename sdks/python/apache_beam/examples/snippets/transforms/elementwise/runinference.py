@@ -23,6 +23,7 @@ import torch
 
 
 class LinearRegression(torch.nn.Module):
+
   def __init__(self, input_dim=1, output_dim=1):
     super().__init__()
     self.linear = torch.nn.Linear(input_dim, output_dim)

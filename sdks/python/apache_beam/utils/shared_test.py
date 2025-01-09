@@ -26,6 +26,7 @@ from apache_beam.utils import shared
 
 
 class Count(object):
+
   def __init__(self):
     self._lock = threading.Lock()
     self._total = 0
@@ -50,6 +51,7 @@ class Count(object):
 
 
 class Marker(object):
+
   def __init__(self, count):
     self._count = count
     self._count.add_ref()
@@ -59,6 +61,7 @@ class Marker(object):
 
 
 class NamedObject(object):
+
   def __init__(self, name):
     self._name = name
 
@@ -67,6 +70,7 @@ class NamedObject(object):
 
 
 class Sequence(object):
+
   def __init__(self):
     self._sequence = 0
 
@@ -81,6 +85,7 @@ class Sequence(object):
 
 
 class SharedTest(unittest.TestCase):
+
   def testKeepalive(self):
     count = Count()
     shared_handle = shared.Shared()

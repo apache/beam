@@ -54,6 +54,7 @@ else:
 
 
 class MockStorageClient():
+
   def __init__(self):
     pass
 
@@ -76,6 +77,7 @@ def windowed_value(e):
 
 
 class ParseToDataframeTest(unittest.TestCase):
+
   def test_parse_windowedvalue(self):
     """Tests that WindowedValues are supported but not present.
     """
@@ -148,6 +150,7 @@ class ParseToDataframeTest(unittest.TestCase):
 
 
 class ToElementListTest(unittest.TestCase):
+
   def test_test_stream_payload_events(self):
     """Tests that the to_element_list can limit the count in a single bundle."""
 
@@ -185,6 +188,7 @@ class ToElementListTest(unittest.TestCase):
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class IPythonLogHandlerTest(unittest.TestCase):
+
   def setUp(self):
     utils.register_ipython_log_handler()
     self._interactive_root_logger = logging.getLogger(
@@ -242,6 +246,7 @@ class IPythonLogHandlerTest(unittest.TestCase):
     not ie.current_env().is_interactive_ready,
     reason='[interactive] dependency is not installed.')
 class ProgressIndicatorTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 
@@ -289,6 +294,7 @@ class MessagingUtilTest(unittest.TestCase):
     ie.new_env()
 
   def test_as_json_decorator(self):
+
     @utils.as_json
     def dummy():
       return MessagingUtilTest.SAMPLE_DATA
@@ -299,6 +305,7 @@ class MessagingUtilTest(unittest.TestCase):
 
 
 class GeneralUtilTest(unittest.TestCase):
+
   def test_pcoll_by_name(self):
     p = beam.Pipeline()
     pcoll = p | beam.Create([1])
@@ -351,6 +358,7 @@ class GeneralUtilTest(unittest.TestCase):
 @patch('google.cloud.storage.Client', return_value=MockStorageClient())
 @unittest.skipIf(not _http_error_imported, 'http errors are not imported.')
 class GCSUtilsTest(unittest.TestCase):
+
   @patch('google.cloud.storage.Client.get_bucket')
   def test_assert_bucket_exists_not_found(self, mock_response, mock_client):
     with self.assertRaises(ValueError):
@@ -368,6 +376,7 @@ class GCSUtilsTest(unittest.TestCase):
 
 
 class PipelineUtilTest(unittest.TestCase):
+
   def test_detect_pipeline_underlying_runner(self):
     p = beam.Pipeline(InteractiveRunner(underlying_runner=FlinkRunner()))
     pipeline_runner = utils.detect_pipeline_runner(p)

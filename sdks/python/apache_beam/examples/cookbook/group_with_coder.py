@@ -42,12 +42,14 @@ from apache_beam.typehints.decorators import with_output_types
 
 class Player(object):
   """A custom class used as a key in combine/group transforms."""
+
   def __init__(self, name):
     self.name = name
 
 
 class PlayerCoder(coders.Coder):
   """A custom coder for the Player class."""
+
   def encode(self, o):
     """Encode to bytes with a trace that coder was used."""
     # Our encoding prepends an 'x:' prefix.

@@ -66,11 +66,13 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 class FakeUnboundedSource(SourceBase):
   """Fake unbounded source. Does not work at runtime"""
+
   def is_bounded(self):
     return False
 
 
 class DoubleParDo(beam.PTransform):
+
   def expand(self, input):
     return input | 'Inner' >> beam.Map(lambda a: a * 2)
 
@@ -79,6 +81,7 @@ class DoubleParDo(beam.PTransform):
 
 
 class TripleParDo(beam.PTransform):
+
   def expand(self, input):
     # Keeping labels the same intentionally to make sure that there is no label
     # conflict due to replacement.
@@ -86,6 +89,7 @@ class TripleParDo(beam.PTransform):
 
 
 class ToStringParDo(beam.PTransform):
+
   def expand(self, input):
     # We use copy.copy() here to make sure the typehint mechanism doesn't
     # automatically infer that the output type is str.
@@ -93,32 +97,38 @@ class ToStringParDo(beam.PTransform):
 
 
 class FlattenAndDouble(beam.PTransform):
+
   def expand(self, pcolls):
     return pcolls | beam.Flatten() | 'Double' >> DoubleParDo()
 
 
 class FlattenAndTriple(beam.PTransform):
+
   def expand(self, pcolls):
     return pcolls | beam.Flatten() | 'Triple' >> TripleParDo()
 
 
 class AddWithProductDoFn(beam.DoFn):
+
   def process(self, input, a, b):
     yield input + a * b
 
 
 class AddThenMultiplyDoFn(beam.DoFn):
+
   def process(self, input, a, b):
     yield (input + a) * b
 
 
 class AddThenMultiply(beam.PTransform):
+
   def expand(self, pvalues):
     return pvalues[0] | beam.ParDo(
         AddThenMultiplyDoFn(), AsSingleton(pvalues[1]), AsSingleton(pvalues[2]))
 
 
 class PipelineTest(unittest.TestCase):
+
   @staticmethod
   def custom_callable(pcoll):
     return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
@@ -128,10 +138,12 @@ class PipelineTest(unittest.TestCase):
   # work and is not related to other aspects of the tests.
 
   class CustomTransform(PTransform):
+
     def expand(self, pcoll):
       return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
 
   class Visitor(PipelineVisitor):
+
     def __init__(self, visited):
       self.visited = visited
       self.enter_composite = []
@@ -321,7 +333,9 @@ class PipelineTest(unittest.TestCase):
       assert_that(result2, equal_to([5, 6, 7]), label='r2')
 
   def test_transform_no_super_init(self):
+
     class AddSuffix(PTransform):
+
       def __init__(self, suffix):
         # No call to super(...).__init__
         self.suffix = suffix
@@ -383,6 +397,7 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(actual, [])
 
   def test_pipeline_as_context(self):
+
     def raise_exception(exn):
       raise exn
 
@@ -392,7 +407,9 @@ class PipelineTest(unittest.TestCase):
         p | Create([ValueError('msg')]) | Map(raise_exception)
 
   def test_ptransform_overrides(self):
+
     class MyParDoOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -411,7 +428,9 @@ class PipelineTest(unittest.TestCase):
     p.run()
 
   def test_ptransform_override_type_hints(self):
+
     class NoTypeHintOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -420,6 +439,7 @@ class PipelineTest(unittest.TestCase):
         return ToStringParDo()
 
     class WithTypeHintOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -440,7 +460,9 @@ class PipelineTest(unittest.TestCase):
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
 
   def test_ptransform_override_multiple_inputs(self):
+
     class MyParDoOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, FlattenAndDouble)
 
@@ -457,7 +479,9 @@ class PipelineTest(unittest.TestCase):
     p.run()
 
   def test_ptransform_override_side_inputs(self):
+
     class MyParDoOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return (
             isinstance(applied_ptransform.transform, ParDo) and
@@ -478,7 +502,9 @@ class PipelineTest(unittest.TestCase):
     p.run()
 
   def test_ptransform_override_replacement_inputs(self):
+
     class MyParDoOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return (
             isinstance(applied_ptransform.transform, ParDo) and
@@ -508,11 +534,14 @@ class PipelineTest(unittest.TestCase):
     p.run()
 
   def test_ptransform_override_multiple_outputs(self):
+
     class MultiOutputComposite(PTransform):
+
       def __init__(self):
         self.output_tags = set()
 
       def expand(self, pcoll):
+
         def mux_input(x):
           x = x * 2
           if isinstance(x, int):
@@ -532,6 +561,7 @@ class PipelineTest(unittest.TestCase):
         }
 
     class MultiOutputOverride(PTransformOverride):
+
       def matches(self, applied_ptransform):
         return applied_ptransform.full_label == 'MyMultiOutput'
 
@@ -693,8 +723,11 @@ class PipelineTest(unittest.TestCase):
 
 
 class DoFnTest(unittest.TestCase):
+
   def test_element(self):
+
     class TestDoFn(DoFn):
+
       def process(self, element):
         yield element + 10
 
@@ -703,7 +736,9 @@ class DoFnTest(unittest.TestCase):
       assert_that(pcoll, equal_to([11, 12]))
 
   def test_side_input_no_tag(self):
+
     class TestDoFn(DoFn):
+
       def process(self, element, prefix, suffix):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
@@ -717,7 +752,9 @@ class DoFnTest(unittest.TestCase):
       assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
   def test_side_input_tagged(self):
+
     class TestDoFn(DoFn):
+
       def process(self, element, prefix, suffix=DoFn.SideInputParam):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
@@ -752,7 +789,9 @@ class DoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_window_param(self):
+
     class TestDoFn(DoFn):
+
       def process(self, element, window=DoFn.WindowParam):
         yield (element, (float(window.start), float(window.end)))
 
@@ -786,7 +825,9 @@ class DoFnTest(unittest.TestCase):
           equal_to([(1, [IntervalWindow(0, 5)]), (7, [IntervalWindow(5, 10)])]))  # pylint: disable=too-many-function-args
 
   def test_timestamp_param(self):
+
     class TestDoFn(DoFn):
+
       def process(self, element, timestamp=DoFn.TimestampParam):
         yield timestamp
 
@@ -820,6 +861,7 @@ class DoFnTest(unittest.TestCase):
           label='CheckGrouped')
 
   def test_context_params(self):
+
     def test_map(
         x,
         context_a=DoFn.BundleContextParam(_TestContext, args=('a')),
@@ -834,7 +876,9 @@ class DoFnTest(unittest.TestCase):
     self.assertEqual(_TestContext.live_contexts, 0)
 
   def test_incomparable_default(self):
+
     class IncomparableType(object):
+
       def __eq__(self, other):
         raise RuntimeError()
 
@@ -870,12 +914,14 @@ class _TestContext:
 
 
 class Bacon(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--slices', type=int)
 
 
 class Eggs(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--style', default='scrambled')
@@ -886,6 +932,7 @@ class Breakfast(Bacon, Eggs):
 
 
 class PipelineOptionsTest(unittest.TestCase):
+
   def test_flag_parsing(self):
     options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'])
     self.assertEqual(3, options.slices)
@@ -956,8 +1003,11 @@ class PipelineOptionsTest(unittest.TestCase):
 
 
 class RunnerApiTest(unittest.TestCase):
+
   def test_parent_pointer(self):
+
     class MyPTransform(beam.PTransform):
+
       def expand(self, p):
         self.p = p
         return p | beam.Create([None])
@@ -984,6 +1034,7 @@ class RunnerApiTest(unittest.TestCase):
     some_proto = BytesCoder().to_runner_api(None)
 
     class EmptyTransform(beam.PTransform):
+
       def expand(self, pcoll):
         return pcoll
 
@@ -991,6 +1042,7 @@ class RunnerApiTest(unittest.TestCase):
         return {'foo': 'some_string'}
 
     class NonEmptyTransform(beam.PTransform):
+
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: x)
 
@@ -1017,7 +1069,9 @@ class RunnerApiTest(unittest.TestCase):
     self.assertEqual(seen, 2)
 
   def test_transform_ids(self):
+
     class MyPTransform(beam.PTransform):
+
       def expand(self, p):
         self.p = p
         return p | beam.Create([None])
@@ -1030,7 +1084,9 @@ class RunnerApiTest(unittest.TestCase):
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
 
   def test_input_names(self):
+
     class MyPTransform(beam.PTransform):
+
       def expand(self, pcolls):
         return pcolls.values() | beam.Flatten()
 
@@ -1048,7 +1104,9 @@ class RunnerApiTest(unittest.TestCase):
       self.fail('Unable to find transform.')
 
   def test_display_data(self):
+
     class MyParentTransform(beam.PTransform):
+
       def expand(self, p):
         self.p = p
         return p | beam.Create([None])
@@ -1063,6 +1121,7 @@ class RunnerApiTest(unittest.TestCase):
         return parent_dd
 
     class MyPTransform(MyParentTransform):
+
       def expand(self, p):
         self.p = p
         return p | beam.Create([None])
@@ -1166,6 +1225,7 @@ class RunnerApiTest(unittest.TestCase):
           {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
 
   def test_hints_on_composite_transforms_are_propagated_to_subtransforms(self):
+
     class FooHint(ResourceHint):
       urn = 'foo_urn'
 
@@ -1236,6 +1296,7 @@ class RunnerApiTest(unittest.TestCase):
     assert found
 
   def test_environments_with_same_resource_hints_are_reused(self):
+
     class HintX(ResourceHint):
       urn = 'X_urn'
 
@@ -1304,6 +1365,7 @@ class RunnerApiTest(unittest.TestCase):
     self.assertEqual(len(env_ids), 5)
 
   def test_multiple_application_of_the_same_transform_set_different_hints(self):
+
     class FooHint(ResourceHint):
       urn = 'foo_urn'
 
@@ -1348,6 +1410,7 @@ class RunnerApiTest(unittest.TestCase):
     assert count == 2
 
   def test_environments_are_deduplicated(self):
+
     def file_artifact(path, hash, staged_name):
       return beam_runner_api_pb2.ArtifactInformation(
           type_urn=common_urns.artifact_types.FILE.urn,
@@ -1370,11 +1433,11 @@ class RunnerApiTest(unittest.TestCase):
                 'e1': beam_runner_api_pb2.Environment(
                     dependencies=[file_artifact('a1', 'x', 'dest')]),
                 'e2': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a2', 'x', 'dest')]),
-                # Different hash.
+                    dependencies=[file_artifact('a2', 'x', 'dest')
+                                  ]),  # Different hash.
                 'e3': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a3', 'y', 'dest')]),
-                # Different destination.
+                    dependencies=[file_artifact('a3', 'y', 'dest')
+                                  ]),  # Different destination.
                 'e4': beam_runner_api_pb2.Environment(
                     dependencies=[file_artifact('a4', 'y', 'dest2')]),
                 # Multiple files with same hash and destinations.
@@ -1387,14 +1450,12 @@ class RunnerApiTest(unittest.TestCase):
                     dependencies=[
                         file_artifact('a2', 'x', 'dest'),
                         file_artifact('b2', 'xb', 'destB')
-                    ]),
-                # Overlapping, but not identical, files.
+                    ]),  # Overlapping, but not identical, files.
                 'e7': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a1', 'x', 'dest'),
                         file_artifact('b2', 'y', 'destB')
-                    ]),
-                # Same files as first, but differing other properties.
+                    ]),  # Same files as first, but differing other properties.
                 'e0': beam_runner_api_pb2.Environment(
                     resource_hints={'hint': b'value'},
                     dependencies=[file_artifact('a1', 'x', 'dest')]),

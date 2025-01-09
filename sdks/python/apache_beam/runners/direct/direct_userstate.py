@@ -28,6 +28,7 @@ from apache_beam.transforms.trigger import _SetStateTag
 
 
 class DirectRuntimeState(userstate.RuntimeState):
+
   def __init__(self, state_spec, state_tag, current_value_accessor):
     self._state_spec = state_spec
     self._state_tag = state_tag
@@ -61,6 +62,7 @@ UNREAD_VALUE = object()
 
 class ReadModifyWriteRuntimeState(DirectRuntimeState,
                                   userstate.ReadModifyWriteRuntimeState):
+
   def __init__(self, state_spec, state_tag, current_value_accessor):
     super().__init__(state_spec, state_tag, current_value_accessor)
     self._value = UNREAD_VALUE
@@ -94,6 +96,7 @@ class ReadModifyWriteRuntimeState(DirectRuntimeState,
 
 
 class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
+
   def __init__(self, state_spec, state_tag, current_value_accessor):
     super().__init__(state_spec, state_tag, current_value_accessor)
     self._cached_value = UNREAD_VALUE
@@ -119,6 +122,7 @@ class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
 
 
 class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
+
   def __init__(self, state_spec, state_tag, current_value_accessor):
     super().__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
@@ -151,6 +155,7 @@ class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
 class CombiningValueRuntimeState(DirectRuntimeState,
                                  userstate.CombiningValueRuntimeState):
   """Combining value state interface object passed to user code."""
+
   def __init__(self, state_spec, state_tag, current_value_accessor):
     super().__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
@@ -195,6 +200,7 @@ class DirectUserStateContext(userstate.UserStateContext):
   The DirectUserStateContext buffers up updates that are to be committed
   by the TransformEvaluator after running a DoFn.
   """
+
   def __init__(self, step_context, dofn, key_coder):
     self.step_context = step_context
     self.dofn = dofn

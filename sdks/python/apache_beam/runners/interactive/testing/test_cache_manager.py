@@ -33,6 +33,7 @@ class InMemoryCache(CacheManager):
   This is only used for checking the pipeline shape. This can't be used for
   running the pipeline isn't shared between the SDK and the Runner.
   """
+
   def __init__(self):
     self._cached = {}
     self._pcoders = {}
@@ -85,11 +86,13 @@ class InMemoryCache(CacheManager):
 
 
 class NoopSink(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | beam.Map(lambda x: x)
 
 
 class FileRecordsBuilder(object):
+
   def __init__(self, tag=None):
     self._header = beam_interactive_api_pb2.TestStreamFileHeader(tag=tag)
     self._records = []

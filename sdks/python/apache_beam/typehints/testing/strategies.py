@@ -34,6 +34,7 @@ PRIMITIVES = [p[0] for p in _PRIMITIVES]
 
 
 def field_names():
+
   @st.composite
   def field_name_candidates(draw):
     """Strategy to produce valid field names for Beam schema types."""
@@ -75,6 +76,7 @@ def _named_fields_from_types(types):
 def types():
   """Strategy to produce types that are convertible to Beam schema FieldType
   instances."""
+
   def _extend_types(types):
     optionals = types.map(lambda typ: Optional[typ])
     sequences = types.map(lambda typ: Sequence[typ])

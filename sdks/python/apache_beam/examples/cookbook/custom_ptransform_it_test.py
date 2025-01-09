@@ -31,6 +31,7 @@ from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 def format_result(result_string):
+
   def format_tuple(result_elem_list):
     [country, counter] = result_elem_list
     return country, int(counter.strip())

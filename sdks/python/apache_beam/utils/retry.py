@@ -89,6 +89,7 @@ class FuzzedExponentialIntervals(object):
       (None). You may need to increase num_retries to effectively use this
       feature.
   """
+
   def __init__(
       self,
       initial_delay_secs,
@@ -222,6 +223,7 @@ SERVER_ERROR_OR_TIMEOUT_CODES = [408, 500, 502, 503, 504, 598, 599]
 
 class Clock(object):
   """A simple clock implementing sleep()."""
+
   def sleep(self, value):
     time.sleep(value)
 
@@ -281,8 +283,10 @@ def with_exponential_backoff(
   @retry.with_exponential_backoff()
   make_http_request(args)
   """
+
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
+
     @functools.wraps(fun)
     def wrapper(*args, **kwargs):
       retry_intervals = iter(

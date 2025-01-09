@@ -32,6 +32,7 @@ from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class FakeReadFromPubSub:
+
   def __init__(
       self,
       topic,
@@ -65,6 +66,7 @@ class FakeReadFromPubSub:
 
 
 class FakeWriteToPubSub:
+
   def __init__(
       self, topic, messages, id_attribute=None, timestamp_attribute=None):
     self._topic = topic
@@ -81,6 +83,7 @@ class FakeWriteToPubSub:
 
 
 class YamlPubSubTest(unittest.TestCase):
+
   def test_simple_read(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -208,9 +211,10 @@ class YamlPubSubTest(unittest.TestCase):
             ''' % json.dumps(self._avro_schema))
         assert_that(
             result,
-            equal_to(
-                [beam.Row(label='37a', rank=1),  # linebreak
-                 beam.Row(label='389a', rank=2)]))
+            equal_to([
+                beam.Row(label='37a', rank=1),  # linebreak
+                beam.Row(label='389a', rank=2)
+            ]))
 
   def test_read_json(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

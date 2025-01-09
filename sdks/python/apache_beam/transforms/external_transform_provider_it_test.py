@@ -44,6 +44,7 @@ from apache_beam.transforms.xlang.io import GenerateSequence
 
 
 class NameAndTypeUtilsTest(unittest.TestCase):
+
   def test_snake_case_to_upper_camel_case(self):
     test_cases = [("", ""), ("test", "Test"), ("test_name", "TestName"),
                   ("test_double_underscore", "TestDoubleUnderscore"),
@@ -93,6 +94,7 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ExternalTransformProviderIT(unittest.TestCase):
+
   def test_generate_sequence_signature_and_doc(self):
     provider = ExternalTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))

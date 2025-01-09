@@ -80,6 +80,7 @@ def _generate_test_data():
 @mock.patch('apache_beam.io.gcp.experimental.spannerio.Client')
 @mock.patch('apache_beam.io.gcp.experimental.spannerio.BatchSnapshot')
 class SpannerReadTest(unittest.TestCase):
+
   def test_read_with_query_batch(
       self, mock_batch_snapshot_class, mock_client_class):
 
@@ -434,6 +435,7 @@ class SpannerReadTest(unittest.TestCase):
 @mock.patch('apache_beam.io.gcp.experimental.spannerio.Client')
 @mock.patch('google.cloud.spanner_v1.database.BatchCheckout')
 class SpannerWriteTest(unittest.TestCase):
+
   def test_spanner_write(self, mock_batch_snapshot_class, mock_batch_checkout):
     ks = spanner.KeySet(keys=[[1233], [1234]])
 

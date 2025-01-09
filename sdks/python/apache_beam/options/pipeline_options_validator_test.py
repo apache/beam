@@ -38,7 +38,9 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 
 # Mock runners to use for validations.
 class MockRunners(object):
+
   class DataflowRunner(object):
+
     def get_default_gcp_region(self):
       # Return a default so we don't have to specify --region in every test
       # (unless specifically testing it).
@@ -53,11 +55,13 @@ class MockRunners(object):
 
 # Matcher that always passes for testing on_success_matcher option
 class AlwaysPassMatcher(BaseMatcher):
+
   def _matches(self, item):
     return True
 
 
 class SetupTest(unittest.TestCase):
+
   def check_errors_for_arguments(self, errors, args):
     """Checks that there is exactly one error for each given argument."""
     missing = []
@@ -108,6 +112,7 @@ class SetupTest(unittest.TestCase):
   ])
   @unittest.skip('Not compatible with new GCS client. See GH issue #26335.')
   def test_gcs_path(self, temp_location, staging_location, expected_error_args):
+
     def get_validator(_temp_location, _staging_location):
       options = ['--project=example:example', '--job_name=job']
 
@@ -130,6 +135,7 @@ class SetupTest(unittest.TestCase):
                          ('FOO', ['project']), ('foo:BAR', ['project']),
                          ('fo', ['project']), ('foo', []), ('foo:bar', [])])
   def test_project(self, project, expected_error_args):
+
     def get_validator(_project):
       options = [
           '--job_name=job',
@@ -153,6 +159,7 @@ class SetupTest(unittest.TestCase):
                          ('FOO', ['job_name']), ('foo:bar', ['job_name']),
                          ('fo', []), ('foo', [])])
   def test_job_name(self, job_name, expected_error_args):
+
     def get_validator(_job_name):
       options = [
           '--project=example:example',
@@ -175,6 +182,7 @@ class SetupTest(unittest.TestCase):
   @parameterized.expand([(None, []), ('1', []), ('0', ['num_workers']),
                          ('-1', ['num_workers'])])
   def test_num_workers(self, num_workers, expected_error_args):
+
     def get_validator(_num_workers):
       options = [
           '--project=example:example',
@@ -552,6 +560,7 @@ class SetupTest(unittest.TestCase):
                          (b'abc', ['on_success_matcher']),
                          (pickler.dumps(object), ['on_success_matcher'])])
   def test_test_matcher(self, on_success_matcher, errors):
+
     def get_validator(matcher):
       options = [
           '--project=example:example',

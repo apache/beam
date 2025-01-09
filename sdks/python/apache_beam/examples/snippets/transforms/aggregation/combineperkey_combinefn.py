@@ -39,6 +39,7 @@ def combineperkey_combinefn(test=None):
   import apache_beam as beam
 
   class AverageFn(beam.CombineFn):
+
     def create_accumulator(self):
       sum = 0.0
       count = 0

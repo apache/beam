@@ -27,6 +27,7 @@ from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 
 
 class OffsetRangeTest(unittest.TestCase):
+
   def test_create(self):
     OffsetRange(0, 10)
     OffsetRange(10, 10)
@@ -70,6 +71,7 @@ class OffsetRangeTest(unittest.TestCase):
 
 
 class OffsetRestrictionTrackerTest(unittest.TestCase):
+
   def test_try_claim(self):
     tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertEqual(OffsetRange(100, 200), tracker.current_restriction())

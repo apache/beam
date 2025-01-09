@@ -28,6 +28,7 @@ from apache_beam.dataframe import partitionings
 
 
 def _call_on_first_arg(name):
+
   def wrapper(target, *args, **kwargs):
     if isinstance(target, frame_base.DeferredBase):
       return getattr(target, name)(*args, **kwargs)
@@ -131,14 +132,9 @@ class DeferredPandasModule(object):
         expressions.ComputedExpression(
             'concat',
             lambda *objs: pd.concat(
-                objs,
-                axis=axis,
-                join=join,
-                ignore_index=ignore_index,
-                keys=keys,
-                levels=levels,
-                names=names,
-                verify_integrity=verify_integrity),  # yapf break
+                objs, axis=axis, join=join, ignore_index=ignore_index, keys=
+                keys, levels=levels, names=names, verify_integrity=
+                verify_integrity),  # yapf break
             exprs,
             requires_partition_by=required_partitioning,
             preserves_partition_by=preserves_partitioning))

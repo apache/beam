@@ -34,6 +34,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class PickleCoderTest(unittest.TestCase):
+
   def test_basics(self):
     v = ('a' * 10, 'b' * 90)
     pickler = coders.PickleCoder()
@@ -52,6 +53,7 @@ class PickleCoderTest(unittest.TestCase):
 
 
 class CodersTest(unittest.TestCase):
+
   def test_str_utf8_coder(self):
     real_coder = coders_registry.get_coder(bytes)
     expected_coder = coders.BytesCoder()
@@ -75,6 +77,7 @@ class CodersTest(unittest.TestCase):
 # TODO(https://github.com/apache/beam/issues/22319): The proto file should be
 # placed in a common directory that can be shared between java and python.
 class ProtoCoderTest(unittest.TestCase):
+
   def test_proto_coder(self):
     ma = test_message.MessageA()
     mb = ma.field2.add()
@@ -106,6 +109,7 @@ class ProtoCoderTest(unittest.TestCase):
 
 
 class DeterministicProtoCoderTest(unittest.TestCase):
+
   def test_deterministic_proto_coder(self):
     ma = test_message.MessageA()
     mb = ma.field2.add()
@@ -147,6 +151,7 @@ class ProtoPlusMessageWithMap(proto.Message):
 
 
 class ProtoPlusCoderTest(unittest.TestCase):
+
   def test_proto_plus_coder(self):
     ma = ProtoPlusMessageA()
     ma.field2 = [ProtoPlusMessageB(field1=True)]
@@ -195,6 +200,7 @@ coders_registry.register_coder(AvroTestRecord, AvroTestCoder)
 
 
 class AvroCoderTest(unittest.TestCase):
+
   def test_avro_record_coder(self):
     real_coder = coders_registry.get_coder(AvroTestRecord)
     expected_coder = AvroTestCoder()
@@ -219,6 +225,7 @@ class AvroCoderTest(unittest.TestCase):
 
 class DummyClass(object):
   """A class with no registered coder."""
+
   def __init__(self):
     pass
 
@@ -232,6 +239,7 @@ class DummyClass(object):
 
 
 class FallbackCoderTest(unittest.TestCase):
+
   def test_default_fallback_path(self):
     """Test fallback path picks a matching coder if no coder is registered."""
 
@@ -243,6 +251,7 @@ class FallbackCoderTest(unittest.TestCase):
 
 
 class NullableCoderTest(unittest.TestCase):
+
   def test_determinism(self):
     deterministic = coders_registry.get_coder(typehints.Optional[int])
     deterministic.as_deterministic_coder('label')
@@ -257,12 +266,14 @@ class NullableCoderTest(unittest.TestCase):
 
 
 class LengthPrefixCoderTest(unittest.TestCase):
+
   def test_to_type_hint(self):
     coder = coders.LengthPrefixCoder(coders.BytesCoder())
     assert coder.to_type_hint() is bytes
 
 
 class NumpyIntAsKeyTest(unittest.TestCase):
+
   def test_numpy_int(self):
     # this type is not supported as the key
     import numpy as np

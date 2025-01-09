@@ -50,6 +50,7 @@ class ErrorHandler:
   In this case, any non-recoverable errors should fail the pipeline (e.g.
   propagate exceptions in `process` methods) rather than silently ignore errors.
   """
+
   def __init__(self, consumer):
     self._consumer = consumer
     self._creation_traceback = traceback.format_stack()[-2]
@@ -99,6 +100,7 @@ class ErrorHandler:
 
 
 class _IdentityPTransform(transforms.PTransform):
+
   def expand(self, pcoll):
     return pcoll
 
@@ -109,6 +111,7 @@ class CollectingErrorHandler(ErrorHandler):
   This ErrorHandler requires the set of errors be retrieved via `output()`
   and consumed (or explicitly discarded).
   """
+
   def __init__(self):
     super().__init__(_IdentityPTransform())
     self._creation_traceback = traceback.format_stack()[-2]

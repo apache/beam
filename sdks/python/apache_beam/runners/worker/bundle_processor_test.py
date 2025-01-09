@@ -47,9 +47,12 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class FnApiUserStateContextTest(unittest.TestCase):
+
   def testOutputTimerTimestamp(self):
+
     class Coder(object):
       """Dummy coder to capture the timer result befor encoding."""
+
       def encode_to_stream(self, timer, *args, **kwargs):
         self.timer = timer
 
@@ -82,6 +85,7 @@ class FnApiUserStateContextTest(unittest.TestCase):
 
 
 class SplitTest(unittest.TestCase):
+
   def split(
       self,
       index,
@@ -197,7 +201,9 @@ def element_split(frac, index):
 
 class TestOperation(operations.Operation):
   """Test operation that forwards its payload to consumers."""
+
   class Spec:
+
     def __init__(self, transform_proto):
       self.output_coders = [
           FastPrimitivesCoder() for _ in transform_proto.outputs
@@ -250,7 +256,9 @@ def create_test_op(factory, transform_id, transform_proto, payload, consumers):
 def create_exception_dofn(
     factory, transform_id, transform_proto, payload, consumers):
   """Returns a test DoFn that raises the given exception."""
+
   class RaiseException(beam.DoFn):
+
     def __init__(self, msg):
       self.msg = msg.decode()
 
@@ -266,6 +274,7 @@ def create_exception_dofn(
 
 
 class DataSamplingTest(unittest.TestCase):
+
   def test_disabled_by_default(self):
     """Test that not providing the sampler does not enable Data Sampling.
 
@@ -410,6 +419,7 @@ class DataSamplingTest(unittest.TestCase):
 
 
 class EnvironmentCompatibilityTest(unittest.TestCase):
+
   def test_rc_environments_are_compatible_with_released_images(self):
     # TODO(https://github.com/apache/beam/issues/28084): remove when
     # resolved.
@@ -430,7 +440,9 @@ class EnvironmentCompatibilityTest(unittest.TestCase):
 
 
 class OrderedListStateTest(unittest.TestCase):
+
   class NoStateCache(StateCache):
+
     def __init__(self):
       super().__init__(max_weight=0)
 
@@ -621,7 +633,9 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([], list(self.state.read()))
 
   def fuzz_test_helper(self, seed=0, lower=0, upper=20):
+
     class NaiveState:
+
       def __init__(self):
         self._data = [[] for i in range((upper - lower + 1))]
         self._logs = []

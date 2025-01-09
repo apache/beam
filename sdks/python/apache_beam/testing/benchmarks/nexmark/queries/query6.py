@@ -62,6 +62,7 @@ class MovingMeanSellingPriceFn(beam.CombineFn):
   Combiner to keep track of up to max_num_bids of the most recent wining
   bids and calculate their average selling price.
   """
+
   def __init__(self, max_num_bids):
     self.max_num_bids = max_num_bids
 

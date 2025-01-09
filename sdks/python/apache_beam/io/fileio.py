@@ -161,6 +161,7 @@ class EmptyMatchTreatment(object):
 
 
 class _MatchAllFn(beam.DoFn):
+
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
@@ -183,6 +184,7 @@ class MatchFiles(beam.PTransform):
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
+
   def __init__(
       self,
       file_pattern: str,
@@ -200,6 +202,7 @@ class MatchAll(beam.PTransform):
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
+
   def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
     self._empty_match_treatment = empty_match_treatment
 
@@ -212,6 +215,7 @@ class MatchAll(beam.PTransform):
 
 class ReadableFile(object):
   """A utility class for accessing files."""
+
   def __init__(self, metadata, compression=None):
     self.metadata = metadata
     self._compression = compression
@@ -231,6 +235,7 @@ class ReadableFile(object):
 
 
 class _ReadMatchesFn(beam.DoFn):
+
   def __init__(self, compression, skip_directories):
     self._compression = compression
     self._skip_directories = skip_directories
@@ -271,6 +276,7 @@ class MatchContinuously(beam.PTransform):
   (https://cloud.google.com/storage/docs/pubsub-notifications)
   when using GCS if possible.
   """
+
   def __init__(
       self,
       file_pattern,
@@ -345,6 +351,7 @@ class ReadMatches(beam.PTransform):
   """Converts each result of MatchFiles() or MatchAll() to a ReadableFile.
 
    This helps read in a file's contents or obtain a file descriptor."""
+
   def __init__(self, compression=None, skip_directories=True):
     self._compression = compression
     self._skip_directories = skip_directories
@@ -373,6 +380,7 @@ class FileSink(object):
    - The ``create_metadata`` method, which creates all metadata passed to
      Filesystems.create.
    """
+
   def create_metadata(
       self, destination: str, full_file_name: str) -> FileMetadata:
     return FileMetadata(
@@ -396,6 +404,7 @@ class TextSink(FileSink):
   This sink simply calls file_handler.write(record.encode('utf8') + '\n') on all
   records that come into it.
   """
+
   def open(self, fh):
     self._fh = fh
 
@@ -466,6 +475,7 @@ FileNaming = Callable[[Any, Any, int, int, Any, str, str], str]
 
 
 def destination_prefix_naming(suffix=None) -> FileNaming:
+
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     prefix = str(destination)
     return _format_shard(
@@ -475,6 +485,7 @@ def destination_prefix_naming(suffix=None) -> FileNaming:
 
 
 def default_file_naming(prefix, suffix=None) -> FileNaming:
+
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     return _format_shard(
         window, pane, shard_index, total_shards, compression, prefix, suffix)
@@ -483,6 +494,7 @@ def default_file_naming(prefix, suffix=None) -> FileNaming:
 
 
 def single_file_naming(prefix, suffix=None) -> FileNaming:
+
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     assert shard_index in (0, None), shard_index
     assert total_shards in (1, None), total_shards
@@ -669,6 +681,7 @@ def _create_writer(
 
 
 class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
+
   def __init__(self, path, file_naming_fn, temp_dir):
     self.path = path
     self.file_naming_fn = file_naming_fn
@@ -751,6 +764,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
+
   def __init__(
       self, base_path, sink_fn: Callable[[Any], FileSink], shards: int):
     self.base_path = base_path
@@ -795,6 +809,7 @@ class _WriteShardedRecordsFn(beam.DoFn):
 
 
 class _AppendShardedDestination(beam.DoFn):
+
   def __init__(self, destination: Callable[[Any], str], shards: int):
     self.destination_fn = destination
     self.shards = shards
@@ -879,12 +894,13 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
       sink.flush()
       writer.close()
 
-      file_result = FileResult(self._file_names[key],
-                               shard_index=-1,
-                               total_shards=0,
-                               window=key[1],
-                               pane=None,  # TODO(pabloem): get the pane info
-                               destination=key[0])
+      file_result = FileResult(
+          self._file_names[key],
+          shard_index=-1,
+          total_shards=0,
+          window=key[1],
+          pane=None,  # TODO(pabloem): get the pane info
+          destination=key[0])
 
       yield beam.pvalue.TaggedOutput(
           self.WRITTEN_FILES,

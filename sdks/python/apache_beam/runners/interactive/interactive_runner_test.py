@@ -53,6 +53,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 def print_with_message(msg):
+
   def printer(elem):
     print(msg, elem)
     return elem
@@ -68,6 +69,7 @@ class Record(NamedTuple):
 
 @isolated_env
 class InteractiveRunnerTest(unittest.TestCase):
+
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
     p = beam.Pipeline(
@@ -88,7 +90,9 @@ class InteractiveRunnerTest(unittest.TestCase):
 
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_wordcount(self):
+
     class WordExtractingDoFn(beam.DoFn):
+
       def process(self, element):
         text_line = element.strip()
         words = text_line.split()
@@ -160,7 +164,9 @@ class InteractiveRunnerTest(unittest.TestCase):
     self.assertEqual(actual_reified, expected_reified)
 
   def test_streaming_wordcount(self):
+
     class WordExtractingDoFn(beam.DoFn):
+
       def process(self, element):
         text_line = element.strip()
         words = text_line.split()
@@ -247,7 +253,9 @@ class InteractiveRunnerTest(unittest.TestCase):
     pd.testing.assert_frame_equal(expected_counts_df, sorted_counts_df)
 
   def test_session(self):
+
     class MockPipelineRunner(object):
+
       def __init__(self):
         self._in_session = False
 
@@ -457,6 +465,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     # Only look at the top-level transforms for the isomorphism. The test
     # doesn't care about the transform implementations, just the overall shape.
     class TopLevelTracer(beam.pipeline.PipelineVisitor):
+
       def _find_root_producer(self, node: beam.pipeline.AppliedPTransform):
         if node is None or not node.full_label:
           return None
@@ -538,6 +547,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     '[interactive] dependency is not installed.')
 @isolated_env
 class ConfigForFlinkTest(unittest.TestCase):
+
   def setUp(self):
     self.current_env.options.cache_root = 'gs://fake'
 

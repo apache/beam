@@ -36,7 +36,9 @@ class WatermarkManager(object):
   """Manages the watermarks of a pipeline's stages.
     It works by constructing an internal graph representation of the pipeline,
     and keeping track of dependencies."""
+
   class PCollectionNode(object):
+
     def __init__(self, name):
       self.name = name
       self._watermark = timestamp.MIN_TIMESTAMP
@@ -70,6 +72,7 @@ class WatermarkManager(object):
       return self._watermark
 
   class StageNode(object):
+
     def __init__(self, name):
       # We keep separate inputs and side inputs because side inputs
       # should hold back a stage's input watermark, to hold back execution

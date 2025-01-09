@@ -26,6 +26,7 @@ from apache_beam.utils.histogram import LinearBucket
 
 
 class HistogramTest(unittest.TestCase):
+
   @patch('apache_beam.utils.histogram._LOGGER')
   def test_out_of_range(self, mock_logger):
     histogram = Histogram(LinearBucket(0, 20, 5))

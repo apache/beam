@@ -39,6 +39,7 @@ def withtimestamps_processing_time(test=None):
   import time
 
   class GetTimestamp(beam.DoFn):
+
     def process(self, plant, timestamp=beam.DoFn.TimestampParam):
       yield '{} - {}'.format(timestamp.to_utc_datetime(), plant['name'])
 

@@ -38,22 +38,26 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 
 # create some fake models which returns different inference results.
 class FakeModelDefault:
+
   def predict(self, example: int) -> int:
     return example
 
 
 class FakeModelAdd(FakeModelDefault):
+
   def predict(self, example: int) -> int:
     return example + 1
 
 
 class FakeModelSub(FakeModelDefault):
+
   def predict(self, example: int) -> int:
     return example - 1
 
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModelDefault]):
+
   def __init__(self, clock=None, model_id='model_default'):
     self.model_id = model_id
     self._fake_clock = clock
@@ -96,6 +100,7 @@ def run(argv=None, save_main_session=True):
   options.view_as(SetupOptions).save_main_session = save_main_session
 
   class GetModel(beam.DoFn):
+
     def process(self, element) -> Iterable[base.ModelMetadata]:
       if time.time() > mid_ts:
         yield base.ModelMetadata(

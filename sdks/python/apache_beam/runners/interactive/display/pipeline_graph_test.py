@@ -40,6 +40,7 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class PipelineGraphTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 

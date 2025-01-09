@@ -48,7 +48,9 @@ _LOGGER = logging.getLogger(__name__)
 def create_exception_dofn(
     factory, transform_id, transform_proto, payload, consumers):
   """Returns a test DoFn that raises the given exception."""
+
   class RaiseException(beam.DoFn):
+
     def __init__(self, msg):
       self.msg = msg.decode()
 
@@ -65,7 +67,9 @@ def create_exception_dofn(
 
 class TestOperation(operations.Operation):
   """Test operation that forwards its payload to consumers."""
+
   class Spec:
+
     def __init__(self, transform_proto):
       self.output_coders = [
           FastPrimitivesCoder() for _ in transform_proto.outputs
@@ -115,6 +119,7 @@ def create_test_op(factory, transform_id, transform_proto, payload, consumers):
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
+
   def __init__(self):
     self.log_records_received = []
 
@@ -127,6 +132,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 
 class FnApiLogRecordHandlerTest(unittest.TestCase):
+
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
     self.server = grpc.server(thread_pool_executor.shared_unbounded_instance())
@@ -316,8 +322,7 @@ data = {
 def _create_test(name, num_logs):
   setattr(
       FnApiLogRecordHandlerTest,
-      'test_%s' % name,
-      lambda self: self._verify_fn_log_handler(num_logs))
+      'test_%s' % name, lambda self: self._verify_fn_log_handler(num_logs))
 
 
 for test_name, num_logs_entries in data.items():

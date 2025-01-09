@@ -40,6 +40,7 @@ class CacheManager(object):
   'full' or 'sample') and a cache_label which is a hash of the PCollection
   derivation.
   """
+
   def exists(self, *labels):
     # type (*str) -> bool
 
@@ -158,13 +159,10 @@ class FileBasedCacheManager(CacheManager):
   _available_formats = {
       'text': (
           lambda path: textio.ReadFromText(
-              path,
-              coder=Base64Coder(),
-              compression_type=filesystems.CompressionTypes.BZIP2),
-          lambda path: textio.WriteToText(
-              path,
-              coder=Base64Coder(),
-              compression_type=filesystems.CompressionTypes.BZIP2)),
+              path, coder=Base64Coder(), compression_type=filesystems.
+              CompressionTypes.BZIP2), lambda path: textio.WriteToText(
+                  path, coder=Base64Coder(), compression_type=filesystems.
+                  CompressionTypes.BZIP2)),
       'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
   }
 
@@ -311,6 +309,7 @@ class FileBasedCacheManager(CacheManager):
 
   class _CacheVersion(object):
     """This class keeps track of the timestamp and the corresponding version."""
+
     def __init__(self):
       self.current_version = -1
       self.current_timestamp = 0
@@ -332,6 +331,7 @@ class FileBasedCacheManager(CacheManager):
 
 class ReadCache(beam.PTransform):
   """A PTransform that reads the PCollections from the cache."""
+
   def __init__(self, cache_manager, label):
     self._cache_manager = cache_manager
     self._label = label
@@ -343,6 +343,7 @@ class ReadCache(beam.PTransform):
 
 class WriteCache(beam.PTransform):
   """A PTransform that writes the PCollections to the cache."""
+
   def __init__(
       self,
       cache_manager,

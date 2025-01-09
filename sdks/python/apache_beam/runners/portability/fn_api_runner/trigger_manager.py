@@ -59,6 +59,7 @@ K = typing.TypeVar('K')
 
 class _ReifyWindows(DoFn):
   """Receives KV pairs, and wraps the values into WindowedValues."""
+
   def process(
       self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
     try:
@@ -72,6 +73,7 @@ class _ReifyWindows(DoFn):
 
 
 class _GroupBundlesByKey(DoFn):
+
   def start_bundle(self):
     self.keys = defaultdict(list)
 
@@ -94,6 +96,7 @@ def read_watermark(watermark_state):
 
 
 class TriggerMergeContext(WindowFn.MergeContext):
+
   def __init__(
       self, all_windows, context: 'FnRunnerStatefulTriggerContext', windowing):
     super().__init__(all_windows)
@@ -319,6 +322,7 @@ class GeneralTriggerManagerDoFn(DoFn):
 
 
 class FnRunnerStatefulTriggerContext(TriggerContext):
+
   def __init__(
       self,
       processing_time_timer: RuntimeTimer,
@@ -409,6 +413,7 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
 
 
 class PerWindowTriggerContext(TriggerContext):
+
   def __init__(self, window, parent: FnRunnerStatefulTriggerContext):
     self.window = window
     self.parent = parent

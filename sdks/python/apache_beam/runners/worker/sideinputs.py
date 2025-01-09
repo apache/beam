@@ -53,6 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
+
   def __init__(
       self,
       sources,
@@ -87,6 +88,7 @@ class PrefetchingSourceSetIterable(object):
       reader: A reader that should inherit from ObservableMixin to have
         bytes tracked.
     """
+
     def update_bytes_read(record_size, is_record_size=False, **kwargs):
       # Let the reader report block size.
       if is_record_size:
@@ -194,6 +196,7 @@ def get_iterator_fn_for_sources(
     read_counter=None,
     element_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
+
   def _inner():
     return iter(
         PrefetchingSourceSetIterable(
@@ -207,6 +210,7 @@ def get_iterator_fn_for_sources(
 
 class EmulatedIterable(abc.Iterable):
   """Emulates an iterable for a side input."""
+
   def __init__(self, iterator_fn):
     self.iterator_fn = iterator_fn
 

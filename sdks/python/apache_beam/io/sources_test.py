@@ -89,6 +89,7 @@ class LineSource(iobase.BoundedSource):
 
 
 class SourcesTest(unittest.TestCase):
+
   def _create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)

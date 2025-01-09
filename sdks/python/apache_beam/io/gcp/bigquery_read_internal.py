@@ -109,15 +109,19 @@ class _PassThroughThenCleanup(PTransform):
 
     Utilizes readiness of PCollection to trigger DoFn.
   """
+
   def __init__(self, side_input=None):
     self.side_input = side_input
 
   def expand(self, input):
+
     class PassThrough(beam.DoFn):
+
       def process(self, element):
         yield element
 
     class RemoveExtractedFiles(beam.DoFn):
+
       def process(self, unused_element, unused_signal, gcs_locations):
         FileSystems.delete(list(gcs_locations))
 
@@ -144,6 +148,7 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
 
     Utilizes readiness of PCollection to trigger DoFn.
   """
+
   def __init__(self, side_input=None):
     self.side_input = side_input
 
@@ -151,10 +156,12 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
     pipeline_options = input.pipeline.options
 
     class PassThrough(beam.DoFn):
+
       def process(self, element):
         yield element
 
     class CleanUpProjects(beam.DoFn):
+
       def process(self, unused_element, unused_signal, pipeline_details):
         bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
             pipeline_options)
@@ -191,6 +198,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   This transform will start a BigQuery export job, and output a number of
   file sources that are consumed downstream.
   """
+
   def __init__(
       self,
       options: PipelineOptions,
@@ -404,6 +412,7 @@ FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
+
   def __init__(self, table_schema):
     self.fields = self._convert_to_tuple(table_schema.fields)
     self._converters = {

@@ -56,6 +56,7 @@ except ImportError:
 @unittest.skipIf(
     TensorflowHubTextEmbeddings is None, 'Tensorflow is not installed.')
 class TFHubEmbeddingsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -176,6 +177,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
 @unittest.skipIf(
     TensorflowHubImageEmbeddings is None, 'Tensorflow is not installed.')
 class TFHubImageEmbeddingsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -224,6 +226,7 @@ class TFHubImageEmbeddingsTest(unittest.TestCase):
 @unittest.skipIf(
     TensorflowHubTextEmbeddings is None, 'Tensorflow is not installed.')
 class TFHubEmbeddingsGCSArtifactLocationTest(TFHubEmbeddingsTest):
+
   def setUp(self):
     self.artifact_location = os.path.join(
         'gs://temp-storage-for-perf-tests/tfhub', uuid.uuid4().hex)

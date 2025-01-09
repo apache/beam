@@ -26,6 +26,7 @@ from apache_beam.io.filebasedsource_test import LineSource
 
 
 class SourceTestUtilsTest(unittest.TestCase):
+
   def _create_file_with_data(self, lines):
     assert isinstance(lines, list)
     with tempfile.NamedTemporaryFile(delete=False) as f:

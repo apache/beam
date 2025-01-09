@@ -37,6 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 class CaptureControl(object):
   """Options and their utilities that controls how Interactive Beam captures
   deterministic replayable data from sources."""
+
   def __init__(self):
     self._enable_capture_replay = True
     self._capturable_sources = {

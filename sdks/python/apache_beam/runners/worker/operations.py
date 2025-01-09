@@ -114,16 +114,18 @@ class ConsumerSet(Receiver):
   the other edge.
   ConsumerSet are attached to the outputting Operation.
   """
+
   @staticmethod
-  def create(counter_factory,
-             step_name,  # type: str
-             output_index,
-             consumers,  # type: List[Operation]
-             coder,
-             producer_type_hints,
-             producer_batch_converter, # type: Optional[BatchConverter]
-             output_sampler=None,  # type: Optional[OutputSampler]
-             ):
+  def create(
+      counter_factory,
+      step_name,  # type: str
+      output_index,
+      consumers,  # type: List[Operation]
+      coder,
+      producer_type_hints,
+      producer_batch_converter,  # type: Optional[BatchConverter]
+      output_sampler=None,  # type: Optional[OutputSampler]
+  ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       consumer = consumers[0]
@@ -152,16 +154,16 @@ class ConsumerSet(Receiver):
         producer_batch_converter,
         output_sampler)
 
-  def __init__(self,
-               counter_factory,
-               step_name,  # type: str
-               output_index,
-               consumers,
-               coder,
-               producer_type_hints,
-               producer_batch_converter,
-               output_sampler
-               ):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      output_index,
+      consumers,
+      coder,
+      producer_type_hints,
+      producer_batch_converter,
+      output_sampler):
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
         step_name,
@@ -238,15 +240,16 @@ class ConsumerSet(Receiver):
 class SingletonElementConsumerSet(ConsumerSet):
   """ConsumerSet representing a single consumer that can only process elements
   (not batches)."""
-  def __init__(self,
-               counter_factory,
-               step_name,
-               output_index,
-               consumer,  # type: Operation
-               coder,
-               producer_type_hints,
-               output_sampler
-               ):
+
+  def __init__(
+      self,
+      counter_factory,
+      step_name,
+      output_index,
+      consumer,  # type: Operation
+      coder,
+      producer_type_hints,
+      output_sampler):
     super().__init__(
         counter_factory,
         step_name,
@@ -284,15 +287,16 @@ class GeneralPurposeConsumerSet(ConsumerSet):
   """
   MAX_BATCH_SIZE = 4096
 
-  def __init__(self,
-               counter_factory,
-               step_name,  # type: str
-               output_index,
-               coder,
-               producer_type_hints,
-               consumers,  # type: List[Operation]
-               producer_batch_converter,
-               output_sampler):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      output_index,
+      coder,
+      producer_type_hints,
+      consumers,  # type: List[Operation]
+      producer_batch_converter,
+      output_sampler):
     super().__init__(
         counter_factory,
         step_name,
@@ -415,12 +419,13 @@ class Operation(object):
   one or more receiver operations that will take that as input.
   """
 
-  def __init__(self,
-               name_context,  # type: common.NameContext
-               spec,
-               counter_factory,
-               state_sampler  # type: StateSampler
-              ):
+  def __init__(
+      self,
+      name_context,  # type: common.NameContext
+      spec,
+      counter_factory,
+      state_sampler  # type: StateSampler
+  ):
     """Initializes a worker operation instance.
 
     Args:
@@ -489,8 +494,8 @@ class Operation(object):
                 coder,
                 self._get_runtime_performance_hints(),
                 self.get_output_batch_converter(),
-                get_output_sampler(i)) for i,
-            coder in enumerate(self.spec.output_coders)
+                get_output_sampler(i))
+            for i, coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
 
@@ -700,6 +705,7 @@ class Operation(object):
 
 
 class ReadOperation(Operation):
+
   def start(self):
     with self.scoped_start_state:
       super(ReadOperation, self).start()
@@ -714,6 +720,7 @@ class ReadOperation(Operation):
 
 
 class ImpulseReadOperation(Operation):
+
   def __init__(
       self,
       name_context,  # type: common.NameContext
@@ -751,6 +758,7 @@ class ImpulseReadOperation(Operation):
 
 class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
+
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -761,6 +769,7 @@ class InMemoryWriteOperation(Operation):
 
 
 class _TaggedReceivers(dict):
+
   def __init__(self, counter_factory, step_name):
     self._counter_factory = counter_factory
     self._step_name = step_name
@@ -794,14 +803,15 @@ OpInputInfo = NamedTuple(
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
-  def __init__(self,
-               name,  # type: common.NameContext
-               spec,  # operation_specs.WorkerDoFn  # need to fix this type
-               counter_factory,
-               sampler,
-               side_input_maps=None,
-               user_state_context=None,
-              ):
+  def __init__(
+      self,
+      name,  # type: common.NameContext
+      spec,  # operation_specs.WorkerDoFn  # need to fix this type
+      counter_factory,
+      sampler,
+      side_input_maps=None,
+      user_state_context=None,
+  ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
@@ -1039,6 +1049,7 @@ class DoOperation(Operation):
 
 
 class SdfTruncateSizedRestrictions(DoOperation):
+
   def __init__(self, *args, **kwargs):
     super(SdfTruncateSizedRestrictions, self).__init__(*args, **kwargs)
 
@@ -1053,6 +1064,7 @@ class SdfTruncateSizedRestrictions(DoOperation):
 
 
 class SdfProcessSizedElements(DoOperation):
+
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
@@ -1137,6 +1149,7 @@ class SdfProcessSizedElements(DoOperation):
 
 class CombineOperation(Operation):
   """A Combine operation executing a CombineFn for each input element."""
+
   def __init__(self, name_context, spec, counter_factory, state_sampler):
     super(CombineOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
@@ -1189,6 +1202,7 @@ class PGBKOperation(Operation):
   (key, [value]) tuples, performing a best effort group-by-key for
   values in this bundle, memory permitting.
   """
+
   def __init__(self, name_context, spec, counter_factory, state_sampler):
     super(PGBKOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
@@ -1229,6 +1243,7 @@ class PGBKOperation(Operation):
 
 
 class PGBKCVOperation(Operation):
+
   def __init__(
       self, name_context, spec, counter_factory, state_sampler, windowing=None):
     super(PGBKCVOperation,
@@ -1343,6 +1358,7 @@ class FlattenOperation(Operation):
   Receives one or more producer operations, outputs just one list
   with all the items.
   """
+
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -1441,6 +1457,7 @@ class SimpleMapTaskExecutor(object):
    Stores progress of the read operation that is the first operation of a map
    task.
   """
+
   def __init__(
       self,
       map_task,

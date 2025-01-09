@@ -40,6 +40,7 @@ def find_words(element):
 
 
 class FormatDoFn(beam.DoFn):
+
   def process(self, element, window=beam.DoFn.WindowParam):
     ts_format = '%Y-%m-%d %H:%M:%S.%f UTC'
     window_start = window.start.to_utc_datetime().strftime(ts_format)

@@ -166,6 +166,7 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 class KeyExamplesForEachModelType(beam.DoFn):
   """Duplicate data to run against each model type"""
+
   def process(
       self, element: tuple[torch.Tensor,
                            str]) -> Iterable[tuple[str, torch.Tensor]]:
@@ -174,6 +175,7 @@ class KeyExamplesForEachModelType(beam.DoFn):
 
 
 class PostProcessor(beam.DoFn):
+
   def process(
       self, element: tuple[str, PredictionResult]) -> tuple[torch.Tensor, str]:
     model, prediction_result = element
@@ -183,6 +185,7 @@ class PostProcessor(beam.DoFn):
 
 
 class FormatResults(beam.DoFn):
+
   def process(self, element):
     _, filename_prediction = element
     predictions = filename_prediction['predictions']

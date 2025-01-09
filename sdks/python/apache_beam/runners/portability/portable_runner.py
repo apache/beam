@@ -87,6 +87,7 @@ class JobServiceHandle(object):
   - stage
   - run
   """
+
   def __init__(self, job_service, options, retain_unknown_options=False):
     self.job_service = job_service
     self.options = options
@@ -169,6 +170,7 @@ class JobServiceHandle(object):
   @staticmethod
   def encode_pipeline_options(
       all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
+
     def convert_pipeline_option_value(v):
       # convert int values: BEAM-5509
       if type(v) == int:
@@ -181,8 +183,7 @@ class JobServiceHandle(object):
     # TODO: Define URNs for options.
     p_options = {
         'beam:option:' + k + ':v1': convert_pipeline_option_value(v)
-        for k,
-        v in all_options.items() if v is not None
+        for k, v in all_options.items() if v is not None
     }
     return job_utils.dict_to_struct(p_options)
 
@@ -256,6 +257,7 @@ class PortableRunner(runner.PipelineRunner):
     This runner schedules the job on a job service. The responsibility of
     running and managing the job lies with the job service used.
   """
+
   def __init__(self):
     self._dockerized_job_server: Optional[job_server.JobServer] = None
 
@@ -423,6 +425,7 @@ class PortableRunner(runner.PipelineRunner):
 
 
 class PortableMetrics(metric.MetricResults):
+
   def __init__(self, job_metrics_response):
     metrics = job_metrics_response.metrics
     self.attempted = portable_metrics.from_monitoring_infos(metrics.attempted)
@@ -452,6 +455,7 @@ class PortableMetrics(metric.MetricResults):
 
 
 class PipelineResult(runner.PipelineResult):
+
   def __init__(
       self,
       job_service,
@@ -529,6 +533,7 @@ class PipelineResult(runner.PipelineResult):
     the execution. If None or zero, will wait until the pipeline finishes.
     :return: The result of the pipeline, i.e. PipelineResult.
     """
+
     def read_messages() -> None:
       previous_state = -1
       for message in self._message_stream:

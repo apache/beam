@@ -29,6 +29,7 @@ except ImportError:
 
 
 class TestBigQueryEnrichment(unittest.TestCase):
+
   def setUp(self) -> None:
     self.project = 'apache-beam-testing'
 

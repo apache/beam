@@ -107,6 +107,7 @@ class SpannerWritePerfTest(LoadTest):
     self._create_database()
 
   def test(self):
+
     def format_record(record):
       import base64
       return base64.b64encode(record[1])

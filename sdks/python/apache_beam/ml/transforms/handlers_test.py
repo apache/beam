@@ -50,11 +50,13 @@ if not tft:
 
 
 class _AddOperation(TFTOperation):
+
   def apply_transform(self, inputs, output_column_name, **kwargs):
     return {output_column_name: inputs + 1}
 
 
 class _MultiplyOperation(TFTOperation):
+
   def apply_transform(self, inputs, output_column_name, **kwargs):
     return {output_column_name: inputs * 10}
 
@@ -72,6 +74,7 @@ class NumpyType(NamedTuple):
 
 
 class TFTProcessHandlerTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -621,6 +624,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
 
 class TFTProcessHandlerTestWithGCSLocation(TFTProcessHandlerTest):
+
   def setUp(self) -> None:
     self.artifact_location = self.gcs_artifact_location = os.path.join(
         'gs://temp-storage-for-perf-tests/tft_handler', uuid.uuid4().hex)

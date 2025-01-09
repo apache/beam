@@ -38,6 +38,7 @@ num_log_shards = NUM_SHARD_PER_WORKER * max_num_workers
 
 
 class OutputFile(object):
+
   def __init__(self, max_timestamp, shard, index, timing, filename):
     self.max_timestamp = max_timestamp
     self.shard = shard
@@ -112,6 +113,7 @@ def load(events, metadata=None, pipeline_options=None):
 
 
 class ShardEventsDoFn(beam.DoFn):
+
   def process(self, element):
     shard_number = abs(hash(element) % num_log_shards)
     shard = 'shard-%05d-of-%05d' % (shard_number, num_log_shards)
@@ -119,6 +121,7 @@ class ShardEventsDoFn(beam.DoFn):
 
 
 class WriteEventDoFn(beam.DoFn):
+
   def process(
       self,
       element,
@@ -138,6 +141,7 @@ class WriteEventDoFn(beam.DoFn):
 
 
 class WriteIndexDoFn(beam.DoFn):
+
   def process(self, element, pipeline_options, window=beam.DoFn.WindowParam):
     options = pipeline_options.view_as(GoogleCloudOptions)
     filename = index_path_for(window)

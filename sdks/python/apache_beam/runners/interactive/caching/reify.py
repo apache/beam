@@ -39,6 +39,7 @@ class Reify(beam.DoFn):
   Internally used to capture window info with each element into cache for
   replayability.
   """
+
   def process(self, e, wv=beam.DoFn.WindowedValueParam):
     yield test_stream.WindowedValueHolder(wv)
 
@@ -48,6 +49,7 @@ class Unreify(beam.DoFn):
 
   Cached values are elements with window info. This unpacks the elements.
   """
+
   def process(self, e):
     # Row coder was used when encoding windowed values.
     if isinstance(e, beam.Row) and hasattr(e, 'windowed_value'):

@@ -60,6 +60,7 @@ class BigqueryMatcher(BaseMatcher):
   Fetch Bigquery data with given query, compute a hash string and compare
   with expected checksum.
   """
+
   def __init__(self, project, query, checksum, timeout_secs=0):
     """Initialize BigQueryMatcher object.
     Args:
@@ -85,6 +86,7 @@ class BigqueryMatcher(BaseMatcher):
     self.timeout_secs = timeout_secs
 
   def _matches(self, _):
+
     @retry.with_exponential_backoff(
         num_retries=1000,
         initial_delay_secs=0.5,
@@ -141,6 +143,7 @@ class BigqueryFullResultMatcher(BigqueryMatcher):
 
   Fetch Bigquery data with given query, compare to the expected data.
   """
+
   def __init__(self, project, query, data):
     """Initialize BigQueryMatcher object.
     Args:
@@ -206,6 +209,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
 
 class BigQueryTableMatcher(BaseMatcher):
   """Matcher that verifies the properties of a Table in BigQuery."""
+
   def __init__(self, project, dataset, table, expected_properties):
     if bigquery is None:
       raise ImportError('Bigquery dependencies are not installed.')
@@ -231,8 +235,8 @@ class BigQueryTableMatcher(BaseMatcher):
     _LOGGER.info('Table proto is %s', self.actual_table)
 
     return all(
-        self._match_property(v, self._get_or_none(self.actual_table, k)) for k,
-        v in self.expected_properties.items())
+        self._match_property(v, self._get_or_none(self.actual_table, k))
+        for k, v in self.expected_properties.items())
 
   @staticmethod
   def _get_or_none(obj, attr):
@@ -250,8 +254,8 @@ class BigQueryTableMatcher(BaseMatcher):
     if isinstance(expected, dict):
       return all(
           BigQueryTableMatcher._match_property(
-              v, BigQueryTableMatcher._get_or_none(actual, k)) for k,
-          v in expected.items())
+              v, BigQueryTableMatcher._get_or_none(actual, k))
+          for k, v in expected.items())
     else:
       return expected == actual
 

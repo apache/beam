@@ -39,10 +39,12 @@ except ImportError:
 
 
 class StreamingWordcountDebugging(unittest.TestCase):
+
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   @mock.patch('apache_beam.io.ReadFromPubSub')
   @mock.patch('apache_beam.io.WriteToPubSub')
   def test_streaming_wordcount_debugging(self, *unused_mocks):
+
     def FakeReadFromPubSub(topic=None, subscription=None, values=None):
       expected_topic = topic
       expected_subscription = subscription
@@ -55,6 +57,7 @@ class StreamingWordcountDebugging(unittest.TestCase):
       return _inner
 
     class AssertTransform(beam.PTransform):
+
       def __init__(self, matcher):
         self.matcher = matcher
 

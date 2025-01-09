@@ -92,6 +92,7 @@ def retry_on_exception(exception: Exception):
 
 class _MetricsCollector:
   """A metrics collector that tracks RequestResponseIO related usage."""
+
   def __init__(self, namespace: str):
     """
     Args:
@@ -120,6 +121,7 @@ class Caller(contextlib.AbstractContextManager,
 
   For setup and teardown of clients when applicable, implement the
   ``__enter__`` and ``__exit__`` methods respectively."""
+
   @abc.abstractmethod
   def __call__(self, request: RequestT, *args, **kwargs) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
@@ -161,6 +163,7 @@ class ShouldBackOff(abc.ABC):
 class Repeater(abc.ABC):
   """Provides mechanism to repeat requests for a
   configurable condition."""
+
   @abc.abstractmethod
   def repeat(
       self,
@@ -218,6 +221,7 @@ class ExponentialBackOffRepeater(Repeater):
   It utilizes the decorator
   :func:`apache_beam.utils.retry.with_exponential_backoff`.
   """
+
   def __init__(self):
     pass
 
@@ -247,6 +251,7 @@ class ExponentialBackOffRepeater(Repeater):
 class NoOpsRepeater(Repeater):
   """Executes a request just once irrespective of any exception.
   """
+
   def repeat(
       self,
       caller: Caller[RequestT, ResponseT],
@@ -273,6 +278,7 @@ class DefaultThrottler(PreCallThrottler):
       https://landing.google.com/sre/book/chapters/handling-overload.html.
     delay_secs (int): minimum number of seconds to throttle a request.
   """
+
   def __init__(
       self,
       window_ms: int = 1,
@@ -289,6 +295,7 @@ class _FilterCacheReadFn(beam.DoFn):
 
   It emits to main output for successful cache read requests or
   to the tagged output - `cache_misses` - otherwise."""
+
   def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
     if not element[1]:
       yield pvalue.TaggedOutput('cache_misses', element[0])
@@ -313,6 +320,7 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       repeater: (Optional) provides methods to repeat requests to API.
       throttler: (Optional) provides methods to pre-throttle a request.
   """
+
   def __init__(
       self,
       caller: Caller[RequestT, ResponseT],
@@ -335,6 +343,7 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
 
 
 class _CallDoFn(beam.DoFn):
+
   def setup(self):
     self._caller.__enter__()
     self._metrics_collector = _MetricsCollector(self._caller.__str__())
@@ -389,6 +398,7 @@ class Cache(abc.ABC):
 
   For adding cache support to RequestResponseIO, implement this class.
   """
+
   @abc.abstractmethod
   def get_read(self):
     """returns a PTransform that reads from the cache."""
@@ -442,6 +452,7 @@ class _RedisCaller(Caller):
   It provides the functionality for making requests to Redis server using
   :class:`apache_beam.io.requestresponse.RequestResponseIO`.
   """
+
   def __init__(
       self,
       host: str,
@@ -552,6 +563,7 @@ class _RedisCaller(Caller):
 class _ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
                                      beam.PCollection[ResponseT]]):
   """A `PTransform` that performs Redis cache read."""
+
   def __init__(
       self,
       host: str,
@@ -601,6 +613,7 @@ class _WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT,
                                                            ResponseT]],
                                     beam.PCollection[ResponseT]]):
   """A `PTransfrom` that performs write to Redis cache."""
+
   def __init__(
       self,
       host: str,
@@ -657,6 +670,7 @@ def ensure_coders_exist(request_coder):
 class RedisCache(Cache):
   """Configure cache using Redis for
   :class:`apache_beam.io.requestresponse.RequestResponseIO`."""
+
   def __init__(
       self,
       host: str,
@@ -731,6 +745,7 @@ class RedisCache(Cache):
 
 class FlattenBatch(beam.DoFn):
   """Flatten a batched PCollection."""
+
   def process(self, elements, *args, **kwargs):
     for element in elements:
       yield element
@@ -744,6 +759,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   by making a call to the API as defined in `Caller`'s `__call__` method
   and returns a :class:`~apache_beam.pvalue.PCollection` of responses.
   """
+
   def __init__(
       self,
       caller: Caller[RequestT, ResponseT],

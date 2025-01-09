@@ -43,6 +43,7 @@ def check_icons(actual):
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.keys.print', str)
 class KeysTest(unittest.TestCase):
+
   def test_keys(self):
     keys.keys(check_icons)
 

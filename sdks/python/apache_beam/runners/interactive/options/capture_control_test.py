@@ -49,7 +49,9 @@ def _build_an_empty_streaming_pipeline():
 
 
 def _fake_a_running_test_stream_service(pipeline):
+
   class FakeReader:
+
     def read_multiple(self):
       yield 1
 
@@ -63,6 +65,7 @@ def _fake_a_running_test_stream_service(pipeline):
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class CaptureControlTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 
@@ -155,6 +158,7 @@ class CaptureControlTest(unittest.TestCase):
     p = _build_an_empty_streaming_pipeline()
 
     class FakeLimiter(capture_limiters.Limiter):
+
       def __init__(self):
         self.trigger = False
 

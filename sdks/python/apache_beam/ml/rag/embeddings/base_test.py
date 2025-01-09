@@ -23,6 +23,7 @@ from apache_beam.ml.rag.types import Embedding
 
 
 class RAGBaseEmbeddingsTest(unittest.TestCase):
+
   def setUp(self):
     self.test_chunks = [
         Chunk(

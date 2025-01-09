@@ -44,6 +44,7 @@ from apache_beam.testing.util import equal_to
 
 
 class DirectPipelineResultTest(unittest.TestCase):
+
   def test_waiting_on_result_stops_executor_threads(self):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
@@ -60,7 +61,9 @@ class DirectPipelineResultTest(unittest.TestCase):
       self.assertEqual(len(new_threads), 0)
 
   def test_direct_runner_metrics(self):
+
     class MyDoFn(beam.DoFn):
+
       def start_bundle(self):
         count = Metrics.counter(self.__class__, 'bundles')
         count.inc()
@@ -141,6 +144,7 @@ class DirectPipelineResultTest(unittest.TestCase):
 
 
 class BundleBasedRunnerTest(unittest.TestCase):
+
   def test_type_hints(self):
     with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
       _ = (
@@ -154,6 +158,7 @@ class BundleBasedRunnerTest(unittest.TestCase):
 
 
 class DirectRunnerRetryTests(unittest.TestCase):
+
   def test_retry_fork_graph(self):
     # TODO(https://github.com/apache/beam/issues/18640): The FnApiRunner
     # currently does not currently support retries.
@@ -183,7 +188,9 @@ class DirectRunnerRetryTests(unittest.TestCase):
     assert count_b == count_c == 4
 
   def test_no_partial_writeouts(self):
+
     class TestTransformEvaluator(_TransformEvaluator):
+
       def __init__(self):
         self._execution_context = _ExecutionContext(None, {})
 

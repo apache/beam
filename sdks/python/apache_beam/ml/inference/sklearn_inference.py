@@ -82,6 +82,7 @@ def _default_numpy_inference_fn(
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
                                             BaseEstimator]):
+
   def __init__(
       self,
       model_uri: str,
@@ -217,6 +218,7 @@ def _default_pandas_inference_fn(
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):
+
   def __init__(
       self,
       model_uri: str,

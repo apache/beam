@@ -81,6 +81,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 @beam.typehints.with_output_types(Text)
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
+
   def __init__(self):
     self.empty_line_counter = Metrics.counter('main', 'empty_lines')
     self.word_length_counter = Metrics.counter('main', 'word_lengths')
@@ -111,6 +112,7 @@ class WordExtractingDoFn(beam.DoFn):
 
 class EntityWrapper(object):
   """Create a Cloud Datastore entity from the given string."""
+
   def __init__(self, project, namespace, kind, ancestor):
     self._project = project
     self._namespace = namespace

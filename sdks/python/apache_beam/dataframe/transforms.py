@@ -90,6 +90,7 @@ class DataframeTransform(transforms.PTransform):
   .. _schema-aware:
     https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
   """
+
   def __init__(
       self, func, proxy=None, yield_elements="schemas", include_indexes=False):
     self._func = func
@@ -138,6 +139,7 @@ class DataframeTransform(transforms.PTransform):
 
 
 class _DataframeExpressionsTransform(transforms.PTransform):
+
   def __init__(self, outputs):
     self._outputs = outputs
 
@@ -163,9 +165,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
     Logically, `_apply_deferred_ops({x: a, y: b}, {f: F(x, y), g: G(x, y)})`
     returns `{f: F(a, b), g: G(a, b)}`.
     """
+
     class ComputeStage(beam.PTransform):
       """A helper transform that computes a single stage of operations.
       """
+
       def __init__(self, stage):
         self.stage = stage
 
@@ -208,12 +212,13 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                   | 'SumSizes' >> beam.CombineGlobally(sum)
                   | 'NumPartitions' >> beam.Map(
                       lambda size: max(
-                          MIN_PARTITIONS,
-                          min(MAX_PARTITIONS, size // TARGET_PARTITION_SIZE))))
+                          MIN_PARTITIONS, min(
+                              MAX_PARTITIONS, size // TARGET_PARTITION_SIZE))))
 
           partition_fn = self.stage.partitioning.partition_fn
 
           class Partition(beam.PTransform):
+
             def expand(self, pcoll):
               return (
                   pcoll
@@ -245,10 +250,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
         # Actually evaluate the expressions.
         def evaluate(partition, stage=self.stage, **side_inputs):
+
           def lookup(expr):
             # Use proxy if there's no data in this partition
-            return expr.proxy(
-            ).iloc[:0] if partition[expr._id] is None else partition[expr._id]
+            return expr.proxy().iloc[:0] if partition[
+                expr._id] is None else partition[expr._id]
 
           session = expressions.Session(
               dict([(expr, lookup(expr)) for expr in tabular_inputs] +
@@ -265,6 +271,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       Note that these Dataframe "stages" contain a CoGBK and hence are often
       split across multiple "executable" stages.
       """
+
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
         if (len(self.inputs) > 1 and
@@ -301,6 +308,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """Return the output partitioning of expr when computed in stage,
       or returns None if the expression cannot be computed in this stage.
       """
+
       def maybe_upgrade_to_join_index(partitioning):
         if partitioning.is_subpartitioning_of(partitionings.JoinIndex()):
           return partitionings.JoinIndex(expr)
@@ -420,8 +428,10 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
     @_memoize
     def stage_to_result(stage):
-      return {expr._id: expr_to_pcoll(expr)
-              for expr in stage.inputs} | ComputeStage(stage)
+      return {
+          expr._id: expr_to_pcoll(expr)
+          for expr in stage.inputs
+      } | ComputeStage(stage)
 
     @_memoize
     def expr_to_pcoll(expr):
@@ -484,6 +494,7 @@ def _total_memory_usage(frame):
 
 
 class _PreBatch(beam.DoFn):
+
   def __init__(
       self, target_size=TARGET_PARTITION_SIZE, min_size=MIN_PARTITION_SIZE):
     self._target_size = target_size
@@ -519,6 +530,7 @@ class _ReBatch(beam.DoFn):
   Also groups across partitions, up to a given data size, to recover some
   efficiency in the face of over-partitioning.
   """
+
   def __init__(
       self, target_size=TARGET_PARTITION_SIZE, min_size=MIN_PARTITION_SIZE):
     self._target_size = target_size

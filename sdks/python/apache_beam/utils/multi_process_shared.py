@@ -64,6 +64,7 @@ class _SingletonProxy:
   """Proxies the shared object so we can release it with better errors and no
   risk of dangling references in the multiprocessing manager infrastructure.
   """
+
   def __init__(self, entry):
     # Guard names so as to not conflict with names of underlying object.
     self._SingletonProxy_entry = entry
@@ -110,6 +111,7 @@ class _SingletonProxy:
 
 class _SingletonEntry:
   """Represents a single, refcounted entry in this process."""
+
   def __init__(self, constructor, initialize_eagerly=True):
     self.constructor = constructor
     self.refcount = 0
@@ -191,6 +193,7 @@ _SingletonRegistrar.register(
 # singletonProxy_call__ calls (which is a wrapper around the underlying
 # object's __call__ function)
 class _AutoProxyWrapper:
+
   def __init__(self, proxyObject: multiprocessing.managers.BaseProxy):
     self._proxyObject = proxyObject
 
@@ -246,6 +249,7 @@ class MultiProcessShared(Generic[T]):
     always_proxy: whether to direct all calls through the proxy, rather than
       call the object directly for the process that created it
   """
+
   def __init__(
       self,
       constructor: Callable[[], T],

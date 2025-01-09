@@ -56,6 +56,7 @@ class PipelineStateMatcher(BaseMatcher):
   Matcher compares the actual pipeline terminate state with expected.
   By default, `PipelineState.DONE` is used as expected state.
   """
+
   def __init__(self, expected_state=PipelineState.DONE):
     self.expected_state = expected_state
 
@@ -85,6 +86,7 @@ class FileChecksumMatcher(BaseMatcher):
   Use apache_beam.io.filebasedsink to fetch file(s) from given path.
   File checksum is a hash string computed from content of file(s).
   """
+
   def __init__(self, file_path, expected_checksum, sleep_secs=None):
     """Initialize a FileChecksumMatcher object
 

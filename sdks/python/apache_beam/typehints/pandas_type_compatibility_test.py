@@ -117,6 +117,7 @@ from apache_beam.typehints.batch import BatchConverter
     },
 ])
 class PandasBatchConverterTest(unittest.TestCase):
+
   def create_batch_converter(self):
     return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
@@ -210,20 +211,21 @@ class PandasBatchConverterTest(unittest.TestCase):
 
 
 class PandasBatchConverterErrorsTest(unittest.TestCase):
+
   @parameterized.expand([
-    (
-      Any,
-      row_type.RowTypeConstraint.from_fields([
-                    ("bar", Optional[float]),  # noqa: F821
-                    ("baz", Optional[str]),  # noqa: F821
-                    ]),
-      r'batch type must be pd\.Series or pd\.DataFrame',
-    ),
-    (
-      pd.DataFrame,
-      Any,
-      r'Element type must be compatible with Beam Schemas',
-    ),
+      (
+          Any,
+          row_type.RowTypeConstraint.from_fields([
+              ("bar", Optional[float]),  # noqa: F821
+              ("baz", Optional[str]),  # noqa: F821
+          ]),
+          r'batch type must be pd\.Series or pd\.DataFrame',
+      ),
+      (
+          pd.DataFrame,
+          Any,
+          r'Element type must be compatible with Beam Schemas',
+      ),
   ])
   def test_construction_errors(
       self, batch_typehint, element_typehint, error_regex):

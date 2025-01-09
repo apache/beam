@@ -37,6 +37,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 class DaskOptionsTest(unittest.TestCase):
+
   def test_parses_connection_timeout__defaults_to_none(self):
     default_options = PipelineOptions([])
     default_dask_options = default_options.view_as(DaskOptions)
@@ -69,6 +70,7 @@ class DaskOptionsTest(unittest.TestCase):
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
   """Test class used to introspect the dask runner via a debugger."""
+
   def setUp(self) -> None:
     self.pipeline = test_pipeline.TestPipeline(runner=DaskRunner())
 
@@ -83,6 +85,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([1, 2, 3, 4]))
 
   def test_create_and_map(self):
+
     def double(x):
       return x * 2
 
@@ -91,6 +94,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([2]))
 
   def test_create_and_map_multiple(self):
+
     def double(x):
       return x * 2
 
@@ -99,6 +103,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([2, 4]))
 
   def test_create_and_map_many(self):
+
     def double(x):
       return x * 2
 
@@ -107,6 +112,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to(list(range(2, 21, 2))))
 
   def test_create_map_and_groupby(self):
+
     def double(x):
       return x * 2, x
 
@@ -115,6 +121,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([(2, [1])]))
 
   def test_create_map_and_groupby_multiple(self):
+
     def double(x):
       return x * 2, x
 
@@ -127,6 +134,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([(2, [1, 1]), (4, [2, 2]), (6, [3])]))
 
   def test_map_with_positional_side_input(self):
+
     def mult_by(x, y):
       return x * y
 
@@ -139,6 +147,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([3]))
 
   def test_map_with_keyword_side_input(self):
+
     def mult_by(x, y):
       return x * y
 
@@ -151,6 +160,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([3]))
 
   def test_pardo_side_inputs(self):
+
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -291,16 +301,13 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(
           main
           | "first map" >> beam.Map(
-              lambda k,
-              d,
-              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              lambda k, d, l: (k, sorted(d[k]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side),
           )
           | "second map" >> beam.Map(
-              lambda k,
-              d,
-              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              lambda k, d, l:
+              (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side),
           ),
@@ -323,6 +330,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       )
 
   def test_pardo_unfusable_side_inputs__one(self):
+
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -337,6 +345,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       )
 
   def test_pardo_unfusable_side_inputs__two(self):
+
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -357,6 +366,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       )
 
   def test_groupby_with_fixed_windows(self):
+
     def double(x):
       return x * 2, x
 
@@ -385,6 +395,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
 
 
 class ExpectingSideInputsFn(beam.DoFn):
+
   def __init__(self, name):
     self._name = name
 

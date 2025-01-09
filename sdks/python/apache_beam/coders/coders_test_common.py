@@ -69,6 +69,7 @@ MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')  # pylint: disable=too-many-function-ar
 
 
 class DefinesGetState:
+
   def __init__(self, value):
     self.value = value
 
@@ -80,12 +81,14 @@ class DefinesGetState:
 
 
 class DefinesGetAndSetState(DefinesGetState):
+
   def __setstate__(self, value):
     self.value = value
 
 
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
+
   def encode(self, x):
     return str(x + 1).encode('utf-8')
 
@@ -163,7 +166,7 @@ class CodersTest(unittest.TestCase):
         coders.BigEndianShortCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
-        coders.BigIntegerCoder, # tested in DecimalCoder
+        coders.BigIntegerCoder,  # tested in DecimalCoder
         coders.TimestampPrefixingOpaqueWindowCoder,
     ])
     cls.seen_nested -= set(
@@ -434,6 +437,7 @@ class CodersTest(unittest.TestCase):
     self._test_iterable_coder_of_unknown_length(80000)
 
   def _test_iterable_coder_of_unknown_length(self, count):
+
     def iter_generator(count):
       for i in range(count):
         yield i
@@ -614,7 +618,9 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coder, coder)), (b'', b'a'), (b'bc', b'def'))
 
   def test_nested_observables(self):
+
     class FakeObservableIterator(observable.ObservableMixin):
+
       def __iter__(self):
         return iter([1, 2, 3])
 
@@ -672,9 +678,14 @@ class CodersTest(unittest.TestCase):
 
   def test_map_coder(self):
     values = [
-        {1: "one", 300: "three hundred"}, # force yapf to be nice
+        {
+            1: "one", 300: "three hundred"
+        },  # force yapf to be nice
         {},
-        {i: str(i) for i in range(5000)}
+        {
+            i: str(i)
+            for i in range(5000)
+        }
     ]
     map_coder = coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder())
     self.check_coder(map_coder, *values)

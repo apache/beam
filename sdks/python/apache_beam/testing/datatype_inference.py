@@ -64,9 +64,8 @@ def infer_typehints_schema(data):
   for row in data:
     for key, value in row.items():
       column_data.setdefault(key, []).append(value)
-  column_types = OrderedDict([
-      (key, infer_element_type(values)) for key, values in column_data.items()
-  ])
+  column_types = OrderedDict([(key, infer_element_type(values))
+                              for key, values in column_data.items()])
   return column_types
 
 
@@ -101,8 +100,7 @@ def infer_avro_schema(data):
   column_types = infer_typehints_schema(data)
   avro_fields = [{
       "name": str(key), "type": typehint_to_avro_type(value)
-  } for key,
-                 value in column_types.items()]
+  } for key, value in column_types.items()]
   schema_dict = {
       "namespace": "example.avro",
       "name": "User",
@@ -127,7 +125,6 @@ def infer_pyarrow_schema(data):
   for row in data:
     for key, value in row.items():
       column_data.setdefault(key, []).append(value)
-  column_types = OrderedDict([
-      (key, pa.array(value).type) for key, value in column_data.items()
-  ])
+  column_types = OrderedDict([(key, pa.array(value).type)
+                              for key, value in column_data.items()])
   return pa.schema(list(column_types.items()))

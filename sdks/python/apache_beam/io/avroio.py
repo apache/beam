@@ -85,6 +85,7 @@ class ReadFromAvro(PTransform):
   that comply with the schema contained in the Avro file that contains those
   records.
   """
+
   def __init__(
       self,
       file_pattern=None,
@@ -287,6 +288,7 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
 
 
 class _AvroUtils(object):
+
   @staticmethod
   def advance_file_past_next_sync_marker(f, sync_marker):
     buf_size = 10000
@@ -322,6 +324,7 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
   TODO: remove ``_AvroSource`` in favor of using ``_FastAvroSource``
   everywhere once it has been more widely tested
   """
+
   def read_records(self, file_name, range_tracker):
     next_block_start = -1
 
@@ -367,6 +370,7 @@ class WriteToAvro(beam.transforms.PTransform):
 
   If the input has a schema, a corresponding avro schema will be automatically
   generated and used to write the output records."""
+
   def __init__(
       self,
       file_path_prefix,
@@ -411,13 +415,8 @@ class WriteToAvro(beam.transforms.PTransform):
     """
     self._schema = schema
     self._sink_provider = lambda avro_schema: _create_avro_sink(
-        file_path_prefix,
-        avro_schema,
-        codec,
-        file_name_suffix,
-        num_shards,
-        shard_name_template,
-        mime_type)
+        file_path_prefix, avro_schema, codec, file_name_suffix, num_shards,
+        shard_name_template, mime_type)
 
   def expand(self, pcoll):
     if self._schema:
@@ -465,6 +464,7 @@ def _create_avro_sink(
 
 class _BaseAvroSink(filebasedsink.FileBasedSink):
   """A base for a sink for avro files. """
+
   def __init__(
       self,
       file_path_prefix,
@@ -496,6 +496,7 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
 
 class _FastAvroSink(_BaseAvroSink):
   """A sink for avro files using FastAvro. """
+
   def __init__(
       self,
       file_path_prefix,

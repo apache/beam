@@ -60,6 +60,7 @@ def tokenize_sentence(input_dict):
 class ModelWrapper(DistilBertModel):
   """Wrapper to DistilBertModel to get embeddings when calling
     forward function."""
+
   def forward(self, **kwargs):
     output = super().forward(**kwargs)
     sentence_embedding = (
@@ -123,6 +124,7 @@ class CustomSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
 
 class NormalizeEmbedding(beam.DoFn):
   """A DoFn for normalization of text embedding."""
+
   def process(self, element, *args, **kwargs):
     """
         For each element in the input PCollection, normalize the embedding vector, and
@@ -139,6 +141,7 @@ class NormalizeEmbedding(beam.DoFn):
 
 class DecodePubSubMessage(beam.DoFn):
   """A DoFn for decoding PubSub message into a dictionary."""
+
   def process(self, element, *args, **kwargs):
     """
         For each element in the input PCollection, retrieve the id and decode the bytes into string
@@ -154,6 +157,7 @@ class DecodePubSubMessage(beam.DoFn):
 
 class DecodePrediction(beam.DoFn):
   """A DoFn for decoding the prediction from RunInference."""
+
   def process(self, element):
     """
     The `process` function takes the output of RunInference and returns a dictionary
@@ -170,6 +174,7 @@ class DecodePrediction(beam.DoFn):
 
 class TriggerEmailAlert(beam.DoFn):
   """A DoFn for sending email using yagmail."""
+
   def setup(self):
     """
     Opens the cred.json file and initializes the yag SMTP client.

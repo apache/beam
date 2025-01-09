@@ -75,6 +75,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
 
   NOTE: Elements cannot be batched when using the `query_fn` parameter.
   """
+
   def __init__(
       self,
       project: str,

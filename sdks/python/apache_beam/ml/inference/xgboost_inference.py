@@ -70,6 +70,7 @@ def default_xgboost_inference_fn(
 
 
 class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
+
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
@@ -173,6 +174,7 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
     inference_fn: the inference function to use during RunInference.
       default=default_xgboost_inference_fn
   """
+
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -225,6 +227,7 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
     inference_fn: the inference function to use during RunInference.
       default=default_xgboost_inference_fn
   """
+
   def run_inference(
       self,
       batch: Sequence[pandas.DataFrame],
@@ -277,6 +280,7 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
     inference_fn: the inference function to use during RunInference.
       default=default_xgboost_inference_fn
   """
+
   def run_inference(
       self,
       batch: Sequence[scipy.sparse.csr_matrix],
@@ -329,6 +333,7 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
     inference_fn: the inference function to use during RunInference.
       default=default_xgboost_inference_fn
   """
+
   def run_inference(
       self,
       batch: Sequence[datatable.Frame],

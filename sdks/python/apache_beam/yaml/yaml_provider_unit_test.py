@@ -32,6 +32,7 @@ from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class WindowIntoTest(unittest.TestCase):
+
   def __init__(self, methodName="runWindowIntoTest"):
     unittest.TestCase.__init__(self, methodName)
     self.parse_duration = YamlProviders.WindowInto._parse_duration
@@ -101,8 +102,7 @@ class ProviderParsingTest(unittest.TestCase):
             self.INLINE_PROVIDER,
             {
                 'include': self.to_include
-            },
-        ])
+            }, ])
     ]
 
     self.assertEqual([
@@ -118,8 +118,7 @@ class ProviderParsingTest(unittest.TestCase):
             self.INLINE_PROVIDER,
             {
                 'include': 'file:///' + self.to_include
-            },
-        ])
+            }, ])
     ]
 
     self.assertEqual([
@@ -135,8 +134,7 @@ class ProviderParsingTest(unittest.TestCase):
             self.INLINE_PROVIDER,
             {
                 'include': self.to_include_nested
-            },
-        ])
+            }, ])
     ]
 
     self.assertEqual([
@@ -148,6 +146,7 @@ class ProviderParsingTest(unittest.TestCase):
 
 
 class YamlDefinedProider(unittest.TestCase):
+
   def test_yaml_define_provider(self):
     providers = '''
     - type: yaml

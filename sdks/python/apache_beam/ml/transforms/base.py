@@ -121,6 +121,7 @@ class MLTransformProvider:
   used to process the data.
 
   """
+
   @abc.abstractmethod
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     """
@@ -138,6 +139,7 @@ class MLTransformProvider:
 class BaseOperation(Generic[OperationInputT, OperationOutputT],
                     MLTransformProvider,
                     abc.ABC):
+
   def __init__(self, columns: list[str]) -> None:
     """
     Base Opertation class data processing transformations.
@@ -176,6 +178,7 @@ class ProcessHandler(
   """
   Only for internal use. No backwards compatibility guarantees.
   """
+
   @abc.abstractmethod
   def append_transform(self, transform: BaseOperation):
     """
@@ -246,6 +249,7 @@ def _create_dict_adapter(
 # TODO:https://github.com/apache/beam/issues/29356
 #  Add support for inference_fn
 class EmbeddingsManager(MLTransformProvider):
+
   def __init__(
       self,
       *,
@@ -290,6 +294,7 @@ class MLTransform(
                           tuple[beam.PCollection[MLTransformOutputT],
                                 beam.PCollection[beam.Row]]]],
     Generic[ExampleT, MLTransformOutputT]):
+
   def __init__(
       self,
       *,
@@ -470,11 +475,13 @@ class MLTransform(
 
 
 class MLTransformMetricsUsage(beam.PTransform):
+
   def __init__(self, ml_transform: MLTransform):
     self._ml_transform = ml_transform
     self._ml_transform._counter.inc()
 
   def expand(self, pipeline):
+
     def _increment_counters():
       # increment for MLTransform.
       self._ml_transform._counter.inc()
@@ -494,6 +501,7 @@ class _TransformAttributeManager:
   """
   Base class used for saving and loading the attributes.
   """
+
   @staticmethod
   def save_attributes(artifact_location):
     """
@@ -517,6 +525,7 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
   jsonpickle is used to serialize the PTransforms and save it to a json file and
   is compatible across python versions.
   """
+
   @staticmethod
   def _is_remote_path(path):
     is_gcs = path.find('gs://') != -1
@@ -596,6 +605,7 @@ class _MLTransformToPTransformMapper:
   PTransforms or attributes of PTransforms to the artifact location to seal
   the gap between the training and inference pipelines.
   """
+
   def __init__(
       self,
       transforms: list[MLTransformProvider],
@@ -628,8 +638,8 @@ class _MLTransformToPTransformMapper:
               self._parent_artifact_location, uuid.uuid4().hex[:6]),
           artifact_mode=self.artifact_mode)
       append_transform = hasattr(current_ptransform, 'append_transform')
-      if (type(current_ptransform) !=
-          previous_ptransform_type) or not append_transform:
+      if (type(current_ptransform)
+          != previous_ptransform_type) or not append_transform:
         ptransform_list.append(current_ptransform)
         previous_ptransform_type = type(current_ptransform)
       # If different PTransform is appended to the list and the PTransform
@@ -672,6 +682,7 @@ class _EmbeddingHandler(ModelHandler):
   Args:
     embeddings_manager: An EmbeddingsManager instance.
   """
+
   def __init__(self, embeddings_manager: EmbeddingsManager):
     self.embedding_config = embeddings_manager
     self._underlying = self.embedding_config.get_model_handler()
@@ -750,6 +761,7 @@ class _TextEmbeddingHandler(_EmbeddingHandler):
   Args:
     embeddings_manager: An EmbeddingsManager instance.
   """
+
   def _validate_column_data(self, batch):
     if not isinstance(batch[0], (str, bytes)):
       raise TypeError(
@@ -785,6 +797,7 @@ class _ImageEmbeddingHandler(_EmbeddingHandler):
   Args:
     embeddings_manager: An EmbeddingsManager instance.
   """
+
   def _validate_column_data(self, batch):
     # Don't want to require framework-specific imports
     # here, so just catch columns of primatives for now.

@@ -36,6 +36,7 @@ else:
 
 @unittest.skipIf(language is None, 'GCP dependencies are not installed')
 class NaturalLanguageMlTest(unittest.TestCase):
+
   def assertCounterEqual(self, pipeline_result, counter_name, expected):
     metrics = pipeline_result.metrics().query(
         MetricsFilter().with_name(counter_name))

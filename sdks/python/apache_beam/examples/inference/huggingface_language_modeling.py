@@ -75,6 +75,7 @@ class PostProcessor(beam.DoFn):
   The logits are the output of the Model. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
+
   def __init__(self, tokenizer: AutoTokenizer):
     super().__init__()
     self.tokenizer = tokenizer

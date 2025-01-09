@@ -368,6 +368,7 @@ def _add_doc(
     row_type=None,
     operation_suffix=None,
 ):
+
   def _doc(obj):
     obj.__doc__ = value.format(
         operation=operation,

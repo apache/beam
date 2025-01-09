@@ -60,6 +60,7 @@ from apache_beam.dataframe.frame_base import DeferredBase
 class FakePandasObject(object):
   """A stand-in for the wrapped pandas objects.
   """
+
   def __init__(self, pandas_obj, test_env):
     self._pandas_obj = pandas_obj
     self._test_env = test_env
@@ -94,6 +95,7 @@ class TestEnvironment(object):
   These classes are patched to be able to recognize and retrieve inputs
   and results, stored in `self._inputs` and `self._all_frames` respectively.
   """
+
   def __init__(self):
     self._inputs = {}
     self._all_frames = {}
@@ -157,6 +159,7 @@ class _InMemoryResultRecorder(object):
     del self._ALL_RESULTS[self._id]
 
   def record_fn(self, name):
+
     def record(value):
       self._ALL_RESULTS[self._id][name].append(value)
 
@@ -173,6 +176,7 @@ NOT_IMPLEMENTED = 'NotImplementedError'
 class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
   """Validates output by replacing DeferredBase[...] with computed values.
   """
+
   def __init__(self, env, use_beam):
     self._env = env
     if use_beam:
@@ -188,8 +192,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     session = expressions.PartitioningSession(self._env._inputs)
     return {
         name: session.evaluate(frame._expr)
-        for name,
-        frame in to_compute.items()
+        for name, frame in to_compute.items()
     }
 
   def compute_using_beam(self, to_compute):
@@ -198,13 +201,13 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         input_pcolls = {
             placeholder: p
             | 'Create%s' % placeholder >> beam.Create([input[::2], input[1::2]])
-            for placeholder,
-            input in self._env._inputs.items()
+            for placeholder, input in self._env._inputs.items()
         }
         output_pcolls = (
-            input_pcolls | transforms._DataframeExpressionsTransform(
-                {name: frame._expr
-                 for name, frame in to_compute.items()}))
+            input_pcolls | transforms._DataframeExpressionsTransform({
+                name: frame._expr
+                for name, frame in to_compute.items()
+            }))
         for name, output_pcoll in output_pcolls.items():
           _ = output_pcoll | 'Record%s' % name >> beam.FlatMap(
               recorder.record_fn(name))
@@ -341,6 +344,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   """A Doctest runner suitable for replacing the `pd` module with one backed
   by beam.
   """
+
   def __init__(
       self,
       env,
@@ -359,18 +363,15 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
     self._wont_implement_ok = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (wont_implement_ok or {}).items()
+        for test, examples in (wont_implement_ok or {}).items()
     }
     self._not_implemented_ok = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (not_implemented_ok or {}).items()
+        for test, examples in (not_implemented_ok or {}).items()
     }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (skip or {}).items()
+        for test, examples in (skip or {}).items()
     }
     super().__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
@@ -420,6 +421,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       return result
 
   def report_success(self, out, test, example, got):
+
     def extract_concise_reason(got, expected_exc):
       m = re.search(r"Implement(?:ed)?Error:\s+(.*)\n$", got)
       if m:
@@ -463,6 +465,7 @@ class AugmentedTestResults(doctest.TestResults):
 
 
 class Summary(object):
+
   def __init__(self, failures=0, tries=0, skipped=0, error_reasons=None):
     self.failures = failures
     self.tries = tries
@@ -487,6 +490,7 @@ class Summary(object):
         merged_reasons)
 
   def summarize(self):
+
     def print_partition(indent, desc, n, total):
       print("%s%d %s (%.1f%%)" % ("  " * indent, n, desc, n / total * 100))
 
@@ -535,9 +539,9 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
   IMPORT_PANDAS = 'import pandas as pd'
 
   example_srcs = []
-  lines = iter([(lineno, line.rstrip()) for lineno,
-                line in enumerate(rst.split('\n')) if is_example_line(line)] +
-               [(None, 'END')])
+  lines = iter([(lineno, line.rstrip())
+                for lineno, line in enumerate(rst.split('\n'))
+                if is_example_line(line)] + [(None, 'END')])
 
   # https://ipython.readthedocs.io/en/stable/sphinxext.html
   lineno, line = next(lines)
@@ -610,6 +614,7 @@ def test_rst_ipython(
   """Extracts examples from an rst file and run them through pandas to get the
   expected output, and then compare them against our dataframe implementation.
   """
+
   def run_tests(extraglobs, optionflags, **kwargs):
     # The patched one.
     tests = parse_rst_ipython_tests(rst, name, extraglobs, optionflags)
@@ -690,12 +695,8 @@ def _run_patched(func, *args, **kwargs):
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env,
-        use_beam=use_beam,
-        wont_implement_ok=wont_implement_ok,
-        not_implemented_ok=not_implemented_ok,
-        skip=skip,
-        **kwargs)
+        env, use_beam=use_beam, wont_implement_ok=wont_implement_ok,
+        not_implemented_ok=not_implemented_ok, skip=skip, **kwargs)
     with expressions.allow_non_parallel_operations():
       return func(
           *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)

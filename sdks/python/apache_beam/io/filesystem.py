@@ -450,6 +450,7 @@ class FileMetadata(object):
     last_updated_in_seconds: [Optional] last modified timestamp of the file, or
     valued 0.0 if not specified.
   """
+
   def __init__(
       self,
       path: str,
@@ -486,12 +487,14 @@ class MatchResult(object):
   """Result from the ``FileSystem`` match operation which contains the list
    of matched ``FileMetadata``.
   """
+
   def __init__(self, pattern: str, metadata_list: List[FileMetadata]) -> None:
     self.metadata_list = metadata_list
     self.pattern = pattern
 
 
 class BeamIOError(IOError):
+
   def __init__(self, msg, exception_details=None):
     """Class representing the errors thrown in the batch file operations.
     Args:

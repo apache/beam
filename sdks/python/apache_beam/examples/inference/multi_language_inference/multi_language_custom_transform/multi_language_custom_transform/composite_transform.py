@@ -35,6 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class InferenceTransform(ptransform.PTransform):
+
   class PytorchModelHandlerKeyedTensorWrapper(PytorchModelHandlerKeyedTensor):
     """Wrapper to PytorchModelHandler to limit batch size to 1.
         The tokenized strings generated from BertTokenizer may have different
@@ -43,10 +44,12 @@ class InferenceTransform(ptransform.PTransform):
         Restricting max_batch_size to 1 means there is only 1 example per
         `batch` in the run_inference() call.
         """
+
     def batch_elements_kwargs(self):
       return {'max_batch_size': 1}
 
   class Preprocess(beam.DoFn):
+
     def __init__(self, tokenizer):
       self._tokenizer = tokenizer
       logging.info('Starting Preprocess.')
@@ -80,6 +83,7 @@ class InferenceTransform(ptransform.PTransform):
           return [(text, tokens)]
 
   class Postprocess(beam.DoFn):
+
     def __init__(self, bert_tokenizer):
       self.bert_tokenizer = bert_tokenizer
       logging.info('Starting Postprocess')

@@ -30,6 +30,7 @@ from apache_beam.runners.portability.portable_runner import PortableRunner
 
 
 class TestJobServicePlan(JobServiceHandle):
+
   def __init__(self, job_service):
     self.job_service = job_service
     self.options = None
@@ -41,6 +42,7 @@ class TestJobServicePlan(JobServiceHandle):
 
 
 class LocalJobServerTest(unittest.TestCase):
+
   def test_end_to_end(self):
 
     job_service = local_job_service.LocalJobServicer()

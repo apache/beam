@@ -30,6 +30,7 @@ class TestStreamServiceController(
 
   This server is used as a way for TestStreams to receive events from file.
   """
+
   def __init__(self, reader, endpoint=None, exception_handler=None):
     self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
     self._server_started = False

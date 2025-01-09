@@ -61,6 +61,7 @@ except ImportError:
 
 
 class PytorchLinearRegression(torch.nn.Module):
+
   def __init__(self, input_dim, output_dim):
     super().__init__()
     self.linear = torch.nn.Linear(input_dim, output_dim)
@@ -75,6 +76,7 @@ class PytorchLinearRegression(torch.nn.Module):
 
 
 class TestDataAndModel():
+
   def get_one_feature_samples(self):
     return [
         np.array([1], dtype="float32"),
@@ -85,8 +87,7 @@ class TestDataAndModel():
 
   def get_one_feature_predictions(self):
     return [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             self.get_one_feature_samples(),
             [example * 2.0 + 0.5 for example in self.get_one_feature_samples()])
     ]
@@ -101,12 +102,10 @@ class TestDataAndModel():
 
   def get_two_feature_predictions(self):
     return [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            self.get_two_feature_examples(),
-            [
-                f1 * 2.0 + f2 * 3 + 0.5 for f1,
-                f2 in self.get_two_feature_examples()
+        PredictionResult(ex, pred) for ex, pred in zip(
+            self.get_two_feature_examples(), [
+                f1 * 2.0 + f2 * 3 + 0.5
+                for f1, f2 in self.get_two_feature_examples()
             ])
     ]
 
@@ -188,6 +187,7 @@ class TestOnnxModelHandler(OnnxModelHandlerNumpy):
 
 
 class OnnxTestBase(unittest.TestCase):
+
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
     self.test_data_and_model = TestDataAndModel()
@@ -198,6 +198,7 @@ class OnnxTestBase(unittest.TestCase):
 
 @pytest.mark.uses_onnx
 class OnnxPytorchRunInferenceTest(OnnxTestBase):
+
   def test_onnx_pytorch_run_inference(self):
     examples = self.test_data_and_model.get_one_feature_samples()
     expected_predictions = self.test_data_and_model.get_one_feature_predictions(
@@ -206,17 +207,23 @@ class OnnxPytorchRunInferenceTest(OnnxTestBase):
     model = self.test_data_and_model.get_torch_one_feature_model()
     path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
     dummy_input = torch.randn(4, 1, requires_grad=True)
-    torch.onnx.export(model,
-                      dummy_input, # model input
-                      path,   # where to save the model
-                      export_params=True, # store the trained parameter weights
-                      opset_version=10, # the ONNX version
-                      do_constant_folding=True, # whether to execute constant-
-                                                # folding for optimization
-                      input_names = ['input'],   # model's input names
-                      output_names = ['output'], # model's output names
-                      dynamic_axes={'input' : {0 : 'batch_size'},
-                                    'output' : {0 : 'batch_size'}})
+    torch.onnx.export(
+        model,
+        dummy_input,  # model input
+        path,  # where to save the model
+        export_params=True,  # store the trained parameter weights
+        opset_version=10,  # the ONNX version
+        do_constant_folding=True,  # whether to execute constant-
+        # folding for optimization
+        input_names=['input'],  # model's input names
+        output_names=['output'],  # model's output names
+        dynamic_axes={
+            'input': {
+                0: 'batch_size'
+            }, 'output': {
+                0: 'batch_size'
+            }
+        })
 
     inference_runner = TestOnnxModelHandler(path)
     inference_session = ort.InferenceSession(
@@ -252,6 +259,7 @@ class OnnxPytorchRunInferenceTest(OnnxTestBase):
 
 @pytest.mark.uses_onnx
 class OnnxTensorflowRunInferenceTest(OnnxTestBase):
+
   def test_onnx_tensorflow_run_inference(self):
     examples = self.test_data_and_model.get_one_feature_samples()
     expected_predictions = self.test_data_and_model.get_one_feature_predictions(
@@ -276,6 +284,7 @@ class OnnxTensorflowRunInferenceTest(OnnxTestBase):
 
 @pytest.mark.uses_onnx
 class OnnxSklearnRunInferenceTest(OnnxTestBase):
+
   def save_model(self, model, input_dim, path):
     # assume float input
     initial_type = [('float_input', FloatTensorType([None, input_dim]))]
@@ -303,19 +312,26 @@ class OnnxSklearnRunInferenceTest(OnnxTestBase):
 
 @pytest.mark.uses_onnx
 class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
+
   def exportModelToOnnx(self, model, path):
     dummy_input = torch.randn(4, 2, requires_grad=True)
-    torch.onnx.export(model,
-                      dummy_input, # model input
-                      path,   # where to save the model
-                      export_params=True, # store the trained parameter weights
-                      opset_version=10, # the ONNX version
-                      do_constant_folding=True, # whether to execute constant
-                                                # folding for optimization
-                      input_names = ['input'],   # odel's input names
-                      output_names = ['output'], # model's output names
-                      dynamic_axes={'input' : {0 : 'batch_size'},
-                                    'output' : {0 : 'batch_size'}})
+    torch.onnx.export(
+        model,
+        dummy_input,  # model input
+        path,  # where to save the model
+        export_params=True,  # store the trained parameter weights
+        opset_version=10,  # the ONNX version
+        do_constant_folding=True,  # whether to execute constant
+        # folding for optimization
+        input_names=['input'],  # odel's input names
+        output_names=['output'],  # model's output names
+        dynamic_axes={
+            'input': {
+                0: 'batch_size'
+            }, 'output': {
+                0: 'batch_size'
+            }
+        })
 
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
@@ -414,6 +430,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
 
 @pytest.mark.uses_onnx
 class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
+
   def exportModelToOnnx(self, model, path):
     spec = (tf.TensorSpec((None, 2), tf.float32, name="input"), )
     _, _ = tf2onnx.convert.from_keras(model,
@@ -469,6 +486,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
 
 @pytest.mark.uses_onnx
 class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
+
   def save_model(self, model, input_dim, path):
     # assume float input
     initial_type = [('float_input', FloatTensorType([None, input_dim]))]

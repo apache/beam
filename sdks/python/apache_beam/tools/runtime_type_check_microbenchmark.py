@@ -41,12 +41,14 @@ from apache_beam.tools import utils
 
 @beam.typehints.with_input_types(Tuple[int, ...])
 class SimpleInput(beam.DoFn):
+
   def process(self, element, *args, **kwargs):
     yield element
 
 
 @beam.typehints.with_output_types(Tuple[int, ...])
 class SimpleOutput(beam.DoFn):
+
   def process(self, element, *args, **kwargs):
     yield element
 
@@ -54,6 +56,7 @@ class SimpleOutput(beam.DoFn):
 @beam.typehints.with_input_types(
     Tuple[int, str, Tuple[float, ...], Iterable[int], Union[str, int]])
 class NestedInput(beam.DoFn):
+
   def process(self, element, *args, **kwargs):
     yield element
 
@@ -61,6 +64,7 @@ class NestedInput(beam.DoFn):
 @beam.typehints.with_output_types(
     Tuple[int, str, Tuple[float, ...], Iterable[int], Union[str, int]])
 class NestedOutput(beam.DoFn):
+
   def process(self, element, *args, **kwargs):
     yield element
 

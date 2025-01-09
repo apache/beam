@@ -92,11 +92,13 @@ NUM_RECORDS = 100
     TestPipeline().get_option('server_name') is None,
     'Snowflake IT test requires external configuration to be run.')
 class SnowflakeTest(unittest.TestCase):
+
   def test_snowflake_write_read(self):
     self.run_write()
     self.run_read()
 
   def run_write(self):
+
     def user_data_mapper(test_row):
       return [
           str(test_row.number_column).encode('utf-8'),
@@ -137,6 +139,7 @@ class SnowflakeTest(unittest.TestCase):
           ))
 
   def run_read(self):
+
     def csv_mapper(bytes_array):
       return TestRow(
           int(bytes_array[0]),

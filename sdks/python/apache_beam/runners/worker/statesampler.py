@@ -89,6 +89,7 @@ DEFAULT_SAMPLING_PERIOD_MS = 200
 
 
 class StateSampler(statesampler_impl.StateSampler):
+
   def __init__(
       self,
       prefix: str,

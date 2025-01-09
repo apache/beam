@@ -162,6 +162,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
     model_fn: A string name of the method to be used. This is accessed through
       getattr(model, model_fn)
   """
+
   def attr_fn(
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
@@ -182,6 +183,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              PredictionResult,
                                              torch.nn.Module]):
+
   def __init__(
       self,
       state_dict_path: Optional[str] = None,
@@ -391,6 +393,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
     model_fn: A string name of the method to be used. This is accessed through
       getattr(model, model_fn)
   """
+
   def attr_fn(
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
@@ -423,6 +426,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
                                                   torch.nn.Module]):
+
   def __init__(
       self,
       state_dict_path: Optional[str] = None,

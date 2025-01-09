@@ -33,6 +33,7 @@ except ImportError:
 
 
 class HuggingfaceTextEmbeddings(EmbeddingsManager):
+
   def __init__(
       self, model_name: str, *, max_seq_length: Optional[int] = None, **kwargs):
     """Utilizes huggingface SentenceTransformer embeddings for RAG pipeline.

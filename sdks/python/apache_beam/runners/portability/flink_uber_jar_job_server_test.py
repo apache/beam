@@ -45,6 +45,7 @@ def temp_name(*args, **kwargs):
 
 
 class FlinkUberJarJobServerTest(unittest.TestCase):
+
   @requests_mock.mock()
   def test_flink_version(self, http_mock):
     http_mock.get('http://flink/v1/config', json={'flink-version': '3.1.4.1'})

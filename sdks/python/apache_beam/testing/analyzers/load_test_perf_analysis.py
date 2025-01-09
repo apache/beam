@@ -35,6 +35,7 @@ class LoadTestMetricsFetcher(perf_analysis_utils.MetricsFetcher):
     are fetched and returned as a dataclass containing lists of timestamps and
     metric_values.
     """
+
   def fetch_metric_data(
       self, *, test_config: TestConfigContainer) -> MetricContainer:
     if test_config.test_name:

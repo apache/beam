@@ -56,6 +56,7 @@ class MetricName(object):
   allows grouping related metrics together and also prevents collisions
   between multiple metrics of the same name.
   """
+
   def __init__(
       self,
       namespace: Optional[str],
@@ -113,6 +114,7 @@ class MetricName(object):
 
 class Metric(object):
   """Base interface of a metric object."""
+
   def __init__(self, metric_name: MetricName) -> None:
     self.metric_name = metric_name
 
@@ -120,6 +122,7 @@ class Metric(object):
 class Counter(Metric):
   """Counter metric interface. Allows a count to be incremented/decremented
   during pipeline execution."""
+
   def inc(self, n=1):
     raise NotImplementedError
 
@@ -132,6 +135,7 @@ class Distribution(Metric):
 
   Allows statistics about the distribution of a variable to be collected during
   pipeline execution."""
+
   def update(self, value):
     raise NotImplementedError
 
@@ -141,6 +145,7 @@ class Gauge(Metric):
 
   Allows tracking of the latest value of a variable during pipeline
   execution."""
+
   def set(self, value):
     raise NotImplementedError
 
@@ -149,6 +154,7 @@ class StringSet(Metric):
   """StringSet Metric interface.
 
   Reports set of unique string values during pipeline execution.."""
+
   def add(self, value):
     raise NotImplementedError
 
@@ -157,6 +163,7 @@ class BoundedTrie(Metric):
   """BoundedTrie Metric interface.
 
   Reports set of unique string values during pipeline execution.."""
+
   def add(self, value):
     raise NotImplementedError
 
@@ -166,5 +173,6 @@ class Histogram(Metric):
 
   Allows statistics about the percentile of a variable to be collected during
   pipeline execution."""
+
   def update(self, value):
     raise NotImplementedError

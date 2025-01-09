@@ -54,6 +54,7 @@ class SplittableParDoOverride(PTransformOverride):
   Replaces the ParDo transform with a SplittableParDo transform that performs
   SDF specific logic.
   """
+
   def matches(self, applied_ptransform):
     assert isinstance(applied_ptransform, AppliedPTransform)
     transform = applied_ptransform.transform
@@ -75,6 +76,7 @@ class SplittableParDoOverride(PTransformOverride):
 
 class SplittableParDo(PTransform):
   """A transform that processes a PCollection using a Splittable DoFn."""
+
   def __init__(self, ptransform):
     assert isinstance(ptransform, ParDo)
     self._ptransform = ptransform
@@ -104,6 +106,7 @@ class SplittableParDo(PTransform):
 
 class ElementAndRestriction(object):
   """A holder for an element, restriction, and watermark estimator state."""
+
   def __init__(self, element, restriction, watermark_estimator_state):
     self.element = element
     self.restriction = restriction
@@ -112,6 +115,7 @@ class ElementAndRestriction(object):
 
 class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
+
   def __init__(self, do_fn):
     self._signature = DoFnSignature(do_fn)
 
@@ -132,6 +136,7 @@ class PairWithRestrictionFn(beam.DoFn):
 
 class SplitRestrictionFn(beam.DoFn):
   """A transform that perform initial splitting of Splittable DoFn inputs."""
+
   def __init__(self, do_fn):
     self._do_fn = do_fn
 
@@ -157,12 +162,14 @@ class ExplodeWindowsFn(beam.DoFn):
   This is done to make sure that Splittable DoFn proceses an element for each of
   the windows that element belongs to.
   """
+
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     yield element
 
 
 class RandomUniqueKeyFn(beam.DoFn):
   """A transform that assigns a unique key to each element."""
+
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     # We ignore UUID collisions here since they are extremely rare.
     yield (uuid.uuid4().bytes, element)
@@ -174,6 +181,7 @@ class ProcessKeyedElements(PTransform):
   Input to this transform should be a PCollection of keyed ElementAndRestriction
   objects.
   """
+
   def __init__(
       self,
       sdf,
@@ -197,6 +205,7 @@ class ProcessKeyedElements(PTransform):
 
 class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   """A transform override for ProcessElements transform."""
+
   def matches(self, applied_ptransform):
     return isinstance(applied_ptransform.transform, ProcessKeyedElements)
 
@@ -207,6 +216,7 @@ class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
 
 class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
   """A transform that processes Splittable DoFn input via KeyedWorkItems."""
+
   def __init__(self, process_keyed_elements_transform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
 
@@ -227,6 +237,7 @@ class ProcessElements(PTransform):
   Will be evaluated by
   `runners.direct.transform_evaluator._ProcessElementsEvaluator`.
   """
+
   def __init__(self, process_keyed_elements_transform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
     self.sdf = self._process_keyed_elements_transform.sdf
@@ -257,6 +268,7 @@ class ProcessFn(beam.DoFn):
   (4) after the final invocation of a given element clear any previous state set
   for re-invoking the element and release the output watermark.
   """
+
   def __init__(self, sdf, args_for_invoker, kwargs_for_invoker):
     self.sdf = sdf
     self._element_tag = _ReadModifyWriteStateTag('element')
@@ -416,7 +428,9 @@ class SDFProcessElementInvoker(object):
   produced this class ends the execution and performs steps to finalize the
   current invocation.
   """
+
   class Result(object):
+
     def __init__(
         self,
         residual_restriction=None,
@@ -467,6 +481,7 @@ class SDFProcessElementInvoker(object):
     assert isinstance(sdf_invoker, DoFnInvoker)
 
     class CheckpointState(object):
+
       def __init__(self):
         self.checkpointed = None
         self.residual_restriction = None
@@ -534,6 +549,7 @@ class SDFProcessElementInvoker(object):
 
 
 class _OutputHandler(OutputHandler):
+
   def __init__(self):
     self.output_iter = None
 
@@ -549,6 +565,7 @@ class _OutputHandler(OutputHandler):
 
 
 class _NoneShallPassOutputHandler(OutputHandler):
+
   def handle_process_outputs(
       self,
       windowed_input_element: WindowedValue,

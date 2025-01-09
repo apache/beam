@@ -270,6 +270,7 @@ class ProgressIndicator(object):
 def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
+
   @functools.wraps(func)
   def run_within_progress_indicator(*args, **kwargs):
     with ProgressIndicator(f'Processing... {func.__name__}', 'Done.'):
@@ -286,6 +287,7 @@ def as_json(func: Callable[..., Any]) -> Callable[..., str]:
   If the object is not parsable, the str() of original object is returned
   instead.
   """
+
   def return_as_json(*args, **kwargs):
     try:
       return_value = func(*args, **kwargs)
@@ -365,6 +367,7 @@ def watch_sources(pipeline):
   pcoll_to_name = {v: k for k, v in pcoll_by_name().items()}
 
   class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
+
     def __init__(self):
       self.unbounded_pcolls = set()
 
@@ -401,6 +404,7 @@ def unbounded_sources(pipeline):
     Visitor visits all nodes and checks if it is an instance of recordable
     sources.
     """
+
     def __init__(self):
       self.unbounded_sources = []
 

@@ -81,6 +81,7 @@ CUSTOM_COMMANDS = [['echo', 'Custom command worked!']]
 
 class CustomCommands(setuptools.Command):
   """A setuptools Command class able to run arbitrary commands."""
+
   def initialize_options(self):
     pass
 

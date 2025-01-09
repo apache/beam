@@ -46,6 +46,7 @@ from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 class PipelineGraph(object):
   """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
+
   def __init__(
       self,
       pipeline: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline],
@@ -267,6 +268,7 @@ class PipelineGraph(object):
           Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
           attributes
     """
+
     def set_attrs(ref, attrs):
       for attr_name, attr_val in attrs.items():
         ref.set(attr_name, attr_val)

@@ -37,6 +37,7 @@ except ImportError:
 @unittest.skipIf((gcsio_retry is None or api_exceptions is None),
                  'GCP dependencies are not installed')
 class TestGCSIORetry(unittest.TestCase):
+
   def test_retry_on_non_retriable(self):
     mock = Mock(side_effect=[
         Exception('Something wrong!'),

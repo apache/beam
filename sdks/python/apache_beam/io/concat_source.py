@@ -35,6 +35,7 @@ class ConcatSource(iobase.BoundedSource):
   Primarily for internal use, use the ``apache_beam.Flatten`` transform
   to create the union of several reads.
   """
+
   def __init__(self, sources):
     self._source_bundles = [
         source if isinstance(source, iobase.SourceBundle) else
@@ -98,6 +99,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
   """For internal use only; no backwards-compatibility guarantees.
 
   Range tracker for ConcatSource"""
+
   def __init__(self, start, end, source_bundles):
     """Initializes ``ConcatRangeTracker``
 

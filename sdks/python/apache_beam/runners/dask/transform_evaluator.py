@@ -143,12 +143,14 @@ class DaskBagOp(abc.ABC):
 
 class NoOp(DaskBagOp):
   """An identity on a dask bag: returns the input as-is."""
+
   def apply(self, input_bag: OpInput, side_inputs: OpSide = None) -> db.Bag:
     return input_bag
 
 
 class Create(DaskBagOp):
   """The beginning of a Beam pipeline; the input must be `None`."""
+
   def apply(self, input_bag: OpInput, side_inputs: OpSide = None) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
@@ -185,6 +187,7 @@ class ParDo(DaskBagOp):
 
   This consumes a sequence of items and returns a sequence of items.
   """
+
   def apply(self, input_bag: db.Bag, side_inputs: OpSide = None) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.transform)
 
@@ -226,7 +229,9 @@ class ParDo(DaskBagOp):
 
 class GroupByKey(DaskBagOp):
   """Group a PCollection into a mapping of keys to elements."""
+
   def apply(self, input_bag: db.Bag, side_inputs: OpSide = None) -> db.Bag:
+
     def key(item):
       return item[0]
 
@@ -239,6 +244,7 @@ class GroupByKey(DaskBagOp):
 
 class Flatten(DaskBagOp):
   """Produces a flattened bag from a collection of bags."""
+
   def apply(
       self, input_bag: t.List[db.Bag], side_inputs: OpSide = None) -> db.Bag:
     assert isinstance(input_bag, list), 'Must take a sequence of bags!'

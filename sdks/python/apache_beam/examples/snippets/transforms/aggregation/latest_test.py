@@ -55,6 +55,7 @@ def check_latest_elements_per_key(actual):
     'apache_beam.examples.snippets.transforms.aggregation.latest_per_key.print',
     str)
 class LatestTest(unittest.TestCase):
+
   def test_latest_globally(self):
     latest_globally.latest_globally(check_latest_element)
 

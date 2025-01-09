@@ -39,6 +39,7 @@ DEFAULT_HASHING_ALG = 'sha1'
 
 class TempDir(object):
   """Context Manager to create and clean-up a temporary directory."""
+
   def __init__(self):
     self._tempdir = tempfile.mkdtemp()
 
@@ -157,6 +158,7 @@ class PullResponseMessage(object):
 
   Utility class for ``create_pull_response``.
   """
+
   def __init__(
       self,
       data,
@@ -230,6 +232,7 @@ def read_files_from_pattern(file_pattern):
 
 class LCGenerator:
   """A pure Python implementation of linear congruential generator."""
+
   def __init__(self, a=0x5DEECE66D, c=0xB, bits=48):
     self._a = a
     self._c = c

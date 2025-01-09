@@ -37,6 +37,7 @@ except ImportError:
 
 @unittest.skipIf(JsonValue is None, 'GCP dependencies are not installed')
 class JsonValueTest(unittest.TestCase):
+
   def test_string_to(self):
     self.assertEqual(JsonValue(string_value='abc'), to_json_value('abc'))
 

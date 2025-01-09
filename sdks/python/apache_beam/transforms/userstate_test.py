@@ -115,6 +115,7 @@ class TestStatefulDoFn(DoFn):
 
 
 class InterfaceTest(unittest.TestCase):
+
   def _validate_dofn(self, dofn):
     # Construction of DoFnSignature performs validation of the given DoFn.
     # In particular, it ends up calling userstate._validate_stateful_dofn.
@@ -202,6 +203,7 @@ class InterfaceTest(unittest.TestCase):
     self.assertTrue(is_stateful_dofn(TestStatefulDoFn()))
 
   def test_good_signatures(self):
+
     class BasicStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
       EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
@@ -448,13 +450,16 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     StatefulDoFnOnDirectRunnerTest.all_records = []
 
   def record_dofn(self):
+
     class RecordDoFn(DoFn):
+
       def process(self, element):
         StatefulDoFnOnDirectRunnerTest.all_records.append(element)
 
     return RecordDoFn()
 
   def test_simple_stateful_dofn(self):
+
     class SimpleTestStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
       EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
@@ -494,6 +499,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_clearing_bag_state(self):
+
     class BagStateClearingStatefulDoFn(beam.DoFn):
 
       BAG_STATE = BagStateSpec('bag_state', StrUtf8Coder())
@@ -536,6 +542,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     self.assertEqual(['extra'], StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_two_timers_one_function(self):
+
     class BagStateClearingStatefulDoFn(beam.DoFn):
 
       BAG_STATE = BagStateSpec('bag_state', StrUtf8Coder())
@@ -575,6 +582,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_read_modify_write_stateful_dofn(self):
+
     class SimpleTestReadModifyWriteStatefulDoFn(DoFn):
       VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
 
@@ -597,6 +605,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_clearing_read_modify_write_state(self):
+
     class SimpleClearingReadModifyWriteStatefulDoFn(DoFn):
       VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
 
@@ -624,6 +633,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_set_stateful_dofn(self):
+
     class SimpleTestSetStatefulDoFn(DoFn):
       BUFFER_STATE = SetStateSpec('buffer', VarIntCoder())
       EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
@@ -658,6 +668,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     self.assertEqual([[1, 2, 3]], StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_clearing_set_state(self):
+
     class SetStateClearingStatefulDoFn(beam.DoFn):
 
       SET_STATE = SetStateSpec('buffer', StrUtf8Coder())
@@ -701,6 +712,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_stateful_set_state_portably(self):
+
     class SetStatefulDoFn(beam.DoFn):
 
       SET_STATE = SetStateSpec('buffer', VarIntCoder())
@@ -721,6 +733,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
 
   def test_stateful_set_state_clean_portably(self):
+
     class SetStateClearingStatefulDoFn(beam.DoFn):
 
       SET_STATE = SetStateSpec('buffer', VarIntCoder())
@@ -823,6 +836,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_stateful_dofn_combining(self):
+
     class SimpleTestStatefulDoFn(DoFn):
       BUFFER_STATE = CombiningValueStateSpec(
           'buffer', ListCoder(VarIntCoder()), ToListCombineFn())
@@ -860,6 +874,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_timer_output_timestamp(self):
+
     class TimerEmittingStatefulDoFn(DoFn):
       EMIT_TIMER_1 = TimerSpec('emit1', TimeDomain.WATERMARK)
       EMIT_TIMER_2 = TimerSpec('emit2', TimeDomain.WATERMARK)
@@ -888,6 +903,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         yield 'timer3'
 
     class TimestampReifyingDoFn(DoFn):
+
       def process(self, element, ts=DoFn.TimestampParam):
         yield (element, int(ts))
 
@@ -905,6 +921,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_timer_output_timestamp_and_window(self):
+
     class TimerEmittingStatefulDoFn(DoFn):
       EMIT_TIMER_1 = TimerSpec('emit1', TimeDomain.WATERMARK)
 
@@ -940,6 +957,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_timer_default_tag(self):
+
     class DynamicTimerDoFn(DoFn):
       EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
 
@@ -966,6 +984,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_dynamic_timer_simple_dofn(self):
+
     class DynamicTimerDoFn(DoFn):
       EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
 
@@ -995,6 +1014,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   @pytest.mark.no_xdist
   @pytest.mark.timeout(10)
   def test_dynamic_timer_clear_then_set_timer(self):
+
     class EmitTwoEvents(DoFn):
       EMIT_CLEAR_SET_TIMER = TimerSpec('emitclear', TimeDomain.WATERMARK)
 
@@ -1033,6 +1053,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([('emit1', 10), ('emit2', 20), ('emit3', 40)]))
 
   def test_dynamic_timer_clear_timer(self):
+
     class DynamicTimerDoFn(DoFn):
       EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
 
@@ -1065,6 +1086,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_dynamic_timer_multiple(self):
+
     class DynamicTimerDoFn(DoFn):
       EMIT_TIMER_FAMILY1 = TimerSpec('emit_family_1', TimeDomain.WATERMARK)
       EMIT_TIMER_FAMILY2 = TimerSpec('emit_family_2', TimeDomain.WATERMARK)
@@ -1107,6 +1129,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_dynamic_timer_and_simple_timer(self):
+
     class DynamicTimerDoFn(DoFn):
       EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
       GC_TIMER = TimerSpec('gc', TimeDomain.WATERMARK)
@@ -1145,6 +1168,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_index_assignment(self):
+
     class IndexAssigningStatefulDoFn(DoFn):
       INDEX_STATE = CombiningValueStateSpec('index', sum)
 
@@ -1170,6 +1194,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_hash_join(self):
+
     class HashJoinStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
       UNMATCHED_TIMER = TimerSpec('unmatched', TimeDomain.WATERMARK)

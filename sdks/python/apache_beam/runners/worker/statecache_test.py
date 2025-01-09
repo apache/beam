@@ -38,10 +38,12 @@ from apache_beam.runners.worker.statecache import get_deep_size
 
 
 class StateCacheTest(unittest.TestCase):
+
   def test_weakref(self):
     test_value = WeightedValue('test', 10 << 20)
 
     class WeightedValueRef():
+
       def __init__(self):
         self.ref = weakref.ref(test_value)
 
@@ -69,6 +71,7 @@ class StateCacheTest(unittest.TestCase):
     test_value = WeightedValue('test', 10 << 20)
 
     class WeightedValueRef():
+
       def __init__(self):
         self.ref = weakref.ref(test_value)
 
@@ -93,7 +96,9 @@ class StateCacheTest(unittest.TestCase):
     cache.put('deleted', o_ref)
 
   def test_size_of_fails(self):
+
     class BadSizeOf(object):
+
       def __sizeof__(self):
         raise RuntimeError("TestRuntimeError")
 
@@ -219,6 +224,7 @@ class StateCacheTest(unittest.TestCase):
             'avg load time 0 ns, loads 0, evictions 5'))
 
   def test_get(self):
+
     def check_key(key):
       self.assertEqual(key, "key")
       time.sleep(0.5)
@@ -269,11 +275,13 @@ class StateCacheTest(unittest.TestCase):
       output["time"] = time.time_ns()
 
     t1_output = {}
-    t1 = threading.Thread(target=load_key, args=(t1_output, ))
+    t1 = threading.Thread(
+        target=load_key, args=(t1_output, ))
     t1.start()
 
     t2_output = {}
-    t2 = threading.Thread(target=load_key, args=(t2_output, ))
+    t2 = threading.Thread(
+        target=load_key, args=(t2_output, ))
     t2.start()
 
     # Wait for both threads to start
@@ -311,7 +319,8 @@ class StateCacheTest(unittest.TestCase):
       output["value"] = cache.get("key", wait_for_event)
 
     t1_output = {}
-    t1 = threading.Thread(target=load_key, args=(t1_output, ))
+    t1 = threading.Thread(
+        target=load_key, args=(t1_output, ))
     t1.start()
 
     # Wait for the load to start, update the key, and then let the load finish
@@ -343,7 +352,9 @@ class StateCacheTest(unittest.TestCase):
             'avg load time 0 ns, loads 0, evictions 0'))
 
   def test_get_referents_for_cache(self):
+
     class GetReferentsForCache(CacheAware):
+
       def __init__(self):
         self.measure_me = bytearray(1 << 20)
         self.ignore_me = bytearray(2 << 20)
@@ -366,19 +377,21 @@ class StateCacheTest(unittest.TestCase):
     built-in objects.
     """
     primitive_test_objects = [
-        1,                    # int
-        2.0,                  # float
-        1+1j,                 # complex
-        True,                 # bool
-        'hello,world',        # str
-        b'\00\01\02',         # bytes
+        1,  # int
+        2.0,  # float
+        1 + 1j,  # complex
+        True,  # bool
+        'hello,world',  # str
+        b'\00\01\02',  # bytes
     ]
 
     collection_test_objects = [
-        [3, 4, 5],            # list
-        (6, 7),               # tuple
-        {'a', 'b', 'c'},      # set
-        {'k': 8, 'l': 9},     # dict
+        [3, 4, 5],  # list
+        (6, 7),  # tuple
+        {'a', 'b', 'c'},  # set
+        {
+            'k': 8, 'l': 9
+        },  # dict
     ]
 
     for obj in primitive_test_objects:

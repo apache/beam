@@ -46,6 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 class ValidateResponse(beam.DoFn):
   """ValidateResponse validates if a PCollection of `beam.Row`
   has the required fields."""
+
   def __init__(self, expected_fields):
     self.expected_fields = expected_fields
 
@@ -64,6 +65,7 @@ class ValidateResponse(beam.DoFn):
 
 @pytest.mark.uses_testcontainer
 class TestVertexAIFeatureStoreHandler(unittest.TestCase):
+
   def setUp(self) -> None:
     self.project = 'apache-beam-testing'
     self.location = 'us-central1'

@@ -57,35 +57,42 @@ def auction_or_bid(event):
 
 
 class JustBids(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | "IsBid" >> beam.Filter(is_bid)
 
 
 class JustAuctions(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | "IsAuction" >> beam.Filter(is_auction)
 
 
 class JustPerson(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | "IsPerson" >> beam.Filter(is_person)
 
 
 class AuctionByIdFn(beam.DoFn):
+
   def process(self, element):
     yield element.id, element
 
 
 class BidByAuctionIdFn(beam.DoFn):
+
   def process(self, element):
     yield element.auction, element
 
 
 class PersonByIdFn(beam.DoFn):
+
   def process(self, element):
     yield element.id, element
 
 
 class AuctionBySellerFn(beam.DoFn):
+
   def process(self, element):
     yield element.seller, element

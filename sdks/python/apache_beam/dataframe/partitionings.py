@@ -28,6 +28,7 @@ Frame = TypeVar('Frame', bound=pd.core.generic.NDFrame)
 class Partitioning(object):
   """A class representing a (consistent) partitioning of dataframe objects.
   """
+
   def __repr__(self):
     return self.__class__.__name__
 
@@ -71,6 +72,7 @@ class Index(Partitioning):
   The ordering is implemented via the is_subpartitioning_of method, where the
   examples on the right are subpartitionings of the examples on the left above.
   """
+
   def __init__(self, levels=None):
     self._levels = levels
 
@@ -148,6 +150,7 @@ class Index(Partitioning):
 class Singleton(Partitioning):
   """A partitioning of all the data into a single partition.
   """
+
   def __init__(self, reason=None):
     self._reason = reason
 
@@ -189,6 +192,7 @@ class JoinIndex(Partitioning):
   Expressions desiring to make use of this index should simply declare a
   requirement of JoinIndex().
   """
+
   def __init__(self, ancestor=None):
     self._ancestor = ancestor
 
@@ -229,6 +233,7 @@ class JoinIndex(Partitioning):
 class Arbitrary(Partitioning):
   """A partitioning imposing no constraints on the actual partitioning.
   """
+
   def __eq__(self, other):
     return type(self) == type(other)
 

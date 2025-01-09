@@ -43,6 +43,7 @@ from apache_beam.utils import counters
 
 
 class NameTest(unittest.TestCase):
+
   def test_basic_metric_name(self):
     name = MetricName('namespace1', 'name1')
     self.assertEqual(name.namespace, 'namespace1')
@@ -57,6 +58,7 @@ class NameTest(unittest.TestCase):
 
 
 class MetricResultsTest(unittest.TestCase):
+
   def test_metric_filter_namespace_matching(self):
     filter = MetricsFilter().with_namespace('ns1')
     name = MetricName('ns1', 'name1')
@@ -103,7 +105,9 @@ class MetricResultsTest(unittest.TestCase):
 
 
 class MetricsTest(unittest.TestCase):
+
   def test_get_namespace_class(self):
+
     class MyClass(object):
       pass
 
@@ -153,6 +157,7 @@ class MetricsTest(unittest.TestCase):
 
   @pytest.mark.it_validatesrunner
   def test_user_counter_using_pardo(self):
+
     class SomeDoFn(beam.DoFn):
       """A custom dummy DoFn using yield."""
       static_counter_elements = metrics.Metrics.counter(
@@ -250,6 +255,7 @@ class MetricsTest(unittest.TestCase):
 
 
 class LineageTest(unittest.TestCase):
+
   def test_fq_name(self):
     test_cases = {
         "apache-beam": "apache-beam",

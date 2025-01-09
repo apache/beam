@@ -52,6 +52,7 @@ def load(events, metadata=None, pipeline_options=None):
 
 
 class SelectMaxBidFn(beam.DoFn):
+
   def process(self, element, max_bid_price):
     if element.price == max_bid_price:
       yield element

@@ -80,6 +80,7 @@ class SnippetUtils(object):
     This is as close as we can get to have code snippets that are
     executed and are also ready to presented in webdocs.
     """
+
     def __init__(self, renames):
       self.renames = renames
 
@@ -199,6 +200,7 @@ def pipeline_options_remote():
   from apache_beam.options.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input')
@@ -256,6 +258,7 @@ def pipeline_options_local():
   from apache_beam.options.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument(
@@ -332,6 +335,7 @@ def pipeline_logging(lines, output):
   import logging
 
   class ExtractWordsFn(beam.DoFn):
+
     def process(self, element):
       words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
@@ -360,12 +364,14 @@ def pipeline_monitoring():
   import apache_beam as beam
 
   class ExtractWordsFn(beam.DoFn):
+
     def process(self, element):
       words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
         yield word
 
   class FormatCountsFn(beam.DoFn):
+
     def process(self, element):
       word, count = element
       yield '%s: %s' % (word, count)
@@ -419,6 +425,7 @@ def examples_wordcount_templated():
 
   # [START example_wordcount_templated]
   class WordcountTemplatedOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       # Use add_value_provider_argument for arguments to be templatable
@@ -521,11 +528,13 @@ def examples_ptransforms_templated(renames):
   from apache_beam.options.value_provider import StaticValueProvider
 
   class TemplatedUserOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_value_provider_argument('--templated_int', type=int)
 
   class MySumFn(beam.DoFn):
+
     def __init__(self, templated_int):
       self.templated_int = templated_int
 
@@ -556,6 +565,7 @@ def examples_ptransforms_templated(renames):
 # Defining a new source.
 # [START model_custom_source_new_source]
 class CountingSource(iobase.BoundedSource):
+
   def __init__(self, count):
     self.records_read = Metrics.counter(self.__class__, 'recordsRead')
     self._count = count
@@ -609,6 +619,7 @@ class _CountingSource(CountingSource):
 
 # [START model_custom_source_new_ptransform]
 class ReadFromCountingSource(PTransform):
+
   def __init__(self, count):
     super().__init__()
     self._count = count
@@ -682,6 +693,7 @@ def model_custom_source(count):
 #
 # [START model_custom_sink_new_sink]
 class SimpleKVSink(iobase.Sink):
+
   def __init__(self, simplekv, url, final_table_name):
     self._simplekv = simplekv
     self._url = url
@@ -710,6 +722,7 @@ class SimpleKVSink(iobase.Sink):
 # Defining a writer for the new sink.
 # [START model_custom_sink_new_writer]
 class SimpleKVWriter(iobase.Writer):
+
   def __init__(self, simplekv, access_token, table_name):
     self._simplekv = simplekv
     self._access_token = access_token
@@ -730,6 +743,7 @@ class SimpleKVWriter(iobase.Writer):
 
 # [START model_custom_sink_new_ptransform]
 class WriteToKVSink(PTransform):
+
   def __init__(self, simplekv, url, final_table_name):
     self._simplekv = simplekv
     super().__init__()
@@ -810,6 +824,7 @@ def model_custom_sink(
 
 def model_textio(renames):
   """Using a Read and Write transform to read/write text files."""
+
   def filter_words(x):
     import re
     return re.findall(r'[A-Za-z\']+', x)
@@ -1317,6 +1332,7 @@ def model_join_using_side_inputs(
 
 # [START model_library_transforms_keys]
 class Keys(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | 'Keys' >> beam.Map(lambda k_v: k_v[0])
 
@@ -1327,6 +1343,7 @@ class Keys(beam.PTransform):
 
 # [START model_library_transforms_count]
 class Count(beam.PTransform):
+
   def expand(self, pcoll):
     return (
         pcoll
@@ -1364,11 +1381,13 @@ def accessing_valueprovider_info_after_run():
   from apache_beam.options.value_provider import RuntimeValueProvider
 
   class MyOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_value_provider_argument('--string_value', type=str)
 
   class LogValueProvidersFn(beam.DoFn):
+
     def __init__(self, string_vp):
       self.string_vp = string_vp
 
@@ -1569,6 +1588,7 @@ def sdf_basic_example():
   # [START SDF_BasicExample]
   class FileToWordsRestrictionProvider(beam.transforms.core.RestrictionProvider
                                        ):
+
     def initial_restriction(self, file_name):
       return OffsetRange(0, os.stat(file_name).st_size)
 
@@ -1576,6 +1596,7 @@ def sdf_basic_example():
       return beam.io.restriction_trackers.OffsetRestrictionTracker()
 
   class FileToWordsFn(beam.DoFn):
+
     def process(
         self,
         file_name,
@@ -1603,6 +1624,7 @@ def sdf_basic_example_with_splitting():
   # [START SDF_BasicExampleWithSplitting]
   class FileToWordsRestrictionProvider(beam.transforms.core.RestrictionProvider
                                        ):
+
     def split(self, file_name, restriction):
       # Compute and output 64 MiB size ranges to process in parallel
       split_size = 64 * (1 << 20)
@@ -1624,6 +1646,7 @@ def sdf_sdk_initiated_checkpointing():
 
   # [START SDF_UserInitiatedCheckpoint]
   class MySplittableDoFn(beam.DoFn):
+
     def process(
         self,
         element,
@@ -1657,6 +1680,7 @@ def sdf_get_size():
   # The RestrictionProvider is responsible for calculating the size of given
   # restriction.
   class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+
     def restriction_size(self, file_name, restriction):
       weight = 2 if "expensiveRecords" in file_name else 1
       return restriction.size() * weight
@@ -1665,6 +1689,7 @@ def sdf_get_size():
 
 
 def sdf_bad_try_claim_loop():
+
   class FileToWordsRestrictionProvider(object):
     pass
 
@@ -1672,6 +1697,7 @@ def sdf_bad_try_claim_loop():
 
   # [START SDF_BadTryClaimLoop]
   class BadTryClaimLoop(beam.DoFn):
+
     def process(
         self,
         file_name,
@@ -1702,12 +1728,14 @@ def sdf_custom_watermark_estimator():
   # (Optional) Define a custom watermark state type to save information between
   # bundle processing rounds.
   class MyCustomerWatermarkEstimatorState(object):
+
     def __init__(self, element, restriction):
       # Store data necessary for future watermark computations
       pass
 
   # Define a WatermarkEstimator
   class MyCustomWatermarkEstimator(WatermarkEstimator):
+
     def __init__(self, estimator_state):
       self.state = estimator_state
 
@@ -1727,6 +1755,7 @@ def sdf_custom_watermark_estimator():
   # Then, a WatermarkEstimatorProvider needs to be created for this
   # WatermarkEstimator
   class MyWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+
     def initial_estimator_state(self, element, restriction):
       return MyCustomerWatermarkEstimatorState(element, restriction)
 
@@ -1735,6 +1764,7 @@ def sdf_custom_watermark_estimator():
 
   # Finally, define the SDF using your estimator.
   class MySplittableDoFn(beam.DoFn):
+
     def process(
         self,
         element,
@@ -1750,6 +1780,7 @@ def sdf_custom_watermark_estimator():
 def sdf_truncate():
   # [START SDF_Truncate]
   class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+
     def truncate(self, file_name, restriction):
       if "optional" in file_name:
         # Skip optional files
@@ -1764,6 +1795,7 @@ def bundle_finalize():
 
   # [START BundleFinalize]
   class MySplittableDoFn(beam.DoFn):
+
     def process(self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
       # ... produce output ...
 

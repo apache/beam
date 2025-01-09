@@ -24,6 +24,7 @@ from apache_beam.dataframe import frames
 
 
 class FrameBaseTest(unittest.TestCase):
+
   def test_elementwise_func(self):
     a = pd.Series([1, 2, 3])
     b = pd.Series([100, 200, 300])
@@ -56,6 +57,7 @@ class FrameBaseTest(unittest.TestCase):
     self.assertTrue(sub(x, y)._expr.evaluate_at(session).equals(a - b))
 
   def test_maybe_inplace(self):
+
     @frame_base.maybe_inplace
     def add_one(frame):
       return frame + 1
@@ -71,11 +73,14 @@ class FrameBaseTest(unittest.TestCase):
     self.assertIsNot(x._expr, original_expr)
 
   def test_args_to_kwargs(self):
+
     class Base(object):
+
       def func(self, a=1, b=2, c=3, *, kw_only=4):
         pass
 
     class Proxy(object):
+
       @frame_base.args_to_kwargs(Base)
       def func(self, **kwargs):
         return kwargs
@@ -92,7 +97,9 @@ class FrameBaseTest(unittest.TestCase):
       proxy.func(2, 4, 6, 8)
 
   def test_args_to_kwargs_populates_defaults(self):
+
     class Base(object):
+
       def func(self, a=1, b=2, c=3):
         pass
 
@@ -100,6 +107,7 @@ class FrameBaseTest(unittest.TestCase):
         pass
 
     class Proxy(object):
+
       @frame_base.args_to_kwargs(Base)
       @frame_base.populate_defaults(Base)
       def func(self, a, c=1000, **kwargs):
@@ -133,11 +141,14 @@ class FrameBaseTest(unittest.TestCase):
     self.assertEqual(proxy.func_removed_args(12, d=100), {'a': 12, 'd': 100})
 
   def test_args_to_kwargs_populates_default_handles_kw_only(self):
+
     class Base(object):
+
       def func(self, a, b=2, c=3, *, kw_only=4):
         pass
 
     class ProxyUsesKwOnly(object):
+
       @frame_base.args_to_kwargs(Base)
       @frame_base.populate_defaults(Base)
       def func(self, a, kw_only, **kwargs):
@@ -158,6 +169,7 @@ class FrameBaseTest(unittest.TestCase):
       proxy.func(2, 4, 6, 8)  # got too many positioned arguments
 
     class ProxyDoesntUseKwOnly(object):
+
       @frame_base.args_to_kwargs(Base)
       @frame_base.populate_defaults(Base)
       def func(self, a, **kwargs):
@@ -175,11 +187,14 @@ class FrameBaseTest(unittest.TestCase):
         })
 
   def test_populate_defaults_overwrites_copy(self):
+
     class Base(object):
+
       def func(self, a=1, b=2, c=3, *, copy=None):
         pass
 
     class Proxy(object):
+
       @frame_base.args_to_kwargs(Base)
       @frame_base.populate_defaults(Base)
       def func(self, a, copy, **kwargs):

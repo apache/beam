@@ -167,6 +167,7 @@ class PostProcessor(beam.DoFn):
   an integer that we can transform into actual string class using
   COCO_OBJ_DET_CLASSES as reference.
   """
+
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     key, prediction_result = element
     filename, im_width, im_height = key

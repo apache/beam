@@ -80,6 +80,7 @@ class _BigTableWriteFn(beam.DoFn):
     table_id(str): GCP Table ID
 
   """
+
   def __init__(self, project_id, instance_id, table_id):
     """ Constructor of the Write connector of Bigtable
     Args:
@@ -253,6 +254,7 @@ class WriteToBigTable(beam.PTransform):
                   self._project_id, self._instance_id, self._table_id)))
 
   class _DirectRowMutationsToBeamRow(beam.DoFn):
+
     def process(self, direct_row):
       args = {"key": direct_row.row_key, "mutations": []}
       # start accumulating mutations in a list
@@ -346,6 +348,7 @@ class ReadFromBigtable(PTransform):
   # To make use of those methods and to give Python users a more familiar
   # object, we process each Beam Row and return a PartialRowData equivalent.
   class _BeamRowToPartialRowData(beam.DoFn):
+
     def process(self, row):
       key = row.key
       families = row.column_families

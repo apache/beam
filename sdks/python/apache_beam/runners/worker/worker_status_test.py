@@ -33,6 +33,7 @@ from apache_beam.utils.counters import CounterName
 
 
 class BeamFnStatusServicer(beam_fn_api_pb2_grpc.BeamFnWorkerStatusServicer):
+
   def __init__(self, num_request):
     self.finished = threading.Condition()
     self.num_request = num_request
@@ -50,6 +51,7 @@ class BeamFnStatusServicer(beam_fn_api_pb2_grpc.BeamFnWorkerStatusServicer):
 
 
 class FnApiWorkerStatusHandlerTest(unittest.TestCase):
+
   def setUp(self):
     self.num_request = 3
     self.test_status_service = BeamFnStatusServicer(self.num_request)
@@ -87,6 +89,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.fn_status_handler.close()
 
   def test_log_lull_in_bundle_processor(self):
+
     def get_state_sampler_info_for_lull(lull_duration_s):
       return "bundle-id", statesampler.StateSamplerInfo(
           CounterName('progress-msecs', 'stage_name', 'step_name'),
@@ -128,6 +131,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
 
 class HeapDumpTest(unittest.TestCase):
+
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
   def test_skip_heap_dump(self):
     result = '%s' % heap_dump()

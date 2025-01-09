@@ -94,6 +94,7 @@ TEST_PROVIDERS = {
 
 
 def check_output(expected: List[str]):
+
   def _check_inner(actual: List[PCollection[str]]):
     formatted_actual = actual | beam.Flatten() | beam.Map(
         lambda row: str(beam.Row(**row._asdict())))
@@ -229,6 +230,7 @@ def bigquery_data():
 def create_test_method(
     pipeline_spec_file: str,
     custom_preprocessors: List[Callable[..., Union[Dict, List]]]):
+
   @mock.patch('apache_beam.Pipeline', TestPipeline)
   def test_yaml_example(self):
     with open(pipeline_spec_file, encoding="utf-8") as f:
@@ -287,7 +289,8 @@ class YamlExamplesTestSuite:
 
   @classmethod
   def create_test_suite(cls, name: str, path: str):
-    return type(name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
+    return type(
+        name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
 
   @classmethod
   def register_test_preprocessor(cls, test_names: Union[str, List]):

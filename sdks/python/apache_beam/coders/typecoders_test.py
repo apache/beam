@@ -27,6 +27,7 @@ from apache_beam.typehints import typehints
 
 
 class CustomClass(object):
+
   def __init__(self, n):
     self.number = n
 
@@ -38,6 +39,7 @@ class CustomClass(object):
 
 
 class CustomCoder(coders.Coder):
+
   def encode(self, value):
     return str(value.number).encode('ASCII')
 
@@ -52,6 +54,7 @@ class CustomCoder(coders.Coder):
 
 
 class TypeCodersTest(unittest.TestCase):
+
   def test_register_non_type_coder(self):
     coder = CustomCoder()
     with self.assertRaisesRegex(

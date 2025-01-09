@@ -37,6 +37,7 @@ from transformers import T5ForConditionalGeneration
 
 
 class Preprocess(beam.DoFn):
+
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
@@ -59,6 +60,7 @@ class Preprocess(beam.DoFn):
 
 
 class Postprocess(beam.DoFn):
+
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 

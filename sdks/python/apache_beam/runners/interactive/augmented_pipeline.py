@@ -40,6 +40,7 @@ class AugmentedPipeline:
   PCollections defined by the user, reads computed PCollections as source and
   prunes unnecessary pipeline parts for fast computation.
   """
+
   def __init__(
       self,
       user_pipeline: beam.Pipeline,

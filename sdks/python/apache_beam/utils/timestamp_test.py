@@ -31,6 +31,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class TimestampTest(unittest.TestCase):
+
   def test_of(self):
     interval = Timestamp(123)
     self.assertEqual(id(interval), id(Timestamp.of(interval)))
@@ -194,6 +195,7 @@ class TimestampTest(unittest.TestCase):
 
 
 class DurationTest(unittest.TestCase):
+
   def test_of(self):
     interval = Duration(123)
     self.assertEqual(id(interval), id(Duration.of(interval)))

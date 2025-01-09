@@ -88,6 +88,7 @@ def sort_by_features(dataframe, max_size):
 
 
 class LoadDataframe(beam.DoFn):
+
   def process(self, file_name: str) -> Iterable[pandas.DataFrame]:
     """ Loads data files as a pandas dataframe."""
     file = FileSystems.open(file_name, 'rb')

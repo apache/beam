@@ -73,6 +73,7 @@ def check_valid_plants(actual):
     'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_dict.print',
     str)
 class FilterTest(unittest.TestCase):
+
   def test_filter_function(self):
     filter_function.filter_function(check_perennials)
 

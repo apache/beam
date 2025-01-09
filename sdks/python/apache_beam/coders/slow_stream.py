@@ -29,6 +29,7 @@ class OutputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.OutputStream."""
+
   def __init__(self):
     self.data: List[bytes] = []
     self.byte_count = 0
@@ -91,6 +92,7 @@ class ByteCountingOutputStream(OutputStream):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.ByteCountingOutputStream."""
+
   def __init__(self):
     # Note that we don't actually use any of the data initialized by our super.
     super().__init__()
@@ -119,6 +121,7 @@ class InputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.InputStream."""
+
   def __init__(self, data: bytes) -> None:
     self.data = data
     self.pos = 0

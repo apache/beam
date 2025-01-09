@@ -29,6 +29,7 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
   """A WatermarkEstimator which assumes that timestamps of all ouput records
   are increasing monotonically.
   """
+
   def __init__(self, timestamp):
     """For a new <element, restriction> pair, the initial value is None. When
     resuming processing, the initial timestamp will be the last reported
@@ -54,7 +55,9 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
     """Provide a default WatermarkEstimatorProvider for
     MonotonicWatermarkEstimator.
     """
+
     class DefaultMonotonicWatermarkEstimator(WatermarkEstimatorProvider):
+
       def initial_estimator_state(self, element, restriction):
         return None
 
@@ -67,6 +70,7 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
 class WalltimeWatermarkEstimator(WatermarkEstimator):
   """A WatermarkEstimator which uses processing time as the estimated watermark.
   """
+
   def __init__(self, timestamp=None):
     self._timestamp = timestamp or Timestamp.now()
 
@@ -85,7 +89,9 @@ class WalltimeWatermarkEstimator(WatermarkEstimator):
     """Provide a default WatermarkEstimatorProvider for
     WalltimeWatermarkEstimator.
     """
+
     class DefaultWalltimeWatermarkEstimator(WatermarkEstimatorProvider):
+
       def initial_estimator_state(self, element, restriction):
         return None
 
@@ -100,6 +106,7 @@ class ManualWatermarkEstimator(WatermarkEstimator):
 
   The DoFn must invoke set_watermark to advance the watermark.
   """
+
   def __init__(self, watermark):
     self._watermark = watermark
 
@@ -142,7 +149,9 @@ class ManualWatermarkEstimator(WatermarkEstimator):
     """Provide a default WatermarkEstimatorProvider for
     WalltimeWatermarkEstimator.
     """
+
     class DefaultManualWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+
       def initial_estimator_state(self, element, restriction):
         return None
 

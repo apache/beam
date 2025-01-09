@@ -40,6 +40,7 @@ from apache_beam.transforms.periodicsequence import PeriodicSequence
         StandardOptions).streaming,
     "Watermark tests are only valid for streaming jobs.")
 class PeriodicSequenceIT(unittest.TestCase):
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
@@ -54,7 +55,9 @@ class PeriodicSequenceIT(unittest.TestCase):
     we make sure that there's not a long gap between an element being
     emitted and being correctly aggregated.
     """
+
     class FindLongGaps(DoFn):
+
       def process(self, element):
         emitted_at, unused_count = element
         processed_at = time.time()

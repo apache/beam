@@ -52,6 +52,7 @@ except ImportError:
 ])
 @pytest.mark.uses_pytorch
 class PytorchBatchConverterTest(unittest.TestCase):
+
   def create_batch_converter(self):
     return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
@@ -136,6 +137,7 @@ class PytorchBatchConverterTest(unittest.TestCase):
 
 
 class PytorchBatchConverterErrorsTest(unittest.TestCase):
+
   @parameterized.expand([
       (
           Any,

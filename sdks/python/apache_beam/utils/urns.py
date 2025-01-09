@@ -133,6 +133,7 @@ class RunnerApiFn(object):
     A corresponding to_runner_api_parameter method would be expected that
     returns the tuple ('beam:fn:foo', FooPayload)
     """
+
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
       return fn
@@ -149,14 +150,12 @@ class RunnerApiFn(object):
     """Registers and implements the given urn via pickling.
     """
     inspect.currentframe().f_back.f_locals['to_runner_api_parameter'] = (
-        lambda self,
-        context:
+        lambda self, context:
         (pickle_urn, wrappers_pb2.BytesValue(value=pickler.dumps(self))))
     cls.register_urn(
         pickle_urn,
         wrappers_pb2.BytesValue,
-        lambda proto,
-        unused_context: pickler.loads(proto.value))
+        lambda proto, unused_context: pickler.loads(proto.value))
 
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.FunctionSpec:

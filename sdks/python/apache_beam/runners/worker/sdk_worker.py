@@ -108,6 +108,7 @@ _GRPC_SERVICE_CONFIG = json.dumps({
 class ShortIdCache(object):
   """ Cache for MonitoringInfo "short ids"
   """
+
   def __init__(self):
     # type: () -> None
     self._lock = threading.Lock()
@@ -174,8 +175,8 @@ class SdkHarness(object):
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
-      deferred_exception=None, # type: Optional[Exception]
-      runner_capabilities=frozenset(), # type: FrozenSet[str]
+      deferred_exception=None,  # type: Optional[Exception]
+      runner_capabilities=frozenset(),  # type: FrozenSet[str]
   ):
     # type: (...) -> None
     self._alive = True
@@ -361,8 +362,7 @@ class SdkHarness(object):
     ).to_runner_api_monitoring_infos(None).values()
     self._execute(
         lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id,
-            harness_monitoring_infos=(
+            instruction_id=request.instruction_id, harness_monitoring_infos=(
                 beam_fn_api_pb2.HarnessMonitoringInfosResponse(
                     monitoring_data={
                         SHORT_ID_CACHE.get_short_id(info): info.payload
@@ -374,8 +374,8 @@ class SdkHarness(object):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._execute(
         lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id,
-            monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
+            instruction_id=request.instruction_id, monitoring_infos=
+            beam_fn_api_pb2.MonitoringInfosMetadataResponse(
                 monitoring_info=SHORT_ID_CACHE.get_infos(
                     request.monitoring_infos.monitoring_info_id))),
         request)
@@ -641,6 +641,7 @@ class BundleProcessorCache(object):
 
 
 class SdkWorker(object):
+
   def __init__(
       self,
       bundle_processor_cache,  # type: BundleProcessorCache
@@ -805,6 +806,7 @@ class SdkWorker(object):
 
 class StateHandler(metaclass=abc.ABCMeta):
   """An abstract object representing a ``StateHandler``."""
+
   @abc.abstractmethod
   def get_raw(
       self,
@@ -875,6 +877,7 @@ class StateHandler(metaclass=abc.ABCMeta):
 
 class StateHandlerFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
+
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
     # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingStateHandler
@@ -895,6 +898,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
   Caches the created channels by ``state descriptor url``.
   """
+
   def __init__(self, state_cache, credentials=None, worker_id=None):
     # type: (StateCache, Optional[grpc.ChannelCredentials], Optional[str]) -> None
     self._state_handler_cache = {}  # type: Dict[str, CachingStateHandler]
@@ -946,6 +950,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
 
 class CachingStateHandler(metaclass=abc.ABCMeta):
+
   @abc.abstractmethod
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id, cache_tokens):
@@ -984,6 +989,7 @@ class CachingStateHandler(metaclass=abc.ABCMeta):
 
 class ThrowingStateHandler(CachingStateHandler):
   """A caching state handler that errors on any requests."""
+
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id, cache_tokens):
     # type: (str, Iterable[beam_fn_api_pb2.ProcessBundleRequest.CacheToken]) -> Iterator[None]
@@ -1161,6 +1167,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
    If activated but no cache token is supplied, caching is done at the bundle
    level.
   """
+
   def __init__(
       self,
       global_state_cache,  # type: StateCache
@@ -1297,10 +1304,11 @@ class GlobalCachingStateHandler(CachingStateHandler):
       if not continuation_token:
         break
 
-  def _get_raw(self,
+  def _get_raw(
+      self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token  # type: Optional[bytes]
-               ):
+  ):
     # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
 
     """Call underlying get_raw with performance statistics and detection."""
@@ -1369,6 +1377,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
               self._lazy_iterator, state_key, coder, continuation_token))
 
   class ContinuationIterable(Generic[T], CacheAware):
+
     def __init__(self, head, continue_iterator_fn):
       # type: (Iterable[T], Callable[[], Iterable[T]]) -> None
       self.head = head
@@ -1397,6 +1406,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
 class _Future(Generic[T]):
   """A simple future object to implement blocking requests.
   """
+
   def __init__(self):
     # type: () -> None
     self._event = threading.Event()
@@ -1429,6 +1439,7 @@ class _Future(Generic[T]):
 
 
 class _DeferredCall(_Future[T]):
+
   def __init__(self, func, *args):
     # type: (Callable[..., Any], *Any) -> None
     self._func = func

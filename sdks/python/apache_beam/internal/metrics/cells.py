@@ -47,6 +47,7 @@ class HistogramCell(MetricCell):
 
   This class is thread safe since underlying histogram object is thread safe.
   """
+
   def __init__(self, bucket_type):
     self._bucket_type = bucket_type
     self.data = HistogramData.identity_element(bucket_type)
@@ -73,6 +74,7 @@ class HistogramCell(MetricCell):
 
 
 class HistogramCellFactory(MetricCellFactory):
+
   def __init__(self, bucket_type):
     self._bucket_type = bucket_type
 
@@ -89,6 +91,7 @@ class HistogramCellFactory(MetricCellFactory):
 
 
 class HistogramResult(object):
+
   def __init__(self, data: 'HistogramData') -> None:
     self.data = data
 
@@ -126,6 +129,7 @@ class HistogramData(object):
   This object is not thread safe, so it's not supposed to be modified
   outside the HistogramCell.
   """
+
   def __init__(self, histogram):
     self.histogram = histogram
 

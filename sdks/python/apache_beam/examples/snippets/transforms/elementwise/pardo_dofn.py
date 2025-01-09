@@ -38,6 +38,7 @@ def pardo_dofn(test=None):
   import apache_beam as beam
 
   class SplitWords(beam.DoFn):
+
     def __init__(self, delimiter=','):
       self.delimiter = delimiter
 

@@ -200,6 +200,7 @@ class ExternalTransformProvider:
                 row_restriction=restriction)
         | 'Some processing' >> beam.Map(...))
   """
+
   def __init__(self, expansion_services, urn_pattern=STANDARD_URN_PATTERN):
     f"""Initialize an ExternalTransformProvider
 

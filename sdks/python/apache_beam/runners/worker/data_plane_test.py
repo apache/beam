@@ -34,6 +34,7 @@ from apache_beam.utils import thread_pool_executor
 
 
 class DataChannelTest(unittest.TestCase):
+
   def test_grpc_data_channel(self):
     self._grpc_data_channel_test()
 

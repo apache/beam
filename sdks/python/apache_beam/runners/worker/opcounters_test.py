@@ -36,16 +36,19 @@ from apache_beam.utils.counters import CounterFactory
 
 
 class OldClassThatDoesNotImplementLen(object):
+
   def __init__(self):
     pass
 
 
 class ObjectThatDoesNotImplementLen(object):
+
   def __init__(self):
     pass
 
 
 class TransformIoCounterTest(unittest.TestCase):
+
   def test_basic_counters(self):
     counter_factory = CounterFactory()
     sampler = statesampler.StateSampler('stage1', counter_factory)
@@ -91,6 +94,7 @@ class TransformIoCounterTest(unittest.TestCase):
 
 
 class OperationCountersTest(unittest.TestCase):
+
   def verify_counters(self, opcounts, expected_elements, expected_size=None):
     self.assertEqual(expected_elements, opcounts.element_counter.value())
     if expected_size is not None:

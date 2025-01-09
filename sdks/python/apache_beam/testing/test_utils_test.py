@@ -32,6 +32,7 @@ from apache_beam.testing import test_utils as utils
 
 
 class TestUtilsTest(unittest.TestCase):
+
   def setUp(self):
     utils.patch_retry(self, utils)
     self.tmpdir = tempfile.mkdtemp()

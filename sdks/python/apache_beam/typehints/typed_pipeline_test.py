@@ -39,11 +39,13 @@ from apache_beam.typehints.decorators import get_signature
 
 
 class MainInputTest(unittest.TestCase):
+
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
 
   def test_bad_main_input(self):
+
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
@@ -69,6 +71,7 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
+
     @typehints.with_input_types(typing.Union[int, float])
     @typehints.with_output_types(str)
     def format_number(x):
@@ -78,9 +81,11 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual(['1', '2', '3'], sorted(result))
 
   def test_typed_dofn_class(self):
+
     @typehints.with_input_types(int)
     @typehints.with_output_types(str)
     class MyDoFn(beam.DoFn):
+
       def process(self, element):
         return [str(element)]
 
@@ -96,7 +101,9 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_method(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element: int) -> typehints.Tuple[str]:
         return tuple(str(element))
 
@@ -116,6 +123,7 @@ class MainInputTest(unittest.TestCase):
     @typehints.with_input_types(typehints.Tuple[int, int])
     @typehints.with_output_types(int)
     class MyDoFn(beam.DoFn):
+
       def process(self, element: int) -> typehints.Tuple[str]:
         yield element[0]
 
@@ -185,6 +193,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | (pardo | 'again' >> pardo)
 
   def test_filter_type_hint(self):
+
     @typehints.with_input_types(int)
     def filter_fn(data):
       return data % 2
@@ -208,7 +217,9 @@ class MainInputTest(unittest.TestCase):
       assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
   def test_typed_dofn_multi_output(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element):
         if element % 2:
           yield beam.pvalue.TaggedOutput('odd', element)
@@ -240,7 +251,9 @@ class MainInputTest(unittest.TestCase):
       _ = res['undeclared tag']
 
   def test_typed_dofn_multi_output_no_tags(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element):
         if element % 2:
           yield beam.pvalue.TaggedOutput('odd', element)
@@ -291,6 +304,7 @@ class MainInputTest(unittest.TestCase):
       _ = ['a'] | MyMap()
 
   def test_typed_ptransform_fn_multi_input_types_pos(self):
+
     @beam.ptransform_fn
     @beam.typehints.with_input_types(str, int)
     def multi_input(pcoll_tuple, additional_arg):
@@ -305,6 +319,7 @@ class MainInputTest(unittest.TestCase):
         _ = (pcoll2, pcoll1) | 'fails' >> multi_input('additional_arg')
 
   def test_typed_ptransform_fn_multi_input_types_kw(self):
+
     @beam.ptransform_fn
     @beam.typehints.with_input_types(strings=str, integers=int)
     def multi_input(pcoll_dict, additional_arg):
@@ -324,7 +339,9 @@ class MainInputTest(unittest.TestCase):
         } | 'fails' >> multi_input('additional_arg')
 
   def test_typed_dofn_method_not_iterable(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element: int) -> str:
         return str(element)
 
@@ -332,7 +349,9 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
 
   def test_typed_dofn_method_return_none(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, unused_element: int) -> None:
         pass
 
@@ -340,7 +359,9 @@ class MainInputTest(unittest.TestCase):
     self.assertListEqual([], result)
 
   def test_typed_dofn_method_return_optional(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(
           self,
           unused_element: int) -> typehints.Optional[typehints.Iterable[int]]:
@@ -350,7 +371,9 @@ class MainInputTest(unittest.TestCase):
     self.assertListEqual([], result)
 
   def test_typed_dofn_method_return_optional_not_iterable(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, unused_element: int) -> typehints.Optional[int]:
         pass
 
@@ -358,6 +381,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
 
   def test_typed_callable_not_iterable(self):
+
     def do_fn(element: int) -> int:
       return element
 
@@ -366,6 +390,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(do_fn)
 
   def test_typed_dofn_kwonly(self):
+
     class MyDoFn(beam.DoFn):
       # TODO(BEAM-5878): A kwonly argument like
       #   timestamp=beam.DoFn.TimestampParam would not work here.
@@ -383,6 +408,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
 
   def test_typed_dofn_var_kwargs(self):
+
     class MyDoFn(beam.DoFn):
       def process(self, element: int, **side_inputs: typehints.Dict[str, str]) \
           -> typehints.Generator[typehints.Optional[str]]:
@@ -398,6 +424,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
 
   def test_typed_callable_string_literals(self):
+
     def do_fn(element: 'int') -> 'typehints.List[str]':
       return [[str(element)] * 2]
 
@@ -409,6 +436,7 @@ class MainInputTest(unittest.TestCase):
     @beam.ptransform_fn
     @typehints.with_input_types(int)
     def MyMap(pcoll):
+
       def fn(element: int):
         yield element
 
@@ -424,6 +452,7 @@ class MainInputTest(unittest.TestCase):
     @beam.ptransform_fn
     @typehints.with_input_types(str)
     def MyMap(pcoll):
+
       def fn(element: float):
         yield element
 
@@ -437,7 +466,9 @@ class MainInputTest(unittest.TestCase):
       _ = [b'a'] | MyMap()
 
   def test_typed_dofn_string_literals(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element: 'int') -> 'typehints.List[str]':
         return [[str(element)] * 2]
 
@@ -445,6 +476,7 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_map(self):
+
     def fn(element: int) -> int:
       return element * 2
 
@@ -461,6 +493,7 @@ class MainInputTest(unittest.TestCase):
     self.assertCountEqual([None, 2, 3], result)
 
   def test_typed_flatmap(self):
+
     def fn(element: int) -> typehints.Iterable[int]:
       yield element * 2
 
@@ -468,6 +501,7 @@ class MainInputTest(unittest.TestCase):
     self.assertCountEqual([2, 4, 6], result)
 
   def test_typed_flatmap_output_hint_not_iterable(self):
+
     def fn(element: int) -> int:
       return element * 2
 
@@ -477,6 +511,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
   def test_typed_flatmap_output_value_not_iterable(self):
+
     def fn(element: int) -> typehints.Iterable[int]:
       return element * 2
 
@@ -485,6 +520,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
   def test_typed_flatmap_optional(self):
+
     def fn(element: int) -> typehints.Optional[typehints.Iterable[int]]:
       if element > 1:
         yield element * 2
@@ -497,13 +533,16 @@ class MainInputTest(unittest.TestCase):
     self.assertCountEqual([4, 6], result)
 
   def test_typed_ptransform_with_no_error(self):
+
     class StrToInt(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
@@ -512,13 +551,16 @@ class MainInputTest(unittest.TestCase):
     _ = ['1', '2', '3'] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bad_typehints(self):
+
     class StrToInt(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[str]:
@@ -530,13 +572,16 @@ class MainInputTest(unittest.TestCase):
       _ = ['1', '2', '3'] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bad_input(self):
+
     class StrToInt(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
@@ -549,11 +594,14 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_partial_typehints(self):
+
     class StrToInt(beam.PTransform):
+
       def expand(self, pcoll) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
@@ -564,12 +612,15 @@ class MainInputTest(unittest.TestCase):
     _ = [1, 2, 3] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bare_wrappers(self):
+
     class StrToInt(beam.PTransform):
+
       def expand(
           self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
@@ -578,11 +629,14 @@ class MainInputTest(unittest.TestCase):
     _ = [1, 2, 3] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_no_typehints(self):
+
     class StrToInt(beam.PTransform):
+
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
@@ -596,12 +650,14 @@ class MainInputTest(unittest.TestCase):
     T = typing.TypeVar('T')
 
     class IntToInt(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[T]) -> beam.pvalue.PCollection[T]:
         return pcoll | beam.Map(lambda x: x)
 
     class IntToStr(beam.PTransform):
+
       def expand(
           self,
           pcoll: beam.pvalue.PCollection[T]) -> beam.pvalue.PCollection[str]:
@@ -610,7 +666,9 @@ class MainInputTest(unittest.TestCase):
     _ = [1, 2, 3] | IntToInt() | IntToStr()
 
   def test_typed_ptransform_with_do_outputs_tuple_compiles(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element: int, *args, **kwargs):
         if element % 2:
           yield beam.pvalue.TaggedOutput('odd', 1)
@@ -618,6 +676,7 @@ class MainInputTest(unittest.TestCase):
           yield beam.pvalue.TaggedOutput('even', 1)
 
     class MyPTransform(beam.PTransform):
+
       def expand(self, pcoll: beam.pvalue.PCollection[int]):
         return pcoll | beam.ParDo(MyDoFn()).with_outputs('odd', 'even')
 
@@ -626,6 +685,7 @@ class MainInputTest(unittest.TestCase):
     _ = [1, 2, 3] | MyPTransform()
 
   def test_typed_ptransform_with_unknown_type_vars_tuple_compiles(self):
+
     @typehints.with_input_types(typing.TypeVar('T'))
     @typehints.with_output_types(typing.TypeVar('U'))
     def produces_unkown(e):
@@ -636,6 +696,7 @@ class MainInputTest(unittest.TestCase):
       return e
 
     class MyPTransform(beam.PTransform):
+
       def expand(self, pcoll):
         unknowns = pcoll | beam.Map(produces_unkown)
         ints = pcoll | beam.Map(int)
@@ -645,7 +706,9 @@ class MainInputTest(unittest.TestCase):
 
 
 class NativeTypesTest(unittest.TestCase):
+
   def test_good_main_input(self):
+
     @typehints.with_input_types(typing.Tuple[str, int])
     def munge(s_i):
       (s, i) = s_i
@@ -655,6 +718,7 @@ class NativeTypesTest(unittest.TestCase):
     self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
 
   def test_bad_main_input(self):
+
     @typehints.with_input_types(typing.Tuple[str, str])
     def munge(s_i):
       (s, i) = s_i
@@ -664,6 +728,7 @@ class NativeTypesTest(unittest.TestCase):
       [('apple', 5), ('pear', 3)] | beam.Map(munge)
 
   def test_bad_main_output(self):
+
     @typehints.with_input_types(typing.Tuple[int, int])
     @typehints.with_output_types(typing.Tuple[str, str])
     def munge(a_b):
@@ -675,6 +740,7 @@ class NativeTypesTest(unittest.TestCase):
 
 
 class SideInputTest(unittest.TestCase):
+
   def _run_repeat_test(self, repeat):
     self._run_repeat_test_good(repeat)
     self._run_repeat_test_bad(repeat)
@@ -704,6 +770,7 @@ class SideInputTest(unittest.TestCase):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
   def test_basic_side_input_hint(self):
+
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
@@ -711,6 +778,7 @@ class SideInputTest(unittest.TestCase):
     self._run_repeat_test(repeat)
 
   def test_keyword_side_input_hint(self):
+
     @typehints.with_input_types(str, times=int)
     def repeat(s, times):
       return s * times
@@ -718,6 +786,7 @@ class SideInputTest(unittest.TestCase):
     self._run_repeat_test(repeat)
 
   def test_default_typed_hint(self):
+
     @typehints.with_input_types(str, int)
     def repeat(s, times=3):
       return s * times
@@ -725,6 +794,7 @@ class SideInputTest(unittest.TestCase):
     self._run_repeat_test(repeat)
 
   def test_default_untyped_hint(self):
+
     @typehints.with_input_types(str)
     def repeat(s, times=3):
       return s * times
@@ -734,6 +804,7 @@ class SideInputTest(unittest.TestCase):
 
   @OptionsContext(pipeline_type_check=True)
   def test_varargs_side_input_hint(self):
+
     @typehints.with_input_types(str, int)
     def repeat(s, *times):
       return s * times[0]
@@ -789,6 +860,7 @@ class SideInputTest(unittest.TestCase):
                str, ignored=str))
 
   def test_deferred_side_inputs(self):
+
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
@@ -804,6 +876,7 @@ class SideInputTest(unittest.TestCase):
       main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
+
     @typehints.with_input_types(str, typing.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
@@ -820,7 +893,9 @@ class SideInputTest(unittest.TestCase):
 
 
 class CustomTransformTest(unittest.TestCase):
+
   class CustomTransform(beam.PTransform):
+
     def _extract_input_pvalues(self, pvalueish):
       return pvalueish, (pvalueish['in0'], pvalueish['in1'])
 
@@ -872,6 +947,7 @@ class CustomTransformTest(unittest.TestCase):
 
 
 class AnnotationsTest(unittest.TestCase):
+
   def test_pardo_wrapper_builtin_method(self):
     th = beam.ParDo(str.strip).get_type_hints()
     self.assertEqual(th.input_types, ((str, typehints.Any), {}))
@@ -889,7 +965,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertIsNone(th.output_types)
 
   def test_pardo_dofn(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element: int) -> typehints.Generator[str]:
         yield str(element)
 
@@ -898,7 +976,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_pardo_dofn_not_iterable(self):
+
     class MyDoFn(beam.DoFn):
+
       def process(self, element: int) -> str:
         return str(element)
 
@@ -906,6 +986,7 @@ class AnnotationsTest(unittest.TestCase):
       _ = beam.ParDo(MyDoFn()).get_type_hints()
 
   def test_pardo_wrapper(self):
+
     def do_fn(element: int) -> typehints.Iterable[str]:
       return [str(element)]
 
@@ -924,6 +1005,7 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((typehints.Tuple[str, int], ), {}))
 
   def test_pardo_wrapper_not_iterable(self):
+
     def do_fn(element: int) -> str:
       return str(element)
 
@@ -932,6 +1014,7 @@ class AnnotationsTest(unittest.TestCase):
       _ = beam.ParDo(do_fn).get_type_hints()
 
   def test_flat_map_wrapper(self):
+
     def map_fn(element: int) -> typehints.Iterable[int]:
       return [element, element + 1]
 
@@ -962,6 +1045,7 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_map_wrapper(self):
+
     def map_fn(unused_element: int) -> int:
       return 1
 
@@ -992,6 +1076,7 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_filter_wrapper(self):
+
     def filter_fn(element: int) -> bool:
       return bool(element % 2)
 
@@ -1001,6 +1086,7 @@ class AnnotationsTest(unittest.TestCase):
 
 
 class TestFlatMapTuple(unittest.TestCase):
+
   def test_flatmaptuple(self):
     # Regression test. See
     # https://github.com/apache/beam/issues/33014

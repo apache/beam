@@ -42,6 +42,7 @@ T_typing = typing.TypeVar('T')  # type: ignore
 
 
 class IOTypeHintsTest(unittest.TestCase):
+
   def test_get_signature(self):
     # Basic coverage only to make sure function works.
     def fn(a, b=1, *c, **d):
@@ -56,6 +57,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(s.return_annotation, List[Any])
 
   def test_from_callable_without_annotations(self):
+
     def fn(a, b=None, *args, **kwargs):
       return a, b, args, kwargs
 
@@ -186,6 +188,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertNotEqual(expected_id, id(th))
 
   def test_from_callable(self):
+
     def fn(
         a: int,
         b: str = '',
@@ -202,6 +205,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
 
   def test_from_callable_partial_annotations(self):
+
     def fn(a: int, b=None, *args, foo: List[int], **kwargs):
       return a, b, args, foo, kwargs
 
@@ -214,7 +218,9 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_from_callable_class(self):
+
     class Class(object):
+
       def __init__(self, unused_arg: int):
         pass
 
@@ -223,7 +229,9 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Class, ), {}))
 
   def test_from_callable_method(self):
+
     class Class(object):
+
       def method(self, arg: T = None) -> None:
         pass
 
@@ -236,6 +244,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((None, ), {}))
 
   def test_from_callable_convert_to_beam_types(self):
+
     def fn(
         a: typing.List[int],
         b: str = '',
@@ -253,6 +262,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
 
   def test_from_callable_partial(self):
+
     def fn(a: int) -> int:
       return a
 
@@ -262,6 +272,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertRegex(th.debug_str(), r'unknown')
 
   def test_getcallargs_forhints(self):
+
     def fn(
         a: int,
         b: str = '',
@@ -298,6 +309,7 @@ class IOTypeHintsTest(unittest.TestCase):
         })
 
   def test_getcallargs_forhints_missing_arg(self):
+
     def fn(a, b=None, *args, foo, **kwargs):
       return a, b, args, foo, kwargs
 
@@ -307,6 +319,7 @@ class IOTypeHintsTest(unittest.TestCase):
       decorators.getcallargs_forhints(fn, 5)
 
   def test_origin_annotated(self):
+
     def annotated(e: str) -> str:
       return e
 
@@ -321,7 +334,9 @@ class IOTypeHintsTest(unittest.TestCase):
 
 
 class WithTypeHintsTest(unittest.TestCase):
+
   def test_get_type_hints_no_settings(self):
+
     class Base(WithTypeHints):
       pass
 
@@ -330,6 +345,7 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, None)
 
   def test_get_type_hints_class_decorators(self):
+
     @decorators.with_input_types(int, str)
     @decorators.with_output_types(int)
     class Base(WithTypeHints):
@@ -340,7 +356,9 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((int, ), {}))
 
   def test_get_type_hints_class_defaults(self):
+
     class Base(WithTypeHints):
+
       def default_type_hints(self):
         return decorators.IOTypeHints(
             input_types=((int, str), {}), output_types=((int, ), {}), origin=[])
@@ -350,9 +368,11 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((int, ), {}))
 
   def test_get_type_hints_precedence_defaults_over_decorators(self):
+
     @decorators.with_input_types(int)
     @decorators.with_output_types(str)
     class Base(WithTypeHints):
+
       def default_type_hints(self):
         return decorators.IOTypeHints(
             input_types=((float, ), {}), output_types=None, origin=[])
@@ -362,7 +382,9 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_get_type_hints_precedence_instance_over_defaults(self):
+
     class Base(WithTypeHints):
+
       def default_type_hints(self):
         return decorators.IOTypeHints(
             input_types=((float, ), {}), output_types=((str, ), {}), origin=[])
@@ -375,6 +397,7 @@ class WithTypeHintsTest(unittest.TestCase):
     # See BEAM-8629.
     @decorators.with_output_types(int)
     class Subclass(WithTypeHints):
+
       def __init__(self):
         pass  # intentionally avoiding super call
 
@@ -388,6 +411,7 @@ class WithTypeHintsTest(unittest.TestCase):
 
 
 class DecoratorsTest(unittest.TestCase):
+
   def tearDown(self):
     decorators._disable_from_callable = False
 
@@ -397,6 +421,7 @@ class DecoratorsTest(unittest.TestCase):
     self.assertTrue(decorators._disable_from_callable)
 
   def test_no_annotations_on_same_function(self):
+
     def fn(a: int) -> int:
       return a
 
@@ -409,6 +434,7 @@ class DecoratorsTest(unittest.TestCase):
     _ = ['a', 'b', 'c'] | Map(fn)
 
   def test_no_annotations_on_diff_function(self):
+
     def fn(a: int) -> int:
       return a
 

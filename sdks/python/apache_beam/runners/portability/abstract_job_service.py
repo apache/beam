@@ -69,15 +69,16 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   Experimental: No backward compatibility guaranteed.
   Servicer for the Beam Job API.
   """
+
   def __init__(self):
     self._jobs: Dict[str, AbstractBeamJob] = {}
 
-  def create_beam_job(self,
-                      preparation_id,  # stype: str
-                      job_name: str,
-                      pipeline: beam_runner_api_pb2.Pipeline,
-                      options: struct_pb2.Struct
-                     ) -> 'AbstractBeamJob':
+  def create_beam_job(
+      self,
+      preparation_id,  # stype: str
+      job_name: str,
+      pipeline: beam_runner_api_pb2.Pipeline,
+      options: struct_pb2.Struct) -> 'AbstractBeamJob':
     """Returns an instance of AbstractBeamJob specific to this servicer."""
     raise NotImplementedError(type(self))
 
@@ -185,6 +186,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
 class AbstractBeamJob(object):
   """Abstract baseclass for managing a single Beam job."""
+
   def __init__(
       self,
       job_id: str,
@@ -265,6 +267,7 @@ class AbstractBeamJob(object):
 
 
 class JarArtifactManager(object):
+
   def __init__(self, jar_path, root):
     self._root = root
     self._zipfile_handle = zipfile.ZipFile(jar_path, 'a')

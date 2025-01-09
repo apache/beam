@@ -126,6 +126,7 @@ class Pipeline(HasDisplayData):
   should be used to designate new names
   (e.g. ``input | "label" >> my_transform``).
   """
+
   @classmethod
   def runner_implemented_transforms(cls):
     # type: () -> FrozenSet[str]
@@ -296,6 +297,7 @@ class Pipeline(HasDisplayData):
 
     class TransformUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that replaces the matching PTransforms."""
+
       def __init__(self, pipeline):
         # type: (Pipeline) -> None
         self.pipeline = pipeline
@@ -428,6 +430,7 @@ class Pipeline(HasDisplayData):
       We cannot update input and output values while visiting since that results
       in validation errors.
       """
+
       def __init__(self, pipeline):
         # type: (Pipeline) -> None
         self.pipeline = pipeline
@@ -495,6 +498,7 @@ class Pipeline(HasDisplayData):
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
     class ReplacementValidator(PipelineVisitor):
+
       def visit_transform(self, transform_node):
         # type: (AppliedPTransform) -> None
         if override.matches(transform_node):
@@ -810,7 +814,6 @@ class Pipeline(HasDisplayData):
     unique_suffix = uuid.uuid4().hex[:6]
     return '%s_%s' % (transform.label, unique_suffix)
 
-
   def _infer_result_type(
       self,
       transform,  # type: ptransform.PTransform
@@ -929,6 +932,7 @@ class Pipeline(HasDisplayData):
         TypeOptions).allow_non_deterministic_key_coders
 
     class ForceKvInputTypes(PipelineVisitor):
+
       def enter_composite_transform(self, transform_node):
         # type: (AppliedPTransform) -> None
         self.visit_transform(transform_node)
@@ -952,8 +956,8 @@ class Pipeline(HasDisplayData):
             if (isinstance(output.element_type,
                            typehints.TupleHint.TupleConstraint) and
                 len(output.element_type.tuple_types) == 2 and
-                pcoll.element_type.tuple_types[0] ==
-                output.element_type.tuple_types[0]):
+                pcoll.element_type.tuple_types[0]
+                == output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
@@ -1005,8 +1009,10 @@ class Pipeline(HasDisplayData):
     p = Pipeline(
         runner=runner,
         options=options,
-        display_data={str(ix): d
-                      for ix, d in enumerate(proto.display_data)})
+        display_data={
+            str(ix): d
+            for ix, d in enumerate(proto.display_data)
+        })
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
         proto.components, requirements=proto.requirements)
@@ -1047,6 +1053,7 @@ class PipelineVisitor(object):
   Visitor pattern class used to traverse a DAG of transforms
   (used internally by Pipeline for bookkeeping purposes).
   """
+
   def visit_value(self, value, producer_node):
     # type: (pvalue.PValue, AppliedPTransform) -> None
 
@@ -1082,6 +1089,7 @@ class ExternalTransformFinder(PipelineVisitor):
   """Looks for any external transforms in the pipeline and if found records
   it.
   """
+
   def __init__(self):
     self._contains_external_transforms = False
 
@@ -1118,6 +1126,7 @@ class AppliedPTransform(object):
   A transform node representing an instance of applying a PTransform
   (used internally by Pipeline for bookeeping purposes).
   """
+
   def __init__(
       self,
       parent,  # type:  Optional[AppliedPTransform]
@@ -1125,7 +1134,7 @@ class AppliedPTransform(object):
       full_label,  # type: str
       main_inputs,  # type: Optional[Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id=None,  # type: Optional[str]
-      annotations=None, # type: Optional[Dict[str, bytes]]
+      annotations=None,  # type: Optional[Dict[str, bytes]]
   ):
     # type: (...) -> None
     self.parent = parent
@@ -1164,8 +1173,7 @@ class AppliedPTransform(object):
 
       annotations = {
           key: annotation_to_bytes(key, a)
-          for key,
-          a in transform.annotations().items()
+          for key, a in transform.annotations().items()
       }
     self.annotations = annotations
 
@@ -1382,13 +1390,11 @@ class AppliedPTransform(object):
         ],
         inputs={
             tag: context.pcollections.get_id(pc)
-            for tag,
-            pc in sorted(self.named_inputs().items())
+            for tag, pc in sorted(self.named_inputs().items())
         },
         outputs={
             tag: context.pcollections.get_id(out)
-            for tag,
-            out in sorted(self.named_outputs().items())
+            for tag, out in sorted(self.named_outputs().items())
         },
         environment_id=environment_id,
         annotations=self.annotations,
@@ -1429,8 +1435,8 @@ class AppliedPTransform(object):
     # TODO(https://github.com/apache/beam/issues/20136): use key, value pairs
     # instead of depending on tags with index as a suffix.
     indexed_side_inputs = [
-        (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,
-        id in proto.inputs.items() if tag in side_input_tags
+        (get_sideinput_index(tag), context.pcollections.get_by_id(id))
+        for tag, id in proto.inputs.items() if tag in side_input_tags
     ]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
 
@@ -1453,8 +1459,7 @@ class AppliedPTransform(object):
       result.add_part(part)
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
-        for tag,
-        id in proto.outputs.items()
+        for tag, id in proto.outputs.items()
     }
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
@@ -1486,6 +1491,7 @@ class PTransformOverride(metaclass=abc.ABCMeta):
   TODO: Update this to support cases where input and/our output types are
   different.
   """
+
   @abc.abstractmethod
   def matches(self, applied_ptransform):
     # type: (AppliedPTransform) -> bool
@@ -1564,6 +1570,7 @@ class ComponentIdMap(object):
   Component ID assignments are only guaranteed to be unique and consistent
   within the scope of a ComponentIdMap instance.
   """
+
   def __init__(self, namespace="ref"):
     self.namespace = namespace
     self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]

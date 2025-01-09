@@ -53,6 +53,7 @@ class _ExecutionContext(object):
 
   It holds the watermarks for that transform, as well as keyed states.
   """
+
   def __init__(self, watermarks: '_TransformWatermarks', keyed_states):
     self.watermarks = watermarks
     self.keyed_states = keyed_states
@@ -69,6 +70,7 @@ class _ExecutionContext(object):
 
 
 class _SideInputView(object):
+
   def __init__(self, view):
     self._view = view
     self.blocked_tasks = collections.deque()
@@ -88,6 +90,7 @@ class _SideInputsContainer(object):
   It provides methods for blocking until a side-input is available and writing
   to a side input.
   """
+
   def __init__(self, side_inputs: Iterable['pvalue.AsSideInput']) -> None:
     self._lock = threading.Lock()
     self._views: Dict[pvalue.AsSideInput, _SideInputView] = {}
@@ -225,6 +228,7 @@ class EvaluationContext(object):
   appropriately. This includes updating the per-(step,key) state, updating
   global watermarks, and executing any callbacks that can be executed.
   """
+
   def __init__(
       self,
       pipeline_options,
@@ -346,8 +350,8 @@ class EvaluationContext(object):
     registered as a PCollectionView, we add the result to the PCollectionView.
     """
     if (result.uncommitted_output_bundles and
-        result.uncommitted_output_bundles[0].pcollection in
-        self._pcollection_to_views):
+        result.uncommitted_output_bundles[0].pcollection
+        in self._pcollection_to_views):
       for view in self._pcollection_to_views[
           result.uncommitted_output_bundles[0].pcollection]:
         for committed_bundle in committed_bundles:
@@ -436,12 +440,14 @@ class EvaluationContext(object):
 
 class DirectUnmergedState(InMemoryUnmergedState):
   """UnmergedState implementation for the DirectRunner."""
+
   def __init__(self):
     super().__init__(defensive_copy=False)
 
 
 class DirectStepContext(object):
   """Context for the currently-executing step."""
+
   def __init__(self, existing_keyed_state):
     self.existing_keyed_state = existing_keyed_state
     # In order to avoid partial writes of a bundle, every time

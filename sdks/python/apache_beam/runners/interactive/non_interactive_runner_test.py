@@ -39,6 +39,7 @@ from apache_beam.utils.windowed_value import PaneInfoTiming
 
 
 def print_with_message(msg):
+
   def printer(elem):
     print(msg, elem)
     return elem
@@ -73,6 +74,7 @@ def clear_side_effect():
 
 @isolated_env
 class NonInteractiveRunnerTest(unittest.TestCase):
+
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
     clear_side_effect()
@@ -146,7 +148,9 @@ class NonInteractiveRunnerTest(unittest.TestCase):
 
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_wordcount(self):
+
     class WordExtractingDoFn(beam.DoFn):
+
       def process(self, element):
         text_line = element.strip()
         words = text_line.split()
@@ -259,6 +263,7 @@ class NonInteractiveRunnerTest(unittest.TestCase):
 
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_new_runner_and_options(self):
+
     class MyRunner(beam.runners.PipelineRunner):
       run_count = 0
 

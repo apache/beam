@@ -37,6 +37,7 @@ from apache_beam.options.value_provider import StaticValueProvider
 # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.
 # The number will grow per file as tests are added.
 class ValueProviderTests(unittest.TestCase):
+
   def setUp(self):
     # Reset runtime options to avoid side-effects caused by other tests.
     # Note that is_accessible assertions require runtime_options to
@@ -48,7 +49,9 @@ class ValueProviderTests(unittest.TestCase):
     RuntimeValueProvider.set_runtime_options(None)
 
   def test_static_value_provider_keyword_argument(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -62,7 +65,9 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg1.get(), 'abc')
 
   def test_runtime_value_provider_keyword_argument(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -75,7 +80,9 @@ class ValueProviderTests(unittest.TestCase):
       options.vpt_vp_arg2.get()
 
   def test_static_value_provider_positional_argument(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -89,7 +96,9 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg3.get(), 'abc')
 
   def test_runtime_value_provider_positional_argument(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -102,7 +111,9 @@ class ValueProviderTests(unittest.TestCase):
       options.vpt_vp_arg4.get()
 
   def test_static_value_provider_type_cast(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -116,6 +127,7 @@ class ValueProviderTests(unittest.TestCase):
   def test_set_runtime_option(self):
     # define ValueProvider options, with and without default values
     class UserDefinedOptions1(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -168,7 +180,9 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg10.get(), 1.2)
 
   def test_choices(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument(
@@ -186,7 +200,9 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg12, 2)
 
   def test_static_value_provider_choices(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -240,7 +256,9 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(mock_fn.call_count, 1)
 
   def test_nested_value_provider_wrap_runtime(self):
+
     class UserDefinedOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(

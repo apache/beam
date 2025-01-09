@@ -23,6 +23,7 @@ from apache_beam.runners.interactive.caching.expression_cache import ExpressionC
 
 
 class ExpressionCacheTest(unittest.TestCase):
+
   def setUp(self):
     self._pcollection_cache = {}
     self._computed_cache = set()

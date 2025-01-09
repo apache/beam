@@ -81,6 +81,7 @@ def check_percentages(actual):
     str)
 # pylint: enable=line-too-long
 class CombineGloballyTest(unittest.TestCase):
+
   def test_combineglobally_function(self):
     combineglobally_function.combineglobally_function(check_common_items)
 

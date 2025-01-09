@@ -28,6 +28,7 @@ from apache_beam.metrics import Metrics
 
 
 class CountingSource(iobase.BoundedSource):
+
   def __init__(self, count):
     self.records_read = Metrics.counter(self.__class__, 'recordsRead')
     self._count = count

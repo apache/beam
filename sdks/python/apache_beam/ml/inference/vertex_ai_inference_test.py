@@ -27,6 +27,7 @@ except ImportError:
 
 
 class RetryOnClientErrorTest(unittest.TestCase):
+
   def test_retry_on_client_error_positive(self):
     e = TooManyRequests(message="fake service rate limiting")
     self.assertTrue(_retry_on_appropriate_gcp_error(e))
@@ -37,6 +38,7 @@ class RetryOnClientErrorTest(unittest.TestCase):
 
 
 class ModelHandlerArgConditions(unittest.TestCase):
+
   def test_exception_on_private_without_network(self):
     self.assertRaises(
         ValueError,

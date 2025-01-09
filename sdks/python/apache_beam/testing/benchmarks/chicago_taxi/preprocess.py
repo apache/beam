@@ -81,6 +81,7 @@ def transform_data(
     pipeline_args: additional DataflowRunner or DirectRunner args passed to the
       beam pipeline.
   """
+
   def preprocessing_fn(inputs):
     """tf.transform's callback function for preprocessing inputs.
 

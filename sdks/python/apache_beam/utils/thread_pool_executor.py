@@ -24,6 +24,7 @@ from concurrent.futures import _base
 
 
 class _WorkItem(object):
+
   def __init__(self, future, fn, args, kwargs):
     self._future = future
     self._fn = fn
@@ -40,6 +41,7 @@ class _WorkItem(object):
 
 
 class _Worker(threading.Thread):
+
   def __init__(self, idle_worker_queue, work_item):
     super().__init__()
     self._idle_worker_queue = idle_worker_queue
@@ -72,6 +74,7 @@ class _Worker(threading.Thread):
 
 
 class UnboundedThreadPoolExecutor(_base.Executor):
+
   def __init__(self):
     self._idle_worker_queue = queue.Queue()
     self._max_idle_threads = 16
@@ -122,6 +125,7 @@ class UnboundedThreadPoolExecutor(_base.Executor):
 
 
 class _SharedUnboundedThreadPoolExecutor(UnboundedThreadPoolExecutor):
+
   def shutdown(self, wait=True):
     # Prevent shutting down the shared thread pool
     pass

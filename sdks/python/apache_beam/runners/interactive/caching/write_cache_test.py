@@ -31,6 +31,7 @@ from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryC
 
 
 class WriteCacheTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 

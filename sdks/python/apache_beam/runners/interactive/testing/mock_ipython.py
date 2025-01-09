@@ -42,7 +42,9 @@ def mock_get_ipython():
       # ...
       # arbitrary python code
   """
+
   class MockedGetIpython(object):
+
     def __init__(self):
       self._execution_count = 0
       # Mock as if the kernel is connected to a notebook frontend.

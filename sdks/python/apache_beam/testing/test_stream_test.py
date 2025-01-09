@@ -52,6 +52,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class TestStreamTest(unittest.TestCase):
+
   def test_basic_test_stream(self):
     test_stream = (TestStream()
                    .advance_watermark_to(0)
@@ -111,6 +112,7 @@ class TestStreamTest(unittest.TestCase):
                    .advance_watermark_to_infinity())  # yapf: disable
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,
@@ -154,6 +156,7 @@ class TestStreamTest(unittest.TestCase):
         .add_elements(numbers_elements, tag='numbers'))  # yapf: disable
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,
@@ -279,6 +282,7 @@ class TestStreamTest(unittest.TestCase):
                    .advance_watermark_to_infinity())  # yapf: disable
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,
@@ -312,6 +316,7 @@ class TestStreamTest(unittest.TestCase):
                    .advance_watermark_to_infinity())  # yapf: disable
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,
@@ -493,6 +498,7 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda t: window.TimestampedValue(t, t)))
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           elm=beam.DoFn.ElementParam,
@@ -527,6 +533,7 @@ class TestStreamTest(unittest.TestCase):
       side_stream = test_stream['side']
 
       class RecordFn(beam.DoFn):
+
         def process(
             self,
             elm=beam.DoFn.ElementParam,
@@ -559,6 +566,7 @@ class TestStreamTest(unittest.TestCase):
         | beam.WindowInto(window.FixedWindows(2)))
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           elm=beam.DoFn.ElementParam,
@@ -609,6 +617,7 @@ class TestStreamTest(unittest.TestCase):
         | 'side windowInto' >> beam.WindowInto(window.FixedWindows(3)))
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           elm=beam.DoFn.ElementParam,
@@ -710,6 +719,7 @@ class TestStreamTest(unittest.TestCase):
     ]
 
     class InMemoryEventReader:
+
       def read_multiple(self, unused_keys):
         for e in test_stream_proto_events:
           yield e
@@ -720,6 +730,7 @@ class TestStreamTest(unittest.TestCase):
     test_stream = TestStream(coder=coder, endpoint=service.endpoint)
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,
@@ -748,6 +759,7 @@ class TestStreamTest(unittest.TestCase):
 
 
 class ReverseTestStreamTest(unittest.TestCase):
+
   def test_basic_execution(self):
     test_stream = (TestStream()
                    .advance_watermark_to(0)

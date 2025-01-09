@@ -74,6 +74,7 @@ warnings.simplefilter('once', BeamDeprecationWarning)
 
 class _WarningMessage:
   """Utility class for assembling the warning message."""
+
   def __init__(self, label, since, current, extra_message, custom_message):
     """Initialize message, leave only name as placeholder."""
     if custom_message is None:

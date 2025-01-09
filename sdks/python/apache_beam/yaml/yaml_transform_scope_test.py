@@ -30,6 +30,7 @@ from apache_beam.yaml.yaml_transform import Scope
 
 
 class ScopeTest(unittest.TestCase):
+
   def get_scope_by_spec(self, p, spec):
     spec = yaml.load(spec, Loader=SafeLineLoader)
 
@@ -113,6 +114,7 @@ class ScopeTest(unittest.TestCase):
 
 
 class TestProvider(yaml_provider.InlineProvider):
+
   def __init__(self, transform, name):
     super().__init__({
         name: lambda: beam.Map(lambda x: (x or ()) + (name, )),  # or None
@@ -138,6 +140,7 @@ class TestProvider(yaml_provider.InlineProvider):
 
 
 class ProviderAffinityTest(unittest.TestCase):
+
   @staticmethod
   def create_scope(s, providers):
     providers_dict = collections.defaultdict(list)
@@ -253,6 +256,7 @@ class ProviderAffinityTest(unittest.TestCase):
 
 
 class LightweightScopeTest(unittest.TestCase):
+
   @staticmethod
   def get_spec():
     pipeline_yaml = '''

@@ -83,6 +83,7 @@ class _TestWriter(iobase.Writer):
 
 
 class WriteToTestSink(PTransform):
+
   def __init__(self, return_init_result=True, return_write_results=True):
     self.return_init_result = return_init_result
     self.return_write_results = return_write_results

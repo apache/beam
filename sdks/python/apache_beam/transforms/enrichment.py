@@ -88,6 +88,7 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
   """
+
   def get_cache_key(self, request: InputT) -> str:
     """Returns the request to be cached. This is how the response will be
     looked up in the cache as well.
@@ -130,6 +131,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       client-side adaptive throttling using
       :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`.
   """
+
   def __init__(
       self,
       source_handler: EnrichmentSourceHandler,

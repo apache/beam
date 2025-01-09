@@ -33,10 +33,11 @@ from . import approximateunique
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.'
-    'approximateunique.print',
-    lambda x: x)
+    'approximateunique.print', lambda x: x)
 class ApproximateUniqueTest(unittest.TestCase):
+
   def test_approximateunique(self):
+
     def check_result(approx_count):
       actual_count = 1000
       sample_size = 16

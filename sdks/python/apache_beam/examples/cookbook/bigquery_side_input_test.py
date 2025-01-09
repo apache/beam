@@ -30,6 +30,7 @@ from apache_beam.testing.util import equal_to
 
 
 class BigQuerySideInputTest(unittest.TestCase):
+
   def test_create_groups(self):
     with TestPipeline() as p:
 

@@ -35,6 +35,7 @@ except ImportError:
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryToSchema(unittest.TestCase):
+
   def test_check_schema_conversions(self):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
@@ -173,6 +174,7 @@ class TestBigQueryToSchema(unittest.TestCase):
           table=value_provider.ValueProvider(), output_type='BEAM_ROW')
 
   def test_unsupported_callable(self):
+
     def filterTable(table):
       if table is not None:
         return table

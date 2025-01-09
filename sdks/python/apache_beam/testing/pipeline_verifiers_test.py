@@ -45,6 +45,7 @@ except ImportError:
 
 
 class PipelineVerifiersTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_result = Mock()
     patch_retry(self, verifiers)

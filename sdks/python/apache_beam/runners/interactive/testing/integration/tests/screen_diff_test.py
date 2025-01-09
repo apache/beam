@@ -27,6 +27,7 @@ from apache_beam.runners.interactive.testing.integration.screen_diff import Base
 
 @pytest.mark.timeout(300)
 class DataFramesTest(BaseTestCase):
+
   def __init__(self, *args, **kwargs):
     kwargs['golden_size'] = (1024, 10000)
     super().__init__(*args, **kwargs)
@@ -49,6 +50,7 @@ class DataFramesTest(BaseTestCase):
 
 @pytest.mark.timeout(300)
 class InitSquareCubeTest(BaseTestCase):
+
   def __init__(self, *args, **kwargs):
     kwargs['golden_size'] = (1024, 10000)
     super().__init__(*args, **kwargs)

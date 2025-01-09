@@ -52,6 +52,7 @@ class TrivialRunner(runner.PipelineRunner):
   several features in order to keep it as simple as possible.  Where possible
   pointers are provided which this should serve as a useful starting point.
   """
+
   def run_portable_pipeline(self, pipeline, options):
     # First ensure we are able to run this pipeline.
     # Specifically, that it does not depend on requirements that were
@@ -278,10 +279,10 @@ class TrivialRunner(runner.PipelineRunner):
     windowing = components.windowing_strategies[
         components.pcollections[input_pcoll].windowing_strategy_id]
 
-    if (windowing.merge_status ==
-        beam_runner_api_pb2.MergeStatus.Enum.NON_MERGING and
-        windowing.output_time ==
-        beam_runner_api_pb2.OutputTime.Enum.END_OF_WINDOW):
+    if (windowing.merge_status
+        == beam_runner_api_pb2.MergeStatus.Enum.NON_MERGING and
+        windowing.output_time
+        == beam_runner_api_pb2.OutputTime.Enum.END_OF_WINDOW):
       # This is the "easy" case, show how to do it by hand.
       # Note that we're grouping by encoded key, and also by the window.
       grouped = collections.defaultdict(list)
@@ -322,6 +323,7 @@ class TrivialRunner(runner.PipelineRunner):
 
 class ExecutionState:
   """A helper class holding various values and context during execution."""
+
   def __init__(self, optimized_pipeline):
     self.optimized_pipeline = optimized_pipeline
     self._pcollections_to_encoded_chunks = {}

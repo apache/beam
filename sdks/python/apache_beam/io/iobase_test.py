@@ -35,6 +35,7 @@ from apache_beam.testing.util import equal_to
 
 
 class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
+
   def setUp(self):
     self.initial_range_start = 0
     self.initial_range_stop = 4
@@ -121,6 +122,7 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
 
 
 class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
+
   def setUp(self):
     self.initial_start_pos = 0
     self.initial_stop_pos = 4
@@ -194,6 +196,7 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
 
 
 class UseSdfBoundedSourcesTests(unittest.TestCase):
+
   def _run_sdf_wrapper_pipeline(self, source, expected_values):
     with beam.Pipeline() as p:
       experiments = (p._options.view_as(DebugOptions).experiments or [])
@@ -210,6 +213,7 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
 
   @mock.patch('apache_beam.io.iobase.SDFBoundedSourceReader.expand')
   def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
+
     def _fake_wrapper_expand(pbegin):
       return pbegin | beam.Map(lambda x: 'fake')
 

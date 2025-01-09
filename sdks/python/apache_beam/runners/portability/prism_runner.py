@@ -56,6 +56,7 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
+
   def default_environment(
       self,
       options: pipeline_options.PipelineOptions) -> environments.Environment:
@@ -217,8 +218,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     # We failed to build for some reason.
     output = process.stdout.decode("utf-8")
-    if ("not in a module" not in output) and (
-        "no required module provides" not in output):
+    if ("not in a module" not in output) and ("no required module provides"
+                                              not in output):
       # This branch handles two classes of failures:
       # 1. Go isn't installed, so it needs to be installed by the Beam SDK
       #   developer.

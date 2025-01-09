@@ -46,6 +46,7 @@ def get_julia_set_point_color(element, c, n, max_iterations):
 
 def generate_julia_set_colors(pipeline, c, n, max_iterations):
   """Compute julia set coordinates for each point in our set."""
+
   def point_set(n):
     for x in range(n):
       for y in range(n):

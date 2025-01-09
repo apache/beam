@@ -50,6 +50,7 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
   Inherited test cases will call self._new_tempdir() to start a temporary dir
   which will be deleted at the end of the tests (when tearDown() is called).
   """
+
   def setUp(self):
     self._tempdirs = []
 
@@ -79,6 +80,7 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
 
 
 class MyFileBasedSink(filebasedsink.FileBasedSink):
+
   def open(self, temp_path):
     # TODO: Fix main session pickling.
     # file_handle = super().open(temp_path)
@@ -99,6 +101,7 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
 
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
+
   def _common_init(self, sink):
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -202,6 +205,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
       dir_root_path,
       prefix,
       separator):
+
     def _get_temp_dir(file_path_prefix):
       sink = MyFileBasedSink(
           file_path_prefix,

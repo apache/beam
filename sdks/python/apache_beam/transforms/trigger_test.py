@@ -75,11 +75,13 @@ from apache_beam.utils.windowed_value import PaneInfoTiming
 
 class CustomTimestampingFixedWindowsWindowFn(FixedWindows):
   """WindowFn for testing custom timestamping."""
+
   def get_transformed_output_time(self, unused_window, input_timestamp):
     return input_timestamp + 100
 
 
 class TriggerTest(unittest.TestCase):
+
   def run_trigger_simple(
       self,
       window_fn,
@@ -197,8 +199,10 @@ class TriggerTest(unittest.TestCase):
         AfterWatermark(),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (13, 'c')],
-        {IntervalWindow(0, 10): [set('ab')],
-         IntervalWindow(10, 20): [set('c')]},
+        {
+            IntervalWindow(0, 10): [set('ab')],
+            IntervalWindow(10, 20): [set('c')]
+        },
         1,
         2,
         3,
@@ -225,36 +229,38 @@ class TriggerTest(unittest.TestCase):
   def test_fixed_watermark_with_early_late(self):
     self.run_trigger_simple(
         FixedWindows(100),  # pyformat break
-        AfterWatermark(early=AfterCount(3),
-                       late=AfterCount(2)),
+        AfterWatermark(early=AfterCount(3), late=AfterCount(2)),
         AccumulationMode.DISCARDING,
         zip(range(9), 'abcdefghi'),
-        {IntervalWindow(0, 100): [
-            set('abcd'), set('efgh'),  # early
-            set('i'),                  # on time
-            set('vw'), set('xy')       # late
-            ]},
+        {
+            IntervalWindow(0, 100): [
+                set('abcd'),
+                set('efgh'),  # early
+                set('i'),  # on time
+                set('vw'),
+                set('xy')  # late
+            ]
+        },
         2,
         late_data=zip(range(5), 'vwxyz'))
 
   def test_sessions_watermark_with_early_late(self):
     self.run_trigger_simple(
         Sessions(10),  # pyformat break
-        AfterWatermark(early=AfterCount(2),
-                       late=AfterCount(1)),
+        AfterWatermark(early=AfterCount(2), late=AfterCount(1)),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (15, 'b'), (7, 'c'), (30, 'd')],
         {
             IntervalWindow(1, 25): [
-                set('abc'),                # early
-                set('abc'),                # on time
-                set('abcxy')               # late
+                set('abc'),  # early
+                set('abc'),  # on time
+                set('abcxy')  # late
             ],
             IntervalWindow(30, 40): [
-                set('d'),                  # on time
+                set('d'),  # on time
             ],
             IntervalWindow(1, 40): [
-                set('abcdxyz')             # late
+                set('abcdxyz')  # late
             ],
         },
         2,
@@ -303,13 +309,16 @@ class TriggerTest(unittest.TestCase):
         Repeatedly(AfterAny(AfterCount(3), AfterWatermark())),
         AccumulationMode.ACCUMULATING,
         zip(range(7), 'abcdefg'),
-        {IntervalWindow(0, 100): [
-            set('abc'),
-            set('abcdef'),
-            set('abcdefg'),
-            set('abcdefgx'),
-            set('abcdefgxy'),
-            set('abcdefgxyz')]},
+        {
+            IntervalWindow(0, 100): [
+                set('abc'),
+                set('abcdef'),
+                set('abcdefg'),
+                set('abcdefgx'),
+                set('abcdefgxy'),
+                set('abcdefgxyz')
+            ]
+        },
         1,
         late_data=zip(range(3), 'xyz'))
 
@@ -350,8 +359,10 @@ class TriggerTest(unittest.TestCase):
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (15, 'c'), (16, 'd'), (30, 'z'), (9, 'e'),
          (10, 'f'), (30, 'y')],
-        {IntervalWindow(1, 26): [set('abcdef')],
-         IntervalWindow(30, 40): [set('yz')]},
+        {
+            IntervalWindow(1, 26): [set('abcdef')],
+            IntervalWindow(30, 40): [set('yz')]
+        },
         1,
         2,
         3,
@@ -381,9 +392,11 @@ class TriggerTest(unittest.TestCase):
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (15, 'b'), (6, 'c'), (30, 's'), (31, 't'), (50, 'z'),
          (50, 'y')],
-        {IntervalWindow(1, 25): [set('abc')],
-         IntervalWindow(30, 41): [set('st')],
-         IntervalWindow(50, 60): [set('yz')]},
+        {
+            IntervalWindow(1, 25): [set('abc')],
+            IntervalWindow(30, 41): [set('st')],
+            IntervalWindow(50, 60): [set('yz')]
+        },
         1,
         2,
         3)
@@ -412,8 +425,10 @@ class TriggerTest(unittest.TestCase):
         AfterEach(AfterCount(2), AfterCount(3)),
         AccumulationMode.ACCUMULATING,
         zip(range(10), 'abcdefghij'),
-        {IntervalWindow(0, 11): [set('ab')],
-         IntervalWindow(0, 15): [set('abcdef')]},
+        {
+            IntervalWindow(0, 11): [set('ab')],
+            IntervalWindow(0, 15): [set('abcdef')]
+        },
         2)
 
     self.run_trigger_simple(
@@ -421,9 +436,11 @@ class TriggerTest(unittest.TestCase):
         Repeatedly(AfterEach(AfterCount(2), AfterCount(3))),
         AccumulationMode.ACCUMULATING,
         zip(range(10), 'abcdefghij'),
-        {IntervalWindow(0, 11): [set('ab')],
-         IntervalWindow(0, 15): [set('abcdef')],
-         IntervalWindow(0, 17): [set('abcdefgh')]},
+        {
+            IntervalWindow(0, 11): [set('ab')],
+            IntervalWindow(0, 15): [set('abcdef')],
+            IntervalWindow(0, 17): [set('abcdefgh')]
+        },
         2)
 
   def test_picklable_output(self):
@@ -438,6 +455,7 @@ class TriggerTest(unittest.TestCase):
 
 
 class MayLoseDataTest(unittest.TestCase):
+
   def _test(self, trigger, lateness, expected):
     windowing = WindowInto(
         GlobalWindows(),
@@ -524,6 +542,7 @@ class MayLoseDataTest(unittest.TestCase):
 
 
 class RunnerApiTest(unittest.TestCase):
+
   def test_trigger_encoding(self):
     for trigger_fn in (DefaultTrigger(),
                        AfterAll(AfterCount(1), AfterCount(10)),
@@ -540,6 +559,7 @@ class RunnerApiTest(unittest.TestCase):
 
 
 class TriggerPipelineTest(unittest.TestCase):
+
   def test_after_processing_time(self):
     test_options = PipelineOptions(
         flags=['--allow_unsafe_triggers', '--streaming'])
@@ -678,9 +698,11 @@ class TriggerPipelineTest(unittest.TestCase):
 
       assert_that(
           results,
-          equal_to(list({
-            'A': [1, 2, 3], # 4 - 6 discarded because trigger finished
-            'B': [1, 2, 3]}.items())))
+          equal_to(
+              list({
+                  'A': [1, 2, 3],  # 4 - 6 discarded because trigger finished
+                  'B': [1, 2, 3]
+              }.items())))
 
   def test_always(self):
     with TestPipeline() as p:
@@ -706,12 +728,9 @@ class TriggerPipelineTest(unittest.TestCase):
           result,
           equal_to(
               list({
-                  'A-2': {10, 11},
-                  # Elements out of windows are also emitted.
-                  'A-6': {1, 2, 3, 4, 5},
-                  # A,1 is emitted twice.
-                  'B-5': {6, 7, 8, 9},
-                  # B,6 is emitted twice.
+                  'A-2': {10, 11},  # Elements out of windows are also emitted.
+                  'A-6': {1, 2, 3, 4, 5},  # A,1 is emitted twice.
+                  'B-5': {6, 7, 8, 9},  # B,6 is emitted twice.
                   'B-3': {10, 15, 16},
               }.items())))
 
@@ -840,6 +859,7 @@ class TranscriptTest(unittest.TestCase):
       self._run_log(spec)
 
   def _run_log(self, spec):
+
     def parse_int_list(s):
       """Parses strings like '[1, 2, 3]'."""
       s = s.strip()
@@ -1010,6 +1030,7 @@ class _ConcatCombineFn(beam.CombineFn):
 
 
 class TriggerDriverTranscriptTest(TranscriptTest):
+
   def _execute(
       self,
       window_fn,
@@ -1092,6 +1113,7 @@ class TriggerDriverTranscriptTest(TranscriptTest):
 class BaseTestStreamTranscriptTest(TranscriptTest):
   """A suite of TestStream-based tests based on trigger transcript entries.
   """
+
   def _execute(
       self,
       window_fn,
@@ -1182,6 +1204,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
 
       The key is ignored, but all items must be on the same key to share state.
       """
+
       def __init__(self, allow_out_of_order=True):
         # Some runners don't support cross-stage TestStream semantics.
         self.allow_out_of_order = allow_out_of_order
@@ -1284,6 +1307,7 @@ class WeakTestStreamTranscriptTest(BaseTestStreamTranscriptTest):
 
 
 class BatchTranscriptTest(TranscriptTest):
+
   def _execute(
       self,
       window_fn,
@@ -1324,6 +1348,7 @@ class BatchTranscriptTest(TranscriptTest):
       merged_away = set()
 
       class MergeContext(WindowFn.MergeContext):
+
         def merge(_, to_be_merged, merge_result):
           for window in to_be_merged:
             if window != merge_result:

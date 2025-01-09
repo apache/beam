@@ -45,6 +45,7 @@ def check_produce_counts(actual):
     'apache_beam.examples.snippets.transforms.aggregation.groupbykey.print',
     str)
 class GroupByKeyTest(unittest.TestCase):
+
   def test_groupbykey(self):
     groupbykey.groupbykey(check_produce_counts)
 

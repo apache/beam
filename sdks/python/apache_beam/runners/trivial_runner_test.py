@@ -25,6 +25,7 @@ from apache_beam.testing.util import equal_to
 
 
 class TrivialRunnerTest(unittest.TestCase):
+
   def test_trivial(self):
     # The most trivial pipeline, to ensure at least something is working.
     # (Notably avoids the non-trivial complexity within assert_that.)

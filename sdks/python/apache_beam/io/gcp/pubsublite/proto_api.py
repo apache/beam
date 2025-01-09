@@ -34,6 +34,7 @@ class ReadFromPubSubLite(PTransform):
 
   Experimental; no backwards-compatibility guarantees.
   """
+
   def __init__(
       self,
       subscription_path,
@@ -71,6 +72,7 @@ class WriteToPubSubLite(PTransform):
 
   Experimental; no backwards-compatibility guarantees.
   """
+
   def __init__(
       self,
       topic_path,

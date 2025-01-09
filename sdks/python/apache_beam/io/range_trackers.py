@@ -207,9 +207,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
           if self._split_points_unclaimed_callback else
           iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
       split_points_remaining = (
-          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
-          if split_points_unclaimed == iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
-          else (split_points_unclaimed + 1))
+          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN if split_points_unclaimed
+          == iobase.RangeTracker.SPLIT_POINTS_UNKNOWN else
+          (split_points_unclaimed + 1))
 
       return (split_points_consumed, split_points_remaining)
 
@@ -306,6 +306,7 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
   ignoring all calls to :meth:`.try_split()`. All other calls will be delegated
   to the given :class:`~apache_beam.io.iobase.RangeTracker`.
   """
+
   def __init__(self, range_tracker):
     """Initializes UnsplittableRangeTracker.
 
@@ -350,6 +351,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
   """A range tracker that tracks progress through a lexicographically
   ordered keyspace of strings.
   """
+
   @classmethod
   def fraction_to_position(
       cls,

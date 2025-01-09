@@ -29,6 +29,7 @@ from apache_beam.testing.util import equal_to
 
 
 class KeywordOnlyArgsTests(unittest.TestCase):
+
   def test_side_input_keyword_only_args(self):
     with TestPipeline() as pipeline:
 
@@ -114,6 +115,7 @@ class KeywordOnlyArgsTests(unittest.TestCase):
     with TestPipeline() as pipeline:
 
       class MyDoFn(beam.DoFn):
+
         def process(self, element, *s, bound=500):
           return [min(sum(s) + element, bound)]
 

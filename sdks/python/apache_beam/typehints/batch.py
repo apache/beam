@@ -51,6 +51,7 @@ __all__ = ['BatchConverter']
 
 
 class BatchConverter(Generic[B, E]):
+
   def __init__(self, batch_type, element_type):
     self._batch_type = batch_type
     self._element_type = element_type
@@ -74,6 +75,7 @@ class BatchConverter(Generic[B, E]):
 
   @staticmethod
   def register(*, name: str):
+
     def do_registration(
         batch_converter_constructor: Callable[[type, type], 'BatchConverter']):
       if name in BATCH_CONVERTER_REGISTRY:
@@ -169,6 +171,7 @@ N = "ARBITRARY LENGTH DIMENSION"
 
 
 class NumpyBatchConverter(BatchConverter):
+
   def __init__(
       self,
       batch_type,
@@ -241,7 +244,9 @@ class NumpyBatchConverter(BatchConverter):
 # specifying shape, seems to be coming after
 # https://www.python.org/dev/peps/pep-0646/
 class NumpyTypeHint():
+
   class NumpyTypeConstraint(typehints.TypeConstraint):
+
     def __init__(self, dtype, shape=()):
       self.dtype = np.dtype(dtype)
       self.shape = shape
@@ -289,7 +294,8 @@ class NumpyTypeHint():
         raise ValueError
     else:
       dtype = value
-      return self.NumpyTypeConstraint(dtype, shape=(N, ))
+      return self.NumpyTypeConstraint(
+          dtype, shape=(N, ))
 
 
 NumpyArray = NumpyTypeHint()

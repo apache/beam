@@ -40,6 +40,7 @@ from apache_beam.transforms.external import JavaExternalTransform
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
 class XlangGenerateSequenceTest(unittest.TestCase):
+
   def test_generate_sequence(self):
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port

@@ -51,11 +51,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Command(object):
+
   def __init__(self, cmd, args):
     self.cmd = cmd
     self.args = args
 
   def run(self, timeout):
+
     def thread_target():
       logging.debug(
           'Starting thread for %d seconds: %s', timeout, self.cmd.__name__)
@@ -102,6 +104,7 @@ class ParseEventFn(beam.DoFn):
      1528098831536,20180630,maria,vehicle'
     'b12345,maria,20000,1528098831536'
   """
+
   def process(self, elem):
     model_dict = {
         'p': nexmark_model.Person,
@@ -142,6 +145,7 @@ class ParseJsonEventFn(beam.DoFn):
     {"auction":1000,"bidder":1001,"price":32530001,"dateTime":1528098831066,\
      "extra":"fdiysaV^]NLVsbolvyqwgticfdrwdyiyofWPYTOuwogvszlxjrcNOORM"}
   """
+
   def process(self, elem):
     json_dict = json.loads(elem)
     if type(json_dict[FieldNames.DATE_TIME]) is dict:
@@ -183,6 +187,7 @@ class ParseJsonEventFn(beam.DoFn):
 
 
 class CountAndLog(beam.PTransform):
+
   def expand(self, pcoll):
     return (
         pcoll

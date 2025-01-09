@@ -52,6 +52,7 @@ def chunk_equals(expected, actual):
 
 @unittest.skipIf(not LANGCHAIN_AVAILABLE, 'langchain is not installed.')
 class LangChainChunkingTest(unittest.TestCase):
+
   def setUp(self):
     self.simple_text = {
         'content': 'This is a simple test document. It has multiple sentences. '
@@ -104,8 +105,7 @@ class LangChainChunkingTest(unittest.TestCase):
 
       assert_that(chunks_count, lambda x: x[0] > 0, 'Has chunks')
       assert_that(
-          chunks,
-          lambda x: all(
+          chunks, lambda x: all(
               c.metadata == {
                   'source': 'simple.txt', 'language': 'en'
               } for c in x))

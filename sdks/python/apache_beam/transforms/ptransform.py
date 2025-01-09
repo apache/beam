@@ -121,6 +121,7 @@ class _PValueishTransform(object):
 
   This visits a PValueish, contstructing a (possibly mutated) copy.
   """
+
   def visit_nested(self, node, *args):
     if isinstance(node, (tuple, list)):
       args = [self.visit(x, *args) for x in node]
@@ -138,6 +139,7 @@ class _PValueishTransform(object):
 
 
 class _SetInputPValues(_PValueishTransform):
+
   def visit(self, node, replacements):
     if id(node) in replacements:
       return replacements[id(node)]
@@ -196,6 +198,7 @@ def _release_materialized_pipeline(pipeline):
 
 
 class _MaterializedResult(object):
+
   def __init__(self, pipeline_id, result_id):
     # type: (int, int) -> None
     self._pipeline_id = pipeline_id
@@ -210,6 +213,7 @@ class _MaterializedResult(object):
 
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
+
   def __init__(self, deferred, results_by_tag):
     super().__init__(None, None, deferred._tags, deferred._main_tag)
     self._deferred = deferred
@@ -223,6 +227,7 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
 
 
 class _AddMaterializationTransforms(_PValueishTransform):
+
   def _materialize_transform(self, pipeline):
     result = _allocate_materialized_result(pipeline)
 
@@ -232,6 +237,7 @@ class _AddMaterializationTransforms(_PValueishTransform):
     from apache_beam import ParDo
 
     class _MaterializeValuesDoFn(DoFn):
+
       def process(self, element):
         result.elements.append(element)
 
@@ -253,6 +259,7 @@ class _AddMaterializationTransforms(_PValueishTransform):
 
 
 class _FinalizeMaterialization(_PValueishTransform):
+
   def visit(self, node):
     if isinstance(node, _MaterializedResult):
       return node.elements
@@ -307,6 +314,7 @@ class _ZipPValues(object):
 
       [('a', pc1, 'A'), ('b', pc2, 'B'), ('b', pc3, 'B')]
   """
+
   def visit(self, pvalueish, sibling, pairs=None, context=None):
     if pairs is None:
       pairs = []
@@ -708,26 +716,29 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Type[T]
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: Type[T]
+      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: None
+      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
+
     def register(constructor):
       if isinstance(constructor, type):
         constructor.from_runner_api_parameter = register(
@@ -758,10 +769,11 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         if isinstance(typed_param, str) else typed_param)
 
   @classmethod
-  def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
-                      context  # type: PipelineContext
-                     ):
+  def from_runner_api(
+      cls,
+      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
+      context  # type: PipelineContext
+  ):
     # type: (...) -> Optional[PTransform]
     if proto is None or proto.spec is None or not proto.spec.urn:
       return None
@@ -811,6 +823,7 @@ def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
 
 
 class _ChainedPTransform(PTransform):
+
   def __init__(self, *parts):
     # type: (*PTransform) -> None
     super().__init__(label=self._chain_label(parts))
@@ -842,6 +855,7 @@ class PTransformWithSideInputs(PTransform):
   and side inputs to that code. This internal-use-only class contains common
   functionality for :class:`PTransform` s that fit this model.
   """
+
   def __init__(self, fn, *args, **kwargs):
     # type: (WithTypeHints, *Any, **Any) -> None
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
@@ -988,6 +1002,7 @@ class PTransformWithSideInputs(PTransform):
 
 class _PTransformFnPTransform(PTransform):
   """A class wrapper for a function-based transform."""
+
   def __init__(self, fn, *args, **kwargs):
     super().__init__()
     self._fn = fn
@@ -1119,6 +1134,7 @@ def label_from_callable(fn):
 
 
 class _NamedPTransform(PTransform):
+
   def __init__(self, transform, label):
     super().__init__(label)
     self.transform = transform
@@ -1165,6 +1181,7 @@ def annotate_yaml(constructor):
   Should only be used for transforms that are fully defined by their constructor
   arguments.
   """
+
   @wraps(constructor)
   def wrapper(*args, **kwargs):
     transform = constructor(*args, **kwargs)
@@ -1199,8 +1216,7 @@ def annotate_yaml(constructor):
         # The outermost call is expected to be the most specific.
         'yaml_provider': 'python',
         'yaml_type': 'PyTransform',
-        'yaml_args': config,
-    }
+        'yaml_args': config, }
     return transform
 
   return wrapper

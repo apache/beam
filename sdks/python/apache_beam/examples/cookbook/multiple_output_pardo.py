@@ -135,7 +135,9 @@ class CountWords(beam.PTransform):
   A PTransform that converts a PCollection containing words into a PCollection
   of "word: count" strings.
   """
+
   def expand(self, pcoll):
+
     def count_ones(word_ones):
       (word, ones) = word_ones
       return (word, sum(ones))

@@ -101,6 +101,7 @@ def convert_to_usertype(table_schema, selected_fields=None):
 
 
 class BeamSchemaConversionDoFn(DoFn):
+
   def __init__(self, pcoll_val_ctor):
     self._pcoll_val_ctor = pcoll_val_ctor
 

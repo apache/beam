@@ -39,6 +39,7 @@ EXPANSION_SERVICE_ADDR = 'localhost:%s' % EXPANSION_SERVICE_PORT
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
+
   def process(self, element):
     """Returns an iterator over the words of this element.
 

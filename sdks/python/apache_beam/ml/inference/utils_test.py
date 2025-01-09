@@ -27,6 +27,7 @@ from apache_beam.testing.util import equal_to
 
 
 class WatchFilePatternTest(unittest.TestCase):
+
   def test_latest_file_by_timestamp_default_value(self):
     # match continuously returns the files in sorted timestamp order.
     main_input_pcoll = [

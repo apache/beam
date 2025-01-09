@@ -42,6 +42,7 @@ except ImportError:
     VideoIntelligenceServiceClient is None,
     'Video intelligence dependencies are not installed')
 class VideoIntelligenceTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_client = mock.Mock()
     self.m2 = mock.Mock()

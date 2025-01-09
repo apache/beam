@@ -26,6 +26,7 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 
 
 class OffsetRange(object):
+
   def __init__(self, start, stop):
     if start > stop:
       raise ValueError(
@@ -77,6 +78,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   Offset range is represented as OffsetRange.
   """
+
   def __init__(self, offset_range: OffsetRange) -> None:
     assert isinstance(offset_range, OffsetRange), offset_range
     self._range = offset_range
@@ -157,6 +159,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
 class UnsplittableRestrictionTracker(RestrictionTracker):
   """An `iobase.RestrictionTracker` that wraps another but does not split."""
+
   def __init__(self, underling_tracker):
     self._underling_tracker = underling_tracker
 

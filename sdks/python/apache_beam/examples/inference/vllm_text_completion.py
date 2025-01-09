@@ -116,6 +116,7 @@ def parse_known_args(argv):
 
 
 class PostProcessor(beam.DoFn):
+
   def process(self, element: PredictionResult) -> Iterable[str]:
     yield str(element.example) + ": " + str(element.inference)
 

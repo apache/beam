@@ -41,6 +41,7 @@ __all__ = [
 class ValueProvider(object):
   """Base class that all other ValueProviders must implement.
   """
+
   def is_accessible(self):
     """Whether the contents of this ValueProvider is available to routines
     that run at graph construction time.
@@ -59,6 +60,7 @@ class StaticValueProvider(ValueProvider):
   """StaticValueProvider is an implementation of ValueProvider that allows
   for a static value to be provided.
   """
+
   def __init__(self, value_type, value):
     """
     Args:
@@ -142,6 +144,7 @@ class NestedValueProvider(ValueProvider):
   """NestedValueProvider is an implementation of ValueProvider that allows
   for wrapping another ValueProvider object.
   """
+
   def __init__(self, value, translator):
     """Creates a NestedValueProvider that wraps the provided ValueProvider.
 
@@ -185,6 +188,7 @@ def check_accessible(value_provider_list):
   assert isinstance(value_provider_list, list)
 
   def _check_accessible(fnc):
+
     @wraps(fnc)
     def _f(self, *args, **kwargs):
       for obj in [getattr(self, vp) for vp in value_provider_list]:

@@ -23,6 +23,7 @@ from apache_beam.dataframe import partitionings
 
 
 class ExpressionTest(unittest.TestCase):
+
   def test_placeholder_expression(self):
     a = expressions.PlaceholderExpression(None)
     b = expressions.PlaceholderExpression(None)

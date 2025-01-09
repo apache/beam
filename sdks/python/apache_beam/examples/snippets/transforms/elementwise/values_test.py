@@ -43,6 +43,7 @@ Potato
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.values.print', str)
 class ValuesTest(unittest.TestCase):
+
   def test_values(self):
     values.values(check_plants)
 

@@ -33,6 +33,7 @@ from apache_beam.version import __version__ as beam_version
 
 
 class JobServer(object):
+
   def start(self):
     """Starts this JobServer, returning a grpc service to which to submit jobs.
     """
@@ -44,6 +45,7 @@ class JobServer(object):
 
 
 class ExternalJobServer(JobServer):
+
   def __init__(self, endpoint, timeout=None):
     self._endpoint = endpoint
     self._timeout = timeout
@@ -58,6 +60,7 @@ class ExternalJobServer(JobServer):
 
 
 class EmbeddedJobServer(JobServer):
+
   def start(self) -> 'local_job_service.LocalJobServicer':
     return local_job_service.LocalJobServicer()
 
@@ -68,6 +71,7 @@ class EmbeddedJobServer(JobServer):
 class StopOnExitJobServer(JobServer):
   """Wraps a JobServer such that its stop will automatically be called on exit.
   """
+
   def __init__(self, job_server):
     self._lock = threading.Lock()
     self._job_server = job_server
@@ -91,6 +95,7 @@ class StopOnExitJobServer(JobServer):
 
 class SubprocessJobServer(JobServer):
   """An abstract base class for JobServers run as an external process."""
+
   def __init__(self):
     self._local_temp_root = None
     self._server = None
@@ -118,6 +123,7 @@ class SubprocessJobServer(JobServer):
 
 
 class JavaJarJobServer(SubprocessJobServer):
+
   def __init__(self, options):
     super().__init__()
     options = options.view_as(pipeline_options.JobServerOptions)

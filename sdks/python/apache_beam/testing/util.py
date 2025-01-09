@@ -67,7 +67,9 @@ def contains_in_any_order(iterable):
   Arguments:
     iterable: An iterable of hashable objects.
   """
+
   class InAnyOrder(object):
+
     def __init__(self, iterable):
       self._counter = collections.Counter(iterable)
 
@@ -84,6 +86,7 @@ def contains_in_any_order(iterable):
 
 
 class _EqualToPerWindowMatcher(object):
+
   def __init__(self, expected_window_to_elements):
     self._expected_window_to_elements = expected_window_to_elements
 
@@ -151,6 +154,7 @@ def equal_to_per_window(expected_window_to_elements):
 # other. However, only permutations of the top level are checked. Therefore
 # [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected, equals_fn=None):
+
   def _equal(actual, equals_fn=equals_fn):
     expected_list = list(expected)
 
@@ -201,6 +205,7 @@ def matches_all(expected):
     expected: A list of elements or hamcrest matchers to be used to match
       the elements of a single PCollection.
   """
+
   def _matches(actual):
     from hamcrest.core import assert_that as hamcrest_assert
     from hamcrest.library.collection import contains_inanyorder
@@ -212,6 +217,7 @@ def matches_all(expected):
 
 
 def is_empty():
+
   def _empty(actual):
     actual = list(actual)
     if actual:
@@ -226,6 +232,7 @@ def is_not_empty():
   some data in it.
   :return:
   """
+
   def _not_empty(actual):
     actual = list(actual)
     if not actual:
@@ -289,6 +296,7 @@ def assert_that(
     use_global_window = True
 
   class ReifyTimestampWindow(DoFn):
+
     def process(
         self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       # This returns TestWindowedValue instead of
@@ -297,10 +305,12 @@ def assert_that(
       return [TestWindowedValue(element, timestamp, [window])]
 
   class AddWindow(DoFn):
+
     def process(self, element, window=DoFn.WindowParam):
       yield element, window
 
   class AssertThat(PTransform):
+
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())

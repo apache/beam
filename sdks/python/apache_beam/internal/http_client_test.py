@@ -30,6 +30,7 @@ from apache_beam.internal.http_client import proxy_info_from_environment_var
 
 
 class HttpClientTest(unittest.TestCase):
+
   def test_proxy_from_env_http_with_port(self):
     with mock.patch.dict(os.environ, http_proxy='http://localhost:9000'):
       proxy_info = proxy_info_from_environment_var('http_proxy')

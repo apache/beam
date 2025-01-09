@@ -51,6 +51,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
+
   def process(self, element: tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = prediction_result.inference

@@ -311,6 +311,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
   A namedtuple holds the immutable data of the connection string to the cloud
   spanner.
   """
+
   @property
   def snapshot_options(self):
     snapshot_options = {}
@@ -324,6 +325,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
 @with_input_types(ReadOperation, _SPANNER_TRANSACTION)
 @with_output_types(typing.List[typing.Any])
 class _NaiveSpannerReadDoFn(DoFn):
+
   def __init__(self, spanner_configuration):
     """
     A naive version of Spanner read which uses the transaction API of the
@@ -458,6 +460,7 @@ class _CreateReadPartitions(DoFn):
   mappings of information used perform actual partitioned reads via
   :meth:`process_read_batch`.
   """
+
   def __init__(self, spanner_configuration):
     self._spanner_configuration = spanner_configuration
 
@@ -504,6 +507,7 @@ class _CreateTransactionFn(DoFn):
   https://googleapis.dev/python/spanner/latest/database-api.html?highlight=
   batch_snapshot#google.cloud.spanner_v1.database.BatchSnapshot.to_dict
   """
+
   def __init__(
       self,
       project_id,
@@ -592,6 +596,7 @@ class _ReadFromPartitionFn(DoFn):
   """
   A DoFn to perform reads from the partition.
   """
+
   def __init__(self, spanner_configuration):
     self._spanner_configuration = spanner_configuration
     self.base_labels = {
@@ -681,14 +686,25 @@ class ReadFromSpanner(PTransform):
   ReadFromSpanner uses BatchAPI to perform all read operations.
   """
 
-  def __init__(self, project_id, instance_id, database_id, pool=None,
-               read_timestamp=None, exact_staleness=None, credentials=None,
-               sql=None, params=None, param_types=None,  # with_query
-               table=None, query_name=None, columns=None, index="",
-               keyset=None,  # with_table
-               read_operations=None,  # for read all
-               transaction=None
-              ):
+  def __init__(
+      self,
+      project_id,
+      instance_id,
+      database_id,
+      pool=None,
+      read_timestamp=None,
+      exact_staleness=None,
+      credentials=None,
+      sql=None,
+      params=None,
+      param_types=None,  # with_query
+      table=None,
+      query_name=None,
+      columns=None,
+      index="",
+      keyset=None,  # with_table
+      read_operations=None,  # for read all
+      transaction=None):
     """
     A PTransform that uses Spanner Batch API to perform reads.
 
@@ -816,6 +832,7 @@ class ReadFromSpanner(PTransform):
 
 
 class WriteToSpanner(PTransform):
+
   def __init__(
       self,
       project_id,
@@ -907,6 +924,7 @@ class MutationGroup(deque):
   """
   A Bundle of Spanner Mutations (_Mutator).
   """
+
   @property
   def info(self):
     cells = 0
@@ -986,11 +1004,8 @@ class WriteMutation(object):
     self._replace = replace
     self._delete = delete
 
-    if sum([1 for x in [self._insert,
-                        self._update,
-                        self._insert_or_update,
-                        self._replace,
-                        self._delete] if x is not None]) != 1:
+    if sum([1 for x in [self._insert, self._update, self._insert_or_update,
+                        self._replace, self._delete] if x is not None]) != 1:
       raise ValueError(
           "No or more than one write mutation operation "
           "provided: <%s: %s>" % (self.__class__.__name__, str(self.__dict__)))
@@ -1118,6 +1133,7 @@ class _BatchFn(DoFn):
   """
   Batches mutations together.
   """
+
   def __init__(self, max_batch_size_bytes, max_number_rows, max_number_cells):
     self._max_batch_size_bytes = max_batch_size_bytes
     self._max_number_rows = max_number_rows
@@ -1194,6 +1210,7 @@ class _BatchableFilterFn(DoFn):
 
 
 class _WriteToSpannerDoFn(DoFn):
+
   def __init__(self, spanner_configuration):
     self._spanner_configuration = spanner_configuration
     self._db_instance = None
@@ -1274,6 +1291,7 @@ class _MakeMutationGroupsFn(DoFn):
   """
   Make Mutation group object if the element is the instance of _Mutator.
   """
+
   def process(self, element):
     if isinstance(element, MutationGroup):
       yield element
@@ -1286,6 +1304,7 @@ class _MakeMutationGroupsFn(DoFn):
 
 
 class _WriteGroup(PTransform):
+
   def __init__(self, max_batch_size_bytes, max_number_rows, max_number_cells):
     self._max_batch_size_bytes = max_batch_size_bytes
     self._max_number_rows = max_number_rows

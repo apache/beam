@@ -180,6 +180,7 @@ def _check_mapping_arguments(
 # that cannot be pickled without implementing the __getstate__ and
 # __setstate__ methods.
 class _CustomJsObjectWrapper(JsObjectWrapper):
+
   def __init__(self, js_obj):
     super().__init__(js_obj.__dict__['_obj'])
 
@@ -493,6 +494,7 @@ class _Validate(beam.PTransform):
           invalid elements will be passed to the specified error output along
           with information about how the schema was invalidated.
   """
+
   def __init__(
       self,
       schema: Dict[str, Any],
@@ -596,9 +598,10 @@ class _Explode(beam.PTransform):
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if cross_product else explode_zip)
-            ({name: getattr(row, name)
-              for name in all_fields}, to_explode)))
+            (explode_cross_product if cross_product else explode_zip)({
+                name: getattr(row, name)
+                for name in all_fields
+            }, to_explode)))
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(

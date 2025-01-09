@@ -28,6 +28,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class CallSequenceEnforcingDoFn(beam.DoFn):
+
   def __init__(self):
     self._setup_called = False
     self._start_bundle_calls = 0
@@ -76,6 +77,7 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
 
 @pytest.mark.it_validatesrunner
 class DoFnLifecycleTest(unittest.TestCase):
+
   def test_dofn_lifecycle(self):
     with TestPipeline() as p:
       _ = (
@@ -86,6 +88,7 @@ class DoFnLifecycleTest(unittest.TestCase):
 
 
 class LocalDoFnLifecycleTest(unittest.TestCase):
+
   def test_dofn_lifecycle(self):
     from apache_beam.runners.direct import direct_runner
     from apache_beam.runners.portability import fn_api_runner

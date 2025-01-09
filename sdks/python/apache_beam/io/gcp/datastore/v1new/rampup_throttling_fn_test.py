@@ -33,6 +33,7 @@ class _RampupDelayException(Exception):
 
 
 class RampupThrottlerTransformTest(unittest.TestCase):
+
   @patch('datetime.datetime')
   @patch('time.sleep')
   def test_rampup_throttling(self, mock_sleep, mock_datetime):

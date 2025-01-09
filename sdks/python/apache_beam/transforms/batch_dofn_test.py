@@ -31,22 +31,26 @@ import apache_beam as beam
 
 
 class ElementDoFn(beam.DoFn):
+
   def process(self, element: int, *args, **kwargs) -> Iterator[float]:
     yield element / 2
 
 
 class BatchDoFn(beam.DoFn):
+
   def process_batch(self, batch: List[int], *args,
                     **kwargs) -> Iterator[List[float]]:
     yield [element / 2 for element in batch]
 
 
 class NoReturnAnnotation(beam.DoFn):
+
   def process_batch(self, batch: List[int], *args, **kwargs):
     yield [element * 2 for element in batch]
 
 
 class OverrideTypeInference(beam.DoFn):
+
   def process_batch(self, batch, *args, **kwargs):
     yield [element * 2 for element in batch]
 
@@ -58,6 +62,7 @@ class OverrideTypeInference(beam.DoFn):
 
 
 class EitherDoFn(beam.DoFn):
+
   def process(self, element: int, *args, **kwargs) -> Iterator[float]:
     yield element / 2
 
@@ -67,6 +72,7 @@ class EitherDoFn(beam.DoFn):
 
 
 class ElementToBatchDoFn(beam.DoFn):
+
   @beam.DoFn.yields_batches
   def process(self, element: int, *args, **kwargs) -> Iterator[List[int]]:
     yield [element] * element
@@ -76,6 +82,7 @@ class ElementToBatchDoFn(beam.DoFn):
 
 
 class BatchToElementDoFn(beam.DoFn):
+
   @beam.DoFn.yields_elements
   def process_batch(self, batch: List[int], *args,
                     **kwargs) -> Iterator[Tuple[int, int]]:
@@ -146,6 +153,7 @@ def get_test_class_name(cls, num, params_dict):
 ],
                      class_name_func=get_test_class_name)
 class BatchDoFnParameterizedTest(unittest.TestCase):
+
   def test_process_defined(self):
     self.assertEqual(self.dofn._process_defined, self.expected_process_defined)
 
@@ -169,6 +177,7 @@ class BatchDoFnParameterizedTest(unittest.TestCase):
 
 
 class NoInputAnnotation(beam.DoFn):
+
   def process_batch(self, batch, *args, **kwargs):
     yield [element * 2 for element in batch]
 
@@ -177,6 +186,7 @@ class MismatchedBatchProducingDoFn(beam.DoFn):
   """A DoFn that produces batches from both process and process_batch, with
   mismatched return types (one yields floats, the other ints). Should yield
   a construction time error when applied."""
+
   @beam.DoFn.yields_batches
   def process(self, element: int, *args, **kwargs) -> Iterator[List[int]]:
     yield [element]
@@ -190,6 +200,7 @@ class MismatchedElementProducingDoFn(beam.DoFn):
   """A DoFn that produces elements from both process and process_batch, with
   mismatched return types (one yields floats, the other ints). Should yield
   a construction time error when applied."""
+
   def process(self, element: int, *args, **kwargs) -> Iterator[float]:
     yield element / 2
 
@@ -199,12 +210,14 @@ class MismatchedElementProducingDoFn(beam.DoFn):
 
 
 class NoElementOutputAnnotation(beam.DoFn):
+
   def process_batch(self, batch: List[int], *args,
                     **kwargs) -> Iterator[List[int]]:
     yield [element * 2 for element in batch]
 
 
 class BatchDoFnTest(unittest.TestCase):
+
   def test_map_pardo(self):
     # verify batch dofn accessors work well with beam.Map generated DoFn
     # checking this in parameterized test causes a circular reference issue
@@ -223,7 +236,9 @@ class BatchDoFnTest(unittest.TestCase):
       _ = pc | beam.ParDo(NoInputAnnotation())
 
   def test_unsupported_dofn_param_raises(self):
+
     class BadParam(beam.DoFn):
+
       @no_type_check
       def process_batch(self, batch: List[int], key=beam.DoFn.KeyParam):
         yield batch * key
@@ -265,8 +280,7 @@ class BatchDoFnTest(unittest.TestCase):
     pc = p | beam.Create(['a', 'b', 'c'])
 
     with self.assertRaisesRegex(
-        TypeError,
-        # Error should mention "input", and the name of the DoFn
+        TypeError,  # Error should mention "input", and the name of the DoFn
         r'input.*BatchDoFn.*'):
       _ = pc | beam.ParDo(BatchDoFn())
 

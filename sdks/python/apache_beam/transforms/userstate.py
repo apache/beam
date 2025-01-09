@@ -50,6 +50,7 @@ CallableT = TypeVar('CallableT', bound=Callable)
 
 class StateSpec(object):
   """Specification for a user DoFn state cell."""
+
   def __init__(self, name: str, coder: Coder) -> None:
     if not isinstance(name, str):
       raise TypeError("name is not a string")
@@ -68,6 +69,7 @@ class StateSpec(object):
 
 class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell."""
+
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -79,6 +81,7 @@ class ReadModifyWriteStateSpec(StateSpec):
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
+
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -90,6 +93,7 @@ class BagStateSpec(StateSpec):
 
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
+
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -101,6 +105,7 @@ class SetStateSpec(StateSpec):
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
+
   def __init__(
       self,
       name: str,
@@ -152,6 +157,7 @@ class CombiningValueStateSpec(StateSpec):
 
 class OrderedListStateSpec(StateSpec):
   """Specification for a user DoFn ordered list state cell."""
+
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -307,6 +313,7 @@ def validate_stateful_dofn(dofn: 'DoFn') -> None:
 
 
 class BaseTimer(object):
+
   def clear(self, dynamic_timer_tag: str = '') -> None:
     raise NotImplementedError
 
@@ -319,6 +326,7 @@ _TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))  #
 
 class RuntimeTimer(BaseTimer):
   """Timer interface object passed to user code."""
+
   def __init__(self) -> None:
     self._timer_recordings: Dict[str, _TimerTuple] = {}
     self._cleared = False
@@ -335,6 +343,7 @@ class RuntimeTimer(BaseTimer):
 
 class RuntimeState(object):
   """State interface object passed to user code."""
+
   def prefetch(self) -> None:
     # The default implementation here does nothing.
     pass
@@ -344,6 +353,7 @@ class RuntimeState(object):
 
 
 class ReadModifyWriteRuntimeState(RuntimeState):
+
   def read(self) -> Any:
     raise NotImplementedError(type(self))
 
@@ -358,6 +368,7 @@ class ReadModifyWriteRuntimeState(RuntimeState):
 
 
 class AccumulatingRuntimeState(RuntimeState):
+
   def read(self) -> Iterable[Any]:
     raise NotImplementedError(type(self))
 
@@ -385,6 +396,7 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 
 class OrderedListRuntimeState(AccumulatingRuntimeState):
   """Ordered list state interface object passed to user code."""
+
   def read(self) -> Iterable[Tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
@@ -403,6 +415,7 @@ class OrderedListRuntimeState(AccumulatingRuntimeState):
 
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
+
   def get_timer(
       self,
       timer_spec: TimerSpec,

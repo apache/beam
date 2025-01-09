@@ -41,6 +41,7 @@ def check_unique_elements(actual):
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.distinct.print', str)
 class DistinctTest(unittest.TestCase):
+
   def test_distinct(self):
     distinct.distinct(check_unique_elements)
 

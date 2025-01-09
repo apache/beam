@@ -58,6 +58,7 @@ NUM_SERIAL_STAGES = 6
 
 
 class RekeyElements(beam.DoFn):
+
   def process(self, element):
     _, values = element
     return [(random.randint(0, 1000), v) for v in values]
@@ -77,6 +78,7 @@ def _build_serial_stages(input_pc, num_serial_stages, stage_count):
 
 
 def run_single_pipeline(size):
+
   def _pipeline_runner():
     with beam.Pipeline(runner=DirectRunner()) as p:
       ts = TestStream().advance_watermark_to(0)

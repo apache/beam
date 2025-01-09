@@ -24,6 +24,7 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 
 
 class TestProtoUtils(unittest.TestCase):
+
   def test_from_micros_duration(self):
     ts = proto_utils.from_micros(duration_pb2.Duration, MAX_TIMESTAMP.micros)
     expected = duration_pb2.Duration(

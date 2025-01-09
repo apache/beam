@@ -96,6 +96,7 @@ class PayloadBuilder(object):
   """
   Abstract base class for building payloads to pass to ExternalTransform.
   """
+
   def build(self):
     """
     :return: ExternalConfigurationPayload
@@ -138,6 +139,7 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   Base class for building payloads based on a schema that provides
   type information for each configuration value to encode.
   """
+
   def _get_named_tuple_instance(self):
     raise NotImplementedError()
 
@@ -152,6 +154,7 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload that generates a schema from the provided values.
   """
+
   def __init__(self, values):
     self._values = values
 
@@ -163,8 +166,8 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
     }
 
     schema = named_fields_to_schema([
-        (key, convert_to_typing_type(instance_to_type(value))) for key,
-        value in values.items()
+        (key, convert_to_typing_type(instance_to_type(value)))
+        for key, value in values.items()
     ])
     return named_tuple_from_schema(schema)(**values)
 
@@ -173,6 +176,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on a NamedTuple schema.
   """
+
   def __init__(self, tuple_instance):
     """
     :param tuple_instance: an instance of a typing.NamedTuple
@@ -185,6 +189,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 
 
 class SchemaTransformPayloadBuilder(PayloadBuilder):
+
   def __init__(self, identifier, **kwargs):
     self._identifier = identifier
     self._kwargs = kwargs
@@ -207,12 +212,14 @@ class SchemaTransformPayloadBuilder(PayloadBuilder):
 
 
 class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
+
   def __init__(self, identifier, schema_proto, **kwargs):
     self._identifier = identifier
     self._schema_proto = schema_proto
     self._kwargs = kwargs
 
   def build(self):
+
     def dict_to_row_recursive(field_type, py_value):
       if py_value is None:
         return None
@@ -227,8 +234,7 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
       elif type_info == 'map_type':
         return {
             key: dict_to_row_recursive(field_type.map_type.value_type, value)
-            for key,
-            value in py_value.items()
+            for key, value in py_value.items()
         }
       else:
         return py_value
@@ -401,6 +407,7 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       keys map to the field names of the schema of the SchemaTransform
       (in-order).
   """
+
   def __init__(
       self,
       identifier,
@@ -533,6 +540,7 @@ class JavaExternalTransform(ptransform.PTransform):
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
   """
+
   def __init__(self, class_name, expansion_service=None, classpath=None):
     if expansion_service and classpath:
       raise ValueError(
@@ -585,6 +593,7 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform's type annotations.
   """
+
   def __init__(self, transform, **values):
     """
     :param transform: a PTransform instance or class. type annotations will
@@ -596,8 +605,8 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 
   def _get_named_tuple_instance(self):
     schema = named_fields_to_schema([
-        (k, convert_to_typing_type(v)) for k,
-        v in self._transform.__init__.__annotations__.items()
+        (k, convert_to_typing_type(v))
+        for k, v in self._transform.__init__.__annotations__.items()
         if k in self._values
     ])
     return named_tuple_from_schema(schema)(**self._values)
@@ -607,6 +616,7 @@ class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform that uses dataclasses.
   """
+
   def __init__(self, transform):
     """
     :param transform: a dataclass-decorated PTransform instance from which to
@@ -771,8 +781,7 @@ class ExternalTransform(ptransform.PTransform):
 
     self._outputs = {
         tag: fix_output(result_context.pcollections.get_by_id(pcoll_id), tag)
-        for tag,
-        pcoll_id in self._expanded_transform.outputs.items()
+        for tag, pcoll_id in self._expanded_transform.outputs.items()
     }
 
     return self._output_to_pvalueish(self._outputs)
@@ -807,6 +816,7 @@ class ExternalTransform(ptransform.PTransform):
         yield stub
 
   def _resolve_artifacts(self, components, service, dest):
+
     def _resolve_artifacts_for(env):
       if env.urn == common_urns.environments.ANYOF.urn:
         env.CopyFrom(
@@ -893,13 +903,11 @@ class ExternalTransform(ptransform.PTransform):
           subtransforms=proto.subtransforms,
           inputs={
               tag: pcoll_renames.get(pcoll, pcoll)
-              for tag,
-              pcoll in proto.inputs.items()
+              for tag, pcoll in proto.inputs.items()
           },
           outputs={
               tag: pcoll_renames.get(pcoll, pcoll)
-              for tag,
-              pcoll in proto.outputs.items()
+              for tag, pcoll in proto.outputs.items()
           },
           display_data=proto.display_data,
           environment_id=proto.environment_id)
@@ -914,13 +922,11 @@ class ExternalTransform(ptransform.PTransform):
         subtransforms=self._expanded_transform.subtransforms,
         inputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag,
-            pcoll in self._expanded_transform.inputs.items()
+            for tag, pcoll in self._expanded_transform.inputs.items()
         },
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag,
-            pcoll in self._expanded_transform.outputs.items()
+            for tag, pcoll in self._expanded_transform.outputs.items()
         },
         annotations=self._expanded_transform.annotations,
         environment_id=self._expanded_transform.environment_id)
@@ -928,6 +934,7 @@ class ExternalTransform(ptransform.PTransform):
 
 class ExpansionAndArtifactRetrievalStub(
     beam_expansion_api_pb2_grpc.ExpansionServiceStub):
+
   def __init__(self, channel, **kwargs):
     self._channel = channel
     self._kwargs = kwargs
@@ -959,6 +966,7 @@ class JavaJarExpansionService(object):
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
   """
+
   def __init__(
       self, path_to_jar, extra_args=None, classpath=None, append_args=None):
     if extra_args and append_args:
@@ -1059,6 +1067,7 @@ class BeamJarExpansionService(JavaJarExpansionService):
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
   """
+
   def __init__(
       self,
       gradle_target,

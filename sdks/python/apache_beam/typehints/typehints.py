@@ -107,6 +107,7 @@ class CompositeTypeHintError(TypeError):
 
 class GetitemConstructor(type):
   """A metaclass that makes Cls[arg] an alias for Cls(arg)."""
+
   def __getitem__(cls, arg):
     return cls(arg)
 
@@ -119,6 +120,7 @@ class TypeConstraint(object):
   another :class:`CompositeTypeHint`. It binds and enforces a specific
   version of a generalized TypeHint.
   """
+
   def _consistent_with_check_(self, sub):
     """Returns whether sub is consistent with self.
 
@@ -223,6 +225,7 @@ class IndexableTypeConstraint(TypeConstraint):
   """An internal common base-class for all type constraints with indexing.
   E.G. SequenceTypeConstraint + Tuple's of fixed size.
   """
+
   def _constraint_for_index(self, idx):
     """Returns the type at the given index. This is used to allow type inference
     to determine the correct type for a specific index. On lists this will also
@@ -246,6 +249,7 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
     inner_type: The type which every element in the sequence should be an
       instance of.
   """
+
   def __init__(self, inner_type, sequence_type):
     self.inner_type = normalize(inner_type)
     self._sequence_type = sequence_type
@@ -329,6 +333,7 @@ class CompositeTypeHint(object):
 
     * Example: 'Coordinates = List[Tuple[int, int]]'
   """
+
   def __getitem___(self, py_type):
     """Given a type creates a TypeConstraint instance parameterized by the type.
 
@@ -437,6 +442,7 @@ class AnyTypeConstraint(TypeConstraint):
   function arguments or return types. All other TypeConstraint's are equivalent
   to 'Any', and its 'type_check' method is a no-op.
   """
+
   def __eq__(self, other):
     return type(self) == type(other)
 
@@ -453,6 +459,7 @@ class AnyTypeConstraint(TypeConstraint):
 
 
 class TypeVariable(AnyTypeConstraint):
+
   def __init__(self, name, use_name_in_eq=True):
     self.name = name
     self.use_name_in_eq = use_name_in_eq
@@ -502,7 +509,9 @@ class UnionHint(CompositeTypeHint):
 
     * Union[int, str] == Union[str, int]
   """
+
   class UnionConstraint(TypeConstraint):
+
     def __init__(self, union_types):
       self.union_types = set(normalize(t) for t in union_types)
 
@@ -619,6 +628,7 @@ class OptionalHint(UnionHint):
 
   The Optional[X] factory function proxies to Union[X, type(None)]
   """
+
   def __getitem__(self, py_type):
     # A single type must have been passed.
     if isinstance(py_type, abc.Sequence):
@@ -661,7 +671,9 @@ class TupleHint(CompositeTypeHint):
   As an example, Tuple[str, ...] indicates a tuple of any length with each
   element being an instance of 'str'.
   """
+
   class TupleSequenceConstraint(SequenceTypeConstraint):
+
     def __init__(self, type_param):
       super().__init__(type_param, tuple)
 
@@ -677,6 +689,7 @@ class TupleHint(CompositeTypeHint):
       return super()._consistent_with_check_(sub)
 
   class TupleConstraint(IndexableTypeConstraint):
+
     def __init__(self, type_params):
       self.tuple_types = tuple(normalize(t) for t in type_params)
 
@@ -703,8 +716,8 @@ class TupleHint(CompositeTypeHint):
       return (
           isinstance(sub, self.__class__) and
           len(sub.tuple_types) == len(self.tuple_types) and all(
-              is_consistent_with(sub_elem, elem) for sub_elem,
-              elem in zip(sub.tuple_types, self.tuple_types)))
+              is_consistent_with(sub_elem, elem)
+              for sub_elem, elem in zip(sub.tuple_types, self.tuple_types)))
 
     def type_check(self, tuple_instance):
       if not isinstance(tuple_instance, tuple):
@@ -789,7 +802,9 @@ class ListHint(CompositeTypeHint):
 
     * ['1', '2', '3'] satisfies List[str]
   """
+
   class ListConstraint(SequenceTypeConstraint):
+
     def __init__(self, list_type):
       super().__init__(list_type, list)
 
@@ -812,6 +827,7 @@ class KVHint(CompositeTypeHint):
   accepts exactly two type-parameters. The first represents the required
   key-type and the second the required value-type.
   """
+
   def __getitem__(self, type_params):
     if not isinstance(type_params, tuple):
       raise TypeError(
@@ -847,7 +863,9 @@ class DictHint(CompositeTypeHint):
   Dict[K, V] Represents a dictionary where all keys are of a particular type
   and all values are of another (possible the same) type.
   """
+
   class DictConstraint(TypeConstraint):
+
     def __init__(self, key_type, value_type):
       self.key_type = normalize(key_type)
       self.value_type = normalize(value_type)
@@ -969,7 +987,9 @@ class SetHint(CompositeTypeHint):
   Set[X] defines a type-hint for a set of homogeneous types. 'X' may be either a
   built-in Python type or a another nested TypeConstraint.
   """
+
   class SetTypeConstraint(SequenceTypeConstraint):
+
     def __init__(self, type_param):
       super().__init__(type_param, set)
 
@@ -994,7 +1014,9 @@ class FrozenSetHint(CompositeTypeHint):
 
   This is a mirror copy of SetHint - consider refactoring common functionality.
   """
+
   class FrozenSetTypeConstraint(SequenceTypeConstraint):
+
     def __init__(self, type_param):
       super(FrozenSetHint.FrozenSetTypeConstraint,
             self).__init__(type_param, frozenset)
@@ -1022,7 +1044,9 @@ class CollectionHint(CompositeTypeHint):
   __contains__, __iter__, and __len__. This acts as a parent type for
   sets but has fewer guarantees for mixins.
   """
+
   class CollectionTypeConstraint(SequenceTypeConstraint):
+
     def __init__(self, type_param):
       super().__init__(type_param, abc.Collection)
 
@@ -1078,7 +1102,9 @@ class IterableHint(CompositeTypeHint):
   Iterable[X] defines a type-hint for an object implementing an '__iter__'
   method which yields objects which are all of the same type.
   """
+
   class IterableTypeConstraint(SequenceTypeConstraint):
+
     def __init__(self, iter_type):
       super(IterableHint.IterableTypeConstraint,
             self).__init__(iter_type, abc.Iterable)
@@ -1120,7 +1146,9 @@ class IteratorHint(CompositeTypeHint):
   underlying lazily generated sequence. See decorators.interleave_type_check for
   further information.
   """
+
   class IteratorTypeConstraint(TypeConstraint):
+
     def __init__(self, t):
       self.yielded_type = normalize(t)
 
@@ -1175,6 +1203,7 @@ class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
+
   def __init__(self, inner_type):
     self.inner_type = normalize(inner_type)
 
@@ -1220,6 +1249,7 @@ class GeneratorHint(IteratorHint):
   Subscriptor is in the form [yield_type, send_type, return_type], however
   only yield_type is supported. The 2 others are expected to be None.
   """
+
   def __getitem__(self, type_params):
     if isinstance(type_params, tuple) and len(type_params) == 3:
       yield_type, send_type, return_type = type_params

@@ -21,6 +21,7 @@ performance summary for a run of nexmark query
 
 
 class NexmarkPerf(object):
+
   def __init__(
       self,
       runtime_sec=None,

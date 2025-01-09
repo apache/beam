@@ -43,6 +43,7 @@ class PythonCallableWithSource(object):
 
   is a valid chunk of source code.
   """
+
   def __init__(self, source: str) -> None:
     self._source = source
     self._callable = self.load_from_source(source)

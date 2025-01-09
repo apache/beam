@@ -34,6 +34,7 @@ class PipelineFragment(object):
   A pipeline fragment is built from the original pipeline definition to include
   only PTransforms that are necessary to produce the given PCollections.
   """
+
   def __init__(self, pcolls, options=None, runner=None):
     """Constructor of PipelineFragment.
 
@@ -163,6 +164,7 @@ class PipelineFragment(object):
     label_to_user_transform = {}
 
     class UserTransformVisitor(PipelineVisitor):
+
       def enter_composite_transform(self, transform_node):
         self.visit_transform(transform_node)
 
@@ -180,6 +182,7 @@ class PipelineFragment(object):
     runner_transforms_to_user_transforms = {}
 
     class CorrelationVisitor(PipelineVisitor):
+
       def enter_composite_transform(self, transform_node):
         self.visit_transform(transform_node)
 
@@ -242,7 +245,9 @@ class PipelineFragment(object):
 
   def _prune_runner_pipeline_to_fragment(
       self, runner_pipeline, necessary_transforms):
+
     class PruneVisitor(PipelineVisitor):
+
       def enter_composite_transform(self, transform_node):
         if should_skip_pruning(transform_node):
           return

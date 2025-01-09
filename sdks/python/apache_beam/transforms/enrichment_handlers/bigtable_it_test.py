@@ -51,6 +51,7 @@ def _row_key_fn(request: beam.Row) -> bytes:
 class ValidateResponse(beam.DoFn):
   """ValidateResponse validates if a PCollection of `beam.Row`
   has the required fields."""
+
   def __init__(
       self,
       n_fields: int,
@@ -152,6 +153,7 @@ def create_rows(table):
 
 @pytest.mark.uses_testcontainer
 class TestBigTableEnrichment(unittest.TestCase):
+
   def setUp(self):
     self.project_id = 'apache-beam-testing'
     self.instance_id = 'beam-test'

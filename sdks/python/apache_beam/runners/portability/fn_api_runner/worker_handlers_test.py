@@ -27,6 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class WorkerHandlerManagerTest(unittest.TestCase):
+
   def test_close_all(self):
     inprocess_env = environments.EmbeddedPythonEnvironment(
         capabilities=environments.python_sdk_capabilities(),

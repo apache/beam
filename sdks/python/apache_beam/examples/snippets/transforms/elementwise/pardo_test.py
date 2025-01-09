@@ -89,6 +89,7 @@ teardown
     'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn_params.print',
     str)
 class ParDoTest(unittest.TestCase):
+
   def test_pardo_dofn(self):
     pardo_dofn.pardo_dofn(check_plants)
 
@@ -99,6 +100,7 @@ class ParDoTest(unittest.TestCase):
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch('sys.stdout', new_callable=StringIO)
 class ParDoStdoutTest(unittest.TestCase):
+
   def test_pardo_dofn_methods(self, mock_stdout):
     expected = pardo_dofn_methods.pardo_dofn_methods(check_dofn_methods)
     actual = mock_stdout.getvalue().splitlines()

@@ -42,6 +42,7 @@ except ImportError:
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class UtilsTest(unittest.TestCase):
+
   def setUp(self):
     test_utils.patch_retry(self, utils)
 
@@ -76,6 +77,7 @@ class UtilsTest(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class PubSubUtilTest(unittest.TestCase):
+
   def test_write_to_pubsub(self):
     mock_pubsub = mock.Mock()
     topic_path = "project/fakeproj/topics/faketopic"
@@ -178,6 +180,7 @@ class PubSubUtilTest(unittest.TestCase):
         [test_utils.PullResponseMessage(data, ack_id=ack_id)])
 
     class FlakyPullResponse(object):
+
       def __init__(self, pull_response):
         self.pull_response = pull_response
         self._state = -1
@@ -210,17 +213,17 @@ class PubSubUtilTest(unittest.TestCase):
     } for i in range(number_of_elements)]
     ack_ids = ['ack_id_{}'.format(i) for i in range(number_of_elements)]
     messages = [
-        PubsubMessage(data, attributes) for data,
-        attributes in zip(data_list, attributes_list)
+        PubsubMessage(data, attributes)
+        for data, attributes in zip(data_list, attributes_list)
     ]
     response_messages = [
         test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)
-        for data,
-        attributes,
-        ack_id in zip(data_list, attributes_list, ack_ids)
+        for data, attributes, ack_id in zip(
+            data_list, attributes_list, ack_ids)
     ]
 
     class SequentialPullResponse(object):
+
       def __init__(self, response_messages, response_size):
         self.response_messages = response_messages
         self.response_size = response_size

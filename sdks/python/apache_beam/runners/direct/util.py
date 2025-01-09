@@ -25,6 +25,7 @@ For internal use only. No backwards compatibility guarantees.
 
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
+
   def __init__(
       self,
       transform_evaluator,
@@ -57,6 +58,7 @@ class TransformResult(object):
 
 class TimerFiring(object):
   """A single instance of a fired timer."""
+
   def __init__(
       self,
       encoded_key,
@@ -83,6 +85,7 @@ class TimerFiring(object):
 
 class KeyedWorkItem(object):
   """A keyed item that can either be a timer firing or a list of elements."""
+
   def __init__(self, encoded_key, timer_firings=None, elements=None):
     self.encoded_key = encoded_key
     self.timer_firings = timer_firings or []

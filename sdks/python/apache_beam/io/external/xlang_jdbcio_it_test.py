@@ -71,8 +71,8 @@ coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
 class CrossLanguageJdbcIOTest(unittest.TestCase):
   DbData = typing.NamedTuple(

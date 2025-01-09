@@ -23,6 +23,7 @@ from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
 
 class AuctionBidCoder(FastCoder):
+
   def to_type_hint(self):
     return AuctionBid
 

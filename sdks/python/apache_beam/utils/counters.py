@@ -208,6 +208,7 @@ class Counter(object):
 
 class AccumulatorCombineFnCounter(Counter):
   """Counter optimized for a mutating accumulator that holds all the logic."""
+
   def __init__(self, name, combine_fn):
     # type: (CounterName, cy_combiners.AccumulatorCombineFn) -> None
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
@@ -228,6 +229,7 @@ class AccumulatorCombineFnCounter(Counter):
 
 class CounterFactory(object):
   """Keeps track of unique counters."""
+
   def __init__(self):
     self.counters = {}  # type: Dict[CounterName, Counter]
 

@@ -41,6 +41,7 @@ except ImportError:
 @pytest.mark.it_postcommit
 @pytest.mark.timeout(1800)
 class HuggingFaceInference(unittest.TestCase):
+
   def test_hf_language_modeling(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences

@@ -32,6 +32,7 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
 
 
 class SqlChainTest(unittest.TestCase):
+
   def test_init(self):
     chain = SqlChain()
     self.assertEqual({}, chain.nodes)

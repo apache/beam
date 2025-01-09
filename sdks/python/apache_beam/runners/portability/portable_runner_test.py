@@ -145,6 +145,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
       time.sleep(0.1)
 
   def create_options(self):
+
     def get_pipeline_name():
       for _, _, _, method_name, _, _ in inspect.stack():
         if method_name.find('test') != -1:
@@ -187,11 +188,13 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     # Use a DoFn which has to use FastPrimitivesCoder because the type cannot
     # be inferred
     class Input(beam.DoFn):
+
       def process(self, impulse):
         for i in inputs:
           yield i
 
     class AddIndex(beam.DoFn):
+
       def process(self, kv, index=beam.DoFn.StateParam(index_state_spec)):
         k, v = kv
         index.add(1)
@@ -225,6 +228,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 
 @unittest.skip("https://github.com/apache/beam/issues/19422")
 class PortableRunnerOptimized(PortableRunnerTest):
+
   def create_options(self):
     options = super().create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
@@ -237,6 +241,7 @@ class PortableRunnerOptimized(PortableRunnerTest):
 # TODO(https://github.com/apache/beam/issues/19422): Delete this test after
 # PortableRunner supports beam:runner:executable_stage:v1.
 class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
+
   def create_options(self):
     options = super().create_options()
     options.view_as(DebugOptions).add_experiment(
@@ -248,6 +253,7 @@ class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
+
   @classmethod
   def setUpClass(cls):
     cls._worker_address, cls._worker_server = (
@@ -310,6 +316,7 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
 
 
 class PortableRunnerInternalTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.tmp_dir = tempfile.TemporaryDirectory()
     self.actual_mkdtemp = tempfile.mkdtemp
@@ -426,6 +433,7 @@ def hasDockerImage():
     not hasDockerImage(), "docker not installed or "
     "no docker image")
 class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
+
   def create_options(self):
     options = super().create_options()
     options.view_as(PortableOptions).job_endpoint = 'embed'

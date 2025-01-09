@@ -66,6 +66,7 @@ class CollectingFn(beam.DoFn):
 
 
 class CrossLanguageKafkaIO(object):
+
   def __init__(
       self, bootstrap_servers, topic, null_key, expansion_service=None):
     self.bootstrap_servers = bootstrap_servers
@@ -113,6 +114,7 @@ class CrossLanguageKafkaIO(object):
 
 
 class CrossLanguageKafkaIOTest(unittest.TestCase):
+
   @unittest.skipUnless(
       os.environ.get('LOCAL_KAFKA_JAR'),
       "LOCAL_KAFKA_JAR environment var is not provided.")

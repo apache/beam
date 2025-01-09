@@ -43,6 +43,7 @@ from apache_beam.pvalue import AsSingleton
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
   """Generate groups given the input PCollections."""
+
   def attach_corpus_fn(group, corpus, ignore):
     selected = None
     len_corpus = len(corpus)

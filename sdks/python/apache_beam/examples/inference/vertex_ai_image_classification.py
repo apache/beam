@@ -117,6 +117,7 @@ def preprocess_image(data: bytes) -> list[float]:
 
 
 class PostProcessor(beam.DoFn):
+
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     img_name, prediction_result = element
     prediction_vals = prediction_result.inference

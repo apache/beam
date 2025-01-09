@@ -55,6 +55,7 @@ PortableObjectT = TypeVar('PortableObjectT', bound='PortableObject')
 
 
 class PortableObject(Protocol):
+
   def to_runner_api(self, __context: 'PipelineContext') -> Any:
     pass
 
@@ -69,6 +70,7 @@ class _PipelineContextMap(Generic[PortableObjectT]):
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
+
   def __init__(
       self,
       context: 'PipelineContext',
@@ -166,6 +168,7 @@ class PipelineContext(object):
 
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
+
   def __init__(
       self,
       proto: Optional[Union[beam_runner_api_pb2.Components,

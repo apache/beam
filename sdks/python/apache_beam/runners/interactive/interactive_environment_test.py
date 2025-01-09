@@ -36,6 +36,7 @@ _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 
 @isolated_env
 class InteractiveEnvironmentTest(unittest.TestCase):
+
   def setUp(self):
     self._p = beam.Pipeline()
     self._var_in_class_instance = 'a var in class instance'
@@ -93,6 +94,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
         '_var_in_class_instance', self._var_in_class_instance)
 
   def test_fail_to_set_pipeline_result_key_not_pipeline(self):
+
     class NotPipeline(object):
       pass
 
@@ -104,6 +106,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
           'or its subclass' in ctx.exception)
 
   def test_fail_to_set_pipeline_result_value_not_pipeline_result(self):
+
     class NotResult(object):
       pass
 
@@ -115,6 +118,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
           'subclass' in ctx.exception)
 
   def test_set_pipeline_result_successfully(self):
+
     class PipelineSubClass(beam.Pipeline):
       pass
 

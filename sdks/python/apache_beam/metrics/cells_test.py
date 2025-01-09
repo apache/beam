@@ -36,6 +36,7 @@ from apache_beam.metrics.metricbase import MetricName
 
 
 class TestCounterCell(unittest.TestCase):
+
   @classmethod
   def _modify_counter(cls, d):
     for i in range(cls.NUM_ITERATIONS):
@@ -49,7 +50,8 @@ class TestCounterCell(unittest.TestCase):
     threads = []
     c = CounterCell()
     for _ in range(TestCounterCell.NUM_THREADS):
-      t = threading.Thread(target=TestCounterCell._modify_counter, args=(c, ))
+      t = threading.Thread(
+          target=TestCounterCell._modify_counter, args=(c, ))
       threads.append(t)
       t.start()
 
@@ -84,6 +86,7 @@ class TestCounterCell(unittest.TestCase):
 
 
 class TestDistributionCell(unittest.TestCase):
+
   @classmethod
   def _modify_distribution(cls, d):
     for i in range(cls.NUM_ITERATIONS):
@@ -142,6 +145,7 @@ class TestDistributionCell(unittest.TestCase):
 
 
 class TestGaugeCell(unittest.TestCase):
+
   def test_basic_operations(self):
     g = GaugeCell()
     g.set(10)
@@ -177,6 +181,7 @@ class TestGaugeCell(unittest.TestCase):
 
 
 class TestStringSetCell(unittest.TestCase):
+
   def test_not_leak_mutable_set(self):
     c = StringSetCell()
     c.add('test')
@@ -209,6 +214,7 @@ class TestStringSetCell(unittest.TestCase):
 
 
 class TestBoundedTrieNode(unittest.TestCase):
+
   @classmethod
   def random_segments_fixed_depth(cls, n, depth, overlap, rand):
     if depth == 0:
@@ -259,6 +265,7 @@ class TestBoundedTrieNode(unittest.TestCase):
     self.assertEqual(seen_truncated, truncated, truncated - seen_truncated)
 
   def run_covers_test(self, flattened, expected, max_truncated):
+
     def parse(s):
       return tuple(s.strip('*')) + (s.endswith('*'), )
 

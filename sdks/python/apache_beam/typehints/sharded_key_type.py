@@ -35,6 +35,7 @@ from apache_beam.utils.sharded_key import ShardedKey
 
 class ShardedKeyTypeConstraint(typehints.TypeConstraint,
                                metaclass=typehints.GetitemConstructor):
+
   def __init__(self, key_type):
     typehints.validate_composite_type_param(
         key_type, error_msg_prefix='Parameter to ShardedKeyType hint')

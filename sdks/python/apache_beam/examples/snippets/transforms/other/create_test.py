@@ -43,6 +43,7 @@ def check_create(actual):
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch('apache_beam.examples.snippets.transforms.other.create.print', str)
 class CreateTest(unittest.TestCase):
+
   def test_create(self):
     create.create(check_create)
 

@@ -174,8 +174,8 @@ class AvroBase(object):
 
   @pytest.mark.xlang_sql_expansion_service
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-      None,
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
       "Must be run with a runner that supports staging java artifacts.")
   def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
     records = []
@@ -396,6 +396,7 @@ class AvroBase(object):
     self._run_avro_test(pattern, 100, True, expected_result)
 
   def test_dynamic_work_rebalancing_exhaustive(self):
+
     def compare_split_points(file_name):
       source = _FastAvroSource(file_name)
       splits = [
@@ -625,6 +626,7 @@ class AvroBase(object):
 
 
 class TestFastAvro(AvroBase, unittest.TestCase):
+
   def __init__(self, methodName='runTest'):
     super().__init__(methodName)
     self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))

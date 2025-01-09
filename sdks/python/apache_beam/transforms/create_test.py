@@ -32,6 +32,7 @@ from apache_beam.testing.util import equal_to
 
 
 class CreateTest(unittest.TestCase):
+
   def setUp(self):
     self.coder = FastPrimitivesCoder()
 
@@ -139,6 +140,7 @@ class CreateTest(unittest.TestCase):
 
 
 class _Unpicklable(object):
+
   def __init__(self, value):
     self.value = value
 
@@ -153,6 +155,7 @@ class _Unpicklable(object):
 
 
 class _UnpicklableCoder(coders.Coder):
+
   def encode(self, value):
     return str(value.value).encode()
 

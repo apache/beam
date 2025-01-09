@@ -70,6 +70,7 @@ def check_total_unique_elements(actual):
     'apache_beam.examples.snippets.transforms.aggregation.count_per_element.print',
     str)
 class CountTest(unittest.TestCase):
+
   def test_count_globally(self):
     count_globally.count_globally(check_total_elements)
 

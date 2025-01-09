@@ -56,6 +56,7 @@ def chunk_approximately_equals(expected, actual):
 @unittest.skipIf(
     not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available")
 class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
+
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
     self.test_chunks = [

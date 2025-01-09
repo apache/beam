@@ -59,6 +59,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
 
 @pytest.mark.uses_tft
 class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
+
   def test_process_large_movie_review_dataset(self):
     input_data_dir = 'gs://apache-beam-ml/datasets/aclImdb'
     artifact_location = os.path.join(_OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)

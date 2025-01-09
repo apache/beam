@@ -28,6 +28,7 @@ from apache_beam.utils.histogram import LinearBucket
 
 
 class TestHistogramCell(unittest.TestCase):
+
   @classmethod
   def _modify_histogram(cls, d):
     for i in range(cls.NUM_ITERATIONS):

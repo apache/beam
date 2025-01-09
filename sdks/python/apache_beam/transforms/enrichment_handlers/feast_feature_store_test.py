@@ -29,6 +29,7 @@ except ImportError:
 
 
 class TestFeastFeatureStoreHandler(unittest.TestCase):
+
   def setUp(self) -> None:
     self.feature_store_yaml_file = (
         'gs://apache-beam-testing-enrichment/'

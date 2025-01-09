@@ -27,6 +27,7 @@ from apache_beam.options import pipeline_options
 
 
 class ClientErrorTest(unittest.TestCase):
+
   def setUp(self):
 
     # These tests can be run locally against a mock S3 client, or as integration

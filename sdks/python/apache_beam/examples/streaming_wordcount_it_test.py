@@ -43,6 +43,7 @@ WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
 
 
 class StreamingWordCountIT(unittest.TestCase):
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')

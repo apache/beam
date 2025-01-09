@@ -32,6 +32,7 @@ DATA = [
 
 
 class YamlCombineTest(unittest.TestCase):
+
   def test_multiple_aggregations(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

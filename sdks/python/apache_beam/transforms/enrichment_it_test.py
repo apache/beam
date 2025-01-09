@@ -55,6 +55,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
+
   def __init__(self, url: str):
     self.url = url + '/v1/echo'  # append path to the mock API.
 
@@ -93,6 +94,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
 class ValidateFields(beam.DoFn):
   """ValidateFields validates if a PCollection of `beam.Row`
   has certain fields."""
+
   def __init__(self, n_fields: int, fields: List[str]):
     self.n_fields = n_fields
     self._fields = fields

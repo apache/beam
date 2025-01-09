@@ -60,6 +60,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Metrics(object):
+
   @staticmethod
   def counter(
       urn: str,
@@ -106,6 +107,7 @@ class Metrics(object):
 
   class DelegatingHistogram(Histogram):
     """Metrics Histogram that Delegates functionality to MetricsEnvironment."""
+
     def __init__(
         self,
         metric_name: MetricName,
@@ -125,6 +127,7 @@ class Metrics(object):
 
 class MetricLogger(object):
   """Simple object to locally aggregate and log metrics."""
+
   def __init__(self) -> None:
     self._metric: Dict[MetricName, 'MetricCell'] = {}
     self._lock = threading.Lock()
@@ -152,8 +155,8 @@ class MetricLogger(object):
     if self._lock.acquire(False):
       try:
         current_millis = int(time.time() * 1000)
-        if ((current_millis - self._last_logging_millis) >
-            self.minimum_logging_frequency_msec):
+        if ((current_millis - self._last_logging_millis)
+            > self.minimum_logging_frequency_msec):
           logging_metric_info = [
               '[Locally aggregated metrics since %s]' %
               datetime.datetime.fromtimestamp(
@@ -180,6 +183,7 @@ class ServiceCallMetric(object):
 
   TODO(ajamato): Add Request latency metric.
   """
+
   def __init__(
       self,
       request_count_urn: str,

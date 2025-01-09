@@ -48,15 +48,16 @@ __all__ = [
     "HuggingFacePipelineModelHandler",
 ]
 
-TensorInferenceFn = Callable[[
-    Sequence[Union[torch.Tensor, tf.Tensor]],
-    Union[AutoModel, TFAutoModel],
-    str,
-    Optional[Dict[str, Any]],
-    Optional[str],
-],
-                             Iterable[PredictionResult],
-                             ]
+TensorInferenceFn = Callable[
+    [
+        Sequence[Union[torch.Tensor, tf.Tensor]],
+        Union[AutoModel, TFAutoModel],
+        str,
+        Optional[Dict[str, Any]],
+        Optional[str],
+    ],
+    Iterable[PredictionResult],
+]
 
 KeyedTensorInferenceFn = Callable[[
     Sequence[Dict[str, Union[torch.Tensor, tf.Tensor]]],
@@ -212,6 +213,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
                                                       PredictionResult,
                                                       Union[AutoModel,
                                                             TFAutoModel]]):
+
   def __init__(
       self,
       model_uri: str,
@@ -401,6 +403,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
                                                  PredictionResult,
                                                  Union[AutoModel,
                                                        TFAutoModel]]):
+
   def __init__(
       self,
       model_uri: str,
@@ -582,6 +585,7 @@ def _default_pipeline_inference_fn(
 class HuggingFacePipelineModelHandler(ModelHandler[str,
                                                    PredictionResult,
                                                    Pipeline]):
+
   def __init__(
       self,
       task: Union[str, PipelineTask] = "",

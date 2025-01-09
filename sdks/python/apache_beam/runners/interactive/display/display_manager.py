@@ -52,6 +52,7 @@ except ImportError:
 
 class DisplayManager(object):
   """Manages displaying pipeline graph and execution status on the frontend."""
+
   def __init__(
       self,
       pipeline_proto,

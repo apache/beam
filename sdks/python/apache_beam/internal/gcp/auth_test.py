@@ -31,6 +31,7 @@ except ImportError:
 
 class MockLoggingHandler(logging.Handler):
   """Mock logging handler to check for expected logs."""
+
   def __init__(self, *args, **kwargs):
     self.reset()
     logging.Handler.__init__(self, *args, **kwargs)
@@ -50,6 +51,7 @@ class MockLoggingHandler(logging.Handler):
 
 @unittest.skipIf(gauth is None, 'Google Auth dependencies are not installed')
 class AuthTest(unittest.TestCase):
+
   @mock.patch('google.auth.default')
   def test_auth_with_retrys(self, unused_mock_arg):
     pipeline_options = PipelineOptions()

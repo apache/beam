@@ -33,6 +33,7 @@ from apache_beam.testing.util import open_shards
 
 @pytest.mark.examples_postcommit
 class JuliaSetTest(unittest.TestCase):
+
   def setUp(self):
     self.test_files = {}
     self.test_files['output_coord_file_name'] = self.generate_temp_file()

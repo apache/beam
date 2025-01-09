@@ -49,6 +49,7 @@ from apache_beam.testing.util import equal_to
 
 class _MockMongoColl(object):
   """Fake mongodb collection cursor."""
+
   def __init__(self, docs):
     self.docs = docs
 
@@ -104,9 +105,10 @@ class _MockMongoColl(object):
   @staticmethod
   def _projection(docs, projection=None):
     if projection:
-      return [{k: v
-               for k, v in doc.items() if k in projection or k == '_id'}
-              for doc in docs]
+      return [{
+          k: v
+          for k, v in doc.items() if k in projection or k == '_id'
+      } for doc in docs]
     return docs
 
   def find(self, filter=None, projection=None, **kwargs):
@@ -170,6 +172,7 @@ class _MockMongoColl(object):
 
 class _MockMongoDb(object):
   """Fake Mongo Db."""
+
   def __init__(self, docs):
     self.docs = docs
 
@@ -210,6 +213,7 @@ class _MockMongoDb(object):
 
 
 class _MockMongoClient:
+
   def __init__(self, docs):
     self.docs = docs
 
@@ -302,6 +306,7 @@ STR_IDS_3 = [chr(65 + n) * 20 for n in range(5)]
                          ),
                      ])
 class MongoSourceTest(unittest.TestCase):
+
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def setUp(self, mock_client):
     self._docs = [{'_id': self._ids[i], 'x': i} for i in range(len(self._ids))]
@@ -570,6 +575,7 @@ class MongoSourceTest(unittest.TestCase):
 
 @parameterized_class(('bucket_auto', ), [(False, ), (True, )])
 class ReadFromMongoDBTest(unittest.TestCase):
+
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read_from_mongodb(self, mock_client):
     documents = [{
@@ -594,6 +600,7 @@ class ReadFromMongoDBTest(unittest.TestCase):
 
 
 class GenerateObjectIdFnTest(unittest.TestCase):
+
   def test_process(self):
     with TestPipeline() as p:
       output = (
@@ -608,6 +615,7 @@ class GenerateObjectIdFnTest(unittest.TestCase):
 
 
 class WriteMongoFnTest(unittest.TestCase):
+
   @mock.patch('apache_beam.io.mongodbio._MongoSink')
   def test_process(self, mock_sink):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
@@ -626,6 +634,7 @@ class WriteMongoFnTest(unittest.TestCase):
 
 
 class MongoSinkTest(unittest.TestCase):
+
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write(self, mock_client):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
@@ -636,6 +645,7 @@ class MongoSinkTest(unittest.TestCase):
 
 
 class WriteToMongoDBTest(unittest.TestCase):
+
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write_to_mongodb_with_existing_id(self, mock_client):
     _id = objectid.ObjectId()
@@ -671,6 +681,7 @@ class WriteToMongoDBTest(unittest.TestCase):
 
 
 class ObjectIdHelperTest(TestCase):
+
   def test_conversion(self):
     test_cases = [
         (objectid.ObjectId('000000000000000000000000'), 0),
@@ -713,6 +724,7 @@ class ObjectIdHelperTest(TestCase):
 
 
 class ObjectRangeTrackerTest(TestCase):
+
   def test_fraction_position_conversion(self):
     start_int = 0
     stop_int = 2**96 - 1

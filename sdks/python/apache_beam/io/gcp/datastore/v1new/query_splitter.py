@@ -133,6 +133,7 @@ class IdOrName(object):
    Implements sort ordering: by ID, then by name, keys with IDs before those
    with names.
    """
+
   def __init__(self, id_or_name):
     self.id_or_name = id_or_name
     if isinstance(id_or_name, str):

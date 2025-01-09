@@ -91,8 +91,7 @@ _BIDIRECTIONAL = [
 
 PANDAS_TO_BEAM = {
     pd.Series([], dtype=dtype).dtype: fieldtype
-    for dtype,
-    fieldtype in _BIDIRECTIONAL
+    for dtype, fieldtype in _BIDIRECTIONAL
 }
 BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
 
@@ -150,6 +149,7 @@ def create_pandas_batch_converter(
 
 
 class DataFrameBatchConverter(BatchConverter):
+
   def __init__(
       self,
       element_type: RowTypeConstraint,
@@ -196,8 +196,10 @@ class DataFrameBatchConverter(BatchConverter):
 
     for values in zip(*iterators):
       yield self._element_type.user_type(
-          **{column: value
-             for column, value in zip(self._columns, values)})
+          **{
+              column: value
+              for column, value in zip(self._columns, values)
+          })
 
   def combine_batches(self, batches: List[pd.DataFrame]):
     return pd.concat(batches)
@@ -215,6 +217,7 @@ class DataFrameBatchConverterDropIndex(DataFrameBatchConverter):
   When producing a DataFrame from Rows, a meaningless index will be generated.
   When exploding a DataFrame into Rows, the index will be dropped.
   """
+
   def _get_series(self, batch: pd.DataFrame):
     return [batch[column] for column in batch.columns]
 
@@ -233,6 +236,7 @@ class DataFrameBatchConverterKeepIndex(DataFrameBatchConverter):
   This is tracked via options on the Beam schema. Each field in the schema that
   should map to the index is tagged in an option with name 'dataframe:index'.
   """
+
   def __init__(self, element_type: RowTypeConstraint, index_columns: List[Any]):
     super().__init__(element_type)
     self._index_columns = index_columns
@@ -254,6 +258,7 @@ class DataFrameBatchConverterKeepIndex(DataFrameBatchConverter):
 
 
 class SeriesBatchConverter(BatchConverter):
+
   def __init__(
       self,
       element_type: type,

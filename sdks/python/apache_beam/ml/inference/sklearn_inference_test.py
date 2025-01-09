@@ -76,13 +76,14 @@ def _compare_dataframe_predictions(a_in, b_in):
   example_equal = pandas.DataFrame.equals(a.example, b.example)
   if isinstance(a.inference, dict):
     return all(
-        math.floor(a) == math.floor(b) for a,
-        b in zip(a.inference.values(), b.inference.values())) and example_equal
+        math.floor(a) == math.floor(b) for a, b in zip(
+            a.inference.values(), b.inference.values())) and example_equal
   inference_equal = math.floor(a.inference) == math.floor(b.inference)
   return inference_equal and example_equal and keys_equal
 
 
 class FakeModel:
+
   def __init__(self):
     self.total_predict_calls = 0
 
@@ -92,6 +93,7 @@ class FakeModel:
 
 
 class FakeNumpyModelDictOut:
+
   def __init__(self):
     self.total_predict_calls = 0
 
@@ -102,6 +104,7 @@ class FakeNumpyModelDictOut:
 
 
 class FakePandasModelDictOut:
+
   def __init__(self):
     self.total_predict_calls = 0
 
@@ -179,6 +182,7 @@ def alternate_pandas_inference_fn(
 
 
 class SkLearnRunInferenceTest(unittest.TestCase):
+
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 

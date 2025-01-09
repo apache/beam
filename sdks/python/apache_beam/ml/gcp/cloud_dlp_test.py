@@ -45,6 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestDeidentifyText(unittest.TestCase):
+
   def test_exception_raised_when_no_config_is_provided(self):
     with self.assertRaises(ValueError):
       with TestPipeline() as p:
@@ -54,8 +55,11 @@ class TestDeidentifyText(unittest.TestCase):
 
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestDeidentifyFn(unittest.TestCase):
+
   def test_deidentify_called(self):
+
     class ClientMock(object):
+
       def deidentify_content(self, *args, **kwargs):
         # Check that we can marshal a valid request.
         dlp.DeidentifyContentRequest(kwargs['request'])
@@ -99,6 +103,7 @@ class TestDeidentifyFn(unittest.TestCase):
 
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestInspectText(unittest.TestCase):
+
   def test_exception_raised_then_no_config_provided(self):
     with self.assertRaises(ValueError):
       with TestPipeline() as p:
@@ -108,8 +113,11 @@ class TestInspectText(unittest.TestCase):
 
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestInspectFn(unittest.TestCase):
+
   def test_inspect_called(self):
+
     class ClientMock(object):
+
       def inspect_content(self, *args, **kwargs):
         # Check that we can marshal a valid request.
         dlp.InspectContentRequest(kwargs['request'])

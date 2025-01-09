@@ -49,6 +49,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
+
   def __init__(
       self,
       model_name: str,
@@ -108,6 +109,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
 
 
 class SentenceTransformerEmbeddings(EmbeddingsManager):
+
   def __init__(
       self,
       model_name: str,
@@ -165,6 +167,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
 
 
 class _InferenceAPIHandler(ModelHandler):
+
   def __init__(self, config: 'InferenceAPIEmbeddings'):
     super().__init__()
     self._config = config
@@ -211,14 +214,15 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
         ignored. If none, the default url for feature extraction
         will be used.
   """
+
   def __init__(
       self,
       hf_token: Optional[str],
       columns: list[str],
-      model_name: Optional[str] = None, # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
+      model_name: Optional[str] = None,  # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
       api_url: Optional[str] = None,
       **kwargs,
-      ):
+  ):
     super().__init__(columns=columns, **kwargs)
     self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
     self._model_name = model_name

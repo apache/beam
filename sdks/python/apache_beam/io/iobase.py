@@ -143,6 +143,7 @@ class BoundedSource(SourceBase):
   implementations may invoke methods of ``BoundedSource`` objects through
   multi-threaded and/or reentrant execution modes.
   """
+
   def estimate_size(self) -> Optional[int]:
     """Estimates the size of source in bytes.
 
@@ -846,6 +847,7 @@ class Writer(object):
   See ``iobase.Sink`` for more detailed documentation about the process of
   writing to a sink.
   """
+
   def write(self, value):
     """Writes a value to the sink using the current writer.
     """
@@ -1122,6 +1124,7 @@ class Write(ptransform.PTransform):
 
 class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
+
   def __init__(self, sink: Sink) -> None:
     super().__init__()
     self.sink = sink
@@ -1174,6 +1177,7 @@ class _WriteBundleDoFn(core.DoFn):
   """A DoFn for writing elements to an iobase.Writer.
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
+
   def __init__(self, sink):
     self.sink = sink
 
@@ -1200,6 +1204,7 @@ class _WriteBundleDoFn(core.DoFn):
 
 
 class _WriteKeyedBundleDoFn(core.DoFn):
+
   def __init__(self, sink):
     self.sink = sink
 
@@ -1242,6 +1247,7 @@ def _finalize_write(
 
 
 class _RoundRobinKeyFn(core.DoFn):
+
   def start_bundle(self):
     self.counter = None
 
@@ -1265,6 +1271,7 @@ class RestrictionTracker(object):
   * https://s.apache.org/splittable-do-fn
   * https://s.apache.org/splittable-do-fn-python-sdk
   """
+
   def current_restriction(self):
     """Returns the current restriction.
 
@@ -1399,6 +1406,7 @@ class WatermarkEstimator(object):
 
   Internal state must not be updated asynchronously.
   """
+
   def get_estimator_state(self):
     """Get current state of the WatermarkEstimator instance, which can be used
     to recreate the WatermarkEstimator when processing the restriction. See
@@ -1424,6 +1432,7 @@ class WatermarkEstimator(object):
 
 class RestrictionProgress(object):
   """Used to record the progress of a restriction."""
+
   def __init__(self, **kwargs):
     # Only accept keyword arguments.
     self._fraction = kwargs.pop('fraction', None)
@@ -1478,6 +1487,7 @@ class RestrictionProgress(object):
 
 class _SDFBoundedSourceRestriction(object):
   """ A restriction wraps SourceBundle and RangeTracker. """
+
   def __init__(self, source_bundle, range_tracker=None):
     self._source_bundle = source_bundle
     self._range_tracker = range_tracker
@@ -1541,6 +1551,7 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
 
   Delegated RangeTracker guarantees synchronization safety.
   """
+
   def __init__(self, restriction):
     if not isinstance(restriction, _SDFBoundedSourceRestriction):
       raise ValueError(
@@ -1577,6 +1588,7 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
 
 
 class _SDFBoundedSourceWrapperRestrictionCoder(coders.Coder):
+
   def decode(self, value):
     return _SDFBoundedSourceRestriction(SourceBundle(*pickler.loads(value)))
 
@@ -1595,6 +1607,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   This restriction provider initializes restriction based on input
   element that is expected to be of BoundedSource type.
   """
+
   def __init__(self, desired_chunk_size=None, restriction_coder=None):
     self._desired_chunk_size = desired_chunk_size
     self._restriction_coder = (
@@ -1644,12 +1657,15 @@ class SDFBoundedSourceReader(PTransform):
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
+
   def __init__(self, data_to_display=None):
     self._data_to_display = data_to_display or {}
     super().__init__()
 
   def _create_sdf_bounded_source_dofn(self):
+
     class SDFBoundedSourceDoFn(core.DoFn):
+
       def __init__(self, dd):
         self._dd = dd
 

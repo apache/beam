@@ -109,6 +109,7 @@ TEST_DATA = [
 def nullify_data_and_schemas(test_data):
   """Add a row with all columns set to None and adjust the schemas accordingly.
   """
+
   def nullify_avro_schema(schema):
     """Add a 'null' type to every field."""
     schema = schema.copy()
@@ -149,8 +150,8 @@ def nullify_data_and_schemas(test_data):
         OrderedDict([(c, None) for c in columns])
     ]
     test_case["type_schema"] = OrderedDict([
-        (k, typehints.Union[v, type(None)]) for k,
-        v in test_case["type_schema"].items()
+        (k, typehints.Union[v, type(None)])
+        for k, v in test_case["type_schema"].items()
     ])
     test_case["avro_schema"] = nullify_avro_schema(test_case["avro_schema"])
     nullified_test_data.append(test_case)
@@ -161,6 +162,7 @@ TEST_DATA += nullify_data_and_schemas(TEST_DATA)
 
 
 class DatatypeInferenceTest(unittest.TestCase):
+
   @parameterized.expand([(d["name"], d["data"], d["type_schema"])
                          for d in TEST_DATA])
   def test_infer_typehints_schema(self, _, data, schema):

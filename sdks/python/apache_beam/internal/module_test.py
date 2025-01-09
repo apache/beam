@@ -25,12 +25,16 @@ from typing import Any
 
 
 class TopClass(object):
+
   class NestedClass(object):
+
     def __init__(self, datum):
       self.datum = 'X:%s' % datum
 
   class MiddleClass(object):
+
     class NestedClass(object):
+
       def __init__(self, datum):
         self.datum = 'Y:%s' % datum
 
@@ -45,13 +49,16 @@ def get_lambda_with_closure(message):
 
 class Xyz(object):
   """A class to be pickled."""
+
   def foo(self, s):
     return re.findall(r'\w+', s)
 
 
 def create_class(datum):
   """Creates an unnamable class to be pickled."""
+
   class Z(object):
+
     def get(self):
       return 'Z:%s' % datum
 

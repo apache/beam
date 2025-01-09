@@ -30,6 +30,7 @@ from apache_beam.runners.interactive.options import capture_control
 class InteractiveOptions(object):
   """An intermediate facade to query and configure options that guide how
   Interactive Beam works."""
+
   def __init__(self):
     self._capture_control = capture_control.CaptureControl()
     self._display_timestamp_format = '%Y-%m-%d %H:%M:%S.%f%z'

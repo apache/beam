@@ -46,6 +46,7 @@ def ConvertToTimestampedValue_3(plant: Dict[str, Any]) -> TimestampedValue[T]:
 
 
 class TypeCheckTimestampedValueTestCase(unittest.TestCase):
+
   def setUp(self):
     self.opts = beam.options.pipeline_options.PipelineOptions(
         runtime_type_check=True)

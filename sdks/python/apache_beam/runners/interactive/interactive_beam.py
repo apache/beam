@@ -68,6 +68,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class Options(interactive_options.InteractiveOptions):
   """Options that guide how Interactive Beam works."""
+
   @property
   def enable_recording_replay(self):
     """Whether replayable source data recorded should be replayed for multiple
@@ -273,6 +274,7 @@ class Recordings():
   from all defined unbounded sources for that PCollection's pipeline. The
   following methods allow for introspection into that background recording job.
   """
+
   def describe(
       self,
       pipeline: Optional[beam.Pipeline] = None) -> Dict[str, Any]:  # noqa: F821

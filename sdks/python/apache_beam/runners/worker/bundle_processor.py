@@ -131,6 +131,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
+
   def __init__(
       self,
       name_context: common.NameContext,
@@ -156,6 +157,7 @@ class RunnerIOOperation(operations.Operation):
 class DataOutputOperation(RunnerIOOperation):
   """A sink-like operation that gathers outputs to be sent back to the runner.
   """
+
   def set_output_stream(
       self, output_stream: data_plane.ClosableOutputStream) -> None:
     self.output_stream = output_stream
@@ -172,6 +174,7 @@ class DataOutputOperation(RunnerIOOperation):
 
 class DataInputOperation(RunnerIOOperation):
   """A source-like operation that gathers input from the runner."""
+
   def __init__(
       self,
       operation_name: common.NameContext,
@@ -295,6 +298,7 @@ class DataInputOperation(RunnerIOOperation):
       total_buffer_size,
       allowed_split_points=(),
       try_split=lambda fraction: None):
+
     def is_valid_split_point(index):
       return not allowed_split_points or index in allowed_split_points
 
@@ -356,6 +360,7 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
+
   def __init__(
       self,
       state_handler: sdk_worker.CachingStateHandler,
@@ -510,6 +515,7 @@ class StateBackedSideInputMap(object):
 
 
 class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
+
   def __init__(self, underlying_bag_state):
     self._underlying_bag_state = underlying_bag_state
 
@@ -531,6 +537,7 @@ class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
 
 
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
+
   def __init__(
       self,
       underlying_bag_state: userstate.AccumulatingRuntimeState,
@@ -580,6 +587,7 @@ class _ConcatIterable(object):
 
   Unlike itertools.chain, this allows reiteration.
   """
+
   def __init__(self, first: Iterable[Any], second: Iterable[Any]) -> None:
     self.first = first
     self.second = second
@@ -595,6 +603,7 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
+
   def __init__(
       self,
       state_handler: sdk_worker.CachingStateHandler,
@@ -633,6 +642,7 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 
 
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
+
   def __init__(
       self,
       state_handler: sdk_worker.CachingStateHandler,
@@ -693,6 +703,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
 class RangeSet:
   """For Internal Use only. A simple range set for ranges of [x,y)."""
+
   def __init__(self) -> None:
     # The start points and end points are stored separately in order.
     self._sorted_starts = SortedList()
@@ -725,8 +736,8 @@ class RangeSet:
 
   def __contains__(self, key: int) -> bool:
     idx = self._sorted_starts.bisect_left(key)
-    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key
-            ) or (idx > 0 and self._sorted_ends[idx - 1] > key)
+    return (idx < len(self._sorted_starts) and self._sorted_starts[idx]
+            == key) or (idx > 0 and self._sorted_ends[idx - 1] > key)
 
   def __len__(self) -> int:
     assert len(self._sorted_starts) == len(self._sorted_ends)
@@ -866,6 +877,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
 
 
 class OutputTimer(userstate.BaseTimer):
+
   def __init__(
       self,
       key,
@@ -914,6 +926,7 @@ class OutputTimer(userstate.BaseTimer):
 
 class TimerInfo(object):
   """A data class to store information related to a timer."""
+
   def __init__(self, timer_coder_impl, output_stream=None):
     self.timer_coder_impl = timer_coder_impl
     self.output_stream = output_stream
@@ -921,6 +934,7 @@ class TimerInfo(object):
 
 class FnApiUserStateContext(userstate.UserStateContext):
   """Interface for state and timers from SDK to Fn API servicer of state.."""
+
   def __init__(
       self,
       state_handler: sdk_worker.CachingStateHandler,
@@ -1079,6 +1093,7 @@ def _verify_descriptor_created_in_a_compatible_env(
 
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
+
   def __init__(
       self,
       runner_capabilities: FrozenSet[str],
@@ -1166,8 +1181,8 @@ class BundleProcessor(object):
     def get_operation(transform_id: str) -> operations.Operation:
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
-          for tag,
-          pcoll_id in descriptor.transforms[transform_id].outputs.items()
+          for tag, pcoll_id in
+          descriptor.transforms[transform_id].outputs.items()
       }
 
       # Initialize transform-specific state in the Data Sampler.
@@ -1287,8 +1302,8 @@ class BundleProcessor(object):
         timer_info.output_stream.close()
 
       return ([
-          self.delayed_bundle_application(op, residual) for op,
-          residual in execution_context.delayed_applications
+          self.delayed_bundle_application(op, residual)
+          for op, residual in execution_context.delayed_applications
       ],
               self.requires_finalization())
 
@@ -1427,6 +1442,7 @@ class ExecutionContext:
 
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
+
   def __init__(
       self,
       runner_capabilities: FrozenSet[str],
@@ -1445,10 +1461,9 @@ class BeamTransformFactory(object):
     self.state_handler = state_handler
     self.context = pipeline_context.PipelineContext(
         descriptor,
-        iterable_state_read=lambda token,
-        element_coder_impl: _StateBackedIterable(
-            state_handler,
-            beam_fn_api_pb2.StateKey(
+        iterable_state_read=lambda token, element_coder_impl:
+        _StateBackedIterable(
+            state_handler, beam_fn_api_pb2.StateKey(
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
     self.data_sampler = data_sampler
@@ -1479,6 +1494,7 @@ class BeamTransformFactory(object):
                     Dict[str, List[operations.Operation]]
                 ],
                          operations.Operation]]:
+
     def wrapper(func):
       cls._known_urns[urn] = func, parameter_type
       return func
@@ -1539,8 +1555,7 @@ class BeamTransformFactory(object):
   ) -> Dict[str, coders.Coder]:
     return {
         tag: self.get_windowed_coder(pcoll_id)
-        for tag,
-        pcoll_id in transform_proto.outputs.items()
+        for tag, pcoll_id in transform_proto.outputs.items()
     }
 
   def get_only_output_coder(
@@ -1552,8 +1567,7 @@ class BeamTransformFactory(object):
   ) -> Dict[str, coders.WindowedValueCoder]:
     return {
         tag: self.get_windowed_coder(pcoll_id)
-        for tag,
-        pcoll_id in transform_proto.inputs.items()
+        for tag, pcoll_id in transform_proto.inputs.items()
     }
 
   def get_only_input_coder(
@@ -1702,7 +1716,9 @@ def create_dofn_javasdk(
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_pair_with_restriction(*args):
+
   class PairWithRestriction(beam.DoFn):
+
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
@@ -1725,7 +1741,9 @@ def create_pair_with_restriction(*args):
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_split_and_size_restrictions(*args):
+
   class SplitAndSizeRestrictions(beam.DoFn):
+
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
@@ -1748,7 +1766,9 @@ def create_split_and_size_restrictions(*args):
     common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_truncate_sized_restriction(*args):
+
   class TruncateAndSizeRestriction(beam.DoFn):
+
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
 
@@ -1851,8 +1871,7 @@ def _create_pardo_operation(
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
-        for tag,
-        si in pardo_proto.side_inputs.items()
+        for tag, si in pardo_proto.side_inputs.items()
     ]
     tagged_side_inputs.sort(
         key=lambda tag_si: sideinputs.get_sideinput_index(tag_si[0]))
@@ -1962,7 +1981,9 @@ def create_assign_windows(
     transform_proto: beam_runner_api_pb2.PTransform,
     parameter: beam_runner_api_pb2.WindowingStrategy,
     consumers: Dict[str, List[operations.Operation]]):
+
   class WindowIntoDoFn(beam.DoFn):
+
     def __init__(self, windowing):
       self.windowing = windowing
 
@@ -2133,6 +2154,7 @@ def create_map_windows(
   window_mapping_fn = pickler.loads(mapping_fn_spec.payload)
 
   class MapWindows(beam.DoFn):
+
     def process(self, element):
       key, window = element
       return [(key, window_mapping_fn(window))]
@@ -2153,6 +2175,7 @@ def create_merge_windows(
   window_fn = pickler.loads(mapping_fn_spec.payload)
 
   class MergeWindows(beam.DoFn):
+
     def process(self, element):
       nonce, windows = element
 
@@ -2163,6 +2186,7 @@ def create_merge_windows(
               set)  # noqa: F821
 
       class RecordingMergeContext(window.WindowFn.MergeContext):
+
         def merge(
             self,
             to_be_merged: Iterable[window.BoundedWindow],
@@ -2190,7 +2214,9 @@ def create_to_string_fn(
     transform_proto: beam_runner_api_pb2.PTransform,
     mapping_fn_spec: beam_runner_api_pb2.FunctionSpec,
     consumers: Dict[str, List[operations.Operation]]):
+
   class ToString(beam.DoFn):
+
     def process(self, element):
       key, value = element
       return [(key, str(value))]

@@ -122,6 +122,7 @@ class SchemaLoadedSqlTransform(beam.PTransform):
   makes sure only the schemas needed are pickled locally and restored later on
   workers.
   """
+
   def __init__(self, output_name, query, schemas, execution_count):
     self.output_name = output_name
     self.query = query
@@ -137,6 +138,7 @@ class SchemaLoadedSqlTransform(beam.PTransform):
   class _SqlTransformDoFn(beam.DoFn):
     """The DoFn yields all its input without any transform but a setup to
     configure the main session."""
+
     def __init__(self, schemas, annotations):
       self.pickled_schemas = [pickler.dumps(s) for s in schemas]
       self.pickled_annotations = [pickler.dumps(a) for a in annotations]
@@ -165,8 +167,7 @@ class SchemaLoadedSqlTransform(beam.PTransform):
               self.output_name, tag, self.execution_count) >> beam.ParDo(
                   self._SqlTransformDoFn(self.schemas, self.schema_annotations))
           if pcoll.element_type in self.schemas else pcoll
-          for tag,
-          pcoll in source.items()
+          for tag, pcoll in source.items()
       }
     elif isinstance(source, beam.pvalue.PCollection):
       schema_loaded = source | 'load_schemas_{}_{}'.format(

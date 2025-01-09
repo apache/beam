@@ -29,6 +29,7 @@ class ObservableMixin(object):
 
   Subclasses need to call self.notify_observers with any object yielded.
   """
+
   def __init__(self):
     self.observers = []
 

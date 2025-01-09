@@ -123,6 +123,7 @@ def run_benchmarks(benchmark_suite, verbose=True):
     A dictionary of the form string -> list of floats. Keys of the dictionary
     are benchmark names, values are execution times in seconds for each run.
   """
+
   def run(benchmark: BenchmarkFactoryFn, size: int):
     # Contain each run of a benchmark inside a function so that any temporary
     # objects can be garbage-collected after the run.

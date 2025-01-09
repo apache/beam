@@ -70,6 +70,7 @@ class SpannerPartTestRow(NamedTuple):
 @unittest.skipIf(
     DockerContainer is None, 'testcontainers package is not installed.')
 class CrossLanguageSpannerIOTest(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     parser = argparse.ArgumentParser()
@@ -131,6 +132,7 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
         [[f'or_update{i}', i, i % 2 == 0] for i in range(3)])
 
   def test_spanner_insert(self):
+
     def to_row_fn(num):
       return SpannerTestRow(
           f_string=f'insert{num}', f_int64=num, f_boolean=None)
@@ -259,6 +261,7 @@ def retry(fn, retries, err_msg, *args, **kwargs):
 
 
 class SpannerHelper(object):
+
   def __init__(self, project_id, instance_id, table, use_emulator):
     self.use_emulator = use_emulator
     self.table = table

@@ -33,6 +33,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # A simple matcher that is ued for testing extra options appending.
 class SimpleMatcher(BaseMatcher):
+
   def _matches(self, item):
     return True
 
@@ -49,6 +50,7 @@ class TestPipelineTest(unittest.TestCase):
 
   # Used for testing pipeline option creation.
   class TestParsingOptions(PipelineOptions):
+
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--job', action='store', help='mock job')

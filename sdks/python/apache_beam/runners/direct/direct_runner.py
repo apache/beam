@@ -66,6 +66,7 @@ class SwitchingDirectRunner(PipelineRunner):
   which supports streaming execution and certain primitives not yet
   implemented in the FnApiRunner.
   """
+
   def is_fnapi_compatible(self):
     return BundleBasedDirectRunner.is_fnapi_compatible()
 
@@ -78,6 +79,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     class _FnApiRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the FnApiRunner."""
+
       def accept(self, pipeline):
         self.supported_by_fnapi_runner = True
         pipeline.visit(self)
@@ -112,6 +114,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     class _PrismRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
+
       def accept(self, pipeline):
         self.supported_by_prism_runner = True
         pipeline.visit(self)
@@ -193,6 +196,7 @@ V = typing.TypeVar('V')
 @typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
+
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
     return typehints.KV[key_type, typehints.Iterable[value_type]]
@@ -206,6 +210,7 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
+
   def __init__(self, windowing):
     super().__init__(_GroupAlsoByWindowDoFn(windowing))
     self.windowing = windowing
@@ -280,6 +285,7 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
 @typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupByKey(PTransform):
   """The DirectRunner GroupByKey implementation."""
+
   def expand(self, pcoll):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -342,6 +348,7 @@ def _get_transform_overrides(pipeline_options):
   from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
 
   class CombinePerKeyOverride(PTransformOverride):
+
     def matches(self, applied_ptransform):
       if isinstance(applied_ptransform.transform, CombinePerKey):
         return applied_ptransform.inputs[0].windowing.is_default()
@@ -359,6 +366,7 @@ def _get_transform_overrides(pipeline_options):
         return transform
 
   class StreamingGroupByKeyOverride(PTransformOverride):
+
     def matches(self, applied_ptransform):
       # Note: we match the exact class, since we replace it with a subclass.
       return applied_ptransform.transform.__class__ == _GroupByKeyOnly
@@ -370,6 +378,7 @@ def _get_transform_overrides(pipeline_options):
       return transform
 
   class StreamingGroupAlsoByWindowOverride(PTransformOverride):
+
     def matches(self, applied_ptransform):
       # Note: we match the exact class, since we replace it with a subclass.
       transform = applied_ptransform.transform
@@ -386,6 +395,7 @@ def _get_transform_overrides(pipeline_options):
       return transform
 
   class TestStreamOverride(PTransformOverride):
+
     def matches(self, applied_ptransform):
       from apache_beam.testing.test_stream import TestStream
       self.applied_ptransform = applied_ptransform
@@ -401,6 +411,7 @@ def _get_transform_overrides(pipeline_options):
 
     This replaces the Beam implementation as a primitive.
     """
+
     def matches(self, applied_ptransform):
       # Imported here to avoid circular dependencies.
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -442,6 +453,7 @@ def _get_transform_overrides(pipeline_options):
 
 
 class _DirectReadFromPubSub(PTransform):
+
   def __init__(self, source):
     self._source = source
 
@@ -517,6 +529,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
   from apache_beam.pipeline import PTransformOverride
 
   class ReadFromPubSubOverride(PTransformOverride):
+
     def matches(self, applied_ptransform):
       return isinstance(
           applied_ptransform.transform, beam_pubsub.ReadFromPubSub)
@@ -530,6 +543,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
       return _DirectReadFromPubSub(applied_ptransform.transform._source)
 
   class WriteToPubSubOverride(PTransformOverride):
+
     def matches(self, applied_ptransform):
       return isinstance(applied_ptransform.transform, beam_pubsub.WriteToPubSub)
 
@@ -546,6 +560,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
+
   @staticmethod
   def is_fnapi_compatible():
     return False
@@ -568,6 +583,7 @@ class BundleBasedDirectRunner(PipelineRunner):
 
     class VerifyNoCrossLanguageTransforms(PipelineVisitor):
       """Visitor determining whether a Pipeline uses a TestStream."""
+
       def visit_transform(self, applied_ptransform):
         if isinstance(applied_ptransform.transform, ExternalTransform):
           raise RuntimeError(
@@ -581,6 +597,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     # If the TestStream I/O is used, use a mock test clock.
     class TestStreamUsageVisitor(PipelineVisitor):
       """Visitor determining whether a Pipeline uses a TestStream."""
+
       def __init__(self):
         self.uses_test_stream = False
 
@@ -631,6 +648,7 @@ DirectRunner = SwitchingDirectRunner
 
 class DirectPipelineResult(PipelineResult):
   """A DirectPipelineResult provides access to info about a pipeline."""
+
   def __init__(self, executor, evaluation_context):
     super().__init__(PipelineState.RUNNING)
     self._executor = executor

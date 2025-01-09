@@ -32,6 +32,7 @@ from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 def format_output_file(output_string):
+
   def extract_prefix_topk_words_tuples(line):
     match = re.match(r'(.*): \[(.*)\]', line)
     prefix = match.group(1)

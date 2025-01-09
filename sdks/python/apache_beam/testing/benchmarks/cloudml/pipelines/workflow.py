@@ -34,16 +34,17 @@ _SYNTHETIC_COLUMN = 'x'
 
 class _RecordBatchToPyDict(beam.PTransform):
   """Converts PCollections of pa.RecordBatch to python dicts."""
+
   def __init__(self, input_feature_spec):
     self._input_feature_spec = input_feature_spec
 
   def expand(self, pcoll):
+
     def format_values(instance):
       return {
           k: v.squeeze(0).tolist()
           if v is not None else self._input_feature_spec[k].default_value
-          for k,
-          v in instance.items()
+          for k, v in instance.items()
       }
 
     return (
@@ -70,6 +71,7 @@ def _synthetic_preprocessing_fn(inputs):
 
 
 class _PredictionHistogramFn(beam.DoFn):
+
   def __init__(self):
     # Beam Metrics API for Distributions only works with integers but
     # predictions are floating point numbers. We thus store a "quantized"

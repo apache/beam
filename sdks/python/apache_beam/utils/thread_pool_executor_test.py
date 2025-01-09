@@ -30,6 +30,7 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class UnboundedThreadPoolExecutorTest(unittest.TestCase):
+
   def setUp(self):
     self._lock = threading.Lock()
     self._worker_idents = []

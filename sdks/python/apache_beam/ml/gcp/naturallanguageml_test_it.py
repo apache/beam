@@ -49,6 +49,7 @@ def extract(response):
 @pytest.mark.it_postcommit
 @unittest.skipIf(AnnotateText is None, 'GCP dependencies are not installed')
 class NaturalLanguageMlTestIT(unittest.TestCase):
+
   def test_analyzing_syntax(self):
     with TestPipeline(is_integration_test=True) as p:
       output = (

@@ -58,7 +58,9 @@ def coder_benchmark_factory(coder, generate_fn):
     coder: coder to use to encode an element.
     generate_fn: a callable that generates an element.
   """
+
   class CoderBenchmark(object):
+
     def __init__(self, num_elements_per_benchmark):
       self._coder = coders.IterableCoder(coder)
       self._list = [generate_fn() for _ in range(num_elements_per_benchmark)]
@@ -80,7 +82,9 @@ def batch_row_coder_benchmark_factory(generate_fn, use_batch):
     coder: coder to use to encode an element.
     generate_fn: a callable that generates an element.
   """
+
   class CoderBenchmark(object):
+
     def __init__(self, num_elements_per_benchmark):
       self._use_batch = use_batch
       row_instance = generate_fn()

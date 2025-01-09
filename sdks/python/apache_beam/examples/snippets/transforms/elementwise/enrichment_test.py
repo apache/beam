@@ -62,6 +62,7 @@ Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
 
 @mock.patch('sys.stdout', new_callable=StringIO)
 class EnrichmentTest(unittest.TestCase):
+
   def test_enrichment_with_bigtable(self, mock_stdout):
     enrichment_with_bigtable()
     output = mock_stdout.getvalue().splitlines()

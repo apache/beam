@@ -1077,6 +1077,7 @@ class FnApiRunner(runner.PipelineRunner):
                      If False, generator returns a new cache token each time
          :return A generator which returns a cache token on next(generator)
      """
+
     def generate_token(
         identifier: int) -> beam_fn_api_pb2.ProcessBundleRequest.CacheToken:
       return beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
@@ -1085,6 +1086,7 @@ class FnApiRunner(runner.PipelineRunner):
           token="cache_token_{}".format(identifier).encode("utf-8"))
 
     class StaticGenerator(object):
+
       def __init__(self) -> None:
         self._token = generate_token(1)
 
@@ -1096,6 +1098,7 @@ class FnApiRunner(runner.PipelineRunner):
         return self._token
 
     class DynamicGenerator(object):
+
       def __init__(self) -> None:
         self._counter = 0
         self._lock = threading.Lock()
@@ -1116,6 +1119,7 @@ class FnApiRunner(runner.PipelineRunner):
 
 
 class ExtendedProvisionInfo(object):
+
   def __init__(
       self,
       provision_info: Optional[beam_provision_api_pb2.ProvisionInfo] = None,
@@ -1293,15 +1297,15 @@ class BundleManager(object):
             self._worker_handler.control_conn.push(split_request).get())
         for t in (0.05, 0.1, 0.2):
           if ('Unknown process bundle' in split_response.error or
-              split_response.process_bundle_split ==
-              beam_fn_api_pb2.ProcessBundleSplitResponse()):
+              split_response.process_bundle_split
+              == beam_fn_api_pb2.ProcessBundleSplitResponse()):
             time.sleep(t)
             split_response = self._worker_handler.control_conn.push(
                 split_request).get()
         logging.info('Got split response %s', split_response)
         if ('Unknown process bundle' in split_response.error or
-            split_response.process_bundle_split ==
-            beam_fn_api_pb2.ProcessBundleSplitResponse()):
+            split_response.process_bundle_split
+            == beam_fn_api_pb2.ProcessBundleSplitResponse()):
           # It may have finished too fast.
           split_result = None
         elif split_response.error:
@@ -1410,6 +1414,7 @@ class BundleManager(object):
 
 
 class ParallelBundleManager(BundleManager):
+
   def __init__(
       self,
       bundle_context_manager: execution.BundleContextManager,
@@ -1482,6 +1487,7 @@ class ProgressRequester(threading.Thread):
 
   A callback can be passed to call with progress updates.
   """
+
   def __init__(
       self,
       worker_handler: WorkerHandler,
@@ -1526,6 +1532,7 @@ class ProgressRequester(threading.Thread):
 
 
 class FnApiMetrics(metric.MetricResults):
+
   def __init__(self, step_monitoring_infos, user_metrics_only=True):
     """Used for querying metrics from the PipelineResult object.
 
@@ -1551,24 +1558,24 @@ class FnApiMetrics(metric.MetricResults):
 
   def query(self, filter=None):
     counters = [
-        MetricResult(k, v, v) for k,
-        v in self._counters.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._counters.items()
+        if self.matches(filter, k)
     ]
     distributions = [
-        MetricResult(k, v, v) for k,
-        v in self._distributions.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._distributions.items()
+        if self.matches(filter, k)
     ]
     gauges = [
-        MetricResult(k, v, v) for k,
-        v in self._gauges.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._gauges.items()
+        if self.matches(filter, k)
     ]
     string_sets = [
-        MetricResult(k, v, v) for k,
-        v in self._string_sets.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._string_sets.items()
+        if self.matches(filter, k)
     ]
     bounded_tries = [
-        MetricResult(k, v, v) for k,
-        v in self._bounded_tries.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._bounded_tries.items()
+        if self.matches(filter, k)
     ]
 
     return {
@@ -1586,6 +1593,7 @@ class FnApiMetrics(metric.MetricResults):
 
 
 class RunnerResult(runner.PipelineResult):
+
   def __init__(self, state, monitoring_infos_by_stage):
     super().__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage

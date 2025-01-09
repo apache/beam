@@ -36,6 +36,7 @@ beam_interactive_api_pb2.TestStreamFileRecord.__test__ = False
 
 
 class EventsReader:
+
   def __init__(self, expected_key):
     self._expected_key = expected_key
 
@@ -57,6 +58,7 @@ EXPECTED_KEYS = [EXPECTED_KEY]
 
 
 class TestStreamServiceTest(unittest.TestCase):
+
   def setUp(self):
     self.controller = TestStreamServiceController(
         EventsReader(expected_key=[('full', EXPECTED_KEY)]))

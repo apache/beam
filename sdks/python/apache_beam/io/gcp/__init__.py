@@ -25,7 +25,9 @@ try:
   from apitools.base.py import transfer
 
   class _WrapperNamespace(object):
+
     class BytesGenerator(email_generator.BytesGenerator):
+
       def _write_lines(self, lines):
         self.write(lines)
 

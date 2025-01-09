@@ -137,6 +137,7 @@ def create_storage_client(pipeline_options, use_credentials=True):
 
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
+
   def __init__(
       self,
       storage_client: Optional[storage.Client] = None,
@@ -584,6 +585,7 @@ class GcsIO(object):
 
 
 class BeamBlobReader(BlobReader):
+
   def __init__(
       self,
       blob,
@@ -605,6 +607,7 @@ class BeamBlobReader(BlobReader):
 
 
 class BeamBlobWriter(BlobWriter):
+
   def __init__(
       self,
       blob,

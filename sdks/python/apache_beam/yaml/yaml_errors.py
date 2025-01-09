@@ -55,6 +55,7 @@ def map_errors_to_standard_format(input_type):
 
 
 def maybe_with_exception_handling(inner_expand):
+
   def expand(self, pcoll):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, self._exception_handling_args)
@@ -65,6 +66,7 @@ def maybe_with_exception_handling(inner_expand):
 
 
 def maybe_with_exception_handling_transform_fn(transform_fn):
+
   @functools.wraps(transform_fn)
   def expand(pcoll, error_handling=None, **kwargs):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(

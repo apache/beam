@@ -78,6 +78,7 @@ class DataprocClusterManager:
   """Self-contained cluster manager that controls the lifecyle of a Dataproc
   cluster connected by one or more pipelines under Interactive Beam.
   """
+
   def __init__(self, cluster_metadata: ClusterMetadata) -> None:
     """Initializes the DataprocClusterManager with properties required
     to interface with the Dataproc ClusterControllerClient.

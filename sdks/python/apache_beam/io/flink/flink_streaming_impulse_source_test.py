@@ -26,6 +26,7 @@ from apache_beam.io.flink.flink_streaming_impulse_source import FlinkStreamingIm
 
 
 class FlinkStreamingImpulseSourceTest(unittest.TestCase):
+
   def test_serialization(self):
     p = beam.Pipeline()
     # pylint: disable=expression-not-assigned

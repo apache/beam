@@ -115,6 +115,7 @@ def _build_serial_stages(
 
 
 def run_single_pipeline(size):
+
   def _pipeline_runner():
     with beam.Pipeline(runner=FnApiRunner()) as p:
       for i in range(NUM_PARALLEL_STAGES):

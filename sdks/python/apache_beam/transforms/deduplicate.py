@@ -55,6 +55,7 @@ class DeduplicatePerKey(ptransform.PTransform):
 
   Does not preserve any order the input PCollection might have had.
   """
+
   def __init__(self, processing_time_duration=None, event_time_duration=None):
     if processing_time_duration is None and event_time_duration is None:
       raise ValueError(
@@ -72,6 +73,7 @@ class DeduplicatePerKey(ptransform.PTransform):
     event_time_duration = self.event_time_duration
 
     class DeduplicationFn(core.DoFn):
+
       def process(
           self,
           kv,
@@ -113,6 +115,7 @@ class Deduplicate(ptransform.PTransform):
   value as input and uses value as key to deduplicate among certain amount of
   time duration.
   """
+
   def __init__(self, processing_time_duration=None, event_time_duration=None):
     if processing_time_duration is None and event_time_duration is None:
       raise ValueError(

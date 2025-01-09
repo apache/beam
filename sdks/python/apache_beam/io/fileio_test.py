@@ -59,6 +59,7 @@ def _get_file_reader(readable_file):
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):
+
   def test_basic_two_files(self):
     files = []
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
@@ -137,6 +138,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
 
 class ReadTest(_TestCaseWithTempDirCleanUp):
+
   def test_basic_file_name_provided(self):
     content = 'TestingMyContent\nIn multiple lines\nhaha!'
     dir = '%s%s' % (self._new_tempdir(), os.sep)
@@ -322,6 +324,7 @@ class MatchIntegrationTest(unittest.TestCase):
 
 
 class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
+
   def test_with_deduplication(self):
     files = []
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
@@ -461,6 +464,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                                       for elm in SIMPLE_COLLECTION}
 
   class CsvSink(fileio.TextSink):
+
     def __init__(self, headers):
       self.headers = headers
 
@@ -469,6 +473,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       self._fh.write('\n'.encode('utf8'))
 
   class JsonSink(fileio.TextSink):
+
     def write(self, record):
       self._fh.write(json.dumps(record).encode('utf8'))
       self._fh.write('\n'.encode('utf8'))
@@ -497,8 +502,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
   def test_write_to_dynamic_destination(self):
 
     sink_params = [
-        fileio.TextSink, # pass a type signature
-        fileio.TextSink() # pass a FileSink object
+        fileio.TextSink,  # pass a type signature
+        fileio.TextSink()  # pass a FileSink object
     ]
 
     for sink in sink_params:
@@ -522,8 +527,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
             | fileio.ReadMatches()
             | beam.Map(
                 lambda f: (
-                    os.path.basename(f.metadata.path).split('-')[0],
-                    sorted(map(int, f.read_utf8().strip().split('\n'))))))
+                    os.path.basename(f.metadata.path).split('-')[0], sorted(
+                        map(int, f.read_utf8().strip().split('\n'))))))
 
         assert_that(
             result,
@@ -664,7 +669,9 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           label='verifyApache')
 
   def record_dofn(self):
+
     class RecordDoFn(beam.DoFn):
+
       def process(self, element):
         WriteFilesTest.all_records.append(element)
 

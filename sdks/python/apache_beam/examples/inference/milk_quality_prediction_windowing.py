@@ -138,6 +138,7 @@ class MilkQualityAggregation(NamedTuple):
 class AggregateMilkQualityResults(beam.CombineFn):
   """Simple aggregation to keep track of the number
    of samples with good, bad and medium quality milk."""
+
   def create_accumulator(self):
     return MilkQualityAggregation(0, 0, 0)
 

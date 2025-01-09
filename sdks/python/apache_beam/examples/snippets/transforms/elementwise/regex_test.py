@@ -156,6 +156,7 @@ def check_split(actual):
     'apache_beam.examples.snippets.transforms.elementwise.regex_split.print',
     str)
 class RegexTest(unittest.TestCase):
+
   def test_matches(self):
     regex_matches.regex_matches(check_matches)
 

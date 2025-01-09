@@ -38,6 +38,7 @@ from apache_beam.yaml import yaml_transform
 
 
 class FakeSql(beam.PTransform):
+
   def __init__(self, query):
     self.query = query
 
@@ -101,6 +102,7 @@ class FakeSql(beam.PTransform):
 
 
 class FakeReadFromPubSub(beam.PTransform):
+
   def __init__(self, topic, format, schema):
     pass
 
@@ -114,6 +116,7 @@ class FakeReadFromPubSub(beam.PTransform):
 
 
 class FakeWriteToPubSub(beam.PTransform):
+
   def __init__(self, topic, format):
     pass
 
@@ -122,6 +125,7 @@ class FakeWriteToPubSub(beam.PTransform):
 
 
 class FakeAggregation(beam.PTransform):
+
   def __init__(self, **unused_kwargs):
     pass
 
@@ -134,6 +138,7 @@ class _Fakes:
   fn = str
 
   class SomeTransform(beam.PTransform):
+
     def __init__(*args, **kwargs):
       pass
 
@@ -153,12 +158,14 @@ TEST_TRANSFORMS = {
 
 
 class TestProvider(yaml_provider.InlineProvider):
+
   def _affinity(self, other):
     # Always try to choose this one.
     return float('inf')
 
 
 class TestEnvironment:
+
   def __enter__(self):
     self.tempdir = tempfile.TemporaryDirectory()
     return self
@@ -257,8 +264,7 @@ def create_test_method(test_type, test_name, test_yaml):
         #  in precommits
         with mock.patch(
             'apache_beam.yaml.yaml_provider.ExternalProvider.create_transform',
-            lambda *args,
-            **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
+            lambda *args, **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
           p = beam.Pipeline(options=PipelineOptions(**options))
           yaml_transform.expand_pipeline(
               p, modified_yaml, yaml_provider.merge_providers([test_provider]))

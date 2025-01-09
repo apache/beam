@@ -37,8 +37,11 @@ from apache_beam.transforms.core import Create
 
 
 class TranslationsTest(unittest.TestCase):
+
   def test_eliminate_common_key_with_void(self):
+
     class MultipleKeyWithNone(beam.PTransform):
+
       def expand(self, pcoll):
         _ = pcoll | 'key-with-none-a' >> beam.ParDo(core._KeyWithNone())
         _ = pcoll | 'key-with-none-b' >> beam.ParDo(core._KeyWithNone())
@@ -58,7 +61,9 @@ class TranslationsTest(unittest.TestCase):
     self.assertIn('multiple-key-with-none', key_with_none_stages[0].parent)
 
   def test_pack_combiners(self):
+
     class MultipleCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -89,7 +94,9 @@ class TranslationsTest(unittest.TestCase):
     self.assertNotIn('-perkey', combine_per_key_stages[0].parent)
 
   def test_pack_combiners_with_missing_environment_capability(self):
+
     class MultipleCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -120,7 +127,9 @@ class TranslationsTest(unittest.TestCase):
           'Packed', combine_per_key_stage.transforms[0].unique_name)
 
   def test_pack_global_combiners(self):
+
     class MultipleCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -170,7 +179,9 @@ class TranslationsTest(unittest.TestCase):
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
 
   def test_optimize_single_combine_globally(self):
+
     class SingleCombine(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -193,7 +204,9 @@ class TranslationsTest(unittest.TestCase):
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
 
   def test_optimize_multiple_combine_globally(self):
+
     class MultipleCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -223,6 +236,7 @@ class TranslationsTest(unittest.TestCase):
     side = pipeline | 'side' >> Create([3, 4])
 
     class CreateAndMultiplyBySide(beam.PTransform):
+
       def expand(self, pcoll):
         return (
             pcoll | 'main' >> Create([1, 2]) | 'compute' >> beam.FlatMap(
@@ -251,7 +265,9 @@ class TranslationsTest(unittest.TestCase):
 
   @pytest.mark.it_validatesrunner
   def test_run_packable_combine_per_key(self):
+
     class MultipleCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -281,7 +297,9 @@ class TranslationsTest(unittest.TestCase):
 
   @pytest.mark.it_validatesrunner
   def test_run_packable_combine_globally(self):
+
     class MultipleCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 
@@ -309,7 +327,9 @@ class TranslationsTest(unittest.TestCase):
 
   @pytest.mark.it_validatesrunner
   def test_run_packable_combine_limit(self):
+
     class MultipleLargeCombines(beam.PTransform):
+
       def annotations(self):
         # Limit to at most 2 combiners per packed combiner.
         return {python_urns.APPLY_COMBINER_PACKING: b'2'}
@@ -329,6 +349,7 @@ class TranslationsTest(unittest.TestCase):
             label='assert-min-3-globally')
 
     class MultipleSmallCombines(beam.PTransform):
+
       def annotations(self):
         # Limit to at most 4 combiners per packed combiner.
         return {python_urns.APPLY_COMBINER_PACKING: b'4'}
@@ -389,7 +410,9 @@ class TranslationsTest(unittest.TestCase):
     Test that the CPK component transforms inherit annotations from the
     source CPK
     """
+
     class MyCombinePerKey(beam.CombinePerKey):
+
       def annotations(self):
         return {"my_annotation": b""}
 
@@ -411,11 +434,13 @@ class TranslationsTest(unittest.TestCase):
                          'MyCombinePerKey(min)/Merge',
                          'MyCombinePerKey(min)/ExtractOutputs']:
       assert (
-          "my_annotation" in
-          optimized.components.transforms[transform_id].annotations)
+          "my_annotation"
+          in optimized.components.transforms[transform_id].annotations)
 
   def test_conditionally_packed_combiners(self):
+
     class RecursiveCombine(beam.PTransform):
+
       def __init__(self, labels):
         self._labels = labels
 

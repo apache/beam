@@ -52,6 +52,7 @@ _SUPPORTED_PLATFORMS = ['Darwin', 'Linux']
 class ScreenDiffIntegrationTestEnvironment(object):
   """A test environment to conduct screen diff integration tests for notebooks.
   """
+
   def __init__(
       self,
       test_notebook_path: str,

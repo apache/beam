@@ -78,6 +78,7 @@ class PaneInfo(object):
   whether it's an early/on time/late firing, if it's the last or first firing
   from a window, and the index of the firing.
   """
+
   def __init__(self, is_first, is_last, timing, index, nonspeculative_index):
     self._is_first = is_first
     self._is_last = is_last
@@ -205,6 +206,7 @@ class WindowedValue(object):
       the pane that contained this value.  If None, will be set to
       PANE_INFO_UNKNOWN.
   """
+
   def __init__(
       self,
       value,
@@ -288,6 +290,7 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
 class WindowedBatch(object):
   """A batch of N windowed values, each having a value, a timestamp and set of
   windows."""
+
   def with_values(self, new_values):
     # type: (Any) -> WindowedBatch
 
@@ -312,6 +315,7 @@ class HomogeneousWindowedBatch(WindowedBatch):
   """A WindowedBatch with Homogeneous event-time information, represented
   internally as a WindowedValue.
   """
+
   def __init__(self, wv):
     self._wv = wv
 
@@ -391,6 +395,7 @@ except TypeError:
 class _IntervalWindowBase(object):
   """Optimized form of IntervalWindow storing only microseconds for endpoints.
   """
+
   def __init__(self, start, end):
     # type: (TimestampTypes, TimestampTypes) -> None
     if start is not None:

@@ -43,6 +43,7 @@ except ImportError:
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class BigqueryMatcherTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
@@ -115,6 +116,7 @@ class BigqueryMatcherTest(unittest.TestCase):
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery_tools, 'BigQueryWrapper')
 class BigqueryTableMatcherTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
@@ -160,6 +162,7 @@ class BigqueryTableMatcherTest(unittest.TestCase):
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class BigqueryFullResultStreamingMatcherTest(unittest.TestCase):
+
   def setUp(self):
     self.timeout = 0.01
 

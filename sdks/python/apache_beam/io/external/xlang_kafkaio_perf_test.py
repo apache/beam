@@ -37,6 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class KafkaIOTestOptions(LoadTestOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -57,6 +58,7 @@ class KafkaIOTestOptions(LoadTestOptions):
 
 class KafkaIOPerfTest:
   """Performance test for cross-language Kafka IO pipeline."""
+
   def run(self):
     write_test = _KafkaIOBatchWritePerfTest()
     read_test = _KafkaIOSDFReadPerfTest()
@@ -65,6 +67,7 @@ class KafkaIOPerfTest:
 
 
 class _KafkaIOBatchWritePerfTest(LoadTest):
+
   def __init__(self):
     super().__init__(WRITE_NAMESPACE)
     self.test_options = self.pipeline.get_pipeline_options().view_as(
@@ -93,6 +96,7 @@ class _KafkaIOBatchWritePerfTest(LoadTest):
 
 
 class _KafkaIOSDFReadPerfTest(LoadTest):
+
   def __init__(self):
     super().__init__(READ_NAMESPACE)
     self.test_options = self.pipeline.get_pipeline_options().view_as(

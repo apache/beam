@@ -61,6 +61,7 @@ class BatchRowsAsDataFrame(beam.PTransform):
   Batching parameters are inherited from
   :class:`~apache_beam.transforms.util.BatchElements`.
   """
+
   def __init__(self, *args, proxy=None, **kwargs):
     self._batch_elements_transform = BatchElements(*args, **kwargs)
     self._proxy = proxy
@@ -204,6 +205,7 @@ class UnbatchPandas(beam.PTransform):
         levels are unnamed (name=None), or if any of the names are not unique
         among all column and index names.
   """
+
   def __init__(self, proxy, include_indexes=False):
     self._proxy = proxy
     self._include_indexes = include_indexes

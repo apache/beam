@@ -61,6 +61,7 @@ def extract_inspection_results(response):
 
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class CloudDLPIT(unittest.TestCase):
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__

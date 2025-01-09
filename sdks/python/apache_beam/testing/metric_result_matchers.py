@@ -62,6 +62,7 @@ def _matcher_or_equal_to(value_or_matcher):
 
 class MetricResultMatcher(BaseMatcher):
   """A PyHamcrest matcher that validates counter MetricResults."""
+
   def __init__(
       self,
       namespace=None,
@@ -141,6 +142,7 @@ class MetricResultMatcher(BaseMatcher):
 
 class DistributionMatcher(BaseMatcher):
   """A PyHamcrest matcher that validates counter distributions."""
+
   def __init__(
       self, sum_value=None, count_value=None, min_value=None, max_value=None):
     self.sum_value = _matcher_or_equal_to(sum_value)

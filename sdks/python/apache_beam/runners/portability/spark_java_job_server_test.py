@@ -24,6 +24,7 @@ from apache_beam.runners.portability.spark_runner import SparkRunner
 
 
 class SparkTestPipelineOptions(pipeline_options.PipelineOptions):
+
   def view_as(self, cls):
     # Ensure only SparkRunnerOptions and JobServerOptions are used when calling
     # default_job_server. If other options classes are needed, the cache key
@@ -35,6 +36,7 @@ class SparkTestPipelineOptions(pipeline_options.PipelineOptions):
 
 
 class SparkJavaJobServerTest(unittest.TestCase):
+
   def test_job_server_cache(self):
     # Multiple SparkRunner instances may be created, so we need to make sure we
     # cache job servers across runner instances.

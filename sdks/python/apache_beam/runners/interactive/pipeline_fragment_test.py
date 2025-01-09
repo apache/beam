@@ -35,6 +35,7 @@ from apache_beam.testing.test_stream import TestStream
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class PipelineFragmentTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
     # Assume a notebook frontend is connected to the mocked ipython kernel.

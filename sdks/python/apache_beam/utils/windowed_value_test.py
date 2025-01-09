@@ -32,6 +32,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class WindowedValueTest(unittest.TestCase):
+
   def test_timestamps(self):
     wv = windowed_value.WindowedValue(None, 3, ())
     self.assertEqual(wv.timestamp, Timestamp.of(3))
@@ -88,6 +89,7 @@ WINDOWED_BATCH_INSTANCES = [
 
 
 class WindowedBatchTest(unittest.TestCase):
+
   def test_homogeneous_windowed_batch_with_values(self):
     pane_info = windowed_value.PaneInfo(
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
@@ -155,6 +157,7 @@ class WindowedBatchTest(unittest.TestCase):
 
 @parameterized_class(('wb', ), [(wb, ) for wb in WINDOWED_BATCH_INSTANCES])
 class WindowedBatchUtilitiesTest(unittest.TestCase):
+
   def test_hash(self):
     wb_copy = copy.copy(self.wb)
     self.assertFalse(self.wb is wb_copy)

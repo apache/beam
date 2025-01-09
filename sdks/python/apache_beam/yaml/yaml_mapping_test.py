@@ -35,6 +35,7 @@ DATA = [
 
 
 class YamlMappingTest(unittest.TestCase):
+
   def test_basic(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

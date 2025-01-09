@@ -59,6 +59,7 @@ def spark_job():
 
 
 class SparkUberJarJobServerTest(unittest.TestCase):
+
   @requests_mock.mock()
   def test_get_server_spark_version(self, http_mock):
     http_mock.get(

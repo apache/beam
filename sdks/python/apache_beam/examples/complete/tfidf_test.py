@@ -36,6 +36,7 @@ EXPECTED_RESULTS = set([
 
 
 class TfIdfTest(unittest.TestCase):
+
   def test_tfidf_transform(self):
     with TestPipeline() as p:
 

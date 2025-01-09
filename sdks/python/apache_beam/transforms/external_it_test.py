@@ -33,10 +33,13 @@ from apache_beam.transforms import ptransform
 
 
 class ExternalTransformIT(unittest.TestCase):
+
   @pytest.mark.it_postcommit
   def test_job_python_from_python_it(self):
+
     @ptransform.PTransform.register_urn('simple', None)
     class SimpleTransform(ptransform.PTransform):
+
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: 'Simple(%s)' % x)
 

@@ -57,6 +57,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
 
 @pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
+
   def test_cloudml_benchmark_criteo_small(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}

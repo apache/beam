@@ -175,6 +175,7 @@ class DicomSearch(PTransform):
     }
 
   """
+
   def __init__(
       self, buffer_size=8, max_workers=5, client=None, credential=None):
     """Initializes DicomSearch.
@@ -201,6 +202,7 @@ class DicomSearch(PTransform):
 
 class _QidoReadFn(beam.DoFn):
   """A DoFn for executing every qido query request."""
+
   def __init__(self, buffer_size, max_workers, client, credential=None):
     self.buffer_size = buffer_size
     self.max_workers = max_workers
@@ -317,6 +319,7 @@ class FormatToQido(PTransform):
     }
 
   """
+
   def __init__(self, credential=None):
     """Initializes FormatToQido.
     Args:
@@ -331,6 +334,7 @@ class FormatToQido(PTransform):
 
 class _ConvertStringToQido(beam.DoFn):
   """A DoFn for converting pubsub string to qido search parameters."""
+
   def process(self, element):
     # Some constants for DICOM pubsub message
     NUM_PUBSUB_STR_ENTRIES = 15
@@ -418,6 +422,7 @@ class UploadToDicomStore(PTransform):
     }
 
   """
+
   def __init__(
       self,
       destination_dict,
@@ -475,6 +480,7 @@ class UploadToDicomStore(PTransform):
 
 class _StoreInstance(beam.DoFn):
   """A DoFn read or fetch dicom files then push it to a dicom store."""
+
   def __init__(
       self,
       destination_dict,

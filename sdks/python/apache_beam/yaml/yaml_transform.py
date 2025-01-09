@@ -91,6 +91,7 @@ def validate_against_schema(pipeline, strictness):
 
 
 def memoize_method(func):
+
   def wrapper(self, *args):
     if not hasattr(self, '_cache'):
       self._cache = {}
@@ -130,6 +131,7 @@ def empty_if_explicitly_empty(io):
 
 
 class LightweightScope(object):
+
   def __init__(self, transforms):
     self._transforms = transforms
     self._transforms_by_uuid = {t['__uuid__']: t for t in self._transforms}
@@ -166,6 +168,7 @@ class LightweightScope(object):
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
+
   def __init__(
       self,
       root,
@@ -472,6 +475,7 @@ def expand_composite_transform(spec, scope):
       scope.input_providers)
 
   class CompositePTransform(beam.PTransform):
+
     @staticmethod
     def expand(inputs):
       inner_scope.compute_all()
@@ -500,6 +504,7 @@ def expand_chain_transform(spec, scope):
 
 
 def chain_as_composite(spec):
+
   def is_not_output_of_last_transform(new_transforms, value):
     return (
         ('name' in new_transforms[-1] and
@@ -844,8 +849,10 @@ def lift_config(spec):
   if 'config' not in spec:
     common_params = 'name', 'type', 'input', 'output', 'transforms'
     return {
-        'config': {k: v
-                   for (k, v) in spec.items() if k not in common_params},
+        'config': {
+            k: v
+            for (k, v) in spec.items() if k not in common_params
+        },
         **{
             k: v
             for (k, v) in spec.items()  #
@@ -943,6 +950,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
 
 
 class _BeamFileIOLoader(jinja2.BaseLoader):
+
   def get_source(self, environment, path):
     with FileSystems.open(path) as fin:
       source = fin.read().decode()
@@ -959,6 +967,7 @@ def expand_jinja(
 
 
 class YamlTransform(beam.PTransform):
+
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)

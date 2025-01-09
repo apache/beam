@@ -81,12 +81,14 @@ def combine_results(results):
 
 class JsonCoder(object):
   """A JSON coder used to format the final result."""
+
   def encode(self, x):
     return json.dumps(x).encode('utf-8')
 
 
 class EstimatePiTransform(beam.PTransform):
   """Runs 10M trials, and combine the results to estimate pi."""
+
   def __init__(self, tries_per_work_item=100000):
     self.tries_per_work_item = tries_per_work_item
 

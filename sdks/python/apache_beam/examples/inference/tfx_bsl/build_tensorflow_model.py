@@ -54,6 +54,7 @@ class TFModelWrapperWithSignature(tf.keras.Model):
       saved_model_spec=saved_model_spec)
   model_handler = CreateModelHandler(inferece_spec_type)
   """
+
   def __init__(
       self,
       model,

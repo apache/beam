@@ -91,6 +91,7 @@ TYPES_UNSUPPORTED_BY_ROW_CODER = {np.int8, np.int16}
 
 
 class TypesAreAllTested(unittest.TestCase):
+
   def test_all_types_are_tested(self):
     # Verify that all types among Beam's defined types are being tested
     self.assertEqual(
@@ -100,6 +101,7 @@ class TypesAreAllTested(unittest.TestCase):
 
 
 class ProperyTestingCoders(unittest.TestCase):
+
   @given(st.text())
   def test_string_coder(self, txt: str):
     coder = StrUtf8Coder()
@@ -144,9 +146,7 @@ class ProperyTestingCoders(unittest.TestCase):
     row = RowType(
         **{
             name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
-            for name,
-            type_,
-            nullable in schema
+            for name, type_, nullable in schema
         })
 
     coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)

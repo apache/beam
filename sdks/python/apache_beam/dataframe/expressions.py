@@ -33,6 +33,7 @@ class Session(object):
   The bindings typically include required placeholders, but may be any
   intermediate expression as well.
   """
+
   def __init__(self, bindings=None):
     self._bindings = dict(bindings or {})
 
@@ -60,6 +61,7 @@ class PartitioningSession(Session):
 
   For testing only.
   """
+
   def evaluate(self, expr):
     import pandas as pd
     import collections
@@ -205,6 +207,7 @@ class Expression(Generic[T]):
   expression. However, unless the inputs are Singleton-partitioned, the
   expression makes no guarantees about the partitioning of the output.
   """
+
   def __init__(self, name: str, proxy: T, _id: Optional[str] = None):
     self._name = name
     self._proxy = proxy
@@ -250,6 +253,7 @@ class Expression(Generic[T]):
 
 class PlaceholderExpression(Expression):
   """An expression whose value must be explicitly bound in the session."""
+
   def __init__(
       self,
       proxy: T,
@@ -282,6 +286,7 @@ class PlaceholderExpression(Expression):
 
 class ConstantExpression(Expression):
   """An expression whose value is known at pipeline construction time."""
+
   def __init__(self, value: T, proxy: Optional[T] = None):
     """Initialize a constant expression.
 
@@ -314,6 +319,7 @@ class ConstantExpression(Expression):
 
 class ComputedExpression(Expression):
   """An expression whose value must be computed at pipeline execution time."""
+
   def __init__(
       self,
       name: str,
@@ -410,6 +416,7 @@ def allow_non_parallel_operations(allow=True):
 
 
 class NonParallelOperation(Exception):
+
   def __init__(self, msg):
     super().__init__(self, msg)
     self.msg = msg

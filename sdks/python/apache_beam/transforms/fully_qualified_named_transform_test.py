@@ -32,6 +32,7 @@ from apache_beam.utils import python_callable
 
 
 class FullyQualifiedNamedTransformTest(unittest.TestCase):
+
   def test_test_transform(self):
     with beam.Pipeline() as p:
       assert_that(
@@ -115,11 +116,12 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
             | FullyQualifiedNamedTransform(
                 '__callable__',  # the next argument is a callable to be applied
                 (
-                  python_callable.PythonCallableWithSource("""
+                    python_callable.PythonCallableWithSource(
+                        """
                       def func(pcoll, x):
                         return pcoll | beam.Map(lambda e: e + x)
                       """),
-                  'x'  # arguments passed to the callable
+                    'x'  # arguments passed to the callable
                 ),
                 {}),
             equal_to(['ax', 'bx', 'cx']))
@@ -133,16 +135,16 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
                 '__constructor__',  # the next argument constructs a PTransform
                 (),
                 {
-                'source': python_callable.PythonCallableWithSource("""
+                    'source': python_callable.PythonCallableWithSource(
+                        """
                     class MyTransform(beam.PTransform):
                       def __init__(self, x):
                         self._x = x
                       def expand(self, pcoll):
                         return pcoll | beam.Map(lambda e: e + self._x)
                     """),
-                'x': 'x'  # arguments passed to the above constructor
-                }
-                ),
+                    'x': 'x'  # arguments passed to the above constructor
+                }),
             equal_to(['ax', 'bx', 'cx']))
 
   def test_glob_filter(self):
@@ -184,6 +186,7 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
 
 
 class _TestTransform(beam.PTransform):
+
   @classmethod
   def create(cls, *args, **kwargs):
     return cls(*args, **kwargs)

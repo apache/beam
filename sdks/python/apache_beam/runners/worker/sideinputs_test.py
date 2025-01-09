@@ -34,6 +34,7 @@ def strip_windows(iterator):
 
 
 class FakeSource(object):
+
   def __init__(self, items, notify_observers=False):
     self.items = items
     self._should_notify_observers = notify_observers
@@ -43,6 +44,7 @@ class FakeSource(object):
 
 
 class FakeSourceReader(observable.ObservableMixin):
+
   def __init__(self, items, notify_observers=False):
     super().__init__()
     self.items = items
@@ -69,6 +71,7 @@ class FakeSourceReader(observable.ObservableMixin):
 
 
 class PrefetchingSourceIteratorTest(unittest.TestCase):
+
   def test_single_source_iterator_fn(self):
     sources = [
         FakeSource([0, 1, 2, 3, 4, 5]),
@@ -111,6 +114,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     assert list(strip_windows(iterator_fn())) == list(range(11))
 
   def test_source_iterator_single_source_exception(self):
+
     class MyException(Exception):
       pass
 
@@ -129,6 +133,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     self.assertEqual(sorted(seen), [0])
 
   def test_source_iterator_fn_exception(self):
+
     class MyException(Exception):
       pass
 
@@ -158,7 +163,9 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
 
 
 class EmulatedCollectionsTest(unittest.TestCase):
+
   def test_emulated_iterable(self):
+
     def _iterable_fn():
       for i in range(10):
         yield i

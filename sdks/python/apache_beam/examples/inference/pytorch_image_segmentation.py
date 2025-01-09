@@ -160,6 +160,7 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 
 class PostProcessor(beam.DoFn):
+
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
     prediction_labels = prediction_result.inference['labels']

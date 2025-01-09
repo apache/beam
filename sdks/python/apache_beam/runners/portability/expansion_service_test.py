@@ -62,6 +62,7 @@ TEST_NO_OUTPUT_URN = "beam:transforms:xlang:test:nooutput"
 
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
 class CountPerElementTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     return pcoll | combine.Count.PerElement()
 
@@ -77,6 +78,7 @@ class CountPerElementTransform(ptransform.PTransform):
 @ptransform.PTransform.register_urn(
     'beam:transforms:xlang:filter_less_than_eq', bytes)
 class FilterLessThanTransform(ptransform.PTransform):
+
   def __init__(self, payload):
     self._payload = payload
 
@@ -97,6 +99,7 @@ class FilterLessThanTransform(ptransform.PTransform):
 @ptransform.PTransform.register_urn(TEST_PREFIX_URN, None)
 @beam.typehints.with_output_types(str)
 class PrefixTransform(ptransform.PTransform):
+
   def __init__(self, payload):
     self._payload = payload
 
@@ -115,6 +118,7 @@ class PrefixTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_MULTI_URN, None)
 class MutltiTransform(ptransform.PTransform):
+
   def expand(self, pcolls):
     return {
         'main': (pcolls['main1'], pcolls['main2'])
@@ -136,6 +140,7 @@ class MutltiTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_GBK_URN, None)
 class GBKTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     return pcoll | 'TestLabel' >> beam.GroupByKey()
 
@@ -150,7 +155,9 @@ class GBKTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_CGBK_URN, None)
 class CoGBKTransform(ptransform.PTransform):
+
   class ConcatFn(beam.DoFn):
+
     def process(self, element):
       (k, v) = element
       return [(k, v['col1'] + v['col2'])]
@@ -172,6 +179,7 @@ class CoGBKTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_COMGL_URN, None)
 class CombineGloballyTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     return pcoll \
            | beam.CombineGlobally(sum).with_output_types(int)
@@ -187,6 +195,7 @@ class CombineGloballyTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
 class CombinePerKeyTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     output = pcoll \
            | beam.CombinePerKey(sum)
@@ -206,6 +215,7 @@ class CombinePerKeyTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_FLATTEN_URN, None)
 class FlattenTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     return pcoll.values() | beam.Flatten().with_output_types(int)
 
@@ -220,6 +230,7 @@ class FlattenTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_PARTITION_URN, None)
 class PartitionTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     col1, col2 = pcoll | beam.Partition(
         lambda elem, n: 0 if elem % 2 == 0 else 1, 2)
@@ -237,6 +248,7 @@ class PartitionTransform(ptransform.PTransform):
 
 
 class ExtractHtmlTitleDoFn(beam.DoFn):
+
   def process(self, element):
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(element, 'html.parser')
@@ -245,6 +257,7 @@ class ExtractHtmlTitleDoFn(beam.DoFn):
 
 @ptransform.PTransform.register_urn(TEST_PYTHON_BS4_URN, None)
 class ExtractHtmlTitleTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
     return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(str)
 
@@ -259,6 +272,7 @@ class ExtractHtmlTitleTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn('payload', bytes)
 class PayloadTransform(ptransform.PTransform):
+
   def __init__(self, payload):
     self._payload = payload
 
@@ -275,7 +289,9 @@ class PayloadTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn('map_to_union_types', None)
 class MapToUnionTypesTransform(ptransform.PTransform):
+
   class CustomDoFn(beam.DoFn):
+
     def process(self, element):
       if element == 1:
         return ['1']
@@ -298,6 +314,7 @@ class MapToUnionTypesTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn('fib', bytes)
 class FibTransform(ptransform.PTransform):
+
   def __init__(self, level):
     self._level = level
 
@@ -327,7 +344,9 @@ class FibTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_NO_OUTPUT_URN, None)
 class NoOutputTransform(ptransform.PTransform):
+
   def expand(self, pcoll):
+
     def log_val(val):
       logging.debug('Got value: %r', val)
 

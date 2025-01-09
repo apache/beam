@@ -144,6 +144,7 @@ and someting that'll fail (due to fake vs. real pandas)
 
 
 class DoctestTest(unittest.TestCase):
+
   def test_good(self):
     result = doctests.teststring(SAMPLE_DOCTEST, report=False)
     self.assertEqual(result.attempted, 3)

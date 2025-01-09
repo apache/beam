@@ -89,6 +89,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class NameContext(object):
   """Holds the name information for a step."""
+
   def __init__(self, step_name, transform_id=None):
     # type: (str, Optional[str]) -> None
 
@@ -126,6 +127,7 @@ class Receiver(object):
   This class can be efficiently used to pass values between the
   sdk and worker harnesses.
   """
+
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
     raise NotImplementedError
@@ -142,6 +144,7 @@ class MethodWrapper(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Represents a method that can be invoked by `DoFnInvoker`."""
+
   def __init__(self, obj_to_invoke, method_name):
     """
     Initiates a ``MethodWrapper``.
@@ -274,6 +277,7 @@ class DoFnSignature(object):
   https://s.apache.org/splittable-do-fn) (3) validating a ``DoFn`` based on the
   feature set offered by it.
   """
+
   def __init__(self, do_fn):
     # type: (core.DoFn) -> None
     # We add a property here for all methods defined by Beam DoFn features.
@@ -473,10 +477,11 @@ class DoFnInvoker(object):
   A DoFnInvoker describes a particular way for invoking methods of a DoFn
   represented by a given DoFnSignature."""
 
-  def __init__(self,
-               output_handler,  # type: _OutputHandler
-               signature  # type: DoFnSignature
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: _OutputHandler
+      signature  # type: DoFnSignature
+  ):
     # type: (...) -> None
 
     """
@@ -496,8 +501,9 @@ class DoFnInvoker(object):
       signature,  # type: DoFnSignature
       output_handler,  # type: OutputHandler
       context=None,  # type: Optional[DoFnContext]
-      side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
-      input_args=None, input_kwargs=None,
+      side_inputs=None,  # type: Optional[List[sideinputs.SideInputMap]]
+      input_args=None,
+      input_kwargs=None,
       process_invocation=True,
       user_state_context=None,  # type: Optional[userstate.UserStateContext]
       bundle_finalizer_param=None  # type: Optional[core._BundleFinalizerParam]
@@ -548,13 +554,13 @@ class DoFnInvoker(object):
           user_state_context,
           bundle_finalizer_param)
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
 
     """Invokes the DoFn.process() function.
@@ -575,11 +581,11 @@ class DoFnInvoker(object):
     """
     raise NotImplementedError
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
 
     """Invokes the DoFn.process() function.
@@ -669,34 +675,35 @@ class DoFnInvoker(object):
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
 
-  def __init__(self,
-               output_handler,  # type: OutputHandler
-               signature  # type: DoFnSignature
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: OutputHandler
+      signature  # type: DoFnSignature
+  ):
     # type: (...) -> None
     super().__init__(output_handler, signature)
     self.process_method = signature.process_method.method_value
     self.process_batch_method = signature.process_batch_method.method_value
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
     self.output_handler.handle_process_outputs(
         windowed_value, self.process_method(windowed_value.value))
     return []
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
     self.output_handler.handle_process_batch_outputs(
         windowed_batch, self.process_batch_method(windowed_batch.values))
@@ -716,6 +723,7 @@ def _get_arg_placeholders(
   # Not to be confused with ArgumentPlaceHolder, which may be passed in
   # input_args and is a placeholder for side-inputs.
   class ArgPlaceholder(object):
+
     def __init__(self, placeholder):
       self.placeholder = placeholder
 
@@ -782,16 +790,17 @@ def _get_arg_placeholders(
 class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
-  def __init__(self,
-               output_handler,  # type: OutputHandler
-               signature,  # type: DoFnSignature
-               context,  # type: DoFnContext
-               side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               input_args,
-               input_kwargs,
-               user_state_context,  # type: Optional[userstate.UserStateContext]
-               bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: OutputHandler
+      signature,  # type: DoFnSignature
+      context,  # type: DoFnContext
+      side_inputs,  # type: Iterable[sideinputs.SideInputMap]
+      input_args,
+      input_kwargs,
+      user_state_context,  # type: Optional[userstate.UserStateContext]
+      bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
+  ):
     super().__init__(output_handler, signature)
     self.side_inputs = side_inputs
     self.context = context
@@ -823,8 +832,8 @@ class PerWindowInvoker(DoFnInvoker):
     # and has_cached_window_batch_args will be set to true if the corresponding
     # self.args_for_process,have been updated and should be reused directly.
     self.recalculate_window_args = (
-        self.has_windowed_inputs or 'disable_global_windowed_args_caching' in
-        RuntimeValueProvider.experiments)
+        self.has_windowed_inputs or 'disable_global_windowed_args_caching'
+        in RuntimeValueProvider.experiments)
     self.has_cached_window_args = False
     self.has_cached_window_batch_args = False
 
@@ -846,13 +855,13 @@ class PerWindowInvoker(DoFnInvoker):
         self.kwargs_for_process_batch) = _get_arg_placeholders(
             signature.process_batch_method, input_args, input_kwargs)
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
     if not additional_args:
       additional_args = []
@@ -918,11 +927,11 @@ class PerWindowInvoker(DoFnInvoker):
           windowed_value, additional_args, additional_kwargs)
     return residuals
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
 
     if not additional_args:
@@ -947,9 +956,9 @@ class PerWindowInvoker(DoFnInvoker):
 
   def _should_process_window_for_sdf(
       self,
-      windowed_value, # type: WindowedValue
+      windowed_value,  # type: WindowedValue
       additional_kwargs,
-      window_index=None, # type: Optional[int]
+      window_index=None,  # type: Optional[int]
   ):
     restriction_tracker = self.invoke_create_tracker(self.restriction)
     watermark_estimator = self.invoke_create_watermark_estimator(
@@ -982,11 +991,12 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
     return True
 
-  def _invoke_process_per_window(self,
-                                 windowed_value,  # type: WindowedValue
-                                 additional_args,
-                                 additional_kwargs,
-                                ):
+  def _invoke_process_per_window(
+      self,
+      windowed_value,  # type: WindowedValue
+      additional_args,
+      additional_kwargs,
+  ):
     # type: (...) -> Optional[SplitResultResidual]
     if self.has_cached_window_args:
       args_for_process, kwargs_for_process = (
@@ -1155,16 +1165,17 @@ class PerWindowInvoker(DoFnInvoker):
         self.threadsafe_watermark_estimator)
 
   @staticmethod
-  def _try_split(fraction,
-      window_index, # type: Optional[int]
-      stop_window_index, # type: Optional[int]
-      windowed_value, # type: WindowedValue
+  def _try_split(
+      fraction,
+      window_index,  # type: Optional[int]
+      stop_window_index,  # type: Optional[int]
+      windowed_value,  # type: WindowedValue
       restriction,
       watermark_estimator_state,
-      restriction_provider, # type: RestrictionProvider
-      restriction_tracker, # type: RestrictionTracker
-      watermark_estimator, # type: WatermarkEstimator
-                 ):
+      restriction_provider,  # type: RestrictionProvider
+      restriction_tracker,  # type: RestrictionTracker
+      watermark_estimator,  # type: WatermarkEstimator
+  ):
     # type: (...) -> Optional[Tuple[Iterable[SplitResultPrimary], Iterable[SplitResultResidual], Optional[int]]]
 
     """Try to split returning a primaries, residuals and a new stop index.
@@ -1199,6 +1210,7 @@ class PerWindowInvoker(DoFnInvoker):
       splitting was not possible. new_stop_index will only be set if the
       splittable DoFn is window observing otherwise it will be None.
     """
+
     def compute_whole_window_split(to_index, from_index):
       restriction_size = restriction_provider.restriction_size(
           windowed_value, restriction)
@@ -1405,21 +1417,22 @@ class DoFnRunner:
   A helper class for executing ParDo operations.
   """
 
-  def __init__(self,
-               fn,  # type: core.DoFn
-               args,
-               kwargs,
-               side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               windowing,
-               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               step_name=None,  # type: Optional[str]
-               logging_context=None,
-               state=None,
-               scoped_metrics_container=None,
-               operation_name=None,
-               transform_id=None,
-               user_state_context=None,  # type: Optional[userstate.UserStateContext]
-              ):
+  def __init__(
+      self,
+      fn,  # type: core.DoFn
+      args,
+      kwargs,
+      side_inputs,  # type: Iterable[sideinputs.SideInputMap]
+      windowing,
+      tagged_receivers,  # type: Mapping[Optional[str], Receiver]
+      step_name=None,  # type: Optional[str]
+      logging_context=None,
+      state=None,
+      scoped_metrics_container=None,
+      operation_name=None,
+      transform_id=None,
+      user_state_context=None,  # type: Optional[userstate.UserStateContext]
+  ):
     """Initializes a DoFnRunner.
 
     Args:
@@ -1613,6 +1626,7 @@ class DoFnRunner:
 
 
 class OutputHandler(object):
+
   def handle_process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
@@ -1627,15 +1641,16 @@ class OutputHandler(object):
 class _OutputHandler(OutputHandler):
   """Processes output produced by DoFn method invocations."""
 
-  def __init__(self,
-               window_fn,
-               main_receivers,  # type: Receiver
-               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               per_element_output_counter,
-               output_batch_converter, # type: Optional[BatchConverter]
-               process_yields_batches, # type: bool
-               process_batch_yields_elements, # type: bool
-               ):
+  def __init__(
+      self,
+      window_fn,
+      main_receivers,  # type: Receiver
+      tagged_receivers,  # type: Mapping[Optional[str], Receiver]
+      per_element_output_counter,
+      output_batch_converter,  # type: Optional[BatchConverter]
+      process_yields_batches,  # type: bool
+      process_batch_yields_elements,  # type: bool
+  ):
     """Initializes ``_OutputHandler``.
 
     Args:
@@ -1877,6 +1892,7 @@ class DoFnState(object):
 
   Keeps track of state that DoFns want, currently, user counters.
   """
+
   def __init__(self, counter_factory):
     self.step_name = ''
     self._counter_factory = counter_factory
@@ -1890,6 +1906,7 @@ class DoFnState(object):
 # TODO(robertwb): Replace core.DoFnContext with this.
 class DoFnContext(object):
   """For internal use only; no backwards-compatibility guarantees."""
+
   def __init__(self, label, element=None, state=None):
     self.label = label
     self.state = state
@@ -1935,6 +1952,7 @@ def group_by_key_input_visitor(deterministic_key_coders=True):
     TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
     we could directly replace the coder instead of mutating the element type.
     """
+
     def __init__(self, deterministic_key_coders=True):
       self.deterministic_key_coders = deterministic_key_coders
 
@@ -1962,6 +1980,7 @@ def group_by_key_input_visitor(deterministic_key_coders=True):
 def validate_pipeline_graph(pipeline_proto):
   """Ensures this is a correctly constructed Beam pipeline.
   """
+
   def get_coder(pcoll_id):
     return pipeline_proto.components.coders[
         pipeline_proto.components.pcollections[pcoll_id].coder_id]
@@ -1986,11 +2005,11 @@ def validate_pipeline_graph(pipeline_proto):
             "Bad coder for output of %s: %s" % (transform_id, output_coder))
       output_values_coder = pipeline_proto.components.coders[
           output_coder.component_coder_ids[1]]
-      if (input_coder.component_coder_ids[0] !=
-          output_coder.component_coder_ids[0] or
+      if (input_coder.component_coder_ids[0]
+          != output_coder.component_coder_ids[0] or
           output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
-          output_values_coder.component_coder_ids[0] !=
-          input_coder.component_coder_ids[1]):
+          output_values_coder.component_coder_ids[0]
+          != input_coder.component_coder_ids[1]):
         raise ValueError(
             "Incompatible input coder %s and output coder %s for transform %s" %
             (transform_id, input_coder, output_coder))
@@ -2009,6 +2028,7 @@ def validate_pipeline_graph(pipeline_proto):
 
 
 def merge_common_environments(pipeline_proto, inplace=False):
+
   def dep_key(dep):
     if dep.type_urn == common_urns.artifact_types.FILE.urn:
       payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
@@ -2052,7 +2072,8 @@ def merge_common_environments(pipeline_proto, inplace=False):
 
   environment_remappings = {
       e: es[0]
-      for es in canonical_environments.values() for e in es
+      for es in canonical_environments.values()
+      for e in es
   }
 
   if not inplace:

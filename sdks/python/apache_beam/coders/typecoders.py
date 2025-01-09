@@ -79,6 +79,7 @@ __all__ = ['registry']
 
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""
+
   def __init__(self, fallback_coder=None):
     self._coders: Dict[Any, Type[coders.Coder]] = {}
     self.custom_types: List[Any] = []
@@ -188,6 +189,7 @@ class FirstOf(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A class used to get the first matching coder from a list of coders."""
+
   def __init__(self, coders: Iterable[Type[coders.Coder]]) -> None:
     self._coders = coders
 

@@ -81,6 +81,7 @@ from apache_beam.transforms.combiners import window
 
 
 class CombineTest(LoadTest):
+
   def __init__(self):
     super().__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
@@ -93,6 +94,7 @@ class CombineTest(LoadTest):
       sys.exit(1)
 
   class _GetElement(beam.DoFn):
+
     def process(self, element):
       yield element
 

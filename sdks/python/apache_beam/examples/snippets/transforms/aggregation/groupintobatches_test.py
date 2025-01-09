@@ -45,6 +45,7 @@ def check_batches_with_keys(actual):
     str)
 # pylint: enable=line-too-long
 class GroupIntoBatchesTest(unittest.TestCase):
+
   def test_groupintobatches(self):
     groupintobatches.groupintobatches(check_batches_with_keys)
 

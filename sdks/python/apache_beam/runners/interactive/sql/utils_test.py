@@ -49,6 +49,7 @@ class OptionalUnionType(NamedTuple):
 
 
 class UtilsTest(unittest.TestCase):
+
   def test_register_coder_for_schema(self):
     self.assertNotIsInstance(
         beam.coders.registry.get_coder(ANamedTuple), beam.coders.RowCoder)
@@ -99,6 +100,7 @@ class UtilsTest(unittest.TestCase):
     not ie.current_env().is_interactive_ready,
     reason='[interactive] dependency is not installed.')
 class OptionsFormTest(unittest.TestCase):
+
   def test_dataflow_options_form(self):
     p = beam.Pipeline()
     pcoll = p | beam.Create([1, 2, 3])

@@ -52,6 +52,7 @@ class Timestamp(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
+
   def __init__(
       self,
       seconds: Union[int, float] = 0,
@@ -289,6 +290,7 @@ class Duration(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
+
   def __init__(
       self,
       seconds: Union[int, float] = 0,

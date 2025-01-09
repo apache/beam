@@ -36,6 +36,7 @@ __all__ = ['LocalFileSystem']
 class LocalFileSystem(FileSystem):
   """A Local ``FileSystem`` implementation for accessing files on disk.
   """
+
   @classmethod
   def scheme(cls):
     """URI scheme for the FileSystem
@@ -333,6 +334,7 @@ class LocalFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if any of the delete operations fail
     """
+
     def _delete_path(path):
       """Recursively delete the file or directory at the provided path.
       """

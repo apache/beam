@@ -22,6 +22,7 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 
 
 class PythonCallableWithSourceTest(unittest.TestCase):
+
   def test_builtin(self):
     self.assertEqual(PythonCallableWithSource.load_from_source('str'), str)
 

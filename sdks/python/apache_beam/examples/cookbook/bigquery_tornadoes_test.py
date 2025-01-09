@@ -30,6 +30,7 @@ from apache_beam.testing.util import equal_to
 
 
 class BigQueryTornadoesTest(unittest.TestCase):
+
   def test_basics(self):
     with TestPipeline() as p:
       rows = (

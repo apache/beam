@@ -76,6 +76,7 @@ def _static_value_provider_of(value_type):
     A partially constructed StaticValueProvider in the form of a function.
 
   """
+
   def _f(value):
     _f.__name__ = value_type.__name__
     return StaticValueProvider(value_type, value)
@@ -97,6 +98,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
         parser.add_argument('--non_vp_arg')
 
   """
+
   def add_value_provider_argument(self, *args, **kwargs):
     """ValueProvider arguments can be either of type keyword or positional.
     At runtime, even positional arguments will need to be supplied in the
@@ -142,9 +144,10 @@ class _DictUnionAction(argparse.Action):
   argparse Action take union of json loads values. If a key is specified in more
   than one of the values, the last value takes precedence.
   """
+
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
     getattr(namespace, self.dest).update(values)
 
@@ -186,6 +189,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
+
   def __init__(self, flags: Optional[Sequence[str]] = None, **kwargs) -> None:
     """Initialize an options class.
 
@@ -410,6 +414,7 @@ class PipelineOptions(HasDisplayData):
     return result
 
   def to_runner_api(self):
+
     def to_struct_value(o):
       if isinstance(o, (bool, int, str)):
         return o
@@ -430,6 +435,7 @@ class PipelineOptions(HasDisplayData):
 
   @classmethod
   def from_runner_api(cls, proto_options):
+
     def from_urn(key):
       assert key.startswith('beam:option:')
       assert key.endswith(':v1')
@@ -586,6 +592,7 @@ class StandardOptions(PipelineOptions):
 
 
 class StreamingOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -598,6 +605,7 @@ class StreamingOptions(PipelineOptions):
 
 
 class CrossLanguageOptions(PipelineOptions):
+
   @staticmethod
   def _beam_services_from_enviroment():
     return json.loads(os.environ.get('BEAM_SERVICE_OVERRIDES') or '{}')
@@ -647,6 +655,7 @@ def enable_all_additional_type_checks():
 
 
 class TypeOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # TODO(laolu): Add a type inferencing option here once implemented.
@@ -723,6 +732,7 @@ class TypeOptions(PipelineOptions):
 
 class DirectOptions(PipelineOptions):
   """DirectRunner-specific execution options."""
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1055,6 +1065,7 @@ class GoogleCloudOptions(PipelineOptions):
 
 class AzureOptions(PipelineOptions):
   """Azure Blob Storage options."""
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1083,6 +1094,7 @@ class AzureOptions(PipelineOptions):
 
 class HadoopFileSystemOptions(PipelineOptions):
   """``HadoopFileSystem`` connection options."""
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1112,6 +1124,7 @@ class HadoopFileSystemOptions(PipelineOptions):
 # TODO(silviuc): Update description when autoscaling options are in.
 class WorkerOptions(PipelineOptions):
   """Worker pool configuration options."""
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1133,8 +1146,7 @@ class WorkerOptions(PipelineOptions):
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=
-        ('If and how to autoscale the workerpool.'))
+        help=('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         '--machine_type',
@@ -1302,6 +1314,7 @@ class WorkerOptions(PipelineOptions):
 
 
 class DebugOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1355,6 +1368,7 @@ class DebugOptions(PipelineOptions):
 
 
 class ProfilingOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1378,6 +1392,7 @@ class ProfilingOptions(PipelineOptions):
 
 
 class SetupOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # Options for installing dependencies in the worker.
@@ -1524,6 +1539,7 @@ class PortableOptions(PipelineOptions):
   the portable runners. Should generally be kept in sync with
   PortablePipelineOptions.java.
   """
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1627,6 +1643,7 @@ class JobServerOptions(PipelineOptions):
   """Options for starting a Beam job server. Roughly corresponds to
   JobServerDriver.ServerConfiguration in Java.
   """
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1719,6 +1736,7 @@ class FlinkRunnerOptions(PipelineOptions):
 
 
 class SparkRunnerOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1752,6 +1770,7 @@ class SparkRunnerOptions(PipelineOptions):
 
 
 class PrismRunnerOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -1770,6 +1789,7 @@ class PrismRunnerOptions(PipelineOptions):
 
 
 class TestOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # Options for e2e test pipeline.
@@ -1802,6 +1822,7 @@ class TestOptions(PipelineOptions):
 
 
 class TestDataflowOptions(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # This option is passed to Dataflow Runner's Pub/Sub client. The camelCase
@@ -1844,6 +1865,7 @@ class OptionsContext(object):
     self.overrides.pop()
 
   def __call__(self, f, *args, **kwargs):
+
     def wrapper(*args, **kwargs):
       with self:
         f(*args, **kwargs)
@@ -1859,6 +1881,7 @@ class OptionsContext(object):
 
 
 class S3Options(PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # These options are passed to the S3 IO Client

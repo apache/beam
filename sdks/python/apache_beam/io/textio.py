@@ -425,6 +425,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 
 class _TextSourceWithFilename(_TextSource):
+
   def read_records(self, file_name, range_tracker):
     records = super().read_records(file_name, range_tracker)
     for record in records:
@@ -436,6 +437,7 @@ class _TextSourceWithFilename(_TextSource):
 
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
+
   def __init__(
       self,
       file_path_prefix,
@@ -811,6 +813,7 @@ class ReadFromTextWithFilename(ReadFromText):
 class WriteToText(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
   text files."""
+
   def __init__(
       self,
       file_path_prefix: str,
@@ -899,6 +902,7 @@ try:
   import pandas
 
   def append_pandas_args(src, exclude):
+
     def append(dest):
       state = None
       skip = False

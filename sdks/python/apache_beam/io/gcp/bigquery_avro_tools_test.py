@@ -27,6 +27,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryToAvroSchema(unittest.TestCase):
+
   def test_convert_bigquery_schema_to_avro_schema(self):
     subfields = [
         bigquery.TableFieldSchema(

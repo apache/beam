@@ -32,6 +32,7 @@ class Monitor(object):
     name_prefix: a prefix for this Monitor's metrics' names, intended to
       be unique in per-monitor basis in pipeline
   """
+
   def __init__(self, namespace: str, name_prefix: str) -> None:
     self.namespace = namespace
     self.name_prefix = name_prefix
@@ -39,6 +40,7 @@ class Monitor(object):
 
 
 class MonitorDoFn(beam.DoFn):
+
   def __init__(self, namespace, prefix):
     self.element_count = Metrics.counter(
         namespace, prefix + MonitorSuffix.ELEMENT_COUNTER)

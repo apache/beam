@@ -55,6 +55,7 @@ class ThreadsafeRestrictionTracker(object):
   This wrapper guarantees synchronization of modifying restrictions across
   multi-thread.
   """
+
   def __init__(self, restriction_tracker: 'RestrictionTracker') -> None:
     from apache_beam.io.iobase import RestrictionTracker
     if not isinstance(restriction_tracker, RestrictionTracker):
@@ -155,6 +156,7 @@ class RestrictionTrackerView(object):
   time, the RestrictionTrackerView will be fed into the ``DoFn.process`` as a
   restriction_tracker.
   """
+
   def __init__(
       self,
       threadsafe_restriction_tracker: ThreadsafeRestrictionTracker) -> None:
@@ -182,6 +184,7 @@ class ThreadsafeWatermarkEstimator(object):
   """A threadsafe wrapper which wraps a WatermarkEstimator with locking
   mechanism to guarantee multi-thread safety.
   """
+
   def __init__(self, watermark_estimator: 'WatermarkEstimator') -> None:
     from apache_beam.io.iobase import WatermarkEstimator
     if not isinstance(watermark_estimator, WatermarkEstimator):
@@ -220,6 +223,7 @@ class NoOpWatermarkEstimatorProvider(WatermarkEstimatorProvider):
   """A WatermarkEstimatorProvider which creates NoOpWatermarkEstimator for the
   framework.
   """
+
   def initial_estimator_state(self, element, restriction):
     return None
 
@@ -230,6 +234,7 @@ class NoOpWatermarkEstimatorProvider(WatermarkEstimatorProvider):
       """A No-op WatermarkEstimator which is provided for the framework if there
       is no custom one.
       """
+
       def observe_timestamp(self, timestamp):
         pass
 

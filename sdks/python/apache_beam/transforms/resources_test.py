@@ -25,6 +25,7 @@ from apache_beam.transforms.resources import ResourceHint
 
 
 class ResourcesTest(unittest.TestCase):
+
   @parameterized.expand([
       param(
           name='min_ram',

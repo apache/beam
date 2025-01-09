@@ -28,6 +28,7 @@ except ImportError:
 
 
 class TestEnrichmentTransform(unittest.TestCase):
+
   def test_cross_join(self):
     left = {'id': 1, 'key': 'city'}
     right = {'id': 1, 'value': 'durham'}

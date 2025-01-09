@@ -60,6 +60,7 @@ class TimeDomain(object):
 
 class TimestampCombinerImpl(metaclass=ABCMeta):
   """Implementation of TimestampCombiner."""
+
   @abstractmethod
   def assign_output_time(self, window, input_timestamp):
     raise NotImplementedError
@@ -85,6 +86,7 @@ class TimestampCombinerImpl(metaclass=ABCMeta):
 
 class DependsOnlyOnWindow(TimestampCombinerImpl, metaclass=ABCMeta):
   """TimestampCombinerImpl that only depends on the window."""
+
   def merge(self, result_window, unused_merging_timestamps):
     # Since we know that the result only depends on the window, we can ignore
     # the given timestamps.
@@ -93,6 +95,7 @@ class DependsOnlyOnWindow(TimestampCombinerImpl, metaclass=ABCMeta):
 
 class OutputAtEarliestInputTimestampImpl(TimestampCombinerImpl):
   """TimestampCombinerImpl outputting at earliest input timestamp."""
+
   def assign_output_time(self, window, input_timestamp):
     return input_timestamp
 
@@ -103,6 +106,7 @@ class OutputAtEarliestInputTimestampImpl(TimestampCombinerImpl):
 
 class OutputAtEarliestTransformedInputTimestampImpl(TimestampCombinerImpl):
   """TimestampCombinerImpl outputting at earliest input timestamp."""
+
   def __init__(self, window_fn):
     self.window_fn = window_fn
 
@@ -115,6 +119,7 @@ class OutputAtEarliestTransformedInputTimestampImpl(TimestampCombinerImpl):
 
 class OutputAtLatestInputTimestampImpl(TimestampCombinerImpl):
   """TimestampCombinerImpl outputting at latest input timestamp."""
+
   def assign_output_time(self, window, input_timestamp):
     return input_timestamp
 
@@ -124,6 +129,7 @@ class OutputAtLatestInputTimestampImpl(TimestampCombinerImpl):
 
 class OutputAtEndOfWindowImpl(DependsOnlyOnWindow):
   """TimestampCombinerImpl outputting at end of window."""
+
   def assign_output_time(self, window, unused_input_timestamp):
     return window.max_timestamp()
 

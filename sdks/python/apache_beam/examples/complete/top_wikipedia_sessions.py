@@ -76,6 +76,7 @@ class ComputeSessions(beam.PTransform):
   A session is defined as a string of edits where each is separated from the
   next by less than an hour.
   """
+
   def expand(self, pcoll):
     return (
         pcoll
@@ -86,6 +87,7 @@ class ComputeSessions(beam.PTransform):
 
 class TopPerMonth(beam.PTransform):
   """Computes the longest session ending in each month."""
+
   def expand(self, pcoll):
     return (
         pcoll
@@ -110,6 +112,7 @@ def format_output(element, window=beam.DoFn.WindowParam):
 
 class ComputeTopSessions(beam.PTransform):
   """Computes the top user sessions for each month."""
+
   def __init__(self, sampling_threshold):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()

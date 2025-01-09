@@ -85,6 +85,7 @@ tft_process_handler_output_type = Union[beam.Row, dict[str, np.ndarray]]
 
 
 class _DataCoder:
+
   def __init__(
       self,
       exclude_columns,
@@ -115,6 +116,7 @@ class _DataCoder:
 
 
 class _ConvertScalarValuesToListValues(beam.DoFn):
+
   def process(
       self,
       element,
@@ -137,6 +139,7 @@ class _ConvertNamedTupleToDict(
     A PTransform that converts a collection of NamedTuples or Rows into a
     collection of dictionaries.
   """
+
   def expand(
       self, pcoll: beam.PCollection[Union[beam.Row, NamedTuple]]
   ) -> beam.PCollection[common_types.InstanceDictType]:
@@ -151,6 +154,7 @@ class _ConvertNamedTupleToDict(
 
 class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
                                        tft_process_handler_output_type]):
+
   def __init__(
       self,
       *,

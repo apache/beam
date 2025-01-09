@@ -74,6 +74,7 @@ TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 
 
 class CrossLanguageTestPipelines(object):
+
   def __init__(self, expansion_service=None):
     self.expansion_service = expansion_service or (
         'localhost:%s' % os.environ.get('EXPANSION_PORT'))

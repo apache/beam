@@ -48,6 +48,7 @@ def new_pipeline():
 
 
 class MainTest(unittest.TestCase):
+
   def assertYaml(self, expected, result):
     result = SafeLineLoader.strip_metadata(result)
     expected = yaml.load(expected, Loader=SafeLineLoader)
@@ -925,6 +926,7 @@ class MainTest(unittest.TestCase):
 
 
 class YamlTransformTest(unittest.TestCase):
+
   def test_init_with_string(self):
     provider1 = InlineProvider({"MyTransform1": lambda: beam.Map(lambda x: x)})
     provider2 = InlineProvider({"MyTransform2": lambda: beam.Map(lambda x: x)})

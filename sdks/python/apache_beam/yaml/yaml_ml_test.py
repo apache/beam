@@ -42,6 +42,7 @@ TEST_DATA = [
 
 
 class MLTransformTest(unittest.TestCase):
+
   def test_ml_transform(self):
     ml_opts = beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['ML'])

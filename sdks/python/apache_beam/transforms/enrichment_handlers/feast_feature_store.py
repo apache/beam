@@ -91,6 +91,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
   transform. To filter the features to enrich, use the `join_fn` param in
   :class:`apache_beam.transforms.enrichment.Enrichment`.
   """
+
   def __init__(
       self,
       feature_store_yaml_path: str,

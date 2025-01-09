@@ -53,6 +53,7 @@ class PipelineInstrument(object):
   runner's responsibility to coordinate supported underlying runners to run
   the pipeline instrumented and recover the original pipeline states if needed.
   """
+
   def __init__(self, pipeline, options=None):
     self._pipeline = pipeline
 
@@ -178,8 +179,7 @@ class PipelineInstrument(object):
       visited_copy = visited.copy()
       consuming_transforms = {
           t_id: t
-          for t_id,
-          t in transforms.items()
+          for t_id, t in transforms.items()
           if set(outputs).intersection(set(t.inputs.values()))
       }
       consuming_transforms = set(consuming_transforms.keys())
@@ -201,8 +201,7 @@ class PipelineInstrument(object):
       ]
       producing_transforms = {
           t_id: t
-          for t_id,
-          t in transforms.items()
+          for t_id, t in transforms.items()
           if set(inputs).intersection(set(t.outputs.values()))
       }
       (t, pc) = self._required_components(
@@ -296,8 +295,8 @@ class PipelineInstrument(object):
     # Get the IDs of the unbounded sources.
     required_transform_labels = [src.full_label for src in sources]
     unbounded_source_ids = [
-        k for k,
-        v in transforms.items() if v.unique_name in required_transform_labels
+        k for k, v in transforms.items()
+        if v.unique_name in required_transform_labels
     ]
 
     # The required transforms are the transforms that we want to cut out of
@@ -412,6 +411,7 @@ class PipelineInstrument(object):
 
     class InstrumentVisitor(PipelineVisitor):
       """Visitor utilizes cache to instrument the pipeline."""
+
       def __init__(self, pin):
         self._pin = pin
 
@@ -460,6 +460,7 @@ class PipelineInstrument(object):
             is_capture=True)
 
       class TestStreamVisitor(PipelineVisitor):
+
         def __init__(self):
           self.test_stream = None
 
@@ -496,7 +497,9 @@ class PipelineInstrument(object):
     of cacheable PCollections between these 2 instances by replacing 'pcoll'
     fields in the cacheable dictionary with ones from the running instance.
     """
+
     class PreprocessVisitor(PipelineVisitor):
+
       def __init__(self, pin):
         self._pin = pin
 
@@ -596,8 +599,8 @@ class PipelineInstrument(object):
     is_cached = self._cache_manager.exists('full', key)
     is_computed = (
         pcoll in self._runner_pcoll_to_user_pcoll and
-        self._runner_pcoll_to_user_pcoll[pcoll] in
-        ie.current_env().computed_pcollections)
+        self._runner_pcoll_to_user_pcoll[pcoll]
+        in ie.current_env().computed_pcollections)
     if ((is_cached and is_computed) or is_unbounded_source_output):
       if key not in self._cached_pcoll_read:
         # Mutates the pipeline with cache read transform attached
@@ -626,6 +629,7 @@ class PipelineInstrument(object):
     if self.has_unbounded_sources:
 
       class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
+
         def __init__(self, pin):
           self._pin = pin
           self.unbounded_pcolls = set()
@@ -668,6 +672,7 @@ class PipelineInstrument(object):
       """Visitor wires cache read as inputs to replace corresponding original
       input PCollections in pipeline.
       """
+
       def __init__(self, pin):
         """Initializes with a PipelineInstrument."""
         self._pin = pin
@@ -769,6 +774,7 @@ def pcoll_to_pcoll_id(pipeline, original_context):
   Returns:
     (dict from str to str) a dict mapping str(pcoll) to pcoll_id.
   """
+
   class PCollVisitor(PipelineVisitor):
     """"A visitor that records input and output values to be replaced.
 
@@ -778,6 +784,7 @@ def pcoll_to_pcoll_id(pipeline, original_context):
     We cannot update input and output values while visiting since that
     results in validation errors.
     """
+
     def __init__(self):
       self.pcoll_to_pcoll_id = {}
 

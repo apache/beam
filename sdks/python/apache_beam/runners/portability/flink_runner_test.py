@@ -257,8 +257,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 allow_duplicates=False,
                 expansion_service=self.get_expansion_service()))
     self.assertTrue(
-        'No resolvable bootstrap urls given in bootstrap.servers' in str(
-            ctx.exception),
+        'No resolvable bootstrap urls given in bootstrap.servers'
+        in str(ctx.exception),
         'Expected to fail due to invalid bootstrap.servers, but '
         'failed due to:\n%s' % str(ctx.exception))
 
@@ -354,6 +354,7 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
+
   def create_options(self):
     options = super().create_options()
     options.view_as(StandardOptions).streaming = True

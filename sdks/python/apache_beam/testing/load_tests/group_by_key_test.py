@@ -80,6 +80,7 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
 class GroupByKeyTest(LoadTest):
+
   def __init__(self):
     super().__init__()
     self.fanout = self.get_option_or_default('fanout', 1)

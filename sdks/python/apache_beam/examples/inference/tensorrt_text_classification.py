@@ -43,6 +43,7 @@ class Preprocess(beam.DoFn):
   The input sentences are tokenized because the
   model is expecting tokens.
   """
+
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
@@ -59,6 +60,7 @@ class Postprocess(beam.DoFn):
   We can get the class label by getting the index of
   maximum logit using argmax.
   """
+
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 

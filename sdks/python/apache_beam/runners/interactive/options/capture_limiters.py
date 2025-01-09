@@ -34,6 +34,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 class Limiter:
   """Limits an aspect of the caching layer."""
+
   def is_triggered(self) -> bool:
     """Returns True if the limiter has triggered, and caching should stop."""
     raise NotImplementedError
@@ -43,6 +44,7 @@ class ElementLimiter(Limiter):
   """A `Limiter` that limits reading from cache based on some property of an
   element.
   """
+
   def update(self, e: Any) -> None:
     # noqa: F821
 
@@ -55,6 +57,7 @@ class ElementLimiter(Limiter):
 
 class SizeLimiter(Limiter):
   """Limits the cache size to a specified byte limit."""
+
   def __init__(self, size_limit: int):
     self._size_limit = size_limit
 
@@ -70,6 +73,7 @@ class SizeLimiter(Limiter):
 
 class DurationLimiter(Limiter):
   """Limits the duration of the capture."""
+
   def __init__(
       self,
       duration_limit: datetime.timedelta  # noqa: F821
@@ -89,6 +93,7 @@ class DurationLimiter(Limiter):
 
 class CountLimiter(ElementLimiter):
   """Limits by counting the number of elements seen."""
+
   def __init__(self, max_count):
     self._max_count = max_count
     self._count = 0
@@ -125,6 +130,7 @@ class ProcessingTimeLimiter(ElementLimiter):
   clock forward. This triggers when the duration from the internal clock and
   the start exceeds the given duration.
   """
+
   def __init__(self, max_duration_secs):
     """Initialize the ProcessingTimeLimiter."""
     self._max_duration_us = max_duration_secs * 1e6

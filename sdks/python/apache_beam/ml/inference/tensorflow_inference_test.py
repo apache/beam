@@ -54,11 +54,13 @@ except ImportError:
 
 
 class FakeTFNumpyModel:
+
   def predict(self, input: numpy.ndarray):
     return numpy.multiply(input, 10)
 
 
 class FakeTFTensorModel:
+
   def predict(self, input: tf.Tensor, add=False):
     if add:
       return tf.math.add(tf.math.multiply(input, 10), 10)
@@ -86,6 +88,7 @@ def fake_inference_fn(
 
 @pytest.mark.uses_tf
 class TFRunInferenceTest(unittest.TestCase):
+
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 
@@ -116,8 +119,7 @@ class TFRunInferenceTest(unittest.TestCase):
         tf.convert_to_tensor(numpy.array([100])),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples,
             [tf.math.multiply(n, 10) for n in batched_examples])
     ]
@@ -160,8 +162,8 @@ class TFRunInferenceTest(unittest.TestCase):
               numpy.array([200.1, 300.2, 400.3], dtype='float32')),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [tf.math.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [tf.math.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -207,8 +209,8 @@ class TFRunInferenceTest(unittest.TestCase):
               numpy.array([200.1, 300.2, 400.3], dtype='float32')),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [tf.math.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [tf.math.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -250,8 +252,8 @@ class TFRunInferenceTest(unittest.TestCase):
           numpy.array([200.1, 300.2, 400.3], dtype='float32'),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [numpy.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [numpy.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -294,8 +296,8 @@ class TFRunInferenceTest(unittest.TestCase):
           numpy.array([200.1, 300.2, 400.3], dtype='float32'),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [numpy.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [numpy.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -316,8 +318,7 @@ class TFRunInferenceTest(unittest.TestCase):
         tf.convert_to_tensor(numpy.array([100])),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples, [
                 tf.math.add(tf.math.multiply(n, 10), 10)
                 for n in batched_examples
@@ -339,8 +340,7 @@ class TFRunInferenceTest(unittest.TestCase):
         ('k3', numpy.array([100], dtype=numpy.int64)),
     ]
     expected_predictions = [
-        (ex[0], PredictionResult(ex[1], pred)) for ex,
-        pred in zip(
+        (ex[0], PredictionResult(ex[1], pred)) for ex, pred in zip(
             batched_examples,
             [numpy.multiply(n[1], 10) for n in batched_examples])
     ]
@@ -359,8 +359,7 @@ class TFRunInferenceTest(unittest.TestCase):
         ('k3', tf.convert_to_tensor(numpy.array([100]))),
     ]
     expected_predictions = [
-        (ex[0], PredictionResult(ex[1], pred)) for ex,
-        pred in zip(
+        (ex[0], PredictionResult(ex[1], pred)) for ex, pred in zip(
             batched_examples,
             [tf.math.multiply(n[1], 10) for n in batched_examples])
     ]
@@ -371,12 +370,14 @@ class TFRunInferenceTest(unittest.TestCase):
   def test_load_model_exception(self):
     with self.assertRaises(ValueError):
       tensorflow_inference._load_model(
-          "https://tfhub.dev/google/imagenet/mobilenet_v1_075_192/quantops/classification/3", # pylint: disable=line-too-long
-          None, {})
+          "https://tfhub.dev/google/imagenet/mobilenet_v1_075_192/quantops/classification/3",  # pylint: disable=line-too-long
+          None,
+          {})
 
 
 @pytest.mark.uses_tf
 class TFRunInferenceTestWithMocks(unittest.TestCase):
+
   def setUp(self):
     self._load_model = tensorflow_inference._load_model
     tensorflow_inference._load_model = unittest.mock.MagicMock()

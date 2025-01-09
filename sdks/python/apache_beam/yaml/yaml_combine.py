@@ -101,6 +101,7 @@ class PyJsYamlCombine(beam.PTransform):
     language: The language used to define (and execute) the
       custom callables in `combine`. Defaults to generic.
   """
+
   def __init__(
       self,
       group_by: Iterable[str],

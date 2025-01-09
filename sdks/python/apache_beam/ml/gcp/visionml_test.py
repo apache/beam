@@ -41,6 +41,7 @@ except ImportError:
 @unittest.skipIf(
     ImageAnnotatorClient is None, 'Vision dependencies are not installed')
 class VisionTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_client = mock.Mock()
     self._mock_client.batch_annotate_images.return_value = None

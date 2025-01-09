@@ -44,6 +44,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class StagerTest(unittest.TestCase):
+
   def setUp(self):
     self._temp_dir = None
     self.stager = TestStager()
@@ -842,6 +843,7 @@ class StagerTest(unittest.TestCase):
 
 
 class TestStager(stager.Stager):
+
   def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
     _LOGGER.info(
         'File copy from %s to %s.', local_path_to_artifact, artifact_name)

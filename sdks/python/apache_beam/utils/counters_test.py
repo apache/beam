@@ -28,6 +28,7 @@ from apache_beam.utils.counters import CounterName
 
 
 class CounterNameTest(unittest.TestCase):
+
   def test_name_string_representation(self):
     counter_name = CounterName('counter_name', 'stage_name', 'step_name')
 
@@ -80,6 +81,7 @@ class CounterNameTest(unittest.TestCase):
 
 
 class CounterTest(unittest.TestCase):
+
   def setUp(self):
     self.counter_factory = counters.CounterFactory()
 
@@ -124,6 +126,7 @@ class CounterTest(unittest.TestCase):
     },
 ])
 class GeneralCounterTest(unittest.TestCase):
+
   def setUp(self):
     self.counter_factory = counters.CounterFactory()
 

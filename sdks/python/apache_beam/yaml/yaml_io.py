@@ -77,8 +77,8 @@ def write_to_text(pcoll, path: str):
   """
   try:
     field_names = [
-        name for name,
-        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
     ]
   except Exception as exn:
     raise ValueError(
@@ -167,7 +167,9 @@ def write_to_bigquery(
         described at https://beam.apache.org/documentation/sdks/yaml-errors/
         Otherwise permanently failing records will cause pipeline failure.
   """
+
   class WriteToBigQueryHandlingErrors(beam.PTransform):
+
     def default_label(self):
       return 'WriteToBigQuery'
 

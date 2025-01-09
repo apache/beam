@@ -75,6 +75,7 @@ class _TFRecordUtil(object):
 
   Note that masks and length are represented in LittleEndian order.
   """
+
   @classmethod
   def _masked_crc32c(cls, value, crc32c_fn=_default_crc32c_fn):
     """Compute a masked crc32c checksum for a value.
@@ -166,6 +167,7 @@ class _TFRecordSource(FileBasedSource):
   For detailed TFRecords format description see:
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
+
   def __init__(self, file_pattern, coder, compression_type, validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
     super().__init__(
@@ -202,6 +204,7 @@ def _create_tfrecordio_source(
 
 class ReadAllFromTFRecord(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of TFRecord files."""
+
   def __init__(
       self,
       coder=coders.BytesCoder(),
@@ -239,6 +242,7 @@ class ReadAllFromTFRecord(PTransform):
 
 class ReadFromTFRecord(PTransform):
   """Transform for reading TFRecord sources."""
+
   def __init__(
       self,
       file_pattern,
@@ -273,6 +277,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
   For detailed TFRecord format description see:
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
+
   def __init__(
       self,
       file_path_prefix,
@@ -298,6 +303,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
 
 class WriteToTFRecord(PTransform):
   """Transform for writing to TFRecord sinks."""
+
   def __init__(
       self,
       file_path_prefix,

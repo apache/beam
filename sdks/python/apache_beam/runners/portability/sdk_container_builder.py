@@ -66,6 +66,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SdkContainerImageBuilder(plugin.BeamPlugin):
+
   def __init__(self, options):
     self._options = options
     self._docker_registry_push_url = self._options.view_as(
@@ -159,6 +160,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
   """SdkContainerLocalBuilder builds the sdk container image with local
   docker."""
+
   @classmethod
   def _builder_key(cls):
     return 'local_docker'
@@ -200,6 +202,7 @@ class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
 class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
   """SdkContainerLocalBuilder builds the sdk container image with google cloud
   build."""
+
   def __init__(self, options):
     super().__init__(options)
     self._google_cloud_options = options.view_as(GoogleCloudOptions)

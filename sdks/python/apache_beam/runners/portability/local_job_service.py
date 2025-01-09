@@ -78,6 +78,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     inline calls rather than GRPC (for speed) or launch completely separate
     subprocesses for the runner and worker(s).
     """
+
   def __init__(self, staging_dir=None, beam_job_type=None):
     super().__init__()
     self._cleanup_staging_dir = staging_dir is None
@@ -88,12 +89,12 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
         endpoints_pb2.ApiServiceDescriptor] = None
     self._beam_job_type = beam_job_type or BeamJob
 
-  def create_beam_job(self,
-                      preparation_id,  # stype: str
-                      job_name: str,
-                      pipeline: beam_runner_api_pb2.Pipeline,
-                      options: struct_pb2.Struct
-                     ) -> 'BeamJob':
+  def create_beam_job(
+      self,
+      preparation_id,  # stype: str
+      job_name: str,
+      pipeline: beam_runner_api_pb2.Pipeline,
+      options: struct_pb2.Struct) -> 'BeamJob':
     self._artifact_service.register_job(
         staging_token=preparation_id,
         dependency_sets=_extract_dependency_sets(
@@ -176,6 +177,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
   """
+
   def __init__(
       self,
       worker_command_line: bytes,
@@ -235,6 +237,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
     The current state of the pipeline is available as self.state.
     """
+
   def __init__(
       self,
       job_id: str,
@@ -254,6 +257,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self.result = None
 
   def pipeline_options(self):
+
     def from_urn(key):
       assert key.startswith('beam:option:')
       assert key.endswith(':v1')
@@ -363,6 +367,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
+
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
@@ -374,6 +379,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 
 class JobLogQueues(object):
+
   def __init__(self):
     self._queues: List[queue.Queue] = []
     self._cache = []
@@ -463,6 +469,7 @@ def _extract_dependency_sets(
   The values can then be resolved and the mapping passed back to
   _update_dependency_sets to update the dependencies in the original protos.
   """
+
   def dependencies_iter():
     for env_id, env in envs.items():
       for ix, sub_env in enumerate(environments.expand_anyof_environments(env)):

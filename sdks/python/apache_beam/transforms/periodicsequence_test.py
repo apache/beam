@@ -37,6 +37,7 @@ from apache_beam.transforms.periodicsequence import _sequence_backlog_bytes
 
 
 class PeriodicSequenceTest(unittest.TestCase):
+
   def test_periodicsequence_outputs_valid_sequence(self):
     start_offset = 1
     start_time = time.time() + start_offset

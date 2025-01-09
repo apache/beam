@@ -27,6 +27,7 @@ from apache_beam.utils.sharded_key import ShardedKey
 
 
 class ShardedKeyTypeConstraintTest(TypeHintTestCase):
+
   def test_compatibility(self):
     constraint1 = ShardedKeyType[int]
     constraint2 = ShardedKeyType[str]

@@ -26,6 +26,7 @@ from apache_beam.utils.profiler import Profile
 
 
 class ProfilerTest(unittest.TestCase):
+
   @parameterized.expand([
       param(enable_cpu_memory=(True, True)),
       param(enable_cpu_memory=(True, False)),

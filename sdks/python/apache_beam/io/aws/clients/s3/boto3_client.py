@@ -40,6 +40,7 @@ class Client(object):
   """
   Wrapper for boto3 library
   """
+
   def __init__(self, options):
     assert boto3 is not None, 'Missing boto3 requirement'
     if isinstance(options, pipeline_options.PipelineOptions):

@@ -34,6 +34,7 @@ class _ClientCallDetails(collections.namedtuple(
 
 
 class WorkerIdInterceptorTest(unittest.TestCase):
+
   def test_worker_id_insertion(self):
     worker_id_key = 'worker_id'
     headers_holder = {}

@@ -92,11 +92,13 @@ class DisplayDataItemMatcher(BaseMatcher):
 
 
 class DisplayDataTest(unittest.TestCase):
+
   def test_display_data_item_matcher(self):
     with self.assertRaises(ValueError):
       DisplayDataItemMatcher()
 
   def test_inheritance_ptransform(self):
+
     class MyTransform(beam.PTransform):
       pass
 
@@ -106,6 +108,7 @@ class DisplayDataTest(unittest.TestCase):
     self.assertEqual(display_pt.display_data(), {})
 
   def test_inheritance_dofn(self):
+
     class MyDoFn(beam.DoFn):
       pass
 
@@ -114,7 +117,9 @@ class DisplayDataTest(unittest.TestCase):
     self.assertEqual(display_dofn.display_data(), {})
 
   def test_unsupported_type_display_data(self):
+
     class MyDisplayComponent(HasDisplayData):
+
       def display_data(self):
         return {'item_key': 'item_value'}
 
@@ -122,7 +127,9 @@ class DisplayDataTest(unittest.TestCase):
       DisplayData.create_from_options(MyDisplayComponent())
 
   def test_value_provider_display_data(self):
+
     class TestOptions(PipelineOptions):
+
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
@@ -161,7 +168,9 @@ class DisplayDataTest(unittest.TestCase):
                 'extra_packages', str(['package1', 'package2']))))
 
   def test_unicode_type_display_data(self):
+
     class MyDoFn(beam.DoFn):
+
       def display_data(self):
         return {
             'unicode_string': 'my string',
@@ -177,7 +186,9 @@ class DisplayDataTest(unittest.TestCase):
     """ Tests basic display data cases (key:value, key:dict)
     It does not test subcomponent inclusion
     """
+
     class MyDoFn(beam.DoFn):
+
       def __init__(self, my_display_data=None):
         self.my_display_data = my_display_data
 
@@ -219,7 +230,9 @@ class DisplayDataTest(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_items(*expected_items))
 
   def test_drop_if_none(self):
+
     class MyDoFn(beam.DoFn):
+
       def display_data(self):
         return {
             'some_val': DisplayDataItem('something').drop_if_none(),
@@ -236,7 +249,9 @@ class DisplayDataTest(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_items(*expected_items))
 
   def test_subcomponent(self):
+
     class SpecialDoFn(beam.DoFn):
+
       def display_data(self):
         return {'dofn_value': 42}
 

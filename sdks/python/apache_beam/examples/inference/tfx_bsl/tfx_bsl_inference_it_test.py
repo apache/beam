@@ -60,6 +60,7 @@ def process_outputs(filepath):
     tfx_bsl is None, 'Missing dependencies. '
     'Test depends on tfx_bsl')
 class TFXRunInferenceTests(unittest.TestCase):
+
   @pytest.mark.uses_tensorflow
   @pytest.mark.it_postcommit
   def test_tfx_run_inference_mobilenetv2(self):

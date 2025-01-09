@@ -68,7 +68,9 @@ def get_test_config_container(
   )
 
 
-def get_change_point_config(params: Dict[str, Any], ) -> ChangePointConfig:
+def get_change_point_config(
+    params: Dict[str, Any],
+) -> ChangePointConfig:
   """
   Args:
     params: Dict containing parameters to run change point analysis.

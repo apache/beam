@@ -43,14 +43,17 @@ BEAM_ATOMIC_TYPES_TO_JSON = {
     schema_pb2.INT16: 'integer',
     schema_pb2.INT32: 'integer',
     schema_pb2.FLOAT: 'number',
-    **{v: k
-       for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()}
+    **{
+        v: k
+        for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()
+    }
 }
 
 
 def json_schema_to_beam_schema(
     json_schema: Dict[str, Any]) -> schema_pb2.Schema:
   """Returns a Beam schema equivalent for the given Json schema."""
+
   def maybe_nullable(beam_type, nullable):
     if nullable:
       beam_type.nullable = True
@@ -227,6 +230,7 @@ def json_parser(
 
 
 class _PicklableFromConstructor:
+
   def __init__(self, constructor):
     self._constructor = constructor
     self._value = None

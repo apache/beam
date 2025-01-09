@@ -24,6 +24,7 @@ from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 
 class SafeLineLoaderTest(unittest.TestCase):
+
   def test_get_line(self):
     pipeline_yaml = '''
           type: composite

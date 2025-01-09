@@ -32,6 +32,7 @@ from apache_beam.utils import proto_utils
 
 
 class InMemoryFileManager(object):
+
   def __init__(self, contents=()):
     self._contents = dict(contents)
 
@@ -55,6 +56,7 @@ class InMemoryFileManager(object):
 
 
 class ArtifactServiceTest(unittest.TestCase):
+
   def file_artifact(self, path):
     return beam_runner_api_pb2.ArtifactInformation(
         type_urn=common_urns.artifact_types.FILE.urn,
@@ -129,6 +131,7 @@ class ArtifactServiceTest(unittest.TestCase):
     dep_big = self.embedded_artifact(data=b'big ' * 100, name='big.txt')
 
     class TestArtifacts(object):
+
       def ResolveArtifacts(self, request):
         replacements = []
         for artifact in request.artifacts:

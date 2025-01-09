@@ -56,6 +56,7 @@ except ImportError:
 try:
 
   class _FakeOperation(TFTOperation):
+
     def __init__(self, name, *args, **kwargs):
       super().__init__(*args, **kwargs)
       self.name = name
@@ -72,6 +73,7 @@ except ImportError:
 
 
 class BaseMLTransformTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
@@ -299,7 +301,9 @@ class BaseMLTransformTest(unittest.TestCase):
         result.metrics().query(mltransform_counter)['counters'][0].result, 1)
 
   def test_non_ptransfrom_provider_class_to_mltransform(self):
+
     class Add:
+
       def __call__(self, x):
         return x + 1
 
@@ -323,6 +327,7 @@ class BaseMLTransformTest(unittest.TestCase):
 
 
 class FakeModel:
+
   def __call__(self, example: list[str]) -> list[str]:
     for i in range(len(example)):
       if not isinstance(example[i], str):
@@ -332,6 +337,7 @@ class FakeModel:
 
 
 class FakeModelHandler(ModelHandler):
+
   def run_inference(
       self,
       batch: Sequence[str],
@@ -344,6 +350,7 @@ class FakeModelHandler(ModelHandler):
 
 
 class FakeEmbeddingsManager(base.EmbeddingsManager):
+
   def __init__(self, columns, **kwargs):
     super().__init__(columns=columns, **kwargs)
 
@@ -359,6 +366,7 @@ class FakeEmbeddingsManager(base.EmbeddingsManager):
 
 
 class InvalidEmbeddingsManager(base.EmbeddingsManager):
+
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
 
@@ -374,6 +382,7 @@ class InvalidEmbeddingsManager(base.EmbeddingsManager):
 
 
 class TextEmbeddingHandlerTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.embedding_conig = FakeEmbeddingsManager(columns=['x'])
     self.artifact_location = tempfile.mkdtemp()
@@ -405,8 +414,10 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam"
         },
     ]
-    expected_data = [{key: value[::-1]
-                      for key, value in d.items()} for d in data]
+    expected_data = [{
+        key: value[::-1]
+        for key, value in d.items()
+    } for d in data]
     with beam.Pipeline() as p:
       result = (
           p
@@ -430,8 +441,10 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam"
         },
     ] * 100
-    expected_data = [{key: value[::-1]
-                      for key, value in d.items()} for d in data]
+    expected_data = [{
+        key: value[::-1]
+        for key, value in d.items()
+    } for d in data]
     with beam.Pipeline() as p:
       result = (
           p
@@ -456,8 +469,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
     embedding_config = FakeEmbeddingsManager(columns=['x', 'y'])
     expected_data = [{
         key: (value[::-1] if key in embedding_config.columns else value)
-        for key,
-        value in d.items()
+        for key, value in d.items()
     } for d in data]
     with beam.Pipeline() as p:
       result = (
@@ -528,6 +540,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
 
 
 class FakeImageModel:
+
   def __call__(self, example: list[PIL_Image]) -> list[PIL_Image]:
     for i in range(len(example)):
       if not isinstance(example[i], PIL_Image):
@@ -536,6 +549,7 @@ class FakeImageModel:
 
 
 class FakeImageModelHandler(ModelHandler):
+
   def run_inference(
       self,
       batch: Sequence[PIL_Image],
@@ -548,6 +562,7 @@ class FakeImageModelHandler(ModelHandler):
 
 
 class FakeImageEmbeddingsManager(base.EmbeddingsManager):
+
   def __init__(self, columns, **kwargs):
     super().__init__(columns=columns, **kwargs)
 
@@ -563,6 +578,7 @@ class FakeImageEmbeddingsManager(base.EmbeddingsManager):
 
 
 class TestImageEmbeddingHandler(unittest.TestCase):
+
   def setUp(self) -> None:
     self.embedding_config = FakeImageEmbeddingsManager(columns=['x'])
     self.artifact_location = tempfile.mkdtemp()
@@ -627,6 +643,7 @@ class TestImageEmbeddingHandler(unittest.TestCase):
 
 
 class TestUtilFunctions(unittest.TestCase):
+
   def test_dict_input_fn_normal(self):
     input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
     columns = ['a', 'b']
@@ -661,6 +678,7 @@ class TestUtilFunctions(unittest.TestCase):
 
 
 class TestJsonPickleTransformAttributeManager(unittest.TestCase):
+
   def setUp(self):
     self.attribute_manager = base._transform_attribute_manager
     self.artifact_location = tempfile.mkdtemp()
@@ -768,6 +786,7 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
 
 
 class MLTransformDLQTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 

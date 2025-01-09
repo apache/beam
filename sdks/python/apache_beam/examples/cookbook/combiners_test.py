@@ -57,6 +57,7 @@ class CombinersTest(unittest.TestCase):
 
   def test_combine_per_key_with_custom_callable(self):
     """CombinePerKey using a custom function reducing iterables."""
+
     def multiply(values):
       result = 1
       for v in values:

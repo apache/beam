@@ -57,6 +57,7 @@ def check_samples_per_key(actual):
     'apache_beam.examples.snippets.transforms.aggregation.sample_fixed_size_per_key.print',
     str)
 class SampleTest(unittest.TestCase):
+
   def test_sample_fixed_size_globally(self):
     sample_fixed_size_globally.sample_fixed_size_globally(check_sample)
 

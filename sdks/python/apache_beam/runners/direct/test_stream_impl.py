@@ -66,6 +66,7 @@ class _WatermarkController(PTransform):
    - If the instance receives an ElementEvent, it emits all specified elements
      to the Global Window with the event time set to the element's timestamp.
   """
+
   def __init__(self, output_tag):
     self.output_tag = output_tag
 
@@ -79,6 +80,7 @@ class _WatermarkController(PTransform):
 
 
 class _ExpandableTestStream(PTransform):
+
   def __init__(self, test_stream):
     self.test_stream = test_stream
 

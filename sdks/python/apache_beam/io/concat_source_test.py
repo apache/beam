@@ -85,6 +85,7 @@ class RangeSource(iobase.BoundedSource):
 
 
 class ConcatSourceTest(unittest.TestCase):
+
   def test_range_source(self):
     source_test_utils.assert_split_at_fraction_exhaustive(RangeSource(0, 10, 3))
 

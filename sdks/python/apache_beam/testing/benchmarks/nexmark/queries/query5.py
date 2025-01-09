@@ -64,6 +64,7 @@ class MostBidCombineFn(beam.CombineFn):
   """
   combiner function to find auctions with most bid counts
   """
+
   def create_accumulator(self):
     return [], 0
 

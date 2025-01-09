@@ -26,6 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 class Histogram(object):
   """A histogram that supports estimated percentile with linear interpolation.
   """
+
   def __init__(self, bucket_type):
     self._lock = threading.Lock()
     self._bucket_type = bucket_type
@@ -98,6 +99,7 @@ class Histogram(object):
     return self.get_linear_interpolation(0.50)
 
   def get_percentile_info(self):
+
     def _format(f):
       if f == float('-inf'):
         return '<%s' % self._bucket_type.range_from()
@@ -176,6 +178,7 @@ class Histogram(object):
 
 
 class BucketType(object):
+
   def range_from(self):
     """Lower bound of a starting bucket."""
     raise NotImplementedError
@@ -207,6 +210,7 @@ class BucketType(object):
 
 
 class LinearBucket(BucketType):
+
   def __init__(self, start, width, num_buckets):
     """Create a histogram with linear buckets.
 

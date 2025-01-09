@@ -27,6 +27,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class Clock(object):
+
   def time(self):
     """Returns the number of seconds since epoch."""
     raise NotImplementedError()
@@ -37,12 +38,14 @@ class Clock(object):
 
 
 class RealClock(object):
+
   def time(self):
     return time.time()
 
 
 class TestClock(object):
   """Clock used for Testing"""
+
   def __init__(self, current_time=None):
     self._current_time = current_time if current_time else Timestamp()
 

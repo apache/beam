@@ -520,6 +520,7 @@ class TableRowJsonCoder(coders.Coder):
   table schema in order to obtain the ordered list of field names. Reading from
   sources on the other hand does not need the table schema.
   """
+
   def __init__(self, table_schema=None):
     # The table schema is needed for encoding TableRows as JSON (writing to
     # sinks) because the ordered list of field names is used in the JSON
@@ -642,6 +643,7 @@ class _BigQueryExportResult:
 
 
 class _CustomBigQuerySource(BoundedSource):
+
   def __init__(
       self,
       method,
@@ -829,8 +831,10 @@ class _CustomBigQuerySource(BoundedSource):
           weight=1.0, source=source, start_position=None, stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
+
     class CustomBigQuerySourceRangeTracker(RangeTracker):
       """A RangeTracker that always returns positions as None."""
+
       def start_position(self):
         return None
 
@@ -1221,9 +1225,11 @@ class _CustomBigQueryStorageSource(BoundedSource):
           weight=1.0, source=source, start_position=None, stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
+
     class NonePositionRangeTracker(RangeTracker):
       """A RangeTracker that always returns positions as None. Prevents the
       BigQuery Storage source from being read() before being split()."""
+
       def start_position(self):
         return None
 
@@ -1341,6 +1347,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 class _ReadReadRowsResponsesWithFastAvro():
   """An iterator that deserializes ReadRowsResponses using the fastavro
   library."""
+
   def __init__(self, read_rows_iterator, read_rows_response):
     self.read_rows_iterator = read_rows_iterator
     self.read_rows_response = read_rows_response
@@ -1617,8 +1624,8 @@ class BigQueryWriteFn(DoFn):
 
       # Flush current batch first if adding this row will exceed our limits
       # limits: byte size; number of rows
-      if ((self._destination_buffer_byte_size[destination] + row_byte_size >
-           self._max_insert_payload_size) or
+      if ((self._destination_buffer_byte_size[destination] + row_byte_size
+           > self._max_insert_payload_size) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
         # After flushing our existing batch, we now buffer the current row
@@ -1712,9 +1719,8 @@ class BigQueryWriteFn(DoFn):
         # - WARNING when we are continuing to retry, and have a deadline.
         # - ERROR when we will no longer retry, or MAY retry forever.
         log_level = (
-            logging.WARN if should_retry or
-            self._retry_strategy != RetryStrategy.RETRY_ALWAYS else
-            logging.ERROR)
+            logging.WARN if should_retry or self._retry_strategy
+            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
 
         _LOGGER.log(log_level, message)
 
@@ -1740,16 +1746,13 @@ class BigQueryWriteFn(DoFn):
         [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
-                w.with_value((destination, row, err))) for row,
-            err,
-            w in failed_rows
+                w.with_value((destination, row, err)))
+            for row, err, w in failed_rows
         ],
         [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS, w.with_value((destination, row)))
-            for row,
-            unused_err,
-            w in failed_rows
+            for row, unused_err, w in failed_rows
         ])
 
 
@@ -1761,6 +1764,7 @@ DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC = 0.2
 
 
 class _StreamToBigQuery(PTransform):
+
   def __init__(
       self,
       table_reference,
@@ -1801,6 +1805,7 @@ class _StreamToBigQuery(PTransform):
     self._max_insert_payload_size = max_insert_payload_size
 
   class InsertIdPrefixFn(DoFn):
+
     def start_bundle(self):
       self.prefix = str(uuid.uuid4())
       self._row_count = 0
@@ -1891,6 +1896,7 @@ class WriteToBigQuery(PTransform):
   tables. The elements would come in as Python dictionaries, or as `TableRow`
   instances.
   """
+
   class Method(object):
     DEFAULT = 'DEFAULT'
     STREAMING_INSERTS = 'STREAMING_INSERTS'
@@ -2331,10 +2337,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     # remove_objects_from_args and insert_values_in_args
     # are currently implemented.
     def serialize(side_inputs):
-      return {(SIDE_INPUT_PREFIX + '%s') % ix:
-              si.to_runner_api(context).SerializeToString()
-              for ix,
-              si in enumerate(side_inputs)}
+      return {(SIDE_INPUT_PREFIX + '%s') % ix: si.to_runner_api(
+                  context).SerializeToString()
+              for ix, si in enumerate(side_inputs)}
 
     table_side_inputs = serialize(self.table_side_inputs)
     schema_side_inputs = serialize(self.schema_side_inputs)
@@ -2382,8 +2387,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       # to_runner_api_parameter above).
       indexed_side_inputs = [(
           get_sideinput_index(tag),
-          pvalue.AsSideInput.from_runner_api(si, context)) for tag,
-                             si in deserialized_side_inputs.items()]
+          pvalue.AsSideInput.from_runner_api(si, context))
+                             for tag, si in deserialized_side_inputs.items()]
       return [si for _, si in sorted(indexed_side_inputs)]
 
     config['table_side_inputs'] = deserialize(config['table_side_inputs'])
@@ -2395,6 +2400,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 class WriteResult:
   """The result of a WriteToBigQuery transform.
   """
+
   def __init__(
       self,
       method: str = None,
@@ -2661,8 +2667,8 @@ class StorageWriteToBigQuery(PTransform):
       failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
-              "error_message": row.error_message,
-              "failed_row": row.failed_row.as_dict()
+              "error_message": row.error_message, "failed_row": row.failed_row.
+              as_dict()
           })
 
     return WriteResult(
@@ -2671,6 +2677,7 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows_with_errors=failed_rows_with_errors)
 
   class ConvertToBeamRows(PTransform):
+
     def __init__(self, schema, dynamic_destinations):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
@@ -2682,8 +2689,8 @@ class StorageWriteToBigQuery(PTransform):
             | "Convert dict to Beam Row" >> beam.Map(
                 lambda row: beam.Row(
                     **{
-                        StorageWriteToBigQuery.DESTINATION: row[0],
-                        StorageWriteToBigQuery.RECORD: bigquery_tools.
+                        StorageWriteToBigQuery.DESTINATION: row[
+                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
                         beam_row_from_dict(row[1], self.schema)
                     })))
       else:
@@ -2804,6 +2811,7 @@ class ReadFromBigQuery(PTransform):
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
       """
+
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
@@ -2972,6 +2980,7 @@ class ReadFromBigQueryRequest:
   """
   Class that defines data to read from BQ.
   """
+
   def __init__(
       self,
       query: str = None,

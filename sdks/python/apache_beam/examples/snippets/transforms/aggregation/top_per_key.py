@@ -51,12 +51,11 @@ def top_per_key(test=None):
             ('winter', '🍆 Eggplant'),
         ])
         | 'Shortest names per key' >> beam.combiners.Top.PerKey(
-            2,             # number of elements
-            key=len,       # optional, defaults to the value itself
+            2,  # number of elements
+            key=len,  # optional, defaults to the value itself
             reverse=True,  # optional, defaults to False (largest/descending)
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END top_per_key]
     if test:
       test(shortest_elements_per_key)

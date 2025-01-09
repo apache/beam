@@ -120,6 +120,7 @@ def make_preprocessing_fn(frequency_threshold):
   Returns:
     A preprocessing function.
   """
+
   def preprocessing_fn(inputs):
     """User defined preprocessing function for criteo columns.
 

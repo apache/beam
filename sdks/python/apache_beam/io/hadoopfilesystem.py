@@ -61,6 +61,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HdfsDownloader(filesystemio.Downloader):
+
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     self._path = path
@@ -77,6 +78,7 @@ class HdfsDownloader(filesystemio.Downloader):
 
 
 class HdfsUploader(filesystemio.Uploader):
+
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     if self._hdfs_client.status(path, strict=False) is not None:
@@ -101,6 +103,7 @@ class HadoopFileSystem(FileSystem):
 
   URL arguments to methods expect strings starting with ``hdfs://``.
   """
+
   def __init__(self, pipeline_options):
     """Initializes a connection to HDFS.
 

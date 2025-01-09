@@ -62,6 +62,7 @@ class StreamingCacheSink(beam.PTransform):
   source/sink types aside from file based. Also, generalize to cases where
   there might be multiple workers writing to the same sink.
   """
+
   def __init__(
       self,
       cache_dir,
@@ -93,12 +94,14 @@ class StreamingCacheSink(beam.PTransform):
       return 0
 
   def expand(self, pcoll):
+
     class StreamingWriteToText(beam.DoFn):
       """DoFn that performs the writing.
 
       Note that the other file writing methods cannot be used in streaming
       contexts.
       """
+
       def __init__(self, full_path, coder=SafeFastPrimitivesCoder()):
         self._full_path = full_path
         self._coder = coder
@@ -143,6 +146,7 @@ class StreamingCacheSource:
   This class is used to read from file and send its to the TestStream via the
   StreamingCacheManager.Reader.
   """
+
   def __init__(self, cache_dir, labels, is_cache_complete=None, coder=None):
     if not coder:
       coder = SafeFastPrimitivesCoder()
@@ -241,6 +245,7 @@ class StreamingCacheSource:
 class StreamingCache(CacheManager):
   """Abstraction that holds the logic for reading and writing to cache.
   """
+
   def __init__(
       self,
       cache_dir,
@@ -427,6 +432,7 @@ class StreamingCache(CacheManager):
     This class is also responsible for holding the state of the clock, injecting
     clock advancement events, and watermark advancement events.
     """
+
     def __init__(self, headers, readers):
       # This timestamp is used as the monotonic clock to order events in the
       # replay.

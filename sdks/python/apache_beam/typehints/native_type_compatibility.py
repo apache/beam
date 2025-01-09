@@ -332,8 +332,9 @@ def convert_to_beam_type(typ):
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
 
-  elif (typ_module != 'typing') and (typ_module !=
-                                     'collections.abc') and not is_builtin(typ):
+  elif (typ_module
+        != 'typing') and (typ_module
+                          != 'collections.abc') and not is_builtin(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and

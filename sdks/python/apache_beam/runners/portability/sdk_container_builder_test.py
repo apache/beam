@@ -29,6 +29,7 @@ from apache_beam.runners.portability import sdk_container_builder
 
 
 class SdkContainerBuilderTest(unittest.TestCase):
+
   def tearDown(self):
     # Ensures SdkContainerImageBuilder subclasses are cleared
     gc.collect()
@@ -55,11 +56,13 @@ class SdkContainerBuilderTest(unittest.TestCase):
   def test_multiple_matchings_keys_throws_value_error(self):
     # pylint: disable=unused-variable
     class _PluginSdkBuilder(sdk_container_builder.SdkContainerImageBuilder):
+
       @classmethod
       def _builder_key(cls):
         return 'test-id'
 
     class _PluginSdkBuilder2(sdk_container_builder.SdkContainerImageBuilder):
+
       @classmethod
       def _builder_key(cls):
         return 'test-id'
@@ -71,6 +74,7 @@ class SdkContainerBuilderTest(unittest.TestCase):
           'test-id')
 
   def test_can_find_new_subclass(self):
+
     class _PluginSdkBuilder(sdk_container_builder.SdkContainerImageBuilder):
       pass
 

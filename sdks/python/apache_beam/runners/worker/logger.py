@@ -37,6 +37,7 @@ from apache_beam.runners.worker import statesampler
 # context information that changes while work items get executed:
 # work_item_id, step_name, stage_name.
 class _PerThreadWorkerData(threading.local):
+
   def __init__(self) -> None:
     super().__init__()
     # in the list, as going up and down all the way to zero incurs several
@@ -66,6 +67,7 @@ def PerThreadLoggingContext(**kwargs: Any) -> Iterator[None]:
 
 class JsonLogFormatter(logging.Formatter):
   """A JSON formatter class as expected by the logging standard module."""
+
   def __init__(self, job_id: str, worker_id: str) -> None:
     super().__init__()
     self.job_id = job_id

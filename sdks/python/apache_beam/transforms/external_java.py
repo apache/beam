@@ -51,6 +51,7 @@ class JavaExternalTransformTest(object):
   expansion_service_port: Optional[int] = None
 
   class _RunWithExpansion(object):
+
     def __init__(self):
       self._server = None
 

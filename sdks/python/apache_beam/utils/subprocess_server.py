@@ -68,6 +68,7 @@ class _SharedCache:
     finally:
       cache.purge(token)
   """
+
   def __init__(self, constructor, destructor):
     self._constructor = constructor
     self._destructor = destructor
@@ -122,6 +123,7 @@ class SubprocessServer(object):
       with SubprocessServer(GrpcStubClass, [executable, arg, ...]) as stub:
           stub.CallService(...)
   """
+
   def __init__(self, stub_class, cmd, port=None):
     """Creates the server object.
 

@@ -91,6 +91,7 @@ class ApprovalResult(_messages.Message):
       rendered by the UI differently. An example use case is a link to an
       external job that approved this Build.
   """
+
   class DecisionValueValuesEnum(_messages.Enum):
     r"""Required. The decision of this manual approval.
 
@@ -461,6 +462,7 @@ class Build(_messages.Message):
     warnings: Output only. Non-fatal problems encountered during the execution
       of the build.
   """
+
   class StatusValueValuesEnum(_messages.Enum):
     r"""Output only. Status of the build.
 
@@ -499,6 +501,7 @@ class Build(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type SubstitutionsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SubstitutionsValue object.
 
@@ -527,6 +530,7 @@ class Build(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type TimingValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a TimingValue object.
 
@@ -584,6 +588,7 @@ class BuildApproval(_messages.Message):
     result: Output only. Result of manual approval for this Build.
     state: Output only. The state of this build's approval.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""Output only. The state of this build's approval.
 
@@ -677,6 +682,7 @@ class BuildOptions(_messages.Message):
       configuration.
     workerPool: This field deprecated; please use `pool.name` instead.
   """
+
   class LogStreamingOptionValueValuesEnum(_messages.Enum):
     r"""Option to define build log streaming behavior to Google Cloud Storage.
 
@@ -852,6 +858,7 @@ class BuildStep(_messages.Message):
       start when all previous build steps in the `Build.Steps` list have
       completed successfully.
   """
+
   class StatusValueValuesEnum(_messages.Enum):
     r"""Output only. Status of the build step. At this time, build step status
     is only updated on build completion; step status is not updated in real-
@@ -981,6 +988,7 @@ class BuildTrigger(_messages.Message):
     webhookConfig: WebhookConfig describes the configuration of a trigger that
       creates a build whenever a webhook is sent to a trigger's webhook URL.
   """
+
   class EventTypeValueValuesEnum(_messages.Enum):
     r"""EventType allows the user to explicitly set the type of event to which
     this BuildTrigger should respond. This field will be validated against the
@@ -1011,6 +1019,7 @@ class BuildTrigger(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type SubstitutionsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SubstitutionsValue object.
 
@@ -2119,6 +2128,7 @@ class FailureInfo(_messages.Message):
     detail: Explains the failure issue in more detail using hard-coded text.
     type: The name of the failure.
   """
+
   class TypeValueValuesEnum(_messages.Enum):
     r"""The name of the failure.
 
@@ -2181,6 +2191,7 @@ class GitFileSource(_messages.Message):
       the trigger invocation originated is assumed to be the repo from which
       to read the specified path.
   """
+
   class RepoTypeValueValuesEnum(_messages.Enum):
     r"""See RepoType above.
 
@@ -2321,6 +2332,7 @@ class GitRepoSource(_messages.Message):
     repoType: See RepoType below.
     uri: The URI of the repo (required).
   """
+
   class RepoTypeValueValuesEnum(_messages.Enum):
     r"""See RepoType below.
 
@@ -2391,6 +2403,7 @@ class Hash(_messages.Message):
     type: The type of hash that was performed.
     value: The hash value.
   """
+
   class TypeValueValuesEnum(_messages.Enum):
     r"""The type of hash that was performed.
 
@@ -2436,6 +2449,7 @@ class HttpBody(_messages.Message):
     extensions: Application specific response metadata. Must be set in the
       first response for streaming APIs.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ExtensionsValueListEntry(_messages.Message):
     r"""A ExtensionsValueListEntry object.
@@ -2448,6 +2462,7 @@ class HttpBody(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ExtensionsValueListEntry object.
 
@@ -2488,6 +2503,7 @@ class InlineSecret(_messages.Message):
     kmsKeyName: Resource name of Cloud KMS crypto key to decrypt the encrypted
       value. In format: projects/*/locations/*/keyRings/*/cryptoKeys/*
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class EnvMapValue(_messages.Message):
     r"""Map of environment variable name to its encrypted value. Secret
@@ -2502,6 +2518,7 @@ class InlineSecret(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type EnvMapValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a EnvMapValue object.
 
@@ -2617,6 +2634,7 @@ class NetworkConfig(_messages.Message):
       configuration options](https://cloud.google.com/build/docs/private-
       pools/set-up-private-pool-environment)
   """
+
   class EgressOptionValueValuesEnum(_messages.Enum):
     r"""Option to configure network egress for the workers.
 
@@ -2653,6 +2671,7 @@ class Notification(_messages.Message):
     smtpDelivery: Configuration for SMTP (email) delivery.
     structDelivery: Escape hatch for users to supply custom delivery configs.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class StructDeliveryValue(_messages.Message):
     r"""Escape hatch for users to supply custom delivery configs.
@@ -2664,6 +2683,7 @@ class Notification(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a StructDeliveryValue object.
 
@@ -2800,6 +2820,7 @@ class Operation(_messages.Message):
       the original method name. For example, if the original method name is
       `TakeSnapshot()`, the inferred response type is `TakeSnapshotResponse`.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class MetadataValue(_messages.Message):
     r"""Service-specific metadata associated with the operation. It typically
@@ -2814,6 +2835,7 @@ class Operation(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a MetadataValue object.
 
@@ -2845,6 +2867,7 @@ class Operation(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ResponseValue object.
 
@@ -2953,6 +2976,7 @@ class PubsubConfig(_messages.Message):
     topic: The name of the topic from which this subscription is receiving
       messages. Format is `projects/{project}/topics/{topic}`.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""Potential issues with the underlying Pub/Sub subscription
     configuration. Only populated on get requests.
@@ -2994,6 +3018,7 @@ class PullRequestFilter(_messages.Message):
     invertRegex: If true, branches that do NOT match the git_ref will trigger
       a build.
   """
+
   class CommentControlValueValuesEnum(_messages.Enum):
     r"""Configure builds to run whether a repository owner or collaborator
     need to comment `/gcbrun`.
@@ -3078,6 +3103,7 @@ class RepoSource(_messages.Message):
       expressions accepted is the syntax accepted by RE2 and described at
       https://github.com/google/re2/wiki/Syntax
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SubstitutionsValue(_messages.Message):
     r"""Substitutions to use in a triggered build. Should only be used with
@@ -3090,6 +3116,7 @@ class RepoSource(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type SubstitutionsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SubstitutionsValue object.
 
@@ -3244,6 +3271,7 @@ class Secret(_messages.Message):
       in size. There can be at most 100 secret values across all of a build's
       secrets.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SecretEnvValue(_messages.Message):
     r"""Map of environment variable name to its encrypted value. Secret
@@ -3258,6 +3286,7 @@ class Secret(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type SecretEnvValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SecretEnvValue object.
 
@@ -3370,6 +3399,7 @@ class SourceProvenance(_messages.Message):
       `source.storage_source_manifest`, if exists, with any revisions
       resolved. This feature is in Preview.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class FileHashesValue(_messages.Message):
     r"""Output only. Hash(es) of the build source, which can be used to verify
@@ -3386,6 +3416,7 @@ class SourceProvenance(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type FileHashesValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a FileHashesValue object.
 
@@ -3433,6 +3464,7 @@ class StandardQueryParameters(_messages.Message):
     uploadType: Legacy upload protocol for media (e.g. "media", "multipart").
     upload_protocol: Upload protocol for media (e.g. "raw", "multipart").
   """
+
   class AltValueValuesEnum(_messages.Enum):
     r"""Data format for response.
 
@@ -3488,6 +3520,7 @@ class Status(_messages.Message):
       user-facing error message should be localized and sent in the
       google.rpc.Status.details field, or localized by the client.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class DetailsValueListEntry(_messages.Message):
     r"""A DetailsValueListEntry object.
@@ -3500,6 +3533,7 @@ class Status(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a DetailsValueListEntry object.
 
@@ -3660,6 +3694,7 @@ class Warning(_messages.Message):
     priority: The priority for this warning.
     text: Explanation of the warning generated.
   """
+
   class PriorityValueValuesEnum(_messages.Enum):
     r"""The priority for this warning.
 
@@ -3692,6 +3727,7 @@ class WebhookConfig(_messages.Message):
     state: Potential issues with the underlying Pub/Sub subscription
       configuration. Only populated on get requests.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""Potential issues with the underlying Pub/Sub subscription
     configuration. Only populated on get requests.
@@ -3771,6 +3807,7 @@ class WorkerPool(_messages.Message):
     updateTime: Output only. Time at which the request to update the
       `WorkerPool` was received.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""Output only. `WorkerPool` state.
 
@@ -3802,6 +3839,7 @@ class WorkerPool(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type AnnotationsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a AnnotationsValue object.
 

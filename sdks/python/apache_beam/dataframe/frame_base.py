@@ -43,6 +43,7 @@ class DeferredBase(object):
 
   @classmethod
   def _register_for(cls, pandas_type):
+
     def wrapper(deferred_type):
       cls._pandas_type_map[pandas_type] = deferred_type
       return deferred_type
@@ -91,6 +92,7 @@ class UnusableUnpickledDeferredBase(object):
   Trying to use this object after unpickling is a bug and will result in an
   error.
   """
+
   def __init__(self, name):
     self._name = name
 
@@ -103,6 +105,7 @@ class DeferredFrame(DeferredBase):
 
 
 class _DeferredScalar(DeferredBase):
+
   def apply(self, func, name=None, args=()):
     if name is None:
       name = func.__name__
@@ -135,6 +138,7 @@ class _DeferredScalar(DeferredBase):
 
 
 def _scalar_binop(op):
+
   def binop(self, other):
     if not isinstance(other, DeferredBase):
       return self.apply(lambda left: getattr(left, op)(other), name=op)
@@ -442,6 +446,7 @@ def not_implemented_method(op, issue='20318', base_type=None):
 
 
 def _copy_and_mutate(func):
+
   def wrapper(self, *args, **kwargs):
     copy = self.copy()
     func(copy, *args, **kwargs)
@@ -462,6 +467,7 @@ def maybe_inplace(func):
   the inplace operation will refernce the updated expression.
 
   For internal use only. No backwards compatibility guarantees."""
+
   @functools.wraps(func)
   def wrapper(self, inplace=False, **kwargs):
     result = func(self, **kwargs)
@@ -491,6 +497,7 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
       removed_args: If not empty, which arguments have been dropped in the
            running Pandas version.
   """
+
   def wrap(func):
     if removed_method:
       # Do no processing, let Beam function itself raise the error if called.
@@ -566,6 +573,7 @@ def with_docs_from(base_type, name=None, removed_method=False):
   removed_method used in cases where a method has been removed in a later
   version of Pandas.
   """
+
   def wrap(func):
     if removed_method:
       func.__doc__ = (
@@ -659,6 +667,7 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
       removed_args: If not empty, which arguments have been dropped in the
            running Pandas version.
   """
+
   def wrap(func):
     if removed_method:
       return func
@@ -750,6 +759,7 @@ class WontImplementError(NotImplementedError):
   Raising this error will also prevent this doctests from being validated
   when run with the beam dataframe validation doctest runner.
   """
+
   def __init__(self, msg, reason=None):
     if reason is not None:
       if reason not in _WONT_IMPLEMENT_REASONS:

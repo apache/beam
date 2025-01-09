@@ -73,6 +73,7 @@ def get_existing_issue_data(**kwargs):
 
 
 class TestChangePointAnalysis(unittest.TestCase):
+
   def setUp(self) -> None:
     self.single_change_point_series = [0] * 10 + [1] * 10
     self.multiple_change_point_series = self.single_change_point_series + [
@@ -248,6 +249,7 @@ class TestChangePointAnalysis(unittest.TestCase):
     self.assertTrue(match)
 
   def test_change_point_on_noisy_data(self):
+
     def read_csv(path):
       with FileSystems.open(path) as fp:
         return pd.read_csv(fp)

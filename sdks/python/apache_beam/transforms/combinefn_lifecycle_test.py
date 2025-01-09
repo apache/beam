@@ -37,6 +37,7 @@ from apache_beam.transforms.combinefn_lifecycle_pipeline import run_pardo
 
 @pytest.mark.it_validatesrunner
 class CombineFnLifecycleTest(unittest.TestCase):
+
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
 
@@ -60,6 +61,7 @@ class CombineFnLifecycleTest(unittest.TestCase):
     {'runner': fn_api_runner.FnApiRunner, 'pickler': 'cloudpickle'},
     ])  # yapf: disable
 class LocalCombineFnLifecycleTest(unittest.TestCase):
+
   def tearDown(self):
     CallSequenceEnforcingCombineFn.instances.clear()
 

@@ -44,6 +44,7 @@ def _user_type_is_generated(user_type: type) -> bool:
 
 
 class RowTypeConstraint(typehints.TypeConstraint):
+
   def __init__(
       self,
       fields: Sequence[Tuple[str, type]],
@@ -85,8 +86,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
     """
     # Recursively wrap row types in a RowTypeConstraint
     self._fields = tuple((name, RowTypeConstraint.from_user_type(typ) or typ)
-                         for name,
-                         typ in fields)
+                         for name, typ in fields)
 
     self._user_type = user_type
 
@@ -207,6 +207,7 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
   Since the generated user_type cannot be pickled, we supply a custom __reduce__
   function that will regenerate the user_type.
   """
+
   def __init__(
       self,
       fields,

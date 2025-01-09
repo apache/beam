@@ -39,7 +39,9 @@ def identity(x):
     identity)
 # pylint: enable=line-too-long
 class BatchElementsTest(unittest.TestCase):
+
   def test_tolist(self):
+
     def check(result):
       assert_that(
           result

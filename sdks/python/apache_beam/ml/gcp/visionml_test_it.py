@@ -43,6 +43,7 @@ def extract(response):
 @pytest.mark.it_postcommit
 @unittest.skipIf(vision is None, 'GCP dependencies are not installed')
 class VisionMlTestIT(unittest.TestCase):
+
   def test_text_detection_with_language_hint(self):
     IMAGES_TO_ANNOTATE = [
         'gs://apache-beam-samples/advanced_analytics/vision/sign.jpg'

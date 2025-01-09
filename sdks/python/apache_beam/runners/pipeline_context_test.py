@@ -27,6 +27,7 @@ from apache_beam.transforms import environments
 
 
 class PipelineContextTest(unittest.TestCase):
+
   def test_deduplication(self):
     context = pipeline_context.PipelineContext()
     bytes_coder_ref = context.coders.get_id(coders.BytesCoder())

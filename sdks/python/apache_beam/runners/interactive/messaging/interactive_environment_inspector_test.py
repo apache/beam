@@ -39,6 +39,7 @@ from apache_beam.runners.interactive.utils import obfuscate
     sys.version_info < (3, 7), 'The tests require at least Python 3.7 to work.')
 @isolated_env
 class InteractiveEnvironmentInspectorTest(unittest.TestCase):
+
   def test_inspect(self):
     with self.cell:  # Cell 1
       pipeline = beam.Pipeline(ir.InteractiveRunner())

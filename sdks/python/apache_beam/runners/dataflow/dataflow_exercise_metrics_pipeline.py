@@ -130,6 +130,7 @@ def metric_matchers():
 
 class UserMetricsDoFn(beam.DoFn):
   """Parse each line of input text into words."""
+
   def __init__(self):
     self.total_metric = Metrics.counter(self.__class__, 'total_values')
     self.dist_metric = Metrics.distribution(
@@ -164,14 +165,8 @@ def apply_and_run(pipeline):
       | beam.GroupByKey()
       | 'm_out' >> beam.FlatMap(
           lambda x: [
-              1,
-              2,
-              3,
-              4,
-              5,
-              beam.pvalue.TaggedOutput('once', x),
-              beam.pvalue.TaggedOutput('twice', x),
-              beam.pvalue.TaggedOutput('twice', x)
+              1, 2, 3, 4, 5, beam.pvalue.TaggedOutput('once', x), beam.pvalue.
+              TaggedOutput('twice', x), beam.pvalue.TaggedOutput('twice', x)
           ]))
   result = pipeline.run()
   result.wait_until_finish()

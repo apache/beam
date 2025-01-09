@@ -28,6 +28,7 @@ from apache_beam.runners.interactive import interactive_environment as ie
 
 
 class CacheableTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 
@@ -65,6 +66,7 @@ class CacheableTest(unittest.TestCase):
 
 
 class AugmentTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 

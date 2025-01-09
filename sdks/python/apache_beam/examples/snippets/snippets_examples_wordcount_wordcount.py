@@ -88,6 +88,7 @@ def examples_wordcount_wordcount():
 
     # [START examples_wordcount_wordcount_dofn]
     class FormatAsTextFn(beam.DoFn):
+
       def process(self, element):
         word, count = element
         yield '%s: %s' % (word, count)

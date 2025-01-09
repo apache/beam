@@ -41,6 +41,7 @@ except ImportError:
 
 @unittest.skipIf(s3filesystem is None, 'AWS dependencies are not installed')
 class S3FileSystemTest(unittest.TestCase):
+
   def setUp(self):
     pipeline_options = PipelineOptions()
     self.fs = s3filesystem.S3FileSystem(pipeline_options=pipeline_options)

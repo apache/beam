@@ -28,6 +28,7 @@ class NativeReadPTransformOverride(PTransformOverride):
   The DataflowRunner expects that the Read PTransform using native sources act
   as a primitive. So this override replaces the Read with a primitive.
   """
+
   def matches(self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position

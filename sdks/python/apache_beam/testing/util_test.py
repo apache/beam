@@ -41,6 +41,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 class UtilTest(unittest.TestCase):
+
   def test_assert_that_passes(self):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))

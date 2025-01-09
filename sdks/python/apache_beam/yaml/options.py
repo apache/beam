@@ -19,6 +19,7 @@ from apache_beam.options import pipeline_options
 
 
 class YamlOptions(pipeline_options.PipelineOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(

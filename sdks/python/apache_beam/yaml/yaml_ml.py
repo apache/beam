@@ -59,6 +59,7 @@ class ModelHandlerProvider:
 
   @staticmethod
   def parse_processing_transform(processing_transform, typ):
+
     def _parse_config(callable=None, path=None, name=None):
       if callable and (path or name):
         raise ValueError(
@@ -109,6 +110,7 @@ class ModelHandlerProvider:
 
   @classmethod
   def register_handler_type(cls, type_name):
+
     def apply(constructor):
       cls.handler_types[type_name] = constructor
       return constructor
@@ -131,6 +133,7 @@ class ModelHandlerProvider:
 
 @ModelHandlerProvider.register_handler_type('VertexAIModelHandlerJSON')
 class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
+
   def __init__(
       self,
       endpoint_id: str,

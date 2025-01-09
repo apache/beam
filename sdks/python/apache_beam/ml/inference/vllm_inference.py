@@ -107,6 +107,7 @@ def getAsyncVLLMClient(port) -> AsyncOpenAI:
 
 
 class _VLLMModelServer():
+
   def __init__(self, model_name: str, vllm_server_kwargs: Dict[str, str]):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
@@ -166,6 +167,7 @@ class _VLLMModelServer():
 class VLLMCompletionsModelHandler(ModelHandler[str,
                                                PredictionResult,
                                                _VLLMModelServer]):
+
   def __init__(
       self,
       model_name: str,
@@ -249,6 +251,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
 class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
                                         PredictionResult,
                                         _VLLMModelServer]):
+
   def __init__(
       self,
       model_name: str,

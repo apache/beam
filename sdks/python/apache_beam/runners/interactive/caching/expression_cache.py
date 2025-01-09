@@ -42,6 +42,7 @@ class ExpressionCache(object):
   This object can be created and destroyed whenever. This class holds no state
   and the only side-effect is modifying the given expression.
   """
+
   def __init__(self, pcollection_cache=None, computed_cache=None):
     from apache_beam.runners.interactive import interactive_environment as ie
 

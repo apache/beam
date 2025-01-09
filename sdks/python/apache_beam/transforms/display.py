@@ -63,6 +63,7 @@ class HasDisplayData(object):
   It implements only the display_data method and a
   _get_display_data_namespace method.
   """
+
   def display_data(self):
     # type: () -> dict
 
@@ -96,6 +97,7 @@ class HasDisplayData(object):
 class DisplayData(object):
   """ Static display data associated with a pipeline component.
   """
+
   def __init__(
       self,
       namespace,  # type: str
@@ -136,6 +138,7 @@ class DisplayData(object):
     # type: (...) -> List[beam_runner_api_pb2.DisplayData]
 
     """Returns a List of Beam proto representation of Display data."""
+
     def create_payload(dd) -> Optional[beam_runner_api_pb2.LabelledPayload]:
       try:
         display_data_dict = dd.get_dict()
@@ -221,8 +224,7 @@ class DisplayData(object):
 
     items = {
         k: (v if DisplayDataItem._get_value_type(v) is not None else str(v))
-        for k,
-        v in pipeline_options.display_data().items()
+        for k, v in pipeline_options.display_data().items()
     }
     return cls(pipeline_options._get_display_data_namespace(), items)
 

@@ -88,6 +88,7 @@ def _write_file_gzip(path, base64_records):
 
 
 class TestTFRecordUtil(unittest.TestCase):
+
   def setUp(self):
     self.record = binascii.a2b_base64(FOO_RECORD_BASE64)
 
@@ -159,6 +160,7 @@ class TestTFRecordUtil(unittest.TestCase):
 
 
 class TestTFRecordSink(unittest.TestCase):
+
   def _write_lines(self, sink, path, lines):
     f = sink.open(path)
     for l in lines:
@@ -200,6 +202,7 @@ class TestTFRecordSink(unittest.TestCase):
 
 @unittest.skipIf(tf is None, 'tensorflow not installed.')
 class TestWriteToTFRecord(TestTFRecordSink):
+
   def test_write_record_gzip(self):
     with TempDir() as temp_dir:
       file_path_prefix = temp_dir.create_temp_file('result')
@@ -236,6 +239,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
 
 
 class TestReadFromTFRecord(unittest.TestCase):
+
   def test_process_single(self):
     with TempDir() as temp_dir:
       path = temp_dir.create_temp_file('result')
@@ -328,6 +332,7 @@ class TestReadFromTFRecord(unittest.TestCase):
 
 
 class TestReadAllFromTFRecord(unittest.TestCase):
+
   def _write_glob(self, temp_dir, suffix, include_empty=False):
     for _ in range(3):
       path = temp_dir.create_temp_file(suffix)
@@ -468,6 +473,7 @@ class TestReadAllFromTFRecord(unittest.TestCase):
 
 
 class TestEnd2EndWriteAndRead(unittest.TestCase):
+
   def create_inputs(self):
     input_array = [[random.random() - 0.5 for _ in range(15)]
                    for _ in range(12)]

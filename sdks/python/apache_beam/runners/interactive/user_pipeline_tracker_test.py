@@ -22,6 +22,7 @@ from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTr
 
 
 class UserPipelineTrackerTest(unittest.TestCase):
+
   def test_getting_unknown_pid_returns_none(self):
     ut = UserPipelineTracker()
 

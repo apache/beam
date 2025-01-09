@@ -45,6 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class ElementStream:
   """A stream of elements from a given PCollection."""
+
   def __init__(
       self,
       pcoll: beam.pvalue.PCollection,
@@ -148,21 +149,23 @@ class ElementStream:
 
 class Recording:
   """A group of PCollections from a given pipeline run."""
+
   def __init__(
       self,
       user_pipeline: beam.Pipeline,
-      pcolls: List[beam.pvalue.PCollection], # noqa: F821
+      pcolls: List[beam.pvalue.PCollection],  # noqa: F821
       result: 'beam.runner.PipelineResult',
       max_n: int,
       max_duration_secs: float,
-      ):
+  ):
     self._user_pipeline = user_pipeline
     self._result = result
     self._result_lock = threading.Lock()
     self._pcolls = pcolls
-    pcoll_var = lambda pcoll: {v: k
-                               for k, v in utils.pcoll_by_name().items()}.get(
-                                   pcoll, None)
+    pcoll_var = lambda pcoll: {
+        v: k
+        for k, v in utils.pcoll_by_name().items()
+    }.get(pcoll, None)
 
     self._streams = {
         pcoll: ElementStream(
@@ -254,6 +257,7 @@ class Recording:
 
 class RecordingManager:
   """Manages recordings of PCollections for a given pipeline."""
+
   def __init__(
       self,
       user_pipeline: beam.Pipeline,

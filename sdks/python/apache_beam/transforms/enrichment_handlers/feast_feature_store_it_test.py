@@ -48,6 +48,7 @@ def _entity_row_fn(request: beam.Row) -> Mapping[str, Any]:
 
 @pytest.mark.uses_feast
 class TestFeastEnrichmentHandler(unittest.TestCase):
+
   def setUp(self) -> None:
     self.feature_store_yaml_file = (
         'gs://apache-beam-testing-enrichment/'

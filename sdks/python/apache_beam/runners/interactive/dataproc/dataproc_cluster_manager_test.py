@@ -35,22 +35,26 @@ else:
 
 
 class MockProperty:
+
   def __init__(self, property, value):
     object.__setattr__(self, property, value)
 
 
 class MockException(Exception):
+
   def __init__(self, code=-1):
     self.code = code
 
 
 class MockCluster:
+
   def __init__(self, config_bucket=None):
     self.config = MockProperty('config_bucket', config_bucket)
     self.status = MockProperty('state', MockProperty('name', None))
 
 
 class MockFileSystem:
+
   def _list(self, dir=None):
     return [
         MockProperty(
@@ -63,6 +67,7 @@ class MockFileSystem:
 
 
 class MockFileIO:
+
   def __init__(self, contents):
     self.contents = contents
 
@@ -73,6 +78,7 @@ class MockFileIO:
 @unittest.skipIf(not _dataproc_imported, 'dataproc package was not imported.')
 class DataprocClusterManagerTest(unittest.TestCase):
   """Unit test for DataprocClusterManager"""
+
   def setUp(self):
     self.patcher = patch(
         'apache_beam.runners.interactive.interactive_environment.current_env')

@@ -65,6 +65,7 @@ ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 @pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.

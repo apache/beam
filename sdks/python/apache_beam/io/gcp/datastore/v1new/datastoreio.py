@@ -173,6 +173,7 @@ class ReadFromDatastore(PTransform):
   @typehints.with_output_types(types.Query)
   class _SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
+
     def __init__(self, num_splits):
       super().__init__()
       self._num_splits = num_splits
@@ -281,6 +282,7 @@ class ReadFromDatastore(PTransform):
   @typehints.with_output_types(types.Entity)
   class _QueryFn(DoFn):
     """A DoFn that fetches entities from Cloud Datastore, for a given query."""
+
     def process(self, query, *unused_args, **unused_kwargs):
       if query.namespace is None:
         query.namespace = ''
@@ -359,6 +361,7 @@ class _Mutate(PTransform):
     should be idempotent (`upsert` and `delete` mutations) to prevent duplicate
     data or errors.
     """
+
     def __init__(self, project):
       """
       Args:
@@ -523,6 +526,7 @@ class WriteToDatastore(_Mutate):
   property key is empty then it is filled with the project ID passed to this
   transform.
   """
+
   def __init__(
       self,
       project,
@@ -540,6 +544,7 @@ class WriteToDatastore(_Mutate):
     super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
+
     def element_to_client_batch_item(self, element):
       if not isinstance(element, types.Entity):
         raise ValueError(
@@ -575,6 +580,7 @@ class DeleteFromDatastore(_Mutate):
   project ID passed to this transform. If ``project`` field in key is empty then
   it is filled with the project ID passed to this transform.
   """
+
   def __init__(
       self,
       project,
@@ -593,6 +599,7 @@ class DeleteFromDatastore(_Mutate):
     super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
+
     def element_to_client_batch_item(self, element):
       if not isinstance(element, types.Key):
         raise ValueError(

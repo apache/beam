@@ -24,6 +24,7 @@ __all__ = ['AvroRecord']
 
 class AvroRecord(object):
   """Simple wrapper class for dictionary records."""
+
   def __init__(self, value):
     self.record = value
 

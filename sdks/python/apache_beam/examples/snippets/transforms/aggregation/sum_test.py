@@ -51,6 +51,7 @@ def check_totals_per_key(actual):
     'apache_beam.examples.snippets.transforms.aggregation.sum_per_key.print',
     str)
 class SumTest(unittest.TestCase):
+
   def test_sum_globally(self):
     beam_sum_globally.sum_globally(check_total)
 

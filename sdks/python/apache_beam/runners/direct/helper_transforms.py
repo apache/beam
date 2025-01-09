@@ -31,6 +31,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 class LiftedCombinePerKey(beam.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
   """
+
   def __init__(self, combine_fn, args, kwargs):
     args_to_check = itertools.chain(args, kwargs.values())
     if isinstance(combine_fn, _CurriedFn):
@@ -55,6 +56,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   As bundles are in-memory-sized, we don't bother flushing until the very end.
   """
+
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
@@ -94,6 +96,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 class FinishCombine(beam.DoFn):
   """Merges partially combined results.
   """
+
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 

@@ -42,6 +42,7 @@ beam_interactive_api_pb2.TestStreamFileRecord.__test__ = False  # type: ignore[a
 
 
 class StreamingCacheTest(unittest.TestCase):
+
   def setUp(self):
     pass
 

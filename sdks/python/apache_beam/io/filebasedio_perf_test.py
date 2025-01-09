@@ -45,6 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FileBasedIOTestOptions(LoadTestOptions):
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -79,6 +80,7 @@ class SyntheticRecordToStrFn(beam.DoFn):
 
   Output length = 4(ceil[len(key)/3] + ceil[len(value)/3]) + 1
   """
+
   def process(self, element):
     import base64
     yield base64.b64encode(element[0]) + b' ' + base64.b64encode(element[1])
@@ -86,6 +88,7 @@ class SyntheticRecordToStrFn(beam.DoFn):
 
 class CreateFolderFn(beam.DoFn):
   """Create folder at pipeline runtime."""
+
   def __init__(self, folder):
     self.folder = folder
 
@@ -97,6 +100,7 @@ class CreateFolderFn(beam.DoFn):
 
 
 class TextIOPerfTest:
+
   def run(self):
     write_test = _TextIOWritePerfTest(need_cleanup=False)
     read_test = _TextIOReadPerfTest(input_folder=write_test.output_folder)
@@ -105,6 +109,7 @@ class TextIOPerfTest:
 
 
 class _TextIOWritePerfTest(LoadTest):
+
   def __init__(self, need_cleanup=True):
     super().__init__(WRITE_NAMESPACE)
     self.need_cleanup = need_cleanup
@@ -146,6 +151,7 @@ class _TextIOWritePerfTest(LoadTest):
 
 
 class _TextIOReadPerfTest(LoadTest):
+
   def __init__(self, input_folder):
     super().__init__(READ_NAMESPACE)
     self.test_options = self.pipeline.get_pipeline_options().view_as(

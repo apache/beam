@@ -79,6 +79,7 @@ except ImportError:
 
 
 class BigQueryReadPerfTest(LoadTest):
+
   def __init__(self):
     super().__init__()
     self.input_dataset = self.pipeline.get_option('input_dataset')

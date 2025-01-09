@@ -80,6 +80,7 @@ class PValue(object):
     (2) Has a transform that can compute the value if executed.
     (3) Has a value which is meaningful if the transform was executed.
   """
+
   def __init__(
       self,
       pipeline: 'Pipeline',
@@ -144,6 +145,7 @@ class PCollection(PValue, Generic[T]):
   Dataflow users should not construct PCollection objects directly in their
   pipelines.
   """
+
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
@@ -233,6 +235,7 @@ class PDone(PValue):
 
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
+
   def __init__(
       self,
       pipeline: 'Pipeline',
@@ -330,6 +333,7 @@ class TaggedOutput(object):
   if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
+
   def __init__(self, tag: str, value: Any) -> None:
     if not isinstance(tag, str):
       raise TypeError(
@@ -349,6 +353,7 @@ class AsSideInput(object):
   options, and should not be instantiated directly. (See instead AsSingleton,
   AsIter, etc.)
   """
+
   def __init__(self, pcoll: PCollection) -> None:
     from apache_beam.transforms import sideinputs
     self.pvalue = pcoll
@@ -407,6 +412,7 @@ class AsSideInput(object):
 
 
 class _UnpickledSideInput(AsSideInput):
+
   def __init__(self, side_input_data: 'SideInputData') -> None:
     self._data = side_input_data
     self._window_mapping_fn = side_input_data.window_mapping_fn
@@ -426,8 +432,7 @@ class _UnpickledSideInput(AsSideInput):
 
   def _view_options(self):
     return {
-        'data': self._data,
-        # For non-fn-api runners.
+        'data': self._data,  # For non-fn-api runners.
         'window_mapping_fn': self._data.window_mapping_fn,
         'coder': self._windowed_coder(),
     }
@@ -438,6 +443,7 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
+
   def __init__(
       self,
       access_pattern: str,
@@ -534,6 +540,7 @@ class AsIter(AsSideInput):
   (e.g., data.apply('label', MyPTransform(), AsIter(my_side_input) ) selects the
   former behavor.
   """
+
   def __repr__(self):
     return 'AsIter(%s)' % self.pvalue
 
@@ -544,8 +551,7 @@ class AsIter(AsSideInput):
   def _side_input_data(self) -> SideInputData:
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        lambda iterable: iterable)
+        self._window_mapping_fn, lambda iterable: iterable)
 
   @property
   def element_type(self):
@@ -566,6 +572,7 @@ class AsList(AsSideInput):
     An AsList-wrapper around a PCollection whose one element is a list
     containing all elements in pcoll.
   """
+
   @staticmethod
   def _from_runtime_iterable(it, options):
     return list(it)
@@ -590,6 +597,7 @@ class AsDict(AsSideInput):
     An AsDict-wrapper around a PCollection whose one element is a dict with
       entries for uniquely-keyed pairs in pcoll.
   """
+
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
@@ -609,6 +617,7 @@ class AsMultiMap(AsSideInput):
   AsSingleton and AsIter are used, but returns an interface that allows
   key lookup.
   """
+
   @staticmethod
   def _from_runtime_iterable(it, options):
     # Legacy implementation.
@@ -620,8 +629,7 @@ class AsMultiMap(AsSideInput):
   def _side_input_data(self) -> SideInputData:
     return SideInputData(
         common_urns.side_inputs.MULTIMAP.urn,
-        self._window_mapping_fn,
-        lambda x: x)
+        self._window_mapping_fn, lambda x: x)
 
   def requires_keyed_input(self):
     return True
@@ -658,6 +666,7 @@ class Row(object):
   Note that in Beam 2.30.0 and later, Row objects are sensitive to field order.
   So `Row(x=3, y=4)` is not considered equal to `Row(y=4, x=3)`.
   """
+
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
 
@@ -681,8 +690,8 @@ class Row(object):
     return (
         type(self) == type(other) and
         len(self.__dict__) == len(other.__dict__) and all(
-            s == o for s,
-            o in zip(self.__dict__.items(), other.__dict__.items())))
+            s == o
+            for s, o in zip(self.__dict__.items(), other.__dict__.items())))
 
   def __reduce__(self):
     return _make_Row, tuple(self.__dict__.items())

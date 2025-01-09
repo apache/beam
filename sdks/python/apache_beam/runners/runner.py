@@ -111,6 +111,7 @@ class PipelineRunner(object):
   provide a new implementation for clear_pvalue(), which is used to wipe out
   materialized values in order to reduce footprint.
   """
+
   def run(
       self,
       transform: 'PTransform',
@@ -261,6 +262,7 @@ class PipelineState(object):
 
 class PipelineResult(object):
   """A :class:`PipelineResult` provides access to info about a pipeline."""
+
   def __init__(self, state):
     self._state = state
 

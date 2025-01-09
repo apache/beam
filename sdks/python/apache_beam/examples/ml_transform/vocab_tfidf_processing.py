@@ -66,6 +66,7 @@ def Shuffle(pcoll):
 
 
 class ReadAndShuffleData(beam.PTransform):
+
   def __init__(self, pos_file_pattern, neg_file_pattern):
     self.pos_file_pattern = pos_file_pattern
     self.neg_file_pattern = neg_file_pattern
@@ -94,8 +95,7 @@ class ReadAndShuffleData(beam.PTransform):
         shuffled_examples
         | beam.Map(
             lambda label_review: {
-                REVIEW_COLUMN: label_review[0],
-                LABEL_COLUMN: label_review[1],
+                REVIEW_COLUMN: label_review[0], LABEL_COLUMN: label_review[1],
                 RAW_DATA_KEY: label_review[0]
             }))
 
@@ -144,6 +144,7 @@ def preprocess_data(
 
 
 class MapTFIDFScoreToVocab(beam.DoFn):
+
   def __init__(self, artifact_location):
     self.artifact_location = artifact_location
 

@@ -47,6 +47,7 @@ class TransformIOCounter(object):
 
   Some examples of IO can be side inputs, shuffle, or streaming state.
   """
+
   def __init__(self, counter_factory, state_sampler):
     """Create a new IO read counter.
 
@@ -93,6 +94,7 @@ class TransformIOCounter(object):
 
 class NoOpTransformIOCounter(TransformIOCounter):
   """All operations for IO tracking are no-ops."""
+
   def __init__(self):
     super().__init__(None, None)
 
@@ -123,12 +125,12 @@ class SideInputReadCounter(TransformIOCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self,
-               counter_factory,
-               state_sampler,  # type: StateSampler
-               declaring_step,
-               input_index
-              ):
+  def __init__(
+      self,
+      counter_factory,
+      state_sampler,  # type: StateSampler
+      declaring_step,
+      input_index):
     """Create a side input read counter.
 
     Args:
@@ -166,6 +168,7 @@ class SideInputReadCounter(TransformIOCounter):
 
 class SumAccumulator(object):
   """Accumulator for collecting byte counts."""
+
   def __init__(self):
     self._value = 0
 
@@ -178,6 +181,7 @@ class SumAccumulator(object):
 
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
+
   def __init__(
       self,
       counter_factory,
@@ -186,7 +190,7 @@ class OperationCounters(object):
       index,
       suffix='out',
       producer_type_hints=None,
-      producer_batch_converter=None, # type: Optional[BatchConverter]
+      producer_batch_converter=None,  # type: Optional[BatchConverter]
   ):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
@@ -223,6 +227,7 @@ class OperationCounters(object):
     self.mean_byte_counter.update_n(mean_element_size, batch_length)
 
   def _observable_callback(self, inner_coder_impl, accumulator):
+
     def _observable_callback_inner(value, is_encoded=False):
       # TODO(ccy): If this stream is large, sample it as well.
       # To do this, we'll need to compute the average size of elements

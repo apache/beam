@@ -28,6 +28,7 @@ except ImportError:
 
 
 class TestVertexAIFeatureStoreHandlerInit(unittest.TestCase):
+
   def test_raise_error_duplicate_api_endpoint_online_store(self):
     with self.assertRaises(ValueError):
       _ = VertexAIFeatureStoreEnrichmentHandler(

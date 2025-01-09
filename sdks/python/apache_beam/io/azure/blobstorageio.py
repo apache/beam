@@ -86,6 +86,7 @@ def get_azfs_url(storage_account, container, blob=''):
 
 class Blob():
   """A Blob in Azure Blob Storage."""
+
   def __init__(self, etag, name, last_updated, size, mime_type):
     self.etag = etag
     self.name = name
@@ -101,6 +102,7 @@ class BlobStorageIOError(IOError, retry.PermanentException):
 
 class BlobStorageError(Exception):
   """Blob Storage client error."""
+
   def __init__(self, message=None, code=None):
     self.message = message
     self.code = code
@@ -108,6 +110,7 @@ class BlobStorageError(Exception):
 
 class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
+
   def __init__(self, client=None, pipeline_options=None):
     if client is None:
       azure_options = pipeline_options.view_as(AzureOptions)
@@ -654,6 +657,7 @@ class BlobStorageIO(object):
 
 
 class BlobStorageDownloader(Downloader):
+
   def __init__(self, client, path, buffer_size):
     self._client = client
     self._path = path
@@ -692,6 +696,7 @@ class BlobStorageDownloader(Downloader):
 
 
 class BlobStorageUploader(Uploader):
+
   def __init__(self, client, path, mime_type='application/octet-stream'):
     self._client = client
     self._path = path

@@ -330,6 +330,7 @@ def is_edge_change_point(
 
 
 class MetricsFetcher(metaclass=abc.ABCMeta):
+
   @abc.abstractmethod
   def fetch_metric_data(
       self, *, test_config: TestConfigContainer) -> MetricContainer:
@@ -341,6 +342,7 @@ class MetricsFetcher(metaclass=abc.ABCMeta):
 
 
 class BigQueryMetricsFetcher(MetricsFetcher):
+
   def fetch_metric_data(
       self, *, test_config: TestConfigContainer) -> MetricContainer:
     """

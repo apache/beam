@@ -36,6 +36,7 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   is used to schedule consuming PTransforms to consume input after the upstream
   transform has produced and committed output.
   """
+
   def __init__(self):
     self.value_to_consumers: Dict[pvalue.PValue, Set[AppliedPTransform]] = {}
     self.root_transforms: Set[AppliedPTransform] = set()

@@ -25,6 +25,7 @@ from apache_beam.transforms import error_handling
 
 
 class PTransformWithErrors(beam.PTransform):
+
   def __init__(self, limit):
     self._limit = limit
     self._error_handler = None
@@ -62,6 +63,7 @@ def exception_throwing_map(x, limit):
 
 
 class ErrorHandlingTest(unittest.TestCase):
+
   def test_error_handling(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(['a', 'bb', 'cccc'])
@@ -87,6 +89,7 @@ class ErrorHandlingTest(unittest.TestCase):
       assert_that(error_pcoll, equal_to(['error: cccc']), label='CheckBad')
 
   def test_error_handling_pardo_with_exception_handling_kwargs(self):
+
     def side_effect(*args):
       beam._test_error_handling_pardo_with_exception_handling_kwargs_val = True
 

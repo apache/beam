@@ -87,6 +87,7 @@ _GRPC_SERVICE_CONFIG = json.dumps({
 
 class ClosableOutputStream(OutputStream):
   """A Outputstream for use with CoderImpls that has a close() method."""
+
   def __init__(
       self,
       close_callback=None  # type: Optional[Callable[[bytes], None]]
@@ -135,7 +136,7 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
       size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,  # type: int
-      large_buffer_warn_threshold_bytes = 512 << 20  # type: int
+      large_buffer_warn_threshold_bytes=512 << 20  # type: int
   ):
     super().__init__(close_callback)
     self._flush_callback = flush_callback
@@ -290,6 +291,7 @@ class DataChannel(metaclass=abc.ABCMeta):
 
     data_channel.close()
   """
+
   @abc.abstractmethod
   def input_elements(
       self,
@@ -367,6 +369,7 @@ class InMemoryDataChannel(DataChannel):
   This channel is two-sided.  What is written to one side is read by the other.
   The inverse() method returns the other side of a instance.
   """
+
   def __init__(self, inverse=None, data_buffer_time_limit_ms=0):
     # type: (Optional[InMemoryDataChannel], int) -> None
     self._inputs = []  # type: List[DataOrTimers]
@@ -739,6 +742,7 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 
 class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   """Implementation of BeamFnDataServicer for any number of clients"""
+
   def __init__(
       self,
       data_buffer_time_limit_ms=0  # type: int
@@ -768,6 +772,7 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
 
 class DataChannelFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
+
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):
     # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
@@ -860,6 +865,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 
 class InMemoryDataChannelFactory(DataChannelFactory):
   """A singleton factory for ``InMemoryDataChannel``."""
+
   def __init__(self, in_memory_data_channel):
     # type: (GrpcClientDataChannel) -> None
     self._in_memory_data_channel = in_memory_data_channel

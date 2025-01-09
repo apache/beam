@@ -41,6 +41,7 @@ EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
 class TfIdfIT(unittest.TestCase):
+
   @pytest.mark.examples_postcommit
   @pytest.mark.sickbay_flink
   def test_basics(self):

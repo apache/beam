@@ -240,6 +240,7 @@ def schema_field(
 
 
 class SchemaTranslation(object):
+
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry
 
@@ -579,6 +580,7 @@ class SchemaTranslation(object):
 
 
 def _named_tuple_reduce_method(serialized_schema):
+
   def __reduce__(self):
     return _hydrate_namedtuple_instance, (serialized_schema, tuple(self))
 
@@ -643,6 +645,7 @@ def union_schema_type(element_types):
 
 class _Ephemeral:
   """Helper class for wrapping unpicklable objects."""
+
   def __init__(self, obj):
     self.obj = obj
 
@@ -652,6 +655,7 @@ class _Ephemeral:
 
 # Registry of typings for a schema by UUID
 class LogicalTypeRegistry(object):
+
   def __init__(self):
     self.by_urn = {}
     self.by_logical_type = {}
@@ -806,6 +810,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
 
 class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
+
   @classmethod
   def argument_type(cls):
     # type: () -> type
@@ -828,6 +833,7 @@ class PassThroughLogicalType(LogicalType[LanguageT, LanguageT, ArgT]):
   """A base class for LogicalTypes that use the same type as the underlying
   representation type.
   """
+
   def to_language_type(self, value):
     return value
 
@@ -867,6 +873,7 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
   To do this, re-register this class with
   :func:`~LogicalType.register_logical_type`.
   """
+
   @classmethod
   def representation_type(cls):
     # type: () -> type
@@ -899,6 +906,7 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
   """Microsecond-precision instant logical type that handles ``Timestamp``."""
+
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
@@ -925,6 +933,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 @LogicalType.register_logical_type
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   """A logical type for PythonCallableSource objects."""
+
   @classmethod
   def urn(cls):
     return common_urns.python_callable.urn
@@ -956,6 +965,7 @@ class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
   """A logical type for decimal objects handling values consistent with that
   encoded by ``BigDecimalCoder`` in the Java SDK.
   """
+
   @classmethod
   def urn(cls):
     return common_urns.decimal.urn
@@ -985,6 +995,7 @@ class FixedPrecisionDecimalLogicalType(
                 FixedPrecisionDecimalArgumentRepresentation]):
   """A wrapper of DecimalLogicalType that contains the precision value.
   """
+
   def __init__(self, precision=-1, scale=0):
     self.precision = precision
     self.scale = scale
@@ -1036,6 +1047,7 @@ LogicalType.register_logical_type(DecimalLogicalType)
 @LogicalType.register_logical_type
 class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
   """A logical type for fixed-length bytes."""
+
   @classmethod
   def urn(cls):
     return common_urns.fixed_bytes.urn
@@ -1069,6 +1081,7 @@ class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
 @LogicalType.register_logical_type
 class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
   """A logical type for variable-length bytes with specified maximum length."""
+
   @classmethod
   def urn(cls):
     return common_urns.var_bytes.urn
@@ -1099,6 +1112,7 @@ class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
 @LogicalType.register_logical_type
 class FixedString(PassThroughLogicalType[str, np.int32]):
   """A logical type for fixed-length string."""
+
   @classmethod
   def urn(cls):
     return common_urns.fixed_char.urn
@@ -1132,6 +1146,7 @@ class FixedString(PassThroughLogicalType[str, np.int32]):
 @LogicalType.register_logical_type
 class VariableString(PassThroughLogicalType[str, np.int32]):
   """A logical type for variable-length string with specified maximum length."""
+
   @classmethod
   def urn(cls):
     return common_urns.var_char.urn

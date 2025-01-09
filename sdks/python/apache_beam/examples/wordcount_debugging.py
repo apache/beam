@@ -78,6 +78,7 @@ from apache_beam.testing.util import equal_to
 
 class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
+
   def __init__(self, pattern):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()
@@ -115,7 +116,9 @@ class CountWords(beam.PTransform):
   A PTransform that converts a PCollection containing lines of text into a
   PCollection of (word, count) tuples.
   """
+
   def expand(self, pcoll):
+
     def count_ones(word_ones):
       (word, ones) = word_ones
       return (word, sum(ones))

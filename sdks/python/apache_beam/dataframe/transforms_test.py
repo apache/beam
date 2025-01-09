@@ -74,6 +74,7 @@ coders.registry.register_coder(Nested, coders.RowCoder)
 
 
 class TransformTest(unittest.TestCase):
+
   def run_scenario(self, input, func):
     expected = func(input)
 
@@ -274,6 +275,7 @@ class TransformTest(unittest.TestCase):
     proxy = one_series[:0]
 
     def equal_to_series(expected):
+
       def check(actual):
         actual = pd.concat(actual)
         if not expected.equals(actual):
@@ -302,8 +304,7 @@ class TransformTest(unittest.TestCase):
       assert_that(
           dict(x=one, y=two)
           | 'DictIn' >> transforms.DataframeTransform(
-              lambda x,
-              y: (x + y),
+              lambda x, y: (x + y),
               proxy=dict(x=proxy, y=proxy),
               yield_elements='pandas'),
           equal_to_series(three_series),
@@ -348,14 +349,14 @@ class TransformTest(unittest.TestCase):
 
     with expressions.allow_non_parallel_operations():
       self.run_scenario(
-          df,
-          lambda df: df.rename(
+          df, lambda df: df.rename(
               columns={'B': 'C'}, index={
                   0: 2, 2: 0
               }, errors='raise'))
 
 
 class FusionTest(unittest.TestCase):
+
   @staticmethod
   def fused_stages(p):
     return p.result.monitoring_metrics().query(
@@ -381,6 +382,7 @@ class FusionTest(unittest.TestCase):
     self.assertEqual(self.fused_stages(p), 1)
 
   def test_column_manipulation(self):
+
     def set_column(df, name, s):
       df[name] = s
       return df
@@ -394,6 +396,7 @@ class FusionTest(unittest.TestCase):
 
 
 class TransformPartsTest(unittest.TestCase):
+
   def test_rebatch(self):
     with beam.Pipeline() as p:
       sA = pd.Series(range(1000))

@@ -40,6 +40,7 @@ PRIMITIVES_CODER = FastPrimitivesCoder()
 
 
 class DataSamplerTest(unittest.TestCase):
+
   def make_test_descriptor(
       self,
       outputs: Optional[List[str]] = None,
@@ -443,6 +444,7 @@ class DataSamplerTest(unittest.TestCase):
 
 
 class OutputSamplerTest(unittest.TestCase):
+
   def tearDown(self):
     self.sampler.stop()
 

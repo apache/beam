@@ -42,6 +42,7 @@ from apache_beam.testing.test_stream import TestStream
 
 
 class PipelineInstrumentTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
 
@@ -257,6 +258,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     class TestReadCacheWireVisitor(PipelineVisitor):
       """Replace init_pcoll with cached_init_pcoll for all occuring inputs."""
+
       def enter_composite_transform(self, transform_node):
         self.visit_transform(transform_node)
 
@@ -327,6 +329,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
+
       def __init__(self):
         self.output_tags = set()
 
@@ -420,6 +423,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
+
       def __init__(self):
         self.output_tags = set()
 
@@ -505,6 +509,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
+
       def __init__(self):
         self.output_tags = set()
 
@@ -570,6 +575,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
+
       def __init__(self):
         self.output_tags = set()
 
@@ -641,6 +647,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
+
       def __init__(self):
         self.output_tags = set()
 
@@ -716,6 +723,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
+
       def __init__(self):
         self.output_tags = set()
 

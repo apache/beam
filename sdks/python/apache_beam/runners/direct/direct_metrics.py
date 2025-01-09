@@ -40,6 +40,7 @@ class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Base interface for aggregating metric data during pipeline execution."""
+
   def identity_element(self):
     # type: () -> Any
 
@@ -66,6 +67,7 @@ class CounterAggregator(MetricAggregator):
 
   Values aggregated should be ``int`` objects.
   """
+
   @staticmethod
   def identity_element():
     # type: () -> int
@@ -81,6 +83,7 @@ class CounterAggregator(MetricAggregator):
 
 
 class GenericAggregator(MetricAggregator):
+
   def __init__(self, data_class):
     self._data_class = data_class
 
@@ -95,6 +98,7 @@ class GenericAggregator(MetricAggregator):
 
 
 class DirectMetrics(MetricResults):
+
   def __init__(self):
     self._counters = defaultdict(lambda: DirectMetric(CounterAggregator()))
     self._distributions = defaultdict(
@@ -139,36 +143,36 @@ class DirectMetrics(MetricResults):
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._counters.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._counters.items()
+        if self.matches(filter, k)
     ]
     distributions = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._distributions.items() if self.matches(filter, k)
+            v.extract_latest_attempted())
+        for k, v in self._distributions.items() if self.matches(filter, k)
     ]
     gauges = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._gauges.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._gauges.items()
+        if self.matches(filter, k)
     ]
     string_sets = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._string_sets.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._string_sets.items()
+        if self.matches(filter, k)
     ]
     bounded_tries = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._bounded_tries.items() if self.matches(filter, k)
+            v.extract_latest_attempted())
+        for k, v in self._bounded_tries.items() if self.matches(filter, k)
     ]
 
     return {
@@ -186,6 +190,7 @@ class DirectMetric(object):
   It keeps track of the metric's physical and logical updates.
   It's thread safe.
   """
+
   def __init__(self, aggregator):
     self.aggregator = aggregator
     self._attempted_lock = threading.Lock()

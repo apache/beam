@@ -48,6 +48,7 @@ decorators._enable_from_callable = True
 
 
 class MyDoFn(beam.DoFn):
+
   def __init__(self, output_filename):
     super().__init__()
     self.output_filename = output_filename
@@ -77,12 +78,14 @@ class MyDoFn(beam.DoFn):
 
 
 class MyDoFnBadAnnotation(MyDoFn):
+
   def process(self, element: int, *args, **kwargs) -> int:
     # Should raise an exception about return type not being iterable.
     return super().process()
 
 
 class RuntimeTypeCheckTest(unittest.TestCase):
+
   def setUp(self):
     self.p = TestPipeline(
         options=PipelineOptions(
@@ -134,6 +137,7 @@ class RuntimeTypeCheckTest(unittest.TestCase):
 
 
 class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
+
   def setUp(self):
     self.p = Pipeline(
         options=PipelineOptions(
@@ -174,9 +178,11 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         e.exception.args[0])
 
   def test_simple_input_error_with_kwarg_typehints(self):
+
     @with_input_types(element=int)
     @with_output_types(int)
     class ToInt(beam.DoFn):
+
       def process(self, element, *args, **kwargs):
         yield int(element)
 
@@ -204,9 +210,11 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     self.assertStartswith(cm.exception.args[0], "'int' object is not iterable ")
 
   def test_simple_type_satisfied(self):
+
     @with_input_types(int, int)
     @with_output_types(int)
     class AddWithNum(beam.DoFn):
+
       def process(self, element, num):
         return [element + num]
 
@@ -292,15 +300,18 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         "instead found 4.0, an instance of {}.".format(int, float))
 
   def test_downstream_input_type_hint_error_has_descriptive_error_msg(self):
+
     @with_input_types(int)
     @with_output_types(int)
     class IntToInt(beam.DoFn):
+
       def process(self, element, *args, **kwargs):
         yield element
 
     @with_input_types(str)
     @with_output_types(int)
     class StrToInt(beam.DoFn):
+
       def process(self, element, *args, **kwargs):
         yield int(element)
 

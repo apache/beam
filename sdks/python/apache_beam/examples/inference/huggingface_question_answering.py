@@ -48,6 +48,7 @@ class PostProcessor(beam.DoFn):
   Hugging Face Pipeline for Question Answering returns a dictionary
   with score, start and end index of answer and the answer.
   """
+
   def process(self, result: tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction = result
     predicted_answer = prediction.inference['answer']

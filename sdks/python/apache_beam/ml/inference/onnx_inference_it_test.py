@@ -47,6 +47,7 @@ def process_outputs(filepath):
     'Missing dependencies. '
     'Test depends on onnx and transformers')
 class OnnxInference(unittest.TestCase):
+
   @pytest.mark.uses_onnx
   @pytest.mark.it_postcommit
   def test_onnx_run_inference_roberta_sentiment_classification(self):

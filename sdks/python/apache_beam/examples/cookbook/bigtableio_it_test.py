@@ -66,6 +66,7 @@ class GenerateTestRows(beam.PTransform):
   Bigtable Table.
 
   """
+
   def __init__(self, number, project_id=None, instance_id=None, table_id=None):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()

@@ -91,6 +91,7 @@ _SUPPORTED_RUNNERS = ['DirectRunner', 'DataflowRunner']
 
 class BeamSqlParser:
   """A parser to parse beam_sql inputs."""
+
   def __init__(self):
     self._parser = argparse.ArgumentParser(usage=_EXAMPLE_USAGE)
     self._parser.add_argument(
@@ -156,6 +157,7 @@ def on_error(error_msg, *args):
 
 @magics_class
 class BeamSqlMagics(Magics):
+
   def __init__(self, shell):
     super().__init__(shell)
     # Eagerly initializes the environment.
@@ -328,6 +330,7 @@ def pcolls_from_streaming_cache(
   When the user_pipeline has unbounded sources, we force all cache reads to go
   through the TestStream even if they are bounded sources.
   """
+
   def exception_handler(e):
     _LOGGER.error(str(e))
     return True

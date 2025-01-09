@@ -62,6 +62,7 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 
 class PostProcessor(beam.DoFn):
+
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
     prediction = np.argmax(prediction_result.inference, axis=0)
@@ -112,6 +113,7 @@ def run(
     Restricting max_batch_size to 1 means there is only 1 example per `batch`
     in the run_inference() call.
     """
+
     def batch_elements_kwargs(self):
       return {'max_batch_size': 1}
 

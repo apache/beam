@@ -33,6 +33,7 @@ except ImportError:
 
 
 class LangChainChunker(ChunkingTransformProvider):
+
   def __init__(
       self,
       text_splitter: TextSplitter,
@@ -104,6 +105,7 @@ class LangChainChunker(ChunkingTransformProvider):
 
 
 class _LangChainTextSplitter(beam.DoFn):
+
   def __init__(
       self,
       text_splitter: TextSplitter,

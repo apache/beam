@@ -36,6 +36,7 @@ class InteractiveEnvironmentInspector(object):
   list_inspectables first then communicates back to the kernel and get_val for
   usage on the kernel side.
   """
+
   def __init__(self, ignore_synthetic=True):
     self._inspectables = {}
     self._anonymous = {}

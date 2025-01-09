@@ -92,6 +92,7 @@ def _generate_job_name(job_name, job_type, step_name):
 
 def file_prefix_generator(
     with_validation=True, pipeline_gcs_location=None, temp_location=None):
+
   def _generate_file_prefix(unused_elm):
     # If a gcs location is provided to the pipeline, then we shall use that.
     # Otherwise, we shall use the temp_location from pipeline options.
@@ -291,6 +292,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
+
   def __init__(
       self, schema, max_file_size=_DEFAULT_MAX_FILE_SIZE, file_format=None):
     self.schema = schema
@@ -344,6 +346,7 @@ class UpdateDestinationSchema(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
+
   def __init__(
       self,
       project=None,
@@ -790,6 +793,7 @@ class PartitionFiles(beam.DoFn):
   SINGLE_PARTITION_TAG = 'SINGLE_PARTITION'
 
   class Partition(object):
+
     def __init__(self, max_size, max_files, files=None, size=0):
       self.max_size = max_size
       self.max_files = max_files
@@ -848,6 +852,7 @@ class PartitionFiles(beam.DoFn):
 
 
 class DeleteTablesFn(beam.DoFn):
+
   def __init__(self, test_client=None):
     self.test_client = test_client
 
@@ -1145,8 +1150,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       # https://github.com/apache/beam/issues/24535.
       finished_temp_tables_load_job_ids_list_pc = (
           finished_temp_tables_load_job_ids_pc | beam.MapTuple(
-              lambda destination,
-              job_reference: (
+              lambda destination, job_reference: (
                   bigquery_tools.parse_table_reference(destination).tableId,
                   (destination, job_reference)))
           | beam.GroupByKey()
@@ -1234,8 +1238,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "SchemaModJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.LOAD,
+                job_name, bigquery_tools.BigQueryJobTypes.LOAD,
                 'SCHEMA_MOD_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(

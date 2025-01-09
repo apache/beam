@@ -51,6 +51,7 @@ except ImportError:
 
 # used for internal testing only
 class FakeMessage:
+
   def __init__(self, entity, key):
     self.entity = entity
     self.key = key
@@ -64,6 +65,7 @@ class FakeMessage:
 
 # used for internal testing only
 class FakeMutation(object):
+
   def __init__(self, entity=None, key=None):
     """Fake mutation request object.
 
@@ -81,6 +83,7 @@ class FakeMutation(object):
 
 
 class FakeBatch(object):
+
   def __init__(self, all_batch_items=None, commit_count=None):
     """Fake ``google.cloud.datastore.batch.Batch`` object.
 
@@ -116,6 +119,7 @@ class FakeBatch(object):
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
 class MutateTest(unittest.TestCase):
+
   def test_write_mutations_no_errors(self):
     mock_batch = MagicMock()
     mock_throttler = MagicMock()

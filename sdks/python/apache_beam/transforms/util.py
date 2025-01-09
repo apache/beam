@@ -161,6 +161,7 @@ class CoGroupByKey(PTransform):
       (or if there's a chance there may be none), this argument is the only way
       to provide pipeline information, and should be considered mandatory.
   """
+
   def __init__(self, *, pipeline=None):
     self.pipeline = pipeline
 
@@ -231,6 +232,7 @@ class CoGroupByKey(PTransform):
 
 
 class _CoGBKImpl(PTransform):
+
   def __init__(self, *, pipeline=None):
     self.pipeline = pipeline
 
@@ -570,6 +572,7 @@ class _BatchSizeEstimator(object):
 
 
 class _GlobalWindowsBatchingDoFn(DoFn):
+
   def __init__(self, batch_size_estimator, element_size_fn):
     self._batch_size_estimator = batch_size_estimator
     self._element_size_fn = element_size_fn
@@ -604,6 +607,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
 
 
 class _SizedBatch():
+
   def __init__(self):
     self.elements = []
     self.size = 0
@@ -670,6 +674,7 @@ def _pardo_stateful_batch_elements(
       'batch_estimator', coders.PickleCoder())
 
   class _StatefulBatchElementsDoFn(DoFn):
+
     def process(
         self,
         element,
@@ -761,6 +766,7 @@ class SharedKey():
   """A class that holds a per-process UUID used to key elements for streaming
   BatchElements.
   """
+
   def __init__(self):
     self.key = uuid.uuid4().hex
 
@@ -773,6 +779,7 @@ class WithSharedKey(DoFn):
   """A DoFn that keys elements with a per-process UUID. Used in streaming
   BatchElements.
   """
+
   def __init__(self):
     self.shared_handle = shared.Shared()
 
@@ -843,6 +850,7 @@ class BatchElements(PTransform):
     record_metrics: (optional) whether or not to record beam metrics on
         distributions of the batch size. Defaults to True.
   """
+
   def __init__(
       self,
       min_batch_size=1,
@@ -900,6 +908,7 @@ class _IdentityWindowFn(NonMergingWindowFn):
   Will raise an exception when used after DoFns that return TimestampedValue
   elements.
   """
+
   def __init__(self, window_coder):
     """Create a new WindowFn with compatible coder.
     To be applied to PCollections with windows that are compatible with the
@@ -932,6 +941,7 @@ class ReshufflePerKey(PTransform):
   in particular checkpointing, and preventing fusion of the surrounding
   transforms.
   """
+
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
     if windowing_saved.is_default():
@@ -1062,9 +1072,7 @@ def WithKeys(pcoll, k, *args, **kwargs):
              for arg in args) and all(isinstance(kwarg, AsSideInput)
                                       for kwarg in kwargs.values()):
         return pcoll | Map(
-            lambda v,
-            *args,
-            **kwargs: (k(v, *args, **kwargs), v),
+            lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
             **kwargs)
       return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
@@ -1081,6 +1089,7 @@ class GroupIntoBatches(PTransform):
 
   Windows are preserved (batches will contain elements from the same window)
   """
+
   def __init__(
       self, batch_size, max_buffering_duration_secs=None, clock=time.time):
     """Create a new GroupIntoBatches.
@@ -1136,6 +1145,7 @@ class GroupIntoBatches(PTransform):
     override the default sharding to do a better load balancing during the
     execution time.
     """
+
     def __init__(
         self, batch_size, max_buffering_duration_secs=None, clock=time.time):
       """Create a new GroupIntoBatches with sharded output.
@@ -1189,6 +1199,7 @@ class _GroupIntoBatchesParams:
   :class:`apache_beam.utils.GroupIntoBatches` transform, used to define how
   elements should be batched.
   """
+
   def __init__(self, batch_size, max_buffering_duration_secs):
     self.batch_size = batch_size
     self.max_buffering_duration_secs = (
@@ -1208,8 +1219,8 @@ class _GroupIntoBatchesParams:
         'batch_size must be a positive value')
     assert (
         self.max_buffering_duration_secs is not None and
-        self.max_buffering_duration_secs >= 0), (
-            'max_buffering_duration must be a non-negative value')
+        self.max_buffering_duration_secs
+        >= 0), ('max_buffering_duration must be a non-negative value')
 
   def get_payload(self):
     return beam_runner_api_pb2.GroupIntoBatchesPayload(
@@ -1232,6 +1243,7 @@ def _pardo_group_into_batches(
   BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
 
   class _GroupIntoBatchesDoFn(DoFn):
+
     def process(
         self,
         element,
@@ -1330,7 +1342,9 @@ class LogElements(PTransform):
         `logging.INFO`, `logging.WARNING`, `logging.ERROR`). If not specified,
         the log is printed to stdout.
   """
+
   class _LoggingFn(DoFn):
+
     def __init__(
         self, prefix='', with_timestamp=False, with_window=False, level=None):
       super().__init__()
@@ -1391,11 +1405,13 @@ class LogElements(PTransform):
 class Reify(object):
   """PTransforms for converting between explicit and implicit form of various
   Beam values."""
+
   @typehints.with_input_types(T)
   @typehints.with_output_types(T)
   class Timestamp(PTransform):
     """PTransform to wrap a value in a TimestampedValue with it's
     associated timestamp."""
+
     @staticmethod
     def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
       yield TimestampedValue(element, timestamp)
@@ -1409,6 +1425,7 @@ class Reify(object):
     """PTransform to convert an element in a PCollection into a tuple of
     (element, timestamp, window), wrapped in a TimestampedValue with it's
     associated timestamp."""
+
     @staticmethod
     def add_window_info(
         element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
@@ -1422,6 +1439,7 @@ class Reify(object):
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""
+
     @staticmethod
     def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
       key, value = element
@@ -1436,6 +1454,7 @@ class Reify(object):
     """PTransform to convert the Value in a KV pair into a tuple of
     (value, timestamp, window), with the whole element being wrapped inside a
     TimestampedValue."""
+
     @staticmethod
     def add_window_info(
         element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
@@ -1683,6 +1702,7 @@ class Tee(PTransform):
          | Tee(SomeSideTransform())
          | ...)
   """
+
   def __init__(
       self,
       *consumers: Union[PTransform[PCollection[T], Any],
@@ -1719,6 +1739,7 @@ class WaitOn(PTransform):
 
   This barrier often induces a fusion break.
   """
+
   def __init__(self, *to_be_waited_on):
     self._to_be_waited_on = to_be_waited_on
 

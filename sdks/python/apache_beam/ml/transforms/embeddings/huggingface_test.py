@@ -94,6 +94,7 @@ _parameterized_inputs = [
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')
 class SentenceTransformerEmbeddingsTest(unittest.TestCase):
+
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
     # this bucket has TTL and will be deleted periodically
@@ -330,6 +331,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
 
 @unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPITest(unittest.TestCase):
+
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp()
     self.inputs = [{test_query_column: test_query}]
@@ -368,6 +370,7 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
 
 @unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
+
   def setUp(self):
     self.artifact_location = self.gcs_artifact_location = os.path.join(
         'gs://temp-storage-for-perf-tests/tft_handler', uuid.uuid4().hex)

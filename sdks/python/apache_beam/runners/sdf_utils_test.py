@@ -33,6 +33,7 @@ from apache_beam.utils import timestamp
 
 
 class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
+
   def test_initialization(self):
     with self.assertRaises(ValueError):
       ThreadsafeRestrictionTracker(RangeSource(0, 1))
@@ -79,6 +80,7 @@ class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
 
 
 class RestrictionTrackerViewTest(unittest.TestCase):
+
   def test_initialization(self):
     with self.assertRaises(ValueError):
       RestrictionTrackerView(OffsetRestrictionTracker(OffsetRange(0, 10)))
@@ -111,6 +113,7 @@ class RestrictionTrackerViewTest(unittest.TestCase):
 
 
 class ThreadsafeWatermarkEstimatorTest(unittest.TestCase):
+
   def test_initialization(self):
     with self.assertRaises(ValueError):
       ThreadsafeWatermarkEstimator(None)

@@ -29,6 +29,7 @@ from apache_beam.runners.portability import portable_runner
 class DataflowBeamJob(local_job_service.BeamJob):
   """A representation of a single Beam job to be run on the Dataflow runner.
   """
+
   def _invoke_runner(self):
     """Actually calls Dataflow and waits for completion.
     """
@@ -45,8 +46,7 @@ class DataflowBeamJob(local_job_service.BeamJob):
     dataflow_runner.DataflowRunner.poll_for_job_completion(
         runner,
         self.result,
-        None,
-        lambda dataflow_state: self.set_state(
+        None, lambda dataflow_state: self.set_state(
             portable_runner.PipelineResult.pipeline_state_to_runner_api_state(
                 self.result.api_jobstate_to_pipeline_state(dataflow_state))))
     return self.result

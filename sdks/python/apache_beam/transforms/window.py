@@ -121,8 +121,10 @@ class TimestampCombiner(object):
 
 class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
   """An abstract windowing function defining a basic assign and merge."""
+
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
+
     def __init__(
         self,
         timestamp: TimestampTypes,
@@ -149,6 +151,7 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
 
   class MergeContext(object):
     """Context passed to WindowFn.merge() to perform merging, if any."""
+
     def __init__(self, windows: Iterable['BoundedWindow']) -> None:
       self.windows = list(windows)
 
@@ -200,6 +203,7 @@ class BoundedWindow(object):
   Attributes:
     end: End of window.
   """
+
   def __init__(self, end: TimestampTypes) -> None:
     self._end = Timestamp.of(end)
 
@@ -256,6 +260,7 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
     start: Start of window as seconds since Unix epoch.
     end: End of window as seconds since Unix epoch.
   """
+
   def __lt__(self, other):
     if self.end != other.end:
       return self.end < other.end
@@ -280,6 +285,7 @@ class TimestampedValue(Generic[V]):
     value: The underlying value.
     timestamp: Timestamp associated with the value as seconds since Unix epoch.
   """
+
   def __init__(self, value: V, timestamp: TimestampTypes) -> None:
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
@@ -334,6 +340,7 @@ class GlobalWindow(BoundedWindow):
 
 
 class NonMergingWindowFn(WindowFn):
+
   def is_merging(self) -> bool:
     return False
 
@@ -343,6 +350,7 @@ class NonMergingWindowFn(WindowFn):
 
 class GlobalWindows(NonMergingWindowFn):
   """A windowing function that assigns everything to one global window."""
+
   @classmethod
   def windowed_batch(
       cls,
@@ -404,6 +412,7 @@ class FixedWindows(NonMergingWindowFn):
       value in range [0, size). If it is not it will be normalized to this
       range.
   """
+
   def __init__(self, size: DurationTypes, offset: TimestampTypes = 0):
     """Initialize a ``FixedWindows`` function for a given size and offset.
 
@@ -467,6 +476,7 @@ class SlidingWindows(NonMergingWindowFn):
       t=N * period + offset where t=0 is the epoch. The offset must be a value
       in range [0, period). If it is not it will be normalized to this range.
   """
+
   def __init__(
       self,
       size: DurationTypes,
@@ -487,9 +497,8 @@ class SlidingWindows(NonMergingWindowFn):
             (interval_start := Timestamp(micros=s)),
             interval_start + self.size,
         ) for s in range(
-            start.micros,
-            timestamp.micros - self.size.micros,
-            -self.period.micros)
+            start.micros, timestamp.micros -
+            self.size.micros, -self.period.micros)
     ]
 
   def get_window_coder(self) -> coders.IntervalWindowCoder:
@@ -536,6 +545,7 @@ class Sessions(WindowFn):
   Attributes:
     gap_size: Size of the gap between windows as floating-point seconds.
   """
+
   def __init__(self, gap_size: DurationTypes) -> None:
     if gap_size <= 0:
       raise ValueError('The size parameter must be strictly positive.')

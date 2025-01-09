@@ -58,6 +58,7 @@ def load(events, metadata=None, pipeline_options=None):
 
 
 class JoinPersonAuctionFn(beam.DoFn):
+
   def process(self, element):
     _, group = element
     persons = group[nexmark_query_util.PERSON_TAG]

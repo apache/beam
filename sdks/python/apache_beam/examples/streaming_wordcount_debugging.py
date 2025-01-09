@@ -53,6 +53,7 @@ from apache_beam.transforms.core import ParDo
 
 class PrintFn(beam.DoFn):
   """A DoFn that prints label, element, its window, and its timstamp. """
+
   def __init__(self, label):
     self.label = label
 
@@ -75,6 +76,7 @@ class AddTimestampFn(beam.DoFn):
   For example, 120 and Sometext will result in:
   (120, Timestamp(120) and (Sometext, Timestamp(1234567890).
   """
+
   def process(self, element):
     logging.info('Adding timestamp to: %s', element)
     try:

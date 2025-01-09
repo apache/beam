@@ -80,6 +80,7 @@ def process_outputs(filepath):
 @pytest.mark.uses_xgboost
 @pytest.mark.it_postcommit
 class XGBoostInference(unittest.TestCase):
+
   def test_iris_classification_numpy_single_batch(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_type = 'numpy'

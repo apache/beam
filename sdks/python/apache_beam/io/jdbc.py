@@ -381,6 +381,7 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
   Support of Legacy JdbcIO DATE logical type. Deemed to change when Java JDBCIO
   has been migrated to Beam portable logical types.
   """
+
   def __init__(self, argument=""):
     pass
 
@@ -425,6 +426,7 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
   Support of Legacy JdbcIO TIME logical type. . Deemed to change when Java
   JDBCIO has been migrated to Beam portable logical types.
   """
+
   def __init__(self, argument=""):
     pass
 

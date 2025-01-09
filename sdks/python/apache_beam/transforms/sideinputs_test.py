@@ -38,6 +38,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class SideInputsTest(unittest.TestCase):
+
   def create_pipeline(self):
     return TestPipeline()
 
@@ -100,17 +101,17 @@ class SideInputsTest(unittest.TestCase):
         window.SlidingWindows(size=6, period=2),
         expected=[
             # Element 1 falls in three windows
-            (1, [1]),        # [-4, 2)
-            (1, [1, 2]),     # [-2, 4)
+            (1, [1]),  # [-4, 2)
+            (1, [1, 2]),  # [-2, 4)
             (1, [1, 2, 4]),  # [0, 6)
             # as does 2,
-            (2, [1, 2]),     # [-2, 4)
+            (2, [1, 2]),  # [-2, 4)
             (2, [1, 2, 4]),  # [0, 6)
-            (2, [2, 4]),     # [2, 8)
+            (2, [2, 4]),  # [2, 8)
             # and 4.
             (4, [1, 2, 4]),  # [0, 6)
-            (4, [2, 4]),     # [2, 8)
-            (4, [4]),        # [4, 10)
+            (4, [2, 4]),  # [2, 8)
+            (4, [4]),  # [4, 10)
         ])
 
   def test_windowed_iter(self):
@@ -228,13 +229,12 @@ class SideInputsTest(unittest.TestCase):
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     side_pairs = pipeline | 'side pairs' >> beam.Create(some_pairs)
     results = main_input | 'concatenate' >> beam.Map(
-        lambda x,
-        the_list,
-        the_dict: [x, the_list, the_dict],
+        lambda x, the_list, the_dict: [x, the_list, the_dict],
         beam.pvalue.AsList(side_list),
         beam.pvalue.AsDict(side_pairs))
 
     def matcher(expected_elem, expected_list, expected_pairs):
+
       def match(actual):
         [[actual_elem, actual_list, actual_dict]] = actual
         equal_to([expected_elem])([actual_elem])
@@ -256,13 +256,12 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x,
-        s1,
-        s2: [x, s1, s2],
+        lambda x, s1, s2: [x, s1, s2],
         beam.pvalue.AsSingleton(side_list),
         beam.pvalue.AsSingleton(side_list))
 
     def matcher(expected_elem, expected_singleton):
+
       def match(actual):
         [[actual_elem, actual_singleton1, actual_singleton2]] = actual
         equal_to([expected_elem])([actual_elem])
@@ -281,13 +280,12 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x,
-        s1,
-        s2: [x, s1, s2],
+        lambda x, s1, s2: [x, s1, s2],
         beam.pvalue.AsSingleton(side_list, default_value=2),
         beam.pvalue.AsSingleton(side_list, default_value=3))
 
     def matcher(expected_elem, expected_singleton1, expected_singleton2):
+
       def match(actual):
         [[actual_elem, actual_singleton1, actual_singleton2]] = actual
         equal_to([expected_elem])([actual_elem])
@@ -308,13 +306,12 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x,
-        ls1,
-        ls2: [x, ls1, ls2],
+        lambda x, ls1, ls2: [x, ls1, ls2],
         beam.pvalue.AsList(side_list),
         beam.pvalue.AsList(side_list))
 
     def matcher(expected_elem, expected_list):
+
       def match(actual):
         [[actual_elem, actual_list1, actual_list2]] = actual
         equal_to([expected_elem])([actual_elem])
@@ -333,13 +330,12 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_kvs = pipeline | 'side kvs' >> beam.Create(some_kvs)
     results = main_input | beam.Map(
-        lambda x,
-        dct1,
-        dct2: [x, dct1, dct2],
+        lambda x, dct1, dct2: [x, dct1, dct2],
         beam.pvalue.AsDict(side_kvs),
         beam.pvalue.AsDict(side_kvs))
 
     def matcher(expected_elem, expected_kvs):
+
       def match(actual):
         [[actual_elem, actual_dict1, actual_dict2]] = actual
         equal_to([expected_elem])([actual_elem])
@@ -403,6 +399,7 @@ class SideInputsTest(unittest.TestCase):
           | 'Values' >> Map(lambda k_vs: k_vs[1]))
 
       class RecordFn(beam.DoFn):
+
         def process(
             self,
             elm=beam.DoFn.ElementParam,

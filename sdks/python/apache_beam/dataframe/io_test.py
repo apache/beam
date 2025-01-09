@@ -69,6 +69,7 @@ class MyRow(typing.NamedTuple):
     platform.system() == 'Windows',
     'https://github.com/apache/beam/issues/20642')
 class IOTest(unittest.TestCase):
+
   def setUp(self):
     self._temp_roots = []
 
@@ -200,6 +201,7 @@ A     B
     big['text'] = big.number.map(lambda n: 'f' + 'o' * n)
 
     def frame_equal_to(expected_, check_index=True, check_names=True):
+
       def check(actual):
         expected = expected_
         try:
@@ -312,6 +314,7 @@ A     B
       ('skiprows', dict(skiprows=[0, 1], header=[0, 1], comment='X')),
   ])
   def test_csv_splitter(self, name, kwargs):
+
     def assert_frame_equal(expected, actual):
       try:
         pandas.testing.assert_frame_equal(expected, actual)
@@ -442,6 +445,7 @@ X     , c1, c2
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
+
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
     try:
@@ -466,6 +470,7 @@ class ReadGbqTransformTests(unittest.TestCase):
           table="dataset.sample_table", use_bqstorage_api=True)
 
   def test_unsupported_callable(self):
+
     def filterTable(table):
       if table is not None:
         return table

@@ -35,6 +35,7 @@ from apache_beam.transforms.ptransform import PTransform
 class ReadCache:
   """Class that facilitates reading cache of computed PCollections.
   """
+
   def __init__(
       self,
       pipeline: beam_runner_api_pb2.Pipeline,
@@ -84,8 +85,8 @@ class ReadCache:
       self._pipeline.components.coders[coder_id].CopyFrom(
           template.components.coders[coder_id])
     for windowing_strategy_id in template.components.windowing_strategies:
-      if (windowing_strategy_id in
-          self._pipeline.components.windowing_strategies):
+      if (windowing_strategy_id
+          in self._pipeline.components.windowing_strategies):
         continue
       self._pipeline.components.windowing_strategies[
           windowing_strategy_id].CopyFrom(
@@ -129,6 +130,7 @@ class ReadCache:
 class _ReadCacheTransform(PTransform):
   """A composite transform encapsulates reading cache of PCollections.
   """
+
   def __init__(self, cache_manager: cache.CacheManager, key: str):
     self._cache_manager = cache_manager
     self._key = key

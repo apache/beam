@@ -37,6 +37,7 @@ class Downloader(metaclass=abc.ABCMeta):
 
   Implementations should support random access reads.
   """
+
   @property
   @abc.abstractmethod
   def size(self):
@@ -60,6 +61,7 @@ class Downloader(metaclass=abc.ABCMeta):
 
 class Uploader(metaclass=abc.ABCMeta):
   """Upload interface for a single file."""
+
   @abc.abstractmethod
   def put(self, data):
     """Write data to file sequentially.
@@ -81,6 +83,7 @@ class Uploader(metaclass=abc.ABCMeta):
 
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
+
   def __init__(
       self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
     """Initializes the stream.
@@ -174,6 +177,7 @@ class DownloaderStream(io.RawIOBase):
 
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
+
   def __init__(self, uploader, mode='wb'):
     """Initializes the stream.
 
@@ -228,6 +232,7 @@ class PipeStream(object):
   Remembers the last ``size`` bytes read and allows rewinding the stream by that
   amount exactly. See BEAM-6380 for more.
   """
+
   def __init__(self, recv_pipe):
     self.conn = recv_pipe
     self.closed = False

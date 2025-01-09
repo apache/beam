@@ -38,6 +38,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 def _gen_fake_join(separator):
   """Returns a callable that joins paths with the given separator."""
+
   def _join(first_path, *paths):
     return separator.join((first_path.rstrip(separator), ) + paths)
 
@@ -46,6 +47,7 @@ def _gen_fake_join(separator):
 
 def _gen_fake_split(separator):
   """Returns a callable that splits a with the given separator."""
+
   def _split(path):
     sep_index = path.rfind(separator)
     if sep_index >= 0:
@@ -57,6 +59,7 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
+
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
     pipeline_options = PipelineOptions()
@@ -357,8 +360,8 @@ class LocalFileSystemTest(unittest.TestCase):
     elif isinstance(value, dict):
       # recurse to check subdirectory tree
       actual_leaf_count = sum([
-          self.check_tree(os.path.join(path, basename), v) for basename,
-          v in value.items()
+          self.check_tree(os.path.join(path, basename), v)
+          for basename, v in value.items()
       ])
     else:
       raise Exception('Unexpected value in tempdir tree: %s' % value)

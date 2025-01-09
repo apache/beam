@@ -44,6 +44,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   The jar contains the Beam pipeline definition, dependencies, and
   the pipeline artifacts.
   """
+
   def __init__(self, rest_url, options):
     super().__init__()
     self._rest_url = rest_url
@@ -97,6 +98,7 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
 
   Note that the Spark Rest API is not enabled by default. It must be enabled by
   setting the configuration property spark.master.rest.enabled to true."""
+
   def __init__(
       self,
       rest_url,

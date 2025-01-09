@@ -54,6 +54,7 @@ class TfIdf(beam.PTransform):
   the value is a piece of the document's content.
   The output is mapping from terms to scores for each document URI.
   """
+
   def expand(self, uri_to_content):
 
     # Compute the total number of documents, and prepare a singleton

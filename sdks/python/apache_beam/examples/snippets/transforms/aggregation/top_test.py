@@ -101,6 +101,7 @@ def check_shortest_elements_per_key(actual):
     'apache_beam.examples.snippets.transforms.aggregation.top_per_key.print',
     str)
 class TopTest(unittest.TestCase):
+
   def test_top_largest(self):
     top_largest.top_largest(check_largest_elements)
 

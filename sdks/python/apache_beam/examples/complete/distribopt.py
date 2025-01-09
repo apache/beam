@@ -68,6 +68,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 class Simulator(object):
   """Greenhouse simulation for the optimization of greenhouse parameters."""
+
   def __init__(self, quantities):
     self.quantities = np.atleast_1d(quantities)
 
@@ -99,6 +100,7 @@ class CreateGrid(beam.PTransform):
   }
   Output: tuple (mapping_identifier, {crop -> greenhouse})
   """
+
   class PreGenerateMappings(beam.DoFn):
     """ParDo implementation forming based on two elements a small sub grid.
 
@@ -107,6 +109,7 @@ class CreateGrid(beam.PTransform):
     two tuples, and a list of remaining records. Both serve as an input to
     GenerateMappings.
     """
+
     def process(self, element):
       records = list(element[1])
       # Split of 2 crops and pre-generate the subgrid.
@@ -135,6 +138,7 @@ class CreateGrid(beam.PTransform):
     Input: output of PreGenerateMappings
     Output: tuples of the form (mapping_identifier, {crop -> greenhouse})
     """
+
     @staticmethod
     def _coordinates_to_greenhouse(coordinates, greenhouses, crops):
       # Map the grid coordinates back to greenhouse labels
@@ -185,6 +189,7 @@ class CreateGrid(beam.PTransform):
 
 class OptimizeGrid(beam.PTransform):
   """A transform for optimizing all greenhouses of the mapping grid."""
+
   class CreateOptimizationTasks(beam.DoFn):
     """
     Create tasks for optimization.
@@ -192,6 +197,7 @@ class OptimizeGrid(beam.PTransform):
     Input: (mapping_identifier, {crop -> greenhouse})
     Output: ((mapping_identifier, greenhouse), [(crop, quantity),...])
     """
+
     def process(self, element, quantities):
       mapping_identifier, mapping = element
 
@@ -213,6 +219,7 @@ class OptimizeGrid(beam.PTransform):
       - solution: (mapping_identifier, (greenhouse, [production parameters]))
       - costs: (crop, greenhouse, mapping_identifier, cost)
     """
+
     @staticmethod
     def _optimize_production_parameters(sim):
       # setup initial starting point & bounds
@@ -247,6 +254,7 @@ class OptimizeGrid(beam.PTransform):
 
 class CreateTransportData(beam.DoFn):
   """Transform records to pvalues ((crop, greenhouse), transport_cost)"""
+
   def process(self, record):
     crop = record['crop']
     for greenhouse, transport_cost in record['transport_costs']:

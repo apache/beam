@@ -101,6 +101,7 @@ def _assign_or_fail(args):
 
 
 class TensorRTEngine:
+
   def __init__(self, engine: trt.ICudaEngine):
     """Implementation of the TensorRTEngine class which handles
     allocations associated with TensorRT engine.
@@ -223,6 +224,7 @@ def _default_tensorRT_inference_fn(
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
+
   def __init__(
       self,
       min_batch_size: int,

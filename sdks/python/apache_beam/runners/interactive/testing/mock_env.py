@@ -33,7 +33,9 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
 def isolated_env(cls: Type[unittest.TestCase]):
   """A class decorator for unittest.TestCase to set up an isolated test
   environment for Interactive Beam."""
+
   class IsolatedInteractiveEnvironmentTest(cls):
+
     def setUp(self):
       self.env_patchers = []
       interactive_path = 'apache_beam.runners.interactive'

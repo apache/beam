@@ -54,6 +54,7 @@ def tokenize_sentence(input_dict):
 class ModelWrapper(DistilBertModel):
   """Wrapper to DistilBertModel to get embeddings when calling
     forward function."""
+
   def forward(self, **kwargs):
     output = super().forward(**kwargs)
     sentence_embedding = (
@@ -84,6 +85,7 @@ class ModelWrapper(DistilBertModel):
 
 class NormalizeEmbedding(beam.DoFn):
   """A DoFn for normalization of text embedding."""
+
   def process(self, element, *args, **kwargs):
     """
         For each element in the input PCollection, normalize the embedding vector, and
@@ -99,6 +101,7 @@ class NormalizeEmbedding(beam.DoFn):
 
 class Decode(beam.DoFn):
   """A DoFn for decoding PubSub message into a dictionary."""
+
   def process(self, element, *args, **kwargs):
     """
         For each element in the input PCollection, retrieve the id and decode the bytes into string
@@ -181,6 +184,7 @@ class StatefulOnlineClustering(beam.DoFn):
 
 class GetUpdates(beam.DoFn):
   """A DoFn for printing the clusters and items belonging to each cluster."""
+
   def process(self, element, *args, **kwargs):
     """
         Prints and returns clusters with items contained in it

@@ -72,6 +72,7 @@ def load(events, metadata=None, pipeline_options=None):
 
 
 class ProjectToCategoryPriceFn(beam.DoFn):
+
   def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
     yield {
         ResultNames.CATEGORY: element[0],

@@ -52,6 +52,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
+
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super().__init__()

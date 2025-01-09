@@ -25,6 +25,7 @@ from apache_beam.testing.util import equal_to
 
 
 def equal_to_unordered_series(expected):
+
   def check(actual):
     actual = pd.concat(actual)
     if sorted(expected) != sorted(actual):
@@ -34,6 +35,7 @@ def equal_to_unordered_series(expected):
 
 
 class ConvertTest(unittest.TestCase):
+
   def test_convert_yield_pandas(self):
     with beam.Pipeline() as p:
       a = pd.Series([1, 2, 3])
@@ -185,7 +187,9 @@ class ConvertTest(unittest.TestCase):
       logging.disable(logging.NOTSET)
 
   def test_auto_convert(self):
+
     class MySchemaTransform(beam.PTransform):
+
       def expand(self, pcoll):
         return pcoll | beam.Map(
             lambda x: beam.Row(

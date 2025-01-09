@@ -39,6 +39,7 @@ def combinevalues_combinefn(test=None):
   import apache_beam as beam
 
   class AverageFn(beam.CombineFn):
+
     def create_accumulator(self):
       return {}
 

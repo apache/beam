@@ -198,6 +198,7 @@ class WatermarkManager(object):
 
 class _TransformWatermarks(object):
   """Tracks input and output watermarks for an AppliedPTransform."""
+
   def __init__(self, clock, keyed_states, transform):
     self._clock = clock
     self._keyed_states = keyed_states

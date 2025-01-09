@@ -60,6 +60,7 @@ class MetricCell(object):
   and may be subject to parallel/concurrent updates. Cells should only be used
   directly within a runner.
   """
+
   def __init__(self):
     self._lock = threading.Lock()
     self._start_time = None
@@ -89,6 +90,7 @@ class MetricCell(object):
 
 
 class MetricCellFactory(object):
+
   def __call__(self):
     # type: () -> MetricCell
     raise NotImplementedError
@@ -105,6 +107,7 @@ class CounterCell(MetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self, *args):
     super().__init__(*args)
     self.value = 0
@@ -170,6 +173,7 @@ class DistributionCell(MetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self, *args):
     super().__init__(*args)
     self.data = DistributionData.identity_element()
@@ -225,6 +229,7 @@ class AbstractMetricCell(MetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self, data_class):
     super().__init__()
     self.data_class = data_class
@@ -268,6 +273,7 @@ class GaugeCell(AbstractMetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self):
     super().__init__(GaugeData)
 
@@ -297,6 +303,7 @@ class StringSetCell(AbstractMetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self):
     super().__init__(StringSetData)
 
@@ -326,6 +333,7 @@ class BoundedTrieCell(AbstractMetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self):
     super().__init__(BoundedTrieData)
 
@@ -346,6 +354,7 @@ class BoundedTrieCell(AbstractMetricCell):
 
 class DistributionResult(object):
   """The result of a Distribution metric."""
+
   def __init__(self, data):
     # type: (DistributionData) -> None
     self.data = data
@@ -401,6 +410,7 @@ class DistributionResult(object):
 
 
 class GaugeResult(object):
+
   def __init__(self, data):
     # type: (GaugeData) -> None
     self.data = data
@@ -441,6 +451,7 @@ class GaugeData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the GaugeCell that contains it.
   """
+
   def __init__(self, value, timestamp=None):
     # type: (Optional[int], Optional[int]) -> None
     self.value = value
@@ -501,6 +512,7 @@ class DistributionData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the DistributionCell that contains it.
   """
+
   def __init__(self, sum, count, min, max):
     # type: (int, int, int, int) -> None
     if count:
@@ -665,6 +677,7 @@ class StringSetData(object):
 
 
 class _BoundedTrieNode(object):
+
   def __init__(self):
     # invariant: size = len(self.flattened()) = min(1, sum(size of children))
     self._size = 1
@@ -688,8 +701,7 @@ class _BoundedTrieNode(object):
     else:
       node._children = {
           name: _BoundedTrieNode.from_proto(child)
-          for name,
-          child in proto.children.items()
+          for name, child in proto.children.items()
       }
       node._size = max(1, sum(child._size for child in node._children.values()))
     return node

@@ -46,6 +46,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
+
   def process(self, element: tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = prediction_result.inference
@@ -101,8 +102,8 @@ def load_sklearn_iris_test_data(
       dataset['data'], dataset['target'], test_size=.2, random_state=seed)
 
   if split:
-    return [(index, data_type(sample.reshape(1, -1))) for index,
-            sample in enumerate(x_test)]
+    return [(index, data_type(sample.reshape(1, -1)))
+            for index, sample in enumerate(x_test)]
   return [(0, data_type(x_test))]
 
 

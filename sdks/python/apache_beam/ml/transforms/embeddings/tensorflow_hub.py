@@ -40,6 +40,7 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
   """
   Note: Intended for internal use only. No backwards compatibility guarantees.
   """
+
   def __init__(self, preprocessing_url: Optional[str], *args, **kwargs):
     self.preprocessing_url = preprocessing_url
     super().__init__(*args, **kwargs)
@@ -87,6 +88,7 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
 
 
 class TensorflowHubTextEmbeddings(EmbeddingsManager):
+
   def __init__(
       self,
       columns: list[str],
@@ -135,6 +137,7 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
 
 
 class TensorflowHubImageEmbeddings(EmbeddingsManager):
+
   def __init__(self, columns: list[str], hub_url: str, **kwargs):
     """
     Embedding config for tensorflow hub models. This config can be used with

@@ -352,11 +352,10 @@ class IOTypeHints(NamedTuple):
       my_type: any,
       has_my_type: Callable[[], bool],
       my_key: str,
-      special_containers: List[
-          Union['PBegin', 'PDone', 'PCollection']], # noqa: F821
+      special_containers: List[Union['PBegin', 'PDone',
+                                     'PCollection']],  # noqa: F821
       error_str: str,
-      source_str: str
-      ) -> 'IOTypeHints':
+      source_str: str) -> 'IOTypeHints':
     from apache_beam.pvalue import PCollection
 
     if not has_my_type() or not my_type or len(my_type[0]) != 1:
@@ -468,6 +467,7 @@ class IOTypeHints(NamedTuple):
     return '\n'.join([self.__repr__()] + self.origin)
 
   def __eq__(self, other):
+
     def same(a, b):
       if a is None or not any(a):
         return b is None or not any(b)
@@ -489,6 +489,7 @@ class IOTypeHints(NamedTuple):
 class WithTypeHints(object):
   """A mixin class that provides the ability to set and retrieve type hints.
   """
+
   def __init__(self, *unused_args, **unused_kwargs):
     self._type_hints = IOTypeHints.empty()
 
@@ -571,8 +572,8 @@ def _unpack_positional_arg_hints(arg, hint):
           (arg, tuple_constraint, hint))
     if isinstance(hint, typehints.TupleConstraint):
       return tuple(
-          _unpack_positional_arg_hints(a, t) for a,
-          t in zip(arg, hint.tuple_types))
+          _unpack_positional_arg_hints(a, t)
+          for a, t in zip(arg, hint.tuple_types))
     return (typehints.Any, ) * len(arg)
   return hint
 
@@ -923,6 +924,7 @@ def _interleave_type_check(type_constraint, var_name=None):
     iteration. If the generator received is already wrapped, then it is simply
     returned to avoid nested wrapping.
   """
+
   def wrapper(gen):
     if isinstance(gen, GeneratorWrapper):
       return gen
@@ -945,6 +947,7 @@ class GeneratorWrapper(object):
       be called with the result of each yielded 'step' in the internal
       generator.
   """
+
   def __init__(self, gen, interleave_func):
     self.internal_gen = gen
     self.interleave_func = interleave_func

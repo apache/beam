@@ -155,6 +155,7 @@ class FakeBucket(object):
 
 
 class FakeBlob(object):
+
   def __init__(
       self,
       name,
@@ -228,6 +229,7 @@ class TestGCSPathParser(unittest.TestCase):
 
 
 class SampleOptions(object):
+
   def __init__(self, project, region, kms_key=None):
     self.project = DEFAULT_GCP_PROJECT
     self.region = region
@@ -253,6 +255,7 @@ def _make_credentials(project=None, universe_domain=_DEFAULT_UNIVERSE_DOMAIN):
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
+
   def _insert_random_file(
       self,
       client,

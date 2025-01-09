@@ -53,6 +53,7 @@ def check_elements_with_max_value_per_key(actual):
     'apache_beam.examples.snippets.transforms.aggregation.max_per_key.print',
     str)
 class MaxTest(unittest.TestCase):
+
   def test_max_globally(self):
     beam_max_globally.max_globally(check_max_element)
 

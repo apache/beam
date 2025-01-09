@@ -115,6 +115,7 @@ ReadFromDebeziumSchema = NamedTuple(
 
 class _JsonStringToDictionaries(DoFn):
   """ A DoFn that consumes a JSON string and yields a python dictionary """
+
   def process(self, json_string):
     obj = json.loads(json_string)
     yield obj

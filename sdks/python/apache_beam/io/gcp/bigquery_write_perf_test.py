@@ -67,6 +67,7 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
 class BigQueryWritePerfTest(LoadTest):
+
   def __init__(self):
     super().__init__()
     self.output_dataset = self.pipeline.get_option('output_dataset')

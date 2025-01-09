@@ -36,6 +36,7 @@ from apache_beam.io.filesystems import FileSystems
 
 def _gen_fake_join(separator):
   """Returns a callable that joins paths with the given separator."""
+
   def _join(first_path, *paths):
     return separator.join((first_path.rstrip(separator), ) + paths)
 
@@ -43,6 +44,7 @@ def _gen_fake_join(separator):
 
 
 class FileSystemsTest(unittest.TestCase):
+
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 

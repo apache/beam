@@ -63,6 +63,7 @@ def examples_wordcount_debugging(renames):
 
   class FilterTextFn(beam.DoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
+
     def __init__(self, pattern):
       self.pattern = pattern
       # A custom metric can track values in your pipeline as it runs. Create

@@ -39,6 +39,7 @@ def pardo_dofn_params(test=None):
   import apache_beam as beam
 
   class AnalyzeElement(beam.DoFn):
+
     def process(
         self,
         elem,

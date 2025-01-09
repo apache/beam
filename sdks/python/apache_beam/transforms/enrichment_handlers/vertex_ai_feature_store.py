@@ -61,6 +61,7 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     exist. So make sure the feature store instance exists or set
     `exception_level` as `ExceptionLevel.RAISE`.
   """
+
   def __init__(
       self,
       project: str,
@@ -201,6 +202,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
   object.You can specify the features names using `feature_ids` to fetch
   specific features.
   """
+
   def __init__(
       self,
       project: str,

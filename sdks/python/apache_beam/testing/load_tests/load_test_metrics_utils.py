@@ -193,6 +193,7 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
+
   def __init__(
       self,
       project_name=None,
@@ -287,8 +288,8 @@ class MetricsReader(object):
     if not extra_metrics:
       extra_metrics = {}
     return [
-        Metric(ts, metric_id, v, label=k).as_dict() for k,
-        v in extra_metrics.items()
+        Metric(ts, metric_id, v, label=k).as_dict()
+        for k, v in extra_metrics.items()
     ]
 
   def publish_values(self, labeled_values):
@@ -299,8 +300,7 @@ class MetricsReader(object):
     """
     metric_dicts = [
         Metric(time.time(), uuid.uuid4().hex, value, label=label).as_dict()
-        for label,
-        value in labeled_values
+        for label, value in labeled_values
     ]
 
     for publisher in self.publishers:
@@ -334,6 +334,7 @@ class MetricsReader(object):
 
 class Metric(object):
   """Metric base class in ready-to-save format."""
+
   def __init__(
       self, submit_timestamp, metric_id, value, metric=None, label=None):
     """Initializes :class:`Metric`
@@ -369,6 +370,7 @@ class CounterMetric(Metric):
     submit_timestamp (float): date-time of saving metric to database
     metric_id (uuid): unique id to identify test run
   """
+
   def __init__(self, counter_metric, submit_timestamp, metric_id):
     value = counter_metric.result
     super().__init__(submit_timestamp, metric_id, value, counter_metric)
@@ -382,6 +384,7 @@ class DistributionMetric(Metric):
     submit_timestamp (float): date-time of saving metric to database
     metric_id (uuid): unique id to identify test run
   """
+
   def __init__(self, dist_metric, submit_timestamp, metric_id, metric_type):
     custom_label = dist_metric.key.metric.namespace + \
                    '_' + parse_step(dist_metric.key.step) + \
@@ -405,6 +408,7 @@ class RuntimeMetric(Metric):
       with runtime name
     metric_id(uuid): unique id to identify test run
   """
+
   def __init__(self, runtime_list, metric_id):
     value = self._prepare_runtime_metrics(runtime_list)
     submit_timestamp = time.time()
@@ -431,6 +435,7 @@ class RuntimeMetric(Metric):
 
 class MetricsPublisher:
   """Base class for metrics publishers."""
+
   def publish(self, results):
     raise NotImplementedError
 
@@ -438,6 +443,7 @@ class MetricsPublisher:
 class ConsoleMetricsPublisher(MetricsPublisher):
   """A :class:`ConsoleMetricsPublisher` publishes collected metrics
   to console output."""
+
   def publish(self, results):
     if len(results) > 0:
       log = "Load test results for test: %s and timestamp: %s:" \
@@ -454,6 +460,7 @@ class ConsoleMetricsPublisher(MetricsPublisher):
 class BigQueryMetricsPublisher(MetricsPublisher):
   """A :class:`BigQueryMetricsPublisher` publishes collected metrics
   to BigQuery output."""
+
   def __init__(self, project_name, table, dataset, bq_schema=None):
     if not bq_schema:
       bq_schema = SCHEMA
@@ -472,6 +479,7 @@ class BigQueryMetricsPublisher(MetricsPublisher):
 class BigQueryClient(object):
   """A :class:`BigQueryClient` publishes collected metrics to
   BigQuery output."""
+
   def __init__(self, project_name, table, dataset, bq_schema=None):
     self.schema = bq_schema
     self._namespace = table
@@ -522,6 +530,7 @@ class BigQueryClient(object):
 
 
 class InfluxDBMetricsPublisherOptions(object):
+
   def __init__(
       self,
       measurement: str,
@@ -544,6 +553,7 @@ class InfluxDBMetricsPublisherOptions(object):
 
 class InfluxDBMetricsPublisher(MetricsPublisher):
   """Publishes collected metrics to InfluxDB database."""
+
   def __init__(self, options: InfluxDBMetricsPublisherOptions):
     self.options = options
 
@@ -571,6 +581,7 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
 
   def _build_payload(
       self, results: List[Mapping[str, Union[float, str, int]]]) -> str:
+
     def build_kv(mapping, key):
       return '{}={}'.format(key, mapping[key])
 
@@ -590,6 +601,7 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
 class MeasureTime(beam.DoFn):
   """A distribution metric prepared to be added to pipeline as ParDo
    to measure runtime."""
+
   def __init__(self, namespace):
     """Initializes :class:`MeasureTime`.
 
@@ -663,6 +675,7 @@ class MeasureLatency(beam.DoFn):
 
 class AssignTimestamps(beam.DoFn):
   """DoFn to assigned timestamps to elements."""
+
   def __init__(self):
     # Avoid having to use save_main_session
     self.time_fn = time.time

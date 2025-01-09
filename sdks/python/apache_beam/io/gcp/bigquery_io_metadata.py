@@ -80,6 +80,7 @@ class BigQueryIOMetadata(object):
   Do not construct directly, use the create_bigquery_io_metadata factory.
   Which will request metadata properly based on which runner is being used.
   """
+
   def __init__(self, beam_job_id=None, step_name=None):
     self.beam_job_id = beam_job_id
     self.step_name = step_name

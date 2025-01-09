@@ -26,6 +26,7 @@ from apache_beam.io.gcp import bigquery_io_metadata
 
 
 class BigqueryIoMetadataTest(unittest.TestCase):
+
   def test_is_valid_cloud_label_value(self):
     # A dataflow job ID.
     # Lowercase letters, numbers, underscores and hyphens are allowed.

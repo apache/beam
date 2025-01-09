@@ -57,6 +57,7 @@ def kill_process_gracefully(proc, timeout=10):
   it to finish. A SIGKILL will be sent if the process has not finished
   after ``timeout`` seconds.
   """
+
   def _kill():
     proc.terminate()
     try:
@@ -73,6 +74,7 @@ def kill_process_gracefully(proc, timeout=10):
 
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
+
   def __init__(
       self,
       use_process=False,

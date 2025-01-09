@@ -95,6 +95,7 @@ def convert_image_to_example_proto(tensor: tf.Tensor) -> tf.train.Example:
 
 
 class ProcessInferenceToString(beam.DoFn):
+
   def process(
       self, element: tuple[str,
                            prediction_log_pb2.PredictionLog]) -> Iterable[str]:

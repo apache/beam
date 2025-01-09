@@ -68,6 +68,7 @@ except ImportError:
 
 
 class TestPubsubMessage(unittest.TestCase):
+
   def test_payload_valid(self):
     _ = PubsubMessage('', None)
     _ = PubsubMessage('data', None)
@@ -136,6 +137,7 @@ class TestPubsubMessage(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadFromPubSubOverride(unittest.TestCase):
+
   def test_expand_with_topic(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -243,6 +245,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestMultiReadFromPubSubOverride(unittest.TestCase):
+
   def test_expand_with_multiple_sources(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -329,9 +332,9 @@ class TestMultiReadFromPubSubOverride(unittest.TestCase):
         PubSubSourceDescriptor(
             source=source,
             id_label=id_label,
-            timestamp_attribute=timestamp_attribute) for source,
-        id_label,
-        timestamp_attribute in zip(sources, id_labels, timestamp_attributes)
+            timestamp_attribute=timestamp_attribute)
+        for source, id_label, timestamp_attribute in zip(
+            sources, id_labels, timestamp_attributes)
     ]
 
     pcoll = (p | MultipleReadFromPubSub(pubsub_sources) | beam.Map(lambda x: x))
@@ -364,6 +367,7 @@ class TestMultiReadFromPubSubOverride(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestWriteStringsToPubSubOverride(unittest.TestCase):
+
   def test_expand_deprecated(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -416,6 +420,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSource(unittest.TestCase):
+
   def test_display_data_topic(self):
     source = _PubSubSource('projects/fakeprj/topics/a_topic', None, 'a_label')
     dd = DisplayData.create_from(source)
@@ -453,6 +458,7 @@ class TestPubSubSource(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
+
   def test_display_data(self):
     sink = WriteToPubSub(
         'projects/fakeprj/topics/a_topic',
@@ -498,6 +504,7 @@ transform_evaluator.TransformEvaluatorRegistry._test_evaluators_overrides = {
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class TestReadFromPubSub(unittest.TestCase):
+
   def test_read_messages_success(self, mock_pubsub):
     data = b'data'
     publish_time_secs = 1520861821
@@ -848,6 +855,7 @@ class TestReadFromPubSub(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 @mock.patch('google.cloud.pubsub.PublisherClient')
 class TestWriteToPubSub(unittest.TestCase):
+
   def test_write_messages_success(self, mock_pubsub):
     data = 'data'
     payloads = [data]

@@ -87,6 +87,7 @@ class FlinkRunner(portable_runner.PortableRunner):
 
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
+
   def __init__(self, options):
     super().__init__(options)
     options = options.view_as(pipeline_options.FlinkRunnerOptions)

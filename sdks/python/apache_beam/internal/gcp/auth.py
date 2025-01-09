@@ -92,6 +92,7 @@ if _GOOGLE_AUTH_AVAILABLE:
     upgrading the auth library used by Beam without simultaneously upgrading
     all the GCP client libraries (a much larger change).
     """
+
     def __init__(self, google_auth_credentials):
       self._google_auth_credentials = google_auth_credentials
 

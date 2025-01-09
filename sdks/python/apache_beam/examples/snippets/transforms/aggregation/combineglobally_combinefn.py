@@ -39,6 +39,7 @@ def combineglobally_combinefn(test=None):
   import apache_beam as beam
 
   class PercentagesFn(beam.CombineFn):
+
     def create_accumulator(self):
       return {}
 

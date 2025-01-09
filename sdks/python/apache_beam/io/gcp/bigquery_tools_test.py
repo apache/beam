@@ -72,6 +72,7 @@ except ImportError:
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableSchemaParser(unittest.TestCase):
+
   def test_parse_table_schema_from_json(self):
     string_field = bigquery.TableFieldSchema(
         name='s', type='STRING', mode='NULLABLE', description='s description')
@@ -109,6 +110,7 @@ class TestTableSchemaParser(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableReferenceParser(unittest.TestCase):
+
   def test_calling_with_table_reference(self):
     table_ref = bigquery.TableReference()
     table_ref.projectId = 'test_project'
@@ -175,6 +177,7 @@ class TestTableReferenceParser(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):
+
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
     client.datasets.Delete.side_effect = HttpError(
@@ -388,6 +391,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         False)
 
   def test_wait_for_job_returns_true_when_job_is_done(self):
+
     def make_response(state):
       m = mock.Mock()
       m.status.errorResult = None
@@ -581,6 +585,7 @@ class TestBigQueryWrapper(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestRowAsDictJsonCoder(unittest.TestCase):
+
   def test_row_as_dict(self):
     coder = RowAsDictJsonCoder()
     test_value = {'s': 'abc', 'i': 123, 'f': 123.456, 'b': True}
@@ -622,6 +627,7 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonRowWriter(unittest.TestCase):
+
   def test_write_row(self):
     rows = [
         {
@@ -654,6 +660,7 @@ class TestJsonRowWriter(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestAvroRowWriter(unittest.TestCase):
+
   def test_write_row(self):
     schema = bigquery.TableSchema(
         fields=[
@@ -682,6 +689,7 @@ class TestAvroRowWriter(unittest.TestCase):
 
 
 class TestBQJobNames(unittest.TestCase):
+
   def test_simple_names(self):
     self.assertEqual(
         "beam_bq_job_EXPORT_beamappjobtest_abcd",
@@ -720,6 +728,7 @@ class TestBQJobNames(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestCheckSchemaEqual(unittest.TestCase):
+
   def test_simple_schemas(self):
     schema1 = bigquery.TableSchema(fields=[])
     self.assertTrue(check_schema_equal(schema1, schema1))
@@ -985,9 +994,8 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("repeated")}
     typehints = get_beam_typehints_from_tableschema(schema)
 
-    expected_repeated_typehints = [
-        (name, Sequence[type]) for name, type in self.EXPECTED_TYPEHINTS
-    ]
+    expected_repeated_typehints = [(name, Sequence[type])
+                                   for name, type in self.EXPECTED_TYPEHINTS]
 
     self.assertEqual(typehints, expected_repeated_typehints)
 
@@ -995,9 +1003,8 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("nullable")}
     typehints = get_beam_typehints_from_tableschema(schema)
 
-    expected_nullable_typehints = [
-        (name, Optional[type]) for name, type in self.EXPECTED_TYPEHINTS
-    ]
+    expected_nullable_typehints = [(name, Optional[type])
+                                   for name, type in self.EXPECTED_TYPEHINTS]
 
     self.assertEqual(typehints, expected_nullable_typehints)
 

@@ -64,6 +64,7 @@ class TestS3PathParser(unittest.TestCase):
 
 
 class TestS3IO(unittest.TestCase):
+
   def _insert_random_file(self, client, path, size):
     bucket, name = s3io.parse_s3_path(path)
     contents = os.urandom(size)

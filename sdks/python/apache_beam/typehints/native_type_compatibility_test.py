@@ -62,6 +62,7 @@ class _TestEnum(enum.Enum):
 
 
 class NativeTypeCompatibilityTest(unittest.TestCase):
+
   def test_convert_to_beam_type(self):
     test_cases = [
         ('raw bytes', bytes, bytes),

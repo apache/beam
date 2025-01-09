@@ -63,6 +63,7 @@ except ImportError:
 # TODO: Should not subclass ParDo. Switch to PTransform as soon as
 # composite transforms support display data.
 class SpecialParDo(beam.ParDo):
+
   def __init__(self, fn, now):
     super().__init__(fn)
     self.fn = fn
@@ -76,6 +77,7 @@ class SpecialParDo(beam.ParDo):
 
 
 class SpecialDoFn(beam.DoFn):
+
   def display_data(self):
     return {'dofn_value': 42}
 
@@ -85,6 +87,7 @@ class SpecialDoFn(beam.DoFn):
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
+
   def setUp(self):
     self.default_properties = [
         '--job_name=test-job',
@@ -102,6 +105,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     class MockDataflowRunner(object):
+
       def __init__(self, states):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
@@ -169,6 +173,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     class MockDataflowRunner(object):
+
       def __init__(self, state, cancel_result):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
@@ -352,9 +357,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pc = p | beam.Create([])
 
     transform = beam.Map(
-        lambda x,
-        y,
-        z: (x, y, z),
+        lambda x, y, z: (x, y, z),
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
     applied_transform = AppliedPTransform(None, transform, "label", {'pc': pc})
@@ -454,7 +457,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       'https://github.com/apache/beam/issues/18716: enable once '
       'CombineFnVisitor is fixed')
   def test_unsupported_combinefn_detection(self):
+
     class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
+
       def setup(self, *args, **kwargs):
         pass
 
@@ -483,7 +488,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       self.fail('ValueError raised unexpectedly')
 
   def test_pack_combiners(self):
+
     class PackableCombines(beam.PTransform):
+
       def annotations(self):
         return {python_urns.APPLY_COMBINER_PACKING: b''}
 

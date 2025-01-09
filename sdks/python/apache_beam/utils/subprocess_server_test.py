@@ -34,6 +34,7 @@ from apache_beam.utils import subprocess_server
 
 
 class JavaJarServerTest(unittest.TestCase):
+
   def test_gradle_jar_release(self):
     self.assertEqual(
         'https://repo.maven.apache.org/maven2/org/apache/beam/'
@@ -99,6 +100,7 @@ class JavaJarServerTest(unittest.TestCase):
           subprocess_server.JavaJarServer.path_to_beam_jar(':some:target'))
 
   def test_local_jar(self):
+
     class Handler(socketserver.BaseRequestHandler):
       timeout = 1
 
@@ -168,6 +170,7 @@ public class Other {
 
 
 class CacheTest(unittest.TestCase):
+
   @staticmethod
   def with_prefix(prefix):
     return '%s-%s' % (prefix, random.random())

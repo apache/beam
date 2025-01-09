@@ -26,6 +26,7 @@ from apache_beam.io.aws.clients.s3 import messages
 
 
 class FakeFile(object):
+
   def __init__(self, bucket, key, contents, etag=None):
     self.bucket = bucket
     self.key = key
@@ -53,6 +54,7 @@ class FakeFile(object):
 
 
 class FakeS3Client(object):
+
   def __init__(self):
     self.files = {}
     self.list_continuation_tokens = {}

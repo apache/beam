@@ -26,6 +26,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class CaptureLimitersTest(unittest.TestCase):
+
   def test_count_limiter(self):
     limiter = CountLimiter(5)
 

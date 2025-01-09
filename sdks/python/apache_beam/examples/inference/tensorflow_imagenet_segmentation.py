@@ -37,6 +37,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns predicted label.
   """
+
   def setup(self):
     labels_path = tf.keras.utils.get_file(
         'ImageNetLabels.txt',

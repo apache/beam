@@ -29,6 +29,7 @@ from apache_beam.io import range_trackers
 
 
 class OffsetRangeTrackerTest(unittest.TestCase):
+
   def test_try_return_record_simple_sparse(self):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertTrue(tracker.try_claim(110))
@@ -206,7 +207,9 @@ class OffsetRangeTrackerTest(unittest.TestCase):
 
 
 class OrderedPositionRangeTrackerTest(unittest.TestCase):
+
   class DoubleRangeTracker(range_trackers.OrderedPositionRangeTracker):
+
     @staticmethod
     def fraction_to_position(fraction, start, end):
       return start + (end - start) * fraction
@@ -283,6 +286,7 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
 
 
 class UnsplittableRangeTrackerTest(unittest.TestCase):
+
   def test_try_claim(self):
     tracker = range_trackers.UnsplittableRangeTracker(
         range_trackers.OffsetRangeTracker(100, 200))

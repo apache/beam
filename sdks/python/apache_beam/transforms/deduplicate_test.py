@@ -43,6 +43,7 @@ from apache_beam.utils.timestamp import Timestamp
 @pytest.mark.no_sickbay_streaming
 @pytest.mark.it_validatesrunner
 class DeduplicateTest(unittest.TestCase):
+
   def __init__(self, *args, **kwargs):
     self.runner = None
     self.options = None

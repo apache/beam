@@ -31,6 +31,7 @@ from apache_beam.utils.counters import CounterFactory
 
 
 class PerThreadLoggingContextTest(unittest.TestCase):
+
   def thread_check_attribute(self, name):
     self.assertFalse(name in logger.per_thread_worker_data.get_data())
     with logger.PerThreadLoggingContext(**{name: 'thread-value'}):
@@ -95,7 +96,9 @@ class JsonLogFormatterTest(unittest.TestCase):
   }
 
   def create_log_record(self, **kwargs):
+
     class Record(object):
+
       def __init__(self, **kwargs):
         for k, v in kwargs.items():
           setattr(self, k, v)

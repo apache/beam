@@ -67,6 +67,7 @@ def _get_watched_pcollections_with_variable_names():
 
 @isolated_env
 class InteractiveBeamTest(unittest.TestCase):
+
   def setUp(self):
     self._var_in_class_instance = 'a var in class instance, not directly used'
 
@@ -177,7 +178,9 @@ class InteractiveBeamTest(unittest.TestCase):
       'apache_beam.runners.interactive.interactive_beam.'
       'visualize_computed_pcoll'))
   def test_show_noop_when_pcoll_container_is_invalid(self, mocked_visualize):
+
     class SomeRandomClass:
+
       def __init__(self, pcoll):
         self._pcoll = pcoll
 
@@ -256,6 +259,7 @@ class InteractiveBeamTest(unittest.TestCase):
     # written to cache. This is used to make ensure that the pipeline is
     # functioning properly and that there are no data races with the test.
     class SizeLimiter(Limiter):
+
       def __init__(self, pipeline):
         self.pipeline = pipeline
         self.should_trigger = False
@@ -299,6 +303,7 @@ class InteractiveBeamTest(unittest.TestCase):
     '[interactive] dependency is not installed.')
 @isolated_env
 class InteractiveBeamClustersTest(unittest.TestCase):
+
   def setUp(self):
     self.current_env.options.cache_root = 'gs://fake'
     self.clusters = self.current_env.clusters

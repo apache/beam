@@ -190,6 +190,7 @@ class AnnotateImageWithContext(AnnotateImage):
   where the former is either an URI (e.g. a GCS URI) or bytes
   base64-encoded image data.
   """
+
   def __init__(
       self,
       features,
@@ -271,6 +272,7 @@ class _ImageAnnotateFn(DoFn):
   """A DoFn that sends each input element to the GCP Vision API.
   Returns ``google.cloud.vision.BatchAnnotateImagesResponse``.
   """
+
   def __init__(self, features, retry, timeout, client_options, metadata):
     super().__init__()
     self._client = None

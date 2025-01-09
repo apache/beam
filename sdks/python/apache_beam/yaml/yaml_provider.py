@@ -69,6 +69,7 @@ from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform
 
 class Provider:
   """Maps transform types names and args to concrete PTransform instances."""
+
   def available(self) -> bool:
     """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
@@ -243,6 +244,7 @@ class ExternalProvider(Provider):
 
   @classmethod
   def register_provider_type(cls, type_name):
+
     def apply(constructor):
       cls._provider_types[type_name] = constructor
       return constructor
@@ -270,14 +272,9 @@ def maven_jar(
     classifier=None,
     appendix=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-          artifact_id=artifact_id,
-          group_id=group_id,
-          version=version,
-          repository=repository,
-          classifier=classifier,
-          appendix=appendix))
+      urns, lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id=artifact_id, group_id=group_id, version=version,
+          repository=repository, classifier=classifier, appendix=appendix))
 
 
 @ExternalProvider.register_provider_type('beamJar')
@@ -289,8 +286,7 @@ def beam_jar(
     version=beam_version,
     artifact_id=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+      urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
           gradle_target=gradle_target, version=version, artifact_id=artifact_id)
   )
 
@@ -322,6 +318,7 @@ class RemoteProvider(ExternalProvider):
 
 
 class ExternalJavaProvider(ExternalProvider):
+
   def __init__(self, urns, jar_provider):
     super().__init__(
         urns, lambda: external.JavaJarExpansionService(jar_provider()))
@@ -342,14 +339,15 @@ def python(urns, packages=()):
     return ExternalPythonProvider(urns, packages)
   else:
     return InlineProvider({
-        name:
-        python_callable.PythonCallableWithSource.load_from_source(constructor)
+        name: python_callable.PythonCallableWithSource.load_from_source(
+            constructor)
         for (name, constructor) in urns.items()
     })
 
 
 @ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
+
   def __init__(self, urns, packages: Iterable[str]):
     super().__init__(urns, PypiExpansionService(packages))
 
@@ -382,6 +380,7 @@ class ExternalPythonProvider(ExternalProvider):
 
 @ExternalProvider.register_provider_type('yaml')
 class YamlProvider(Provider):
+
   def __init__(self, transforms: Mapping[str, Mapping[str, Any]]):
     if not isinstance(transforms, dict):
       raise ValueError('Transform mapping must be a dict.')
@@ -474,6 +473,7 @@ def fix_pycallable():
 
 
 class InlineProvider(Provider):
+
   def __init__(self, transform_factories, no_input_transforms=()):
     self._transform_factories = transform_factories
     self._no_input_transforms = set(no_input_transforms)
@@ -512,9 +512,8 @@ class InlineProvider(Provider):
         for param in cls.get_docs(factory).params
     }
 
-    names_and_types = [
-        (name, typing_to_runner_api(type_of(p))) for name, p in params.items()
-    ]
+    names_and_types = [(name, typing_to_runner_api(type_of(p)))
+                       for name, p in params.items()]
     return schema_pb2.Schema(
         fields=[
             schema_pb2.Field(name=name, type=type, description=docs.get(name))
@@ -526,6 +525,7 @@ class InlineProvider(Provider):
 
   @classmethod
   def description_from_callable(cls, factory):
+
     def empty_if_none(s):
       return s or ''
 
@@ -561,11 +561,13 @@ class InlineProvider(Provider):
 
 
 class MetaInlineProvider(InlineProvider):
+
   def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
 class SqlBackedProvider(Provider):
+
   def __init__(
       self,
       transforms: Mapping[str, Callable[..., beam.PTransform]],
@@ -637,6 +639,7 @@ def dicts_to_rows(o):
 
 
 class YamlProviders:
+
   class AssertEqual(beam.PTransform):
     """Asserts that the input contains exactly the elements provided.
 
@@ -661,6 +664,7 @@ class YamlProviders:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
     """
+
     def __init__(self, elements: Iterable[Any]):
       self._elements = elements
 
@@ -772,6 +776,7 @@ class YamlProviders:
     Note that in YAML transforms can always take a list of inputs which will
     be implicitly flattened.
     """
+
     def __init__(self):
       # Suppress the "label" argument from the superclass for better docs.
       # pylint: disable=useless-parent-delegation
@@ -819,6 +824,7 @@ class YamlProviders:
     Args:
       windowing: the type and parameters of the windowing to perform
     """
+
     def __init__(self, windowing):
       self._window_transform = self._parse_window_spec(windowing)
 
@@ -938,6 +944,7 @@ class YamlProviders:
 
 
 class TranslatingProvider(Provider):
+
   def __init__(
       self,
       transforms: Mapping[str, Callable[..., beam.PTransform]],
@@ -1119,6 +1126,7 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
+
   def __init__(self, transforms, mappings, underlying_provider, defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(

@@ -77,6 +77,7 @@ def _setup_test_streaming_cache(pipeline):
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class BackgroundCachingJobTest(unittest.TestCase):
+
   def tearDown(self):
     ie.new_env()
 
@@ -84,24 +85,23 @@ class BackgroundCachingJobTest(unittest.TestCase):
   # that meet the boundedness checks.
   @patch(
       'apache_beam.runners.interactive.background_caching_job'
-      '.has_source_to_cache',
-      lambda x: True)
+      '.has_source_to_cache', lambda x: True)
   # Disable the clean up so that we can keep the test streaming cache.
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup',
-      lambda x,
-      y: None)
+      '.InteractiveEnvironment.cleanup', lambda x, y: None)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
 
     # Create a fake PipelineResult and PipelineRunner. This is because we want
     # to test whether the BackgroundCachingJob can be started without having to
     # rely on a real pipeline run.
     class FakePipelineResult(beam.runners.runner.PipelineResult):
+
       def wait_until_finish(self):
         return
 
     class FakePipelineRunner(beam.runners.PipelineRunner):
+
       def run_pipeline(self, pipeline, options):
         return FakePipelineResult(beam.runners.runner.PipelineState.RUNNING)
 
@@ -126,8 +126,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
 
   @patch(
       'apache_beam.runners.interactive.background_caching_job'
-      '.has_source_to_cache',
-      lambda x: False)
+      '.has_source_to_cache', lambda x: False)
   def test_background_caching_job_not_start_for_batch_pipeline(self):
     p = beam.Pipeline()
 
@@ -138,14 +137,11 @@ class BackgroundCachingJobTest(unittest.TestCase):
 
   @patch(
       'apache_beam.runners.interactive.background_caching_job'
-      '.has_source_to_cache',
-      lambda x: True)
+      '.has_source_to_cache', lambda x: True)
   # Disable the clean up so that we can keep the test streaming cache.
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup',
-      lambda x,
-      y: None)
+      '.InteractiveEnvironment.cleanup', lambda x, y: None)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
     _setup_test_streaming_cache(p)
@@ -163,14 +159,11 @@ class BackgroundCachingJobTest(unittest.TestCase):
 
   @patch(
       'apache_beam.runners.interactive.background_caching_job'
-      '.has_source_to_cache',
-      lambda x: True)
+      '.has_source_to_cache', lambda x: True)
   # Disable the clean up so that we can keep the test streaming cache.
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup',
-      lambda x,
-      y: None)
+      '.InteractiveEnvironment.cleanup', lambda x, y: None)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
     _setup_test_streaming_cache(p)
@@ -293,6 +286,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
     self.assertNotEqual(signature_with_only_foo, signature_with_foo_bar)
 
     class BarPruneVisitor(PipelineVisitor):
+
       def enter_composite_transform(self, transform_node):
         pruned_parts = list(transform_node.parts)
         for part in transform_node.parts:

@@ -56,6 +56,7 @@ from apache_beam.typehints.batch import NumpyArray
     },
 ])
 class BatchConverterTest(unittest.TestCase):
+
   def create_batch_converter(self):
     return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
@@ -150,6 +151,7 @@ class BatchConverterTest(unittest.TestCase):
 
 
 class BatchConverterErrorsTest(unittest.TestCase):
+
   @parameterized.expand([
       (
           typing.List[int],

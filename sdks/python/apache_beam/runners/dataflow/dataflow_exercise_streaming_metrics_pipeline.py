@@ -36,6 +36,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class StreamingUserMetricsDoFn(beam.DoFn):
   """Generates user metrics and outputs same element."""
+
   def __init__(self):
     self.double_message_counter = Metrics.counter(
         self.__class__, 'double_msg_counter_name')

@@ -91,6 +91,7 @@ class FakeHdfsError(Exception):
 
 class FakeHdfs(object):
   """Fake implementation of ``hdfs.Client``."""
+
   def __init__(self):
     self.files = {}
 
@@ -202,6 +203,7 @@ class FakeHdfs(object):
 
 @parameterized_class(('full_urls', ), [(False, ), (True, )])
 class HadoopFileSystemTest(unittest.TestCase):
+
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
     hdfs.hdfs.InsecureClient = (lambda *args, **kwargs: self._fake_hdfs)
@@ -610,6 +612,7 @@ class HadoopFileSystemTest(unittest.TestCase):
 class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
   """Tests pipeline_options, in the form of a
   RuntimeValueProvider.runtime_options object."""
+
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
     hdfs.hdfs.InsecureClient = (lambda *args, **kwargs: self._fake_hdfs)

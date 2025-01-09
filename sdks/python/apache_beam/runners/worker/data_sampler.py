@@ -50,6 +50,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class SampleTimer:
   """Periodic timer for sampling elements."""
+
   def __init__(self, timeout_secs: float, sampler: OutputSampler) -> None:
     self._target_timeout_secs = timeout_secs
     self._timeout_secs = min(timeout_secs, 0.5) if timeout_secs > 0 else 0.0
@@ -111,6 +112,7 @@ class OutputSampler:
   This is configurable to only keep `max_samples` (see constructor) sampled
   elements in memory. Samples are taken every `sample_every_sec`.
   """
+
   def __init__(
       self,
       coder: Coder,
@@ -155,9 +157,8 @@ class OutputSampler:
         exceptions = [s for s in self._exceptions]
         samples = [s for s in self._samples if id(s) not in seen]
       else:
-        exceptions = [
-            (self.remove_windowed_value(a), b) for a, b in self._exceptions
-        ]
+        exceptions = [(self.remove_windowed_value(a), b)
+                      for a, b in self._exceptions]
         samples = [
             self.remove_windowed_value(s) for s in self._samples
             if id(s) not in seen
@@ -186,8 +187,7 @@ class OutputSampler:
                 exception=beam_fn_api_pb2.SampledElement.Exception(
                     instruction_id=exn.instruction_id,
                     transform_id=exn.transform_id,
-                    error=exn.msg)) for s,
-            exn in exceptions)
+                    error=exn.msg)) for s, exn in exceptions)
       except Exception as e:  # pylint: disable=broad-except
         _LOGGER.warning('Could not encode sampled exception values: %s' % e)
 
@@ -221,6 +221,7 @@ class DataSampler:
   Samples generated during execution can then be sampled with the `samples`
   method. This filters samples from the given pcollection ids.
   """
+
   def __init__(
       self,
       max_samples: int = 10,

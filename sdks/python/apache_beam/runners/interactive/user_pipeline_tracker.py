@@ -38,6 +38,7 @@ class UserPipelineTracker:
   pipeline can only have one parent user pipeline. A user pipeline can have many
   derived pipelines.
   """
+
   def __init__(self):
     self._user_pipelines: dict[beam.Pipeline, list[beam.Pipeline]] = {}
     self._derived_pipelines: dict[beam.Pipeline] = {}

@@ -38,6 +38,7 @@ def pardo_dofn_methods(test=None):
   import apache_beam as beam
 
   class DoFnMethods(beam.DoFn):
+
     def __init__(self):
       print('__init__')
       self.window = beam.transforms.window.GlobalWindow()

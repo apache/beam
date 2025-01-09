@@ -70,6 +70,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def register_input_dtype(type):
+
   def wrapper(fn):
     _EXPECTED_TYPES[fn.__name__] = type
     return fn
@@ -81,6 +82,7 @@ def register_input_dtype(type):
 # Add support for outputting artifacts to a text file in human readable form.
 class TFTOperation(BaseOperation[common_types.TensorType,
                                  common_types.TensorType]):
+
   def __init__(self, columns: list[str]) -> None:
     """
     Base Operation class for TFT data processing transformations.
@@ -145,6 +147,7 @@ class TFTOperation(BaseOperation[common_types.TensorType,
 
 @register_input_dtype(str)
 class ComputeAndApplyVocabulary(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -213,6 +216,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
 
 @register_input_dtype(float)
 class ScaleToZScore(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -254,6 +258,7 @@ class ScaleToZScore(TFTOperation):
 
 @register_input_dtype(float)
 class ScaleTo01(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -294,6 +299,7 @@ class ScaleTo01(TFTOperation):
 
 @register_input_dtype(float)
 class ScaleToGaussian(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -331,6 +337,7 @@ class ScaleToGaussian(TFTOperation):
 
 @register_input_dtype(float)
 class ApplyBuckets(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -366,6 +373,7 @@ class ApplyBuckets(TFTOperation):
 
 @register_input_dtype(float)
 class ApplyBucketsWithInterpolation(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -405,6 +413,7 @@ class ApplyBucketsWithInterpolation(TFTOperation):
 
 @register_input_dtype(float)
 class Bucketize(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -454,6 +463,7 @@ class Bucketize(TFTOperation):
 
 @register_input_dtype(float)
 class TFIDF(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -525,6 +535,7 @@ class TFIDF(TFTOperation):
 
 @register_input_dtype(float)
 class ScaleByMinMax(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -561,6 +572,7 @@ class ScaleByMinMax(TFTOperation):
 
 @register_input_dtype(str)
 class NGrams(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -606,6 +618,7 @@ class NGrams(TFTOperation):
 
 @register_input_dtype(str)
 class BagOfWords(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -681,6 +694,7 @@ def count_unique_words(
 
 @register_input_dtype(str)
 class HashStrings(TFTOperation):
+
   def __init__(
       self,
       columns: list[str],
@@ -725,6 +739,7 @@ class HashStrings(TFTOperation):
 
 @register_input_dtype(str)
 class DeduplicateTensorPerRow(TFTOperation):
+
   def __init__(self, columns: list[str], name: Optional[str] = None):
     """ Deduplicates each row (0th dimension) of the provided tensor.
 

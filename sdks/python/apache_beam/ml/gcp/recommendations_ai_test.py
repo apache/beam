@@ -39,6 +39,7 @@ except ImportError:
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
 class RecommendationsAICatalogItemTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_client = mock.Mock()
     self._mock_client.create_catalog_item.return_value = (
@@ -106,6 +107,7 @@ class RecommendationsAICatalogItemTest(unittest.TestCase):
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
 class RecommendationsAIUserEventTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_client = mock.Mock()
     self._mock_client.write_user_event.return_value = (
@@ -169,6 +171,7 @@ class RecommendationsAIUserEventTest(unittest.TestCase):
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
 class RecommendationsAIPredictTest(unittest.TestCase):
+
   def setUp(self):
     self._mock_client = mock.Mock()
     self._mock_client.predict.return_value = [

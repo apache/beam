@@ -48,6 +48,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
+
   def __init__(self, requests, raise_errors=True):
     self.requests = requests
     self.instruction_ids = set(r.instruction_id for r in requests)
@@ -75,6 +76,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
 
 class SdkWorkerTest(unittest.TestCase):
+
   def _get_process_bundles(self, prefix, size):
     return [
         beam_fn_api_pb2.ProcessBundleDescriptor(
@@ -281,6 +283,7 @@ class SdkWorkerTest(unittest.TestCase):
     coder = FastPrimitivesCoder()
 
     class FakeDataSampler:
+
       def samples(self, pcollection_ids):
         return beam_fn_api_pb2.SampleDataResponse(
             element_samples={
@@ -332,6 +335,7 @@ class SdkWorkerTest(unittest.TestCase):
 
 
 class CachingStateHandlerTest(unittest.TestCase):
+
   def test_caching(self):
 
     coder = VarIntCoder()
@@ -340,6 +344,7 @@ class CachingStateHandlerTest(unittest.TestCase):
     class FakeUnderlyingState(object):
       """Simply returns an incremented counter as the state "value."
       """
+
       def set_counter(self, n):
         self._counter = n
 
@@ -442,6 +447,7 @@ class CachingStateHandlerTest(unittest.TestCase):
   class UnderlyingStateHandler(object):
     """Simply returns an incremented counter as the state "value."
     """
+
     def __init__(self):
       self._encoded_values = []
       self._continuations = False
@@ -569,82 +575,66 @@ class CachingStateHandlerTest(unittest.TestCase):
 
 
 class ShortIdCacheTest(unittest.TestCase):
+
   def testShortIdAssignment(self):
     TestCase = namedtuple('TestCase', ['expected_short_id', 'info'])
     test_cases = [
         TestCase(*args) for args in [
             (
-                "1",
-                metrics_pb2.MonitoringInfo(
+                "1", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:distribution_int64:v1",
                     type="beam:metrics:distribution_int64:v1")),
             (
-                "2",
-                metrics_pb2.MonitoringInfo(
+                "2", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:element_count:v1",
                     type="beam:metrics:sum_int64:v1")),
             (
-                "3",
-                metrics_pb2.MonitoringInfo(
+                "3", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:ptransform_progress:completed:v1",
                     type="beam:metrics:progress:v1")),
             (
-                "4",
-                metrics_pb2.MonitoringInfo(
+                "4", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:distribution_double:v1",
                     type="beam:metrics:distribution_double:v1")),
             (
-                "5",
-                metrics_pb2.MonitoringInfo(
+                "5", metrics_pb2.MonitoringInfo(
                     urn="TestingSentinelUrn", type="TestingSentinelType")),
             (
-                "6",
-                metrics_pb2.MonitoringInfo(
+                "6", metrics_pb2.MonitoringInfo(
                     urn=
                     "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
                     type="beam:metrics:sum_int64:v1")),
             # This case and the next one validates that different labels
             # with the same urn are in fact assigned different short ids.
             (
-                "7",
-                metrics_pb2.MonitoringInfo(
+                "7", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:sum_int64:v1",
-                    type="beam:metrics:sum_int64:v1",
-                    labels={
-                        "PTRANSFORM": "myT",
-                        "NAMESPACE": "harness",
+                    type="beam:metrics:sum_int64:v1", labels={
+                        "PTRANSFORM": "myT", "NAMESPACE": "harness",
                         "NAME": "metricNumber7"
                     })),
             (
-                "8",
-                metrics_pb2.MonitoringInfo(
+                "8", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:sum_int64:v1",
-                    type="beam:metrics:sum_int64:v1",
-                    labels={
-                        "PTRANSFORM": "myT",
-                        "NAMESPACE": "harness",
+                    type="beam:metrics:sum_int64:v1", labels={
+                        "PTRANSFORM": "myT", "NAMESPACE": "harness",
                         "NAME": "metricNumber8"
                     })),
             (
-                "9",
-                metrics_pb2.MonitoringInfo(
+                "9", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:top_n_double:v1",
-                    type="beam:metrics:top_n_double:v1",
-                    labels={
-                        "PTRANSFORM": "myT",
-                        "NAMESPACE": "harness",
+                    type="beam:metrics:top_n_double:v1", labels={
+                        "PTRANSFORM": "myT", "NAMESPACE": "harness",
                         "NAME": "metricNumber7"
                     })),
             (
-                "a",
-                metrics_pb2.MonitoringInfo(
+                "a", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:element_count:v1",
                     type="beam:metrics:sum_int64:v1",
                     labels={"PCOLLECTION": "myPCol"})),
             # validate payload is ignored for shortId assignment
             (
-                "3",
-                metrics_pb2.MonitoringInfo(
+                "3", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:ptransform_progress:completed:v1",
                     type="beam:metrics:progress:v1",
                     payload=b"this is ignored!"))
@@ -680,8 +670,8 @@ class ShortIdCacheTest(unittest.TestCase):
 def monitoringInfoMetadata(info):
   return {
       descriptor.name: value
-      for descriptor,
-      value in info.ListFields() if not descriptor.name == "payload"
+      for descriptor, value in info.ListFields()
+      if not descriptor.name == "payload"
   }
 
 

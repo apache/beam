@@ -48,6 +48,7 @@ except ImportError:
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class PCollectionVisualizationTest(unittest.TestCase):
+
   def setUp(self):
     ie.new_env()
     # Allow unit test to run outside of ipython kernel since we don't test the

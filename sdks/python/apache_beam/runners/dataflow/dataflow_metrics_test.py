@@ -53,6 +53,7 @@ except ImportError:
 
 class DictToObject(object):
   """Translate from a dict(list()) structure to an object structure"""
+
   def __init__(self, data):
     for name, value in data.items():
       setattr(self, name, self._wrap(value))
@@ -308,8 +309,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value":
-                                  "ToIsmRecordForMultimap-out0-ElementCount"
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
                           },  # yapf: disable
                           {
                               "key": "output_user_name",
@@ -332,13 +332,13 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value":
-                                  "ToIsmRecordForMultimap-out0-ElementCount"
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
                           },  # yapf: disable
                           {
                               "key": "output_user_name",
                               "value": "ToIsmRecordForMultimap-out0"
-                          }, {
+                          },
+                          {
                               "key": "tentative", "value": "true"
                           }
                       ]

@@ -34,12 +34,15 @@ RETURN_NONE_PARTIAL_WARNING = "No iterator is returned"
 
 
 class TestDoFn1(beam.DoFn):
+
   def process(self, element):
     yield element
 
 
 class TestDoFn2(beam.DoFn):
+
   def process(self, element):
+
     def inner_func(x):
       yield x
 
@@ -48,6 +51,7 @@ class TestDoFn2(beam.DoFn):
 
 class TestDoFn3(beam.DoFn):
   """mixing return and yield is not allowed"""
+
   def process(self, element):
     if not element:
       return -1
@@ -56,6 +60,7 @@ class TestDoFn3(beam.DoFn):
 
 class TestDoFn4(beam.DoFn):
   """test the variable name containing return"""
+
   def process(self, element):
     my_return = element
     yield my_return
@@ -63,6 +68,7 @@ class TestDoFn4(beam.DoFn):
 
 class TestDoFn5(beam.DoFn):
   """test the variable name containing yield"""
+
   def process(self, element):
     my_yield = element
     return my_yield
@@ -70,6 +76,7 @@ class TestDoFn5(beam.DoFn):
 
 class TestDoFn6(beam.DoFn):
   """test the variable name containing return"""
+
   def process(self, element):
     return_test = element
     yield return_test
@@ -77,6 +84,7 @@ class TestDoFn6(beam.DoFn):
 
 class TestDoFn7(beam.DoFn):
   """test the variable name containing yield"""
+
   def process(self, element):
     yield_test = element
     return yield_test
@@ -84,6 +92,7 @@ class TestDoFn7(beam.DoFn):
 
 class TestDoFn8(beam.DoFn):
   """test the code containing yield and yield from"""
+
   def process(self, element):
     if not element:
       yield from [1, 2, 3]
@@ -92,6 +101,7 @@ class TestDoFn8(beam.DoFn):
 
 
 class TestDoFn9(beam.DoFn):
+
   def process(self, element):
     if len(element) > 3:
       raise ValueError('Not allowed to have long elements')
@@ -100,23 +110,27 @@ class TestDoFn9(beam.DoFn):
 
 class TestDoFn10(beam.DoFn):
   """test process returning None explicitly"""
+
   def process(self, element):
     return None
 
 
 class TestDoFn11(beam.DoFn):
   """test process returning None (no return and no yield)"""
+
   def process(self, element):
     pass
 
 
 class TestDoFn12(beam.DoFn):
   """test process returning None (return statement without a value)"""
+
   def process(self, element):
     return
 
 
 class CreateTest(unittest.TestCase):
+
   @pytest.fixture(autouse=True)
   def inject_fixtures(self, caplog):
     self._caplog = caplog
@@ -159,11 +173,14 @@ class CreateTest(unittest.TestCase):
 
 
 class PartitionTest(unittest.TestCase):
+
   def test_partition_boundedness(self):
+
     def partition_fn(val, num_partitions):
       return val % num_partitions
 
     class UnboundedDoFn(beam.DoFn):
+
       @beam.DoFn.unbounded_per_element()
       def process(self, element):
         yield element
@@ -187,6 +204,7 @@ class PartitionTest(unittest.TestCase):
 
 
 class FlattenTest(unittest.TestCase):
+
   def test_flatten_identical_windows(self):
     with beam.testing.test_pipeline.TestPipeline() as p:
       source1 = p | "c1" >> beam.Create(
@@ -218,6 +236,7 @@ class FlattenTest(unittest.TestCase):
 
 
 class ExceptionHandlingTest(unittest.TestCase):
+
   def test_routes_failures(self):
     with beam.Pipeline() as pipeline:
       good, bad = (
@@ -280,6 +299,7 @@ class ExceptionHandlingTest(unittest.TestCase):
 
 
 class FlatMapTest(unittest.TestCase):
+
   def test_default(self):
 
     with beam.Pipeline() as pipeline:

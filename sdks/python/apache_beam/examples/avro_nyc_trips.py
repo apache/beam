@@ -125,6 +125,7 @@ class CreateKeyWithServiceAndDay(beam.DoFn):
   company name and the day of the week of the ride. The value is the original
   record dictionary object.
   """
+
   def process(self, record: dict):
     options = {
         'HV0002': 'Juno', 'HV0003': 'Uber', 'HV0004': 'Via', 'HV0005': 'Lyft'
@@ -154,6 +155,7 @@ class CalculatePricePerAttribute(beam.CombineFn):
   hire vehicle service. And calculates the price per mile, minute, and trip
   for both the driver and passenger.
   """
+
   def create_accumulator(self):
     total_price = 0.0
     total_driver_pay = 0.0
@@ -180,13 +182,9 @@ class CalculatePricePerAttribute(beam.CombineFn):
     return (
         total_price + sum(
             record[name] for name in (
-                'base_passenger_fare',
-                'tolls',
-                'bcf',
-                'sales_tax',
-                'congestion_surcharge',
-                'airport_fee',
-                'tips') if record[name] is not None),
+                'base_passenger_fare', 'tolls', 'bcf', 'sales_tax',
+                'congestion_surcharge', 'airport_fee', 'tips')
+            if record[name] is not None),
         total_driver_pay + record['driver_pay'] + record['tips'],
         total_trip_miles + record['trip_miles'],
         total_trip_time + record['trip_time'],

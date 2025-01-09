@@ -91,6 +91,7 @@ train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
     'apache_beam.examples.snippets.transforms.elementwise.partition_multiple_arguments.print',
     lambda elem: elem)
 class PartitionTest(unittest.TestCase):
+
   def test_partition_function(self):
     partition_function.partition_function(check_partitions)
 

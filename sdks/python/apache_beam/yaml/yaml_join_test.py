@@ -27,6 +27,7 @@ from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class ToRow(beam.PTransform):
+
   def expand(self, pcoll):
     return pcoll | beam.Map(lambda row: beam.Row(**row._asdict()))
 
@@ -51,10 +52,11 @@ CATEGORIES = [
 
 
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
 class YamlJoinTest(unittest.TestCase):
+
   def test_basic_join(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

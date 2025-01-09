@@ -121,6 +121,7 @@ class PayloadBase(object):
 
 
 class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
+
   def get_payload_from_typing_hints(self, values):
     TestSchema = typing.NamedTuple(
         'TestSchema',
@@ -147,6 +148,7 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
   ImplicitSchemaPayloadBuilder works very differently than the other payload
   builders
   """
+
   def test_implicit_payload_builder(self):
     builder = ImplicitSchemaPayloadBuilder(PayloadBase.values)
     result = builder.build()
@@ -177,6 +179,7 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 
 
 class ExternalTransformTest(unittest.TestCase):
+
   def test_pipeline_generation(self):
     pipeline = beam.Pipeline()
     _ = (
@@ -389,7 +392,9 @@ Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'.
 
 
 class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
+
   def get_payload_from_typing_hints(self, values):
+
     class AnnotatedTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
 
@@ -418,6 +423,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
     return get_payload(AnnotatedTransform(**values))
 
   def get_payload_from_beam_typehints(self, values):
+
     class AnnotatedTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
 
@@ -447,7 +453,9 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
 
 
 class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
+
   def get_payload_from_typing_hints(self, values):
+
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
@@ -463,6 +471,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
     return get_payload(DataclassTransform(**values))
 
   def get_payload_from_beam_typehints(self, values):
+
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
@@ -479,6 +488,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
 
 
 class SchemaTransformPayloadBuilderTest(unittest.TestCase):
+
   def test_build_payload(self):
     ComplexType = typing.NamedTuple(
         "ComplexType", [
@@ -508,6 +518,7 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
 
 
 class SchemaAwareExternalTransformTest(unittest.TestCase):
+
   class MockDiscoveryService:
     # define context manager enter and exit functions
     def __enter__(self):
@@ -575,6 +586,7 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
+
   def _verify_row(self, schema, row_payload, expected_values):
     row = RowCoder(schema).decode(row_payload)
 
@@ -719,6 +731,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
 
 class JavaJarExpansionServiceTest(unittest.TestCase):
+
   def setUp(self):
     SubprocessServer._cache._live_owners = set()
 
@@ -743,6 +756,7 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
 
   @mock.patch.object(JavaJarServer, 'local_jar')
   def test_classpath_with_url(self, local_jar):
+
     def _side_effect_fn(path):
       return path[path.rindex('/') + 1:]
 
@@ -765,6 +779,7 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
 
   @mock.patch.object(JavaJarServer, 'local_jar')
   def test_classpath_with_gradle_artifact(self, local_jar):
+
     def _side_effect_fn(path):
       return path[path.rindex('/') + 1:]
 

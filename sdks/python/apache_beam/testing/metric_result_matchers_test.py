@@ -103,6 +103,7 @@ def _create_metric_result(data_dict):
 
 
 class MetricResultMatchersTest(unittest.TestCase):
+
   def test_matches_all_for_counter(self):
     metric_result = _create_metric_result(EVERYTHING_COUNTER)
     matcher = MetricResultMatcher(

@@ -99,6 +99,7 @@ def union_list(xs, ys):
 
 
 class Const(object):
+
   def __init__(self, value):
     self.value = value
     self.type = instance_to_type(value)
@@ -126,6 +127,7 @@ class Const(object):
 class FrameState(object):
   """Stores the state of the frame at a particular point of execution.
   """
+
   def __init__(self, f, local_vars=None, stack=(), kw_names=None):
     self.f = f
     self.co = f.__code__
@@ -209,6 +211,7 @@ def union(a, b):
 
 def finalize_hints(type_hint):
   """Sets type hint for empty data structures to Any."""
+
   def visitor(tc, unused_arg):
     if isinstance(tc, typehints.DictConstraint):
       empty_union = typehints.Union[()]
@@ -258,6 +261,7 @@ known_return_types = {
 class BoundMethod(object):
   """Used to create a bound method when we only know the type of the instance.
   """
+
   def __init__(self, func, type):
     """Instantiates a bound method object.
 
@@ -546,8 +550,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # See https://github.com/python/cpython/issues/102403 for context.
         if (pop_count == 1 and last_real_opname == 'GET_ITER' and
             len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
-            getattr(state.stack[-2].value, '__name__', None) in (
-                '<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
+            getattr(state.stack[-2].value, '__name__', None)
+            in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
           pop_count += 1
         if depth <= 0 or pop_count > len(state.stack):
           return_type = Any

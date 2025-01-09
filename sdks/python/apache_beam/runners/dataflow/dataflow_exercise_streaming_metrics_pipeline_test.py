@@ -50,6 +50,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
+
   def setUp(self):
     """Creates all required topics and subs."""
     self.test_pipeline = TestPipeline(is_integration_test=True)

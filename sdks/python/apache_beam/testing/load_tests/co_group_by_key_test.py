@@ -96,6 +96,7 @@ class CoGroupByKeyTest(LoadTest):
     self.iterations = self.get_option_or_default('iterations', 1)
 
   class _UngroupAndReiterate(beam.DoFn):
+
     def __init__(self, input_tag, co_input_tag):
       self.input_tag = input_tag
       self.co_input_tag = co_input_tag

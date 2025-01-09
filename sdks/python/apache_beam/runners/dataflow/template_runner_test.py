@@ -40,6 +40,7 @@ except ImportError:
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class TemplatingDataflowRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
+
   def test_full_completion(self):
     # Create dummy file and close it.  Note that we need to do this because
     # Windows does not allow NamedTemporaryFiles to be reopened elsewhere

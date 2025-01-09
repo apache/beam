@@ -24,6 +24,7 @@ from uuid import uuid4
 
 # Registry of typings for a schema by UUID
 class SchemaTypeRegistry(object):
+
   def __init__(self):
     self.by_id = {}
     self.by_typing = {}

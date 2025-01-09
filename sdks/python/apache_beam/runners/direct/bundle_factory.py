@@ -40,6 +40,7 @@ class BundleFactory(object):
       in case consecutive ones share the same timestamp and windows.
       DirectRunnerOptions.direct_runner_use_stacked_bundle controls this option.
   """
+
   def __init__(self, stacked: bool) -> None:
     self._stacked = stacked
 
@@ -78,6 +79,7 @@ class _Bundle(common.Receiver):
 
     b = Bundle(stacked=False)
   """
+
   class _StackedWindowedValues(object):
     """A stack of WindowedValues with the same timestamp and windows.
 
@@ -92,6 +94,7 @@ class _Bundle(common.Receiver):
       windowed_values = [wv for wv in s.windowed_values()]
       # now windowed_values equals to [windowed_value, another_windowed_value]
     """
+
     def __init__(self, initial_windowed_value):
       self._initial_windowed_value = initial_windowed_value
       self._appended_values = []

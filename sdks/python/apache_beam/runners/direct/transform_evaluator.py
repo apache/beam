@@ -182,6 +182,7 @@ class TransformEvaluatorRegistry(object):
 
 class RootBundleProvider(object):
   """Provides bundles for the initial execution of a root transform."""
+
   def __init__(self, evaluation_context, applied_ptransform):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
@@ -192,6 +193,7 @@ class RootBundleProvider(object):
 
 class DefaultRootBundleProvider(RootBundleProvider):
   """Provides an empty bundle by default for root transforms."""
+
   def get_root_bundles(self):
     input_node = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
     empty_bundle = (
@@ -206,6 +208,7 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
   bundle emitted from the TestStream afterwards is its state: index into the
   stream, and the watermark.
   """
+
   def get_root_bundles(self):
     test_stream = self._applied_ptransform.transform
 
@@ -230,6 +233,7 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
 
 class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
+
   def __init__(
       self,
       evaluation_context: 'EvaluationContext',
@@ -354,8 +358,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
       return self._split_list_into_bundles(
           output_pcollection,
           read_result,
-          _BoundedReadEvaluator.MAX_ELEMENT_PER_BUNDLE,
-          lambda _: 1)
+          _BoundedReadEvaluator.MAX_ELEMENT_PER_BUNDLE, lambda _: 1)
 
     if isinstance(self._source, io.iobase.BoundedSource):
       # Getting a RangeTracker for the default range of the source and reading
@@ -451,6 +454,7 @@ class _PairWithTimingEvaluator(_TransformEvaluator):
   KV(element, `TimingInfo`). Where the `TimingInfo` contains both the
   processing time timestamp and watermark.
   """
+
   def __init__(
       self,
       evaluation_context,
@@ -727,6 +731,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
 class _FlattenEvaluator(_TransformEvaluator):
   """TransformEvaluator for Flatten transform."""
+
   def __init__(
       self,
       evaluation_context,
@@ -755,6 +760,7 @@ class _FlattenEvaluator(_TransformEvaluator):
 
 class _ImpulseEvaluator(_TransformEvaluator):
   """TransformEvaluator for Impulse transform."""
+
   def finish_bundle(self):
     assert len(self._outputs) == 1
     output_pcollection = list(self._outputs)[0]
@@ -765,6 +771,7 @@ class _ImpulseEvaluator(_TransformEvaluator):
 
 class _TaggedReceivers(dict):
   """Received ParDo output and redirect to the associated output bundle."""
+
   def __init__(self, evaluation_context):
     self._evaluation_context = evaluation_context
     self._null_receiver = None
@@ -772,11 +779,13 @@ class _TaggedReceivers(dict):
 
   class NullReceiver(common.Receiver):
     """Ignores undeclared outputs, default execution mode."""
+
     def receive(self, element: WindowedValue) -> None:
       pass
 
   class _InMemoryReceiver(common.Receiver):
     """Buffers undeclared outputs to the given dictionary."""
+
     def __init__(self, target, tag):
       self._target = target
       self._tag = tag
@@ -792,6 +801,7 @@ class _TaggedReceivers(dict):
 
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
+
   def __init__(
       self,
       evaluation_context: 'EvaluationContext',
@@ -1048,6 +1058,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
   GroupAlsoByWindow operation is evaluated as a normal DoFn, as defined
   in transforms/core.py.
   """
+
   def __init__(
       self,
       evaluation_context,

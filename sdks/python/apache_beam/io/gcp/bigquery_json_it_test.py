@@ -137,6 +137,7 @@ class BigQueryJsonIT(unittest.TestCase):
       return json.loads(value)
 
     class CompareJson(beam.DoFn, unittest.TestCase):
+
       def process(self, row):
         country_code = row["country_code"]
         expected = json_data[country_code]

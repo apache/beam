@@ -254,6 +254,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
 
 
 class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
+
   def _consume_input(self, fn, input, checks):
     if checks is None:
       return
@@ -404,6 +405,7 @@ class TestPartitionFiles(unittest.TestCase):
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
+
   def test_trigger_load_jobs_with_empty_files(self):
     destination = "project:dataset.table"
     empty_files = []
@@ -799,6 +801,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     # Insert a fake clock to work with auto-sharding which needs a processing
     # time timer.
     class _FakeClock(object):
+
       def __init__(self, now=time.time()):
         self._now = now
 
@@ -827,12 +830,12 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       if is_streaming:
         _SIZE = len(_ELEMENTS)
         fisrt_batch = [
-            TimestampedValue(value, start_time + i + 1) for i,
-            value in enumerate(_ELEMENTS[:_SIZE // 2])
+            TimestampedValue(value, start_time + i + 1)
+            for i, value in enumerate(_ELEMENTS[:_SIZE // 2])
         ]
         second_batch = [
-            TimestampedValue(value, start_time + _SIZE // 2 + i + 1) for i,
-            value in enumerate(_ELEMENTS[_SIZE // 2:])
+            TimestampedValue(value, start_time + _SIZE // 2 + i + 1)
+            for i, value in enumerate(_ELEMENTS[_SIZE // 2:])
         ]
         # Advance processing time between batches of input elements to fire the
         # user triggers. Intentionally advance the processing time twice for the
@@ -1031,12 +1034,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
       _ = (
           input | "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-              table=lambda x,
-              tables:
+              table=lambda x, tables:
               (tables['table1'] if 'language' in x else tables['table2']),
               table_side_inputs=(table_record_pcv, ),
-              schema=lambda dest,
-              schema_map: schema_map.get(dest, None),
+              schema=lambda dest, schema_map: schema_map.get(dest, None),
               schema_side_inputs=(schema_map_pcv, ),
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
@@ -1045,8 +1046,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
           input | "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
               table=lambda x:
               (output_table_3 if 'language' in x else output_table_4),
-              schema=lambda dest,
-              schema_map: schema_map.get(dest, None),
+              schema=lambda dest, schema_map: schema_map.get(dest, None),
               schema_side_inputs=(schema_map_pcv, ),
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,

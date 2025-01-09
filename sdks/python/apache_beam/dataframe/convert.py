@@ -92,12 +92,14 @@ UNBATCHED_CACHE: 'weakref.WeakValueDictionary[str, pvalue.PCollection]' = (
 
 
 class RowsToDataFrameFn(beam.DoFn):
+
   @beam.DoFn.yields_elements
   def process_batch(self, batch: pd.DataFrame) -> Iterable[pd.DataFrame]:
     yield batch
 
 
 class ElementsToSeriesFn(beam.DoFn):
+
   @beam.DoFn.yields_elements
   def process_batch(self, batch: pd.Series) -> Iterable[pd.Series]:
     yield batch
@@ -136,6 +138,7 @@ def _make_unbatched_pcoll(
 
 
 class DataFrameToRowsFn(beam.DoFn):
+
   def __init__(self, proxy, include_indexes):
     self._proxy = proxy
     self._include_indexes = include_indexes
@@ -150,6 +153,7 @@ class DataFrameToRowsFn(beam.DoFn):
 
 
 class SeriesToElementsFn(beam.DoFn):
+
   def __init__(self, proxy):
     self._proxy = proxy
 
@@ -257,14 +261,14 @@ def to_pcollection(
         {ix: df._expr
          for (ix, df) in enumerate(new_dataframes)})
 
-    TO_PCOLLECTION_CACHE.update(
-        {new_dataframes[ix]._expr._id: pc
-         for ix, pc in new_results.items()})
+    TO_PCOLLECTION_CACHE.update({
+        new_dataframes[ix]._expr._id: pc
+        for ix, pc in new_results.items()
+    })
 
   raw_results = {
       ix: TO_PCOLLECTION_CACHE[df._expr._id]
-      for ix,
-      df in enumerate(dataframes)
+      for ix, df in enumerate(dataframes)
   }
 
   if yield_elements == "schemas":

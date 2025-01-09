@@ -44,6 +44,7 @@ def supported(runners):
     runners = [runners]
 
   def inner(fn):
+
     @wraps(fn)
     def wrapped(self):
       if self.runner_name not in runners:
@@ -59,6 +60,7 @@ def supported(runners):
 
 
 class TestStreamIntegrationTests(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
@@ -80,6 +82,7 @@ class TestStreamIntegrationTests(unittest.TestCase):
                          ]).advance_watermark_to_infinity())
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,
@@ -123,6 +126,7 @@ class TestStreamIntegrationTests(unittest.TestCase):
                 numbers_elements, tag='numbers'))
 
     class RecordFn(beam.DoFn):
+
       def process(
           self,
           element=beam.DoFn.ElementParam,

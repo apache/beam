@@ -56,6 +56,7 @@ def parse_s3_path(s3_path, object_optional=False):
 
 class S3IO(object):
   """S3 I/O client."""
+
   def __init__(self, client=None, options=None):
     if client is None and options is None:
       raise ValueError('Must provide one of client or options')
@@ -566,6 +567,7 @@ class S3IO(object):
 
 
 class S3Downloader(Downloader):
+
   def __init__(self, client, path, buffer_size):
     self._client = client
     self._path = path
@@ -602,6 +604,7 @@ class S3Downloader(Downloader):
 
 
 class S3Uploader(Uploader):
+
   def __init__(self, client, path, mime_type='application/octet-stream'):
     self._client = client
     self._path = path

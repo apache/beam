@@ -35,6 +35,7 @@ def _assign_chunk_id(chunk_id_fn: ChunkIdFn, chunk: Chunk):
 
 
 class ChunkingTransformProvider(MLTransformProvider):
+
   def __init__(self, chunk_id_fn: Optional[ChunkIdFn] = None):
     """Base class for chunking transforms in RAG pipelines.
 

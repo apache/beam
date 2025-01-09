@@ -32,6 +32,7 @@ default_options = render.RenderOptions._add_argparse_args(
 
 
 class RenderRunnerTest(unittest.TestCase):
+
   def test_basic_graph(self):
     p = beam.Pipeline()
     _ = (
@@ -80,6 +81,7 @@ class RenderRunnerTest(unittest.TestCase):
 
 
 class DotRequiringRenderingTest(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     try:

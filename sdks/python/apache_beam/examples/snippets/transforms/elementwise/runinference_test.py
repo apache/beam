@@ -93,6 +93,7 @@ PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dt
     'apache_beam.examples.snippets.transforms.elementwise.runinference_sklearn_keyed_model_handler.print',
     str)
 class RunInferenceTest(unittest.TestCase):
+
   def test_sklearn_unkeyed_model_handler(self):
     runinference_sklearn_unkeyed_model_handler.sklearn_unkeyed_model_handler(
         check_sklearn_unkeyed_model_handler)
@@ -105,6 +106,7 @@ class RunInferenceTest(unittest.TestCase):
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch('sys.stdout', new_callable=StringIO)
 class RunInferenceStdoutTest(unittest.TestCase):
+
   @pytest.mark.uses_pytorch
   def test_check_torch_keyed_model_handler(self, mock_stdout):
     runinference.torch_keyed_model_handler()

@@ -145,6 +145,7 @@ DONE = Sentinel.sentinel
 
 class FnApiWorkerStatusHandler(object):
   """FnApiWorkerStatusHandler handles worker status request from Runner. """
+
   def __init__(
       self,
       status_address,
@@ -276,8 +277,8 @@ class FnApiWorkerStatusHandler(object):
       return '-NOT AVAILABLE-'
 
   def _passed_lull_timeout_since_last_log(self) -> bool:
-    if (time.time() - self._last_lull_logged_secs >
-        self.log_lull_timeout_ns / 1e9):
+    if (time.time() - self._last_lull_logged_secs
+        > self.log_lull_timeout_ns / 1e9):
       self._last_lull_logged_secs = time.time()
       return True
     else:

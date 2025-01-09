@@ -37,6 +37,7 @@ except ImportError:
 
 class FakeClock(object):
   """A fake clock object implementing sleep() and recording calls."""
+
   def __init__(self):
     self.calls = []
 
@@ -46,6 +47,7 @@ class FakeClock(object):
 
 class FakeLogger(object):
   """A fake logger object implementing log() and recording calls."""
+
   def __init__(self):
     self.calls = []
 
@@ -73,6 +75,7 @@ def _test_no_retry_function(a, b):
 
 
 class RetryTest(unittest.TestCase):
+
   def setUp(self):
     self.clock = FakeClock()
     self.logger = FakeLogger()
@@ -204,6 +207,7 @@ class RetryTest(unittest.TestCase):
 
 
 class DummyClass(object):
+
   def __init__(self, results):
     self.index = 0
     self.results = results
@@ -225,6 +229,7 @@ class RetryStateTest(unittest.TestCase):
 
   The test_call_two_objects would test this inside the same test.
   """
+
   def test_two_failures(self):
     dummy = DummyClass(["Error", "Error", "Success"])
     dummy.func()

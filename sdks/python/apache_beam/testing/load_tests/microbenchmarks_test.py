@@ -59,6 +59,7 @@ from apache_beam.transforms.util import _BatchSizeEstimator
 
 
 class MicroBenchmarksLoadTest(LoadTest):
+
   def __init__(self):
     super().__init__()
 

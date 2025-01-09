@@ -47,6 +47,7 @@ coders_registry.register_coder(Animal, RowCoder)
 
 
 def matches_df(expected):
+
   def check_df_pcoll_equal(actual):
     actual = pd.concat(actual)
     sorted_actual = actual.sort_values(by=list(actual.columns)).reset_index(
@@ -157,6 +158,7 @@ def test_name_func(testcase_func, param_num, params):
 
 
 class SchemasTest(unittest.TestCase):
+
   def test_simple_df(self):
     expected = pd.DataFrame({
         'name': list(str(i) for i in range(5)),
@@ -265,6 +267,7 @@ class SchemasTest(unittest.TestCase):
         assert_that(res, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
   def assert_typehints_equal(self, left, right):
+
     def maybe_drop_rowtypeconstraint(typehint):
       if isinstance(typehint, row_type.RowTypeConstraint):
         return typehint.user_type
