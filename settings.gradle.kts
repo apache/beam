@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.17.6"
+  id("com.gradle.develocity") version "3.19"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
@@ -278,32 +278,27 @@ include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
 include(":sdks:python:container")
-include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
 include(":sdks:python:container:py312")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
-include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
 include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:direct")
-include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
 include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:xlang")
-include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
 include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:tox:pycommon")
-include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
@@ -355,3 +350,5 @@ include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
 include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:bqms")
+findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"

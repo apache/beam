@@ -23,7 +23,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
@@ -94,6 +93,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 		},
 		Logger:           s.logger, // TODO substitute with a configured logger.
 		artifactEndpoint: s.Endpoint(),
+		mw:               s.mw,
 	}
 	// Stop the idle timer when a new job appears.
 	if idleTimer := s.idleTimer.Load(); idleTimer != nil {
@@ -143,7 +143,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
-		case urns.TransformReshuffle:
+		case urns.TransformReshuffle, urns.TransformRedistributeArbitrarily, urns.TransformRedistributeByKey:
 			// Reshuffles use features we don't yet support, but we would like to
 			// support them by making them the no-op they are, and be precise about
 			// what we're ignoring.
@@ -226,8 +226,6 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 
 	// Inspect Windowing strategies for unsupported features.
 	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
-		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0), mtime.MaxTimestamp.Milliseconds())
-
 		// Both Closing behaviors are identical without additional trigger firings.
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY, pipepb.ClosingBehavior_EMIT_ALWAYS)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
