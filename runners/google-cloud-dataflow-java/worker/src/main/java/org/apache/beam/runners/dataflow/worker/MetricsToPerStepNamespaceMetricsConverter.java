@@ -92,7 +92,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    * @param metricName The {@link MetricName} that represents this counter.
    * @param value The counter value.
    * @return If the conversion succeeds, {@code MetricValue} that represents this counter. Otherwise
-   *     returns an empty optional
+   *     return an empty optional
    */
   private static Optional<MetricValue> convertCounterToMetricValue(
       MetricName metricName,

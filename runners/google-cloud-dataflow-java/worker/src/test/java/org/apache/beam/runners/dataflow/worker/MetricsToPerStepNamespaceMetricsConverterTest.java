@@ -393,19 +393,19 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
         MetricsToPerStepNamespaceMetricsConverter.convert(
             step, counters, gauges, emptyHistograms, parsedMetricNames);
 
-    DataflowGaugeValue gauge_value1 = new DataflowGaugeValue();
-    gauge_value1.setValue(5L);
+    DataflowGaugeValue gaugeValue1 = new DataflowGaugeValue();
+    gaugeValue1.setValue(5L);
 
-    DataflowGaugeValue gauge_value2 = new DataflowGaugeValue();
-    gauge_value2.setValue(10L);
+    DataflowGaugeValue gaugeValue2 = new DataflowGaugeValue();
+    gaugeValue2.setValue(10L);
 
-    DataflowGaugeValue gauge_value3 = new DataflowGaugeValue();
-    gauge_value3.setValue(0L); // zero valued
+    DataflowGaugeValue gaugeValue3 = new DataflowGaugeValue();
+    gaugeValue3.setValue(0L); // zero valued
 
     MetricValue expectedVal1 =
         new MetricValue()
             .setMetric("metric1")
-            .setValueGauge64(gauge_value1)
+            .setValueGauge64(gaugeValue1)
             .setMetricLabels(new HashMap<>());
 
     Map<String, String> val2LabelMap = new HashMap<>();
@@ -414,13 +414,13 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     MetricValue expectedVal2 =
         new MetricValue()
             .setMetric("metric2")
-            .setValueGauge64(gauge_value2)
+            .setValueGauge64(gaugeValue2)
             .setMetricLabels(val2LabelMap);
 
     MetricValue expectedVal3 =
         new MetricValue()
             .setMetric("metric3")
-            .setValueGauge64(gauge_value3)
+            .setValueGauge64(gaugeValue3)
             .setMetricLabels(new HashMap<>());
 
     assertThat(conversionResult.size(), equalTo(1));

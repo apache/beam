@@ -42,7 +42,7 @@ public class KafkaSinkMetrics {
 
   // Base Metric names
   private static final String RPC_LATENCY = "RpcLatency";
-  private static final String ESTIAMTED_BACKLOG_SIZE = "EstimatedBacklogSize";
+  private static final String ESTIMATED_BACKLOG_SIZE = "EstimatedBacklogSize";
 
   // Kafka Consumer Method names
   enum RpcMethod {
@@ -55,9 +55,9 @@ public class KafkaSinkMetrics {
   private static final String PARTITION_ID = "partition_id";
 
   /**
-   * Creates an Histogram metric to record RPC latency. Metric will have name.
+   * Creates a {@link Histogram} metric to record RPC latency with the name
    *
-   * <p>'RpcLatency*rpc_method:{method};topic_name:{topic};'
+   * <p>'RpcLatency*rpc_method:{method};topic_name:{topic};'.
    *
    * @param method Kafka method associated with this metric.
    * @param topic Kafka topic associated with this metric.
@@ -76,9 +76,9 @@ public class KafkaSinkMetrics {
   }
 
   /**
-   * Creates an Gauge metric to record per partition backlog. Metric will have name:
+   * Creates a {@link Gauge} metric to record per partition backlog with the name
    *
-   * <p>'EstimatedBacklogSize*topic_name:{topic};partitionId:{partitionId};'
+   * <p>'EstimatedBacklogSize*topic_name:{topic};partitionId:{partitionId};'.
    *
    * @param topic Kafka topic associated with this metric.
    * @param partitionId partition id associated with this metric.
@@ -89,9 +89,9 @@ public class KafkaSinkMetrics {
   }
 
   /**
-   * Creates an Gauge metric to record per partition backlog. Metric will have name:
+   * Creates a {@link Gauge} metric to record per partition backlog with the name
    *
-   * <p>'name'
+   * <p>'name'.
    *
    * @param name MetricName for the KafkaSink.
    * @return Counter.
@@ -111,7 +111,7 @@ public class KafkaSinkMetrics {
    */
   public static MetricName getMetricGaugeName(String topic, int partitionId) {
     LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
-        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIAMTED_BACKLOG_SIZE);
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
     nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
     nameBuilder.addLabel(TOPIC_LABEL, topic);
     return nameBuilder.build(METRICS_NAMESPACE);

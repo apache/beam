@@ -227,7 +227,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
         rawSizes.update(recordSize);
 
-        // Pass metrics to container.
         kafkaResults.updateKafkaMetrics();
         return true;
       } else { // -- (b)
@@ -308,6 +307,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
+      backlogBytes += pBacklog;
     }
 
     return backlogBytes;

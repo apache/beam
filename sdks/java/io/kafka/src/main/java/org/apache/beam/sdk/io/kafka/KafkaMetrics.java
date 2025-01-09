@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.value.AutoValue;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -75,20 +74,21 @@ public interface KafkaMetrics {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsImpl.class);
 
-    static HashMap<String, Histogram> latencyHistograms = new HashMap<String, Histogram>();
+    static ConcurrentHashMap<String, Histogram> latencyHistograms =
+        new ConcurrentHashMap<String, Histogram>();
 
-    abstract HashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();
+    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();
 
     static ConcurrentHashMap<String, Gauge> backlogGauges = new ConcurrentHashMap<String, Gauge>();
 
-    abstract HashMap<String, Long> perTopicPartitionBacklogs();
+    abstract ConcurrentHashMap<String, Long> perTopicPartitionBacklogs();
 
     abstract AtomicBoolean isWritable();
 
     public static KafkaMetricsImpl create() {
       return new AutoValue_KafkaMetrics_KafkaMetricsImpl(
-          new HashMap<String, ConcurrentLinkedQueue<Duration>>(),
-          new HashMap<String, Long>(),
+          new ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>>(),
+          new ConcurrentHashMap<String, Long>(),
           new AtomicBoolean(true));
     }
 
@@ -100,7 +100,7 @@ public interface KafkaMetrics {
         if (latencies == null) {
           latencies = new ConcurrentLinkedQueue<Duration>();
           latencies.add(elapsedTime);
-          perTopicRpcLatencies().put(topic, latencies);
+          perTopicRpcLatencies().putIfAbsent(topic, latencies);
         } else {
           latencies.add(elapsedTime);
         }
@@ -109,10 +109,8 @@ public interface KafkaMetrics {
 
     /**
      * @param topicName topicName
-     * @param partitionId partitionId for the topic Only included in the metric key if
-     *     'supportsMetricsDeletion' is enabled.
-     * @param backlog backlog for the topic Only included in the metric key if
-     *     'supportsMetricsDeletion' is enabled.
+     * @param partitionId partitionId
+     * @param backlog backlog for the specific partitionID of topicName
      */
     @Override
     public void updateBacklogBytes(String topicName, int partitionId, long backlog) {
