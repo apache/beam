@@ -223,7 +223,10 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 						KeyDec:      kd,
 					}
 				}
-				em.StageAggregates(stage.ID)
+				ws := windowingStrategy(comps, tid)
+				em.StageAggregates(stage.ID, engine.WinStrat{
+					AllowedLateness: time.Duration(ws.GetAllowedLateness()) * time.Millisecond,
+				})
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
 				em.AddStage(stage.ID, nil, []string{getOnlyValue(t.GetOutputs())}, nil)
@@ -266,11 +269,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					case *pipepb.TestStreamPayload_Event_ElementEvent:
 						var elms []engine.TestStreamElement
 						for _, e := range ev.ElementEvent.GetElements() {
-							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.Time(e.GetTimestamp())})
+							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.FromMilliseconds(e.GetTimestamp())})
 						}
 						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
 					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
-						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.Time(ev.WatermarkEvent.GetNewWatermark()))
+						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.FromMilliseconds(ev.WatermarkEvent.GetNewWatermark()))
 					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:
 						if ev.ProcessingTimeEvent.GetAdvanceDuration() == int64(mtime.MaxTimestamp) {
 							// TODO: Determine the SDK common formalism for setting processing time to infinity.

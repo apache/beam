@@ -96,9 +96,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerEarly',
     'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle',
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
-    // Requires Allowed Lateness, among others.
-    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
     'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate',
     'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode',
     'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
@@ -115,10 +112,6 @@ def sickbayTests = [
 
     // Coding error somehow: short write: reached end of stream after reading 5 bytes; 98 bytes expected
     'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
-
-    // Prism not firing sessions correctly (seems to be merging inapppropriately)
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine',
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
 
     // Java side dying during execution.
     // https://github.com/apache/beam/issues/32930
@@ -160,14 +153,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata',
     // TODO(https://github.com/apache/beam/issues/31231)
     'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata',
-
-
-    // These tests fail once Late Data was being precisely dropped.
-    // They set a single element to be late data, and expect it (correctly) to be preserved.
-    // Since presently, these are treated as No-ops, the fix is to disable the
-    // dropping behavior when a stage's input is a Reshuffle/Redistribute transform.
-    'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-    'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeWithTimestampsStreaming',
 
     // Prism isn't handling Java's side input views properly.
     // https://github.com/apache/beam/issues/32932

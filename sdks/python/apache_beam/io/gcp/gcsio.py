@@ -620,8 +620,29 @@ class BeamBlobReader(BlobReader):
       blob,
       chunk_size=DEFAULT_READ_BUFFER_SIZE,
       enable_read_bucket_metric=False,
-      retry=DEFAULT_RETRY):
-    super().__init__(blob, chunk_size=chunk_size, retry=retry)
+      retry=DEFAULT_RETRY,
+      raw_download=True):
+    # By default, we always request to retrieve raw data from GCS even if the
+    # object meets the criteria of decompressive transcoding
+    # (https://cloud.google.com/storage/docs/transcoding).
+    super().__init__(
+        blob, chunk_size=chunk_size, retry=retry, raw_download=raw_download)
+    # TODO: Remove this after
+    # https://github.com/googleapis/python-storage/issues/1406 is fixed.
+    # As a workaround, we manually trigger a reload here. Otherwise, an internal
+    # call of reader.seek() will cause an exception if raw_download is set
+    # when initializing BlobReader(),
+    blob.reload()
+
+    # TODO: Currently there is a bug in GCS server side when a client requests
+    # a file with "content-encoding=gzip" and "content-type=application/gzip" or
+    # "content-type=application/x-gzip", which will lead to infinite loop.
+    # We skip the support of this type of files until the GCS bug is fixed.
+    # Internal bug id: 203845981.
+    if (blob.content_encoding == "gzip" and
+        blob.content_type in ["application/gzip", "application/x-gzip"]):
+      raise NotImplementedError("Doubly compressed files not supported.")
+
     self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
 

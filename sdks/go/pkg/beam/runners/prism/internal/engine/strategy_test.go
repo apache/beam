@@ -26,15 +26,16 @@ import (
 
 func TestEarliestCompletion(t *testing.T) {
 	tests := []struct {
-		strat winStrat
+		strat WinStrat
 		input typex.Window
 		want  mtime.Time
 	}{
-		{defaultStrat{}, window.GlobalWindow{}, mtime.EndOfGlobalWindowTime},
-		{defaultStrat{}, window.IntervalWindow{Start: 0, End: 4}, 3},
-		{defaultStrat{}, window.IntervalWindow{Start: mtime.MinTimestamp, End: mtime.MaxTimestamp}, mtime.MaxTimestamp - 1},
-		{sessionStrat{}, window.IntervalWindow{Start: 0, End: 4}, 3},
-		{sessionStrat{GapSize: 3 * time.Millisecond}, window.IntervalWindow{Start: 0, End: 4}, 6},
+		{WinStrat{}, window.GlobalWindow{}, mtime.EndOfGlobalWindowTime},
+		{WinStrat{}, window.IntervalWindow{Start: 0, End: 4}, 3},
+		{WinStrat{}, window.IntervalWindow{Start: mtime.MinTimestamp, End: mtime.MaxTimestamp}, mtime.MaxTimestamp - 1},
+		{WinStrat{AllowedLateness: 5 * time.Second}, window.GlobalWindow{}, mtime.EndOfGlobalWindowTime.Add(5 * time.Second)},
+		{WinStrat{AllowedLateness: 5 * time.Millisecond}, window.IntervalWindow{Start: 0, End: 4}, 8},
+		{WinStrat{AllowedLateness: 5 * time.Second}, window.IntervalWindow{Start: mtime.MinTimestamp, End: mtime.MaxTimestamp}, mtime.MaxTimestamp.Add(5 * time.Second)},
 	}
 
 	for _, test := range tests {
