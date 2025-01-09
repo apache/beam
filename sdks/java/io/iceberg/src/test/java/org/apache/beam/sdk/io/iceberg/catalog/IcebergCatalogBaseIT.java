@@ -28,10 +28,13 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -65,6 +68,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
@@ -74,7 +78,10 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.DateTimeUtil;
+import org.apache.iceberg.util.PartitionUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -295,6 +302,22 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return expectedRows;
   }
 
+  private static Map<Integer, ?> constantsMap(
+      FileScanTask task,
+      BiFunction<Type, Object, Object> converter,
+      org.apache.iceberg.Schema schema) {
+    PartitionSpec spec = task.spec();
+    Set<Integer> idColumns = spec.identitySourceIds();
+    org.apache.iceberg.Schema partitionSchema = TypeUtil.select(schema, idColumns);
+    boolean projectsIdentityPartitionColumns = !partitionSchema.columns().isEmpty();
+
+    if (projectsIdentityPartitionColumns) {
+      return PartitionUtil.constantsMap(task, converter);
+    } else {
+      return Collections.emptyMap();
+    }
+  }
+
   private List<Record> readRecords(Table table) {
     org.apache.iceberg.Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
@@ -303,13 +326,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       InputFilesDecryptor descryptor =
           new InputFilesDecryptor(task, table.io(), table.encryption());
       for (FileScanTask fileTask : task.files()) {
+        Map<Integer, ?> idToConstants =
+            constantsMap(fileTask, IdentityPartitionConverters::convertConstant, tableSchema);
         InputFile inputFile = descryptor.getInputFile(fileTask);
         CloseableIterable<Record> iterable =
             Parquet.read(inputFile)
                 .split(fileTask.start(), fileTask.length())
                 .project(tableSchema)
                 .createReaderFunc(
-                    fileSchema -> GenericParquetReaders.buildReader(tableSchema, fileSchema))
+                    fileSchema ->
+                        GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
                 .filter(fileTask.residual())
                 .build();
 
