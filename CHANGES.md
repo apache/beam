@@ -162,7 +162,6 @@
 
 * [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
   * Fixed in 2.62.0
-  * Dataflow runner will upgrade to a version where this is fixed.
 
 # [2.60.0] - 2024-10-17
 
@@ -220,7 +219,6 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Fixed in 2.61.0.
 * [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
   * Fixed in 2.62.0
-  * Dataflow runner will upgrade to a version where this is fixed.
 
 # [2.59.0] - 2024-09-11
 
@@ -271,7 +269,6 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Fixed in 2.61.0.
 * [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)). 
   * Fixed in 2.62.0
-  * Dataflow runner will upgrade to a version where this is fixed.
 
 # [2.58.1] - 2024-08-15
 
