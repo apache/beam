@@ -77,8 +77,8 @@ def write_to_text(pcoll, path: str):
   """
   try:
     field_names = [
-        name for name, _ in schemas.named_fields_from_element_type(
-            pcoll.element_type)
+        name for name,
+        _ in schemas.named_fields_from_element_type(pcoll.element_type)
     ]
   except Exception as exn:
     raise ValueError(
@@ -167,9 +167,7 @@ def write_to_bigquery(
         described at https://beam.apache.org/documentation/sdks/yaml-errors/
         Otherwise permanently failing records will cause pipeline failure.
   """
-
   class WriteToBigQueryHandlingErrors(beam.PTransform):
-
     def default_label(self):
       return 'WriteToBigQuery'
 
@@ -238,7 +236,8 @@ def _create_parser(
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
     return (
-        beam_schema, lambda record: covert_to_row(
+        beam_schema,
+        lambda record: covert_to_row(
             fastavro.schemaless_reader(
                 fo=io.BytesIO(record), writer_schema=schema)))
   else:
