@@ -43,7 +43,7 @@ function should_teardown() {
 gcloud container clusters get-credentials io-datastores --zone us-central1-a --project apache-beam-testing
 
 while read NAME STATUS AGE; do
-  if [[ $NAME =~ ^beam-.+(test|-it) ]] && should_teardown $AGE; then
+  if [[ $NAME =~ ^beam-.+(test|-it)(?!s-singlestoreio-12661373176) ]] && should_teardown $AGE; then
     kubectl delete namespace $NAME
   fi
 done < <( kubectl get namespaces --context=gke_${PROJECT}_${LOCATION}_${CLUSTER} )
