@@ -63,38 +63,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## New Features / Improvements
-
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
-
-## Breaking Changes
-
-* AWS V1 I/Os have been removed (Java). As part of this, x-lang Python Kinesis I/O has been updated to consume the V2 IO and it also no longer supports setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
-* Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)), but forced Debezium IO to use protobuf 3 ([#33541](https://github.com/apache/beam/issues/33541) because Debezium clients are not protobuf 4 compatible. This may cause conflicts when using clients which are only compatible with protobuf 4.
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-
-## Bugfixes
-
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* [BigQueryIO] Fixed an issue where Storage Write API sometimes doesn't pick up auto-schema updates ([#33231](https://github.com/apache/beam/pull/33231))
-
-## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
-
-# [2.62.0] - Unreleased
-
-## I/Os
-
 * gcs-connector config options can be set via GcsOptions (Java) ([#32769](https://github.com/apache/beam/pull/32769)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [Managed Iceberg] Support partitioning by time (year, month, day, hour) for types `date`, `time`, `timestamp`, and `timestamp(tz)` ([#32939](https://github.com/apache/beam/pull/32939))
