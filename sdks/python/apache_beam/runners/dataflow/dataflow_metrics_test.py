@@ -309,8 +309,8 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
-                          },  # yapf: disable
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount" # pylint: disable=line-too-long
+                          },
                           {
                               "key": "output_user_name",
                               "value": "ToIsmRecordForMultimap-out0"
@@ -332,8 +332,8 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
-                          },  # yapf: disable
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount" # pylint: disable=line-too-long
+                          },
                           {
                               "key": "output_user_name",
                               "value": "ToIsmRecordForMultimap-out0"
