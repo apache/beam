@@ -18,7 +18,7 @@
 #    Deletes stale and old BQ datasets that are left after tests.
 #
 
-set -exuo pipefail
+set -euo pipefail
 
 # Clean up the stale kubernetes workload of given cluster
 
@@ -43,6 +43,7 @@ function should_teardown() {
 gcloud container clusters get-credentials io-datastores --zone us-central1-a --project apache-beam-testing
 
 while read NAME STATUS AGE; do
+  # Regex has temporary workaround to avoid trying to delete already deleted beam-performancetests-singlestoreio-12661373176
   if [[ $NAME =~ ^beam-.+(test|-it)(?!s-singlestoreio-12661373176) ]] && should_teardown $AGE; then
     kubectl delete namespace $NAME
   fi
