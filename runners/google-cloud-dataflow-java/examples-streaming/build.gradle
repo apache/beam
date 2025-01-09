@@ -70,7 +70,7 @@ task windmillVirtualThreadPreCommit(type: Test) {
           "--tempRoot=${gcsTempRoot}",
           "--runner=TestDataflowRunner",
           "--dataflowWorkerJar=${dataflowWorkerJar}",
-          "--workerHarnessContainerImage=",
+//          "--workerHarnessContainerImage=",
           "--streaming=true",
           "--enableStreamingEngine",
           "--virtualHarnessThreads=true",
@@ -112,5 +112,7 @@ task preCommit(type: Test) {
   dependsOn appliancePreCommit
   dependsOn windmillPreCommit
   dependsOn windmillVirtualThreadPreCommit
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
 }
-
