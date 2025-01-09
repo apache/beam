@@ -267,7 +267,7 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
   * Fixed in 2.61.0.
-* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)). 
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
   * Fixed in 2.62.0
 
 # [2.58.1] - 2024-08-15
