@@ -21,11 +21,15 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
@@ -41,8 +45,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * encode/decode it. This class is an identical version that can be used as a PCollection element
  * type.
  *
- * <p>Use {@link #from(DataFile, PartitionKey)} to create a {@link SerializableDataFile} and {@link
- * #createDataFile(PartitionSpec)} to reconstruct the original {@link DataFile}.
+ * <p>Use {@link #from(DataFile, String)} to create a {@link SerializableDataFile} and {@link
+ * #createDataFile(Map)} to reconstruct the original {@link DataFile}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -198,5 +202,54 @@ abstract class SerializableDataFile {
       output.put(e.getKey(), ByteBuffer.wrap(e.getValue()));
     }
     return output;
+  }
+
+  @Override
+  @SuppressWarnings("EqualsHashCode")
+  public final boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SerializableDataFile that = (SerializableDataFile) o;
+    return getPath().equals(that.getPath())
+        && getFileFormat().equals(that.getFileFormat())
+        && getRecordCount() == that.getRecordCount()
+        && getFileSizeInBytes() == that.getFileSizeInBytes()
+        && getPartitionPath().equals(that.getPartitionPath())
+        && getPartitionSpecId() == that.getPartitionSpecId()
+        && Objects.equals(getKeyMetadata(), that.getKeyMetadata())
+        && Objects.equals(getSplitOffsets(), that.getSplitOffsets())
+        && Objects.equals(getColumnSizes(), that.getColumnSizes())
+        && Objects.equals(getValueCounts(), that.getValueCounts())
+        && Objects.equals(getNullValueCounts(), that.getNullValueCounts())
+        && Objects.equals(getNanValueCounts(), that.getNanValueCounts())
+        && mapEquals(getLowerBounds(), that.getLowerBounds())
+        && mapEquals(getUpperBounds(), that.getUpperBounds());
+  }
+
+  private static boolean mapEquals(
+      @Nullable Map<Integer, byte[]> map1, @Nullable Map<Integer, byte[]> map2) {
+    if (map1 == null && map2 == null) {
+      return true;
+    } else if (map1 == null || map2 == null) {
+      return false;
+    }
+    Equivalence<byte[]> byteArrayEquivalence =
+        new Equivalence<byte[]>() {
+          @Override
+          protected boolean doEquivalent(byte[] a, byte[] b) {
+            return Arrays.equals(a, b);
+          }
+
+          @Override
+          protected int doHash(byte[] bytes) {
+            return Arrays.hashCode(bytes);
+          }
+        };
+
+    return Maps.difference(map1, map2, byteArrayEquivalence).areEqual();
   }
 }
