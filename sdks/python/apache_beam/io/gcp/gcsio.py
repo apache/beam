@@ -35,8 +35,8 @@ import time
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import RetryError
 from google.cloud import storage
-from google.cloud.exceptions import GoogleCloudError
 from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import from_http_response
 from google.cloud.storage.fileio import BlobReader
@@ -293,7 +293,7 @@ class GcsIO(object):
 
     try:
       run_with_retry()
-    except GoogleCloudError:
+    except RetryError:
       pass
 
     return responses

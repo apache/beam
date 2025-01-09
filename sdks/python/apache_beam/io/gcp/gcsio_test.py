@@ -477,6 +477,27 @@ class TestGCSIO(unittest.TestCase):
           'gs://gcsio-test/non-existent',
           'gs://gcsio-test/non-existent-destination')
 
+  @staticmethod
+  def _fake_batch_responses(status_codes):
+    return mock.Mock(
+        __enter__=mock.Mock(),
+        __exit__=mock.Mock(),
+        _responses=[
+            mock.Mock(
+                **{
+                    'json.return_value': {
+                        'error': {
+                            'message': 'error'
+                        }
+                    },
+                    'request.method': 'BATCH',
+                    'request.url': 'contentid://None',
+                },
+                status_code=code,
+            ) for code in status_codes
+        ],
+    )
+
   @mock.patch('apache_beam.io.gcp.gcsio.MAX_BATCH_OPERATION_SIZE', 3)
   @mock.patch('time.sleep', mock.Mock())
   def test_copy_batch(self):
@@ -484,38 +505,17 @@ class TestGCSIO(unittest.TestCase):
         (f'gs://source_bucket/file{i}.txt', f'gs://dest_bucket/file{i}.txt')
         for i in range(7)
     ]
-
-    def _fake_responses(status_codes):
-      return mock.Mock(
-          __enter__=mock.Mock(),
-          __exit__=mock.Mock(),
-          _responses=[
-              mock.Mock(
-                  **{
-                      'json.return_value': {
-                          'error': {
-                              'message': 'error'
-                          }
-                      },
-                      'request.method': 'BATCH',
-                      'request.url': 'contentid://None',
-                  },
-                  status_code=code,
-              ) for code in status_codes
-          ],
-      )
-
     gcs_io = gcsio.GcsIO(
         storage_client=mock.Mock(
             batch=mock.Mock(
                 side_effect=[
-                    _fake_responses([200, 404, 429]),
-                    _fake_responses([429]),
-                    _fake_responses([429]),
-                    _fake_responses([200]),
-                    _fake_responses([200, 429, 200]),
-                    _fake_responses([200]),
-                    _fake_responses([200]),
+                    self._fake_batch_responses([200, 404, 429]),
+                    self._fake_batch_responses([429]),
+                    self._fake_batch_responses([429]),
+                    self._fake_batch_responses([200]),
+                    self._fake_batch_responses([200, 429, 200]),
+                    self._fake_batch_responses([200]),
+                    self._fake_batch_responses([200]),
                 ]),
         ))
     results = gcs_io.copy_batch(src_dest_pairs)
@@ -527,6 +527,21 @@ class TestGCSIO(unittest.TestCase):
         ('gs://source_bucket/file4.txt', 'gs://dest_bucket/file4.txt', None),
         ('gs://source_bucket/file5.txt', 'gs://dest_bucket/file5.txt', None),
         ('gs://source_bucket/file6.txt', 'gs://dest_bucket/file6.txt', None),
+    ]
+    self.assertEqual(results, expected)
+
+  @mock.patch('time.sleep', mock.Mock())
+  @mock.patch('time.monotonic', mock.Mock(side_effect=[0, 120]))
+  def test_copy_batch_timeout_exceeded(self):
+    src_dest_pairs = [
+        ('gs://source_bucket/file0.txt', 'gs://dest_bucket/file0.txt')
+    ]
+    gcs_io = gcsio.GcsIO(
+        storage_client=mock.Mock(
+            batch=mock.Mock(side_effect=[self._fake_batch_responses([429])])))
+    results = gcs_io.copy_batch(src_dest_pairs)
+    expected = [
+        ('gs://source_bucket/file0.txt', 'gs://dest_bucket/file0.txt', 429),
     ]
     self.assertEqual(results, expected)
 
