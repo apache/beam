@@ -18,7 +18,7 @@
 #    Deletes stale and old BQ datasets that are left after tests.
 #
 
-set -euo pipefail
+set -exuo pipefail
 
 # Clean up the stale kubernetes workload of given cluster
 
