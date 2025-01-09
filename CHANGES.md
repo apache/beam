@@ -115,7 +115,7 @@
 ## Bugfixes
 
 * Fixed EventTimeTimer ordering in Prism. ([#32222](https://github.com/apache/beam/issues/32222)).
-* [Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values ([]()).
+* [Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values ([#33549](https://github.com/apache/beam/pull/33549)).
 
 ## Security Fixes
 
