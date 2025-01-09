@@ -44,6 +44,8 @@ gcloud container clusters get-credentials io-datastores --zone us-central1-a --p
 
 while read NAME STATUS AGE; do
   # Regex has temporary workaround to avoid trying to delete already deleted beam-performancetests-singlestoreio-12661373176
+  # See https://github.com/apache/beam/pull/33545 for context.
+  # This may be safe to remove if the system has healed, just try it before checking in :)
   if [[ $NAME =~ ^beam-.+(test|-it)(?!s-singlestoreio-12661373176) ]] && should_teardown $AGE; then
     kubectl delete namespace $NAME
   fi
