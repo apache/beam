@@ -80,6 +80,7 @@
 
 ## Bugfixes
 
+* Fix data loss issues when reading gzipped files with TextIO (Python) ([#18390](https://github.com/apache/beam/issues/18390), [#31040](https://github.com/apache/beam/issues/31040)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [BigQueryIO] Fixed an issue where Storage Write API sometimes doesn't pick up auto-schema updates ([#33231](https://github.com/apache/beam/pull/33231))
 
