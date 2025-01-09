@@ -27,6 +27,7 @@ from collections import defaultdict
 from typing import Any
 from typing import SupportsInt
 
+from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import StringSetData
@@ -102,6 +103,8 @@ class DirectMetrics(MetricResults):
         lambda: DirectMetric(GenericAggregator(GaugeData)))
     self._string_sets = defaultdict(
         lambda: DirectMetric(GenericAggregator(StringSetData)))
+    self._bounded_tries = defaultdict(
+        lambda: DirectMetric(GenericAggregator(BoundedTrieData)))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -115,6 +118,9 @@ class DirectMetrics(MetricResults):
 
     for k, v in updates.string_sets.items():
       op(self._string_sets[k], bundle, v)
+
+    for k, v in updates.bounded_tries.items():
+      op(self._bounded_tries[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
@@ -157,12 +163,20 @@ class DirectMetrics(MetricResults):
             v.extract_latest_attempted()) for k,
         v in self._string_sets.items() if self.matches(filter, k)
     ]
+    bounded_tries = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._bounded_tries.items() if self.matches(filter, k)
+    ]
 
     return {
         self.COUNTERS: counters,
         self.DISTRIBUTIONS: distributions,
         self.GAUGES: gauges,
-        self.STRINGSETS: string_sets
+        self.STRINGSETS: string_sets,
+        self.BOUNDED_TRIES: bounded_tries,
     }
 
 

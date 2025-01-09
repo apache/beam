@@ -21,11 +21,13 @@ import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Types;
 
@@ -34,58 +36,75 @@ public class TestFixtures {
       new Schema(
           required(1, "id", Types.LongType.get()), optional(2, "data", Types.StringType.get()));
 
-  private static final Record genericRecord = GenericRecord.create(SCHEMA);
+  public static final List<Map<String, Object>> FILE1SNAPSHOT1_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 0L, "data", "clarification"),
+          ImmutableMap.of("id", 1L, "data", "risky"),
+          ImmutableMap.of("id", 2L, "data", "falafel"));
+  public static final List<Map<String, Object>> FILE1SNAPSHOT2_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 3L, "data", "obscure"),
+          ImmutableMap.of("id", 4L, "data", "secure"),
+          ImmutableMap.of("id", 5L, "data", "feta"));
+  public static final List<Map<String, Object>> FILE1SNAPSHOT3_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 6L, "data", "brainy"),
+          ImmutableMap.of("id", 7L, "data", "film"),
+          ImmutableMap.of("id", 8L, "data", "feta"));
+  public static final List<Map<String, Object>> FILE2SNAPSHOT1_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 10L, "data", "clammy"),
+          ImmutableMap.of("id", 11L, "data", "evacuate"),
+          ImmutableMap.of("id", 12L, "data", "tissue"));
+  public static final List<Map<String, Object>> FILE2SNAPSHOT2_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 14L, "data", "radical"),
+          ImmutableMap.of("id", 15L, "data", "collocation"),
+          ImmutableMap.of("id", 16L, "data", "book"));
+  public static final List<Map<String, Object>> FILE2SNAPSHOT3_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 16L, "data", "cake"),
+          ImmutableMap.of("id", 17L, "data", "intrinsic"),
+          ImmutableMap.of("id", 18L, "data", "paper"));
+  public static final List<Map<String, Object>> FILE3SNAPSHOT1_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 20L, "data", "ocean"),
+          ImmutableMap.of("id", 21L, "data", "holistic"),
+          ImmutableMap.of("id", 22L, "data", "preventative"));
+  public static final List<Map<String, Object>> FILE3SNAPSHOT2_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 24L, "data", "cloud"),
+          ImmutableMap.of("id", 25L, "data", "zen"),
+          ImmutableMap.of("id", 26L, "data", "sky"));
+  public static final List<Map<String, Object>> FILE3SNAPSHOT3_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 26L, "data", "belleview"),
+          ImmutableMap.of("id", 27L, "data", "overview"),
+          ImmutableMap.of("id", 28L, "data", "tender"));
 
   /* First file in test table */
-  public static final ImmutableList<Record> FILE1SNAPSHOT1 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 0L, "data", "clarification")),
-          genericRecord.copy(ImmutableMap.of("id", 1L, "data", "risky")),
-          genericRecord.copy(ImmutableMap.of("id", 2L, "data", "falafel")));
-  public static final ImmutableList<Record> FILE1SNAPSHOT2 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 3L, "data", "obscure")),
-          genericRecord.copy(ImmutableMap.of("id", 4L, "data", "secure")),
-          genericRecord.copy(ImmutableMap.of("id", 5L, "data", "feta")));
-  public static final ImmutableList<Record> FILE1SNAPSHOT3 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 6L, "data", "brainy")),
-          genericRecord.copy(ImmutableMap.of("id", 7L, "data", "film")),
-          genericRecord.copy(ImmutableMap.of("id", 8L, "data", "feta")));
+  public static final List<Record> FILE1SNAPSHOT1 =
+      Lists.transform(FILE1SNAPSHOT1_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE1SNAPSHOT2 =
+      Lists.transform(FILE1SNAPSHOT2_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE1SNAPSHOT3 =
+      Lists.transform(FILE1SNAPSHOT3_DATA, d -> createRecord(SCHEMA, d));
 
   /* Second file in test table */
-  public static final ImmutableList<Record> FILE2SNAPSHOT1 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 10L, "data", "clammy")),
-          genericRecord.copy(ImmutableMap.of("id", 11L, "data", "evacuate")),
-          genericRecord.copy(ImmutableMap.of("id", 12L, "data", "tissue")));
-  public static final ImmutableList<Record> FILE2SNAPSHOT2 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 14L, "data", "radical")),
-          genericRecord.copy(ImmutableMap.of("id", 15L, "data", "collocation")),
-          genericRecord.copy(ImmutableMap.of("id", 16L, "data", "book")));
-  public static final ImmutableList<Record> FILE2SNAPSHOT3 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 16L, "data", "cake")),
-          genericRecord.copy(ImmutableMap.of("id", 17L, "data", "intrinsic")),
-          genericRecord.copy(ImmutableMap.of("id", 18L, "data", "paper")));
+  public static final List<Record> FILE2SNAPSHOT1 =
+      Lists.transform(FILE2SNAPSHOT1_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE2SNAPSHOT2 =
+      Lists.transform(FILE2SNAPSHOT2_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE2SNAPSHOT3 =
+      Lists.transform(FILE2SNAPSHOT3_DATA, d -> createRecord(SCHEMA, d));
 
   /* Third file in test table */
-  public static final ImmutableList<Record> FILE3SNAPSHOT1 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 20L, "data", "ocean")),
-          genericRecord.copy(ImmutableMap.of("id", 21L, "data", "holistic")),
-          genericRecord.copy(ImmutableMap.of("id", 22L, "data", "preventative")));
-  public static final ImmutableList<Record> FILE3SNAPSHOT2 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 24L, "data", "cloud")),
-          genericRecord.copy(ImmutableMap.of("id", 25L, "data", "zen")),
-          genericRecord.copy(ImmutableMap.of("id", 26L, "data", "sky")));
-  public static final ImmutableList<Record> FILE3SNAPSHOT3 =
-      ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 26L, "data", "belleview")),
-          genericRecord.copy(ImmutableMap.of("id", 27L, "data", "overview")),
-          genericRecord.copy(ImmutableMap.of("id", 28L, "data", "tender")));
+  public static final List<Record> FILE3SNAPSHOT1 =
+      Lists.transform(FILE3SNAPSHOT1_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE3SNAPSHOT2 =
+      Lists.transform(FILE3SNAPSHOT2_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE3SNAPSHOT3 =
+      Lists.transform(FILE3SNAPSHOT3_DATA, d -> createRecord(SCHEMA, d));
 
   public static final ImmutableList<Row> asRows(Iterable<Record> records) {
     ArrayList<Row> rows = new ArrayList<>();
@@ -97,5 +116,9 @@ public class TestFixtures {
               .build());
     }
     return ImmutableList.copyOf(rows);
+  }
+
+  public static Record createRecord(org.apache.iceberg.Schema schema, Map<String, Object> values) {
+    return org.apache.iceberg.data.GenericRecord.create(schema).copy(values);
   }
 }

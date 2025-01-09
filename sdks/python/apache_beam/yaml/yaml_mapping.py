@@ -23,6 +23,7 @@ from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -619,6 +620,13 @@ def _PyJsFilter(
 
   See more complete documentation on
   [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
+
+  Args:
+    keep: An expression evaluating to true for those records that should be kept.
+    language: The language of the above expression.
+      Defaults to generic.
+    error_handling: Whether and where to output records that throw errors when
+      the above expressions are evaluated.
   """  # pylint: disable=line-too-long
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
   return pcoll | beam.Filter(keep_fn)
@@ -664,14 +672,32 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
-def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
+def _PyJsMapToFields(
+    pcoll,
+    fields: Mapping[str, Union[str, Mapping[str, str]]],
+    append: Optional[bool] = False,
+    drop: Optional[Iterable[str]] = None,
+    language: Optional[str] = None):
   """Creates records with new fields defined in terms of the input fields.
 
   See more complete documentation on
   [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#mapping-functions).
+
+  Args:
+    fields: The output fields to compute, each mapping to the expression or
+      callable that creates them.
+    append: Whether to append the created fields to the set of
+      fields already present, outputting a union of both the new fields and
+      the original fields for each record.  Defaults to False.
+    drop: If `append` is true, enumerates a subset of fields from the
+      original record that should not be kept
+    language: The language used to define (and execute) the
+      expressions and/or callables in `fields`. Defaults to generic.
+    error_handling: Whether and where to output records that throw errors when
+      the above expressions are evaluated.
   """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
-      pcoll, language=language, **mapping_args)
+      pcoll, fields, drop or (), append, language=language or 'generic')
   if language == 'javascript':
     options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
 

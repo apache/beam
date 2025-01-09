@@ -40,7 +40,6 @@ class ManagedIcebergIT(unittest.TestCase):
     self.args = self.test_pipeline.get_full_options_as_args()
     self.args.extend([
         '--experiments=enable_managed_transforms',
-        '--dataflow_endpoint=https://dataflow-staging.sandbox.googleapis.com',
     ])
 
   def _create_row(self, num: int):

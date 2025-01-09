@@ -122,17 +122,6 @@ public class JdbcWriteSchemaTransformProviderTest {
               .build()
               .validate();
         });
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-              .setJdbcUrl("JdbcUrl")
-              .setLocation("Location")
-              .setDriverClassName("ClassName")
-              .setJdbcType((String) JDBC_DRIVER_MAP.keySet().toArray()[0])
-              .build()
-              .validate();
-        });
   }
 
   @Test

@@ -149,9 +149,9 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(queryChangeStreamAction)
         .run(partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
-    verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(tracker, never()).tryClaim(any());
   }
 
