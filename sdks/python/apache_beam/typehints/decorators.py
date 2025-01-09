@@ -353,7 +353,7 @@ class IOTypeHints(NamedTuple):
       has_my_type: Callable[[], bool],
       my_key: str,
       special_containers: List[Union[
-          'PBegin', # noqa: F821
+          'PBegin',  # noqa: F821
           'PDone',  # noqa: F821
           'PCollection']],  # noqa: F821
       error_str: str,

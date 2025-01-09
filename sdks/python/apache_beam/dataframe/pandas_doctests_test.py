@@ -935,7 +935,7 @@ class DoctestTest(unittest.TestCase):
             ],
             # Uses as_index, which is currently not_implemented
             'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': [
-                "df.groupby('gender', as_index=False).value_counts()",  
+                "df.groupby('gender', as_index=False).value_counts()",
                 "df.groupby('gender', as_index=False).value_counts(normalize=True)", # pylint: disable=line-too-long
             ],  # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': ['*'],
@@ -1000,7 +1000,7 @@ class DoctestTest(unittest.TestCase):
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'unique': [
-                'pd.unique(pd.Series([("a", "b"), ("b", "a"), ("a", "c"), ("b", "a")]).values)' # pylint: disable=line-too-long
+                'pd.unique(pd.Series([("a", "b"), ("b", "a"), ("a", "c"), ("b", "a")]).values)'  # pylint: disable=line-too-long
             ],
             'melt': [
                 "pd.melt(df, id_vars=['A'], value_vars=['B'])",
@@ -1035,7 +1035,7 @@ class DoctestTest(unittest.TestCase):
                 "df.pivot(index='foo', columns='bar')['baz']",
                 "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
                 'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',  # pylint: disable=line-too-long
-                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")' # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'  # pylint: disable=line-too-long
             ],  # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
             **skip_reads

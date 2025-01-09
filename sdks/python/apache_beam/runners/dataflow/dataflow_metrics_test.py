@@ -309,7 +309,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value": "ToIsmRecordForMultimap-out0-ElementCount" # pylint: disable=line-too-long
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount"  # pylint: disable=line-too-long
                           },
                           {
                               "key": "output_user_name",
@@ -332,7 +332,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value": "ToIsmRecordForMultimap-out0-ElementCount" # pylint: disable=line-too-long
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount"  # pylint: disable=line-too-long
                           },
                           {
                               "key": "output_user_name",
