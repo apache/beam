@@ -720,10 +720,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexes.accessors.TimedeltaProperties.to_pytimedelta': [
                 '*'
             ],  # pylint: enable=line-too-long
-  # Test uses to_datetime. Beam calls to_datetime element-wise, and
-  # therefore the .tz attribute is not evaluated on entire Series.
-  # Hence, .tz becomes None, unless explicitly set.
-  # See: see test_tz_with_utc_zone_set_explicitly
+            # Test uses to_datetime. Beam calls to_datetime element-wise, and
+            # therefore the .tz attribute is not evaluated on entire Series.
+            # Hence, .tz becomes None, unless explicitly set.
+            # See: see test_tz_with_utc_zone_set_explicitly
             'pandas.core.indexes.accessors.DatetimeProperties.tz': ['*'],
         })
     datetimelike_result = doctests.testmod(
