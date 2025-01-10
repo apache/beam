@@ -350,7 +350,7 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  public void testStreamingGetWorkMultipleItemsInChunk() throws Exception {
+  public void testStreamingGetWorkBatchedGetWorkResponse() throws Exception {
     ConcurrentHashMap<Long, Boolean> sentResponseIds = new ConcurrentHashMap<>();
     // This fake server returns an infinite stream of identical WorkItems, obeying the request size
     // limits set by the client.

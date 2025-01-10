@@ -57,7 +57,7 @@ final class GrpcGetWorkStream
   private final Map<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
-  private final boolean batchedGetWorkResponse;
+  private final boolean requestBatchedGetWorkResponse;
 
   private GrpcGetWorkStream(
       String backendWorkerToken,
@@ -70,7 +70,7 @@ final class GrpcGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      boolean batchedGetWorkResponse,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
@@ -88,7 +88,7 @@ final class GrpcGetWorkStream
     this.workItemAssemblers = new ConcurrentHashMap<>();
     this.inflightMessages = new AtomicLong();
     this.inflightBytes = new AtomicLong();
-    this.batchedGetWorkResponse = batchedGetWorkResponse;
+    this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
   }
 
   public static GrpcGetWorkStream create(
@@ -102,7 +102,7 @@ final class GrpcGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      boolean multipleItemsInGetWorkResponse,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     return new GrpcGetWorkStream(
@@ -113,7 +113,7 @@ final class GrpcGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        multipleItemsInGetWorkResponse,
+        requestBatchedGetWorkResponse,
         getWorkThrottleTimer,
         receiver);
   }
@@ -144,7 +144,7 @@ final class GrpcGetWorkStream
     inflightBytes.set(request.getMaxBytes());
     trySend(
         StreamingGetWorkRequest.newBuilder()
-            .setSupportsMultipleWorkItemsInChunk(batchedGetWorkResponse)
+            .setSupportsMultipleWorkItemsInChunk(requestBatchedGetWorkResponse)
             .setRequest(request)
             .build());
   }

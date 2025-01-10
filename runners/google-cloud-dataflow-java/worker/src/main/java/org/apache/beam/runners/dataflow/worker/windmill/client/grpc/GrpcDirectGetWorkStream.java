@@ -89,7 +89,7 @@ final class GrpcDirectGetWorkStream
    */
   private final ConcurrentMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
 
-  private final boolean batchedGetWorkResponse;
+  private final boolean requestBatchedGetWorkResponse;
 
   private GrpcDirectGetWorkStream(
       String backendWorkerToken,
@@ -102,7 +102,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      boolean batchedGetWorkResponse,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -131,7 +131,7 @@ final class GrpcDirectGetWorkStream
                 .setItems(requestHeader.getMaxItems())
                 .setBytes(requestHeader.getMaxBytes())
                 .build());
-    this.batchedGetWorkResponse = batchedGetWorkResponse;
+    this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
   }
 
   static GrpcDirectGetWorkStream create(
@@ -145,7 +145,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      boolean multipleItemsInGetWorkResponse,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -159,7 +159,7 @@ final class GrpcDirectGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        multipleItemsInGetWorkResponse,
+        requestBatchedGetWorkResponse,
         getWorkThrottleTimer,
         heartbeatSender,
         getDataClient,
@@ -216,7 +216,7 @@ final class GrpcDirectGetWorkStream
                     .setMaxItems(initialGetWorkBudget.items())
                     .setMaxBytes(initialGetWorkBudget.bytes())
                     .build())
-            .setSupportsMultipleWorkItemsInChunk(batchedGetWorkResponse)
+            .setSupportsMultipleWorkItemsInChunk(requestBatchedGetWorkResponse)
             .build();
     lastRequest.set(request);
     budgetTracker.recordBudgetRequested(initialGetWorkBudget);

@@ -789,7 +789,7 @@ public final class StreamingDataflowWorker {
             !options.isEnableStreamingEngine()
                 || DataflowRunner.hasExperiment(
                     options, "streaming_engine_disable_new_heartbeat_requests"))
-        .setBatchedGetWorkResponse(options.getWindmillRequestBatchedGetWorkResponse());
+        .setRequestBatchedGetWorkResponse(options.getWindmillRequestBatchedGetWorkResponse());
   }
 
   private static JobHeader createJobHeader(DataflowWorkerHarnessOptions options, long clientId) {
