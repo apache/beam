@@ -744,7 +744,7 @@ public class GcsUtil {
     try {
       // Attempt to construct gcs-connector 3.x-style GoogleCloudStorage, which is created
       // exclusively via Builder method; this can be replaced once Java 8 is dropped and
-      // Beam can upgrade to gcs-connector 3.x
+      // Beam can upgrade to gcsio 3.x
       final Method builderMethod = GoogleCloudStorageImpl.class.getMethod("builder");
       Object builder = builderMethod.invoke(null);
       final Class<?> builderClass =
@@ -753,29 +753,29 @@ public class GcsUtil {
       final Method setOptionsMethod =
           builderClass.getMethod("setOptions", GoogleCloudStorageOptions.class);
       setOptionsMethod.setAccessible(true);
+      builder = setOptionsMethod.invoke(builder, options);
+
       final Method setHttpTransportMethod =
           builderClass.getMethod("setHttpTransport", HttpTransport.class);
       setHttpTransportMethod.setAccessible(true);
+      builder = setHttpTransportMethod.invoke(builder, storage.getRequestFactory().getTransport());
+
       final Method setCredentialsMethod =
           builderClass.getMethod("setCredentials", Credentials.class);
       setCredentialsMethod.setAccessible(true);
+      builder = setCredentialsMethod.invoke(builder, credentials);
+
       final Method setHttpRequestInitializerMethod =
           builderClass.getMethod("setHttpRequestInitializer", HttpRequestInitializer.class);
       setHttpRequestInitializerMethod.setAccessible(true);
-
-      builder = setOptionsMethod.invoke(builder, options);
-      builder = setHttpTransportMethod.invoke(builder, storage.getRequestFactory().getTransport());
-      builder = setCredentialsMethod.invoke(builder, credentials);
       builder = setHttpRequestInitializerMethod.invoke(builder, httpRequestInitializer);
 
       final Method buildMethod = builderClass.getMethod("build");
       buildMethod.setAccessible(true);
       return (GoogleCloudStorage) buildMethod.invoke(builder);
     } catch (Exception e) {
-      // An exception means that local gcs-connector is still on 2.x; use Constructor method
-      // directly
-      // return new GoogleCloudStorageImpl(options, storage, credentials);
-      throw new RuntimeException("Failed to construct Storage", e);
+      // An exception means that local gcsio version is still 2.x; use Constructor directly
+      return new GoogleCloudStorageImpl(options, storage, credentials);
     }
   }
 
