@@ -115,7 +115,6 @@
 ## Bugfixes
 
 * Fixed EventTimeTimer ordering in Prism. ([#32222](https://github.com/apache/beam/issues/32222)).
-* [Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values ([#33549](https://github.com/apache/beam/pull/33549)).
 
 ## Security Fixes
 
@@ -157,11 +156,6 @@
 * (Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine ([#32892](https://github.com/apache/beam/issues/32892)).
 * Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn ([#31111](https://github.com/apache/beam/issues/31111))
 * (Python) Fixed BigQuery Enrichment bug that can lead to multiple conditions returning duplicate rows, batching returning incorrect results and conditions not scoped by row during batching ([#32780](https://github.com/apache/beam/pull/32780)).
-
-## Known Issues
-
-* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
-  * Fixed in 2.62.0
 
 # [2.60.0] - 2024-10-17
 
@@ -217,8 +211,6 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
   * Fixed in 2.61.0.
-* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
-  * Fixed in 2.62.0
 
 # [2.59.0] - 2024-09-11
 
@@ -267,8 +259,6 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
   * Fixed in 2.61.0.
-* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
-  * Fixed in 2.62.0
 
 # [2.58.1] - 2024-08-15
 
