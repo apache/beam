@@ -761,8 +761,12 @@ message ReportStatsResponse {
 message StreamingGetWorkRequest {
   oneof chunk_type {
     GetWorkRequest request = 1;
+    // Initial message is GetWorkRequest with subsequent messages being extensions.
     StreamingGetWorkRequestExtension request_extension = 2;
   }
+
+  // Ignored after initial request.
+  optional bool supports_multiple_work_items_in_chunk = 5 [default = false];
 }
 
 message StreamingGetWorkRequestExtension {
@@ -777,7 +781,7 @@ message StreamingGetWorkResponseChunk {
 
   // The serialized bytes are a serialized WorkItem.
   optional int64 remaining_bytes_for_work_item = 2;
-  optional bytes serialized_work_item = 3;
+  repeated bytes serialized_work_item = 3;
 
   // Indicates which response stream this message corresponds to. A sequence of
   // responses for the same stream_id should be deserialized together. Responses
