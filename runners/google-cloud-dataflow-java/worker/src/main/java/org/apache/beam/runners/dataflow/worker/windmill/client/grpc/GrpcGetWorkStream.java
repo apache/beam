@@ -45,6 +45,11 @@ final class GrpcGetWorkStream
     implements GetWorkStream {
 
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetWorkStream.class);
+  private static final StreamingGetWorkRequest HEALTH_CHECK =
+      StreamingGetWorkRequest.newBuilder()
+          .setRequestExtension(
+              StreamingGetWorkRequestExtension.newBuilder().setMaxItems(0).setMaxBytes(0).build())
+          .build();
 
   private final GetWorkRequest request;
   private final WorkItemReceiver receiver;
@@ -52,7 +57,7 @@ final class GrpcGetWorkStream
   private final Map<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
-  private final boolean multipleItemsInGetWorkResponse;
+  private final boolean batchedGetWorkResponse;
 
   private GrpcGetWorkStream(
       String backendWorkerToken,
@@ -65,7 +70,7 @@ final class GrpcGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      boolean multipleItemsInGetWorkResponse,
+      boolean batchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
@@ -83,7 +88,7 @@ final class GrpcGetWorkStream
     this.workItemAssemblers = new ConcurrentHashMap<>();
     this.inflightMessages = new AtomicLong();
     this.inflightBytes = new AtomicLong();
-    this.multipleItemsInGetWorkResponse = multipleItemsInGetWorkResponse;
+    this.batchedGetWorkResponse = batchedGetWorkResponse;
   }
 
   public static GrpcGetWorkStream create(
@@ -120,7 +125,6 @@ final class GrpcGetWorkStream
                 StreamingGetWorkRequestExtension.newBuilder()
                     .setMaxItems(moreItems)
                     .setMaxBytes(moreBytes))
-            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
             .build();
 
     executeSafely(
@@ -140,7 +144,7 @@ final class GrpcGetWorkStream
     inflightBytes.set(request.getMaxBytes());
     trySend(
         StreamingGetWorkRequest.newBuilder()
-            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
+            .setSupportsMultipleWorkItemsInChunk(batchedGetWorkResponse)
             .setRequest(request)
             .build());
   }
@@ -163,12 +167,7 @@ final class GrpcGetWorkStream
 
   @Override
   public void sendHealthCheck() throws WindmillStreamShutdownException {
-    trySend(
-        StreamingGetWorkRequest.newBuilder()
-            .setRequestExtension(
-                StreamingGetWorkRequestExtension.newBuilder().setMaxItems(0).setMaxBytes(0).build())
-            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
-            .build());
+    trySend(HEALTH_CHECK);
   }
 
   @Override

@@ -25,15 +25,20 @@ import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
@@ -60,6 +65,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GrpcDirectGetWorkStreamTest {
+
   private static final WorkItemScheduler NO_OP_WORK_ITEM_SCHEDULER =
       (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
   private static final Windmill.JobHeader TEST_JOB_HEADER =
@@ -152,18 +158,26 @@ public class GrpcDirectGetWorkStreamTest {
     return getWorkStream;
   }
 
-  private Windmill.StreamingGetWorkResponseChunk createResponse(Windmill.WorkItem workItem) {
-    return Windmill.StreamingGetWorkResponseChunk.newBuilder()
-        .setStreamId(1L)
-        .setComputationMetadata(
-            Windmill.ComputationWorkItemMetadata.newBuilder()
-                .setComputationId("compId")
-                .setInputDataWatermark(1L)
-                .setDependentRealtimeInputWatermark(1L)
-                .build())
-        .addSerializedWorkItem(workItem.toByteString())
-        .setRemainingBytesForWorkItem(0)
-        .build();
+  private Windmill.StreamingGetWorkResponseChunk createResponse(Windmill.WorkItem... workItems) {
+    return createResponse(
+        Arrays.stream(workItems).map(WorkItem::toByteString).collect(Collectors.toList()), 0);
+  }
+
+  private Windmill.StreamingGetWorkResponseChunk createResponse(
+      List<ByteString> workItemChunks, int remainingBytes) {
+    StreamingGetWorkResponseChunk.Builder builder =
+        StreamingGetWorkResponseChunk.newBuilder()
+            .setStreamId(1L)
+            .setComputationMetadata(
+                ComputationWorkItemMetadata.newBuilder()
+                    .setComputationId("compId")
+                    .setInputDataWatermark(1L)
+                    .setDependentRealtimeInputWatermark(1L)
+                    .build());
+    for (ByteString workItemChunk : workItemChunks) {
+      builder.addSerializedWorkItem(workItemChunk);
+    }
+    return builder.setRemainingBytesForWorkItem(remainingBytes).build();
   }
 
   @Test
@@ -336,6 +350,104 @@ public class GrpcDirectGetWorkStreamTest {
   }
 
   @Test
+  public void testConsumedWorkItems() throws InterruptedException {
+    int expectedRequests = 2;
+    CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
+    TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
+    GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
+    GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(2).setBytes(100).build();
+    Set<Windmill.WorkItem> scheduledWorkItems = new HashSet<>();
+    stream =
+        createGetWorkStream(
+            testStub,
+            initialBudget,
+            new ThrottleTimer(),
+            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+              scheduledWorkItems.add(work);
+            });
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("somewhat_long_key1"))
+            .setWorkToken(1L)
+            .setShardingKey(1L)
+            .setCacheToken(1L)
+            .build();
+    Windmill.WorkItem workItem2 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("somewhat_long_key2"))
+            .setWorkToken(2L)
+            .setShardingKey(2L)
+            .setCacheToken(2L)
+            .build();
+
+    testStub.injectResponse(createResponse(workItem1, workItem2));
+
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
+
+    assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2);
+  }
+
+  @Test
+  public void testConsumedWorkItems_itemsSplitAcrossResponses() throws InterruptedException {
+    int expectedRequests = 2;
+    CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
+    TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
+    GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
+    GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(3).setBytes(100).build();
+    Set<Windmill.WorkItem> scheduledWorkItems = new HashSet<>();
+    stream =
+        createGetWorkStream(
+            testStub,
+            initialBudget,
+            new ThrottleTimer(),
+            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+              scheduledWorkItems.add(work);
+            });
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("somewhat_long_key1"))
+            .setWorkToken(1L)
+            .setShardingKey(1L)
+            .setCacheToken(1L)
+            .build();
+    Windmill.WorkItem workItem2 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("somewhat_long_key2"))
+            .setWorkToken(2L)
+            .setShardingKey(2L)
+            .setCacheToken(2L)
+            .build();
+    Windmill.WorkItem workItem3 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("somewhat_long_key3"))
+            .setWorkToken(2L)
+            .setShardingKey(2L)
+            .setCacheToken(2L)
+            .build();
+
+    List<ByteString> chunks1 = new ArrayList<>();
+    List<ByteString> chunks2 = new ArrayList<>();
+    List<ByteString> chunks3 = new ArrayList<>();
+    chunks1.add(workItem1.toByteString());
+    ByteString bytes = workItem2.toByteString();
+    int third = bytes.size() / 3;
+    chunks1.add(bytes.substring(0, third));
+
+    chunks2.add(bytes.substring(third, 2 * third));
+    chunks3.add(bytes.substring(2 * third));
+
+    chunks3.add(workItem3.toByteString());
+
+    testStub.injectResponse(createResponse(chunks1, bytes.size() - third));
+    testStub.injectResponse(createResponse(chunks2, bytes.size() - 2 * third));
+    testStub.injectResponse(createResponse(chunks3, 0));
+
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
+
+    assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2, workItem3);
+  }
+
+  @Test
   public void testOnResponse_stopsThrottling() {
     ThrottleTimer throttleTimer = new ThrottleTimer();
     TestGetWorkRequestObserver requestObserver =
@@ -352,6 +464,7 @@ public class GrpcDirectGetWorkStreamTest {
 
   private static class GetWorkStreamTestStub
       extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
+
     private final TestGetWorkRequestObserver requestObserver;
     private @Nullable StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver;
 
@@ -377,6 +490,7 @@ public class GrpcDirectGetWorkStreamTest {
 
   private static class TestGetWorkRequestObserver
       implements StreamObserver<Windmill.StreamingGetWorkRequest> {
+
     private final List<Windmill.StreamingGetWorkRequest> requests =
         Collections.synchronizedList(new ArrayList<>());
     private final CountDownLatch waitForRequests;

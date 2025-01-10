@@ -761,9 +761,11 @@ message ReportStatsResponse {
 message StreamingGetWorkRequest {
   oneof chunk_type {
     GetWorkRequest request = 1;
+    // Initial message is GetWorkRequest with subsequent messages being extensions.
     StreamingGetWorkRequestExtension request_extension = 2;
   }
 
+  // Ignored after initial request.
   optional bool supports_multiple_work_items_in_chunk = 5 [default = false];
 }
 

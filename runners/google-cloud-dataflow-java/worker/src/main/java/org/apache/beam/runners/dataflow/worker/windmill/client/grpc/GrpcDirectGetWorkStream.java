@@ -62,6 +62,15 @@ final class GrpcDirectGetWorkStream
     implements GetWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectGetWorkStream.class);
 
+  private static final StreamingGetWorkRequest HEALTH_CHECK_REQUEST =
+      StreamingGetWorkRequest.newBuilder()
+          .setRequestExtension(
+              Windmill.StreamingGetWorkRequestExtension.newBuilder()
+                  .setMaxItems(0)
+                  .setMaxBytes(0)
+                  .build())
+          .build();
+
   private final GetWorkBudgetTracker budgetTracker;
   private final GetWorkRequest requestHeader;
   private final WorkItemScheduler workItemScheduler;
@@ -80,7 +89,7 @@ final class GrpcDirectGetWorkStream
    */
   private final ConcurrentMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
 
-  private final boolean multipleItemsInGetWorkResponse;
+  private final boolean batchedGetWorkResponse;
 
   private GrpcDirectGetWorkStream(
       String backendWorkerToken,
@@ -93,7 +102,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      boolean multipleItemsInGetWorkResponse,
+      boolean batchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -122,7 +131,7 @@ final class GrpcDirectGetWorkStream
                 .setItems(requestHeader.getMaxItems())
                 .setBytes(requestHeader.getMaxBytes())
                 .build());
-    this.multipleItemsInGetWorkResponse = multipleItemsInGetWorkResponse;
+    this.batchedGetWorkResponse = batchedGetWorkResponse;
   }
 
   static GrpcDirectGetWorkStream create(
@@ -182,7 +191,6 @@ final class GrpcDirectGetWorkStream
                         Windmill.StreamingGetWorkRequestExtension.newBuilder()
                             .setMaxItems(extension.items())
                             .setMaxBytes(extension.bytes()))
-                    .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
                     .build();
             lastRequest.set(request);
             budgetTracker.recordBudgetRequested(extension);
@@ -208,7 +216,7 @@ final class GrpcDirectGetWorkStream
                     .setMaxItems(initialGetWorkBudget.items())
                     .setMaxBytes(initialGetWorkBudget.bytes())
                     .build())
-            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
+            .setSupportsMultipleWorkItemsInChunk(batchedGetWorkResponse)
             .build();
     lastRequest.set(request);
     budgetTracker.recordBudgetRequested(initialGetWorkBudget);
@@ -231,15 +239,7 @@ final class GrpcDirectGetWorkStream
 
   @Override
   public void sendHealthCheck() throws WindmillStreamShutdownException {
-    trySend(
-        StreamingGetWorkRequest.newBuilder()
-            .setRequestExtension(
-                Windmill.StreamingGetWorkRequestExtension.newBuilder()
-                    .setMaxItems(0)
-                    .setMaxBytes(0)
-                    .build())
-            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
-            .build());
+    trySend(HEALTH_CHECK_REQUEST);
   }
 
   @Override
