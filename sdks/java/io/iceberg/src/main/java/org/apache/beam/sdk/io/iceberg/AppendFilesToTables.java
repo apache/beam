@@ -48,6 +48,7 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.OutputFile;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,10 +187,8 @@ class AppendFilesToTables
         int specId = entry.getKey();
         List<DataFile> files = entry.getValue();
         PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        ManifestWriter<DataFile> writer;
-        try (FileIO io = table.io()) {
-          writer = createManifestWriter(table.location(), uuid, spec, io);
-        }
+        ManifestWriter<DataFile> writer =
+            createManifestWriter(table.location(), uuid, spec, table.io());
         for (DataFile file : files) {
           writer.add(file);
           committedDataFileByteSize.update(file.fileSizeInBytes());
@@ -208,7 +207,8 @@ class AppendFilesToTables
               String.format(
                   "%s/metadata/%s-%s-%s.manifest",
                   tableLocation, manifestFilePrefix, uuid, spec.specId()));
-      return ManifestFiles.write(spec, io.newOutputFile(location));
+      OutputFile outputFile = io.newOutputFile(location);
+      return ManifestFiles.write(spec, outputFile);
     }
   }
 }
