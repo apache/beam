@@ -742,9 +742,8 @@ public class GcsUtil {
   GoogleCloudStorage createGoogleCloudStorage(
       GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
     try {
-      // Attempt to construct gcs-connector 3.x-style GoogleCloudStorage, which is created
-      // exclusively via Builder method; this can be replaced once Java 8 is dropped and
-      // Beam can upgrade to gcsio 3.x
+      // Attempt to construct gcs-connector 3.x GoogleCloudStorage, which uses a Builder
+      // TODO eliminate reflection once Beam drops Java 8 support and upgrades to gcsio 3.x
       final Method builderMethod = GoogleCloudStorageImpl.class.getMethod("builder");
       Object builder = builderMethod.invoke(null);
       final Class<?> builderClass =
