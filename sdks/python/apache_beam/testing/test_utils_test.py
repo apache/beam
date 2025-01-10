@@ -107,7 +107,7 @@ class LCGeneratorTest(unittest.TestCase):
     self.assertEqual(generator.next_int(), -1151252339)
     self.assertEqual(generator.next_uint(), 3745583449)
     self.assertAlmostEqual(generator.random_sample(), 0.375548, delta=1e-6)
-    self.assertEqual(generator.rand_bytes(10), b'\xa6\x8fW\xcb\xb1\xa88]dP')
+    self.assertEqual(generator.randbytes(10), b'\xa6\x8fW\xcb\xb1\xa88]dP')
 
   def test_generator_seed_jdk_results(self):
     generator = self.Generator()
@@ -119,7 +119,7 @@ class LCGeneratorTest(unittest.TestCase):
     self.assertEqual(generator.next_int(), -1155869325)
     self.assertEqual(generator.next_uint(), 431529176)
     self.assertAlmostEqual(generator.random_sample(), 0.410081, delta=1e-6)
-    self.assertEqual(generator.rand_bytes(10), b'\x92\xf9Mh\xfc\xcc,5\xf0\xb8')
+    self.assertEqual(generator.randbytes(10), b'\x92\xf9Mh\xfc\xcc,5\xf0\xb8')
 
 
 try:
