@@ -1862,6 +1862,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.artifacts.archives project.testSourcesJar
 
         project.task('javadocJar', type: Jar, dependsOn: project.javadoc) {
+          enabled = project.ext.exportJavadoc
           archiveClassifier = 'javadoc'
           from project.javadoc.destinationDir
         }
