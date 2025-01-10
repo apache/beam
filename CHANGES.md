@@ -68,6 +68,7 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
+* [GCSIO] Added retry logic to each batch method of the GCS IO (Python) ([#33539](https://github.com/apache/beam/pull/33539))
 
 ## Breaking Changes
 
