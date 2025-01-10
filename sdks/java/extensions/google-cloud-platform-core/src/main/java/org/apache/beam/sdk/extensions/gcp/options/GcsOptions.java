@@ -18,11 +18,6 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.services.storage.Storage;
-import com.google.auth.Credentials;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
@@ -58,15 +53,6 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   GoogleCloudStorageReadOptions getGoogleCloudStorageReadOptions();
 
   void setGoogleCloudStorageReadOptions(GoogleCloudStorageReadOptions value);
-
-  @JsonIgnore
-  @Description(
-      "The GoogleCloudStorageProvider instance that should be used to instantiate a GoogleCloudStorage client.")
-  @Default.InstanceFactory(GcsUtil.GoogleCloudStorageProviderFactory.class)
-  @Hidden
-  GoogleCloudStorageProvider getGoogleCloudStorageProvider();
-
-  void setGoogleCloudStorageProvider(GoogleCloudStorageProvider value);
 
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
@@ -221,14 +207,5 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
           .withArg(PipelineOptions.class, options)
           .build();
     }
-  }
-
-  @FunctionalInterface
-  public interface GoogleCloudStorageProvider {
-    GoogleCloudStorage get(
-        GoogleCloudStorageOptions options,
-        Storage storage,
-        Credentials credentials,
-        HttpRequestInitializer httpRequestInitializer);
   }
 }
