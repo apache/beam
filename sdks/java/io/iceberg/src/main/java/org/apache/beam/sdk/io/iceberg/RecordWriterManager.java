@@ -96,7 +96,9 @@ class RecordWriterManager implements AutoCloseable {
     private final IcebergDestination icebergDestination;
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;
-    private final PartitionKey partitionKey;
+    // used to determine the partition to which a record belongs
+    // must not be directly used to create a writer
+    private final PartitionKey routingPartitionKey;
     private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
     final Cache<PartitionKey, RecordWriter> writers;
@@ -109,7 +111,7 @@ class RecordWriterManager implements AutoCloseable {
       this.icebergDestination = icebergDestination;
       this.schema = table.schema();
       this.spec = table.spec();
-      this.partitionKey = new PartitionKey(spec, schema);
+      this.routingPartitionKey = new PartitionKey(spec, schema);
       this.table = table;
       for (PartitionField partitionField : spec.fields()) {
         partitionFieldMap.put(partitionField.name(), partitionField);
@@ -154,12 +156,12 @@ class RecordWriterManager implements AutoCloseable {
      * can't create a new writer, the {@link Record} is rejected and {@code false} is returned.
      */
     boolean write(Record record) {
-      partitionKey.partition(getPartitionableRecord(record));
+      routingPartitionKey.partition(getPartitionableRecord(record));
 
-      if (!writers.asMap().containsKey(partitionKey) && openWriters >= maxNumWriters) {
+      if (!writers.asMap().containsKey(routingPartitionKey) && openWriters >= maxNumWriters) {
         return false;
       }
-      RecordWriter writer = fetchWriterForPartition(partitionKey);
+      RecordWriter writer = fetchWriterForPartition(routingPartitionKey);
       writer.write(record);
       return true;
     }
@@ -173,10 +175,12 @@ class RecordWriterManager implements AutoCloseable {
       RecordWriter recordWriter = writers.getIfPresent(partitionKey);
 
       if (recordWriter == null || recordWriter.bytesWritten() > maxFileSize) {
+        // each writer must have its own PartitionKey object
+        PartitionKey copy = partitionKey.copy();
         // calling invalidate for a non-existent key is a safe operation
-        writers.invalidate(partitionKey);
-        recordWriter = createWriter(partitionKey);
-        writers.put(partitionKey, recordWriter);
+        writers.invalidate(copy);
+        recordWriter = createWriter(copy);
+        writers.put(copy, recordWriter);
       }
       return recordWriter;
     }

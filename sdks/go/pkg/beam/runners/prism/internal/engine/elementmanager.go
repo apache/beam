@@ -261,8 +261,10 @@ func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, side
 
 // StageAggregates marks the given stage as an aggregation, which
 // means elements will only be processed based on windowing strategies.
-func (em *ElementManager) StageAggregates(ID string) {
-	em.stages[ID].aggregate = true
+func (em *ElementManager) StageAggregates(ID string, strat WinStrat) {
+	ss := em.stages[ID]
+	ss.aggregate = true
+	ss.strat = strat
 }
 
 // StageStateful marks the given stage as stateful, which means elements are
@@ -1095,7 +1097,7 @@ type stageState struct {
 	// Special handling bits
 	stateful                     bool            // whether this stage uses state or timers, and needs keyed processing.
 	aggregate                    bool            // whether this stage needs to block for aggregation.
-	strat                        winStrat        // Windowing Strategy for aggregation fireings.
+	strat                        WinStrat        // Windowing Strategy for aggregation fireings.
 	processingTimeTimersFamilies map[string]bool // Indicates which timer families use the processing time domain.
 
 	// onWindowExpiration management
@@ -1154,7 +1156,6 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 		ID:             ID,
 		outputIDs:      outputIDs,
 		sides:          sides,
-		strat:          defaultStrat{},
 		state:          map[LinkID]map[typex.Window]map[string]StateData{},
 		watermarkHolds: newHoldTracker(),
 
@@ -1179,6 +1180,21 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	if ss.aggregate {
+		// Late Data is data that has arrived after that window has expired.
+		// We only need to drop late data before aggregations.
+		// TODO - handle for side inputs too.
+		threshold := ss.output
+		origPending := make([]element, 0, ss.pending.Len())
+		for _, e := range newPending {
+			if ss.strat.EarliestCompletion(e.window) < threshold {
+				// TODO: figure out Pane and trigger firings.
+				continue
+			}
+			origPending = append(origPending, e)
+		}
+		newPending = origPending
+	}
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
@@ -1614,10 +1630,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	// They'll never be read in again.
 	for _, wins := range ss.sideInputs {
 		for win := range wins {
-			// TODO(#https://github.com/apache/beam/issues/31438):
-			// Adjust with AllowedLateness
 			// Clear out anything we've already used.
-			if win.MaxTimestamp() < newOut {
+			if ss.strat.EarliestCompletion(win) < newOut {
 				// If the expiry is in progress, skip this window.
 				if ss.inProgressExpiredWindows[win] > 0 {
 					continue
@@ -1628,9 +1642,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	}
 	for _, wins := range ss.state {
 		for win := range wins {
-			// TODO(#https://github.com/apache/beam/issues/31438):
-			// Adjust with AllowedLateness
-			if win.MaxTimestamp() < newOut {
+			if ss.strat.EarliestCompletion(win) < newOut {
 				// If the expiry is in progress, skip collecting this window.
 				if ss.inProgressExpiredWindows[win] > 0 {
 					continue
@@ -1673,9 +1685,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 	var preventDownstreamUpdate bool
 	for win, keys := range ss.keysToExpireByWindow {
 		// Check if the window has expired.
-		// TODO(#https://github.com/apache/beam/issues/31438):
-		// Adjust with AllowedLateness
-		if win.MaxTimestamp() >= newOut {
+		if ss.strat.EarliestCompletion(win) >= newOut {
 			continue
 		}
 		// We can't advance the output watermark if there's garbage to collect.
