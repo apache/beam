@@ -65,6 +65,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public void catalogCleanup() throws Exception {
+    System.out.println("xxx CLEANING UP!");
     if (hiveMetastoreExtension != null) {
       hiveMetastoreExtension.cleanup();
     }

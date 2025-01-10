@@ -59,13 +59,11 @@ dependencies {
   // **** IcebergIO runtime dependencies ****
   runtimeOnly library.java.hadoop_auth
   runtimeOnly library.java.hadoop_client
-  // For writing to GCS
+  // Needed when using GCS as the warehouse location.
   runtimeOnly library.java.bigdataoss_gcs_connector
-  // HiveCatalog
+  // Needed for HiveCatalog
   runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
   runtimeOnly project(path: ":sdks:java:io:iceberg:hive")
-  // BigQueryMetastoreCatalog (Java 11+)
-  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
