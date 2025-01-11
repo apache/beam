@@ -11,7 +11,9 @@ These instructions describe how to install [Prism](../../cmd/prism) on [Kubernet
 
 ## Docker alternative
 
-An alternative to installing Docker directly on your system is to use https://lima-vm.io/:
+An alternative to installing Docker directly on your system is to use https://lima-vm.io/.
+You will still need the docker cli, installable via `brew install docker` using Homebrew,
+for example.
 
 ```
 limactl create --name=default template://docker
@@ -56,7 +58,7 @@ https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubect
     ```
 3. Ko apply
     ```
-    ko apply -f ./go/container/prism -L --platform=$(arch)
+    ko apply -f ./go/container/prism -L --platform=linux/$(arch)
     ```
 
 # 4. Verify deployment 
