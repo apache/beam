@@ -146,7 +146,8 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
         Partitioner partitioner = getPartitioner(context);
-        if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
+        if (context.isCandidateForGroupByKeyAndWindow(transform)
+            && GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows
           groupedByKey =
               GroupNonMergingWindowsFunctions.groupByKeyAndWindow(

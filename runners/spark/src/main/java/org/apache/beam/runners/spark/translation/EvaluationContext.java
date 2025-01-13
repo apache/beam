@@ -65,6 +65,8 @@ public class EvaluationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
   private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
+  private final Map<GroupByKey<?, ?>, String> groupByKeyCandidatesForMemoryOptimizedTranslation =
+      new HashMap<>();
   private final PipelineOptions options;
   private final SerializablePipelineOptions serializableOptions;
 
@@ -280,6 +282,28 @@ public class EvaluationContext {
    */
   public Map<PCollection, Long> getCacheCandidates() {
     return this.cacheCandidates;
+  }
+
+  /**
+   * Get the map of GBK transforms to their full names, which are candidates for
+   * group by key and window translation which aims to reduce memory usage.
+   *
+   * @return The current {@link Map} of candidates
+   */
+  public Map<GroupByKey<?, ?>, String> getCandidatesForGroupByKeyAndWindowTranslation() {
+    return this.groupByKeyCandidatesForMemoryOptimizedTranslation;
+  }
+
+  /**
+   * Returns if given GBK transform can be considered as candidate for group by key and window
+   * translation aiming to reduce memory usage.
+   * @param transform to evaluate
+   * @return true if given transform is a candidate; false otherwise
+   * @param <K> type of GBK key
+   * @param <V> type of GBK value
+   */
+  public <K, V> boolean isCandidateForGroupByKeyAndWindow(GroupByKey<K, V> transform) {
+    return groupByKeyCandidatesForMemoryOptimizedTranslation.containsKey(transform);
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
