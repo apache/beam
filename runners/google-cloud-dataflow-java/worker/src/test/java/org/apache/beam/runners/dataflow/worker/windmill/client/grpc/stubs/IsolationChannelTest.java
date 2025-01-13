@@ -42,13 +42,42 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor.Marshaller;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.internal.NoopClientCall;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+
+/**
+ * {@link NoopClientCall} is a class that is designed for use in tests. It is designed to be used in
+ * places where a scriptable call is necessary. By default, all methods are noops, and designed to
+ * be overridden.
+ */
+class NoopClientCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
+
+  /**
+   * {@link NoopClientCall.NoopClientCallListener} is a class that is designed for use in tests. It
+   * is designed to be used in places where a scriptable call listener is necessary. By default, all
+   * methods are noops, and designed to be overridden.
+   */
+  public static class NoopClientCallListener<T> extends ClientCall.Listener<T> {}
+
+  @Override
+  public void start(ClientCall.Listener<RespT> listener, Metadata headers) {}
+
+  @Override
+  public void request(int numMessages) {}
+
+  @Override
+  public void cancel(String message, Throwable cause) {}
+
+  @Override
+  public void halfClose() {}
+
+  @Override
+  public void sendMessage(ReqT message) {}
+}
 
 @RunWith(JUnit4.class)
 public class IsolationChannelTest {
