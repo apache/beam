@@ -35,4 +35,9 @@ public abstract class ShardedKey {
   public final String toString() {
     return String.format("%016x", shardingKey());
   }
+
+  @Override
+  public int hashCode() {
+    return Long.hashCode(shardingKey());
+  }
 }
