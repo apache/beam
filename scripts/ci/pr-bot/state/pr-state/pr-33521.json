@@ -3,7 +3,7 @@
   "reviewersAssignedForLabels": {
     "no-matching-label": "damccorm"
   },
-  "nextAction": "Reviewers",
+  "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
