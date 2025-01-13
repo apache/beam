@@ -49,8 +49,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		s := jobservices.NewServer(0, internal.RunPipeline)
 		*jobopts.Endpoint = s.Endpoint()
 		go s.Serve()
-		//
-		if !jobopts.IsLoopback() && *jobopts.EnvironmentType == "" {
+		// If the environmentType isn't set, use loopback instead.
+		if *jobopts.EnvironmentType == "" {
 			*jobopts.EnvironmentType = "loopback"
 		}
 	}
