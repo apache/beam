@@ -66,10 +66,16 @@ jobs:
           - "java:container:java11"
           - "java:container:java17"
           - "java:container:java21"
+          - "java:container:distroless:java17"
+          - "java:container:distroless:java21"
           - "python:container:py39"
           - "python:container:py310"
           - "python:container:py311"
           - "python:container:py312"
+          - "python:container:distroless:py39"
+          - "python:container:distroless:py310"
+          - "python:container:distroless:py311"
+          - "python:container:distroless:py312"
           - "java:expansion-service:container"
     steps:
       - uses: actions/checkout@v4
