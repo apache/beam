@@ -19,6 +19,7 @@ package org.apache.beam.runners.jet;
 
 import java.util.Collections;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -88,6 +89,11 @@ public class FailedRunningPipelineResults implements PipelineResult {
 
           @Override
           public Iterable<MetricResult<StringSetResult>> getStringSets() {
+            return Collections.emptyList();
+          }
+
+          @Override
+          public Iterable<MetricResult<BoundedTrieResult>> getBoundedTries() {
             return Collections.emptyList();
           }
         };
