@@ -84,10 +84,16 @@ func main() {
 
 	if *workerPool {
 		workerPoolId := fmt.Sprintf("%d", os.Getpid())
-		ctx := context.Background()
+		bin, err := os.Executable()
+		if err != nil {
+			log.Fatalf("Error starting worker pool, couldn't find boot loader path: %v", err)
+		}
+
 		os.Setenv(workerPoolIdEnv, workerPoolId)
-		log.Printf("Starting worker pool %v: Go %v", workerPoolId, "localhost:50000")
-		server, err := pool.New(ctx, 50000, "/opt/apache/beam/boot")
+		log.Printf("Starting worker pool %v: Go %v binary: %vv", workerPoolId, ":50000", bin)
+
+		ctx := context.Background()
+		server, err := pool.New(ctx, 50000, bin)
 		if err != nil {
 			log.Fatalf("Error starting worker pool: %v", err)
 		}
@@ -147,7 +153,13 @@ func main() {
 
 	// (3) The persist dir may be on a noexec volume, so we must
 	// copy the binary to a different location to execute.
-	const prog = "/bin/worker"
+	tmpPrefix, err := os.MkdirTemp("/tmp/", "bin*")
+	if err != nil {
+		logger.Fatalf(ctx, "Failed to copy worker binary: %v", err)
+	}
+
+	prog := tmpPrefix + "/worker"
+	logger.Printf(ctx, "From: %q To:%q", filepath.Join(dir, name), prog)
 	if err := copyExe(filepath.Join(dir, name), prog); err != nil {
 		logger.Fatalf(ctx, "Failed to copy worker binary: %v", err)
 	}
@@ -253,6 +265,11 @@ func copyExe(from, to string) error {
 		return err
 	}
 	defer src.Close()
+
+	// Ensure that the folder path exists locally.
+	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
+		return err
+	}
 
 	dst, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE, 0755)
 	if err != nil {

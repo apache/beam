@@ -39,7 +39,7 @@ import (
 // New initializes a process based ExternalWorkerService, at the given
 // port.
 func New(ctx context.Context, port int, containerExecutable string) (*Process, error) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ type Process struct {
 
 // StartWorker initializes a new worker harness, implementing BeamFnExternalWorkerPoolServer.StartWorker.
 func (s *Process) StartWorker(_ context.Context, req *fnpb.StartWorkerRequest) (*fnpb.StartWorkerResponse, error) {
-	slog.Debug("starting worker", "id", req.GetWorkerId())
+	slog.Info("starting worker", "id", req.GetWorkerId())
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.workers == nil {
@@ -106,8 +106,8 @@ func (s *Process) StartWorker(_ context.Context, req *fnpb.StartWorkerRequest) (
 	args := []string{
 		"--id=" + req.GetWorkerId(),
 		"--control_endpoint=" + req.GetControlEndpoint().GetUrl(),
-		"--artifact_endpoint" + req.GetArtifactEndpoint().GetUrl(),
-		"--provision_endpoint" + req.GetProvisionEndpoint().GetUrl(),
+		"--artifact_endpoint=" + req.GetArtifactEndpoint().GetUrl(),
+		"--provision_endpoint=" + req.GetProvisionEndpoint().GetUrl(),
 		"--logging_endpoint=" + req.GetLoggingEndpoint().GetUrl(),
 	}
 
