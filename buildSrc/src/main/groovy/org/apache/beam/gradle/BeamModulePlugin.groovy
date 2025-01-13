@@ -635,7 +635,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
-    def slf4j_version = "1.7.30"
+    def slf4j_version = "2.0.16"
     def snakeyaml_engine_version = "2.6"
     def snakeyaml_version = "2.2"
     def solace_version = "10.21.0"
