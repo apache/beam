@@ -205,7 +205,6 @@ abstract class SerializableDataFile {
   }
 
   @Override
-  @SuppressWarnings("EqualsHashCode")
   public final boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
@@ -251,5 +250,58 @@ abstract class SerializableDataFile {
         };
 
     return Maps.difference(map1, map2, byteArrayEquivalence).areEqual();
+  }
+
+  @Override
+  public final int hashCode() {
+    int h$ = 1;
+    h$ *= 1000003;
+    h$ ^= getPath().hashCode();
+    h$ *= 1000003;
+    h$ ^= getFileFormat().hashCode();
+    h$ *= 1000003;
+    h$ ^= (int) ((getRecordCount() >>> 32) ^ getRecordCount());
+    h$ *= 1000003;
+    h$ ^= (int) ((getFileSizeInBytes() >>> 32) ^ getFileSizeInBytes());
+    h$ *= 1000003;
+    h$ ^= getPartitionPath().hashCode();
+    h$ *= 1000003;
+    h$ ^= getPartitionSpecId();
+    h$ *= 1000003;
+    @Nullable ByteBuffer keyMetadata = getKeyMetadata();
+    h$ ^= (keyMetadata == null) ? 0 : keyMetadata.hashCode();
+    h$ *= 1000003;
+    @Nullable List<Long> splitOffsets = getSplitOffsets();
+    h$ ^= (splitOffsets == null) ? 0 : splitOffsets.hashCode();
+    h$ *= 1000003;
+    @Nullable Map<Integer, Long> columnSizes = getColumnSizes();
+    h$ ^= (columnSizes == null) ? 0 : columnSizes.hashCode();
+    h$ *= 1000003;
+    @Nullable Map<Integer, Long> valueCounts = getValueCounts();
+    h$ ^= (valueCounts == null) ? 0 : valueCounts.hashCode();
+    h$ *= 1000003;
+    @Nullable Map<Integer, Long> nullValueCounts = getNullValueCounts();
+    h$ ^= (nullValueCounts == null) ? 0 : nullValueCounts.hashCode();
+    h$ *= 1000003;
+    @Nullable Map<Integer, Long> nanValueCounts = getNanValueCounts();
+    h$ ^= (nanValueCounts == null) ? 0 : nanValueCounts.hashCode();
+    h$ *= 1000003;
+    h$ ^= computeMapByteHashCode(getLowerBounds());
+    h$ *= 1000003;
+    h$ ^= computeMapByteHashCode(getUpperBounds());
+    return h$;
+  }
+
+  private static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
+    if (map == null) {
+      return 0;
+    }
+    int hashCode = 0;
+    for (Map.Entry<Integer, byte[]> entry : map.entrySet()) {
+      int keyHash = entry.getKey().hashCode();
+      int valueHash = Arrays.hashCode(entry.getValue()); // content-based hash code
+      hashCode += keyHash ^ valueHash;
+    }
+    return hashCode;
   }
 }
