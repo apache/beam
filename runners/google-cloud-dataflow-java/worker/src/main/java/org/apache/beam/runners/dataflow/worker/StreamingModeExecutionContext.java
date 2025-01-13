@@ -191,7 +191,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean workIsFailed() {
-    return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
+    if (work != null)
+      return work.isFailed();
+    return false;
   }
 
   public void start(
