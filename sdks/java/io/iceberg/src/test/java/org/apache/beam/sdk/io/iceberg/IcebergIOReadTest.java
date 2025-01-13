@@ -23,8 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,11 +68,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(Parameterized.class)
+@RunWith(JUnit4.class)
 public class IcebergIOReadTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(IcebergIOReadTest.class);
@@ -84,21 +82,6 @@ public class IcebergIOReadTest {
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
-
-  @Parameterized.Parameters
-  public static Collection<Object[]> data() {
-    return Arrays.asList(
-        new Object[][] {
-          {String.format("{\"namespace\": [\"default\"], \"name\": \"%s\"}", tableId())},
-          {String.format("default.%s", tableId())},
-        });
-  }
-
-  public static String tableId() {
-    return "table" + Long.toString(UUID.randomUUID().hashCode(), 16);
-  }
-
-  @Parameterized.Parameter public String tableStringIdentifier;
 
   static class PrintRow extends DoFn<Row, Row> {
 
@@ -111,7 +94,8 @@ public class IcebergIOReadTest {
 
   @Test
   public void testSimpleScan() throws Exception {
-    TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableStringIdentifier);
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
