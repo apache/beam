@@ -254,42 +254,42 @@ abstract class SerializableDataFile {
 
   @Override
   public final int hashCode() {
-    int h$ = 1;
-    h$ *= 1000003;
-    h$ ^= getPath().hashCode();
-    h$ *= 1000003;
-    h$ ^= getFileFormat().hashCode();
-    h$ *= 1000003;
-    h$ ^= (int) ((getRecordCount() >>> 32) ^ getRecordCount());
-    h$ *= 1000003;
-    h$ ^= (int) ((getFileSizeInBytes() >>> 32) ^ getFileSizeInBytes());
-    h$ *= 1000003;
-    h$ ^= getPartitionPath().hashCode();
-    h$ *= 1000003;
-    h$ ^= getPartitionSpecId();
-    h$ *= 1000003;
+    int hashCode = 1;
+    hashCode *= 1000003;
+    hashCode ^= getPath().hashCode();
+    hashCode *= 1000003;
+    hashCode ^= getFileFormat().hashCode();
+    hashCode *= 1000003;
+    hashCode ^= (int) ((getRecordCount() >>> 32) ^ getRecordCount());
+    hashCode *= 1000003;
+    hashCode ^= (int) ((getFileSizeInBytes() >>> 32) ^ getFileSizeInBytes());
+    hashCode *= 1000003;
+    hashCode ^= getPartitionPath().hashCode();
+    hashCode *= 1000003;
+    hashCode ^= getPartitionSpecId();
+    hashCode *= 1000003;
     @Nullable ByteBuffer keyMetadata = getKeyMetadata();
-    h$ ^= (keyMetadata == null) ? 0 : keyMetadata.hashCode();
-    h$ *= 1000003;
+    hashCode ^= (keyMetadata == null) ? 0 : keyMetadata.hashCode();
+    hashCode *= 1000003;
     @Nullable List<Long> splitOffsets = getSplitOffsets();
-    h$ ^= (splitOffsets == null) ? 0 : splitOffsets.hashCode();
-    h$ *= 1000003;
+    hashCode ^= (splitOffsets == null) ? 0 : splitOffsets.hashCode();
+    hashCode *= 1000003;
     @Nullable Map<Integer, Long> columnSizes = getColumnSizes();
-    h$ ^= (columnSizes == null) ? 0 : columnSizes.hashCode();
-    h$ *= 1000003;
+    hashCode ^= (columnSizes == null) ? 0 : columnSizes.hashCode();
+    hashCode *= 1000003;
     @Nullable Map<Integer, Long> valueCounts = getValueCounts();
-    h$ ^= (valueCounts == null) ? 0 : valueCounts.hashCode();
-    h$ *= 1000003;
+    hashCode ^= (valueCounts == null) ? 0 : valueCounts.hashCode();
+    hashCode *= 1000003;
     @Nullable Map<Integer, Long> nullValueCounts = getNullValueCounts();
-    h$ ^= (nullValueCounts == null) ? 0 : nullValueCounts.hashCode();
-    h$ *= 1000003;
+    hashCode ^= (nullValueCounts == null) ? 0 : nullValueCounts.hashCode();
+    hashCode *= 1000003;
     @Nullable Map<Integer, Long> nanValueCounts = getNanValueCounts();
-    h$ ^= (nanValueCounts == null) ? 0 : nanValueCounts.hashCode();
-    h$ *= 1000003;
-    h$ ^= computeMapByteHashCode(getLowerBounds());
-    h$ *= 1000003;
-    h$ ^= computeMapByteHashCode(getUpperBounds());
-    return h$;
+    hashCode ^= (nanValueCounts == null) ? 0 : nanValueCounts.hashCode();
+    hashCode *= 1000003;
+    hashCode ^= computeMapByteHashCode(getLowerBounds());
+    hashCode *= 1000003;
+    hashCode ^= computeMapByteHashCode(getUpperBounds());
+    return hashCode;
   }
 
   private static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
