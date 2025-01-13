@@ -77,14 +77,15 @@ public final class ActiveWorkState {
    * activated in {@link #activateWorkForKey(ExecutableWork)}, and decremented when work is
    * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
    */
-  private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
+  @GuardedBy("this")
+  private GetWorkBudget activeGetWorkBudget;
 
   private ActiveWorkState(
       Map<ShardedKey, Deque<ExecutableWork>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     this.activeWork = activeWork;
     this.computationStateCache = computationStateCache;
-    this.activeGetWorkBudget = new AtomicReference<>(GetWorkBudget.noBudget());
+    this.activeGetWorkBudget = GetWorkBudget.noBudget();
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
@@ -220,13 +221,11 @@ public final class ActiveWorkState {
   }
 
   private void incrementActiveWorkBudget(Work work) {
-    activeGetWorkBudget.updateAndGet(
-        getWorkBudget -> getWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
+    activeGetWorkBudget = activeGetWorkBudget.apply(1, work.getWorkItem().getSerializedSize());
   }
 
   private void decrementActiveWorkBudget(Work work) {
-    activeGetWorkBudget.updateAndGet(
-        getWorkBudget -> getWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
+    activeGetWorkBudget = activeGetWorkBudget.subtract(1, work.getWorkItem().getSerializedSize());
   }
 
   /**
@@ -332,7 +331,9 @@ public final class ActiveWorkState {
    * {@link ActiveWorkState}, and not committed back to Windmill.
    */
   GetWorkBudget currentActiveWorkBudget() {
-    return activeGetWorkBudget.get();
+    synchronized (this) {
+      return activeGetWorkBudget;
+    }
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
