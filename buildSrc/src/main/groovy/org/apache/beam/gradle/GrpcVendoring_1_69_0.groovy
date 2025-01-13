@@ -159,6 +159,7 @@ class GrpcVendoring_1_69_0 {
       // android annotations, autovalue annotations, errorprone, checkerframework, JDK8 annotations, objenesis, junit,
       // apache commons, log4j, slf4j and mockito
       "android/annotation/**/",
+      "com/google/apps/**",
       "com/google/auto/value/**",
       "com/google/errorprone/**",
       "com/google/instrumentation/**",
