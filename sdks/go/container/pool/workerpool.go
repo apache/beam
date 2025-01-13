@@ -36,9 +36,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-// StartProcess initializes a process based ExternalWorkerService, at the given
+// New initializes a process based ExternalWorkerService, at the given
 // port.
-func StartProcess(ctx context.Context, port int, containerExecutable string) (*Process, error) {
+func New(ctx context.Context, port int, containerExecutable string) (*Process, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		return nil, err
@@ -49,8 +49,12 @@ func StartProcess(ctx context.Context, port int, containerExecutable string) (*P
 	s := &Process{lis: lis, root: root, rootCancel: cancel, workers: map[string]context.CancelFunc{},
 		grpcServer: grpcServer, containerExecutable: containerExecutable}
 	fnpb.RegisterBeamFnExternalWorkerPoolServer(grpcServer, s)
-	go grpcServer.Serve(lis)
 	return s, nil
+}
+
+// ServeAndWait starts the ExternalWorkerService and blocks until exit.
+func (s *Process) ServeAndWait() error {
+	return s.grpcServer.Serve(s.lis)
 }
 
 // Process implements fnpb.BeamFnExternalWorkerPoolServer, by starting external

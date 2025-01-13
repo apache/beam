@@ -41,11 +41,13 @@ func TestProcess(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
-	server, err := StartProcess(ctx, 0, dummyExec)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	t.Cleanup(cancelFn)
+	server, err := New(ctx, 0, dummyExec)
 	if err != nil {
-		t.Fatalf("Unable to start server: %v", err)
+		t.Fatalf("Unable to create server: %v", err)
 	}
+	go server.ServeAndWait()
 
 	startTests := []struct {
 		req         *fnpb.StartWorkerRequest
