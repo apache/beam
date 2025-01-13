@@ -164,6 +164,7 @@ class GrpcVendoring_1_69_0 {
       "com/google/errorprone/**",
       "com/google/instrumentation/**",
       "com/google/j2objc/annotations/**",
+      "com/google/shopping/**",
       "io/grpc/netty/shaded/io/netty/handler/codec/marshalling/**",
       "io/grpc/netty/shaded/io/netty/handler/codec/spdy/**",
       "io/grpc/netty/shaded/io/netty/handler/codec/compression/JZlib*",
