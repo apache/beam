@@ -17,44 +17,24 @@
 # under the License.
 #
 
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: server
-  namespace: prism
-  labels:
-    app: prism
+  name: wordcount
 spec:
-  selector:
-    matchLabels:
-      app: prism
   template:
-    metadata:
-      labels:
-        app: prism
     spec:
+      restartPolicy: Never
       containers:
-        - name: server
-          image: ko://github.com/apache/beam/sdks/v2/go/cmd/prism
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: job
-              containerPort: 8073
-            - name: web
-              containerPort: 8074
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: prism
-  name: service
-spec:
-  selector:
-    app: prism
-  ports:
-    - port: 8073
-      name: job
-    - port: 8074
-      name: web
+      - name: wordcount
+        image: ko://github.com/apache/beam/sdks/v2/go/examples/wordcount
+        imagePullPolicy: IfNotPresent
+        args: [
+                "--runner=portable",
+                "--environment_type=EXTERNAL",
+                "--environment_config=service.prism.svc.cluster.local:8073",
+                "--endpoint=service.prism.svc.cluster.local:8073",
+                "--control_endpoint=service.prism.svc.cluster.local:8073",
+                "--worker_binary=/tmp/ignore",
+                "--output=/tmp/wc",
+        ]
