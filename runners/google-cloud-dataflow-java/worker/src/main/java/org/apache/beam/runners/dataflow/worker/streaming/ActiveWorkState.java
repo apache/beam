@@ -219,11 +219,11 @@ public final class ActiveWorkState {
         .collect(toImmutableList());
   }
 
-  private void incrementActiveWorkBudget(Work work) {
+  private synchronized void incrementActiveWorkBudget(Work work) {
     activeGetWorkBudget = activeGetWorkBudget.apply(1, work.getWorkItem().getSerializedSize());
   }
 
-  private void decrementActiveWorkBudget(Work work) {
+  private synchronized void decrementActiveWorkBudget(Work work) {
     activeGetWorkBudget = activeGetWorkBudget.subtract(1, work.getWorkItem().getSerializedSize());
   }
 
