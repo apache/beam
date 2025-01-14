@@ -285,8 +285,8 @@ public class EvaluationContext {
   }
 
   /**
-   * Get the map of GBK transforms to their full names, which are candidates for
-   * group by key and window translation which aims to reduce memory usage.
+   * Get the map of GBK transforms to their full names, which are candidates for group by key and
+   * window translation which aims to reduce memory usage.
    *
    * @return The current {@link Map} of candidates
    */
@@ -297,6 +297,7 @@ public class EvaluationContext {
   /**
    * Returns if given GBK transform can be considered as candidate for group by key and window
    * translation aiming to reduce memory usage.
+   *
    * @param transform to evaluate
    * @return true if given transform is a candidate; false otherwise
    * @param <K> type of GBK key
