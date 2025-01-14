@@ -33,7 +33,7 @@ public abstract class StreamObserverFactory {
     return new Direct(deadlineSeconds, messagesBetweenIsReadyChecks);
   }
 
-  public abstract <ResponseT, RequestT> StreamObserver<RequestT> from(
+  public abstract <ResponseT, RequestT> TerminatingStreamObserver<RequestT> from(
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
       StreamObserver<ResponseT> responseObserver);
 
@@ -47,7 +47,7 @@ public abstract class StreamObserverFactory {
     }
 
     @Override
-    public <ResponseT, RequestT> StreamObserver<RequestT> from(
+    public <ResponseT, RequestT> TerminatingStreamObserver<RequestT> from(
         Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
         StreamObserver<ResponseT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);

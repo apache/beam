@@ -123,6 +123,14 @@ public class GcsUtil {
     }
   }
 
+  public static class GcsReadOptionsFactory
+      implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
+    @Override
+    public GoogleCloudStorageReadOptions create(PipelineOptions options) {
+      return GoogleCloudStorageReadOptions.DEFAULT;
+    }
+  }
+
   /**
    * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using any transport
    * flags specified on the {@link PipelineOptions}.
@@ -153,7 +161,8 @@ public class GcsUtil {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null));
+                  : null),
+          gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
     /** Returns an instance of {@link GcsUtil} based on the given parameters. */
@@ -164,7 +173,8 @@ public class GcsUtil {
         ExecutorService executorService,
         Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes,
-        GcsCountersOptions gcsCountersOptions) {
+        GcsCountersOptions gcsCountersOptions,
+        GoogleCloudStorageReadOptions gcsReadOptions) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
@@ -173,7 +183,8 @@ public class GcsUtil {
           credentials,
           uploadBufferSizeBytes,
           null,
-          gcsCountersOptions);
+          gcsCountersOptions,
+          gcsReadOptions);
     }
   }
 
@@ -249,7 +260,8 @@ public class GcsUtil {
       Credentials credentials,
       @Nullable Integer uploadBufferSizeBytes,
       @Nullable Integer rewriteDataOpBatchLimit,
-      GcsCountersOptions gcsCountersOptions) {
+      GcsCountersOptions gcsCountersOptions,
+      GoogleCloudStorageReadOptions gcsReadOptions) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
@@ -260,6 +272,7 @@ public class GcsUtil {
     googleCloudStorageOptions =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
+            .setReadChannelOptions(gcsReadOptions)
             .setGrpcEnabled(shouldUseGrpc)
             .build();
     googleCloudStorage =
@@ -565,7 +578,9 @@ public class GcsUtil {
   public SeekableByteChannel open(GcsPath path) throws IOException {
     String bucket = path.getBucket();
     SeekableByteChannel channel =
-        googleCloudStorage.open(new StorageResourceId(path.getBucket(), path.getObject()));
+        googleCloudStorage.open(
+            new StorageResourceId(path.getBucket(), path.getObject()),
+            this.googleCloudStorageOptions.getReadChannelOptions());
     return wrapInCounting(channel, bucket);
   }
 

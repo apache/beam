@@ -55,9 +55,18 @@ public interface BeamFnDataClient {
    * successfully.
    *
    * <p>It is expected that if a bundle fails during processing then the failure will become visible
-   * to the {@link BeamFnDataClient} during a future {@link FnDataReceiver#accept} invocation.
+   * to the {@link BeamFnDataClient} during a future {@link FnDataReceiver#accept} invocation or via
+   * a call to {@link #poisonInstructionId}.
    */
   void unregisterReceiver(String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors);
+
+  /**
+   * Poisons the instruction id, indicating that future data arriving for it should be discarded.
+   * Unregisters the receiver if was registered.
+   *
+   * @param instructionId
+   */
+  void poisonInstructionId(String instructionId);
 
   /**
    * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and

@@ -53,7 +53,7 @@ When using Java, you must specify your dependency on the Direct Runner in your p
 
 #### Set runner
 
-In java, you need to set runner to `args` when you start the program.
+In Java, you need to set runner to `args` when you start the program.
 
 ```
 --runner=DirectRunner

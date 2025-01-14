@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/docker/docker/api/types/container"
@@ -73,7 +74,7 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *worker.W) {
 	conn, err := grpc.Dial(ep.GetEndpoint().GetUrl(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		panic(fmt.Sprintf("unable to dial sdk worker %v: %v", ep.GetEndpoint().GetUrl(), err))
+		panic(fmt.Sprintf("unable to dial sdk worker pool %v: %v", ep.GetEndpoint().GetUrl(), err))
 	}
 	defer conn.Close()
 	pool := fnpb.NewBeamFnExternalWorkerPoolClient(conn)
@@ -81,7 +82,12 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	endpoint := &pipepb.ApiServiceDescriptor{
 		Url: wk.Endpoint(),
 	}
-	pool.StartWorker(ctx, &fnpb.StartWorkerRequest{
+
+	// Use a background context for these workers to avoid pre-mature
+	// cancelation issues when starting them.
+	bgContext := context.Background()
+
+	resp, err := pool.StartWorker(bgContext, &fnpb.StartWorkerRequest{
 		WorkerId:          wk.ID,
 		ControlEndpoint:   endpoint,
 		LoggingEndpoint:   endpoint,
@@ -89,6 +95,11 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 		ProvisionEndpoint: endpoint,
 		Params:            ep.GetParams(),
 	})
+
+	if str := resp.GetError(); err != nil || str != "" {
+		panic(fmt.Sprintf("unable to start sdk worker %v error: %v, resp: %v", ep.GetEndpoint().GetUrl(), err, prototext.Format(resp)))
+	}
+
 	// Job processing happens here, but orchestrated by other goroutines
 	// This goroutine blocks until the context is cancelled, signalling
 	// that the pool runner should stop the worker.
@@ -96,7 +107,7 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 
 	// Previous context cancelled so we need a new one
 	// for this request.
-	pool.StopWorker(context.Background(), &fnpb.StopWorkerRequest{
+	pool.StopWorker(bgContext, &fnpb.StopWorkerRequest{
 		WorkerId: wk.ID,
 	})
 	wk.Stop()
@@ -147,7 +158,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	ccr, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: dp.GetContainerImage(),
 		Cmd: []string{
-			fmt.Sprintf("--id=%v-%v", wk.JobKey, wk.Env),
+			fmt.Sprintf("--id=%v", wk.ID),
 			fmt.Sprintf("--control_endpoint=%v", wk.Endpoint()),
 			fmt.Sprintf("--artifact_endpoint=%v", artifactEndpoint),
 			fmt.Sprintf("--provision_endpoint=%v", wk.Endpoint()),

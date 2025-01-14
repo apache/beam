@@ -65,6 +65,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("readQuery", FieldType.STRING)
         .addNullableField("writeStatement", FieldType.STRING)
         .addNullableField("fetchSize", FieldType.INT16)
+        .addNullableField("disableAutoCommit", FieldType.BOOLEAN)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .addNullableField("autosharding", FieldType.BOOLEAN)
         // Partitioning support. If you specify a partition column we will use that instead of
@@ -73,6 +74,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("partitions", FieldType.INT16)
         .addNullableField("maxConnections", FieldType.INT16)
         .addNullableField("driverJars", FieldType.STRING)
+        .addNullableField("writeBatchSize", FieldType.INT64)
         .build();
   }
 
@@ -140,6 +142,11 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
               readRows = readRows.withFetchSize(fetchSize);
             }
 
+            @Nullable Boolean disableAutoCommit = config.getBoolean("disableAutoCommit");
+            if (disableAutoCommit != null) {
+              readRows = readRows.withDisableAutoCommit(disableAutoCommit);
+            }
+
             return input.apply(readRows);
           } else {
 
@@ -163,6 +170,11 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
               readRows = readRows.withOutputParallelization(outputParallelization);
             }
 
+            @Nullable Boolean disableAutoCommit = config.getBoolean("disableAutoCommit");
+            if (disableAutoCommit != null) {
+              readRows = readRows.withDisableAutoCommit(disableAutoCommit);
+            }
+
             return input.apply(readRows);
           }
         }
@@ -182,6 +194,10 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
           @Nullable Boolean autosharding = config.getBoolean("autosharding");
           if (autosharding != null && autosharding) {
             writeRows = writeRows.withAutoSharding();
+          }
+          @Nullable Long writeBatchSize = config.getInt64("writeBatchSize");
+          if (writeBatchSize != null) {
+            writeRows = writeRows.withBatchSize(writeBatchSize);
           }
           return input.apply(writeRows);
         }

@@ -104,7 +104,7 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-While `ParDo` always outputs the main output of `PCollection` (as a return value from apply), you can also force your `ParDo` to output any number of additional `PCollection` outputs. If you decide to have multiple outputs, your `ParDo` will return all the `PCollection` output (including the main output) combined. This will be useful when you are working with big data or a database that needs to be divided into different collections. You get a combined `PCollectionTuple`, you can use `TupleTag` to get a `PCollection`.
+While `ParDo` always outputs the main output of `PCollection` (as a return value from apply), you can also force your `ParDo` to output any number of additional `PCollection` outputs. If you decide to have multiple outputs, your `ParDo` will return all the `PCollection` outputs (including the main output) combined. This will be useful when you are working with big data or a database that needs to be divided into different collections. You get a combined `PCollectionTuple`, you can use `TupleTag` to get a `PCollection`.
 
 A `PCollectionTuple` is an immutable tuple of heterogeneously typed `PCollection`, "with keys" `TupleTags`. A `PCollectionTuple` can be used as input or output for `PTransform` receiving or creating multiple `PCollection` inputs or outputs, which can be of different types, for example, `ParDo` with multiple outputs.
 
@@ -202,7 +202,7 @@ tens = results[None]  # the undeclared main output
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-The `applyTransform()` accepts a list of integers at the output two `PCollection` one `PCollection` above 100 and second below 100.
+The `applyTransform()` accepts a list of integers and outputs two `PCollections`: one `PCollection` above 100 and second below 100.
 
 You can also work with strings:
 {{if (eq .Sdk "go")}}

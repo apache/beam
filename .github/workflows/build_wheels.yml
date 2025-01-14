@@ -219,6 +219,7 @@ jobs:
     runs-on: ${{ matrix.os_python.runner }}
     timeout-minutes: 480
     strategy:
+      fail-fast: false
       matrix:
         os_python: [
           {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
@@ -226,7 +227,7 @@ jobs:
           # TODO(https://github.com/apache/beam/issues/31114)
           {"os": "macos-13", "runner": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
           {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
-          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
+          {"os": "ubuntu-20.04", "runner": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
         py_version: ["cp39-", "cp310-", "cp311-", "cp312-"]

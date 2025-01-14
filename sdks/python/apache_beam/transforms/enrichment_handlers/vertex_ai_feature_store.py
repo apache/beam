@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import logging
-from typing import List
 
 import proto
 from google.api_core.exceptions import NotFound
@@ -209,7 +208,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
       api_endpoint: str,
       feature_store_id: str,
       entity_type_id: str,
-      feature_ids: List[str],
+      feature_ids: list[str],
       row_key: str,
       *,
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
@@ -224,7 +223,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         Vertex AI Feature Store (Legacy).
       feature_store_id (str): The id of the Vertex AI Feature Store (Legacy).
       entity_type_id (str): The entity type of the feature store.
-      feature_ids (List[str]): A list of feature-ids to fetch
+      feature_ids (list[str]): A list of feature-ids to fetch
         from the Feature Store.
       row_key (str): The row key field name containing the entity id
         for the feature values.

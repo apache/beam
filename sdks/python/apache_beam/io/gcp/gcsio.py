@@ -35,8 +35,10 @@ import time
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import RetryError
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
+from google.cloud.exceptions import from_http_response
 from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
 from google.cloud.storage.retry import DEFAULT_RETRY
@@ -137,8 +139,10 @@ def create_storage_client(pipeline_options, use_credentials=True):
 
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
-  def __init__(self, storage_client=None, pipeline_options=None):
-    # type: (Optional[storage.Client], Optional[Union[dict, PipelineOptions]]) -> None
+  def __init__(
+      self,
+      storage_client: Optional[storage.Client] = None,
+      pipeline_options: Optional[Union[dict, PipelineOptions]] = None) -> None:
     if pipeline_options is None:
       pipeline_options = PipelineOptions()
     elif isinstance(pipeline_options, dict):
@@ -262,9 +266,45 @@ class GcsIO(object):
     except NotFound:
       return
 
+  def _batch_with_retry(self, requests, fn):
+    current_requests = [*enumerate(requests)]
+    responses = [None for _ in current_requests]
+
+    @self._storage_client_retry
+    def run_with_retry():
+      current_batch = self.client.batch(raise_exception=False)
+      with current_batch:
+        for _, request in current_requests:
+          fn(request)
+      last_retryable_exception = None
+      for (i, current_pair), response in zip(
+        [*current_requests], current_batch._responses
+      ):
+        responses[i] = response
+        should_retry = (
+            response.status_code >= 400 and
+            self._storage_client_retry._predicate(from_http_response(response)))
+        if should_retry:
+          last_retryable_exception = from_http_response(response)
+        else:
+          current_requests.remove((i, current_pair))
+      if last_retryable_exception:
+        raise last_retryable_exception
+
+    try:
+      run_with_retry()
+    except RetryError:
+      pass
+
+    return responses
+
+  def _delete_batch_request(self, path):
+    bucket_name, blob_name = parse_gcs_path(path)
+    bucket = self.client.bucket(bucket_name)
+    bucket.delete_blob(blob_name)
+
   def delete_batch(self, paths):
     """Deletes the objects at the given GCS paths.
-    Warning: any exception during batch delete will NOT be retried.
 
     Args:
       paths: List of GCS file path patterns or Dict with GCS file path patterns
@@ -283,16 +323,11 @@ class GcsIO(object):
         current_paths = paths[s:s + MAX_BATCH_OPERATION_SIZE]
       else:
         current_paths = paths[s:]
-      current_batch = self.client.batch(raise_exception=False)
-      with current_batch:
-        for path in current_paths:
-          bucket_name, blob_name = parse_gcs_path(path)
-          bucket = self.client.bucket(bucket_name)
-          bucket.delete_blob(blob_name)
-
+      responses = self._batch_with_retry(
+          current_paths, self._delete_batch_request)
       for i, path in enumerate(current_paths):
         error_code = None
-        resp = current_batch._responses[i]
+        resp = responses[i]
         if resp.status_code >= 400 and resp.status_code != 404:
           error_code = resp.status_code
         final_results.append((path, error_code))
@@ -332,9 +367,16 @@ class GcsIO(object):
         source_generation=src_generation,
         retry=self._storage_client_retry)
 
+  def _copy_batch_request(self, pair):
+    src_bucket_name, src_blob_name = parse_gcs_path(pair[0])
+    dest_bucket_name, dest_blob_name = parse_gcs_path(pair[1])
+    src_bucket = self.client.bucket(src_bucket_name)
+    src_blob = src_bucket.blob(src_blob_name)
+    dest_bucket = self.client.bucket(dest_bucket_name)
+    src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
+
   def copy_batch(self, src_dest_pairs):
     """Copies the given GCS objects from src to dest.
-    Warning: any exception during batch copy will NOT be retried.
 
     Args:
       src_dest_pairs: list of (src, dest) tuples of gs://<bucket>/<name> files
@@ -352,20 +394,11 @@ class GcsIO(object):
         current_pairs = src_dest_pairs[s:s + MAX_BATCH_OPERATION_SIZE]
       else:
         current_pairs = src_dest_pairs[s:]
-      current_batch = self.client.batch(raise_exception=False)
-      with current_batch:
-        for pair in current_pairs:
-          src_bucket_name, src_blob_name = parse_gcs_path(pair[0])
-          dest_bucket_name, dest_blob_name = parse_gcs_path(pair[1])
-          src_bucket = self.client.bucket(src_bucket_name)
-          src_blob = src_bucket.blob(src_blob_name)
-          dest_bucket = self.client.bucket(dest_bucket_name)
-
-          src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
-
+      responses = self._batch_with_retry(
+          current_pairs, self._copy_batch_request)
       for i, pair in enumerate(current_pairs):
         error_code = None
-        resp = current_batch._responses[i]
+        resp = responses[i]
         if resp.status_code >= 400:
           error_code = resp.status_code
         final_results.append((pair[0], pair[1], error_code))
@@ -587,8 +620,29 @@ class BeamBlobReader(BlobReader):
       blob,
       chunk_size=DEFAULT_READ_BUFFER_SIZE,
       enable_read_bucket_metric=False,
-      retry=DEFAULT_RETRY):
-    super().__init__(blob, chunk_size=chunk_size, retry=retry)
+      retry=DEFAULT_RETRY,
+      raw_download=True):
+    # By default, we always request to retrieve raw data from GCS even if the
+    # object meets the criteria of decompressive transcoding
+    # (https://cloud.google.com/storage/docs/transcoding).
+    super().__init__(
+        blob, chunk_size=chunk_size, retry=retry, raw_download=raw_download)
+    # TODO: Remove this after
+    # https://github.com/googleapis/python-storage/issues/1406 is fixed.
+    # As a workaround, we manually trigger a reload here. Otherwise, an internal
+    # call of reader.seek() will cause an exception if raw_download is set
+    # when initializing BlobReader(),
+    blob.reload()
+
+    # TODO: Currently there is a bug in GCS server side when a client requests
+    # a file with "content-encoding=gzip" and "content-type=application/gzip" or
+    # "content-type=application/x-gzip", which will lead to infinite loop.
+    # We skip the support of this type of files until the GCS bug is fixed.
+    # Internal bug id: 203845981.
+    if (blob.content_encoding == "gzip" and
+        blob.content_type in ["application/gzip", "application/x-gzip"]):
+      raise NotImplementedError("Doubly compressed files not supported.")
+
     self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
 

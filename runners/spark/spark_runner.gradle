@@ -345,7 +345,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
 
     // State and Timers
-    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'

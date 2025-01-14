@@ -273,9 +273,9 @@ class Recordings():
   from all defined unbounded sources for that PCollection's pipeline. The
   following methods allow for introspection into that background recording job.
   """
-  def describe(self, pipeline=None):
-    # type: (Optional[beam.Pipeline]) -> dict[str, Any] # noqa: F821
-
+  def describe(
+      self,
+      pipeline: Optional[beam.Pipeline] = None) -> Dict[str, Any]:  # noqa: F821
     """Returns a description of all the recordings for the given pipeline.
 
     If no pipeline is given then this returns a dictionary of descriptions for
@@ -292,9 +292,7 @@ class Recordings():
       return description[pipeline]
     return description
 
-  def clear(self, pipeline):
-    # type: (beam.Pipeline) -> bool
-
+  def clear(self, pipeline: beam.Pipeline) -> bool:
     """Clears all recordings of the given pipeline. Returns True if cleared."""
 
     description = self.describe(pipeline)
@@ -308,18 +306,14 @@ class Recordings():
     ie.current_env().cleanup(pipeline)
     return True
 
-  def stop(self, pipeline):
-    # type: (beam.Pipeline) -> None
-
+  def stop(self, pipeline: beam.Pipeline) -> None:
     """Stops the background source recording of the given pipeline."""
 
     recording_manager = ie.current_env().get_recording_manager(
         pipeline, create_if_absent=True)
     recording_manager.cancel()
 
-  def record(self, pipeline):
-    # type: (beam.Pipeline) -> bool
-
+  def record(self, pipeline: beam.Pipeline) -> bool:
     """Starts a background source recording job for the given pipeline. Returns
     True if the recording job was started.
     """

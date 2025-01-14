@@ -776,7 +776,8 @@ class FnApiRunnerTest(unittest.TestCase):
           state.clear()
           yield buffer
         else:
-          timer.set(ts + 1)
+          # Set the timer to fire within it's window.
+          timer.set(ts + (1 - timestamp.Duration(micros=1000)))
 
       @userstate.on_timer(timer_spec)
       def process_timer(self, state=beam.DoFn.StateParam(state_spec)):
@@ -790,8 +791,10 @@ class FnApiRunnerTest(unittest.TestCase):
       # Acutal should be a grouping of the inputs into batches of size
       # at most buffer_size, but the actual batching is nondeterministic
       # based on ordering and trigger firing timing.
-      self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
-      self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
+      self.assertEqual(
+          sorted(sum((list(b) for b in actual), [])), elements, actual)
+      self.assertEqual(
+          max(len(list(buffer)) for buffer in actual), buffer_size, actual)
       if windowed:
         # Elements were assigned to windows based on their parity.
         # Assert that each grouping consists of elements belonging to the
@@ -1206,13 +1209,14 @@ class FnApiRunnerTest(unittest.TestCase):
       pcoll_b = p | 'b' >> beam.Create(['b'])
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
-  def test_metrics(self, check_gauge=True):
+  def test_metrics(self, check_gauge=True, check_bounded_trie=False):
     p = self.create_pipeline()
 
     counter = beam.metrics.Metrics.counter('ns', 'counter')
     distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
     gauge = beam.metrics.Metrics.gauge('ns', 'gauge')
     string_set = beam.metrics.Metrics.string_set('ns', 'string_set')
+    bounded_trie = beam.metrics.Metrics.bounded_trie('ns', 'bounded_trie')
 
     elements = ['a', 'zzz']
     pcoll = p | beam.Create(elements)
@@ -1222,6 +1226,7 @@ class FnApiRunnerTest(unittest.TestCase):
     pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
     pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(3))
     pcoll | 'string_set' >> beam.FlatMap(lambda x: string_set.add(x))
+    pcoll | 'bounded_trie' >> beam.FlatMap(lambda x: bounded_trie.add(tuple(x)))
 
     res = p.run()
     res.wait_until_finish()
@@ -1244,6 +1249,14 @@ class FnApiRunnerTest(unittest.TestCase):
     str_set, = res.metrics().query(beam.metrics.MetricsFilter()
                                   .with_name('string_set'))['string_sets']
     self.assertEqual(str_set.committed, set(elements))
+
+    if check_bounded_trie:
+      bounded_trie, = res.metrics().query(beam.metrics.MetricsFilter()
+                                    .with_name('bounded_trie'))['bounded_tries']
+      self.assertEqual(bounded_trie.committed.size(), 2)
+      for element in elements:
+        self.assertTrue(
+            bounded_trie.committed.contains(tuple(element)), element)
 
   def test_callbacks_with_exception(self):
     elements_list = ['1', '2']

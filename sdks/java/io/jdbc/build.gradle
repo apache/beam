@@ -48,6 +48,8 @@ dependencies {
   testImplementation library.java.testcontainers_mysql
   testImplementation library.java.testcontainers_postgresql
   testImplementation 'mysql:mysql-connector-java:8.0.22'
+  // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
+  testImplementation 'com.zaxxer:HikariCP:4.0.3'
 
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

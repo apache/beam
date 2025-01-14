@@ -55,7 +55,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       startsWith(github.event.comment.body, 'Run Python Examples_Flink')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem22]
     timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     strategy:
@@ -102,3 +102,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
+          large_files: true

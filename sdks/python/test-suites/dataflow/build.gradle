@@ -61,7 +61,7 @@ task validatesContainerTests {
 }
 
 task validatesDistrolessContainerTests {
-  getVersionsAsList('distroless_python_versions').each {
+  getVersionsAsList('python_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesDistrolessContainer")
   }
 }

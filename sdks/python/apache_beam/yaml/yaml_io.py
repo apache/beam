@@ -45,7 +45,7 @@ from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
 from apache_beam.yaml import json_utils
-from apache_beam.yaml import yaml_mapping
+from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
 
 
@@ -289,7 +289,7 @@ def _create_formatter(
 
 
 @beam.ptransform_fn
-@yaml_mapping.maybe_with_exception_handling_transform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
 def read_from_pubsub(
     root,
     *,
@@ -393,7 +393,7 @@ def read_from_pubsub(
 
 
 @beam.ptransform_fn
-@yaml_mapping.maybe_with_exception_handling_transform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
 def write_to_pubsub(
     pcoll,
     *,

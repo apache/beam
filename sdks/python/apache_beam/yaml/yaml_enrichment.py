@@ -45,39 +45,42 @@ def enrichment_transform(
     enrichment_handler: str,
     handler_config: Dict[str, Any],
     timeout: Optional[float] = 30):
-  """
-    The Enrichment transform allows you to dynamically 
-    enhance elements in a pipeline by performing key-value 
-    lookups against external services like APIs or databases.
+  # pylint: disable=line-too-long
 
-    Example Usage::
-    
+  """
+    The Enrichment transform allows one to dynamically enhance elements in a
+    pipeline by performing key-value lookups against external services like
+    APIs or databases.
+
+    Example using BigTable: ::
+
         - type: Enrichment
-            config:
-                enrichment_handler: 'BigTable'
-                handler_config:
-                    project_id: 'apache-beam-testing'
-                    instance_id: 'beam-test'
-                    table_id: 'bigtable-enrichment-test'
-                    row_key: 'product_id'
-              timeout: 30
+          config:
+            enrichment_handler: 'BigTable'
+            handler_config:
+              project_id: 'apache-beam-testing'
+              instance_id: 'beam-test'
+              table_id: 'bigtable-enrichment-test'
+              row_key: 'product_id'
+            timeout: 30
+
+    For more information on Enrichment, see the [Beam docs](
+    https://beam.apache.org/documentation/transforms/python/elementwise/enrichment/).
 
     Args:
-        enrichment_handler: Specifies the source from 
-            where data needs to be extracted
-            into the pipeline for enriching data. 
-            It can be a string value in ["BigQuery", 
-            "BigTable", "FeastFeatureStore", 
-            "VertexAIFeatureStore"].
-        handler_config: Specifies the parameters for 
-            the respective enrichment_handler in a dictionary format.
-            To see the full set of handler_config parameters, see
-            their corresponding doc pages:
+        enrichment_handler (str): Specifies the source from where data needs
+          to be extracted into the pipeline for enriching data. One of
+          "BigQuery", "BigTable", "FeastFeatureStore" or "VertexAIFeatureStore".
+        handler_config (str): Specifies the parameters for the respective
+          enrichment_handler in a YAML/JSON format. To see the full set of
+          handler_config parameters, see their corresponding doc pages:
 
-            - :class:`~apache_beam.transforms.enrichment_handlers.bigquery.BigQueryEnrichmentHandler` # pylint: disable=line-too-long
-            - :class:`~apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler` # pylint: disable=line-too-long
-            - :class:`~apache_beam.transforms.enrichment_handlers.feast_feature_store.FeastFeatureStoreEnrichmentHandler` # pylint: disable=line-too-long
-            - :class:`~apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler` # pylint: disable=line-too-long
+            - [BigQueryEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigquery.html#apache_beam.transforms.enrichment_handlers.bigquery.BigQueryEnrichmentHandler)
+            - [BigTableEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler)
+            - [FeastFeatureStoreEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.feast_feature_store.html#apache_beam.transforms.enrichment_handlers.feast_feature_store.FeastFeatureStoreEnrichmentHandler)
+            - [VertexAIFeatureStoreEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler)
+        timeout (float): Timeout for source requests in seconds. Defaults to 30
+          seconds.
     """
   options.YamlOptions.check_enabled(pcoll.pipeline, 'Enrichment')
 

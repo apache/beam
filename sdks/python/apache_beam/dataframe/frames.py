@@ -38,7 +38,6 @@ import itertools
 import math
 import re
 import warnings
-from typing import List
 from typing import Optional
 
 import numpy as np
@@ -2660,7 +2659,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
-    """``keys`` must be a ``str`` or ``List[str]``. Passing an Index or Series
+    """``keys`` must be a ``str`` or ``list[str]``. Passing an Index or Series
     is not yet supported (`Issue 20759
     <https://github.com/apache/beam/issues/20759>`_)."""
     if isinstance(keys, str):
@@ -4574,7 +4573,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   tshift = frame_base.wont_implement_method(
       DataFrameGroupBy, 'tshift', reason="deprecated")
 
-def _maybe_project_func(projection: Optional[List[str]]):
+def _maybe_project_func(projection: Optional[list[str]]):
   """ Returns identity func if projection is empty or None, else returns
   a function that projects the specified columns. """
   if projection:
@@ -4967,7 +4966,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
 
     else:
       raise frame_base.WontImplementError(
-          "others must be None, DeferredSeries, or List[DeferredSeries] "
+          "others must be None, DeferredSeries, or list[DeferredSeries] "
           f"(encountered {type(others)}). Other types are not supported "
           "because they make this operation sensitive to the order of the "
           "data.", reason="order-sensitive")

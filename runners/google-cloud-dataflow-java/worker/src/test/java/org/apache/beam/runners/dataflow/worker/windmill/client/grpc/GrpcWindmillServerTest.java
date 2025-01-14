@@ -21,13 +21,16 @@ import static org.junit.Assert.*;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -71,6 +74,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
@@ -115,6 +119,7 @@ public class GrpcWindmillServerTest {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
+  private final Set<ManagedChannel> openedChannels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -131,16 +136,18 @@ public class GrpcWindmillServerTest {
   @After
   public void tearDown() throws Exception {
     server.shutdownNow();
+    openedChannels.forEach(ManagedChannel::shutdownNow);
   }
 
   private void startServerAndClient(List<String> experiments) throws Exception {
     String name = "Fake server for " + getClass();
     this.server =
-        InProcessServerBuilder.forName(name)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .executor(Executors.newFixedThreadPool(1))
-            .build()
-            .start();
+        grpcCleanup.register(
+            InProcessServerBuilder.forName(name)
+                .fallbackHandlerRegistry(serviceRegistry)
+                .executor(Executors.newFixedThreadPool(1))
+                .build()
+                .start());
 
     this.client =
         GrpcWindmillServer.newTestInstance(
@@ -149,7 +156,12 @@ public class GrpcWindmillServerTest {
             clientId,
             new FakeWindmillStubFactoryFactory(
                 new FakeWindmillStubFactory(
-                    () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name)))));
+                    () -> {
+                      ManagedChannel channel =
+                          grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name));
+                      openedChannels.add(channel);
+                      return channel;
+                    })));
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
@@ -280,7 +292,7 @@ public class GrpcWindmillServerTest {
                       StreamingGetWorkResponseChunk.Builder builder =
                           StreamingGetWorkResponseChunk.newBuilder()
                               .setStreamId(id)
-                              .setSerializedWorkItem(serializedResponse.substring(i, end))
+                              .addSerializedWorkItem(serializedResponse.substring(i, end))
                               .setRemainingBytesForWorkItem(serializedResponse.size() - end);
 
                       if (i == 0) {
@@ -330,6 +342,140 @@ public class GrpcWindmillServerTest {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
+            });
+    assertTrue(latch.await(30, TimeUnit.SECONDS));
+
+    stream.halfClose();
+    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void testStreamingGetWorkBatchedGetWorkResponse() throws Exception {
+    ConcurrentHashMap<Long, Boolean> sentResponseIds = new ConcurrentHashMap<>();
+    // This fake server returns an infinite stream of identical WorkItems, obeying the request size
+    // limits set by the client.
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingGetWorkRequest> getWorkStream(
+              StreamObserver<StreamingGetWorkResponseChunk> responseObserver) {
+            return new StreamObserver<StreamingGetWorkRequest>() {
+              final ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
+              boolean sawHeader = false;
+
+              @Override
+              public void onNext(StreamingGetWorkRequest request) {
+                maybeInjectError(responseObserver);
+
+                try {
+                  long maxItems;
+                  if (!sawHeader) {
+                    errorCollector.checkThat(
+                        request.getRequest(),
+                        Matchers.equalTo(
+                            GetWorkRequest.newBuilder()
+                                .setClientId(10)
+                                .setJobId("job")
+                                .setProjectId("project")
+                                .setWorkerId("worker")
+                                .setMaxItems(10)
+                                .setMaxBytes(10000)
+                                .build()));
+                    sawHeader = true;
+                    maxItems = request.getRequest().getMaxItems();
+                  } else {
+                    maxItems = request.getRequestExtension().getMaxItems();
+                  }
+
+                  ArrayDeque<ByteString> serializedResponses = new ArrayDeque<>((int) maxItems);
+                  for (int item = 0; item < maxItems; item++) {
+                    long id = ThreadLocalRandom.current().nextLong();
+                    ByteString serializedResponse =
+                        WorkItem.newBuilder()
+                            .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
+                            .setWorkToken(id)
+                            .setShardingKey(id)
+                            .build()
+                            .toByteString();
+                    serializedResponses.push(serializedResponse);
+                    sentResponseIds.put(id, true);
+                  }
+
+                  int loop = 0;
+                  // Send a mix of chunks with single messages and partial messages
+                  while (serializedResponses.size() > 0) {
+                    StreamingGetWorkResponseChunk.Builder responseChunk =
+                        StreamingGetWorkResponseChunk.newBuilder()
+                            .setStreamId(ThreadLocalRandom.current().nextLong())
+                            .setComputationMetadata(
+                                ComputationWorkItemMetadata.newBuilder()
+                                    .setComputationId("comp")
+                                    .setDependentRealtimeInputWatermark(17000)
+                                    .setInputDataWatermark(18000));
+                    int loopVariant = loop % 3;
+                    if (loopVariant < 1) {
+                      responseChunk.addSerializedWorkItem(serializedResponses.pop());
+                    }
+                    if (serializedResponses.size() > 0 && loopVariant < 2) {
+                      ByteString serializedResponse = serializedResponses.pop();
+                      int end = serializedResponse.size() / 2;
+                      responseChunk.addSerializedWorkItem(serializedResponse.substring(0, end));
+                      responseChunk.setRemainingBytesForWorkItem(serializedResponse.size() - end);
+                      try {
+                        responseObserver.onNext(responseChunk.build());
+                      } catch (IllegalStateException e) {
+                        // Client closed stream, we're done.
+                        return;
+                      }
+                      responseChunk.clearSerializedWorkItem();
+                      responseChunk.clearRemainingBytesForWorkItem();
+
+                      responseChunk.addSerializedWorkItem(serializedResponse.substring(end));
+                    }
+                    if (serializedResponses.size() > 0 && loopVariant < 3) {
+                      responseChunk.addSerializedWorkItem(serializedResponses.pop());
+                    }
+                    try {
+                      responseObserver.onNext(responseChunk.build());
+                    } catch (IllegalStateException e) {
+                      // Client closed stream, we're done.
+                      return;
+                    }
+                    ++loop;
+                  }
+                } catch (Exception e) {
+                  errorCollector.addError(e);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                injector.cancel();
+                responseObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    // Read the stream of WorkItems until 100 of them are received.
+    CountDownLatch latch = new CountDownLatch(100);
+    GetWorkStream stream =
+        client.getWorkStream(
+            GetWorkRequest.newBuilder().setClientId(10).setMaxItems(10).setMaxBytes(10000).build(),
+            (String computation,
+                @Nullable Instant inputDataWatermark,
+                Instant synchronizedProcessingTime,
+                WorkItem workItem,
+                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
+              assertEquals(inputDataWatermark, new Instant(18));
+              assertEquals(synchronizedProcessingTime, new Instant(17));
+              assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
+              assertTrue(sentResponseIds.containsKey(workItem.getWorkToken()));
+              sentResponseIds.remove(workItem.getWorkToken());
+              latch.countDown();
             });
     assertTrue(latch.await(30, TimeUnit.SECONDS));
 
@@ -460,8 +606,9 @@ public class GrpcWindmillServerTest {
                       "Sending batched response of {} ids", responseBuilder.getRequestIdCount());
                   try {
                     responseObserver.onNext(responseBuilder.build());
-                  } catch (IllegalStateException e) {
+                  } catch (Exception e) {
                     // Stream is already closed.
+                    LOG.warn(Arrays.toString(e.getStackTrace()));
                   }
                   responseBuilder.clear();
                 }
@@ -480,16 +627,24 @@ public class GrpcWindmillServerTest {
       final String s = i % 5 == 0 ? largeString(i) : "tag";
       executor.submit(
           () -> {
-            errorCollector.checkThat(
-                stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
-                Matchers.equalTo(makeGetDataResponse(s)));
+            try {
+              errorCollector.checkThat(
+                  stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
+                  Matchers.equalTo(makeGetDataResponse(s)));
+            } catch (WindmillStreamShutdownException e) {
+              throw new RuntimeException(e);
+            }
             done.countDown();
           });
       executor.execute(
           () -> {
-            errorCollector.checkThat(
-                stream.requestGlobalData(makeGlobalDataRequest(key)),
-                Matchers.equalTo(makeGlobalDataResponse(key)));
+            try {
+              errorCollector.checkThat(
+                  stream.requestGlobalData(makeGlobalDataRequest(key)),
+                  Matchers.equalTo(makeGlobalDataResponse(key)));
+            } catch (WindmillStreamShutdownException e) {
+              throw new RuntimeException(e);
+            }
             done.countDown();
           });
     }
@@ -1146,7 +1301,7 @@ public class GrpcWindmillServerTest {
                     StreamingGetWorkResponseChunk.Builder builder =
                         StreamingGetWorkResponseChunk.newBuilder()
                             .setStreamId(id)
-                            .setSerializedWorkItem(serializedResponse)
+                            .addSerializedWorkItem(serializedResponse)
                             .setRemainingBytesForWorkItem(0)
                             .setComputationMetadata(
                                 ComputationWorkItemMetadata.newBuilder()

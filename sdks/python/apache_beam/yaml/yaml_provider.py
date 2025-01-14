@@ -36,6 +36,7 @@ from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
+from typing import List
 from typing import Mapping
 from typing import Optional
 
@@ -63,6 +64,7 @@ from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 
 class Provider:
@@ -348,7 +350,7 @@ def python(urns, packages=()):
 
 @ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
-  def __init__(self, urns, packages):
+  def __init__(self, urns, packages: Iterable[str]):
     super().__init__(urns, PypiExpansionService(packages))
 
   def available(self):
@@ -876,8 +878,10 @@ class YamlProviders:
       return beam.WindowInto(window_fn)
 
   @staticmethod
+  @beam.ptransform_fn
+  @maybe_with_exception_handling_transform_fn
   def log_for_testing(
-      level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
+      pcoll, *, level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
@@ -904,7 +908,7 @@ class YamlProviders:
 
     def to_loggable_json_recursive(o):
       if isinstance(o, (str, bytes)):
-        return o
+        return str(o)
       elif callable(getattr(o, '_asdict', None)):
         return to_loggable_json_recursive(o._asdict())
       elif isinstance(o, Mapping) and callable(getattr(o, 'items', None)):
@@ -918,7 +922,7 @@ class YamlProviders:
       logger(prefix + json.dumps(to_loggable_json_recursive(x)))
       return x
 
-    return "LogForTesting" >> beam.Map(log_and_return)
+    return pcoll | "LogForTesting" >> beam.Map(log_and_return)
 
   @staticmethod
   def create_builtin_provider():
@@ -1014,26 +1018,31 @@ class PypiExpansionService:
   """
   VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
-  def __init__(self, packages, base_python=sys.executable):
-    self._packages = packages
+  def __init__(
+      self, packages: Iterable[str], base_python: str = sys.executable):
+    if not isinstance(packages, Iterable) or isinstance(packages, str):
+      raise TypeError(
+          "Packages must be an iterable of strings, got %r" % packages)
+    self._packages = list(packages)
     self._base_python = base_python
 
   @classmethod
-  def _key(cls, base_python, packages):
+  def _key(cls, base_python: str, packages: List[str]) -> str:
     return json.dumps({
         'binary': base_python, 'packages': sorted(packages)
     },
                       sort_keys=True)
 
   @classmethod
-  def _path(cls, base_python, packages):
+  def _path(cls, base_python: str, packages: List[str]) -> str:
     return os.path.join(
         cls.VENV_CACHE,
         hashlib.sha256(cls._key(base_python,
                                 packages).encode('utf-8')).hexdigest())
 
   @classmethod
-  def _create_venv_from_scratch(cls, base_python, packages):
+  def _create_venv_from_scratch(
+      cls, base_python: str, packages: List[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1051,7 +1060,8 @@ class PypiExpansionService:
     return venv
 
   @classmethod
-  def _create_venv_from_clone(cls, base_python, packages):
+  def _create_venv_from_clone(
+      cls, base_python: str, packages: List[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1071,10 +1081,11 @@ class PypiExpansionService:
     return venv
 
   @classmethod
-  def _create_venv_to_clone(cls, base_python):
+  def _create_venv_to_clone(cls, base_python: str) -> str:
     if '.dev' in beam_version:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
+      return base_venv
     return cls._create_venv_from_scratch(
         base_python,
         [
@@ -1082,7 +1093,7 @@ class PypiExpansionService:
             'virtualenv-clone'
         ])
 
-  def _venv(self):
+  def _venv(self) -> str:
     return self._create_venv_from_clone(self._base_python, self._packages)
 
   def __enter__(self):

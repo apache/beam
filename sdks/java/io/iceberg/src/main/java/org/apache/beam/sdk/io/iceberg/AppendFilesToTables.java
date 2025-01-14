@@ -47,9 +47,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.OutputFile;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,7 +132,7 @@ class AppendFilesToTables
         return;
       }
 
-      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
+      Table table = getCatalog().loadTable(IcebergUtils.parseTableIdentifier(element.getKey()));
 
       // vast majority of the time, we will simply append data files.
       // in the rare case we get a batch that contains multiple partition specs, we will group
@@ -188,8 +186,10 @@ class AppendFilesToTables
         int specId = entry.getKey();
         List<DataFile> files = entry.getValue();
         PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        ManifestWriter<DataFile> writer =
-            createManifestWriter(table.location(), uuid, spec, table.io());
+        ManifestWriter<DataFile> writer;
+        try (FileIO io = table.io()) {
+          writer = createManifestWriter(table.location(), uuid, spec, io);
+        }
         for (DataFile file : files) {
           writer.add(file);
           committedDataFileByteSize.update(file.fileSizeInBytes());
@@ -208,8 +208,7 @@ class AppendFilesToTables
               String.format(
                   "%s/metadata/%s-%s-%s.manifest",
                   tableLocation, manifestFilePrefix, uuid, spec.specId()));
-      OutputFile outputFile = io.newOutputFile(location);
-      return ManifestFiles.write(spec, outputFile);
+      return ManifestFiles.write(spec, io.newOutputFile(location));
     }
   }
 }

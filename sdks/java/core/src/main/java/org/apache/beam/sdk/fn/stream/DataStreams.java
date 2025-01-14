@@ -202,6 +202,12 @@ public class DataStreams {
           T next = next();
           rvals.add(next);
         }
+        // We don't support seeking backwards so release the memory of the last
+        // page if it is completed.
+        if (inbound.currentStream.available() == 0) {
+          inbound.position = 0;
+          inbound.currentStream = EMPTY_STREAM;
+        }
 
         // Uses the size of the ByteString as an approximation for the heap size occupied by the
         // page, considering an overhead of {@link BYTES_LIST_ELEMENT_OVERHEAD} for each element.

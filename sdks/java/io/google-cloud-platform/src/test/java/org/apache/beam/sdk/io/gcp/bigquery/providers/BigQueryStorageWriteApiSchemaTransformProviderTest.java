@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.DESTINATION;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.RECORD;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -32,13 +36,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -50,13 +56,17 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.util.RowFilter;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -108,15 +118,13 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
   @Test
   public void testInvalidConfig() {
-    List<BigQueryStorageWriteApiSchemaTransformConfiguration.Builder> invalidConfigs =
+    List<BigQueryWriteConfiguration.Builder> invalidConfigs =
         Arrays.asList(
-            BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-                .setTable("not_a_valid_table_spec"),
-            BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            BigQueryWriteConfiguration.builder()
                 .setTable("project:dataset.table")
                 .setCreateDisposition("INVALID_DISPOSITION"));
 
-    for (BigQueryStorageWriteApiSchemaTransformConfiguration.Builder config : invalidConfigs) {
+    for (BigQueryWriteConfiguration.Builder config : invalidConfigs) {
       assertThrows(
           Exception.class,
           () -> {
@@ -125,13 +133,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     }
   }
 
-  public PCollectionRowTuple runWithConfig(
-      BigQueryStorageWriteApiSchemaTransformConfiguration config) {
+  public PCollectionRowTuple runWithConfig(BigQueryWriteConfiguration config) {
     return runWithConfig(config, ROWS);
   }
 
-  public PCollectionRowTuple runWithConfig(
-      BigQueryStorageWriteApiSchemaTransformConfiguration config, List<Row> inputRows) {
+  public PCollectionRowTuple runWithConfig(BigQueryWriteConfiguration config, List<Row> inputRows) {
     BigQueryStorageWriteApiSchemaTransformProvider provider =
         new BigQueryStorageWriteApiSchemaTransformProvider();
 
@@ -167,17 +173,14 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   public boolean rowEquals(Row expectedRow, TableRow actualRow) {
-    return expectedRow.getValue("name").equals(actualRow.get("name"))
-        && expectedRow
-            .getValue("number")
-            .equals(Long.parseLong(actualRow.get("number").toString()));
+    return expectedRow.equals(BigQueryUtils.toBeamRow(expectedRow.getSchema(), actualRow));
   }
 
   @Test
   public void testSimpleWrite() throws Exception {
     String tableSpec = "project:dataset.simple_write";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder().setTable(tableSpec).build();
 
     runWithConfig(config, ROWS);
     p.run().waitUntilFinish();
@@ -189,21 +192,21 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
   @Test
   public void testWriteToDynamicDestinations() throws Exception {
-    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(dynamic).build();
+    String dynamic = BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder().setTable(dynamic).build();
 
     String baseTableSpec = "project:dataset.dynamic_write_";
 
     Schema schemaWithDestinations =
-        Schema.builder().addStringField("destination").addRowField("record", SCHEMA).build();
+        Schema.builder().addStringField(DESTINATION).addRowField(RECORD, SCHEMA).build();
     List<Row> rowsWithDestinations =
         ROWS.stream()
             .map(
                 row ->
                     Row.withSchema(schemaWithDestinations)
-                        .withFieldValue("destination", baseTableSpec + row.getInt64("number"))
-                        .withFieldValue("record", row)
+                        .withFieldValue(DESTINATION, baseTableSpec + row.getInt64("number"))
+                        .withFieldValue(RECORD, row)
                         .build())
             .collect(Collectors.toList());
 
@@ -224,17 +227,44 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
   }
 
+  @Test
+  public void testWriteToPortableDynamicDestinations() throws Exception {
+    String destinationTemplate = "project:dataset.dynamic_write_{name}_{number}";
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
+            .setTable(destinationTemplate)
+            .setKeep(Arrays.asList("number", "dt"))
+            .build();
+
+    runWithConfig(config);
+    p.run().waitUntilFinish();
+
+    RowFilter rowFilter = new RowFilter(SCHEMA).keep(Arrays.asList("number", "dt"));
+    assertTrue(
+        rowEquals(
+            rowFilter.filter(ROWS.get(0)),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_a_1").get(0)));
+    assertTrue(
+        rowEquals(
+            rowFilter.filter(ROWS.get(1)),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_b_2").get(0)));
+    assertTrue(
+        rowEquals(
+            rowFilter.filter(ROWS.get(2)),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_c_3").get(0)));
+  }
+
   List<Row> createCDCUpsertRows(List<Row> rows, boolean dynamicDestination, String tablePrefix) {
 
     Schema.Builder schemaBuilder =
         Schema.builder()
-            .addRowField("record", SCHEMA)
+            .addRowField(RECORD, SCHEMA)
             .addRowField(
                 BigQueryStorageWriteApiSchemaTransformProvider.ROW_PROPERTY_MUTATION_INFO,
                 BigQueryStorageWriteApiSchemaTransformProvider.ROW_SCHEMA_MUTATION_INFO);
 
     if (dynamicDestination) {
-      schemaBuilder = schemaBuilder.addStringField("destination");
+      schemaBuilder = schemaBuilder.addStringField(DESTINATION);
     }
 
     Schema schemaWithCDC = schemaBuilder.build();
@@ -258,10 +288,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
                                       .ROW_PROPERTY_MUTATION_SQN,
                                   "AAA" + idx)
                               .build())
-                      .withFieldValue("record", row);
+                      .withFieldValue(RECORD, row);
               if (dynamicDestination) {
                 rowBuilder =
-                    rowBuilder.withFieldValue("destination", tablePrefix + row.getInt64("number"));
+                    rowBuilder.withFieldValue(DESTINATION, tablePrefix + row.getInt64("number"));
               }
               return rowBuilder.build();
             })
@@ -273,8 +303,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     String tableSpec = "project:dataset.cdc_write";
     List<String> primaryKeyColumns = ImmutableList.of("name");
 
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setUseAtLeastOnceSemantics(true)
             .setTable(tableSpec)
             .setUseCdcWrites(true)
@@ -304,9 +334,9 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testCDCWriteToDynamicDestinations() throws Exception {
     List<String> primaryKeyColumns = ImmutableList.of("name");
-    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    String dynamic = BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setUseAtLeastOnceSemantics(true)
             .setTable(dynamic)
             .setUseCdcWrites(true)
@@ -338,8 +368,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testInputElementCount() throws Exception {
     String tableSpec = "project:dataset.input_count";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder().setTable(tableSpec).build();
 
     runWithConfig(config);
     PipelineResult result = p.run();
@@ -368,13 +398,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testFailedRows() throws Exception {
     String tableSpec = "project:dataset.write_with_fail";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setTable(tableSpec)
             .setErrorHandling(
-                BigQueryStorageWriteApiSchemaTransformConfiguration.ErrorHandling.builder()
-                    .setOutput("FailedRows")
-                    .build())
+                BigQueryWriteConfiguration.ErrorHandling.builder().setOutput("FailedRows").build())
             .build();
 
     String failValue = "fail_me";
@@ -420,13 +448,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testErrorCount() throws Exception {
     String tableSpec = "project:dataset.error_count";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setTable(tableSpec)
             .setErrorHandling(
-                BigQueryStorageWriteApiSchemaTransformConfiguration.ErrorHandling.builder()
-                    .setOutput("FailedRows")
-                    .build())
+                BigQueryWriteConfiguration.ErrorHandling.builder().setOutput("FailedRows").build())
             .build();
 
     Function<TableRow, Boolean> shouldFailRow =
@@ -455,5 +481,25 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     for (MetricResult<Long> count : counters) {
       assertEquals(expectedCount, count.getAttempted());
     }
+  }
+
+  @Test
+  public void testManagedChoosesStorageApiForUnboundedWrites() {
+    PCollection<Row> batchInput =
+        p.apply(TestStream.create(SCHEMA).addElements(ROWS.get(0)).advanceWatermarkToInfinity());
+    batchInput.apply(
+        Managed.write(Managed.BIGQUERY)
+            .withConfig(ImmutableMap.of("table", "project.dataset.table")));
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    List<RunnerApi.PTransform> writeTransformProto =
+        pipelineProto.getComponents().getTransformsMap().values().stream()
+            .filter(
+                tr ->
+                    tr.getUniqueName()
+                        .contains(BigQueryStorageWriteApiSchemaTransform.class.getSimpleName()))
+            .collect(Collectors.toList());
+    assertThat(writeTransformProto.size(), greaterThan(0));
+    p.enableAbandonedNodeEnforcement(false);
   }
 }

@@ -245,8 +245,7 @@ jobs:
 
   stage_docker:
     if:  ${{ fromJson(github.event.inputs.STAGE).docker_artifacts == 'yes'}}
-    # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

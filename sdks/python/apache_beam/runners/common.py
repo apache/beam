@@ -1504,8 +1504,7 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exn: BaseException,
-      windowed_value: Optional[WindowedValue]) -> None:
+      self, exc_info: Tuple, windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return
@@ -1516,7 +1515,7 @@ class DoFnRunner:
 
     output_sampler.sample_exception(
         windowed_value,
-        exn,
+        exc_info,
         self.transform_id,
         self.execution_context.instruction_id)
 
