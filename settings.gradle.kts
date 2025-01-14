@@ -24,8 +24,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
+  id("com.gradle.develocity") version "3.18.2"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.2"
 }
 
 
@@ -36,7 +36,8 @@ val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { S
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
-  server = "https://ge.apache.org"
+  server = "https://develocity.apache.org"
+  projectId = "beam"
 
   buildScan {
     uploadInBackground = !isCi
