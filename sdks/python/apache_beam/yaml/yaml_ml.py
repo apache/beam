@@ -16,10 +16,8 @@
 #
 
 """This module defines yaml wrappings for some ML transforms."""
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 
 import apache_beam as beam
@@ -41,13 +39,13 @@ except ImportError:
 
 
 class ModelHandlerProvider:
-  handler_types: Dict[str, Callable[..., "ModelHandlerProvider"]] = {}
+  handler_types: dict[str, Callable[..., "ModelHandlerProvider"]] = {}
 
   def __init__(
       self,
       handler,
-      preprocess: Optional[Dict[str, str]] = None,
-      postprocess: Optional[Dict[str, str]] = None):
+      preprocess: Optional[dict[str, str]] = None,
+      postprocess: Optional[dict[str, str]] = None):
     self._handler = handler
     self._preprocess_fn = self.parse_processing_transform(
         preprocess, 'preprocess') or self.default_preprocess_fn()
@@ -136,15 +134,15 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
       endpoint_id: str,
       project: str,
       location: str,
-      preprocess: Dict[str, str],
-      postprocess: Optional[Dict[str, str]] = None,
+      preprocess: dict[str, str],
+      postprocess: Optional[dict[str, str]] = None,
       experiment: Optional[str] = None,
       network: Optional[str] = None,
       private: bool = False,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
-      env_vars: Optional[Dict[str, Any]] = None):
+      env_vars: Optional[dict[str, Any]] = None):
     """
     ModelHandler for Vertex AI.
 
@@ -257,9 +255,9 @@ def get_user_schema_fields(user_type):
 @beam.ptransform.ptransform_fn
 def run_inference(
     pcoll,
-    model_handler: Dict[str, Any],
+    model_handler: dict[str, Any],
     inference_tag: Optional[str] = 'inference',
-    inference_args: Optional[Dict[str, Any]] = None) -> beam.PCollection[beam.Row]:  # pylint: disable=line-too-long
+    inference_args: Optional[dict[str, Any]] = None) -> beam.PCollection[beam.Row]:  # pylint: disable=line-too-long
   """
   A transform that takes the input rows, containing examples (or features), for
   use on an ML model. The transform then appends the inferences
@@ -481,7 +479,7 @@ def ml_transform(
     pcoll,
     write_artifact_location: Optional[str] = None,
     read_artifact_location: Optional[str] = None,
-    transforms: Optional[List[Any]] = None):
+    transforms: Optional[list[Any]] = None):
   if tft is None:
     raise ValueError(
         'tensorflow-transform must be installed to use this MLTransform')
