@@ -332,7 +332,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
     p.run();
 
-    checkNotNull(
+    assertNull(
         fakeDatasetService.getTable(
             BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
   }
