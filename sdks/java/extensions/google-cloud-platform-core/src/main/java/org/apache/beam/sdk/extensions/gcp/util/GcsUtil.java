@@ -779,7 +779,7 @@ public class GcsUtil {
         return (GoogleCloudStorage) buildMethod.invoke(builder);
       } catch (Exception reflectionError) {
         throw new RuntimeException(
-            "Failed to construct GoogleCloudStorageImpl from gcsio 3.x Builder", e);
+            "Failed to construct GoogleCloudStorageImpl from gcsio 3.x Builder", reflectionError);
       }
     }
   }
