@@ -742,39 +742,45 @@ public class GcsUtil {
   GoogleCloudStorage createGoogleCloudStorage(
       GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
     try {
-      // Attempt to construct gcs-connector 3.x GoogleCloudStorage, which uses a Builder
-      // TODO eliminate reflection once Beam drops Java 8 support and upgrades to gcsio 3.x
-      final Method builderMethod = GoogleCloudStorageImpl.class.getMethod("builder");
-      Object builder = builderMethod.invoke(null);
-      final Class<?> builderClass =
-          Class.forName("com.google.cloud.hadoop.gcsio.AutoBuilder_GoogleCloudStorageImpl_Builder");
-
-      final Method setOptionsMethod =
-          builderClass.getMethod("setOptions", GoogleCloudStorageOptions.class);
-      setOptionsMethod.setAccessible(true);
-      builder = setOptionsMethod.invoke(builder, options);
-
-      final Method setHttpTransportMethod =
-          builderClass.getMethod("setHttpTransport", HttpTransport.class);
-      setHttpTransportMethod.setAccessible(true);
-      builder = setHttpTransportMethod.invoke(builder, storage.getRequestFactory().getTransport());
-
-      final Method setCredentialsMethod =
-          builderClass.getMethod("setCredentials", Credentials.class);
-      setCredentialsMethod.setAccessible(true);
-      builder = setCredentialsMethod.invoke(builder, credentials);
-
-      final Method setHttpRequestInitializerMethod =
-          builderClass.getMethod("setHttpRequestInitializer", HttpRequestInitializer.class);
-      setHttpRequestInitializerMethod.setAccessible(true);
-      builder = setHttpRequestInitializerMethod.invoke(builder, httpRequestInitializer);
-
-      final Method buildMethod = builderClass.getMethod("build");
-      buildMethod.setAccessible(true);
-      return (GoogleCloudStorage) buildMethod.invoke(builder);
-    } catch (Exception e) {
-      // An exception means that local gcsio version is still 2.x; use Constructor directly
       return new GoogleCloudStorageImpl(options, storage, credentials);
+    } catch (NoSuchMethodError e) {
+      // gcs-connector 3.x drops the direct constructor and exclusively uses Builder
+      // TODO eliminate reflection once Beam drops Java 8 support and upgrades to gcsio 3.x
+      try {
+        final Method builderMethod = GoogleCloudStorageImpl.class.getMethod("builder");
+        Object builder = builderMethod.invoke(null);
+        final Class<?> builderClass =
+            Class.forName(
+                "com.google.cloud.hadoop.gcsio.AutoBuilder_GoogleCloudStorageImpl_Builder");
+
+        final Method setOptionsMethod =
+            builderClass.getMethod("setOptions", GoogleCloudStorageOptions.class);
+        setOptionsMethod.setAccessible(true);
+        builder = setOptionsMethod.invoke(builder, options);
+
+        final Method setHttpTransportMethod =
+            builderClass.getMethod("setHttpTransport", HttpTransport.class);
+        setHttpTransportMethod.setAccessible(true);
+        builder =
+            setHttpTransportMethod.invoke(builder, storage.getRequestFactory().getTransport());
+
+        final Method setCredentialsMethod =
+            builderClass.getMethod("setCredentials", Credentials.class);
+        setCredentialsMethod.setAccessible(true);
+        builder = setCredentialsMethod.invoke(builder, credentials);
+
+        final Method setHttpRequestInitializerMethod =
+            builderClass.getMethod("setHttpRequestInitializer", HttpRequestInitializer.class);
+        setHttpRequestInitializerMethod.setAccessible(true);
+        builder = setHttpRequestInitializerMethod.invoke(builder, httpRequestInitializer);
+
+        final Method buildMethod = builderClass.getMethod("build");
+        buildMethod.setAccessible(true);
+        return (GoogleCloudStorage) buildMethod.invoke(builder);
+      } catch (Exception reflectionError) {
+        throw new RuntimeException(
+            "Failed to construct GoogleCloudStorageImpl from gcsio 3.x Builder", e);
+      }
     }
   }
 
