@@ -67,7 +67,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Add (Python) BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag.
+* Add BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag (Python) ([#33413](https://github.com/apache/beam/pull/33413)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
 
 ## Breaking Changes
@@ -108,7 +108,7 @@
 * Support OnWindowExpiration in Prism ([#32211](https://github.com/apache/beam/issues/32211)).
   * This enables initial Java GroupIntoBatches support.
 * Support OrderedListState in Prism ([#32929](https://github.com/apache/beam/issues/32929)).
-* Add (Python) apache_beam.ml.rag package with RAG types, base chunking, LangChain chunking and HuggingFace embedding components.
+* Add apache_beam.ml.rag package with RAG types, base chunking, LangChain chunking and HuggingFace embedding components (Python) ([#33364](https://github.com/apache/beam/pull/33364)).
 
 ## Breaking Changes
 
