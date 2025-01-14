@@ -83,7 +83,11 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 		Url: wk.Endpoint(),
 	}
 
-	resp, err := pool.StartWorker(ctx, &fnpb.StartWorkerRequest{
+	// Use a background context for these workers to avoid pre-mature
+	// cancelation issues when starting them.
+	bgContext := context.Background()
+
+	resp, err := pool.StartWorker(bgContext, &fnpb.StartWorkerRequest{
 		WorkerId:          wk.ID,
 		ControlEndpoint:   endpoint,
 		LoggingEndpoint:   endpoint,
@@ -103,7 +107,7 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 
 	// Previous context cancelled so we need a new one
 	// for this request.
-	pool.StopWorker(context.Background(), &fnpb.StopWorkerRequest{
+	pool.StopWorker(bgContext, &fnpb.StopWorkerRequest{
 		WorkerId: wk.ID,
 	})
 	wk.Stop()
