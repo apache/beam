@@ -99,7 +99,7 @@ func (s *Server) getJob(id string) *Job {
 
 func (s *Server) Endpoint() string {
 	_, port, _ := net.SplitHostPort(s.lis.Addr().String())
-	return fmt.Sprintf(":%v", port)
+	return fmt.Sprintf("localhost:%v", port)
 }
 
 // Serve serves on the started listener. Blocks.
