@@ -158,7 +158,7 @@ class RecordWriterManager implements AutoCloseable {
     boolean write(Record record) {
       routingPartitionKey.partition(getPartitionableRecord(record));
 
-      if (!writers.asMap().containsKey(routingPartitionKey) && openWriters >= maxNumWriters) {
+      if (writers.getIfPresent(routingPartitionKey) == null && openWriters >= maxNumWriters) {
         return false;
       }
       RecordWriter writer = fetchWriterForPartition(routingPartitionKey);
