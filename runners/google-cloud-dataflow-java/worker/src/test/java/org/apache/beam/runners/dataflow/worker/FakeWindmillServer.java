@@ -275,6 +275,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
                   inputDataWatermark,
                   Instant.now(),
                   workItem,
+                  workItem.getSerializedSize(),
                   Collections.singletonList(
                       LatencyAttribution.newBuilder()
                           .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)

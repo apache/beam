@@ -65,7 +65,11 @@ public class WindmillStreamSenderTest {
                       .build())
               .build());
   private final WorkItemScheduler workItemScheduler =
-      (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
+      (workItem,
+          serializedWorkItemSize,
+          watermarks,
+          processingContext,
+          getWorkStreamLatencies) -> {};
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private WindmillConnection connection;
