@@ -48,7 +48,7 @@ import org.joda.time.Instant;
  * <p>Includes parsing / assembly of timer tags and some extra methods.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillTimerInternals implements TimerInternals {
 
@@ -408,8 +408,7 @@ class WindmillTimerInternals implements TimerInternals {
       tagString =
           new StringBuilder()
               .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(
-                  timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
               .append('+')
               .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
               .append('+')
@@ -420,8 +419,7 @@ class WindmillTimerInternals implements TimerInternals {
       tagString =
           new StringBuilder()
               .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(
-                  timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
               .append('+')
               .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
               .toString();

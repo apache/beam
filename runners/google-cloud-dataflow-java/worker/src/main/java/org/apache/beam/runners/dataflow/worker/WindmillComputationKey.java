@@ -49,6 +49,6 @@ public abstract class WindmillComputationKey {
 
   @Override
   public final int hashCode() {
-   return Objects.hash(shardingKey(), computationId());
+    return Objects.hash(shardingKey(), computationId());
   }
 }

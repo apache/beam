@@ -37,7 +37,7 @@ public abstract class ShardedKey {
   }
 
   @Override
-  public int hashCode() {
+  public final int hashCode() {
     return Long.hashCode(shardingKey());
   }
 }
