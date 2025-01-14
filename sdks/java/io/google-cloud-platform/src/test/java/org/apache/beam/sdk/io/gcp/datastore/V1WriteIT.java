@@ -119,8 +119,8 @@ public class V1WriteIT {
         new DatastoreV1.DatastoreWriterFn(
             TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject(), null);
 
-    PTransform<PCollection<? extends Mutation>, PCollection<Void>> datastoreWriterTransform =
-        ParDo.of(datastoreWriter);
+    PTransform<PCollection<? extends Mutation>, PCollection<DatastoreV1.WriteSuccessSummary>>
+        datastoreWriterTransform = ParDo.of(datastoreWriter);
 
     /** Following three lines turn the original arrayList into a member of the first PCollection */
     List<Mutation> newArrayList = new ArrayList<>(mutations);

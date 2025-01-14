@@ -35,8 +35,20 @@ import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.datastore.v1.*;
+import com.google.datastore.v1.CommitRequest;
+import com.google.datastore.v1.CommitResponse;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.GqlQuery;
+import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Key.PathElement;
+import com.google.datastore.v1.Mutation;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.QueryResultBatch;
+import com.google.datastore.v1.ReadOptions;
+import com.google.datastore.v1.RunQueryRequest;
+import com.google.datastore.v1.RunQueryResponse;
 import com.google.datastore.v1.client.Datastore;
 import com.google.datastore.v1.client.DatastoreException;
 import com.google.datastore.v1.client.DatastoreFactory;
@@ -53,8 +65,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.Immutable;
@@ -79,6 +91,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -1218,7 +1231,7 @@ public class DatastoreV1 {
     }
   }
 
-    /**
+  /**
    * Summary object produced when a number of writes are successfully written to Datastore in a
    * single Mutation.
    */
@@ -1288,17 +1301,18 @@ public class DatastoreV1 {
   }
 
   /**
-   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
+   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore and returns {@link
+   * WriteSuccessSummary} for each successful write.
    *
    * @see DatastoreIO
    */
-  public static class Write extends Mutate<Entity> {
+  public static class WriteWithSummary extends Mutate<Entity> {
 
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    Write(
+    WriteWithSummary(
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
         boolean throttleRampup,
@@ -1306,7 +1320,7 @@ public class DatastoreV1 {
       super(projectId, null, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
-    Write(
+    WriteWithSummary(
         @Nullable ValueProvider<String> projectId,
         @Nullable ValueProvider<String> databaseId,
         @Nullable String localhost,
@@ -1315,28 +1329,119 @@ public class DatastoreV1 {
       super(projectId, databaseId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
-    /** Returns a new {@link Write} that writes to the Cloud Datastore for the default database. */
-    public Write withProjectId(String projectId) {
+    /**
+     * Returns a new {@link WriteWithSummary} that writes to the Cloud Datastore for the default
+     * database.
+     */
+    public WriteWithSummary withProjectId(String projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
-    /** Returns a new {@link Write} that writes to the Cloud Datastore for the database id. */
-    public Write withDatabaseId(String databaseId) {
+    /**
+     * Returns a new {@link WriteWithSummary} that writes to the Cloud Datastore for the database
+     * id.
+     */
+    public WriteWithSummary withDatabaseId(String databaseId) {
       checkArgument(databaseId != null, "databaseId can not be null");
       return withDatabaseId(StaticValueProvider.of(databaseId));
     }
 
+    /** Same as {@link WriteWithSummary#withProjectId(String)} but with a {@link ValueProvider}. */
+    public WriteWithSummary withProjectId(ValueProvider<String> projectId) {
+      checkArgument(projectId != null, "projectId can not be null");
+      return new WriteWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Same as {@link WriteWithSummary#withDatabaseId(String)} but with a {@link ValueProvider}. */
+    public WriteWithSummary withDatabaseId(ValueProvider<String> databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new WriteWithSummary(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link WriteWithSummary} that writes to the Cloud Datastore Emulator running
+     * locally on the specified host port.
+     */
+    public WriteWithSummary withLocalhost(String localhost) {
+      checkArgument(localhost != null, "localhost can not be null");
+      return new WriteWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Returns a new {@link WriteWithSummary} that does not throttle during ramp-up. */
+    public WriteWithSummary withRampupThrottlingDisabled() {
+      return new WriteWithSummary(projectId, localhost, false, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link WriteWithSummary} with a different worker count hint for ramp-up
+     * throttling. Value is ignored if ramp-up throttling is disabled.
+     */
+    public WriteWithSummary withHintNumWorkers(int hintNumWorkers) {
+      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+    }
+
+    /**
+     * Same as {@link WriteWithSummary#withHintNumWorkers(int)} but with a {@link ValueProvider}.
+     */
+    public WriteWithSummary withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
+      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
+      return new WriteWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+  }
+
+  /**
+   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class Write extends PTransform<PCollection<Entity>, PDone> {
+
+    WriteWithSummary inner;
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
+     */
+    Write(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      this.inner = new WriteWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    Write(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      this.inner =
+          new WriteWithSummary(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    Write(WriteWithSummary inner) {
+      this.inner = inner;
+    }
+
+    /** Returns a new {@link Write} that writes to the Cloud Datastore for the default database. */
+    public Write withProjectId(String projectId) {
+      return new Write(this.inner.withProjectId(projectId));
+    }
+
+    /** Returns a new {@link Write} that writes to the Cloud Datastore for the database id. */
+    public Write withDatabaseId(String databaseId) {
+      return new Write(this.inner.withDatabaseId(databaseId));
+    }
+
     /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
-      checkArgument(projectId != null, "projectId can not be null");
-      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new Write(this.inner.withProjectId(projectId));
     }
 
     /** Same as {@link Write#withDatabaseId(String)} but with a {@link ValueProvider}. */
     public Write withDatabaseId(ValueProvider<String> databaseId) {
-      checkArgument(databaseId != null, "databaseId can not be null");
-      return new Write(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+      return new Write(this.inner.withDatabaseId(databaseId));
     }
 
     /**
@@ -1344,13 +1449,12 @@ public class DatastoreV1 {
      * the specified host port.
      */
     public Write withLocalhost(String localhost) {
-      checkArgument(localhost != null, "localhost can not be null");
-      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new Write(this.inner.withLocalhost(localhost));
     }
 
     /** Returns a new {@link Write} that does not throttle during ramp-up. */
     public Write withRampupThrottlingDisabled() {
-      return new Write(projectId, localhost, false, hintNumWorkers);
+      return new Write(this.inner.withRampupThrottlingDisabled());
     }
 
     /**
@@ -1358,28 +1462,67 @@ public class DatastoreV1 {
      * is ignored if ramp-up throttling is disabled.
      */
     public Write withHintNumWorkers(int hintNumWorkers) {
-      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+      return new Write(this.inner.withHintNumWorkers(hintNumWorkers));
     }
 
     /** Same as {@link Write#withHintNumWorkers(int)} but with a {@link ValueProvider}. */
     public Write withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
-      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
-      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new Write(this.inner.withHintNumWorkers(hintNumWorkers));
+    }
+
+    /**
+     * Returns {@link WriteWithSummary} transform which can be used in {@link
+     * Wait#on(PCollection[])} to wait until all data is written.
+     *
+     * <p>Example: write a {@link PCollection} to one database and then to another database, making
+     * sure that writing a window of data to the second database starts only after the respective
+     * window has been fully written to the first database.
+     *
+     * <pre>{@code
+     * }</pre>
+     */
+    public WriteWithSummary withResults() {
+      return inner;
+    }
+
+    @Override
+    public String toString() {
+      return this.inner.toString();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      this.inner.populateDisplayData(builder);
+    }
+
+    public String getProjectId() {
+      return this.inner.getProjectId();
+    }
+
+    public String getDatabaseId() {
+      return this.inner.getDatabaseId();
+    }
+
+    @Override
+    public PDone expand(PCollection<Entity> input) {
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
     }
   }
 
   /**
-   * A {@link PTransform} that deletes {@link Entity Entities} from Cloud Datastore.
+   * A {@link PTransform} that deletes {@link Entity Entities} from Cloud Datastore and returns
+   * {@link WriteSuccessSummary} for each successful write.
    *
    * @see DatastoreIO
    */
-  public static class DeleteEntity extends Mutate<Entity> {
+  public static class DeleteEntityWithSummary extends Mutate<Entity> {
 
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteEntity(
+    DeleteEntityWithSummary(
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
         boolean throttleRampup,
@@ -1387,7 +1530,7 @@ public class DatastoreV1 {
       super(projectId, null, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
-    DeleteEntity(
+    DeleteEntityWithSummary(
         @Nullable ValueProvider<String> projectId,
         @Nullable ValueProvider<String> databaseId,
         @Nullable String localhost,
@@ -1397,12 +1540,118 @@ public class DatastoreV1 {
     }
 
     /**
+     * Returns a new {@link DeleteEntityWithSummary} that deletes entities from the Cloud Datastore
+     * for the specified project.
+     */
+    public DeleteEntityWithSummary withProjectId(String projectId) {
+      checkArgument(projectId != null, "projectId can not be null");
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Returns a new {@link DeleteEntityWithSummary} that deletes entities from the Cloud Datastore
+     * for the specified database.
+     */
+    public DeleteEntityWithSummary withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return withDatabaseId(StaticValueProvider.of(databaseId));
+    }
+
+    /**
+     * Same as {@link DeleteEntityWithSummary#withProjectId(String)} but with a {@link
+     * ValueProvider}.
+     */
+    public DeleteEntityWithSummary withProjectId(ValueProvider<String> projectId) {
+      checkArgument(projectId != null, "projectId can not be null");
+      return new DeleteEntityWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Same as {@link DeleteEntityWithSummary#withDatabaseId(String)} but with a {@link
+     * ValueProvider}.
+     */
+    public DeleteEntityWithSummary withDatabaseId(ValueProvider<String> databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new DeleteEntityWithSummary(
+          projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link DeleteEntityWithSummary} that deletes entities from the Cloud Datastore
+     * Emulator running locally on the specified host port.
+     */
+    public DeleteEntityWithSummary withLocalhost(String localhost) {
+      checkArgument(localhost != null, "localhost can not be null");
+      return new DeleteEntityWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Returns a new {@link DeleteEntityWithSummary} that does not throttle during ramp-up. */
+    public DeleteEntityWithSummary withRampupThrottlingDisabled() {
+      return new DeleteEntityWithSummary(projectId, localhost, false, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link DeleteEntityWithSummary} with a different worker count hint for ramp-up
+     * throttling. Value is ignored if ramp-up throttling is disabled.
+     */
+    public DeleteEntityWithSummary withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+    }
+
+    /**
+     * Same as {@link DeleteEntityWithSummary#withHintNumWorkers(int)} but with a {@link
+     * ValueProvider}.
+     */
+    public DeleteEntityWithSummary withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
+      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
+      return new DeleteEntityWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+  }
+
+  /**
+   * A {@link PTransform} that deletes {@link Entity Entities} from Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class DeleteEntity extends PTransform<PCollection<Entity>, PDone> {
+
+    DeleteEntityWithSummary inner;
+
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
+     */
+    DeleteEntity(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      this.inner =
+          new DeleteEntityWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    DeleteEntity(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      this.inner =
+          new DeleteEntityWithSummary(
+              projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    DeleteEntity(DeleteEntityWithSummary inner) {
+      this.inner = inner;
+    }
+
+    /**
      * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore for the
      * specified project.
      */
     public DeleteEntity withProjectId(String projectId) {
-      checkArgument(projectId != null, "projectId can not be null");
-      return withProjectId(StaticValueProvider.of(projectId));
+      return new DeleteEntity(this.inner.withProjectId(projectId));
     }
 
     /**
@@ -1410,20 +1659,17 @@ public class DatastoreV1 {
      * specified database.
      */
     public DeleteEntity withDatabaseId(String databaseId) {
-      checkArgument(databaseId != null, "databaseId can not be null");
-      return withDatabaseId(StaticValueProvider.of(databaseId));
+      return new DeleteEntity(this.inner.withDatabaseId(databaseId));
     }
 
     /** Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
-      checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteEntity(this.inner.withProjectId(projectId));
     }
 
     /** Same as {@link DeleteEntity#withDatabaseId(String)} but with a {@link ValueProvider}. */
     public DeleteEntity withDatabaseId(ValueProvider<String> databaseId) {
-      checkArgument(databaseId != null, "databaseId can not be null");
-      return new DeleteEntity(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteEntity(this.inner.withDatabaseId(databaseId));
     }
 
     /**
@@ -1431,13 +1677,12 @@ public class DatastoreV1 {
      * running locally on the specified host port.
      */
     public DeleteEntity withLocalhost(String localhost) {
-      checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteEntity(this.inner.withLocalhost(localhost));
     }
 
     /** Returns a new {@link DeleteEntity} that does not throttle during ramp-up. */
     public DeleteEntity withRampupThrottlingDisabled() {
-      return new DeleteEntity(projectId, localhost, false, hintNumWorkers);
+      return new DeleteEntity(this.inner.withRampupThrottlingDisabled());
     }
 
     /**
@@ -1445,14 +1690,140 @@ public class DatastoreV1 {
      * Value is ignored if ramp-up throttling is disabled.
      */
     public DeleteEntity withHintNumWorkers(int hintNumWorkers) {
-      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
-      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+      return new DeleteEntity(this.inner.withHintNumWorkers(hintNumWorkers));
     }
 
     /** Same as {@link DeleteEntity#withHintNumWorkers(int)} but with a {@link ValueProvider}. */
     public DeleteEntity withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
+      return new DeleteEntity(this.inner.withHintNumWorkers(hintNumWorkers));
+    }
+
+    /**
+     * Returns {@link DeleteEntityWithSummary} transform which can be used in {@link
+     * Wait#on(PCollection[])} to wait until all data is deleted.
+     *
+     * <p>Example: delete a {@link PCollection} from one database and then from another database,
+     * making sure that deleting a window of data to the second database starts only after the
+     * respective window has been fully deleted from the first database.
+     *
+     * <pre>{@code
+     * }</pre>
+     */
+    public DeleteEntityWithSummary withResults() {
+      return inner;
+    }
+
+    @Override
+    public String toString() {
+      return this.inner.toString();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      this.inner.populateDisplayData(builder);
+    }
+
+    @Override
+    public PDone expand(PCollection<Entity> input) {
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
+    }
+  }
+
+  /**
+   * A {@link PTransform} that deletes {@link Entity Entities} associated with the given {@link Key
+   * Keys} from Cloud Datastore and returns {@link WriteSuccessSummary} for each successful delete.
+   *
+   * @see DatastoreIO
+   */
+  public static class DeleteKeyWithSummary extends Mutate<Key> {
+
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
+     */
+    DeleteKeyWithSummary(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      super(projectId, null, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
+    }
+
+    DeleteKeyWithSummary(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      super(projectId, databaseId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link DeleteKeyWithSummary} that deletes entities from the Cloud Datastore for
+     * the specified project.
+     */
+    public DeleteKeyWithSummary withProjectId(String projectId) {
+      checkArgument(projectId != null, "projectId can not be null");
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Returns a new {@link DeleteKeyWithSummary} that deletes entities from the Cloud Datastore for
+     * the specified database.
+     */
+    public DeleteKeyWithSummary withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return withDatabaseId(StaticValueProvider.of(databaseId));
+    }
+
+    /**
+     * Returns a new {@link DeleteKeyWithSummary} that deletes entities from the Cloud Datastore
+     * Emulator running locally on the specified host port.
+     */
+    public DeleteKeyWithSummary withLocalhost(String localhost) {
+      checkArgument(localhost != null, "localhost can not be null");
+      return new DeleteKeyWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Same as {@link DeleteKeyWithSummary#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DeleteKeyWithSummary withProjectId(ValueProvider<String> projectId) {
+      checkArgument(projectId != null, "projectId can not be null");
+      return new DeleteKeyWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Same as {@link DeleteKeyWithSummary#withDatabaseId(String)} but with a {@link ValueProvider}.
+     */
+    public DeleteKeyWithSummary withDatabaseId(ValueProvider<String> databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new DeleteKeyWithSummary(
+          projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Returns a new {@link DeleteKeyWithSummary} that does not throttle during ramp-up. */
+    public DeleteKeyWithSummary withRampupThrottlingDisabled() {
+      return new DeleteKeyWithSummary(projectId, localhost, false, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link DeleteKeyWithSummary} with a different worker count hint for ramp-up
+     * throttling. Value is ignored if ramp-up throttling is disabled.
+     */
+    public DeleteKeyWithSummary withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+    }
+
+    /**
+     * Same as {@link DeleteKeyWithSummary#withHintNumWorkers(int)} but with a {@link
+     * ValueProvider}.
+     */
+    public DeleteKeyWithSummary withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
       checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteKeyWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
 
@@ -1462,7 +1833,9 @@ public class DatastoreV1 {
    *
    * @see DatastoreIO
    */
-  public static class DeleteKey extends Mutate<Key> {
+  public static class DeleteKey extends PTransform<PCollection<Key>, PDone> {
+
+    DeleteKeyWithSummary inner;
 
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
@@ -1473,7 +1846,7 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, null, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
+      this.inner = new DeleteKeyWithSummary(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     DeleteKey(
@@ -1482,7 +1855,13 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, databaseId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
+      this.inner =
+          new DeleteKeyWithSummary(
+              projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    DeleteKey(DeleteKeyWithSummary inner) {
+      this.inner = inner;
     }
 
     /**
@@ -1490,8 +1869,7 @@ public class DatastoreV1 {
      * specified project.
      */
     public DeleteKey withProjectId(String projectId) {
-      checkArgument(projectId != null, "projectId can not be null");
-      return withProjectId(StaticValueProvider.of(projectId));
+      return new DeleteKey(this.inner.withProjectId(projectId));
     }
 
     /**
@@ -1499,8 +1877,7 @@ public class DatastoreV1 {
      * specified database.
      */
     public DeleteKey withDatabaseId(String databaseId) {
-      checkArgument(databaseId != null, "databaseId can not be null");
-      return withDatabaseId(StaticValueProvider.of(databaseId));
+      return new DeleteKey(this.inner.withDatabaseId(databaseId));
     }
 
     /**
@@ -1508,25 +1885,22 @@ public class DatastoreV1 {
      * running locally on the specified host port.
      */
     public DeleteKey withLocalhost(String localhost) {
-      checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteKey(this.inner.withLocalhost(localhost));
     }
 
     /** Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
-      checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteKey(this.inner.withProjectId(projectId));
     }
 
     /** Same as {@link DeleteKey#withDatabaseId(String)} but with a {@link ValueProvider}. */
     public DeleteKey withDatabaseId(ValueProvider<String> databaseId) {
-      checkArgument(databaseId != null, "databaseId can not be null");
-      return new DeleteKey(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteKey(this.inner.withDatabaseId(databaseId));
     }
 
     /** Returns a new {@link DeleteKey} that does not throttle during ramp-up. */
     public DeleteKey withRampupThrottlingDisabled() {
-      return new DeleteKey(projectId, localhost, false, hintNumWorkers);
+      return new DeleteKey(this.inner.withRampupThrottlingDisabled());
     }
 
     /**
@@ -1534,14 +1908,43 @@ public class DatastoreV1 {
      * Value is ignored if ramp-up throttling is disabled.
      */
     public DeleteKey withHintNumWorkers(int hintNumWorkers) {
-      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
-      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+      return new DeleteKey(this.inner.withHintNumWorkers(hintNumWorkers));
     }
 
     /** Same as {@link DeleteKey#withHintNumWorkers(int)} but with a {@link ValueProvider}. */
     public DeleteKey withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
-      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
+      return new DeleteKey(this.inner.withHintNumWorkers(hintNumWorkers));
+    }
+
+    /**
+     * Returns {@link DeleteKeyWithSummary} transform which can be used in {@link
+     * Wait#on(PCollection[])} to wait until all data is deleted.
+     *
+     * <p>Example: delete a {@link PCollection} of {@link Key} from one database and then from
+     * another database, making sure that deleting a window of data to the second database starts
+     * only after the respective window has been fully deleted from the first database.
+     *
+     * <pre>{@code
+     * }</pre>
+     */
+    public DeleteKeyWithSummary withResults() {
+      return inner;
+    }
+
+    @Override
+    public String toString() {
+      return this.inner.toString();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      this.inner.populateDisplayData(builder);
+    }
+
+    @Override
+    public PDone expand(PCollection<Key> input) {
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
     }
   }
 
@@ -1553,7 +1956,8 @@ public class DatastoreV1 {
    * idempotent Cloud Datastore mutation operations (upsert and delete) should be used by the {@code
    * DoFn} provided, as the commits are retried when failures occur.
    */
-  private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+  private abstract static class Mutate<T>
+      extends PTransform<PCollection<T>, PCollection<WriteSuccessSummary>> {
     protected ValueProvider<String> projectId;
     protected ValueProvider<String> databaseId;
     protected @Nullable String localhost;
@@ -1584,7 +1988,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public PCollection<WriteSuccessSummary> expand(PCollection<T> input) {
       checkArgument(projectId != null, "withProjectId() is required");
       if (projectId.isAccessible()) {
         checkArgument(projectId.get() != null, "projectId can not be null");
@@ -1617,7 +2021,7 @@ public class DatastoreV1 {
                 "Enforce ramp-up through throttling",
                 ParDo.of(rampupThrottlingFn).withSideInputs(startTimestampView));
       }
-      intermediateOutput.apply(
+      return intermediateOutput.apply(
           "Write Mutation to Datastore",
           ParDo.of(
               new DatastoreWriterFn(
@@ -1626,8 +2030,6 @@ public class DatastoreV1 {
                   localhost,
                   new V1DatastoreFactory(),
                   new WriteBatcherImpl())));
-
-      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -1731,17 +2133,30 @@ public class DatastoreV1 {
     }
 
     @VisibleForTesting
-    DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost, V1DatastoreFactory datastoreFactory, WriteBatcher writeBatcher) {
+    DatastoreWriterFn(
+        ValueProvider<String> projectId,
+        @Nullable String localhost,
+        V1DatastoreFactory datastoreFactory,
+        WriteBatcher writeBatcher) {
       super(projectId, localhost, datastoreFactory, writeBatcher);
     }
 
     @VisibleForTesting
-    DatastoreWriterFn(ValueProvider<String> projectId, ValueProvider<String> databaseId, @Nullable String localhost, V1DatastoreFactory datastoreFactory, WriteBatcher writeBatcher) {
+    DatastoreWriterFn(
+        ValueProvider<String> projectId,
+        ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        V1DatastoreFactory datastoreFactory,
+        WriteBatcher writeBatcher) {
       super(projectId, databaseId, localhost, datastoreFactory, writeBatcher);
     }
 
     @Override
-    void handleWriteSummary(ContextAdapter<WriteSuccessSummary> context, Instant timestamp, KV<WriteSuccessSummary, BoundedWindow> tuple, Runnable logMessage) {
+    void handleWriteSummary(
+        ContextAdapter<WriteSuccessSummary> context,
+        Instant timestamp,
+        KV<WriteSuccessSummary, BoundedWindow> tuple,
+        Runnable logMessage) {
       logMessage.run();
       context.output(tuple.getKey(), timestamp, tuple.getValue());
     }
@@ -1760,7 +2175,7 @@ public class DatastoreV1 {
    * used for {@code upsert} and {@code delete} mutation operations, as these are the only two Cloud
    * Datastore mutations that are idempotent.
    */
-  abstract static class BaseDatastoreWriterFn<OutT> extends DoFn<Mutation, OutT>{
+  abstract static class BaseDatastoreWriterFn<OutT> extends DoFn<Mutation, OutT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(BaseDatastoreWriterFn.class);
     private final ValueProvider<String> projectId;
@@ -1836,7 +2251,8 @@ public class DatastoreV1 {
       void output(T t, Instant timestamp, BoundedWindow window);
     }
 
-    private static final class ProcessContextAdapter<T> implements DatastoreV1.BaseDatastoreWriterFn.ContextAdapter<T> {
+    private static final class ProcessContextAdapter<T>
+        implements DatastoreV1.BaseDatastoreWriterFn.ContextAdapter<T> {
       private final DoFn<Mutation, T>.ProcessContext context;
 
       private ProcessContextAdapter(DoFn<Mutation, T>.ProcessContext context) {
@@ -1849,7 +2265,8 @@ public class DatastoreV1 {
       }
     }
 
-    private static final class FinishBundleContextAdapter<T> implements DatastoreV1.BaseDatastoreWriterFn.ContextAdapter<T> {
+    private static final class FinishBundleContextAdapter<T>
+        implements DatastoreV1.BaseDatastoreWriterFn.ContextAdapter<T> {
       private final DoFn<Mutation, T>.FinishBundleContext context;
 
       private FinishBundleContextAdapter(DoFn<Mutation, T>.FinishBundleContext context) {
@@ -1920,7 +2337,7 @@ public class DatastoreV1 {
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       if (!mutations.isEmpty()) {
-          flushBatch(new FinishBundleContextAdapter<>(c));
+        flushBatch(new FinishBundleContextAdapter<>(c));
       }
     }
 
@@ -1951,7 +2368,8 @@ public class DatastoreV1 {
       while (true) {
         // Batch upsert entities.
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-        commitRequest.addAllMutations(mutations.stream().map(KV::getKey).collect(Collectors.toList()));
+        commitRequest.addAllMutations(
+            mutations.stream().map(KV::getKey).collect(Collectors.toList()));
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         commitRequest.setProjectId(projectId.get());
         commitRequest.setDatabaseId(databaseIdOrDefaultDatabase);
@@ -2020,7 +2438,11 @@ public class DatastoreV1 {
       }
       int okCount = mutations.size();
       long okBytes = response.getSerializedSize();
-      handleWriteSummary(context, end, KV.of(new WriteSuccessSummary(okCount, okBytes), okWindow), () -> LOG.debug("Successfully wrote {} mutations", mutations.size()));
+      handleWriteSummary(
+          context,
+          end,
+          KV.of(new WriteSuccessSummary(okCount, okBytes), okWindow),
+          () -> LOG.debug("Successfully wrote {} mutations", mutations.size()));
 
       mutations.clear();
       uniqueMutationKeys.clear();
