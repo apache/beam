@@ -250,6 +250,14 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     }
 }
 
+project.tasks.withType(Test).configureEach {
+    jvmArgs(
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+    )
+}
+
 tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
 
 //TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
