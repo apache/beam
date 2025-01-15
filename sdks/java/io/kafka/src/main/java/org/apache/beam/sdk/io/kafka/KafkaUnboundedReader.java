@@ -66,6 +66,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -299,6 +300,34 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     return curTimestamp;
   }
 
+  private static final byte[] EMPTY_RECORD_ID = new byte[0];
+
+  @Override
+  public byte[] getCurrentRecordId() throws NoSuchElementException {
+    if (!this.offsetBasedDeduplicationSupported) {
+      // BoundedReadFromUnboundedSource and tests may call getCurrentRecordId(), even for non offset
+      // deduplication cases. Therefore, Kafka reader cannot produce an exception when offset
+      // deduplication is disabled. Instead an empty record ID is provided.
+      return EMPTY_RECORD_ID;
+    }
+    if (curRecord != null) {
+      return KafkaIOUtils.OffsetBasedDeduplication.getUniqueId(
+          curRecord.getTopic(), curRecord.getPartition(), curRecord.getOffset());
+    }
+    throw new NoSuchElementException("KafkaUnboundedReader's curRecord is null.");
+  }
+
+  @Override
+  public byte[] getCurrentRecordOffset() throws NoSuchElementException {
+    if (!this.offsetBasedDeduplicationSupported) {
+      throw new RuntimeException("UnboundedSource must enable offset-based deduplication.");
+    }
+    if (curRecord != null) {
+      return KafkaIOUtils.OffsetBasedDeduplication.encodeOffset(curRecord.getOffset());
+    }
+    throw new NoSuchElementException("KafkaUnboundedReader's curRecord is null.");
+  }
+
   @Override
   public long getSplitBacklogBytes() {
     long backlogBytes = 0;
@@ -312,6 +341,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     return backlogBytes;
+  }
+
+  public boolean offsetBasedDeduplicationSupported() {
+    return this.offsetBasedDeduplicationSupported;
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -332,9 +365,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private final String name;
   private @Nullable Consumer<byte[], byte[]> consumer = null;
   private final List<PartitionState<K, V>> partitionStates;
-  private @Nullable KafkaRecord<K, V> curRecord = null;
-  private @Nullable Instant curTimestamp = null;
+  private @MonotonicNonNull KafkaRecord<K, V> curRecord = null;
+  private @MonotonicNonNull Instant curTimestamp = null;
   private Iterator<PartitionState<K, V>> curBatch = Collections.emptyIterator();
+
+  private final boolean offsetBasedDeduplicationSupported;
 
   private @Nullable Deserializer<K> keyDeserializerInstance = null;
   private @Nullable Deserializer<V> valueDeserializerInstance = null;
@@ -507,6 +542,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       KafkaUnboundedSource<K, V> source, @Nullable KafkaCheckpointMark checkpointMark) {
     this.source = source;
     this.name = "Reader-" + source.getId();
+    this.offsetBasedDeduplicationSupported = source.offsetBasedDeduplicationSupported();
 
     List<TopicPartition> partitions =
         Preconditions.checkArgumentNotNull(source.getSpec().getTopicPartitions());
