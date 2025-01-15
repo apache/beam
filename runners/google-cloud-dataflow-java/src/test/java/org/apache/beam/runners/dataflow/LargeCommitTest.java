@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import com.google.common.collect.testing.Helpers;
 import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -26,6 +25,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.testing.Helpers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
