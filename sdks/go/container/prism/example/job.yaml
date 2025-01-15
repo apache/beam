@@ -21,20 +21,22 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: wordcount
+  namespace: prism
 spec:
   template:
     spec:
       restartPolicy: Never
       containers:
       - name: wordcount
-        image: ko://github.com/apache/beam/sdks/v2/go/examples/wordcount
+        image: apache/beam_python3.12_sdk
         imagePullPolicy: IfNotPresent
+        command: ["python"]
         args: [
-                "--runner=portable",
+                "-m",
+                "apache_beam.examples.wordcount",
+                "--runner=PortableRunner",
                 "--environment_type=EXTERNAL",
-                "--environment_config=service.prism.svc.cluster.local:8073",
+                "--environment_config=workerpool.prism.svc.cluster.local:50000",
                 "--endpoint=service.prism.svc.cluster.local:8073",
-                "--control_endpoint=service.prism.svc.cluster.local:8073",
-                "--worker_binary=/tmp/ignore",
                 "--output=/tmp/wc",
         ]
