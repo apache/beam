@@ -63,45 +63,58 @@ public class FlinkSourceSplitEnumerator<T>
       Source<T> beamSource,
       PipelineOptions pipelineOptions,
       int numSplits) {
+
+    this(context, beamSource, pipelineOptions, numSplits, false);
+  }
+
+  public FlinkSourceSplitEnumerator(
+      SplitEnumeratorContext<FlinkSourceSplit<T>> context,
+      Source<T> beamSource,
+      PipelineOptions pipelineOptions,
+      int numSplits,
+      boolean splitsInitialized) {
+
     this.context = context;
     this.beamSource = beamSource;
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
     this.pendingSplits = new HashMap<>(numSplits);
-    this.splitsInitialized = false;
+    this.splitsInitialized = splitsInitialized;
   }
 
   @Override
   public void start() {
-    context.callAsync(
-        () -> {
-          try {
-            LOG.info("Starting source {}", beamSource);
-            List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
-            Map<Integer, List<FlinkSourceSplit<T>>> flinkSourceSplitsList = new HashMap<>();
-            int i = 0;
-            for (Source<T> beamSplitSource : beamSplitSourceList) {
-              int targetSubtask = i % context.currentParallelism();
-              List<FlinkSourceSplit<T>> splitsForTask =
-                  flinkSourceSplitsList.computeIfAbsent(
-                      targetSubtask, ignored -> new ArrayList<>());
-              splitsForTask.add(new FlinkSourceSplit<>(i, beamSplitSource));
-              i++;
+    if (!splitsInitialized) {
+      context.callAsync(
+          () -> {
+            try {
+              LOG.info("Starting source {}", beamSource);
+              List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
+              Map<Integer, List<FlinkSourceSplit<T>>> flinkSourceSplitsList = new HashMap<>();
+              int i = 0;
+              for (Source<T> beamSplitSource : beamSplitSourceList) {
+                int targetSubtask = i % context.currentParallelism();
+                List<FlinkSourceSplit<T>> splitsForTask =
+                    flinkSourceSplitsList.computeIfAbsent(
+                        targetSubtask, ignored -> new ArrayList<>());
+                splitsForTask.add(new FlinkSourceSplit<>(i, beamSplitSource));
+                i++;
+              }
+              return flinkSourceSplitsList;
+            } catch (Exception e) {
+              throw new RuntimeException(e);
             }
-            return flinkSourceSplitsList;
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        },
-        (sourceSplits, error) -> {
-          if (error != null) {
-            throw new RuntimeException("Failed to start source enumerator.", error);
-          } else {
-            pendingSplits.putAll(sourceSplits);
-            splitsInitialized = true;
-            sendPendingSplitsToSourceReaders();
-          }
-        });
+          },
+          (sourceSplits, error) -> {
+            if (error != null) {
+              throw new RuntimeException("Failed to start source enumerator.", error);
+            } else {
+              pendingSplits.putAll(sourceSplits);
+              splitsInitialized = true;
+              sendPendingSplitsToSourceReaders();
+            }
+          });
+    }
   }
 
   @Override
