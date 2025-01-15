@@ -34,9 +34,8 @@ spec:
         args: [
                 "-m",
                 "apache_beam.examples.wordcount",
-                "--runner=PortableRunner",
-                "--environment_type=EXTERNAL",
-                "--environment_config=workerpool.prism.svc.cluster.local:50000",
+                "--runner=PrismRunner",
+                "--environment_type=LOOPBACK",
                 "--endpoint=service.prism.svc.cluster.local:8073",
                 "--output=/tmp/wc",
         ]
