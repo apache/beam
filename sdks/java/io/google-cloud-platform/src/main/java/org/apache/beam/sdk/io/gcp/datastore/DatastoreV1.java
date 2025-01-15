@@ -1479,6 +1479,9 @@ public class DatastoreV1 {
      * window has been fully written to the first database.
      *
      * <pre>{@code
+     * PCollection<Entity> entities = ... ;
+     * PCollection<DatastoreV1.WriteSuccessSummary> writeSummary =
+     *         entities.apply(DatastoreIO.v1().write().withProjectId(project).withResults());
      * }</pre>
      */
     public WriteWithSummary withResults() {
@@ -1707,6 +1710,9 @@ public class DatastoreV1 {
      * respective window has been fully deleted from the first database.
      *
      * <pre>{@code
+     * PCollection<Entity> entities = ... ;
+     * PCollection<DatastoreV1.WriteSuccessSummary> deleteSummary =
+     *         entities.apply(DatastoreIO.v1().deleteEntity().withProjectId(project).withResults());
      * }</pre>
      */
     public DeleteEntityWithSummary withResults() {
@@ -1923,9 +1929,6 @@ public class DatastoreV1 {
      * <p>Example: delete a {@link PCollection} of {@link Key} from one database and then from
      * another database, making sure that deleting a window of data to the second database starts
      * only after the respective window has been fully deleted from the first database.
-     *
-     * <pre>{@code
-     * }</pre>
      */
     public DeleteKeyWithSummary withResults() {
       return inner;
