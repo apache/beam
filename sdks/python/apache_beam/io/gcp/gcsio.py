@@ -247,13 +247,35 @@ class GcsIO(object):
   def delete(self, path):
     """Deletes the object at the given GCS path.
 
+    If the path is a directory (prefix), it deletes all blobs under that prefix.
+
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
     """
     bucket_name, blob_name = parse_gcs_path(path)
     bucket = self.client.bucket(bucket_name)
+
+    # Check if the blob is a directory (prefix) by listing objects
+    # under that prefix.
+    blobs = list(bucket.list_blobs(prefix=blob_name))
+    if blobs:
+      # If blobs exist under the prefix, it is considered a directory,
+      # and we delete all blobs under this prefix.
+      for blob in blobs:
+        self._delete_blob(bucket, blob.name)
+    else:
+      # If no blobs exist, we delete the specific blob (file).
+      self._delete_blob(bucket, blob_name)
+
+  def _delete_blob(self, bucket, blob_name):
+    """Helper method to delete a single blob from GCS.
+
+    Args:
+      bucket: The GCS bucket object.
+      blob_name: The name of the blob to delete under the bucket.
+    """
     if self._use_blob_generation:
-      # blob can be None if not found
+      # Fetch blob generation if required.
       blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
       generation = getattr(blob, "generation", None)
     else:
