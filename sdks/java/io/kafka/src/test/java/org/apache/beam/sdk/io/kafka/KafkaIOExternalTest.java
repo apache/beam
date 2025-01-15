@@ -111,7 +111,8 @@ public class KafkaIOExternalTest {
                         Field.of("consumer_polling_timeout", FieldType.INT64),
                         Field.of("redistribute_num_keys", FieldType.INT32),
                         Field.of("redistribute", FieldType.BOOLEAN),
-                        Field.of("allow_duplicates", FieldType.BOOLEAN)))
+                        Field.of("allow_duplicates", FieldType.BOOLEAN),
+                        Field.of("offset_deduplication", FieldType.BOOLEAN)))
                 .withFieldValue("topics", topics)
                 .withFieldValue("consumer_config", consumerConfig)
                 .withFieldValue("key_deserializer", keyDeserializer)
@@ -123,6 +124,7 @@ public class KafkaIOExternalTest {
                 .withFieldValue("redistribute_num_keys", 0)
                 .withFieldValue("redistribute", false)
                 .withFieldValue("allow_duplicates", false)
+                .withFieldValue("offset_deduplication", false)
                 .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
@@ -145,7 +147,7 @@ public class KafkaIOExternalTest {
     expansionService.expand(request, observer);
     ExpansionApi.ExpansionResponse result = observer.result;
     RunnerApi.PTransform transform = result.getTransform();
-    System.out.println("xxx : " + result.toString());
+    System.out.println("Expansion result: " + result.toString());
     assertThat(
         transform.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-Read.*")));
@@ -247,7 +249,8 @@ public class KafkaIOExternalTest {
                         Field.of("timestamp_policy", FieldType.STRING),
                         Field.of("redistribute_num_keys", FieldType.INT32),
                         Field.of("redistribute", FieldType.BOOLEAN),
-                        Field.of("allow_duplicates", FieldType.BOOLEAN)))
+                        Field.of("allow_duplicates", FieldType.BOOLEAN),
+                        Field.of("offset_deduplication", FieldType.BOOLEAN)))
                 .withFieldValue("topics", topics)
                 .withFieldValue("consumer_config", consumerConfig)
                 .withFieldValue("key_deserializer", keyDeserializer)
@@ -258,6 +261,7 @@ public class KafkaIOExternalTest {
                 .withFieldValue("redistribute_num_keys", 0)
                 .withFieldValue("redistribute", false)
                 .withFieldValue("allow_duplicates", false)
+                .withFieldValue("offset_deduplication", false)
                 .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
@@ -281,6 +285,7 @@ public class KafkaIOExternalTest {
     ExpansionApi.ExpansionResponse result = observer.result;
     RunnerApi.PTransform transform = result.getTransform();
 
+    System.out.println("Expansion result: " + result.toString());
     assertThat(
         transform.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-Read.*")));
