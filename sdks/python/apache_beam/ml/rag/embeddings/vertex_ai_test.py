@@ -14,16 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for apache_beam.ml.rag.embeddings.huggingface."""
+"""Tests for apache_beam.ml.rag.embeddings.vertex_ai."""
 
 import shutil
 import tempfile
 import unittest
 
-import pytest
-
 import apache_beam as beam
-from apache_beam.ml.rag.embeddings.huggingface import HuggingfaceTextEmbeddings
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
@@ -32,12 +29,13 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-# pylint: disable=unused-import
+# pylint: disable=ungrouped-imports
 try:
-  from sentence_transformers import SentenceTransformer
-  SENTENCE_TRANSFORMERS_AVAILABLE = True
+  import vertexai  # pylint: disable=unused-import
+  from apache_beam.ml.rag.embeddings.vertex_ai import VertexAITextEmbeddings
+  VERTEX_AI_AVAILABLE = True
 except ImportError:
-  SENTENCE_TRANSFORMERS_AVAILABLE = False
+  VERTEX_AI_AVAILABLE = False
 
 
 def chunk_approximately_equals(expected, actual):
@@ -53,12 +51,11 @@ def chunk_approximately_equals(expected, actual):
       all(isinstance(x, float) for x in actual.embedding.dense_embedding))
 
 
-@pytest.mark.uses_transformers
 @unittest.skipIf(
-    not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available")
-class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
+    not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
+class VertexAITextEmbeddingsTest(unittest.TestCase):
   def setUp(self):
-    self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
+    self.artifact_location = tempfile.mkdtemp(prefix='vertex_ai_')
     self.test_chunks = [
         Chunk(
             content=Content(text="This is a test sentence."),
@@ -78,24 +75,25 @@ class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
     shutil.rmtree(self.artifact_location)
 
   def test_embedding_pipeline(self):
+    # gecko@002 produces 768-dimensional embeddings
     expected = [
         Chunk(
             id="1",
-            embedding=Embedding(dense_embedding=[0.0] * 384),
+            embedding=Embedding(dense_embedding=[0.0] * 768),
             metadata={
                 "source": "test.txt", "language": "en"
             },
             content=Content(text="This is a test sentence.")),
         Chunk(
             id="2",
-            embedding=Embedding(dense_embedding=[0.0] * 384),
+            embedding=Embedding(dense_embedding=[0.0] * 768),
             metadata={
                 "source": "test.txt", "language": "en"
             },
             content=Content(text="Another example."))
     ]
-    embedder = HuggingfaceTextEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    embedder = VertexAITextEmbeddings(model_name="textembedding-gecko@002")
 
     with TestPipeline() as p:
       embeddings = (
