@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -25,7 +30,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.testing.Helpers;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,12 +56,11 @@ public class LargeCommitTest {
     PAssert.that(result)
         .satisfies(
             kvs -> {
-              Assert.assertTrue(kvs.iterator().hasNext());
+              assertTrue(kvs.iterator().hasNext());
               KV<String, Iterable<String>> outputKV = kvs.iterator().next();
-              Assert.assertFalse(kvs.iterator().hasNext());
-              Assert.assertEquals("a", outputKV.getKey());
-              Helpers.assertContentsInOrder(
-                  outputKV.getValue(), Arrays.asList(value, value, value, value, value));
+              assertFalse(kvs.iterator().hasNext());
+              assertEquals("a", outputKV.getKey());
+              assertThat(outputKV.getValue(), Matchers.contains(value, value, value, value, value));
               return null;
             });
     p.run();
