@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 @Internal
 public final class ActiveWorkState {
+
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
   /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown for observability.*/
@@ -329,10 +330,8 @@ public final class ActiveWorkState {
    * means that the work is received from Windmill, being processed or queued to be processed in
    * {@link ActiveWorkState}, and not committed back to Windmill.
    */
-  GetWorkBudget currentActiveWorkBudget() {
-    synchronized (this) {
-      return activeGetWorkBudget;
-    }
+  synchronized GetWorkBudget currentActiveWorkBudget() {
+    return activeGetWorkBudget;
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {

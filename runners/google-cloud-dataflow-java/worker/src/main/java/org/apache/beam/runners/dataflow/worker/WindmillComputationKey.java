@@ -49,6 +49,7 @@ public abstract class WindmillComputationKey {
 
   @Override
   public final int hashCode() {
+    // Sharding key collisions are unexpected, avoid hashing full key
     return Objects.hash(shardingKey(), computationId());
   }
 }

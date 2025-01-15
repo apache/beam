@@ -38,6 +38,7 @@ public abstract class ShardedKey {
 
   @Override
   public final int hashCode() {
+    // Sharding key collisions are unexpected, avoid hashing full key
     return Long.hashCode(shardingKey());
   }
 }
