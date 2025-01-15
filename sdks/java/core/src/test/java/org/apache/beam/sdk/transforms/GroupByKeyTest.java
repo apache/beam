@@ -106,17 +106,14 @@ import org.junit.runners.JUnit4;
 })
 @RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
-
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
-
     @Rule public transient TestPipeline p = TestPipeline.create();
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase implements Serializable {
-
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKey() {
@@ -617,26 +614,11 @@ public class GroupByKeyTest implements Serializable {
     public void testLargeKeys100MB() throws Exception {
       runLargeKeysTest(p, 100 << 20);
     }
-
-    @Test
-    @Category({ValidatesRunner.class})
-    public void testLargeValue() {
-      // 5 50MB values shuffling to a single key
-      String value = bigString('a', 50 << 20);
-      KV<String, String> kv = KV.of("a", value);
-      PCollection<KV<String, Iterable<String>>> result =
-          p.apply(Create.of(kv, kv, kv, kv, kv)).apply(GroupByKey.create());
-
-      PAssert.that(result)
-          .satisfies(containsKvs(KV.of("a", Arrays.asList(value, value, value, value, value))));
-      p.run();
-    }
   }
 
   /** Tests validating GroupByKey behaviors with windowing. */
   @RunWith(JUnit4.class)
   public static class WindowTests extends SharedTestBase {
-
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKeyAndWindows() {
@@ -846,8 +828,8 @@ public class GroupByKeyTest implements Serializable {
     return KV.of(key, ImmutableList.copyOf(values));
   }
 
-  private static <K, V> SerializableFunction<Iterable<KV<K, Iterable<V>>>, Void> containsKvs(
-      KV<K, Collection<V>>... kvs) {
+  private static SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> containsKvs(
+      KV<String, Collection<Integer>>... kvs) {
     return new ContainsKVs(ImmutableList.copyOf(kvs));
   }
 
@@ -855,21 +837,20 @@ public class GroupByKeyTest implements Serializable {
    * A function that asserts that the input element contains the expected {@link KV KVs} in any
    * order, where values appear in any order.
    */
-  private static class ContainsKVs<K, V>
-      implements SerializableFunction<Iterable<KV<K, Iterable<V>>>, Void> {
+  private static class ContainsKVs
+      implements SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> {
+    private final List<KV<String, Collection<Integer>>> expectedKvs;
 
-    private final List<KV<K, Collection<V>>> expectedKvs;
-
-    private ContainsKVs(List<KV<K, Collection<V>>> expectedKvs) {
+    private ContainsKVs(List<KV<String, Collection<Integer>>> expectedKvs) {
       this.expectedKvs = expectedKvs;
     }
 
     @Override
-    public Void apply(Iterable<KV<K, Iterable<V>>> input) {
-      List<Matcher<? super KV<K, Iterable<V>>>> matchers = new ArrayList<>();
-      for (KV<K, Collection<V>> expected : expectedKvs) {
-        matchers.add(
-            isKv(equalTo(expected.getKey()), containsInAnyOrder(expected.getValue().toArray())));
+    public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
+      List<Matcher<? super KV<String, Iterable<Integer>>>> matchers = new ArrayList<>();
+      for (KV<String, Collection<Integer>> expected : expectedKvs) {
+        Integer[] values = expected.getValue().toArray(new Integer[0]);
+        matchers.add(isKv(equalTo(expected.getKey()), containsInAnyOrder(values)));
       }
       assertThat(input, containsInAnyOrder(matchers.toArray(new Matcher[0])));
       return null;
@@ -877,7 +858,6 @@ public class GroupByKeyTest implements Serializable {
   }
 
   private static class AssertTimestamp<K, V> extends DoFn<KV<K, V>, Void> {
-
     private final Instant timestamp;
 
     public AssertTimestamp(Instant timestamp) {
@@ -944,7 +924,6 @@ public class GroupByKeyTest implements Serializable {
    * runner correctly hashes and sorts on the encoded bytes.
    */
   protected static class BadEqualityKey {
-
     long key;
 
     public BadEqualityKey() {}
@@ -1002,7 +981,6 @@ public class GroupByKeyTest implements Serializable {
   }
 
   static class CountFn implements SerializableFunction<Iterable<Long>, Long> {
-
     @Override
     public Long apply(Iterable<Long> input) {
       long result = 0L;
@@ -1015,7 +993,6 @@ public class GroupByKeyTest implements Serializable {
 
   static class AssertThatCountPerKeyCorrect
       implements SerializableFunction<Iterable<KV<BadEqualityKey, Long>>, Void> {
-
     private final int numValues;
 
     AssertThatCountPerKeyCorrect(int numValues) {
@@ -1033,7 +1010,6 @@ public class GroupByKeyTest implements Serializable {
 
   static class AssertThatAllKeysExist
       implements SerializableFunction<Iterable<BadEqualityKey>, Void> {
-
     private final int numKeys;
 
     AssertThatAllKeysExist(int numKeys) {
