@@ -2122,6 +2122,19 @@ public class DatastoreV1 {
     private transient MovingAverage meanLatencyPerEntityMs;
   }
 
+  /**
+   * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
+   * batches; see {@link DatastoreV1.WriteBatcherImpl}.
+   *
+   * <p>See <a href="https://cloud.google.com/datastore/docs/concepts/entities">Datastore: Entities,
+   * Properties, and Keys</a> for information about entity keys and mutations.
+   *
+   * <p>Commits are non-transactional. If a commit fails because of a conflict over an entity group,
+   * the commit will be retried (up to {@link DatastoreV1.BaseDatastoreWriterFn#MAX_RETRIES} times).
+   * This means that the mutation operation should be idempotent. Thus, the writer should only be
+   * used for {@code upsert} and {@code delete} mutation operations, as these are the only two Cloud
+   * Datastore mutations that are idempotent.
+   */
   static class DatastoreWriterFn extends BaseDatastoreWriterFn<WriteSuccessSummary> {
 
     DatastoreWriterFn(String projectId, @Nullable String localhost) {
@@ -2162,19 +2175,6 @@ public class DatastoreV1 {
     }
   }
 
-  /**
-   * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
-   * batches; see {@link DatastoreV1.WriteBatcherImpl}.
-   *
-   * <p>See <a href="https://cloud.google.com/datastore/docs/concepts/entities">Datastore: Entities,
-   * Properties, and Keys</a> for information about entity keys and mutations.
-   *
-   * <p>Commits are non-transactional. If a commit fails because of a conflict over an entity group,
-   * the commit will be retried (up to {@link DatastoreV1.BaseDatastoreWriterFn#MAX_RETRIES} times).
-   * This means that the mutation operation should be idempotent. Thus, the writer should only be
-   * used for {@code upsert} and {@code delete} mutation operations, as these are the only two Cloud
-   * Datastore mutations that are idempotent.
-   */
   abstract static class BaseDatastoreWriterFn<OutT> extends DoFn<Mutation, OutT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(BaseDatastoreWriterFn.class);
