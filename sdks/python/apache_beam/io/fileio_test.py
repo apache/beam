@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import csv
+import glob
 import io
 import json
 import logging
@@ -484,6 +485,31 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           | "Serialize" >> beam.Map(json.dumps)
           | beam.io.fileio.WriteToFiles(path=dir))
 
+    assert len(glob.glob(os.path.join(dir, '*'))) == 1
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | fileio.MatchFiles(FileSystems.join(dir, '*'))
+          | fileio.ReadMatches()
+          | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+          | beam.Map(json.loads))
+
+      assert_that(result, equal_to([row for row in self.SIMPLE_COLLECTION]))
+
+  def test_write_to_multiple_shards(self):
+
+    dir = self._new_tempdir()
+
+    with TestPipeline() as p:
+      _ = (
+          p
+          | beam.Create(WriteFilesTest.SIMPLE_COLLECTION)
+          | "Serialize" >> beam.Map(json.dumps)
+          | beam.io.fileio.WriteToFiles(path=dir, shards=3))
+
+    assert len(glob.glob(os.path.join(dir, '*'))) == 3
+
     with TestPipeline() as p:
       result = (
           p
@@ -514,6 +540,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                 destination=lambda n: "odd" if int(n) % 2 else "even",
                 sink=sink,
                 file_naming=fileio.destination_prefix_naming("test")))
+
+      assert len(glob.glob(os.path.join(dir, '*'))) == 2
 
       with TestPipeline() as p:
         result = (
