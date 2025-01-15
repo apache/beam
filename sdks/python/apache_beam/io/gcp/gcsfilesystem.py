@@ -354,7 +354,8 @@ class GCSFileSystem(FileSystem):
 
     for path in paths:
       if path.endswith('/'):
-        path_to_use = path + '*'
+        self._gcsIO().delete(path, recursive=True)
+        continue
       else:
         path_to_use = path
       match_result = self.match([path_to_use])[0]
