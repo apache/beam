@@ -1729,6 +1729,14 @@ public class DatastoreV1 {
       this.inner.populateDisplayData(builder);
     }
 
+    public String getProjectId() {
+      return this.inner.getProjectId();
+    }
+
+    public String getDatabaseId() {
+      return this.inner.getDatabaseId();
+    }
+
     @Override
     public PDone expand(PCollection<Entity> input) {
       inner.expand(input);
@@ -1942,6 +1950,14 @@ public class DatastoreV1 {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       this.inner.populateDisplayData(builder);
+    }
+
+    public String getProjectId() {
+      return this.inner.getProjectId();
+    }
+
+    public String getDatabaseId() {
+      return this.inner.getDatabaseId();
     }
 
     @Override
