@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -83,9 +84,11 @@ public class WorkFailureProcessorTest {
   }
 
   private static ExecutableWork createWork(Supplier<Instant> clock, Consumer<Work> processWorkFn) {
+    WorkItem workItem = WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId",

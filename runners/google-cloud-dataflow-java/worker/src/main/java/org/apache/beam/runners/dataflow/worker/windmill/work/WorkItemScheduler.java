@@ -40,6 +40,7 @@ public interface WorkItemScheduler {
    */
   void scheduleWork(
       WorkItem workItem,
+      long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
       Collection<LatencyAttribution> getWorkStreamLatencies);

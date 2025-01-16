@@ -162,6 +162,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                   inputDataWatermark,
                   synchronizedProcessingTime,
                   workItem,
+                  serializedWorkItemSize,
                   getWorkStreamLatencies) ->
                   computationStateFetcher
                       .apply(computationId)
@@ -171,6 +172,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
+                                serializedWorkItemSize,
                                 Watermarks.builder()
                                     .setInputDataWatermark(
                                         Preconditions.checkNotNull(inputDataWatermark))
@@ -237,6 +239,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
           streamingWorkScheduler.scheduleWork(
               computationState,
               workItem,
+              workItem.getSerializedSize(),
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
