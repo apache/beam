@@ -291,9 +291,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
         common.group_by_key_input_visitor().visit_transform(
-            AppliedPTransform(None, beam.GroupByKey(), "label", {'in': pcoll}),
-            None,
-            None)
+            AppliedPTransform(
+                None, beam.GroupByKey(), "label", {'in': pcoll}, None, None))
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
     p = TestPipeline()
@@ -301,9 +300,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
       common.group_by_key_input_visitor().visit_transform(
-          AppliedPTransform(None, transform, "label", {'in': pcoll}),
-          None,
-          None)
+          AppliedPTransform(
+              None, transform, "label", {'in': pcoll}, None, None))
       self.assertEqual(pcoll.element_type, typehints.Any)
 
   def test_flatten_input_with_visitor_with_single_input(self):

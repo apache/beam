@@ -1036,9 +1036,9 @@ class RunnerApiTest(unittest.TestCase):
     with p.transform_annotations(foo='first'):
       pcoll = p | beam.Create([1, 2, 3]) | 'First' >> beam.Map(lambda x: x + 1)
     with p.transform_annotations(foo='second'):
-      pcoll | 'Second' >> beam.Map(lambda x: x * 2)
+      _ = pcoll | 'Second' >> beam.Map(lambda x: x * 2)
       with p.transform_annotations(foo='nested', another='more'):
-        pcoll | 'Nested' >> beam.Map(lambda x: x * 3)
+        _ = pcoll | 'Nested' >> beam.Map(lambda x: x * 3)
 
     proto = p.to_runner_api()
     self.assertHasAnnotation(proto, 'First', 'foo', b'first')
@@ -1051,9 +1051,9 @@ class RunnerApiTest(unittest.TestCase):
     with beam.transform_annotations(foo='first'):
       pcoll = p | beam.Create([1, 2, 3]) | 'First' >> beam.Map(lambda x: x + 1)
     with beam.transform_annotations(foo='second'):
-      pcoll | 'Second' >> beam.Map(lambda x: x * 2)
+      _ = pcoll | 'Second' >> beam.Map(lambda x: x * 2)
       with beam.transform_annotations(foo='nested', another='more'):
-        pcoll | 'Nested' >> beam.Map(lambda x: x * 3)
+        _ = pcoll | 'Nested' >> beam.Map(lambda x: x * 3)
 
     proto = p.to_runner_api()
     self.assertHasAnnotation(proto, 'First', 'foo', b'first')
