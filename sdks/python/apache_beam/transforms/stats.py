@@ -35,7 +35,6 @@ import logging
 import math
 import typing
 from collections.abc import Callable
-from collections.abc import Sequence
 from typing import Any
 from typing import List
 from typing import Tuple
@@ -321,7 +320,8 @@ class ApproximateQuantiles(object):
             str(input_batched), label='Is Input Batched'),
     }
 
-  @typehints.with_input_types(typehints.Union[Sequence[T], Tuple[T, float]])
+  @typehints.with_input_types(
+      typehints.Union[typing.Sequence[T], Tuple[T, float]])
   @typehints.with_output_types(List[T])
   class Globally(PTransform):
     """
