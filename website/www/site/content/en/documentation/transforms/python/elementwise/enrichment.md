@@ -48,7 +48,7 @@ The following examples demonstrate how to create a pipeline that use the enrichm
 
 ## BigQuery Support
 
-The enrichment transform supports integration with **BigQuery** to dynamically enrich data using BigQuery datasets. By leveraging BigQuery as an external data source, users can execute efficient lookups for data enrichment directly in their Apache Beam pipelines. 
+The enrichment transform supports integration with **BigQuery** to dynamically enrich data using BigQuery datasets. By leveraging BigQuery as an external data source, users can execute efficient lookups for data enrichment directly in their Apache Beam pipelines.
 
 To use BigQuery for enrichment:
 - Configure your BigQuery table as the data source for the enrichment process.
