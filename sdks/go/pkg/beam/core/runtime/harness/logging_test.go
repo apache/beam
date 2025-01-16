@@ -103,7 +103,7 @@ func TestLogger_connect(t *testing.T) {
 
 	var count int
 	for _, batch := range cacher.logs {
-		count += len(batch.GetLogEntries())
+		count += len(batch.LogEntries)
 	}
 
 	if got, want := count, 10; got != want {

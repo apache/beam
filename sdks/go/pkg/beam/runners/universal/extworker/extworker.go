@@ -67,24 +67,24 @@ func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.workers == nil {
-		return fnpb.StartWorkerResponse_builder{
+		return &fnpb.StartWorkerResponse{
 			Error: "worker pool shutting down",
-		}.Build(), nil
+		}, nil
 	}
 
 	if _, ok := s.workers[req.GetWorkerId()]; ok {
-		return fnpb.StartWorkerResponse_builder{
+		return &fnpb.StartWorkerResponse{
 			Error: fmt.Sprintf("worker with ID %q already exists", req.GetWorkerId()),
-		}.Build(), nil
+		}, nil
 	}
 	if req.GetLoggingEndpoint() == nil {
-		return fnpb.StartWorkerResponse_builder{Error: fmt.Sprintf("Missing logging endpoint for worker %v", req.GetWorkerId())}.Build(), nil
+		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("Missing logging endpoint for worker %v", req.GetWorkerId())}, nil
 	}
 	if req.GetControlEndpoint() == nil {
-		return fnpb.StartWorkerResponse_builder{Error: fmt.Sprintf("Missing control endpoint for worker %v", req.GetWorkerId())}.Build(), nil
+		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("Missing control endpoint for worker %v", req.GetWorkerId())}, nil
 	}
-	if req.GetLoggingEndpoint().HasAuthentication() || req.GetControlEndpoint().HasAuthentication() {
-		return fnpb.StartWorkerResponse_builder{Error: "[BEAM-10610] Secure endpoints not supported."}.Build(), nil
+	if req.GetLoggingEndpoint().Authentication != nil || req.GetControlEndpoint().Authentication != nil {
+		return &fnpb.StartWorkerResponse{Error: "[BEAM-10610] Secure endpoints not supported."}, nil
 	}
 
 	ctx = grpcx.WriteWorkerID(s.root, req.GetWorkerId())
@@ -126,9 +126,9 @@ func (s *Loopback) StopWorker(ctx context.Context, req *fnpb.StopWorkerRequest) 
 		delete(s.workers, req.GetWorkerId())
 		return &fnpb.StopWorkerResponse{}, nil
 	}
-	return fnpb.StopWorkerResponse_builder{
+	return &fnpb.StopWorkerResponse{
 		Error: fmt.Sprintf("no worker with id %q running", req.GetWorkerId()),
-	}.Build(), nil
+	}, nil
 
 }
 

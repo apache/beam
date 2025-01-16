@@ -38,16 +38,16 @@ type logger struct {
 func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg string) {
 	now := timestamppb.New(time.Now())
 
-	entry := fnpb.LogEntry_builder{
+	entry := &fnpb.LogEntry{
 		Timestamp: now,
 		Severity:  convertSeverity(sev),
 		Message:   msg,
-	}.Build()
-	if _, file, line, ok := runtime.Caller(calldepth + 1); ok {
-		entry.SetLogLocation(fmt.Sprintf("%v:%v", file, line))
 	}
-	entry.SetInstructionId(metrics.GetBundleID(ctx))
-	entry.SetTransformId(metrics.GetTransformID(ctx))
+	if _, file, line, ok := runtime.Caller(calldepth + 1); ok {
+		entry.LogLocation = fmt.Sprintf("%v:%v", file, line)
+	}
+	entry.InstructionId = metrics.GetBundleID(ctx)
+	entry.TransformId = metrics.GetTransformID(ctx)
 
 	select {
 	case l.out <- entry:
@@ -174,7 +174,7 @@ func (w *remoteWriter) connect(ctx context.Context, makeClient func(ctx context.
 				return errBuffClosed
 			}
 			msgs = append(msgs, newMsg)
-			flush = newMsg.GetSeverity() >= fnpb.LogEntry_Severity_CRITICAL
+			flush = newMsg.Severity >= fnpb.LogEntry_Severity_CRITICAL
 		}
 
 		// If there are still messages in the buffer, drain them out to batch them to a cap.
@@ -185,12 +185,12 @@ func (w *remoteWriter) connect(ctx context.Context, makeClient func(ctx context.
 				return errBuffClosed
 			}
 			msgs = append(msgs, newMsg)
-			flush = newMsg.GetSeverity() >= fnpb.LogEntry_Severity_CRITICAL
+			flush = newMsg.Severity >= fnpb.LogEntry_Severity_CRITICAL
 		}
 
-		list := fnpb.LogEntry_List_builder{
+		list := &fnpb.LogEntry_List{
 			LogEntries: msgs,
-		}.Build()
+		}
 
 		if err := client.Send(list); err != nil {
 			if err == io.EOF {

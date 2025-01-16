@@ -232,12 +232,12 @@ func (m *sumInt64) accumulate(pyld []byte) error {
 func (m *sumInt64) toProto(key metricKey) *pipepb.MonitoringInfo {
 	var buf bytes.Buffer
 	coder.EncodeVarInt(m.sum, &buf)
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_SUM_INT64_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 type sumFloat64 struct {
@@ -256,12 +256,12 @@ func (m *sumFloat64) accumulate(pyld []byte) error {
 func (m *sumFloat64) toProto(key metricKey) *pipepb.MonitoringInfo {
 	var buf bytes.Buffer
 	coder.EncodeDouble(m.sum, &buf)
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_SUM_DOUBLE_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 type progress struct {
@@ -293,12 +293,12 @@ func (m *progress) toProto(key metricKey) *pipepb.MonitoringInfo {
 	for _, v := range m.snap {
 		coder.EncodeDouble(v, &buf)
 	}
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_PROGRESS_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 func ordMin[T constraints.Ordered](a T, b T) T {
@@ -350,12 +350,12 @@ func (m *distributionInt64) toProto(key metricKey) *pipepb.MonitoringInfo {
 	coder.EncodeVarInt(m.dist.Sum, &buf)
 	coder.EncodeVarInt(m.dist.Min, &buf)
 	coder.EncodeVarInt(m.dist.Max, &buf)
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_DISTRIBUTION_INT64_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 type gaugeInt64 struct {
@@ -387,12 +387,12 @@ func (m *gaugeInt64) toProto(key metricKey) *pipepb.MonitoringInfo {
 	var buf bytes.Buffer
 	coder.EncodeVarInt(m.millisSinceEpoch, &buf)
 	coder.EncodeVarInt(m.val, &buf)
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_LATEST_INT64_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 type gaugeFloat64 struct {
@@ -424,12 +424,12 @@ func (m *gaugeFloat64) toProto(key metricKey) *pipepb.MonitoringInfo {
 	var buf bytes.Buffer
 	coder.EncodeVarInt(m.millisSinceEpoch, &buf)
 	coder.EncodeDouble(m.val, &buf)
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_LATEST_DOUBLE_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 type stringSet struct {
@@ -460,12 +460,12 @@ func (m *stringSet) toProto(key metricKey) *pipepb.MonitoringInfo {
 	for k := range m.set {
 		coder.EncodeStringUTF8(k, &buf)
 	}
-	return pipepb.MonitoringInfo_builder{
+	return &pipepb.MonitoringInfo{
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_SET_STRING_TYPE),
 		Payload: buf.Bytes(),
 		Labels:  key.Labels(),
-	}.Build()
+	}
 }
 
 type durability int
@@ -589,7 +589,7 @@ func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
 		urn := mi.GetUrn()
 		ops, ok := mUrn2Ops[urn]
 		if !ok {
-			slog.Debug("unknown metrics urn", slog.String("shortID", short), slog.String("urn", urn), slog.String("type", mi.GetType()))
+			slog.Debug("unknown metrics urn", slog.String("shortID", short), slog.String("urn", urn), slog.String("type", mi.Type))
 			continue
 		}
 		key := ops.keyFn(urn, mi.GetLabels())

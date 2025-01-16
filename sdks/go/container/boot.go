@@ -184,7 +184,7 @@ func main() {
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
 	if enableGoogleCloudProfiler {
-		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.GetMetadata())
+		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.Metadata)
 		if err != nil {
 			logger.Printf(ctx, "could not configure Google Cloud Profiler variables, got %v", err)
 		}

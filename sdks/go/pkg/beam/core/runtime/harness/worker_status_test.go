@@ -37,7 +37,7 @@ type BeamFnWorkerStatusServicer struct {
 }
 
 func (w *BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_WorkerStatusServer) error {
-	b.Send(fnpb.WorkerStatusRequest_builder{Id: "1"}.Build())
+	b.Send(&fnpb.WorkerStatusRequest{Id: "1"})
 	resp, err := b.Recv()
 	if err != nil {
 		return fmt.Errorf("error receiving response b.recv: %v", err)

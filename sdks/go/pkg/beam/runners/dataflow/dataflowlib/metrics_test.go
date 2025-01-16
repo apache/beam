@@ -114,14 +114,14 @@ func newMetricStructuredName(name, namespace string, attempted bool) df.MetricSt
 }
 
 func newPipeline(stepName string) (*pipepb.Pipeline, error) {
-	p := pipepb.Pipeline_builder{
-		Components: pipepb.Components_builder{
+	p := &pipepb.Pipeline{
+		Components: &pipepb.Components{
 			Transforms: map[string]*pipepb.PTransform{
-				"e5": pipepb.PTransform_builder{
+				"e5": {
 					UniqueName: stepName,
-				}.Build(),
+				},
 			},
-		}.Build(),
-	}.Build()
+		},
+	}
 	return p, nil
 }

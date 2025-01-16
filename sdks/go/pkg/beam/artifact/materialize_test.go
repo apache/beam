@@ -49,12 +49,12 @@ func TestRetrieve(t *testing.T) {
 
 	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 	for _, a := range artifacts {
-		filename := makeFilename(dst, a.GetName())
+		filename := makeFilename(dst, a.Name)
 		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
-			t.Errorf("failed to retrieve %v: %v", a.GetName(), err)
+			t.Errorf("failed to retrieve %v: %v", a.Name, err)
 			continue
 		}
-		verifySHA256(t, filename, a.GetSha256())
+		verifySHA256(t, filename, a.Sha256)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestMultiRetrieve(t *testing.T) {
 	}
 
 	for _, a := range artifacts {
-		verifySHA256(t, makeFilename(dst, a.GetName()), a.GetSha256())
+		verifySHA256(t, makeFilename(dst, a.Name), a.Sha256)
 	}
 }
 
@@ -112,18 +112,20 @@ func stage(ctx context.Context, scl jobpb.LegacyArtifactStagingServiceClient, t 
 	sha256W.Write(data)
 	hash := hex.EncodeToString(sha256W.Sum(nil))
 	md := makeArtifact(key, hash)
-	pmd := jobpb.PutArtifactMetadata_builder{
+	pmd := &jobpb.PutArtifactMetadata{
 		Metadata:            md,
 		StagingSessionToken: st,
-	}.Build()
+	}
 
 	stream, err := scl.PutArtifact(ctx)
 	if err != nil {
 		t.Fatalf("put failed: %v", err)
 	}
-	header := jobpb.PutArtifactRequest_builder{
-		Metadata: proto.ValueOrDefault(pmd),
-	}.Build()
+	header := &jobpb.PutArtifactRequest{
+		Content: &jobpb.PutArtifactRequest_Metadata{
+			Metadata: pmd,
+		},
+	}
 	if err := stream.Send(header); err != nil {
 		t.Fatalf("send header failed: %v", err)
 	}
@@ -134,11 +136,13 @@ func stage(ctx context.Context, scl jobpb.LegacyArtifactStagingServiceClient, t 
 			end = size
 		}
 
-		chunk := jobpb.PutArtifactRequest_builder{
-			Data: jobpb.ArtifactChunk_builder{
-				Data: data[i:end],
-			}.Build(),
-		}.Build()
+		chunk := &jobpb.PutArtifactRequest{
+			Content: &jobpb.PutArtifactRequest_Data{
+				Data: &jobpb.ArtifactChunk{
+					Data: data[i:end],
+				},
+			},
+		}
 		if err := stream.Send(chunk); err != nil {
 			t.Fatalf("send chunk[%v:%v] failed: %v", i, end, err)
 		}
@@ -189,8 +193,8 @@ func TestNewRetrieveWithFileGeneratedStageName(t *testing.T) {
 	generated := make(map[string]string)
 	for _, md := range mds {
 		name, _ := MustExtractFilePayload(md)
-		payload, _ := proto.Marshal(pipepb.ArtifactStagingToRolePayload_builder{
-			StagedName: name}.Build())
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
 		generated[name] = string(payload)
 	}
 
@@ -216,8 +220,8 @@ func TestNewRetrieveWithUrlGeneratedStageName(t *testing.T) {
 	generated := make(map[string]string)
 	for _, md := range mds {
 		name, _ := MustExtractFilePayload(md)
-		payload, _ := proto.Marshal(pipepb.ArtifactStagingToRolePayload_builder{
-			StagedName: name}.Build())
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
 		generated[name] = string(payload)
 	}
 
@@ -294,14 +298,14 @@ type fakeRetrievalService struct {
 func (fake *fakeRetrievalService) resolvedArtifactsWithStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
 	for name, contents := range fake.artifacts {
-		payload, _ := proto.Marshal(pipepb.ArtifactStagingToRolePayload_builder{
-			StagedName: name}.Build())
-		artifacts = append(artifacts, pipepb.ArtifactInformation_builder{
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     "resolved",
 			TypePayload: []byte(contents),
 			RoleUrn:     URNStagingTo,
 			RolePayload: payload,
-		}.Build())
+		})
 	}
 	return artifacts
 }
@@ -309,12 +313,12 @@ func (fake *fakeRetrievalService) resolvedArtifactsWithStagingTo() []*pipepb.Art
 func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
 	for name := range fake.artifacts {
-		payload, _ := proto.Marshal(pipepb.ArtifactFilePayload_builder{
-			Path: filepath.Join("/tmp", name)}.Build())
-		artifacts = append(artifacts, pipepb.ArtifactInformation_builder{
+		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path: filepath.Join("/tmp", name)})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     URNFileArtifact,
 			TypePayload: payload,
-		}.Build())
+		})
 	}
 	return artifacts
 }
@@ -322,44 +326,44 @@ func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.Arti
 func (fake *fakeRetrievalService) urlArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
 	for name := range fake.artifacts {
-		payload, _ := proto.Marshal(pipepb.ArtifactUrlPayload_builder{
-			Url: path.Join("gs://tmp", name)}.Build())
-		artifacts = append(artifacts, pipepb.ArtifactInformation_builder{
+		payload, _ := proto.Marshal(&pipepb.ArtifactUrlPayload{
+			Url: path.Join("gs://tmp", name)})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     URNUrlArtifact,
 			TypePayload: payload,
-		}.Build())
+		})
 	}
 	return artifacts
 }
 
 func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipepb.ArtifactInformation {
 	return []*pipepb.ArtifactInformation{
-		pipepb.ArtifactInformation_builder{
+		&pipepb.ArtifactInformation{
 			TypeUrn: "unresolved",
-		}.Build(),
+		},
 	}
 }
 
 func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request *jobpb.ResolveArtifactsRequest, opts ...grpc.CallOption) (*jobpb.ResolveArtifactsResponse, error) {
-	response := &jobpb.ResolveArtifactsResponse{}
-	for _, dep := range request.GetArtifacts() {
-		if dep.GetTypeUrn() == "unresolved" {
-			response.SetReplacements(append(response.GetReplacements(), fake.resolvedArtifactsWithStagingTo()...))
+	response := jobpb.ResolveArtifactsResponse{}
+	for _, dep := range request.Artifacts {
+		if dep.TypeUrn == "unresolved" {
+			response.Replacements = append(response.Replacements, fake.resolvedArtifactsWithStagingTo()...)
 		} else {
-			response.SetReplacements(append(response.GetReplacements(), dep))
+			response.Replacements = append(response.Replacements, dep)
 		}
 	}
-	return response, nil
+	return &response, nil
 }
 
 func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *jobpb.GetArtifactRequest, opts ...grpc.CallOption) (jobpb.ArtifactRetrievalService_GetArtifactClient, error) {
-	switch request.GetArtifact().GetTypeUrn() {
+	switch request.Artifact.TypeUrn {
 	case "resolved":
-		return &fakeGetArtifactResponseStream{data: request.GetArtifact().GetTypePayload()}, nil
+		return &fakeGetArtifactResponseStream{data: request.Artifact.TypePayload}, nil
 	case URNFileArtifact, URNUrlArtifact:
-		return &fakeGetArtifactResponseStream{data: request.GetArtifact().GetRolePayload()}, nil
+		return &fakeGetArtifactResponseStream{data: request.Artifact.RolePayload}, nil
 	default:
-		return nil, errors.Errorf("Unsupported artifact %v", request.GetArtifact())
+		return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 	}
 }
 
@@ -371,7 +375,7 @@ type fakeGetArtifactResponseStream struct {
 func (fake *fakeGetArtifactResponseStream) Recv() (*jobpb.GetArtifactResponse, error) {
 	if fake.index < len(fake.data) {
 		fake.index++
-		return jobpb.GetArtifactResponse_builder{Data: fake.data[fake.index-1 : fake.index]}.Build(), nil
+		return &jobpb.GetArtifactResponse{Data: fake.data[fake.index-1 : fake.index]}, nil
 	}
 	return nil, io.EOF
 }
@@ -447,11 +451,11 @@ func makeTempFile(t *testing.T, filename string, size int) string {
 }
 
 func makeArtifact(key, hash string) *jobpb.ArtifactMetadata {
-	return jobpb.ArtifactMetadata_builder{
+	return &jobpb.ArtifactMetadata{
 		Name:        key,
 		Sha256:      hash,
 		Permissions: 0644,
-	}.Build()
+	}
 }
 
 func makeFilename(dir, key string) string {

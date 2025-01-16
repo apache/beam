@@ -145,23 +145,23 @@ func ptSink(input string, sides ...string) *pipepb.PTransform {
 	for i, s := range sides {
 		ins[fmt.Sprintf("i%d", i+1)] = s
 	}
-	return pipepb.PTransform_builder{
+	return &pipepb.PTransform{
 		Inputs: ins,
-	}.Build()
+	}
 }
 
 // ptComp generates a composite PCollection. Unlike the other helpers, it takes in
 // the *subtransform ids* instead of the input/output pcollections.
 func ptComp(subs ...string) *pipepb.PTransform {
-	return pipepb.PTransform_builder{
+	return &pipepb.PTransform{
 		Subtransforms: subs,
-	}.Build()
+	}
 }
 
 func ptImpulse(output string) *pipepb.PTransform {
-	return pipepb.PTransform_builder{
+	return &pipepb.PTransform{
 		Outputs: map[string]string{"o0": output},
-	}.Build()
+	}
 }
 
 func ptNoSide(input string, outputs ...string) *pipepb.PTransform {
@@ -169,10 +169,10 @@ func ptNoSide(input string, outputs ...string) *pipepb.PTransform {
 	for i, o := range outputs {
 		outs[fmt.Sprintf("o%d", i)] = o
 	}
-	return pipepb.PTransform_builder{
+	return &pipepb.PTransform{
 		Inputs:  map[string]string{"i0": input},
 		Outputs: outs,
-	}.Build()
+	}
 }
 
 // validateSortForTest ensures that in the sorted ids, outputs are declared before
@@ -186,7 +186,7 @@ func validateSortForTest(t *testing.T, xforms map[string]*pipepb.PTransform, sor
 
 	for _, id := range sorted {
 		pt := xforms[id]
-		for _, in := range pt.GetInputs() {
+		for _, in := range pt.Inputs {
 			if !seenPCollections[in] {
 				t.Errorf("out of order pcollection %v required by %v", in, id)
 				missingPCollections[in] = true

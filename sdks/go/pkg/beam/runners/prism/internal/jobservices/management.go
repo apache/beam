@@ -196,7 +196,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 				return nil, wrapped
 			}
 
-			t.SetEnvironmentId("") // Unset the environment, to ensure it's handled prism side.
+			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.
 			testStreamIds = append(testStreamIds, tid)
 
 		default:
@@ -241,17 +241,17 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 				pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE)
 			// Non default triggers should fail.
 			if ws.GetTrigger().GetDefault() == nil {
-				dt := pipepb.Trigger_builder{
-					Default: &pipepb.Trigger_Default{},
-				}.Build()
+				dt := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Default_{},
+				}
 				// Allow Never and Always triggers to unblock iteration on Java and Python SDKs.
 				// Without multiple firings, these will be very similar to the default trigger.
-				nt := pipepb.Trigger_builder{
-					Never: &pipepb.Trigger_Never{},
-				}.Build()
-				at := pipepb.Trigger_builder{
-					Always: &pipepb.Trigger_Always{},
-				}.Build()
+				nt := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Never_{},
+				}
+				at := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Always_{},
+				}
 				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String(), at.String())
 			}
 		}
@@ -263,13 +263,13 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 		job.Failed(err)
 		return nil, err
 	}
-	return jobpb.PrepareJobResponse_builder{
+	return &jobpb.PrepareJobResponse{
 		PreparationId:       job.key,
 		StagingSessionToken: job.key,
-		ArtifactStagingEndpoint: pipepb.ApiServiceDescriptor_builder{
+		ArtifactStagingEndpoint: &pipepb.ApiServiceDescriptor{
 			Url: s.Endpoint(),
-		}.Build(),
-	}.Build(), nil
+		},
+	}, nil
 }
 
 func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJobResponse, error) {
@@ -280,9 +280,9 @@ func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJ
 	// Bring up a background goroutine to allow the job to continue processing.
 	go s.execute(job)
 
-	return jobpb.RunJobResponse_builder{
+	return &jobpb.RunJobResponse{
 		JobId: job.key,
-	}.Build(), nil
+	}, nil
 }
 
 // Cancel a Job requested by the CancelJobRequest for jobs not in an already terminal state.
@@ -298,16 +298,16 @@ func (s *Server) Cancel(_ context.Context, req *jobpb.CancelJobRequest) (*jobpb.
 	switch state {
 	case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED, jobpb.JobState_FAILED:
 		// Already at terminal state.
-		return jobpb.CancelJobResponse_builder{
+		return &jobpb.CancelJobResponse{
 			State: state,
-		}.Build(), nil
+		}, nil
 	}
 	job.SendMsg("canceling " + job.String())
 	job.Canceling()
 	job.CancelFn(ErrCancel)
-	return jobpb.CancelJobResponse_builder{
+	return &jobpb.CancelJobResponse{
 		State: jobpb.JobState_CANCELLING,
-	}.Build(), nil
+	}, nil
 }
 
 // GetMessageStream subscribes to a stream of state changes and messages from the job. If throughput
@@ -334,12 +334,14 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 				return nil
 			case jobpb.JobState_FAILED:
 				// Ensure we send an error message with the cause of the job failure.
-				stream.Send(jobpb.JobMessagesResponse_builder{
-					MessageResponse: jobpb.JobMessage_builder{
-						MessageText: job.failureErr.Error(),
-						Importance:  jobpb.JobMessage_JOB_MESSAGE_ERROR,
-					}.Build(),
-				}.Build())
+				stream.Send(&jobpb.JobMessagesResponse{
+					Response: &jobpb.JobMessagesResponse_MessageResponse{
+						MessageResponse: &jobpb.JobMessage{
+							MessageText: job.failureErr.Error(),
+							Importance:  jobpb.JobMessage_JOB_MESSAGE_ERROR,
+						},
+					},
+				})
 				return nil
 			}
 			job.streamCond.Wait()
@@ -356,23 +358,27 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 		}
 		for curMsg < job.maxMsg && len(job.msgs) > 0 {
 			msg := job.msgs[curMsg-job.minMsg]
-			stream.Send(jobpb.JobMessagesResponse_builder{
-				MessageResponse: jobpb.JobMessage_builder{
-					MessageText: msg,
-					Importance:  jobpb.JobMessage_JOB_MESSAGE_BASIC,
-				}.Build(),
-			}.Build())
+			stream.Send(&jobpb.JobMessagesResponse{
+				Response: &jobpb.JobMessagesResponse_MessageResponse{
+					MessageResponse: &jobpb.JobMessage{
+						MessageText: msg,
+						Importance:  jobpb.JobMessage_JOB_MESSAGE_BASIC,
+					},
+				},
+			})
 			curMsg++
 		}
 		if curState <= job.stateIdx {
 			state = job.state.Load().(jobpb.JobState_Enum)
 			curState = job.stateIdx + 1
 			job.streamCond.L.Unlock()
-			stream.Send(jobpb.JobMessagesResponse_builder{
-				StateResponse: jobpb.JobStateEvent_builder{
-					State: state,
-				}.Build(),
-			}.Build())
+			stream.Send(&jobpb.JobMessagesResponse{
+				Response: &jobpb.JobMessagesResponse_StateResponse{
+					StateResponse: &jobpb.JobStateEvent{
+						State: state,
+					},
+				},
+			})
 			job.streamCond.L.Lock()
 		}
 	}
@@ -384,12 +390,12 @@ func (s *Server) GetJobMetrics(ctx context.Context, req *jobpb.GetJobMetricsRequ
 	if j == nil {
 		return nil, fmt.Errorf("GetJobMetrics: unknown jobID: %v", req.GetJobId())
 	}
-	return jobpb.GetJobMetricsResponse_builder{
-		Metrics: jobpb.MetricResults_builder{
+	return &jobpb.GetJobMetricsResponse{
+		Metrics: &jobpb.MetricResults{
 			Attempted: j.metrics.Results(tentative),
 			Committed: j.metrics.Results(committed),
-		}.Build(),
-	}.Build(), nil
+		},
+	}, nil
 }
 
 // GetJobs returns the set of active jobs and associated metadata.
@@ -399,12 +405,12 @@ func (s *Server) GetJobs(context.Context, *jobpb.GetJobsRequest) (*jobpb.GetJobs
 
 	resp := &jobpb.GetJobsResponse{}
 	for key, job := range s.jobs {
-		resp.SetJobInfo(append(resp.GetJobInfo(), jobpb.JobInfo_builder{
+		resp.JobInfo = append(resp.JobInfo, &jobpb.JobInfo{
 			JobId:           key,
 			JobName:         job.jobName,
 			State:           job.state.Load().(jobpb.JobState_Enum),
 			PipelineOptions: job.options,
-		}.Build()))
+		})
 	}
 	return resp, nil
 }
@@ -418,9 +424,9 @@ func (s *Server) GetPipeline(_ context.Context, req *jobpb.GetJobPipelineRequest
 	if !ok {
 		return nil, fmt.Errorf("job with id %v not found", req.GetJobId())
 	}
-	return jobpb.GetJobPipelineResponse_builder{
+	return &jobpb.GetJobPipelineResponse{
 		Pipeline: j.Pipeline,
-	}.Build(), nil
+	}, nil
 }
 
 // GetState returns the current state of the job with the requested id.
@@ -432,18 +438,18 @@ func (s *Server) GetState(_ context.Context, req *jobpb.GetJobStateRequest) (*jo
 	if !ok {
 		return nil, fmt.Errorf("job with id %v not found", req.GetJobId())
 	}
-	return jobpb.JobStateEvent_builder{
+	return &jobpb.JobStateEvent{
 		State:     j.state.Load().(jobpb.JobState_Enum),
 		Timestamp: timestamppb.New(j.stateTime),
-	}.Build(), nil
+	}, nil
 }
 
 // DescribePipelineOptions is a no-op since it's unclear how it is to function.
 // Apparently only implemented in the Python SDK.
 func (s *Server) DescribePipelineOptions(context.Context, *jobpb.DescribePipelineOptionsRequest) (*jobpb.DescribePipelineOptionsResponse, error) {
-	return jobpb.DescribePipelineOptionsResponse_builder{
+	return &jobpb.DescribePipelineOptionsResponse{
 		Options: []*jobpb.PipelineOptionDescriptor{},
-	}.Build(), nil
+	}, nil
 }
 
 // GetStateStream returns the job state as it changes.
@@ -461,10 +467,10 @@ func (s *Server) GetStateStream(req *jobpb.GetJobStateRequest, stream jobpb.JobS
 	state := job.state.Load().(jobpb.JobState_Enum)
 	for {
 		job.streamCond.L.Unlock()
-		stream.Send(jobpb.JobStateEvent_builder{
+		stream.Send(&jobpb.JobStateEvent{
 			State:     state,
 			Timestamp: timestamppb.Now(),
-		}.Build())
+		})
 		job.streamCond.L.Lock()
 		switch state {
 		case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED, jobpb.JobState_FAILED:

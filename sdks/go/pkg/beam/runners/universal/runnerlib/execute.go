@@ -133,10 +133,10 @@ func UpdateGoEnvironmentWorker(worker string, p *pipepb.Pipeline) error {
 		return errors.WithContextf(err, "unable to read worker binary %v, only read %d bytes", worker, n)
 	}
 	hash := hex.EncodeToString(sha256W.Sum(nil))
-	pyld := protox.MustEncode(pipepb.ArtifactFilePayload_builder{
+	pyld := protox.MustEncode(&pipepb.ArtifactFilePayload{
 		Path:   worker,
 		Sha256: hash,
-	}.Build())
+	})
 	if err := graphx.UpdateDefaultEnvWorkerType(graphx.URNArtifactFileType, pyld, p); err != nil {
 		return err
 	}
@@ -149,14 +149,14 @@ type universalPipelineResult struct {
 }
 
 func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient, p *pipepb.Pipeline) (*universalPipelineResult, error) {
-	request := jobpb.GetJobMetricsRequest_builder{JobId: jobID}.Build()
+	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
 	response, err := client.GetJobMetrics(ctx, request)
 	if err != nil {
 		return &universalPipelineResult{jobID, nil}, errors.Wrap(err, "failed to get metrics")
 	}
 
 	monitoredStates := response.GetMetrics()
-	metrics := metricsx.FromMonitoringInfos(p, monitoredStates.GetAttempted(), monitoredStates.GetCommitted())
+	metrics := metricsx.FromMonitoringInfos(p, monitoredStates.Attempted, monitoredStates.Committed)
 	return &universalPipelineResult{jobID, metrics}, nil
 }
 

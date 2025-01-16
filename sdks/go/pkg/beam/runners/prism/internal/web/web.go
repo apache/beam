@@ -149,17 +149,17 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var metsResp *jobpb.GetJobMetricsResponse
 	var stateResp *jobpb.JobStateEvent
 	errg.Go(func() error {
-		resp, err := h.Jobcli.GetPipeline(ctx, jobpb.GetJobPipelineRequest_builder{JobId: jobID}.Build())
+		resp, err := h.Jobcli.GetPipeline(ctx, &jobpb.GetJobPipelineRequest{JobId: jobID})
 		pipeResp = resp
 		return err
 	})
 	errg.Go(func() error {
-		resp, err := h.Jobcli.GetJobMetrics(ctx, jobpb.GetJobMetricsRequest_builder{JobId: jobID}.Build())
+		resp, err := h.Jobcli.GetJobMetrics(ctx, &jobpb.GetJobMetricsRequest{JobId: jobID})
 		metsResp = resp
 		return err
 	})
 	errg.Go(func() error {
-		resp, err := h.Jobcli.GetState(ctx, jobpb.GetJobStateRequest_builder{JobId: jobID}.Build())
+		resp, err := h.Jobcli.GetState(ctx, &jobpb.GetJobStateRequest{JobId: jobID})
 		stateResp = resp
 		return err
 	})
@@ -339,7 +339,7 @@ func (h *jobsConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data.Jobs = resp.GetJobInfo()
 	sort.Slice(data.Jobs, func(i, j int) bool {
 		a, b := data.Jobs[i], data.Jobs[j]
-		return a.GetJobId() < b.GetJobId()
+		return a.JobId < b.JobId
 	})
 
 	renderPage(indexPage, data, w)
@@ -401,9 +401,9 @@ func (h *jobCancelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Forward JobId from POST body avoids direct json Unmarshall on composite types containing protobuf message types.
-	resp, err := h.Jobcli.Cancel(r.Context(), jobpb.CancelJobRequest_builder{
+	resp, err := h.Jobcli.Cancel(r.Context(), &jobpb.CancelJobRequest{
 		JobId: cancelRequest.JobID,
-	}.Build())
+	})
 	if err != nil {
 		statusCode := status.Code(err)
 		httpCode := http.StatusInternalServerError

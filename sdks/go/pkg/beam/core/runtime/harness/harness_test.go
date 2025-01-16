@@ -29,62 +29,62 @@ import (
 // validDescriptor describes a valid pipeline with a source and a sink, but doesn't do anything else.
 func validDescriptor(t *testing.T) *fnpb.ProcessBundleDescriptor {
 	t.Helper()
-	port := fnpb.RemoteGrpcPort_builder{
+	port := &fnpb.RemoteGrpcPort{
 		CoderId: "c1",
-		ApiServiceDescriptor: pipepb.ApiServiceDescriptor_builder{
+		ApiServiceDescriptor: &pipepb.ApiServiceDescriptor{
 			Url: "hostname:port",
-		}.Build(),
-	}.Build()
+		},
+	}
 	portBytes, err := proto.Marshal(port)
 	if err != nil {
 		t.Fatalf("bad port: %v", err)
 	}
-	return fnpb.ProcessBundleDescriptor_builder{
+	return &fnpb.ProcessBundleDescriptor{
 		Id: "test",
 		Transforms: map[string]*pipepb.PTransform{
-			"source": pipepb.PTransform_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			"source": &pipepb.PTransform{
+				Spec: &pipepb.FunctionSpec{
 					Urn:     "beam:runner:source:v1",
 					Payload: portBytes,
-				}.Build(),
+				},
 				Outputs: map[string]string{
 					"o1": "p1",
 				},
-			}.Build(),
-			"sink": pipepb.PTransform_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			},
+			"sink": &pipepb.PTransform{
+				Spec: &pipepb.FunctionSpec{
 					Urn:     "beam:runner:sink:v1",
 					Payload: portBytes,
-				}.Build(),
+				},
 				Inputs: map[string]string{
 					"i1": "p1",
 				},
-			}.Build(),
+			},
 		},
 		Pcollections: map[string]*pipepb.PCollection{
-			"p1": pipepb.PCollection_builder{
+			"p1": &pipepb.PCollection{
 				CoderId: "c1",
-			}.Build(),
+			},
 		},
 		Coders: map[string]*pipepb.Coder{
-			"c1": pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			"c1": &pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: "beam:coder:windowed_value:v1",
-				}.Build(),
+				},
 				ComponentCoderIds: []string{"c2", "c3"},
-			}.Build(),
-			"c2": pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			},
+			"c2": &pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: "beam:coder:varint:v1",
-				}.Build(),
-			}.Build(),
-			"c3": pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+				},
+			},
+			"c3": &pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: "beam:coder:global_window:v1",
-				}.Build(),
-			}.Build(),
+				},
+			},
 		},
-	}.Build()
+	}
 
 }
 

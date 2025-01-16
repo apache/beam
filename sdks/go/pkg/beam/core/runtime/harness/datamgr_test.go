@@ -52,20 +52,20 @@ func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
 
 	f.calls++
 	data := []byte{1, 2, 3, 4, 1, 2, 3, 4}
-	elemData := fnpb.Elements_Data_builder{
+	elemData := fnpb.Elements_Data{
 		InstructionId: "inst_ref",
 		Data:          data,
 		TransformId:   "ptr",
-	}.Build()
+	}
 	if f.isLastCall == f.calls {
-		elemData.SetIsLast(true)
+		elemData.IsLast = true
 	}
 
-	msg := &fnpb.Elements{}
+	msg := fnpb.Elements{}
 
 	// Send extraData more than the number of elements buffered in the channel.
 	for i := 0; i < bufElements+extraData; i++ {
-		msg.SetData(append(msg.GetData(), elemData))
+		msg.Data = append(msg.Data, &elemData)
 	}
 
 	// The first two calls fill up the buffer completely to stimulate the deadlock
@@ -73,16 +73,16 @@ func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
 	// Subsequent calls return no data.
 	switch f.calls {
 	case 1:
-		return msg, f.err
+		return &msg, f.err
 	case 2:
-		return msg, f.err
+		return &msg, f.err
 	case 3:
-		elemData.SetData([]byte{})
-		msg.SetData([]*fnpb.Elements_Data{elemData})
+		elemData.Data = []byte{}
+		msg.Data = []*fnpb.Elements_Data{&elemData}
 		// Broadcasting done here means that this code providing messages
 		// has not been blocked by the bug blocking the dataReader
 		// from getting more messages.
-		return msg, f.err
+		return &msg, f.err
 	default:
 		f.done <- true
 		return nil, io.EOF
@@ -165,16 +165,16 @@ func TestElementChan(t *testing.T) {
 	}
 
 	timerElm := func(val byte, isLast bool) *fnpb.Elements_Timers {
-		return fnpb.Elements_Timers_builder{InstructionId: instID, TransformId: timerID, Timers: []byte{val}, IsLast: isLast, TimerFamilyId: timerFamily}.Build()
+		return &fnpb.Elements_Timers{InstructionId: instID, TransformId: timerID, Timers: []byte{val}, IsLast: isLast, TimerFamilyId: timerFamily}
 	}
 	dataElm := func(val byte, isLast bool) *fnpb.Elements_Data {
-		return fnpb.Elements_Data_builder{InstructionId: instID, TransformId: dataID, Data: []byte{val}, IsLast: isLast}.Build()
+		return &fnpb.Elements_Data{InstructionId: instID, TransformId: dataID, Data: []byte{val}, IsLast: isLast}
 	}
 	noTimerElm := func() *fnpb.Elements_Timers {
-		return fnpb.Elements_Timers_builder{InstructionId: instID, TransformId: timerID, Timers: []byte{}, IsLast: true}.Build()
+		return &fnpb.Elements_Timers{InstructionId: instID, TransformId: timerID, Timers: []byte{}, IsLast: true}
 	}
 	noDataElm := func() *fnpb.Elements_Data {
-		return fnpb.Elements_Data_builder{InstructionId: instID, TransformId: dataID, Data: []byte{}, IsLast: true}.Build()
+		return &fnpb.Elements_Data{InstructionId: instID, TransformId: dataID, Data: []byte{}, IsLast: true}
 	}
 	openChan := func(ctx context.Context, t *testing.T, c *DataChannel, timers ...string) <-chan exec.Elements {
 		t.Helper()
@@ -196,13 +196,13 @@ func TestElementChan(t *testing.T) {
 			name: "ReadThenData_singleRecv",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
 				elms := openChan(ctx, t, c)
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Data: []*fnpb.Elements_Data{
 						dataElm(1, false),
 						dataElm(2, false),
 						dataElm(3, true),
 					},
-				}.Build())
+				})
 				return elms
 			},
 			wantSum: 6, wantCount: 3,
@@ -210,9 +210,9 @@ func TestElementChan(t *testing.T) {
 			name: "ReadThenData_multipleRecv",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
 				elms := openChan(ctx, t, c)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(1, false)}}.Build())
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(2, false)}}.Build())
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(3, true)}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(1, false)}})
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(2, false)}})
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
 				return elms
 			},
 			wantSum: 6, wantCount: 3,
@@ -220,14 +220,14 @@ func TestElementChan(t *testing.T) {
 			name: "ReadThenNoData",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
 				elms := openChan(ctx, t, c)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{noDataElm()}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
 				return elms
 			},
 			wantSum: 0, wantCount: 0,
 		}, {
 			name: "NoDataThenRead",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{noDataElm()}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
 				elms := openChan(ctx, t, c)
 				return elms
 			},
@@ -235,7 +235,7 @@ func TestElementChan(t *testing.T) {
 		}, {
 			name: "NoDataInstEndsThenRead",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{noDataElm()}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
 				c.removeInstruction(instID)
 				elms := openChan(ctx, t, c)
 				return elms
@@ -245,18 +245,18 @@ func TestElementChan(t *testing.T) {
 			name: "ReadThenDataAndTimers",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
 				elms := openChan(ctx, t, c, timerID)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(1, false)}}.Build())
-				client.Send(fnpb.Elements_builder{Timers: []*fnpb.Elements_Timers{timerElm(2, true)}}.Build())
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(3, true)}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(1, false)}})
+				client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(2, true)}})
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
 				return elms
 			},
 			wantSum: 6, wantCount: 3,
 		}, {
 			name: "AllDataAndTimersThenRead",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(1, false)}}.Build())
-				client.Send(fnpb.Elements_builder{Timers: []*fnpb.Elements_Timers{timerElm(2, true)}}.Build())
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(3, true)}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(1, false)}})
+				client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(2, true)}})
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
 				elms := openChan(ctx, t, c, timerID)
 				return elms
 			},
@@ -264,30 +264,30 @@ func TestElementChan(t *testing.T) {
 		}, {
 			name: "DataThenReaderThenLast",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Data: []*fnpb.Elements_Data{
 						dataElm(1, false),
 						dataElm(2, false),
 					},
-				}.Build())
+				})
 				elms := openChan(ctx, t, c)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(3, true)}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
 				return elms
 			},
 			wantSum: 6, wantCount: 3,
 		}, {
 			name: "PartialTimersAllDataReadThenLastTimer",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Timers: []*fnpb.Elements_Timers{
 						timerElm(1, false),
 						timerElm(2, false),
 					},
-				}.Build())
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{noDataElm()}}.Build())
+				})
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
 
 				elms := openChan(ctx, t, c, timerID)
-				client.Send(fnpb.Elements_builder{Timers: []*fnpb.Elements_Timers{timerElm(3, true)}}.Build())
+				client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(3, true)}})
 
 				return elms
 			},
@@ -295,16 +295,16 @@ func TestElementChan(t *testing.T) {
 		}, {
 			name: "AllTimerThenReaderThenDataClose",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Timers: []*fnpb.Elements_Timers{
 						timerElm(1, false),
 						timerElm(2, false),
 						timerElm(3, true),
 					},
-				}.Build())
+				})
 
 				elms := openChan(ctx, t, c, timerID)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{noDataElm()}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
 
 				return elms
 			},
@@ -312,28 +312,28 @@ func TestElementChan(t *testing.T) {
 		}, {
 			name: "NoTimersThenReaderThenNoData",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{Timers: []*fnpb.Elements_Timers{noTimerElm()}}.Build())
+				client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{noTimerElm()}})
 				elms := openChan(ctx, t, c, timerID)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{noDataElm()}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
 				return elms
 			},
 			wantSum: 0, wantCount: 0,
 		}, {
 			name: "SomeTimersThenReaderThenAData",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{Timers: []*fnpb.Elements_Timers{timerElm(1, false), timerElm(2, true)}}.Build())
+				client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(1, false), timerElm(2, true)}})
 				elms := openChan(ctx, t, c, timerID)
-				client.Send(fnpb.Elements_builder{Data: []*fnpb.Elements_Data{dataElm(3, true)}}.Build())
+				client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
 				return elms
 			},
 			wantSum: 6, wantCount: 3,
 		}, {
 			name: "SomeTimersAndADataThenReader",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Timers: []*fnpb.Elements_Timers{timerElm(1, false), timerElm(2, true)},
 					Data:   []*fnpb.Elements_Data{dataElm(3, true)},
-				}.Build())
+				})
 				elms := openChan(ctx, t, c, timerID)
 				return elms
 			},
@@ -341,12 +341,12 @@ func TestElementChan(t *testing.T) {
 		}, {
 			name: "PartialReadThenEndInstruction",
 			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Data: []*fnpb.Elements_Data{
 						dataElm(1, false),
 						dataElm(2, false),
 					},
-				}.Build())
+				})
 				elms := openChan(ctx, t, c)
 				var sum int
 				e := <-elms
@@ -362,12 +362,12 @@ func TestElementChan(t *testing.T) {
 				c.removeInstruction(instID)
 
 				// Instruction is ended, so further data for this instruction is ignored.
-				client.Send(fnpb.Elements_builder{
+				client.Send(&fnpb.Elements{
 					Data: []*fnpb.Elements_Data{
 						dataElm(3, false),
 						dataElm(4, true),
 					},
-				}.Build())
+				})
 
 				elms = openChan(ctx, t, c)
 				return elms
@@ -410,12 +410,12 @@ func BenchmarkElementChan(b *testing.B) {
 			if err != nil {
 				b.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
 			}
-			e := fnpb.Elements_Data_builder{InstructionId: instID, TransformId: dataID, Data: []byte{1}, IsLast: false}.Build()
+			e := &fnpb.Elements_Data{InstructionId: instID, TransformId: dataID, Data: []byte{1}, IsLast: false}
 			es := make([]*fnpb.Elements_Data, 0, bench.size)
 			for i := 0; i < bench.size; i++ {
 				es = append(es, e)
 			}
-			batch := fnpb.Elements_builder{Data: es}.Build()
+			batch := &fnpb.Elements{Data: es}
 			var wg sync.WaitGroup
 			wg.Add(1)
 			go func() {

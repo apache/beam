@@ -75,8 +75,20 @@ GEN_DIR=$PWD
 
 # NB: Keep these two versions in sync with those defined in
 #     the go.mod.
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
-go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.0
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@ebf6a4b
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+
+function insert_license_header() {
+  local depth="$1"
+  # protoc-gen-go-grpc does not yet output comments from the original
+  # proto file so we need to manually add the license header.
+  while IFS= read -d $'\0' -r file ; do
+    tmp_file=$(mktemp)
+    echo "$LICENSE" > $tmp_file
+    cat $file >> $tmp_file
+    mv $tmp_file $file
+  done < <(find $GEN_DIR $depth -iname "*grpc.pb.go" -print0)
+}
 
 function gen_go_sdk_protos() {
   LIBRARY_PATH="${PWD##${SDK_PATH}/}"
@@ -102,12 +114,13 @@ function gen_go_sdk_protos() {
 
   protoc \
     "${INCLUDES[@]}" \
-    --go_opt=default_api_level=API_HYBRID \
     --go_opt=module=github.com/apache/beam/sdks/v2 \
     --go-grpc_opt=module=github.com/apache/beam/sdks/v2 \
     --go_out=$PKG_MAP:. \
     --go-grpc_out=. \
     $PROTOS
+
+  insert_license_header '-d 1'
 }
 
 function gen_beam_model_protos() {
@@ -129,13 +142,14 @@ function gen_beam_model_protos() {
   do
     protoc \
       "${INCLUDES[@]}" \
-      --go_opt=default_api_level=API_HYBRID \
       --go_opt=module=github.com/apache/beam/sdks/v2 \
       --go-grpc_opt=module=github.com/apache/beam/sdks/v2 \
       --go_out="$PROJECT_ROOT/sdks" \
       --go-grpc_out="$PROJECT_ROOT/sdks" \
       $package
   done
+
+  insert_license_header
 }
 
 if [[ $1 == "model" ]]; then

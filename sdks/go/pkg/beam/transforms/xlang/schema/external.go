@@ -76,11 +76,11 @@ func Transform(scope beam.Scope, config any, transformIdentifier string, opts ..
 		panic(err)
 	}
 
-	pl, err := proto.Marshal(pipepb.SchemaTransformPayload_builder{
+	pl, err := proto.Marshal(&pipepb.SchemaTransformPayload{
 		Identifier:          transformIdentifier,
 		ConfigurationSchema: ecp.GetSchema(),
 		ConfigurationRow:    ecp.GetPayload(),
-	}.Build())
+	})
 	if err != nil {
 		panic(err)
 	}

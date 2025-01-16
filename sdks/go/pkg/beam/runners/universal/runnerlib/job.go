@@ -68,11 +68,11 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 	if err != nil {
 		return "", "", "", errors.WithContext(err, "producing pipeline options")
 	}
-	req := jobpb.PrepareJobRequest_builder{
+	req := &jobpb.PrepareJobRequest{
 		Pipeline:        p,
 		PipelineOptions: options,
 		JobName:         opt.Name,
-	}.Build()
+	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "job failed to prepare")
@@ -82,10 +82,10 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 
 // Submit submits a job to the given job service. It returns a jobID, if successful.
 func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string) (string, error) {
-	req := jobpb.RunJobRequest_builder{
+	req := &jobpb.RunJobRequest{
 		PreparationId:  id,
 		RetrievalToken: token,
-	}.Build()
+	}
 
 	resp, err := client.Run(ctx, req)
 	if err != nil {
@@ -97,7 +97,7 @@ func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string
 // WaitForCompletion monitors the given job until completion. It logs any messages
 // and state changes received.
 func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID string) error {
-	stream, err := client.GetMessageStream(ctx, jobpb.JobMessagesRequest_builder{JobId: jobID}.Build())
+	stream, err := client.GetMessageStream(ctx, &jobpb.JobMessagesRequest{JobId: jobID})
 	if err != nil {
 		return errors.Wrap(err, "failed to get job stream")
 	}
@@ -124,7 +124,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 
 			log.Infof(ctx, "Job[%v] state: %v", jobID, resp.GetState().String())
 
-			switch resp.GetState() {
+			switch resp.State {
 			case jobpb.JobState_DONE, jobpb.JobState_CANCELLED:
 				return nil
 			case jobpb.JobState_FAILED:

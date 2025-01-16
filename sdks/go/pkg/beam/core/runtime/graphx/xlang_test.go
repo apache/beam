@@ -129,17 +129,17 @@ func TestExternalOutputs(t *testing.T) {
 }
 
 func newTransform(name string) *pipepb.PTransform {
-	return pipepb.PTransform_builder{
+	return &pipepb.PTransform{
 		UniqueName: name,
-	}.Build()
+	}
 }
 
 func newComponents(ts []string) *pipepb.Components {
 	components := &pipepb.Components{}
 
-	components.SetTransforms(make(map[string]*pipepb.PTransform))
+	components.Transforms = make(map[string]*pipepb.PTransform)
 	for id, t := range ts {
-		components.GetTransforms()[fmt.Sprint(id)] = newTransform(t)
+		components.Transforms[fmt.Sprint(id)] = newTransform(t)
 	}
 
 	return components
@@ -205,23 +205,23 @@ var testExternal = graph.ExternalTransform{
 	Expanded:      &testExpanded,
 }
 
-var testComponents = pipepb.Components_builder{
-	Transforms:          map[string]*pipepb.PTransform{"transform_id1": pipepb.PTransform_builder{UniqueName: "test_components_transform"}.Build()},
-	Pcollections:        map[string]*pipepb.PCollection{"pcollection_id1": pipepb.PCollection_builder{UniqueName: "test_components_pcollection"}.Build()},
-	WindowingStrategies: map[string]*pipepb.WindowingStrategy{"windowing_id1": pipepb.WindowingStrategy_builder{WindowCoderId: "test_components_windowing"}.Build()},
-	Coders:              map[string]*pipepb.Coder{"coder_id1": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: "test_components_coder"}.Build()}.Build()},
-	Environments:        map[string]*pipepb.Environment{"environment_id1": pipepb.Environment_builder{Urn: "test_components_environment"}.Build()},
-}.Build()
+var testComponents = pipepb.Components{
+	Transforms:          map[string]*pipepb.PTransform{"transform_id1": {UniqueName: "test_components_transform"}},
+	Pcollections:        map[string]*pipepb.PCollection{"pcollection_id1": {UniqueName: "test_components_pcollection"}},
+	WindowingStrategies: map[string]*pipepb.WindowingStrategy{"windowing_id1": {WindowCoderId: "test_components_windowing"}},
+	Coders:              map[string]*pipepb.Coder{"coder_id1": {Spec: &pipepb.FunctionSpec{Urn: "test_components_coder"}}},
+	Environments:        map[string]*pipepb.Environment{"environment_id1": {Urn: "test_components_environment"}},
+}
 
 var testRequirements = []string{"test_requirement1", "test_requirement2"}
 
-var testTransform = pipepb.PTransform_builder{
+var testTransform = pipepb.PTransform{
 	UniqueName: "test_transform",
-}.Build()
+}
 
 var testExpanded = graph.ExpandedTransform{
-	Components:   testComponents,
-	Transform:    testTransform,
+	Components:   &testComponents,
+	Transform:    &testTransform,
 	Requirements: testRequirements,
 }
 
@@ -232,23 +232,23 @@ var testExternal2 = graph.ExternalTransform{
 	Expanded:      &testExpanded2,
 }
 
-var testComponents2 = pipepb.Components_builder{
-	Transforms:          map[string]*pipepb.PTransform{"transform_id2": pipepb.PTransform_builder{UniqueName: "test_components2_transform"}.Build()},
-	Pcollections:        map[string]*pipepb.PCollection{"pcollection_id2": pipepb.PCollection_builder{UniqueName: "test_components2_pcollection"}.Build()},
-	WindowingStrategies: map[string]*pipepb.WindowingStrategy{"windowing_id2": pipepb.WindowingStrategy_builder{WindowCoderId: "test_components2_windowing"}.Build()},
-	Coders:              map[string]*pipepb.Coder{"coder_id2": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: "test_components2_coder"}.Build()}.Build()},
-	Environments:        map[string]*pipepb.Environment{"environment_id2": pipepb.Environment_builder{Urn: "test_components2_environment"}.Build()},
-}.Build()
+var testComponents2 = pipepb.Components{
+	Transforms:          map[string]*pipepb.PTransform{"transform_id2": {UniqueName: "test_components2_transform"}},
+	Pcollections:        map[string]*pipepb.PCollection{"pcollection_id2": {UniqueName: "test_components2_pcollection"}},
+	WindowingStrategies: map[string]*pipepb.WindowingStrategy{"windowing_id2": {WindowCoderId: "test_components2_windowing"}},
+	Coders:              map[string]*pipepb.Coder{"coder_id2": {Spec: &pipepb.FunctionSpec{Urn: "test_components2_coder"}}},
+	Environments:        map[string]*pipepb.Environment{"environment_id2": {Urn: "test_components2_environment"}},
+}
 
 var testRequirements2 = []string{"test_requirement2", "test_requirement3"}
 
-var testTransform2 = pipepb.PTransform_builder{
+var testTransform2 = pipepb.PTransform{
 	UniqueName: "test_transform2",
-}.Build()
+}
 
 var testExpanded2 = graph.ExpandedTransform{
-	Components:   testComponents2,
-	Transform:    testTransform2,
+	Components:   &testComponents2,
+	Transform:    &testTransform2,
 	Requirements: testRequirements2,
 }
 
@@ -314,13 +314,13 @@ func TestMergeExpandedWithPipeline(t *testing.T) {
 			g := graph.New()
 			edges := test.makeEdges(g)
 			var p pipepb.Pipeline
-			p.SetComponents(pipepb.Components_builder{
+			p.Components = &pipepb.Components{
 				Transforms:          make(map[string]*pipepb.PTransform),
 				Pcollections:        make(map[string]*pipepb.PCollection),
 				WindowingStrategies: make(map[string]*pipepb.WindowingStrategy),
 				Coders:              make(map[string]*pipepb.Coder),
 				Environments:        make(map[string]*pipepb.Environment),
-			}.Build())
+			}
 			mergeExpandedWithPipeline(edges, &p)
 
 			// Check that all wanted expanded components have been added to
@@ -371,7 +371,7 @@ func validateComponents(t *testing.T, wantComps, gotComps *pipepb.Components) {
 
 	// Transforms
 	for k, wantVal := range wantComps.GetTransforms() {
-		gotVal, ok := gotComps.GetTransforms()[k]
+		gotVal, ok := gotComps.Transforms[k]
 		if !ok {
 			t.Errorf("Pipeline components missing expected transform with key \"%v\": %v", k, wantVal)
 		} else if d := cmp.Diff(wantVal, gotVal, protocmp.Transform()); d != "" {
@@ -380,7 +380,7 @@ func validateComponents(t *testing.T, wantComps, gotComps *pipepb.Components) {
 	}
 	// PCollections
 	for k, wantVal := range wantComps.GetPcollections() {
-		gotVal, ok := gotComps.GetPcollections()[k]
+		gotVal, ok := gotComps.Pcollections[k]
 		if !ok {
 			t.Errorf("Pipeline components missing expected PCollection with key \"%v\": %v", k, wantVal)
 		} else if d := cmp.Diff(wantVal, gotVal, protocmp.Transform()); d != "" {
@@ -389,7 +389,7 @@ func validateComponents(t *testing.T, wantComps, gotComps *pipepb.Components) {
 	}
 	// Windowing Strategies
 	for k, wantVal := range wantComps.GetWindowingStrategies() {
-		gotVal, ok := gotComps.GetWindowingStrategies()[k]
+		gotVal, ok := gotComps.WindowingStrategies[k]
 		if !ok {
 			t.Errorf("Pipeline components missing expected windowing strategy with key \"%v\": %v", k, wantVal)
 		} else if d := cmp.Diff(wantVal, gotVal, protocmp.Transform()); d != "" {
@@ -398,7 +398,7 @@ func validateComponents(t *testing.T, wantComps, gotComps *pipepb.Components) {
 	}
 	// Coders
 	for k, wantVal := range wantComps.GetCoders() {
-		gotVal, ok := gotComps.GetCoders()[k]
+		gotVal, ok := gotComps.Coders[k]
 		if !ok {
 			t.Errorf("Pipeline components missing expected coder with key \"%v\": %v", k, wantVal)
 		} else if d := cmp.Diff(wantVal, gotVal, protocmp.Transform()); d != "" {
@@ -407,7 +407,7 @@ func validateComponents(t *testing.T, wantComps, gotComps *pipepb.Components) {
 	}
 	// Environments
 	for k, wantVal := range wantComps.GetEnvironments() {
-		gotVal, ok := gotComps.GetEnvironments()[k]
+		gotVal, ok := gotComps.Environments[k]
 		if !ok {
 			t.Errorf("Pipeline components missing expected environment with key \"%v\": %v", k, wantVal)
 		} else if d := cmp.Diff(wantVal, gotVal, protocmp.Transform()); d != "" {

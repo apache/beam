@@ -52,10 +52,10 @@ func CreateExternalConfigurationPayload(pl any) (*pipepb.ExternalConfigurationPa
 	}
 
 	// Put schema and row into payload proto, and marshal it.
-	ecp := pipepb.ExternalConfigurationPayload_builder{
+	ecp := &pipepb.ExternalConfigurationPayload{
 		Schema:  scm,
 		Payload: buf.Bytes(),
-	}.Build()
+	}
 	return ecp, nil
 }
 
@@ -102,7 +102,7 @@ func DecodeStructPayload(plBytes []byte) (any, error) {
 		err = errors.WithContextf(err, "creating Row decoder for type %v", rt)
 		return nil, errors.WithContext(err, "decoding external payload")
 	}
-	buf := bytes.NewBuffer(ecp.GetPayload())
+	buf := bytes.NewBuffer(ecp.Payload)
 	val, err := dec(buf)
 	if err != nil {
 		err = errors.WithContext(err, "decoding Row to payload")

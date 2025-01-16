@@ -93,21 +93,25 @@ func TestStateChannel(t *testing.T) {
 				for i := 0; i < count; i++ {
 					go func() {
 						req := <-client.send
-						client.recv <- fnpb.StateResponse_builder{
-							Id: req.GetId(), // Ids need to match up to ensure routing can occur properly.
-							Get: fnpb.StateGetResponse_builder{
-								ContinuationToken: req.GetGet().GetContinuationToken(),
-							}.Build(),
-						}.Build()
+						client.recv <- &fnpb.StateResponse{
+							Id: req.Id, // Ids need to match up to ensure routing can occur properly.
+							Response: &fnpb.StateResponse_Get{
+								Get: &fnpb.StateGetResponse{
+									ContinuationToken: req.GetGet().GetContinuationToken(),
+								},
+							},
+						}
 					}()
 				}
 				for i := 0; i < count; i++ {
 					token := []byte(fmt.Sprintf("%d", i))
-					resp, err := c.Send(fnpb.StateRequest_builder{
-						Get: fnpb.StateGetRequest_builder{
-							ContinuationToken: token,
-						}.Build(),
-					}.Build())
+					resp, err := c.Send(&fnpb.StateRequest{
+						Request: &fnpb.StateRequest_Get{
+							Get: &fnpb.StateGetRequest{
+								ContinuationToken: token,
+							},
+						},
+					})
 					if err != nil {
 						t.Fatalf("unexpected error from Send: %v", err)
 					}
@@ -124,9 +128,9 @@ func TestStateChannel(t *testing.T) {
 					req := <-client.send // Send should succeed.
 
 					client.setRecvErr(io.EOF)
-					client.recv <- fnpb.StateResponse_builder{
-						Id: req.GetId(),
-					}.Build()
+					client.recv <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
 				}()
 				_, err := c.Send(&fnpb.StateRequest{})
 				return err
@@ -140,9 +144,9 @@ func TestStateChannel(t *testing.T) {
 					req := <-client.send // Send should succeed.
 
 					client.setRecvErr(expectedError)
-					client.recv <- fnpb.StateResponse_builder{
-						Id: req.GetId(),
-					}.Build()
+					client.recv <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
 				}()
 				_, err := c.Send(&fnpb.StateRequest{})
 				return err
@@ -156,13 +160,13 @@ func TestStateChannel(t *testing.T) {
 					req := <-client.send // Send should succeed.
 
 					c.mu.Lock()
-					ch := c.responses[req.GetId()]
-					delete(c.responses, req.GetId())
+					ch := c.responses[req.Id]
+					delete(c.responses, req.Id)
 					c.mu.Unlock()
 
-					resp := fnpb.StateResponse_builder{
-						Id: req.GetId(),
-					}.Build()
+					resp := &fnpb.StateResponse{
+						Id: req.Id,
+					}
 					client.recv <- resp
 					// unblock Send.
 					ch <- resp
@@ -179,9 +183,9 @@ func TestStateChannel(t *testing.T) {
 					// This can be plumbed through on either side, write or read,
 					// the important part is that we get it.
 					client.setRecvErr(expectedError)
-					client.recv <- fnpb.StateResponse_builder{
-						Id: req.GetId(),
-					}.Build()
+					client.recv <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
 				}()
 				_, err := c.Send(&fnpb.StateRequest{})
 				return err
@@ -231,7 +235,7 @@ func TestStateChannel(t *testing.T) {
 				client.setRecvErr(nil)
 				// Drain the next send, and ensure the response is unblocked.
 				req := <-client.send
-				client.recv <- fnpb.StateResponse_builder{Id: req.GetId()}.Build() // Ids need to match up to ensure routing can occur properly.
+				client.recv <- &fnpb.StateResponse{Id: req.Id} // Ids need to match up to ensure routing can occur properly.
 			}()
 			if _, err := c.Send(&fnpb.StateRequest{}); !contains(err, test.expectedErr) {
 				t.Errorf("Unexpected error from Send: got %v, want %v", err, test.expectedErr)
@@ -333,9 +337,9 @@ func TestStateKeyReader(t *testing.T) {
 			go func() {
 				if test.noGet {
 					req := <-ch.requests
-					ch.responses[req.GetId()] <- fnpb.StateResponse_builder{
-						Id: req.GetId(),
-					}.Build()
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
 					return
 				}
 				for i, buflen := range test.buflens {
@@ -350,13 +354,15 @@ func TestStateKeyReader(t *testing.T) {
 					}
 					req := <-ch.requests
 
-					ch.responses[req.GetId()] <- fnpb.StateResponse_builder{
-						Id: req.GetId(),
-						Get: fnpb.StateGetResponse_builder{
-							ContinuationToken: token,
-							Data:              buf,
-						}.Build(),
-					}.Build()
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id: req.Id,
+						Response: &fnpb.StateResponse_Get{
+							Get: &fnpb.StateGetResponse{
+								ContinuationToken: token,
+								Data:              buf,
+							},
+						},
+					}
 				}
 			}()
 
@@ -457,30 +463,30 @@ func TestStateKeyWriter(t *testing.T) {
 					if !ok {
 						t.Errorf("Append write: got %v, want data of type StateRequest_Append", req.Request)
 					} else {
-						data := sra.Append.GetData()
+						data := sra.Append.Data
 						if !bytes.Equal(data, test.data) {
 							t.Errorf("Expected request data: got %v, want %v", data, test.data)
 						}
 					}
-					ch.responses[req.GetId()] <- fnpb.StateResponse_builder{
-						Id:     req.GetId(),
-						Append: &fnpb.StateAppendResponse{},
-					}.Build()
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id:       req.Id,
+						Response: &fnpb.StateResponse_Append{},
+					}
 				case writeTypeClear:
 					_, ok := req.Request.(*fnpb.StateRequest_Clear)
 					if !ok {
 						t.Errorf("Append write: got %v, want data of type StateRequest_Append", req.Request)
 					}
-					ch.responses[req.GetId()] <- fnpb.StateResponse_builder{
-						Id:    req.GetId(),
-						Clear: &fnpb.StateClearResponse{},
-					}.Build()
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id:       req.Id,
+						Response: &fnpb.StateResponse_Clear{},
+					}
 				default:
 					// Still return response so that write doesn't hang.
-					ch.responses[req.GetId()] <- fnpb.StateResponse_builder{
-						Id:     req.GetId(),
-						Append: &fnpb.StateAppendResponse{},
-					}.Build()
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id:       req.Id,
+						Response: &fnpb.StateResponse_Append{},
+					}
 				}
 			}()
 

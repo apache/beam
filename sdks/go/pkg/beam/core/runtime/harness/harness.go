@@ -40,7 +40,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -110,7 +109,7 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 	client := fnpb.NewBeamFnControlClient(conn)
 
 	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
-		return client.GetProcessBundleDescriptor(ctx, fnpb.GetProcessBundleDescriptorRequest_builder{ProcessBundleDescriptorId: string(id)}.Build())
+		return client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
 	}
 
 	stub, err := client.Control(ctx)
@@ -375,10 +374,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 		c.mu.Unlock()
 
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			Register:      &fnpb.RegisterResponse{},
-		}.Build()
+			Response: &fnpb.InstructionResponse_Register{
+				Register: &fnpb.RegisterResponse{},
+			},
+		}
 
 	case req.GetProcessBundle() != nil:
 		msg := req.GetProcessBundle()
@@ -466,15 +467,15 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if len(checkpoints) > 0 {
 			for _, cp := range checkpoints {
 				for _, r := range cp.SR.RS {
-					rRoots = append(rRoots, fnpb.DelayedBundleApplication_builder{
-						Application: fnpb.BundleApplication_builder{
+					rRoots = append(rRoots, &fnpb.DelayedBundleApplication{
+						Application: &fnpb.BundleApplication{
 							TransformId:      cp.SR.TId,
 							InputId:          cp.SR.InId,
 							Element:          r,
 							OutputWatermarks: cp.SR.OW,
-						}.Build(),
+						},
 						RequestedTimeDelay: durationpb.New(cp.Reapply),
-					}.Build())
+					})
 				}
 			}
 		}
@@ -490,15 +491,17 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if err != nil {
 			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			ProcessBundle: fnpb.ProcessBundleResponse_builder{
-				ResidualRoots:        rRoots,
-				MonitoringData:       pylds,
-				MonitoringInfos:      mons,
-				RequiresFinalization: requiresFinalization,
-			}.Build(),
-		}.Build()
+			Response: &fnpb.InstructionResponse_ProcessBundle{
+				ProcessBundle: &fnpb.ProcessBundleResponse{
+					ResidualRoots:        rRoots,
+					MonitoringData:       pylds,
+					MonitoringInfos:      mons,
+					RequiresFinalization: requiresFinalization,
+				},
+			},
+		}
 
 	case req.GetFinalizeBundle() != nil:
 		msg := req.GetFinalizeBundle()
@@ -518,10 +521,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.plans[af.bdID] = append(c.plans[af.bdID], af.plan)
 		delete(c.awaitingFinalization, ref)
 
-		return fnpb.InstructionResponse_builder{
-			InstructionId:  string(instID),
-			FinalizeBundle: &fnpb.FinalizeBundleResponse{},
-		}.Build()
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_FinalizeBundle{
+				FinalizeBundle: &fnpb.FinalizeBundleResponse{},
+			},
+		}
 
 	case req.GetProcessBundleProgress() != nil:
 		msg := req.GetProcessBundleProgress()
@@ -533,22 +538,26 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return resp
 		}
 		if plan == nil && resp == nil {
-			return fnpb.InstructionResponse_builder{
-				InstructionId:         string(instID),
-				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{},
-			}.Build()
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleProgress{
+					ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{},
+				},
+			}
 		}
 
 		mons, pylds, consumingReceivedData := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			ProcessBundleProgress: fnpb.ProcessBundleProgressResponse_builder{
-				MonitoringData:        pylds,
-				MonitoringInfos:       mons,
-				ConsumingReceivedData: &consumingReceivedData,
-			}.Build(),
-		}.Build()
+			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
+				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
+					MonitoringData:        pylds,
+					MonitoringInfos:       mons,
+					ConsumingReceivedData: &consumingReceivedData,
+				},
+			},
+		}
 
 	case req.GetProcessBundleSplit() != nil:
 		msg := req.GetProcessBundleSplit()
@@ -562,10 +571,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return resp
 		}
 		if plan == nil {
-			return fnpb.InstructionResponse_builder{
-				InstructionId:      string(instID),
-				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
-			}.Build()
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+					ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				},
+			}
 		}
 
 		// Get the desired splits for the root FnAPI read operation.
@@ -586,10 +597,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// Unsuccessful splits without errors indicate we should return an empty response,
 		// as processing can continue.
 		if sr.Unsuccessful {
-			return fnpb.InstructionResponse_builder{
-				InstructionId:      string(instID),
-				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
-			}.Build()
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+					ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				},
+			}
 		}
 
 		var pRoots []*fnpb.BundleApplication
@@ -597,53 +610,59 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if len(sr.PS) > 0 && len(sr.RS) > 0 {
 			pRoots = make([]*fnpb.BundleApplication, len(sr.PS))
 			for i, p := range sr.PS {
-				pRoots[i] = fnpb.BundleApplication_builder{
+				pRoots[i] = &fnpb.BundleApplication{
 					TransformId: sr.TId,
 					InputId:     sr.InId,
 					Element:     p,
-				}.Build()
+				}
 			}
 			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
 			for i, r := range sr.RS {
-				rRoots[i] = fnpb.DelayedBundleApplication_builder{
-					Application: fnpb.BundleApplication_builder{
+				rRoots[i] = &fnpb.DelayedBundleApplication{
+					Application: &fnpb.BundleApplication{
 						TransformId:      sr.TId,
 						InputId:          sr.InId,
 						Element:          r,
 						OutputWatermarks: sr.OW,
-					}.Build(),
-				}.Build()
+					},
+				}
 			}
 		}
 
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			ProcessBundleSplit: fnpb.ProcessBundleSplitResponse_builder{
-				ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{fnpb.ProcessBundleSplitResponse_ChannelSplit_builder{
-					TransformId:          plan.SourcePTransformID(),
-					LastPrimaryElement:   sr.PI,
-					FirstResidualElement: sr.RI,
-				}.Build()},
-				PrimaryRoots:  pRoots,
-				ResidualRoots: rRoots,
-			}.Build(),
-		}.Build()
+			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
+					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{{
+						TransformId:          plan.SourcePTransformID(),
+						LastPrimaryElement:   sr.PI,
+						FirstResidualElement: sr.RI,
+					}},
+					PrimaryRoots:  pRoots,
+					ResidualRoots: rRoots,
+				},
+			},
+		}
 	case req.GetMonitoringInfos() != nil:
 		msg := req.GetMonitoringInfos()
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			MonitoringInfos: fnpb.MonitoringInfosMetadataResponse_builder{
-				MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
-			}.Build(),
-		}.Build()
+			Response: &fnpb.InstructionResponse_MonitoringInfos{
+				MonitoringInfos: &fnpb.MonitoringInfosMetadataResponse{
+					MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
+				},
+			},
+		}
 	case req.GetHarnessMonitoringInfos() != nil:
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			HarnessMonitoringInfos: fnpb.HarnessMonitoringInfosResponse_builder{
-				// TODO(BEAM-11092): Populate with non-bundle metrics data.
-				MonitoringData: map[string][]byte{},
-			}.Build(),
-		}.Build()
+			Response: &fnpb.InstructionResponse_HarnessMonitoringInfos{
+				HarnessMonitoringInfos: &fnpb.HarnessMonitoringInfosResponse{
+					// TODO(BEAM-11092): Populate with non-bundle metrics data.
+					MonitoringData: map[string][]byte{},
+				},
+			},
+		}
 	case req.GetSampleData() != nil:
 		msg := req.GetSampleData()
 		var samples = make(map[string]*fnpb.SampleDataResponse_ElementList)
@@ -652,20 +671,22 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			for pid, elements := range elementsMap {
 				var elementList fnpb.SampleDataResponse_ElementList
 				for i := range elements {
-					var sampledElement = fnpb.SampledElement_builder{
+					var sampledElement = &fnpb.SampledElement{
 						Element:         elements[i].Element,
 						SampleTimestamp: timestamppb.New(elements[i].Timestamp),
-					}.Build()
-					elementList.SetElements(append(elementList.GetElements(), sampledElement))
+					}
+					elementList.Elements = append(elementList.Elements, sampledElement)
 				}
 				samples[pid] = &elementList
 			}
 		}
 
-		return fnpb.InstructionResponse_builder{
+		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			SampleData:    fnpb.SampleDataResponse_builder{ElementSamples: samples}.Build(),
-		}.Build()
+			Response: &fnpb.InstructionResponse_SampleData{
+				SampleData: &fnpb.SampleDataResponse{ElementSamples: samples},
+			},
+		}
 	default:
 		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
@@ -709,11 +730,11 @@ func fail(ctx context.Context, id instructionID, format string, args ...any) *fn
 	log.Output(ctx, log.SevError, 1, fmt.Sprintf(format, args...))
 	dummy := &fnpb.InstructionResponse_Register{Register: &fnpb.RegisterResponse{}}
 
-	return fnpb.InstructionResponse_builder{
+	return &fnpb.InstructionResponse{
 		InstructionId: string(id),
 		Error:         fmt.Sprintf(format, args...),
-		Register:      proto.ValueOrDefault(dummy.Register),
-	}.Build()
+		Response:      dummy,
+	}
 }
 
 // dial to the specified endpoint. if timeout <=0, call blocks until

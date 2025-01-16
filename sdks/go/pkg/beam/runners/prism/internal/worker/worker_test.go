@@ -114,13 +114,13 @@ func TestWorker_GetProcessBundleDescriptor(t *testing.T) {
 	w := newWorker()
 
 	id := "available"
-	w.Descriptors[id] = fnpb.ProcessBundleDescriptor_builder{
+	w.Descriptors[id] = &fnpb.ProcessBundleDescriptor{
 		Id: id,
-	}.Build()
+	}
 
-	pbd, err := w.GetProcessBundleDescriptor(context.Background(), fnpb.GetProcessBundleDescriptorRequest_builder{
+	pbd, err := w.GetProcessBundleDescriptor(context.Background(), &fnpb.GetProcessBundleDescriptorRequest{
 		ProcessBundleDescriptorId: id,
-	}.Build())
+	})
 	if err != nil {
 		t.Errorf("got GetProcessBundleDescriptor(%q) error: %v, want nil", id, err)
 	}
@@ -128,9 +128,9 @@ func TestWorker_GetProcessBundleDescriptor(t *testing.T) {
 		t.Errorf("got GetProcessBundleDescriptor(%q) = %v, want id %v", id, got, want)
 	}
 
-	pbd, err = w.GetProcessBundleDescriptor(context.Background(), fnpb.GetProcessBundleDescriptorRequest_builder{
+	pbd, err = w.GetProcessBundleDescriptor(context.Background(), &fnpb.GetProcessBundleDescriptorRequest{
 		ProcessBundleDescriptorId: "unknown",
-	}.Build())
+	})
 	if err == nil {
 		t.Errorf("got GetProcessBundleDescriptor(%q) = %v, want error", "unknown", pbd)
 	}
@@ -184,21 +184,21 @@ func TestWorker_Logging(t *testing.T) {
 		t.Fatal("couldn't create log client:", err)
 	}
 
-	logStream.Send(fnpb.LogEntry_List_builder{
-		LogEntries: []*fnpb.LogEntry{fnpb.LogEntry_builder{
+	logStream.Send(&fnpb.LogEntry_List{
+		LogEntries: []*fnpb.LogEntry{{
 			Severity:    fnpb.LogEntry_Severity_INFO,
 			Message:     "squeamish ossiphrage",
 			LogLocation: "intentionally.go:124",
-		}.Build()},
-	}.Build())
+		}},
+	})
 
-	logStream.Send(fnpb.LogEntry_List_builder{
-		LogEntries: []*fnpb.LogEntry{fnpb.LogEntry_builder{
+	logStream.Send(&fnpb.LogEntry_List{
+		LogEntries: []*fnpb.LogEntry{{
 			Severity:    fnpb.LogEntry_Severity_INFO,
 			Message:     "squeamish ossiphrage the second",
 			LogLocation: "intentionally bad log location",
-		}.Build()},
-	}.Build())
+		}},
+	})
 
 	// TODO: Connect to the job management service.
 	// At this point job messages are just logged to wherever the prism runner executes
@@ -224,19 +224,21 @@ func TestWorker_Control_HappyPath(t *testing.T) {
 	wk.activeInstructions[instID] = b
 	b.ProcessOn(ctx, wk)
 
-	ctrlStream.Send(fnpb.InstructionResponse_builder{
+	ctrlStream.Send(&fnpb.InstructionResponse{
 		InstructionId: instID,
-		ProcessBundle: fnpb.ProcessBundleResponse_builder{
-			RequiresFinalization: true, // Simple thing to check.
-		}.Build(),
-	}.Build())
+		Response: &fnpb.InstructionResponse_ProcessBundle{
+			ProcessBundle: &fnpb.ProcessBundleResponse{
+				RequiresFinalization: true, // Simple thing to check.
+			},
+		},
+	})
 
 	if err := ctrlStream.CloseSend(); err != nil {
 		t.Errorf("ctrlStream.CloseSend() = %v", err)
 	}
 	resp := <-b.Resp
 
-	if !resp.GetRequiresFinalization() {
+	if !resp.RequiresFinalization {
 		t.Errorf("got %v, want response that Requires Finalization", resp)
 	}
 }
@@ -272,9 +274,9 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 		b.ProcessOn(ctx, wk)
 	}()
 
-	wk.InstReqs <- fnpb.InstructionRequest_builder{
+	wk.InstReqs <- &fnpb.InstructionRequest{
 		InstructionId: instID,
-	}.Build()
+	}
 
 	elements, err := dataStream.Recv()
 	if err != nil {
@@ -335,16 +337,20 @@ func TestWorker_State_Iterable(t *testing.T) {
 		},
 	}
 
-	stateStream.Send(fnpb.StateRequest_builder{
+	stateStream.Send(&fnpb.StateRequest{
 		Id:            "first",
 		InstructionId: instID,
-		Get:           &fnpb.StateGetRequest{},
-		StateKey: fnpb.StateKey_builder{IterableSideInput: fnpb.StateKey_IterableSideInput_builder{
-			TransformId: "transformID",
-			SideInputId: "i1",
-			Window:      []byte{}, // Global Windows
-		}.Build()}.Build(),
-	}.Build())
+		Request: &fnpb.StateRequest_Get{
+			Get: &fnpb.StateGetRequest{},
+		},
+		StateKey: &fnpb.StateKey{Type: &fnpb.StateKey_IterableSideInput_{
+			IterableSideInput: &fnpb.StateKey_IterableSideInput{
+				TransformId: "transformID",
+				SideInputId: "i1",
+				Window:      []byte{}, // Global Windows
+			},
+		}},
+	})
 
 	resp, err := stateStream.Recv()
 	if err != nil {
@@ -404,16 +410,20 @@ func TestWorker_State_MultimapKeysSideInput(t *testing.T) {
 				},
 			}
 
-			stateStream.Send(fnpb.StateRequest_builder{
+			stateStream.Send(&fnpb.StateRequest{
 				Id:            "first",
 				InstructionId: instID,
-				Get:           &fnpb.StateGetRequest{},
-				StateKey: fnpb.StateKey_builder{MultimapKeysSideInput: fnpb.StateKey_MultimapKeysSideInput_builder{
-					TransformId: "transformID",
-					SideInputId: "i1",
-					Window:      encW,
-				}.Build()}.Build(),
-			}.Build())
+				Request: &fnpb.StateRequest_Get{
+					Get: &fnpb.StateGetRequest{},
+				},
+				StateKey: &fnpb.StateKey{Type: &fnpb.StateKey_MultimapKeysSideInput_{
+					MultimapKeysSideInput: &fnpb.StateKey_MultimapKeysSideInput{
+						TransformId: "transformID",
+						SideInputId: "i1",
+						Window:      encW,
+					},
+				}},
+			})
 
 			resp, err := stateStream.Recv()
 			if err != nil {
@@ -479,17 +489,21 @@ func TestWorker_State_MultimapSideInput(t *testing.T) {
 				"b": {12},
 			}
 			for _, key := range testKey {
-				stateStream.Send(fnpb.StateRequest_builder{
+				stateStream.Send(&fnpb.StateRequest{
 					Id:            "first",
 					InstructionId: instID,
-					Get:           &fnpb.StateGetRequest{},
-					StateKey: fnpb.StateKey_builder{MultimapSideInput: fnpb.StateKey_MultimapSideInput_builder{
-						TransformId: "transformID",
-						SideInputId: "i1",
-						Window:      encW,
-						Key:         []byte(key),
-					}.Build()}.Build(),
-				}.Build())
+					Request: &fnpb.StateRequest_Get{
+						Get: &fnpb.StateGetRequest{},
+					},
+					StateKey: &fnpb.StateKey{Type: &fnpb.StateKey_MultimapSideInput_{
+						MultimapSideInput: &fnpb.StateKey_MultimapSideInput{
+							TransformId: "transformID",
+							SideInputId: "i1",
+							Window:      encW,
+							Key:         []byte(key),
+						},
+					}},
+				})
 
 				resp, err := stateStream.Recv()
 				if err != nil {

@@ -66,7 +66,7 @@ type ProvisionServiceServicer struct {
 }
 
 func (p ProvisionServiceServicer) GetProvisionInfo(ctx context.Context, req *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
-	return fnpb.GetProvisionInfoResponse_builder{Info: fnpb.ProvisionInfo_builder{RetrievalToken: "token"}.Build()}.Build(), nil
+	return &fnpb.GetProvisionInfoResponse{Info: &fnpb.ProvisionInfo{RetrievalToken: "token"}}, nil
 }
 
 func setup(addr *string, wg *sync.WaitGroup) {
@@ -103,7 +103,7 @@ func TestProvisionInfo(t *testing.T) {
 	if err != nil {
 		t.Errorf("error in response: %v", err)
 	}
-	want := fnpb.ProvisionInfo_builder{RetrievalToken: "token"}.Build()
+	want := &fnpb.ProvisionInfo{RetrievalToken: "token"}
 	if got.GetRetrievalToken() != want.GetRetrievalToken() {
 		t.Errorf("provision.Info() = %v, want %v", got, want)
 	}

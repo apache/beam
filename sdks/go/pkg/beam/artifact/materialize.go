@@ -78,59 +78,59 @@ func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb
 }
 
 func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrievalServiceClient, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
-	resolution, err := client.ResolveArtifacts(ctx, jobpb.ResolveArtifactsRequest_builder{Artifacts: dependencies}.Build())
+	resolution, err := client.ResolveArtifacts(ctx, &jobpb.ResolveArtifactsRequest{Artifacts: dependencies})
 	if err != nil {
 		return nil, err
 	}
 
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
-	for _, dep := range resolution.GetReplacements() {
+	for _, dep := range resolution.Replacements {
 		path, err := extractStagingToPath(dep)
 		if err != nil {
 			return nil, err
 		}
-		filePayload := pipepb.ArtifactFilePayload_builder{
+		filePayload := pipepb.ArtifactFilePayload{
 			Path: path,
-		}.Build()
-		if dep.GetTypeUrn() == URNFileArtifact {
-			typePayload := &pipepb.ArtifactFilePayload{}
-			if err := proto.Unmarshal(dep.GetTypePayload(), typePayload); err != nil {
+		}
+		if dep.TypeUrn == URNFileArtifact {
+			typePayload := pipepb.ArtifactFilePayload{}
+			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
 				return nil, errors.Wrap(err, "failed to parse artifact file payload")
 			}
-			filePayload.SetSha256(typePayload.GetSha256())
-		} else if dep.GetTypeUrn() == URNUrlArtifact {
-			typePayload := &pipepb.ArtifactUrlPayload{}
-			if err := proto.Unmarshal(dep.GetTypePayload(), typePayload); err != nil {
+			filePayload.Sha256 = typePayload.Sha256
+		} else if dep.TypeUrn == URNUrlArtifact {
+			typePayload := pipepb.ArtifactUrlPayload{}
+			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
 				return nil, errors.Wrap(err, "failed to parse artifact url payload")
 			}
-			filePayload.SetSha256(typePayload.GetSha256())
+			filePayload.Sha256 = typePayload.Sha256
 		}
-		newTypePayload, err := proto.Marshal(filePayload)
+		newTypePayload, err := proto.Marshal(&filePayload)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create artifact type payload")
 		}
-		artifacts = append(artifacts, pipepb.ArtifactInformation_builder{
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     URNFileArtifact,
 			TypePayload: newTypePayload,
-			RoleUrn:     dep.GetRoleUrn(),
-			RolePayload: dep.GetRolePayload(),
-		}.Build())
+			RoleUrn:     dep.RoleUrn,
+			RolePayload: dep.RolePayload,
+		})
 
-		rolePayload, err := proto.Marshal(pipepb.ArtifactStagingToRolePayload_builder{
+		rolePayload, err := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
 			StagedName: path,
-		}.Build())
+		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create artifact role payload")
 		}
 		list = append(list, &artifact{
 			client: client,
-			dep: pipepb.ArtifactInformation_builder{
-				TypeUrn:     dep.GetTypeUrn(),
-				TypePayload: dep.GetTypePayload(),
+			dep: &pipepb.ArtifactInformation{
+				TypeUrn:     dep.TypeUrn,
+				TypePayload: dep.TypePayload,
 				RoleUrn:     URNStagingTo,
 				RolePayload: rolePayload,
-			}.Build(),
+			},
 		})
 	}
 
@@ -147,39 +147,39 @@ func generateId() string {
 
 func extractStagingToPath(artifact *pipepb.ArtifactInformation) (string, error) {
 	var stagedName string
-	if artifact.GetRoleUrn() == URNStagingTo {
-		role := &pipepb.ArtifactStagingToRolePayload{}
-		if err := proto.Unmarshal(artifact.GetRolePayload(), role); err != nil {
+	if artifact.RoleUrn == URNStagingTo {
+		role := pipepb.ArtifactStagingToRolePayload{}
+		if err := proto.Unmarshal(artifact.RolePayload, &role); err != nil {
 			return "", err
 		}
-		stagedName = role.GetStagedName()
-	} else if artifact.GetTypeUrn() == URNFileArtifact {
-		ty := &pipepb.ArtifactFilePayload{}
-		if err := proto.Unmarshal(artifact.GetTypePayload(), ty); err != nil {
+		stagedName = role.StagedName
+	} else if artifact.TypeUrn == URNFileArtifact {
+		ty := pipepb.ArtifactFilePayload{}
+		if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
 			return "", err
 		}
-		stagedName = generateId() + "-" + filepath.Base(ty.GetPath())
-	} else if artifact.GetTypeUrn() == URNUrlArtifact {
-		ty := &pipepb.ArtifactUrlPayload{}
-		if err := proto.Unmarshal(artifact.GetTypePayload(), ty); err != nil {
+		stagedName = generateId() + "-" + filepath.Base(ty.Path)
+	} else if artifact.TypeUrn == URNUrlArtifact {
+		ty := pipepb.ArtifactUrlPayload{}
+		if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
 			return "", err
 		}
-		stagedName = generateId() + "-" + path.Base(ty.GetUrl())
+		stagedName = generateId() + "-" + path.Base(ty.Url)
 	} else {
-		return "", errors.Errorf("failed to extract staging path for artifact type %v role %v", artifact.GetTypeUrn(), artifact.GetRoleUrn())
+		return "", errors.Errorf("failed to extract staging path for artifact type %v role %v", artifact.TypeUrn, artifact.RoleUrn)
 	}
 	return stagedName, nil
 }
 
 func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, string) {
-	if artifact.GetTypeUrn() != URNFileArtifact {
-		log.Fatalf("Unsupported artifact type %v", artifact.GetTypeUrn())
+	if artifact.TypeUrn != URNFileArtifact {
+		log.Fatalf("Unsupported artifact type %v", artifact.TypeUrn)
 	}
-	ty := &pipepb.ArtifactFilePayload{}
-	if err := proto.Unmarshal(artifact.GetTypePayload(), ty); err != nil {
+	ty := pipepb.ArtifactFilePayload{}
+	if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
 		log.Fatalf("failed to parse artifact file payload: %v", err)
 	}
-	return ty.GetPath(), ty.GetSha256()
+	return ty.Path, ty.Sha256
 }
 
 type artifact struct {
@@ -208,7 +208,7 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		return err
 	}
 
-	stream, err := a.client.GetArtifact(ctx, jobpb.GetArtifactRequest_builder{Artifact: a.dep}.Build())
+	stream, err := a.client.GetArtifact(ctx, &jobpb.GetArtifactRequest{Artifact: a.dep})
 	if err != nil {
 		return err
 	}
@@ -244,10 +244,10 @@ func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.W
 		if err != nil {
 			return "", err
 		}
-		if _, err := sha256W.Write(chunk.GetData()); err != nil {
+		if _, err := sha256W.Write(chunk.Data); err != nil {
 			panic(err) // cannot fail
 		}
-		if _, err := w.Write(chunk.GetData()); err != nil {
+		if _, err := w.Write(chunk.Data); err != nil {
 			return "", errors.Wrapf(err, "chunk write failed")
 		}
 	}
@@ -263,7 +263,7 @@ func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest str
 
 	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 
-	m, err := client.GetManifest(ctx, jobpb.GetManifestRequest_builder{RetrievalToken: rt}.Build())
+	m, err := client.GetManifest(ctx, &jobpb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get manifest")
 	}
@@ -272,25 +272,25 @@ func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest str
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
 	for _, md := range mds {
-		typePayload, err := proto.Marshal(pipepb.ArtifactFilePayload_builder{
-			Path:   md.GetName(),
-			Sha256: md.GetSha256(),
-		}.Build())
+		typePayload, err := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path:   md.Name,
+			Sha256: md.Sha256,
+		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create artifact type payload")
 		}
-		rolePayload, err := proto.Marshal(pipepb.ArtifactStagingToRolePayload_builder{
-			StagedName: md.GetName(),
-		}.Build())
+		rolePayload, err := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: md.Name,
+		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create artifact role payload")
 		}
-		artifacts = append(artifacts, pipepb.ArtifactInformation_builder{
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     URNFileArtifact,
 			TypePayload: typePayload,
 			RoleUrn:     URNStagingTo,
 			RolePayload: rolePayload,
-		}.Build())
+		})
 		list = append(list, &legacyArtifact{
 			client: client,
 			rt:     rt,
@@ -382,7 +382,7 @@ func (a legacyArtifact) retrieve(ctx context.Context, dest string) error {
 // previous retrieval attempt and may leave a corrupt/partial local file on
 // failure.
 func Retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceClient, a *jobpb.ArtifactMetadata, rt string, dest string) error {
-	filename := filepath.Join(dest, filepath.FromSlash(a.GetName()))
+	filename := filepath.Join(dest, filepath.FromSlash(a.Name))
 
 	_, err := os.Stat(filename)
 	if err != nil && !os.IsNotExist(err) {
@@ -392,7 +392,7 @@ func Retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 		// File already exists. Validate or delete.
 
 		hash, err := computeSHA256(filename)
-		if err == nil && a.GetSha256() == hash {
+		if err == nil && a.Sha256 == hash {
 			// NOTE(herohde) 10/5/2017: We ignore permissions here, because
 			// they may differ from the requested permissions due to umask
 			// settings on unix systems (which we in turn want to respect).
@@ -417,12 +417,12 @@ func Retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 // It expects the file to not exist, but does not clean up on failure and
 // may leave a corrupt file.
 func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceClient, a *jobpb.ArtifactMetadata, rt string, filename string) error {
-	stream, err := client.GetArtifact(ctx, jobpb.LegacyGetArtifactRequest_builder{Name: a.GetName(), RetrievalToken: rt}.Build())
+	stream, err := client.GetArtifact(ctx, &jobpb.LegacyGetArtifactRequest{Name: a.Name, RetrievalToken: rt})
 	if err != nil {
 		return err
 	}
 
-	fd, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(a.GetPermissions()))
+	fd, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(a.Permissions))
 	if err != nil {
 		return err
 	}
@@ -442,8 +442,8 @@ func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 	}
 
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
-	if a.GetSha256() != "" && sha256Hash != a.GetSha256() {
-		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.GetSha256())
+	if a.Sha256 != "" && sha256Hash != a.Sha256 {
+		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
 	}
 	return nil
 }
@@ -459,10 +459,10 @@ func retrieveChunks(stream jobpb.LegacyArtifactRetrievalService_GetArtifactClien
 			return "", err
 		}
 
-		if _, err := sha256W.Write(chunk.GetData()); err != nil {
+		if _, err := sha256W.Write(chunk.Data); err != nil {
 			panic(err) // cannot fail
 		}
-		if _, err := w.Write(chunk.GetData()); err != nil {
+		if _, err := w.Write(chunk.Data); err != nil {
 			return "", errors.Wrapf(err, "chunk write failed")
 		}
 	}

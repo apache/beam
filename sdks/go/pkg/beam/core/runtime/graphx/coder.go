@@ -454,12 +454,12 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to marshal custom coder %v", c)
 		}
-		inner := b.internCoder(pipepb.Coder_builder{
-			Spec: pipepb.FunctionSpec_builder{
+		inner := b.internCoder(&pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
 				Urn:     urnCustomCoder,
 				Payload: []byte(data),
-			}.Build(),
-		}.Build())
+			},
+		})
 		return b.internBuiltInCoder(urnLengthPrefixCoder, inner), nil
 
 	case coder.KV:
@@ -596,22 +596,22 @@ func (b *CoderMarshaller) Build() map[string]*pipepb.Coder {
 }
 
 func (b *CoderMarshaller) internBuiltInCoder(urn string, components ...string) string {
-	return b.internCoder(pipepb.Coder_builder{
-		Spec: pipepb.FunctionSpec_builder{
+	return b.internCoder(&pipepb.Coder{
+		Spec: &pipepb.FunctionSpec{
 			Urn: urn,
-		}.Build(),
+		},
 		ComponentCoderIds: components,
-	}.Build())
+	})
 }
 
 func (b *CoderMarshaller) internRowCoder(schema *pipepb.Schema) string {
 	payload := protox.MustEncode(schema)
-	return b.internCoder(pipepb.Coder_builder{
-		Spec: pipepb.FunctionSpec_builder{
+	return b.internCoder(&pipepb.Coder{
+		Spec: &pipepb.FunctionSpec{
 			Urn:     urnRowCoder,
 			Payload: payload,
-		}.Build(),
-	}.Build())
+		},
+	})
 }
 
 func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
