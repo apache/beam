@@ -31,13 +31,11 @@ import subprocess
 import sys
 import urllib.parse
 import warnings
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Mapping
 from typing import Optional
 
 import docstring_parser
@@ -150,7 +148,7 @@ def as_provider_list(name, lst):
 
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
-  _provider_types: Dict[str, Callable[..., Provider]] = {}
+  _provider_types: dict[str, Callable[..., Provider]] = {}
 
   def __init__(self, urns, service):
     self._urns = urns
@@ -689,7 +687,7 @@ class YamlProviders:
              - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
              - {first: 1, second: {str: "bar", values: [4, 5, 6]}}
 
-    will result in a schema of the form (int, Row(string, List[int])).
+    will result in a schema of the form (int, Row(string, list[int])).
 
     This can also be expressed as YAML::
 
@@ -1027,14 +1025,14 @@ class PypiExpansionService:
     self._base_python = base_python
 
   @classmethod
-  def _key(cls, base_python: str, packages: List[str]) -> str:
+  def _key(cls, base_python: str, packages: list[str]) -> str:
     return json.dumps({
         'binary': base_python, 'packages': sorted(packages)
     },
                       sort_keys=True)
 
   @classmethod
-  def _path(cls, base_python: str, packages: List[str]) -> str:
+  def _path(cls, base_python: str, packages: list[str]) -> str:
     return os.path.join(
         cls.VENV_CACHE,
         hashlib.sha256(cls._key(base_python,
@@ -1042,7 +1040,7 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_from_scratch(
-      cls, base_python: str, packages: List[str]) -> str:
+      cls, base_python: str, packages: list[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1061,7 +1059,7 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_from_clone(
-      cls, base_python: str, packages: List[str]) -> str:
+      cls, base_python: str, packages: list[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1085,6 +1083,7 @@ class PypiExpansionService:
     if '.dev' in beam_version:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
+      return base_venv
     return cls._create_venv_from_scratch(
         base_python,
         [

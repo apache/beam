@@ -29,6 +29,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.io.DataWriter;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.slf4j.Logger;
@@ -66,7 +67,10 @@ class RecordWriter {
           fileFormat.addExtension(
               table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
-    OutputFile outputFile = table.io().newOutputFile(absoluteFilename);
+    OutputFile outputFile;
+    try (FileIO io = table.io()) {
+      outputFile = io.newOutputFile(absoluteFilename);
+    }
 
     switch (fileFormat) {
       case AVRO:

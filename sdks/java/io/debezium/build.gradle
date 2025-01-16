@@ -89,3 +89,14 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   useJUnit {
   }
 }
+
+configurations.all (Configuration it) -> {
+  resolutionStrategy {
+    // Force protobuf 3 because debezium is currently incompatible with protobuf 4.
+    // TODO - remove this and upgrade the version of debezium once a proto-4 compatible version is available
+    // https://github.com/apache/beam/pull/33526 does some of this, but was abandoned because it still doesn't
+    // work with protobuf 4.
+    force "com.google.protobuf:protobuf-java:3.25.5"
+    force "com.google.protobuf:protobuf-java-util:3.25.5"
+  }
+}

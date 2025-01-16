@@ -24,6 +24,7 @@ import org.apache.beam.sdk.util.RowStringInterpolator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PortableIcebergDestinations implements DynamicDestinations {
@@ -72,7 +73,7 @@ class PortableIcebergDestinations implements DynamicDestinations {
   @Override
   public IcebergDestination instantiateDestination(String dest) {
     return IcebergDestination.builder()
-        .setTableIdentifier(IcebergUtils.parseTableIdentifier(dest))
+        .setTableIdentifier(TableIdentifier.parse(dest))
         .setTableCreateConfig(null)
         .setFileFormat(FileFormat.fromString(fileFormat))
         .build();
