@@ -54,6 +54,7 @@ public class WorkFailureProcessorTest {
       FailureTracker failureTracker, Supplier<Instant> clock) {
     BoundedQueueExecutor workExecutor =
         new BoundedQueueExecutor(
+            false,
             1,
             60,
             TimeUnit.SECONDS,

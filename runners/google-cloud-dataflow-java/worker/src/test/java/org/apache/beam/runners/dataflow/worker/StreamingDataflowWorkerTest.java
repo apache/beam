@@ -2938,6 +2938,7 @@ public class StreamingDataflowWorkerTest {
     // active thread count.
     BoundedQueueExecutor executor =
         new BoundedQueueExecutor(
+            false,
             maxThreads,
             threadExpiration,
             TimeUnit.SECONDS,
@@ -2998,6 +2999,7 @@ public class StreamingDataflowWorkerTest {
     // active thread count.
     BoundedQueueExecutor executor =
         new BoundedQueueExecutor(
+            false,
             maxThreads,
             threadExpirationSec,
             TimeUnit.SECONDS,
@@ -3067,6 +3069,7 @@ public class StreamingDataflowWorkerTest {
     // active thread count.
     BoundedQueueExecutor executor =
         new BoundedQueueExecutor(
+            false,
             maxThreads,
             threadExpirationSec,
             TimeUnit.SECONDS,
@@ -3140,6 +3143,7 @@ public class StreamingDataflowWorkerTest {
     // active thread count.
     BoundedQueueExecutor executor =
         new BoundedQueueExecutor(
+            false,
             maxThreads,
             threadExpirationSec,
             TimeUnit.SECONDS,

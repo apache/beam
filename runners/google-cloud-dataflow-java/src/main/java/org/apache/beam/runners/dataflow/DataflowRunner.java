@@ -57,6 +57,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -511,6 +512,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         String.format("%s/%s%s", userAgentName, userAgentVersion, agentJavaVer).replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
+    if (dataflowOptions.getVirtualHarnessThreads()) {
+      try {
+        Executors.class.getMethod("newVirtualThreadPerTaskExecutor");
+      } catch (NoSuchMethodException e) {
+        throw new IllegalArgumentException(
+            "--virtualHarnessThreads is only supported on java 21 and up.");
+      }
+    }
     return new DataflowRunner(dataflowOptions);
   }
 

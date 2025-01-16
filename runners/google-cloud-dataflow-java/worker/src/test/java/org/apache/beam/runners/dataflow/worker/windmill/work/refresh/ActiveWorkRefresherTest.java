@@ -72,6 +72,7 @@ public class ActiveWorkRefresherTest {
 
   private static BoundedQueueExecutor workExecutor() {
     return new BoundedQueueExecutor(
+        false,
         1,
         60,
         TimeUnit.SECONDS,

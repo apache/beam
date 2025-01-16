@@ -112,7 +112,7 @@ jobs:
     - name: Build and Test
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :runners:google-cloud-dataflow-java:examples:preCommit
+        gradle-command: :javaExamplesDataflowPrecommit
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \
