@@ -34,7 +34,7 @@ public class HadoopCatalogIT extends IcebergCatalogBaseIT {
   @Override
   public Catalog createCatalog() {
     Configuration catalogHadoopConf = new Configuration();
-    catalogHadoopConf.set("fs.gs.project.id", options.getProject());
+    catalogHadoopConf.set("fs.gs.project.id", OPTIONS.getProject());
     catalogHadoopConf.set("fs.gs.auth.type", "APPLICATION_DEFAULT");
 
     HadoopCatalog catalog = new HadoopCatalog();

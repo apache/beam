@@ -159,7 +159,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
 
     try {
-      GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
+      GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
 
       Objects objects =
@@ -180,7 +180,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   protected static String warehouse;
   public Catalog catalog;
-  protected static final GcpOptions options =
+  protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
   private static final String RANDOM = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();

@@ -45,18 +45,17 @@ import org.junit.Test;
 public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryMetastoreCatalogIT");
   static final String BQMS_CATALOG = "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static String DATASET;
+  static final String DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();;
   static final long SALT = System.nanoTime();
 
   @BeforeClass
   public static void createDataset() throws IOException, InterruptedException {
-    DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();
-    BQ_CLIENT.createNewDataset(options.getProject(), DATASET);
+    BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
   }
 
   @AfterClass
   public static void deleteDataset() {
-    BQ_CLIENT.deleteDataset(options.getProject(), DATASET);
+    BQ_CLIENT.deleteDataset(OPTIONS.getProject(), DATASET);
   }
 
   @Override
@@ -70,7 +69,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
         BQMS_CATALOG,
         "bqms_" + catalogName,
         ImmutableMap.<String, String>builder()
-            .put("gcp_project", options.getProject())
+            .put("gcp_project", OPTIONS.getProject())
             .put("gcp_location", "us-central1")
             .put("warehouse", warehouse)
             .build(),
@@ -94,7 +93,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
         .put(
             "catalog_properties",
             ImmutableMap.<String, String>builder()
-                .put("gcp_project", options.getProject())
+                .put("gcp_project", OPTIONS.getProject())
                 .put("gcp_location", "us-central1")
                 .put("warehouse", warehouse)
                 .put("catalog-impl", BQMS_CATALOG)
@@ -123,8 +122,8 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
 
     // Fetch records using a BigQuery query and validate
     BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());
-    String query = String.format("SELECT * FROM `%s.%s`", options.getProject(), tableId());
-    List<TableRow> rows = bqClient.queryUnflattened(query, options.getProject(), true, true);
+    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId());
+    List<TableRow> rows = bqClient.queryUnflattened(query, OPTIONS.getProject(), true, true);
     List<Row> beamRows =
         rows.stream()
             .map(tr -> BigQueryUtils.toBeamRow(BEAM_SCHEMA, tr))
