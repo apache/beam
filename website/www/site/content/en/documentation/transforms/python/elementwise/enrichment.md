@@ -74,7 +74,7 @@ Users can configure the batch size by specifying parameters in their pipeline se
 
 ## Caching with `with_redis_cache`
 
-For frequently used enrichment data, caching can significantly improve performance by reducing repeated calls to the remote service. Apache Beam's `with_redis_cache` method allows you to integrate a Redis cache into the enrichment pipeline. 
+For frequently used enrichment data, caching can significantly improve performance by reducing repeated calls to the remote service. Apache Beam's [`with_redis_cache`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment.html#apache_beam.transforms.enrichment.Enrichment.with_redis_cache) method allows you to integrate a Redis cache into the enrichment pipeline.
 
 ### Benefits of Caching:
 - **Reduced Latency**: Fetches enrichment data from the cache instead of making network calls.
@@ -88,11 +88,12 @@ To enable caching:
 
 Example:
 ```python
-from apache_beam.transforms.enrichment import with_redis_cache
+from apache_beam.transforms.enrichment import Enrichment
 
 # Enrichment pipeline with Redis cache
 enriched_data = (input_data 
-                 | 'Enrich with Cache' >> with_redis_cache(redis_config=redis_config, enrichment_transform=my_enrichment_transform))
+                 | 'Enrich with Cache' >> Enrichment(my_enrichment_transform).with_redis_cache(redis_config=redis_config))
+
 
 ## Related transforms
 
