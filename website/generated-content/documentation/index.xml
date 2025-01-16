@@ -19771,8 +19771,53 @@ Pydoc&lt;/a
 &lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;p>Not applicable.&lt;/p>
+&lt;h2 id="bigquery-support">BigQuery Support&lt;/h2>
+&lt;p>The enrichment transform supports integration with &lt;strong>BigQuery&lt;/strong> to dynamically enrich data using BigQuery datasets. By leveraging BigQuery as an external data source, users can execute efficient lookups for data enrichment directly in their Apache Beam pipelines.&lt;/p>
+&lt;p>To use BigQuery for enrichment:&lt;/p>
+&lt;ul>
+&lt;li>Configure your BigQuery table as the data source for the enrichment process.&lt;/li>
+&lt;li>Ensure your pipeline has the appropriate credentials and permissions to access the BigQuery dataset.&lt;/li>
+&lt;li>Specify the query to extract the data to be used for enrichment.&lt;/li>
+&lt;/ul>
+&lt;p>This integration is particularly beneficial for use cases that require augmenting real-time streaming data with information stored in BigQuery.&lt;/p>
+&lt;hr>
+&lt;h2 id="batching">Batching&lt;/h2>
+&lt;p>To optimize requests to external services, the enrichment transform uses batching. Instead of performing a lookup for each individual element, the transform groups multiple elements into a batch and performs a single lookup for the entire batch.&lt;/p>
+&lt;h3 id="advantages-of-batching">Advantages of Batching:&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>Improved Throughput&lt;/strong>: Reduces the number of network calls.&lt;/li>
+&lt;li>&lt;strong>Lower Latency&lt;/strong>: Fewer round trips to the external service.&lt;/li>
+&lt;li>&lt;strong>Cost Optimization&lt;/strong>: Minimizes API call costs when working with paid external services.&lt;/li>
+&lt;/ul>
+&lt;p>Users can configure the batch size by specifying parameters in their pipeline setup. Adjusting the batch size can help fine-tune the balance between throughput and latency.&lt;/p>
+&lt;hr>
+&lt;h2 id="caching-with-with_redis_cache">Caching with &lt;code>with_redis_cache&lt;/code>&lt;/h2>
+&lt;p>For frequently used enrichment data, caching can significantly improve performance by reducing repeated calls to the remote service. Apache Beam&amp;rsquo;s &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment.html#apache_beam.transforms.enrichment.Enrichment.with_redis_cache">&lt;code>with_redis_cache&lt;/code>&lt;/a> method allows you to integrate a Redis cache into the enrichment pipeline.&lt;/p>
+&lt;h3 id="benefits-of-caching">Benefits of Caching:&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>Reduced Latency&lt;/strong>: Fetches enrichment data from the cache instead of making network calls.&lt;/li>
+&lt;li>&lt;strong>Improved Resilience&lt;/strong>: Minimizes the impact of network outages or service downtimes.&lt;/li>
+&lt;li>&lt;strong>Scalability&lt;/strong>: Handles large volumes of enrichment requests efficiently.&lt;/li>
+&lt;/ul>
+&lt;p>To enable caching:&lt;/p>
+&lt;ol>
+&lt;li>Set up a Redis instance accessible by your pipeline.&lt;/li>
+&lt;li>Use the &lt;code>with_redis_cache&lt;/code> method to configure the cache in your enrichment transform.&lt;/li>
+&lt;li>Specify the time-to-live (TTL) for cache entries to ensure data freshness.&lt;/li>
+&lt;/ol>
+&lt;p>Example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Enrichment pipeline with Redis cache&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">enriched_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">input_data&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Enrich with Cache&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">my_enrichment_transform&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_redis_cache&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">host&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">port&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Related transforms&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">Not&lt;/span> &lt;span class="n">applicable&lt;/span>&lt;span class="o">.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">
 &lt;table align="left" style="margin-right:1em">
 &lt;td>
 &lt;a
@@ -19789,7 +19834,9 @@ Pydoc&lt;/a
 >
 &lt;/td>
 &lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment with Bigtable</title><link>/documentation/transforms/python/elementwise/enrichment-bigtable/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-bigtable/</guid><description>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Documentation: Enrichment with Bigtable</title><link>/documentation/transforms/python/elementwise/enrichment-bigtable/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-bigtable/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
