@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -28,6 +29,7 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -102,8 +104,11 @@ public class AvroGenericRecordToStorageApiProtoTest {
   private static final Schema LOGICAL_TYPES_SCHEMA =
       SchemaBuilder.record("LogicalTypesRecord")
           .fields()
-          .name("decimalValue")
+          .name("numericValue")
           .type(LogicalTypes.decimal(2, 1).addToSchema(Schema.create(Schema.Type.BYTES)))
+          .noDefault()
+          .name("bigNumericValue")
+          .type(LogicalTypes.decimal(77, 38).addToSchema(Schema.create(Schema.Type.BYTES)))
           .noDefault()
           .name("dateValue")
           .type(LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT)))
@@ -209,64 +214,71 @@ public class AvroGenericRecordToStorageApiProtoTest {
       DescriptorProto.newBuilder()
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("decimalvalue")
+                  .setName("numericvalue")
                   .setNumber(1)
                   .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datevalue")
+                  .setName("bignumericvalue")
                   .setNumber(2)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datevalue")
+                  .setNumber(3)
                   .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timemicrosvalue")
-                  .setNumber(3)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timemillisvalue")
                   .setNumber(4)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampmicrosvalue")
+                  .setName("timemillisvalue")
                   .setNumber(5)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampmillisvalue")
+                  .setName("timestampmicrosvalue")
                   .setNumber(6)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("localtimestampmicrosvalue")
+                  .setName("timestampmillisvalue")
                   .setNumber(7)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("localtimestampmillisvalue")
+                  .setName("localtimestampmicrosvalue")
                   .setNumber(8)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("uuidvalue")
+                  .setName("localtimestampmillisvalue")
                   .setNumber(9)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("uuidvalue")
+                  .setNumber(10)
                   .setType(Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -346,18 +358,29 @@ public class AvroGenericRecordToStorageApiProtoTest {
                   new GenericData.Fixed(BASE_SCHEMA.getField("fixedValue").schema(), md5))
               .build();
 
-      BigDecimal bd = BigDecimal.valueOf(4.2); // Logical type is of precision=2 and scale 1
+      BigDecimal numeric = BigDecimal.valueOf(4.2); // Logical type is of precision=2 and scale 1
+      ByteString numericBytes = ByteString.copyFrom(new byte[] {42});
+      BigDecimal bigNumeric = BigDecimal.valueOf(4.2).setScale(38, RoundingMode.UNNECESSARY);
+      ByteString bigNumericBytes =
+          BigDecimalByteStringEncoder.encodeToBigNumericByteString(bigNumeric);
       UUID uuid = UUID.randomUUID();
 
       rawLogicalTypesRecord =
           new GenericRecordBuilder(LOGICAL_TYPES_SCHEMA)
               .set(
-                  "decimalValue",
+                  "numericValue",
                   new Conversions.DecimalConversion()
                       .toBytes(
-                          bd,
+                          numeric,
                           Schema.create(Schema.Type.NULL), // dummy schema, not used,
                           LogicalTypes.decimal(2, 1)))
+              .set(
+                  "bigNumericValue",
+                  new Conversions.DecimalConversion()
+                      .toBytes(
+                          bigNumeric,
+                          Schema.create(Schema.Type.NULL), // dummy schema, not used,
+                          LogicalTypes.decimal(77, 38)))
               .set("dateValue", 42)
               .set("timeMicrosValue", 42_000_000L)
               .set("timeMillisValue", 42_000) // expects int
@@ -370,7 +393,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
       jodaTimeLogicalTypesRecord =
           new GenericRecordBuilder(LOGICAL_TYPES_SCHEMA)
-              .set("decimalValue", bd)
+              .set("numericValue", numeric)
+              .set("bigNumericValue", bigNumeric)
               .set("dateValue", new org.joda.time.LocalDate(1970, 1, 1).plusDays(42))
               .set("timeMicrosValue", org.joda.time.LocalTime.fromMillisOfDay(42_000L))
               .set("timeMillisValue", org.joda.time.LocalTime.fromMillisOfDay(42_000L))
@@ -387,7 +411,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
       javaTimeLogicalTypesRecord =
           new GenericRecordBuilder(LOGICAL_TYPES_SCHEMA)
-              .set("decimalValue", bd)
+              .set("numericValue", numeric)
+              .set("bigNumericValue", bigNumeric)
               .set("dateValue", java.time.LocalDate.ofEpochDay(42L))
               .set("timeMicrosValue", java.time.LocalTime.ofSecondOfDay(42L))
               .set("timeMillisValue", java.time.LocalTime.ofSecondOfDay(42L))
@@ -418,7 +443,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
       logicalTypesProtoExpectedFields =
           ImmutableMap.<String, Object>builder()
-              .put("decimalvalue", BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bd))
+              .put("numericvalue", numericBytes)
+              .put("bignumericvalue", bigNumericBytes)
               .put("datevalue", 42)
               .put("timemicrosvalue", 42_000_000L)
               .put("timemillisvalue", 42_000_000L)
@@ -593,7 +619,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
             descriptor, rawLogicalTypesRecord, null, -1);
-    assertEquals(9, msg.getAllFields().size());
+    assertEquals(10, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }
 
@@ -607,7 +633,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
             descriptor, jodaTimeLogicalTypesRecord, null, -1);
-    assertEquals(9, msg.getAllFields().size());
+    assertEquals(10, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }
 
@@ -621,7 +647,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
             descriptor, javaTimeLogicalTypesRecord, null, -1);
-    assertEquals(9, msg.getAllFields().size());
+    assertEquals(10, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }
 

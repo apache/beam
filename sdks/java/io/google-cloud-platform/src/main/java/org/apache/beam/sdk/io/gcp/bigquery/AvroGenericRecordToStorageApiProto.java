@@ -68,18 +68,37 @@ public class AvroGenericRecordToStorageApiProto {
           .build();
 
   // A map of supported logical types to the protobuf field type.
-  static final Map<String, TableFieldSchema.Type> LOGICAL_TYPES =
-      ImmutableMap.<String, TableFieldSchema.Type>builder()
-          .put("date", TableFieldSchema.Type.DATE)
-          .put("time-micros", TableFieldSchema.Type.TIME)
-          .put("time-millis", TableFieldSchema.Type.TIME)
-          .put("decimal", TableFieldSchema.Type.BIGNUMERIC)
-          .put("timestamp-micros", TableFieldSchema.Type.TIMESTAMP)
-          .put("timestamp-millis", TableFieldSchema.Type.TIMESTAMP)
-          .put("local-timestamp-micros", TableFieldSchema.Type.DATETIME)
-          .put("local-timestamp-millis", TableFieldSchema.Type.DATETIME)
-          .put("uuid", TableFieldSchema.Type.STRING)
-          .build();
+  static Optional<TableFieldSchema.Type> logicalTypes(LogicalType logicalType) {
+    switch (logicalType.getName()) {
+      case "date":
+        return Optional.of(TableFieldSchema.Type.DATE);
+      case "time-micros":
+        return Optional.of(TableFieldSchema.Type.TIME);
+      case "time-millis":
+        return Optional.of(TableFieldSchema.Type.TIME);
+      case "decimal":
+        LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType;
+        int scale = decimal.getScale();
+        int precision = decimal.getPrecision();
+        if (scale > 9 || precision - scale > 29) {
+          return Optional.of(TableFieldSchema.Type.BIGNUMERIC);
+        } else {
+          return Optional.of(TableFieldSchema.Type.NUMERIC);
+        }
+      case "timestamp-micros":
+        return Optional.of(TableFieldSchema.Type.TIMESTAMP);
+      case "timestamp-millis":
+        return Optional.of(TableFieldSchema.Type.TIMESTAMP);
+      case "local-timestamp-micros":
+        return Optional.of(TableFieldSchema.Type.DATETIME);
+      case "local-timestamp-millis":
+        return Optional.of(TableFieldSchema.Type.DATETIME);
+      case "uuid":
+        return Optional.of(TableFieldSchema.Type.STRING);
+      default:
+        return Optional.empty();
+    }
+  }
 
   static final Map<Schema.Type, Function<Object, Object>> PRIMITIVE_ENCODERS =
       ImmutableMap.<Schema.Type, Function<Object, Object>>builder()
@@ -193,16 +212,21 @@ public class AvroGenericRecordToStorageApiProto {
   static ByteString convertDecimal(LogicalType logicalType, Object value) {
     ByteBuffer byteBuffer;
     if (value instanceof BigDecimal) {
+      // BigDecimalByteStringEncoder does not support parametrized NUMERIC/BIGNUMERIC
       byteBuffer =
-          new Conversions.DecimalConversion().toBytes((BigDecimal) value, null, logicalType);
+          new Conversions.DecimalConversion()
+              .toBytes(
+                  (BigDecimal) value,
+                  Schema.create(Schema.Type.NULL), // dummy schema, not used
+                  logicalType);
     } else {
       Preconditions.checkArgument(
           value instanceof ByteBuffer, "Expecting a value as ByteBuffer type (decimal).");
       byteBuffer = (ByteBuffer) value;
     }
-    // BigDecimalByteStringEncoder does not support parametrized NUMERIC/BIGNUMERIC
-    byte[] bytes = byteBuffer.array();
-    Bytes.reverse(bytes, byteBuffer.position(), byteBuffer.limit());
+    byte[] bytes = new byte[byteBuffer.remaining()];
+    byteBuffer.duplicate().get(bytes);
+    Bytes.reverse(bytes);
     return ByteString.copyFrom(bytes);
   }
 
@@ -343,10 +367,12 @@ public class AvroGenericRecordToStorageApiProto {
         break;
       default:
         elementType = TypeWithNullability.create(schema).getType();
+        Optional<LogicalType> logicalType =
+            Optional.ofNullable(LogicalTypes.fromSchema(elementType));
         @Nullable
         TableFieldSchema.Type primitiveType =
-            Optional.ofNullable(LogicalTypes.fromSchema(elementType))
-                .map(logicalType -> LOGICAL_TYPES.get(logicalType.getName()))
+            logicalType
+                .flatMap(AvroGenericRecordToStorageApiProto::logicalTypes)
                 .orElse(PRIMITIVE_TYPES.get(elementType.getType()));
         if (primitiveType == null) {
           throw new RuntimeException("Unsupported type " + elementType.getType());
@@ -354,6 +380,21 @@ public class AvroGenericRecordToStorageApiProto {
         // a scalar will be required by default, if defined as part of union then
         // caller will set nullability requirements
         builder = builder.setType(primitiveType);
+        // parametrized types
+        if (logicalType.isPresent() && logicalType.get().getName().equals("decimal")) {
+          LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType.get();
+          int precision = decimal.getPrecision();
+          int scale = decimal.getScale();
+          if (!(precision == 38 && scale == 9) // NUMERIC
+              && !(precision == 77 && scale == 38) // BIGNUMERIC
+          ) {
+            // parametrized type
+            builder = builder.setPrecision(precision);
+            if (scale != 0) {
+              builder = builder.setScale(scale);
+            }
+          }
+        }
     }
     if (builder.getMode() != TableFieldSchema.Mode.REPEATED) {
       if (TypeWithNullability.create(schema).isNullable()) {
