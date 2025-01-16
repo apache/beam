@@ -124,7 +124,10 @@ def provider_sets(spec, require_available=False):
             for p in spec['pipelines']))
 
   def filter_to_available(t, providers):
-    if require_available:
+    if t == 'LogForTesting':
+      # Don't fan out to all the (many) possibilities for this one...
+      return [p for p in providers if isinstance(p, yaml_provider.InlineProvider)]
+    elif require_available:
       for p in providers:
         if not p.available():
           raise ValueError("Provider {p} required for {t} is not available.")
