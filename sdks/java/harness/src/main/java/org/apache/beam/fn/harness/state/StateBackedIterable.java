@@ -159,6 +159,8 @@ public class StateBackedIterable<T>
       try {
         if (sampleElement() || elementCoder.isRegisterByteSizeObserverCheap(value)) {
           elementCoder.registerByteSizeObserver(value, observerProxy);
+          observerProxy.setScalingFactor(
+              Math.max(samplingToken, SAMPLING_CUTOFF) / (double) SAMPLING_CUTOFF);
           if (observerProxy.getIsLazy()) {
             // The observer will only be notified of bytes as the result
             // is used. We defer advancing the observer until hasNext in an
