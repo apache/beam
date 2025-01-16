@@ -47,15 +47,15 @@ func TestServer_JobLifecycle(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	wantPipeline := &pipepb.Pipeline{
+	wantPipeline := pipepb.Pipeline_builder{
 		Requirements: []string{urns.RequirementSplittableDoFn},
-	}
+	}.Build()
 	wantName := "testJob"
 
-	resp, err := undertest.Prepare(ctx, &jobpb.PrepareJobRequest{
+	resp, err := undertest.Prepare(ctx, jobpb.PrepareJobRequest_builder{
 		Pipeline: wantPipeline,
 		JobName:  wantName,
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("server.Prepare() = %v, want nil", err)
 	}
@@ -64,9 +64,9 @@ func TestServer_JobLifecycle(t *testing.T) {
 		t.Fatalf("server.Prepare() = returned empty preparation ID, want non-empty: %v", prototext.Format(resp))
 	}
 
-	runResp, err := undertest.Run(ctx, &jobpb.RunJobRequest{
+	runResp, err := undertest.Run(ctx, jobpb.RunJobRequest_builder{
 		PreparationId: resp.GetPreparationId(),
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("server.Run() = %v, want nil", err)
 	}
@@ -94,15 +94,15 @@ func TestServer_RunThenCancel(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	wantPipeline := &pipepb.Pipeline{
+	wantPipeline := pipepb.Pipeline_builder{
 		Requirements: []string{urns.RequirementSplittableDoFn},
-	}
+	}.Build()
 	wantName := "testJob"
 
-	resp, err := undertest.Prepare(ctx, &jobpb.PrepareJobRequest{
+	resp, err := undertest.Prepare(ctx, jobpb.PrepareJobRequest_builder{
 		Pipeline: wantPipeline,
 		JobName:  wantName,
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("server.Prepare() = %v, want nil", err)
 	}
@@ -111,9 +111,9 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Prepare() = returned empty preparation ID, want non-empty: %v", prototext.Format(resp))
 	}
 
-	runResp, err := undertest.Run(ctx, &jobpb.RunJobRequest{
+	runResp, err := undertest.Run(ctx, jobpb.RunJobRequest_builder{
 		PreparationId: resp.GetPreparationId(),
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("server.Run() = %v, want nil", err)
 	}
@@ -121,24 +121,24 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
 	}
 
-	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
+	cancelResp, err := undertest.Cancel(ctx, jobpb.CancelJobRequest_builder{
 		JobId: runResp.GetJobId(),
-	})
+	}.Build())
 
 	if err != nil {
 		t.Fatalf("server.Canceling() = %v, want nil", err)
 	}
-	if cancelResp.State != jobpb.JobState_CANCELLING {
-		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
+	if cancelResp.GetState() != jobpb.JobState_CANCELLING {
+		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.GetState(), jobpb.JobState_CANCELLING)
 	}
 
 	called.Wait()
 
-	stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
+	stateResp, err := undertest.GetState(ctx, jobpb.GetJobStateRequest_builder{JobId: runResp.GetJobId()}.Build())
 	if err != nil {
 		t.Fatalf("server.GetState() = %v, want nil", err)
 	}
-	if stateResp.State != jobpb.JobState_CANCELLED {
-		t.Fatalf("server.GetState() = %v, want %v", stateResp.State, jobpb.JobState_CANCELLED)
+	if stateResp.GetState() != jobpb.JobState_CANCELLED {
+		t.Fatalf("server.GetState() = %v, want %v", stateResp.GetState(), jobpb.JobState_CANCELLED)
 	}
 }

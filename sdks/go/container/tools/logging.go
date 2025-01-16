@@ -86,15 +86,15 @@ func (l *Logger) Log(ctx context.Context, sev fnpb.LogEntry_Severity_Enum, messa
 		}
 	}
 
-	err := l.client.Send(&fnpb.LogEntry_List{
+	err := l.client.Send(fnpb.LogEntry_List_builder{
 		LogEntries: []*fnpb.LogEntry{
-			{
+			fnpb.LogEntry_builder{
 				Severity:  sev,
 				Timestamp: timestamppb.Now(),
 				Message:   message,
-			},
+			}.Build(),
 		},
-	})
+	}.Build())
 	if err != nil {
 		exitErr = err
 		return

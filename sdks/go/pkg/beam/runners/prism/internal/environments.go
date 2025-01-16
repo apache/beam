@@ -79,22 +79,20 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	defer conn.Close()
 	pool := fnpb.NewBeamFnExternalWorkerPoolClient(conn)
 
-	endpoint := &pipepb.ApiServiceDescriptor{
+	endpoint := pipepb.ApiServiceDescriptor_builder{
 		Url: wk.Endpoint(),
-	}
-
+	}.Build()
 	// Use a background context for these workers to avoid pre-mature
 	// cancelation issues when starting them.
 	bgContext := context.Background()
-
-	resp, err := pool.StartWorker(bgContext, &fnpb.StartWorkerRequest{
+	resp, err := pool.StartWorker(bgContext, fnpb.StartWorkerRequest_builder{
 		WorkerId:          wk.ID,
 		ControlEndpoint:   endpoint,
 		LoggingEndpoint:   endpoint,
 		ArtifactEndpoint:  endpoint,
 		ProvisionEndpoint: endpoint,
 		Params:            ep.GetParams(),
-	})
+	}.Build())
 
 	if str := resp.GetError(); err != nil || str != "" {
 		panic(fmt.Sprintf("unable to start sdk worker %v error: %v, resp: %v", ep.GetEndpoint().GetUrl(), err, prototext.Format(resp)))
@@ -107,9 +105,9 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 
 	// Previous context cancelled so we need a new one
 	// for this request.
-	pool.StopWorker(bgContext, &fnpb.StopWorkerRequest{
+	pool.StopWorker(bgContext, fnpb.StopWorkerRequest_builder{
 		WorkerId: wk.ID,
-	})
+	}.Build())
 	wk.Stop()
 }
 

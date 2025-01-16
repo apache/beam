@@ -80,24 +80,24 @@ func (s *Process) StartWorker(_ context.Context, req *fnpb.StartWorkerRequest) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.workers == nil {
-		return &fnpb.StartWorkerResponse{
+		return fnpb.StartWorkerResponse_builder{
 			Error: "worker pool shutting down",
-		}, nil
+		}.Build(), nil
 	}
 
 	if _, ok := s.workers[req.GetWorkerId()]; ok {
-		return &fnpb.StartWorkerResponse{
+		return fnpb.StartWorkerResponse_builder{
 			Error: fmt.Sprintf("worker with ID %q already exists", req.GetWorkerId()),
-		}, nil
+		}.Build(), nil
 	}
 	if req.GetLoggingEndpoint() == nil {
-		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("Missing logging endpoint for worker %v", req.GetWorkerId())}, nil
+		return fnpb.StartWorkerResponse_builder{Error: fmt.Sprintf("Missing logging endpoint for worker %v", req.GetWorkerId())}.Build(), nil
 	}
 	if req.GetControlEndpoint() == nil {
-		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("Missing control endpoint for worker %v", req.GetWorkerId())}, nil
+		return fnpb.StartWorkerResponse_builder{Error: fmt.Sprintf("Missing control endpoint for worker %v", req.GetWorkerId())}.Build(), nil
 	}
-	if req.GetLoggingEndpoint().Authentication != nil || req.GetControlEndpoint().Authentication != nil {
-		return &fnpb.StartWorkerResponse{Error: "[BEAM-10610] Secure endpoints not supported."}, nil
+	if req.GetLoggingEndpoint().HasAuthentication() || req.GetControlEndpoint().HasAuthentication() {
+		return fnpb.StartWorkerResponse_builder{Error: "[BEAM-10610] Secure endpoints not supported."}.Build(), nil
 	}
 
 	ctx := grpcx.WriteWorkerID(s.root, req.GetWorkerId())
@@ -118,7 +118,7 @@ func (s *Process) StartWorker(_ context.Context, req *fnpb.StartWorkerRequest) (
 	cmd.Env = nil // Use the current environment.
 
 	if err := cmd.Start(); err != nil {
-		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("Unable to start boot for worker %v: %v", req.GetWorkerId(), err)}, nil
+		return fnpb.StartWorkerResponse_builder{Error: fmt.Sprintf("Unable to start boot for worker %v: %v", req.GetWorkerId(), err)}.Build(), nil
 	}
 	return &fnpb.StartWorkerResponse{}, nil
 }
@@ -137,9 +137,9 @@ func (s *Process) StopWorker(_ context.Context, req *fnpb.StopWorkerRequest) (*f
 		delete(s.workers, req.GetWorkerId())
 		return &fnpb.StopWorkerResponse{}, nil
 	}
-	return &fnpb.StopWorkerResponse{
+	return fnpb.StopWorkerResponse_builder{
 		Error: fmt.Sprintf("no worker with id %q running", req.GetWorkerId()),
-	}, nil
+	}.Build(), nil
 
 }
 
