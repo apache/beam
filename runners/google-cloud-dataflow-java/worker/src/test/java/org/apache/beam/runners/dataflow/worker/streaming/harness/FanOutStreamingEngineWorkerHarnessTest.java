@@ -242,7 +242,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   @Test
   public void testOnNewWorkerMetadata_correctlyRemovesStaleWindmillServers()
       throws InterruptedException {
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor = spy(new TestGetWorkBudgetDistributor());
+    GetWorkBudgetDistributor getWorkBudgetDistributor = mock(GetWorkBudgetDistributor.class);
     fanOutStreamingEngineWorkProvider =
         newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
