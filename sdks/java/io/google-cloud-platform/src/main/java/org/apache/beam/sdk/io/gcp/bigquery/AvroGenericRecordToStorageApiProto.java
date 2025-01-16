@@ -24,8 +24,6 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +44,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Bytes;
 
 /**
  * Utility methods for converting Avro {@link GenericRecord} objects to dynamic protocol message,
@@ -192,25 +191,19 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   static ByteString convertDecimal(LogicalType logicalType, Object value) {
+    ByteBuffer byteBuffer;
     if (value instanceof BigDecimal) {
-      LogicalTypes.Decimal type = (LogicalTypes.Decimal) logicalType;
-      BigDecimal bigDecimal =
-          ((BigDecimal) value)
-              .setScale(type.getScale(), RoundingMode.DOWN)
-              .round(new MathContext(type.getPrecision(), RoundingMode.DOWN));
-      return BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bigDecimal);
+      byteBuffer =
+          new Conversions.DecimalConversion().toBytes((BigDecimal) value, null, logicalType);
     } else {
       Preconditions.checkArgument(
           value instanceof ByteBuffer, "Expecting a value as ByteBuffer type (decimal).");
-      ByteBuffer byteBuffer = (ByteBuffer) value;
-      BigDecimal bigDecimal =
-          new Conversions.DecimalConversion()
-              .fromBytes(
-                  byteBuffer.duplicate(),
-                  Schema.create(Schema.Type.NULL), // dummy schema, not used
-                  logicalType);
-      return BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bigDecimal);
+      byteBuffer = (ByteBuffer) value;
     }
+    // BigDecimalByteStringEncoder does not support parametrized NUMERIC/BIGNUMERIC
+    byte[] bytes = byteBuffer.array();
+    Bytes.reverse(bytes, byteBuffer.position(), byteBuffer.limit());
+    return ByteString.copyFrom(bytes);
   }
 
   /**
