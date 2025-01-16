@@ -377,10 +377,7 @@ public class AvroGenericRecordToStorageApiProto {
 
   @Nullable
   private static Object messageValueFromGenericRecordValue(
-      FieldDescriptor fieldDescriptor,
-      org.apache.avro.Schema.Field avroField,
-      String name,
-      GenericRecord record) {
+      FieldDescriptor fieldDescriptor, Schema.Field avroField, String name, GenericRecord record) {
     @Nullable Object value = record.get(name);
     if (value == null) {
       if (fieldDescriptor.isOptional()
@@ -396,7 +393,7 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   private static Object toProtoValue(
-      FieldDescriptor fieldDescriptor, org.apache.avro.Schema avroSchema, Object value) {
+      FieldDescriptor fieldDescriptor, Schema avroSchema, Object value) {
     switch (avroSchema.getType()) {
       case RECORD:
         return messageFromGenericRecord(
