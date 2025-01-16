@@ -80,6 +80,13 @@ public class FlinkSourceSplitEnumerator<T>
     this.numSplits = numSplits;
     this.pendingSplits = new HashMap<>(numSplits);
     this.splitsInitialized = splitsInitialized;
+
+    LOG.info(
+        "Created new enumerator with parallelism {}, source {}, numSplits {}, initialized {}",
+        context.currentParallelism(),
+        beamSource,
+        numSplits,
+        splitsInitialized);
   }
 
   @Override
@@ -124,10 +131,19 @@ public class FlinkSourceSplitEnumerator<T>
 
   @Override
   public void addSplitsBack(List<FlinkSourceSplit<T>> splits, int subtaskId) {
-    LOG.info("Adding splits {} back from subtask {}", splits, subtaskId);
-    List<FlinkSourceSplit<T>> splitsForSubtask =
-        pendingSplits.computeIfAbsent(subtaskId, ignored -> new ArrayList<>());
-    splitsForSubtask.addAll(splits);
+    // reshuffle splits, needed after rescaling
+    splits.forEach(
+        split -> {
+          int target = split.splitIndex() % context.currentParallelism();
+          List<FlinkSourceSplit<T>> splitsForSubtask =
+              pendingSplits.computeIfAbsent(target, ignored -> new ArrayList<>());
+          splitsForSubtask.add(split);
+        });
+    LOG.info(
+        "Added splits {} into pendingSplits {}, current parallelism {}",
+        splits,
+        pendingSplits,
+        context.currentParallelism());
   }
 
   @Override

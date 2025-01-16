@@ -103,7 +103,8 @@ public abstract class FlinkSource<T, OutputT>
 
   @Override
   public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
-      createEnumerator(SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
+      createEnumerator(SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) {
+
     return new FlinkSourceSplitEnumerator<>(
         enumContext, beamSource, serializablePipelineOptions.get(), numSplits);
   }
@@ -112,8 +113,8 @@ public abstract class FlinkSource<T, OutputT>
   public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
       restoreEnumerator(
           SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext,
-          Map<Integer, List<FlinkSourceSplit<T>>> checkpoint)
-          throws Exception {
+          Map<Integer, List<FlinkSourceSplit<T>>> checkpoint) {
+
     FlinkSourceSplitEnumerator<T> enumerator =
         new FlinkSourceSplitEnumerator<>(
             enumContext, beamSource, serializablePipelineOptions.get(), numSplits, true);
