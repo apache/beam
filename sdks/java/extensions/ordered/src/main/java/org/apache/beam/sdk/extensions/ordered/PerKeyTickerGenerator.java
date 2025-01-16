@@ -38,6 +38,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,13 +102,23 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
     public void process(
         @Element KV<EventKeyT, KV<Long, EventT>> element,
         @AlwaysFetched @StateId(STATE) ValueState<EventKeyT> state,
+        @Timestamp Instant currentTimestamp,
         @TimerId(TIMER) Timer tickerTimer) {
       @Nullable EventKeyT keyValue = state.read();
       if (keyValue != null) {
         return;
       }
 
-      tickerTimer.offset(tickerFrequency).setRelative();
+      // The first event received becomes the starting point for watermark tracking in this
+      // transform. setTimer() method's withOutputTimestamp() determines what that watermark will
+      // be.
+      //
+      // This can be an issue if the first event is really far back because the flattened
+      // PCollection of events and tickers will have the lowest watermark of the two.
+      // It might be possible to improve the tracking by inspecting other elements and progress
+      // the watermark further based on the timestamp of a new event. Or use the latest contiguous
+      // range side input and its timestamp.
+      setTimer(tickerTimer, currentTimestamp);
 
       state.write(element.getKey());
     }
@@ -116,6 +127,7 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
     public void onTimer(
         @StateId(STATE) ValueState<EventKeyT> state,
         @TimerId(TIMER) Timer tickerTimer,
+        @Timestamp Instant currentTimestamp,
         OutputReceiver<KV<EventKeyT, KV<Long, EventT>>> outputReceiver) {
 
       @Nullable EventKeyT key = state.read();
@@ -128,7 +140,14 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
 
       // Null value will be an indicator to the main transform that the element is a ticker
       outputReceiver.output(KV.of(key, KV.of(0L, null)));
-      tickerTimer.offset(tickerFrequency).setRelative();
+      setTimer(tickerTimer, currentTimestamp);
+    }
+
+    private void setTimer(Timer tickerTimer, Instant currentTime) {
+      tickerTimer
+          .offset(tickerFrequency)
+          .withOutputTimestamp(currentTime.plus(tickerFrequency))
+          .setRelative();
     }
 
     /**
