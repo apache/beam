@@ -61,7 +61,7 @@ This integration is particularly beneficial for use cases that require augmentin
 
 ## Batching
 
-To optimize requests to external services, the enrichment transform uses batching. Instead of performing a lookup for each individual element, the transform groups multiple elements into a batch and performs a single lookup for the entire batch. 
+To optimize requests to external services, the enrichment transform uses batching. Instead of performing a lookup for each individual element, the transform groups multiple elements into a batch and performs a single lookup for the entire batch.
 
 ### Advantages of Batching:
 - **Improved Throughput**: Reduces the number of network calls.
