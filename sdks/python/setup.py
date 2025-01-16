@@ -486,6 +486,7 @@ if __name__ == '__main__':
           'ml_test': [
               'datatable',
               'embeddings',
+              'langchain',
               'onnxruntime',
               'sentence-transformers',
               'skl2onnx',
@@ -505,6 +506,7 @@ if __name__ == '__main__':
               'datatable',
               'embeddings',
               'onnxruntime',
+              'langchain',
               'sentence-transformers',
               'skl2onnx',
               'pillow',
