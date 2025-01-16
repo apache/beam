@@ -345,13 +345,16 @@ public class StreamingDataflowWorkerTest {
 
   private static ExecutableWork createMockWork(
       ShardedKey shardedKey, long workToken, String computationId, Consumer<Work> processWorkFn) {
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(shardedKey.key())
+            .setShardingKey(shardedKey.shardingKey())
+            .setWorkToken(workToken)
+            .build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder()
-                .setKey(shardedKey.key())
-                .setShardingKey(shardedKey.shardingKey())
-                .setWorkToken(workToken)
-                .build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
@@ -3508,9 +3511,12 @@ public class StreamingDataflowWorkerTest {
   @Test
   public void testLatencyAttributionProtobufsPopulated() {
     FakeClock clock = new FakeClock();
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build();
     Work work =
         Work.create(
-            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId",

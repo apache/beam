@@ -260,6 +260,7 @@ final class GrpcDirectGetWorkStream
         assembledWorkItem.computationMetadata();
     workItemScheduler.scheduleWork(
         workItem,
+        assembledWorkItem.bufferedSize(),
         createWatermarks(workItem, metadata),
         createProcessingContext(metadata.computationId()),
         assembledWorkItem.latencyAttributions());

@@ -29,11 +29,11 @@ import (
 )
 
 func TestEnsureEndpointsSet_AllSet(t *testing.T) {
-	provisionInfo := &fnpb.ProvisionInfo{
-		LoggingEndpoint:  &pipepb.ApiServiceDescriptor{Url: "testLoggingEndpointUrl"},
-		ArtifactEndpoint: &pipepb.ApiServiceDescriptor{Url: "testArtifactEndpointUrl"},
-		ControlEndpoint:  &pipepb.ApiServiceDescriptor{Url: "testControlEndpointUrl"},
-	}
+	provisionInfo := fnpb.ProvisionInfo_builder{
+		LoggingEndpoint:  pipepb.ApiServiceDescriptor_builder{Url: "testLoggingEndpointUrl"}.Build(),
+		ArtifactEndpoint: pipepb.ApiServiceDescriptor_builder{Url: "testArtifactEndpointUrl"}.Build(),
+		ControlEndpoint:  pipepb.ApiServiceDescriptor_builder{Url: "testControlEndpointUrl"}.Build(),
+	}.Build()
 	*loggingEndpoint = ""
 	*artifactEndpoint = ""
 	*controlEndpoint = ""
@@ -53,11 +53,11 @@ func TestEnsureEndpointsSet_AllSet(t *testing.T) {
 }
 
 func TestEnsureEndpointsSet_OneMissing(t *testing.T) {
-	provisionInfo := &fnpb.ProvisionInfo{
-		LoggingEndpoint:  &pipepb.ApiServiceDescriptor{Url: "testLoggingEndpointUrl"},
-		ArtifactEndpoint: &pipepb.ApiServiceDescriptor{Url: "testArtifactEndpointUrl"},
-		ControlEndpoint:  &pipepb.ApiServiceDescriptor{Url: ""},
-	}
+	provisionInfo := fnpb.ProvisionInfo_builder{
+		LoggingEndpoint:  pipepb.ApiServiceDescriptor_builder{Url: "testLoggingEndpointUrl"}.Build(),
+		ArtifactEndpoint: pipepb.ApiServiceDescriptor_builder{Url: "testArtifactEndpointUrl"}.Build(),
+		ControlEndpoint:  pipepb.ApiServiceDescriptor_builder{Url: ""}.Build(),
+	}.Build()
 	*loggingEndpoint = ""
 	*artifactEndpoint = ""
 	*controlEndpoint = ""
@@ -85,7 +85,7 @@ func TestGetGoWorkerArtifactName_NoArtifacts(t *testing.T) {
 
 func TestGetGoWorkerArtifactName_OneArtifact(t *testing.T) {
 	artifact := constructArtifactInformation(t, artifact.URNGoWorkerBinaryRole, "test/path", "sha")
-	artifacts := []*pipepb.ArtifactInformation{&artifact}
+	artifacts := []*pipepb.ArtifactInformation{artifact}
 
 	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
@@ -99,7 +99,7 @@ func TestGetGoWorkerArtifactName_OneArtifact(t *testing.T) {
 func TestGetGoWorkerArtifactName_MultipleArtifactsFirstIsWorker(t *testing.T) {
 	artifact1 := constructArtifactInformation(t, artifact.URNGoWorkerBinaryRole, "test/path", "sha")
 	artifact2 := constructArtifactInformation(t, "other role", "test/path2", "sha")
-	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
+	artifacts := []*pipepb.ArtifactInformation{artifact1, artifact2}
 
 	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
@@ -113,7 +113,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsFirstIsWorker(t *testing.T) {
 func TestGetGoWorkerArtifactName_MultipleArtifactsSecondIsWorker(t *testing.T) {
 	artifact1 := constructArtifactInformation(t, "other role", "test/path", "sha")
 	artifact2 := constructArtifactInformation(t, artifact.URNGoWorkerBinaryRole, "test/path2", "sha")
-	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
+	artifacts := []*pipepb.ArtifactInformation{artifact1, artifact2}
 
 	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
@@ -127,7 +127,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsSecondIsWorker(t *testing.T) {
 func TestGetGoWorkerArtifactName_MultipleArtifactsLegacyWay(t *testing.T) {
 	artifact1 := constructArtifactInformation(t, "other role", "test/path", "sha")
 	artifact2 := constructArtifactInformation(t, "other role", "worker", "sha")
-	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
+	artifacts := []*pipepb.ArtifactInformation{artifact1, artifact2}
 
 	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
@@ -141,7 +141,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsLegacyWay(t *testing.T) {
 func TestGetGoWorkerArtifactName_MultipleArtifactsNoneMatch(t *testing.T) {
 	artifact1 := constructArtifactInformation(t, "other role", "test/path", "sha")
 	artifact2 := constructArtifactInformation(t, "other role", "test/path2", "sha")
-	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
+	artifacts := []*pipepb.ArtifactInformation{artifact1, artifact2}
 
 	_, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err == nil {
@@ -193,16 +193,16 @@ func TestCopyExe(t *testing.T) {
 	}
 }
 
-func constructArtifactInformation(t *testing.T, roleUrn string, path string, sha string) pipepb.ArtifactInformation {
+func constructArtifactInformation(t *testing.T, roleUrn string, path string, sha string) *pipepb.ArtifactInformation {
 	t.Helper()
 
-	typePayload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{Path: path, Sha256: sha})
+	typePayload, _ := proto.Marshal(pipepb.ArtifactFilePayload_builder{Path: path, Sha256: sha}.Build())
 
-	return pipepb.ArtifactInformation{
+	return pipepb.ArtifactInformation_builder{
 		RoleUrn:     roleUrn,
 		TypeUrn:     artifact.URNFileArtifact,
 		TypePayload: typePayload,
-	}
+	}.Build()
 }
 
 func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {

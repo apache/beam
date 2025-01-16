@@ -67,7 +67,11 @@ import org.junit.runners.JUnit4;
 public class GrpcDirectGetWorkStreamTest {
 
   private static final WorkItemScheduler NO_OP_WORK_ITEM_SCHEDULER =
-      (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
+      (workItem,
+          serializedWorkItemSize,
+          watermarks,
+          processingContext,
+          getWorkStreamLatencies) -> {};
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
           .setClientId(1L)
@@ -282,7 +286,11 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
     Windmill.WorkItem workItem =
@@ -327,7 +335,7 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) ->
+            (work, serializedWorkItemSize, watermarks, processingContext, getWorkStreamLatencies) ->
                 scheduledWorkItems.add(work));
     Windmill.WorkItem workItem =
         Windmill.WorkItem.newBuilder()
@@ -362,7 +370,11 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
     Windmill.WorkItem workItem1 =
@@ -400,7 +412,11 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
     Windmill.WorkItem workItem1 =

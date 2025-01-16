@@ -349,7 +349,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	if !ok {
 		return nil, nil, errors.Errorf("pcollection %v not found", id)
 	}
-	c, err := b.coders.Coder(col.CoderId)
+	c, err := b.coders.Coder(col.GetCoderId())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -539,11 +539,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							var cID string
 							var kcID string
 							if rmw := spec.GetReadModifyWriteSpec(); rmw != nil {
-								cID = rmw.CoderId
+								cID = rmw.GetCoderId()
 							} else if bs := spec.GetBagSpec(); bs != nil {
-								cID = bs.ElementCoderId
+								cID = bs.GetElementCoderId()
 							} else if cs := spec.GetCombiningSpec(); cs != nil {
-								cID = cs.AccumulatorCoderId
+								cID = cs.GetAccumulatorCoderId()
 								cmbData := string(cs.GetCombineFn().GetPayload())
 								var cmbTp v1pb.TransformPayload
 								if err := protox.DecodeBase64(cmbData, &cmbTp); err != nil {
@@ -559,10 +559,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 								}
 								stateIDToCombineFn[key] = cfn
 							} else if ms := spec.GetMapSpec(); ms != nil {
-								cID = ms.ValueCoderId
-								kcID = ms.KeyCoderId
+								cID = ms.GetValueCoderId()
+								kcID = ms.GetKeyCoderId()
 							} else if ss := spec.GetSetSpec(); ss != nil {
-								kcID = ss.ElementCoderId
+								kcID = ss.GetElementCoderId()
 							} else {
 								return nil, errors.Errorf("Unrecognized state type %v", spec)
 							}
@@ -801,10 +801,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0], FnUrn: fn.GetUrn()}
 
 	case graphx.URNFlatten:
-		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
+		u = &Flatten{UID: b.idgen.New(), N: len(transform.GetInputs()), Out: out[0]}
 
 		// Use the same flatten instance for all the inputs links to this transform.
-		for i := 0; i < len(transform.Inputs); i++ {
+		for i := 0; i < len(transform.GetInputs()); i++ {
 			b.links[linkID{id.to, i}] = u
 		}
 
@@ -918,5 +918,5 @@ func unmarshalPort(data []byte) (Port, string, error) {
 	}
 	return Port{
 		URL: port.GetApiServiceDescriptor().GetUrl(),
-	}, port.CoderId, nil
+	}, port.GetCoderId(), nil
 }

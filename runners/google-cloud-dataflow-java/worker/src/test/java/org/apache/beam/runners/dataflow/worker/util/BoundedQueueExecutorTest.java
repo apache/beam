@@ -31,7 +31,7 @@ import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -57,14 +57,17 @@ public class BoundedQueueExecutorTest {
   private BoundedQueueExecutor executor;
 
   private static ExecutableWork createWork(Consumer<Work> executeWorkFn) {
+    WorkItem workItem =
+        WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setWorkToken(33)
+            .setCacheToken(1)
+            .build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder()
-                .setKey(ByteString.EMPTY)
-                .setShardingKey(1)
-                .setWorkToken(33)
-                .setCacheToken(1)
-                .build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
                 "computationId",

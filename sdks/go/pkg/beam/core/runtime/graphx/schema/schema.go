@@ -375,12 +375,12 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 		schm := ftype.GetRowType().GetSchema()
 		schm = proto.Clone(schm).(*pipepb.Schema)
 		if ot.Kind() == reflect.Ptr {
-			schm.Options = append(schm.Options, optGoNillable())
+			schm.SetOptions(append(schm.GetOptions(), optGoNillable()))
 		}
 		if lID != "" {
-			schm.Options = append(schm.Options, logicalOption(lID))
+			schm.SetOptions(append(schm.GetOptions(), logicalOption(lID)))
 		}
-		schm.Id = getUUID(ot)
+		schm.SetId(getUUID(ot))
 		r.typeToSchema[ot] = schm
 		r.idToType[schm.GetId()] = ot
 		return schm, nil
@@ -395,8 +395,8 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 	// Cache the pointer type here with it's own id.
 	pt := reflect.PtrTo(t)
 	schm = proto.Clone(schm).(*pipepb.Schema)
-	schm.Id = getUUID(pt)
-	schm.Options = append(schm.Options, optGoNillable())
+	schm.SetId(getUUID(pt))
+	schm.SetOptions(append(schm.GetOptions(), optGoNillable()))
 	r.idToType[schm.GetId()] = pt
 	r.typeToSchema[pt] = schm
 
@@ -428,23 +428,17 @@ func optGoEmbedded() *pipepb.Option {
 // is not set if the toggle isn't true, so the value is always
 // true.
 func newToggleOption(urn string) *pipepb.Option {
-	return &pipepb.Option{
+	return pipepb.Option_builder{
 		Name: urn,
-		Type: &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_AtomicType{
-				AtomicType: pipepb.AtomicType_BOOLEAN,
-			},
-		},
-		Value: &pipepb.FieldValue{
-			FieldValue: &pipepb.FieldValue_AtomicValue{
-				AtomicValue: &pipepb.AtomicTypeValue{
-					Value: &pipepb.AtomicTypeValue_Boolean{
-						Boolean: true,
-					},
-				},
-			},
-		},
-	}
+		Type: pipepb.FieldType_builder{
+			AtomicType: pipepb.AtomicType_BOOLEAN.Enum(),
+		}.Build(),
+		Value: pipepb.FieldValue_builder{
+			AtomicValue: pipepb.AtomicTypeValue_builder{
+				Boolean: proto.Bool(true),
+			}.Build(),
+		}.Build(),
+	}.Build()
 }
 
 func checkOptions(opts []*pipepb.Option, urn string) *pipepb.Option {
@@ -465,26 +459,20 @@ func nillableFromOptions(opts []*pipepb.Option, t reflect.Type) reflect.Type {
 	return nil
 }
 
-var optGoLogicalType = &pipepb.FieldType{
-	TypeInfo: &pipepb.FieldType_AtomicType{
-		AtomicType: pipepb.AtomicType_STRING,
-	},
-}
+var optGoLogicalType = pipepb.FieldType_builder{
+	AtomicType: pipepb.AtomicType_STRING.Enum(),
+}.Build()
 
 func logicalOption(lID string) *pipepb.Option {
-	return &pipepb.Option{
+	return pipepb.Option_builder{
 		Name: optGoLogicalUrn,
 		Type: optGoLogicalType,
-		Value: &pipepb.FieldValue{
-			FieldValue: &pipepb.FieldValue_AtomicValue{
-				AtomicValue: &pipepb.AtomicTypeValue{
-					Value: &pipepb.AtomicTypeValue_String_{
-						String_: lID,
-					},
-				},
-			},
-		},
-	}
+		Value: pipepb.FieldValue_builder{
+			AtomicValue: pipepb.AtomicTypeValue_builder{
+				String: proto.String(lID),
+			}.Build(),
+		}.Build(),
+	}.Build()
 }
 
 // fromLogicalOption returns the logical type id of this top
@@ -513,8 +501,8 @@ func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 	if ftype != nil {
 		schm := ftype.GetRowType().GetSchema()
 		schm = proto.Clone(schm).(*pipepb.Schema)
-		schm.Options = append(schm.Options, logicalOption(lID))
-		schm.Id = getUUID(t)
+		schm.SetOptions(append(schm.GetOptions(), logicalOption(lID)))
+		schm.SetId(getUUID(t))
 		r.typeToSchema[t] = schm
 		r.idToType[schm.GetId()] = t
 		return schm, nil
@@ -536,15 +524,15 @@ func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 		}
 		if isAnon {
 			f = proto.Clone(f).(*pipepb.Field)
-			f.Options = append(f.Options, optGoEmbedded())
+			f.SetOptions(append(f.GetOptions(), optGoEmbedded()))
 		}
 		fields = append(fields, f)
 	}
 
-	schm := &pipepb.Schema{
+	schm := pipepb.Schema_builder{
 		Fields: fields,
 		Id:     getUUID(t),
-	}
+	}.Build()
 	r.idToType[schm.GetId()] = t
 	r.typeToSchema[t] = schm
 	return schm, nil
@@ -559,10 +547,10 @@ func (r *Registry) structFieldToField(sf reflect.StructField) (*pipepb.Field, er
 	if err != nil {
 		return nil, err
 	}
-	return &pipepb.Field{
+	return pipepb.Field_builder{
 		Name: name,
 		Type: ftype,
-	}, nil
+	}.Build(), nil
 }
 
 func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, error) {
@@ -571,15 +559,13 @@ func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, e
 		return nil, err
 	}
 	if ftype != nil {
-		return &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_LogicalType{
-				LogicalType: &pipepb.LogicalType{
-					Urn:            lID,
-					Representation: ftype,
-					// TODO(BEAM-9615): Handle type Arguments.
-				},
-			},
-		}, nil
+		return pipepb.FieldType_builder{
+			LogicalType: pipepb.LogicalType_builder{
+				Urn:            lID,
+				Representation: ftype,
+				// TODO(BEAM-9615): Handle type Arguments.
+			}.Build(),
+		}.Build(), nil
 	}
 
 	t := ot
@@ -589,7 +575,7 @@ func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, e
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert key of %v to schema field", ot)
 		}
-		vt.Nullable = true
+		vt.SetNullable(true)
 		return vt, nil
 	case reflect.Map:
 		kt, err := r.reflectTypeToFieldType(t.Key())
@@ -600,55 +586,45 @@ func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, e
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert value of %v to schema field", ot)
 		}
-		return &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_MapType{
-				MapType: &pipepb.MapType{
-					KeyType:   kt,
-					ValueType: vt,
-				},
-			},
-		}, nil
+		return pipepb.FieldType_builder{
+			MapType: pipepb.MapType_builder{
+				KeyType:   kt,
+				ValueType: vt,
+			}.Build(),
+		}.Build(), nil
 	case reflect.Struct:
 		sch, err := r.structToSchema(t)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert %v to schema field", ot)
 		}
-		return &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_RowType{
-				RowType: &pipepb.RowType{
-					Schema: sch,
-				},
-			},
-		}, nil
+		return pipepb.FieldType_builder{
+			RowType: pipepb.RowType_builder{
+				Schema: sch,
+			}.Build(),
+		}.Build(), nil
 	case reflect.Slice, reflect.Array:
 		// Special handling for []byte
 		if t == reflectx.ByteSlice {
-			return &pipepb.FieldType{
-				TypeInfo: &pipepb.FieldType_AtomicType{
-					AtomicType: pipepb.AtomicType_BYTES,
-				},
-			}, nil
+			return pipepb.FieldType_builder{
+				AtomicType: pipepb.AtomicType_BYTES.Enum(),
+			}.Build(), nil
 		}
 		vt, err := r.reflectTypeToFieldType(t.Elem())
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert element type of %v to schema field", ot)
 		}
-		return &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_ArrayType{
-				ArrayType: &pipepb.ArrayType{
-					ElementType: vt,
-				},
-			},
-		}, nil
+		return pipepb.FieldType_builder{
+			ArrayType: pipepb.ArrayType_builder{
+				ElementType: vt,
+			}.Build(),
+		}.Build(), nil
 	case reflect.Interface, reflect.Func, reflect.Chan, reflect.UnsafePointer, reflect.Complex128, reflect.Complex64, reflect.Invalid:
 		return nil, errors.Errorf("unable to convert unsupported type %v to schema", ot)
 	default: // must be an atomic type
 		if enum, ok := reflectTypeToAtomicTypeMap[t.Kind()]; ok {
-			return &pipepb.FieldType{
-				TypeInfo: &pipepb.FieldType_AtomicType{
-					AtomicType: enum,
-				},
-			}, nil
+			return pipepb.FieldType_builder{
+				AtomicType: enum.Enum(),
+			}.Build(), nil
 		}
 		return nil, errors.Errorf("unable to map %v to pipepb.AtomicType", t)
 	}
@@ -713,7 +689,7 @@ func (r *Registry) toType(s *pipepb.Schema) (reflect.Type, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot convert schema field %v to field", sf.GetName())
 		}
-		if checkOptions(sf.Options, optGoEmbeddedUrn) != nil {
+		if checkOptions(sf.GetOptions(), optGoEmbeddedUrn) != nil {
 			rf.Anonymous = true
 		}
 		fields = append(fields, rf)
@@ -730,7 +706,7 @@ func (r *Registry) toType(s *pipepb.Schema) (reflect.Type, error) {
 
 func (r *Registry) fieldToStructField(sf *pipepb.Field) (reflect.StructField, error) {
 	name := sf.GetName()
-	rt, err := r.fieldTypeToReflectType(sf.GetType(), sf.Options)
+	rt, err := r.fieldTypeToReflectType(sf.GetType(), sf.GetOptions())
 	if err != nil {
 		return reflect.StructField{}, err
 	}
@@ -760,19 +736,19 @@ var atomicTypeToReflectType = map[pipepb.AtomicType]reflect.Type{
 
 func (r *Registry) fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.Option) (reflect.Type, error) {
 	var t reflect.Type
-	switch sft.GetTypeInfo().(type) {
-	case *pipepb.FieldType_AtomicType:
+	switch sft.WhichTypeInfo() {
+	case pipepb.FieldType_AtomicType_case:
 		var ok bool
 		if t, ok = atomicTypeToReflectType[sft.GetAtomicType()]; !ok {
 			return nil, errors.Errorf("unknown atomic type: %v", sft.GetAtomicType())
 		}
-	case *pipepb.FieldType_ArrayType:
+	case pipepb.FieldType_ArrayType_case:
 		rt, err := r.fieldTypeToReflectType(sft.GetArrayType().GetElementType(), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to convert array element type")
 		}
 		t = reflect.SliceOf(rt)
-	case *pipepb.FieldType_MapType:
+	case pipepb.FieldType_MapType_case:
 		kt, err := r.fieldTypeToReflectType(sft.GetMapType().GetKeyType(), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to convert map key type")
@@ -782,7 +758,7 @@ func (r *Registry) fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.
 			return nil, errors.Wrap(err, "unable to convert map value type")
 		}
 		t = reflect.MapOf(kt, vt) // Panics for invalid map keys (slices/iterables)
-	case *pipepb.FieldType_RowType:
+	case pipepb.FieldType_RowType_case:
 		rt, err := r.toType(sft.GetRowType().GetSchema())
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert row type: %v", sft.GetRowType().GetSchema().GetId())
@@ -791,7 +767,7 @@ func (r *Registry) fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.
 	// case *pipepb.FieldType_IterableType:
 	// TODO(BEAM-9615): handle IterableTypes (eg. CoGBK values)
 
-	case *pipepb.FieldType_LogicalType:
+	case pipepb.FieldType_LogicalType_case:
 		lst := sft.GetLogicalType()
 		identifier := lst.GetUrn()
 		lt, ok := r.logicalTypes[identifier]

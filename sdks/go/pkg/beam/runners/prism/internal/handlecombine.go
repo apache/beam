@@ -62,11 +62,11 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 	// If we aren't lifting, the "default impl" for combines should be sufficient.
 	if !h.config.EnableLifting {
 		return prepareResult{
-			SubbedComps: &pipepb.Components{
+			SubbedComps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
 					tid: t,
 				},
-			},
+			}.Build(),
 		}
 	}
 
@@ -125,7 +125,7 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 
 	// Now we can start synthesis!
 	// Coder IDs
-	aID := cmb.AccumulatorCoderId
+	aID := cmb.GetAccumulatorCoderId()
 
 	ckvprefix := "c" + tid + "_kv_"
 
@@ -154,30 +154,30 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 	extractEID := eprefix + "extract"
 
 	coder := func(urn string, componentIDs ...string) *pipepb.Coder {
-		return &pipepb.Coder{
-			Spec: &pipepb.FunctionSpec{
+		return pipepb.Coder_builder{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn: urn,
-			},
+			}.Build(),
 			ComponentCoderIds: componentIDs,
-		}
+		}.Build()
 	}
 
 	pcol := func(name, coderID string) *pipepb.PCollection {
-		return &pipepb.PCollection{
+		return pipepb.PCollection_builder{
 			UniqueName:          name,
 			CoderId:             coderID,
 			IsBounded:           inputPCol.GetIsBounded(),
 			WindowingStrategyId: inputPCol.GetWindowingStrategyId(),
-		}
+		}.Build()
 	}
 
 	tform := func(name, urn, in, out, env string) *pipepb.PTransform {
-		return &pipepb.PTransform{
+		return pipepb.PTransform_builder{
 			UniqueName: name,
-			Spec: &pipepb.FunctionSpec{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn:     urn,
 				Payload: cmbPayload,
-			},
+			}.Build(),
 			Inputs: map[string]string{
 				"i0": in,
 			},
@@ -185,10 +185,10 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 				"i0": out,
 			},
 			EnvironmentId: env,
-		}
+		}.Build()
 	}
 
-	newComps := &pipepb.Components{
+	newComps := pipepb.Components_builder{
 		Coders: map[string]*pipepb.Coder{
 			iterACID:    coder(urns.CoderIterable, aID),
 			kvkaCID:     coder(urns.CoderKV, kID, aID),
@@ -205,7 +205,7 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 			mergeEID:   tform(mergeEID, urns.TransformMerge, groupedNID, mergedNID, t.GetEnvironmentId()),
 			extractEID: tform(extractEID, urns.TransformExtract, mergedNID, pcolOutID, t.GetEnvironmentId()),
 		},
-	}
+	}.Build()
 
 	// We don't need to remove the composite, since we don't add it in
 	// when we return the new transforms, so it's not in the topology.

@@ -80,13 +80,13 @@ func TestBuildOptions(t *testing.T) {
 }
 
 func TestHeapSizeLimit(t *testing.T) {
-	if lim := HeapSizeLimit(0); lim != 1 << 30 {
+	if lim := HeapSizeLimit(0); lim != 1<<30 {
 		t.Errorf("HeapSizeLimit(0). Actual (%d). want 1 GB", lim)
 	}
-	if lim := HeapSizeLimit(2 << 30); lim != (2 << 30) * 7 / 10 {
+	if lim := HeapSizeLimit(2 << 30); lim != (2<<30)*7/10 {
 		t.Errorf("HeapSizeLimit(2 GB). Actual (%d). want 1.4 GB", lim)
 	}
-	if lim := HeapSizeLimit(200 << 30); lim != (200 - 32) << 30 {
+	if lim := HeapSizeLimit(200 << 30); lim != (200-32)<<30 {
 		t.Errorf("HeapSizeLimit(200 GB). Actual (%d). want 168 GB", lim)
 	}
 }
