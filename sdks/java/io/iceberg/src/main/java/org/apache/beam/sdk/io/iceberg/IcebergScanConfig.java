@@ -23,7 +23,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.catalog.TableIdentifierParser;
 import org.apache.iceberg.expressions.Expression;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,15 +45,17 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract IcebergCatalogConfig getCatalogConfig();
 
   @Pure
-  public abstract String getTableIdentifier();
+  abstract SerializableTableIdentifier getSerializableTableIdentifier();
+
+  @Pure
+  public TableIdentifier getTableIdentifier() {
+    return getSerializableTableIdentifier().toTableIdentifier();
+  }
 
   @Pure
   public Table getTable() {
     if (cachedTable == null) {
-      cachedTable =
-          getCatalogConfig()
-              .catalog()
-              .loadTable(IcebergUtils.parseTableIdentifier(getTableIdentifier()));
+      cachedTable = getCatalogConfig().catalog().loadTable(getTableIdentifier());
     }
     return cachedTable;
   }
@@ -126,10 +127,10 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setCatalogConfig(IcebergCatalogConfig catalog);
 
-    public abstract Builder setTableIdentifier(String tableIdentifier);
+    abstract Builder setSerializableTableIdentifier(SerializableTableIdentifier tableIdentifier);
 
     public Builder setTableIdentifier(TableIdentifier tableIdentifier) {
-      return this.setTableIdentifier(TableIdentifierParser.toJson(tableIdentifier));
+      return this.setSerializableTableIdentifier(SerializableTableIdentifier.of(tableIdentifier));
     }
 
     public Builder setTableIdentifier(String... names) {

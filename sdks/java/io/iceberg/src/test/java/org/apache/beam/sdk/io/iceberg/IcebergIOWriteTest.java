@@ -140,15 +140,17 @@ public class IcebergIOWriteTest implements Serializable {
           }
 
           @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+          public SerializableTableIdentifier getTableIdentifier(ValueInSingleWindow<Row> element) {
             long tableNumber = element.getValue().getInt64("id") / 3 + 1;
-            return String.format("default.table%s-%s", tableNumber, salt);
+            String tableIdentifierStr = String.format("default.table%s-%s", tableNumber, salt);
+            TableIdentifier tableIdentifier = TableIdentifier.parse(tableIdentifierStr);
+            return SerializableTableIdentifier.of(tableIdentifier);
           }
 
           @Override
-          public IcebergDestination instantiateDestination(String dest) {
+          public IcebergDestination instantiateDestination(TableIdentifier dest) {
             return IcebergDestination.builder()
-                .setTableIdentifier(TableIdentifier.parse(dest))
+                .setTableIdentifier(dest)
                 .setFileFormat(FileFormat.PARQUET)
                 .build();
           }
@@ -240,15 +242,17 @@ public class IcebergIOWriteTest implements Serializable {
           }
 
           @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+          public SerializableTableIdentifier getTableIdentifier(ValueInSingleWindow<Row> element) {
             long tableNumber = element.getValue().getInt64("id") % numDestinations;
-            return String.format("default.table%s-%s", tableNumber, salt);
+            String tableIdentifierStr = String.format("default.table%s-%s", tableNumber, salt);
+            TableIdentifier tableIdentifier = TableIdentifier.parse(tableIdentifierStr);
+            return SerializableTableIdentifier.of(tableIdentifier);
           }
 
           @Override
-          public IcebergDestination instantiateDestination(String dest) {
+          public IcebergDestination instantiateDestination(TableIdentifier dest) {
             return IcebergDestination.builder()
-                .setTableIdentifier(TableIdentifier.parse(dest))
+                .setTableIdentifier(dest)
                 .setFileFormat(FileFormat.PARQUET)
                 .build();
           }
@@ -345,7 +349,7 @@ public class IcebergIOWriteTest implements Serializable {
             .advanceProcessingTime(Duration.standardSeconds(5))
             .advanceWatermarkToInfinity();
 
-    PCollection<KV<String, SnapshotInfo>> output =
+    PCollection<KV<TableIdentifier, SnapshotInfo>> output =
         testPipeline
             .apply("Stream Records", stream)
             .apply(

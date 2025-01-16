@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.joda.time.Instant;
 
 /**
@@ -37,7 +37,8 @@ import org.joda.time.Instant;
  * <p>The output record will have the format { dest: ..., data: ...} where the dest field has the
  * assigned metadata and the data field has the original row.
  */
-class AssignDestinations extends PTransform<PCollection<Row>, PCollection<KV<String, Row>>> {
+class AssignDestinations
+    extends PTransform<PCollection<Row>, PCollection<KV<TableIdentifier, Row>>> {
 
   private final DynamicDestinations dynamicDestinations;
 
@@ -46,27 +47,30 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<KV<Str
   }
 
   @Override
-  public PCollection<KV<String, Row>> expand(PCollection<Row> input) {
+  public PCollection<KV<TableIdentifier, Row>> expand(PCollection<Row> input) {
     return input
         .apply(
             ParDo.of(
-                new DoFn<Row, KV<String, Row>>() {
+                new DoFn<Row, KV<TableIdentifier, Row>>() {
                   @ProcessElement
                   public void processElement(
                       @Element Row element,
                       BoundedWindow window,
                       PaneInfo paneInfo,
                       @Timestamp Instant timestamp,
-                      OutputReceiver<KV<String, Row>> out) {
-                    String tableIdentifier =
-                        dynamicDestinations.getTableStringIdentifier(
-                            ValueInSingleWindow.of(element, timestamp, window, paneInfo));
+                      OutputReceiver<KV<TableIdentifier, Row>> out) {
+                    TableIdentifier tableIdentifier =
+                        dynamicDestinations
+                            .getTableIdentifier(
+                                ValueInSingleWindow.of(element, timestamp, window, paneInfo))
+                            .toTableIdentifier();
                     Row data = dynamicDestinations.getData(element);
 
                     out.output(KV.of(tableIdentifier, data));
                   }
                 }))
         .setCoder(
-            KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
+            KvCoder.of(
+                TableIdentifierCoder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
   }
 }

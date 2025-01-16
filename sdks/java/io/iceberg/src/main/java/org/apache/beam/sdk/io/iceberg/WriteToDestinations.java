@@ -23,7 +23,6 @@ import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -38,10 +37,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
-class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, IcebergWriteResult> {
+class WriteToDestinations
+    extends PTransform<PCollection<KV<TableIdentifier, Row>>, IcebergWriteResult> {
 
   // Used for auto-sharding in streaming. Limits number of records per batch/file
   private static final int FILE_TRIGGERING_RECORD_COUNT = 500_000;
@@ -65,7 +66,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   }
 
   @Override
-  public IcebergWriteResult expand(PCollection<KV<String, Row>> input) {
+  public IcebergWriteResult expand(PCollection<KV<TableIdentifier, Row>> input) {
     // Write records to files
     PCollection<FileWriteResult> writtenFiles =
         input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
@@ -73,31 +74,31 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             : writeUntriggered(input);
 
     // Commit files to tables
-    PCollection<KV<String, SnapshotInfo>> snapshots =
+    PCollection<KV<TableIdentifier, SnapshotInfo>> snapshots =
         writtenFiles.apply(new AppendFilesToTables(catalogConfig, filePrefix));
 
     return new IcebergWriteResult(input.getPipeline(), snapshots);
   }
 
-  private PCollection<FileWriteResult> writeTriggered(PCollection<KV<String, Row>> input) {
+  private PCollection<FileWriteResult> writeTriggered(PCollection<KV<TableIdentifier, Row>> input) {
     checkArgumentNotNull(
         triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
 
     // Group records into batches to avoid writing thousands of small files
-    PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
+    PCollection<KV<ShardedKey<TableIdentifier>, Iterable<Row>>> groupedRecords =
         input
             .apply("WindowIntoGlobal", Window.into(new GlobalWindows()))
             // We rely on GroupIntoBatches to group and parallelize records properly,
             // respecting our thresholds for number of records and bytes per batch.
             // Each output batch will be written to a file.
             .apply(
-                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                GroupIntoBatches.<TableIdentifier, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
                     .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
                     .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
                     .withShardedKey())
             .setCoder(
                 KvCoder.of(
-                    org.apache.beam.sdk.util.ShardedKey.Coder.of(StringUtf8Coder.of()),
+                    org.apache.beam.sdk.util.ShardedKey.Coder.of(TableIdentifierCoder.of()),
                     IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
 
     return groupedRecords
@@ -115,7 +116,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 .discardingFiredPanes());
   }
 
-  private PCollection<FileWriteResult> writeUntriggered(PCollection<KV<String, Row>> input) {
+  private PCollection<FileWriteResult> writeUntriggered(
+      PCollection<KV<TableIdentifier, Row>> input) {
     Preconditions.checkArgument(
         triggeringFrequency == null,
         "Triggering frequency is only applicable for streaming pipelines.");

@@ -20,25 +20,25 @@ package org.apache.beam.sdk.io.iceberg;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.RowFilter;
-import org.apache.beam.sdk.util.RowStringInterpolator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PortableIcebergDestinations implements DynamicDestinations {
   private final RowFilter rowFilter;
-  private final RowStringInterpolator interpolator;
+  private final TableIdentifierRowInterpolator interpolator;
   private final String fileFormat;
 
   public PortableIcebergDestinations(
-      String destinationTemplate,
+      TableIdentifier destinationTemplate,
       String fileFormat,
       Schema inputSchema,
       @Nullable List<String> fieldsToDrop,
       @Nullable List<String> fieldsToKeep,
       @Nullable String onlyField) {
-    interpolator = new RowStringInterpolator(destinationTemplate, inputSchema);
+    interpolator = new TableIdentifierRowInterpolator(destinationTemplate, inputSchema);
     RowFilter rf = new RowFilter(inputSchema);
 
     if (fieldsToDrop != null) {
@@ -65,14 +65,15 @@ class PortableIcebergDestinations implements DynamicDestinations {
   }
 
   @Override
-  public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-    return interpolator.interpolate(element);
+  public SerializableTableIdentifier getTableIdentifier(ValueInSingleWindow<Row> element) {
+    TableIdentifier tableIdentifier = interpolator.interpolate(element);
+    return SerializableTableIdentifier.of(tableIdentifier);
   }
 
   @Override
-  public IcebergDestination instantiateDestination(String dest) {
+  public IcebergDestination instantiateDestination(TableIdentifier dest) {
     return IcebergDestination.builder()
-        .setTableIdentifier(IcebergUtils.parseTableIdentifier(dest))
+        .setTableIdentifier(dest)
         .setTableCreateConfig(null)
         .setFileFormat(FileFormat.fromString(fileFormat))
         .build();

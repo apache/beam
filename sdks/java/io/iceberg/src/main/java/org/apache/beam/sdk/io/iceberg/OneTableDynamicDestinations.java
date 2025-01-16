@@ -33,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 class OneTableDynamicDestinations implements DynamicDestinations, Externalizable {
   // TableId represented as String for serializability
-  private transient @MonotonicNonNull String tableIdString;
+  private transient @MonotonicNonNull SerializableTableIdentifier tableIdString;
 
   private transient @MonotonicNonNull TableIdentifier tableId;
   private transient @MonotonicNonNull Schema rowSchema;
@@ -41,13 +41,13 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
   @VisibleForTesting
   TableIdentifier getTableIdentifier() {
     if (tableId == null) {
-      tableId = IcebergUtils.parseTableIdentifier(checkStateNotNull(tableIdString));
+      tableId = checkStateNotNull(tableIdString).toTableIdentifier();
     }
     return tableId;
   }
 
   OneTableDynamicDestinations(TableIdentifier tableId, Schema rowSchema) {
-    this.tableIdString = tableId.toString();
+    this.tableIdString = SerializableTableIdentifier.of(tableId);
     this.rowSchema = rowSchema;
   }
 
@@ -62,12 +62,12 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
   }
 
   @Override
-  public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+  public SerializableTableIdentifier getTableIdentifier(ValueInSingleWindow<Row> element) {
     return checkStateNotNull(tableIdString);
   }
 
   @Override
-  public IcebergDestination instantiateDestination(String unused) {
+  public IcebergDestination instantiateDestination(TableIdentifier unused) {
     return IcebergDestination.builder()
         .setTableIdentifier(getTableIdentifier())
         .setTableCreateConfig(null)
@@ -80,12 +80,16 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    out.writeUTF(checkStateNotNull(tableIdString));
+    out.writeObject(checkStateNotNull(tableIdString));
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException {
-    tableIdString = in.readUTF();
-    tableId = IcebergUtils.parseTableIdentifier(tableIdString);
+    try {
+      tableIdString = (SerializableTableIdentifier) in.readObject();
+      tableId = tableIdString.toTableIdentifier();
+    } catch (ClassNotFoundException e) {
+      throw new IOException(e);
+    }
   }
 }

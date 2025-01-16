@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -47,13 +46,15 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.FileIO;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class AppendFilesToTables
-    extends PTransform<PCollection<FileWriteResult>, PCollection<KV<String, SnapshotInfo>>> {
+    extends PTransform<
+        PCollection<FileWriteResult>, PCollection<KV<TableIdentifier, SnapshotInfo>>> {
   private static final Logger LOG = LoggerFactory.getLogger(AppendFilesToTables.class);
   private final IcebergCatalogConfig catalogConfig;
   private final String manifestFilePrefix;
@@ -64,28 +65,31 @@ class AppendFilesToTables
   }
 
   @Override
-  public PCollection<KV<String, SnapshotInfo>> expand(PCollection<FileWriteResult> writtenFiles) {
+  public PCollection<KV<TableIdentifier, SnapshotInfo>> expand(
+      PCollection<FileWriteResult> writtenFiles) {
 
     // Apply any sharded writes and flatten everything for catalog updates
     return writtenFiles
         .apply(
             "Key metadata updates by table",
             WithKeys.of(
-                new SerializableFunction<FileWriteResult, String>() {
+                new SerializableFunction<FileWriteResult, TableIdentifier>() {
                   @Override
-                  public String apply(FileWriteResult input) {
-                    return input.getTableIdentifier().toString();
+                  public TableIdentifier apply(FileWriteResult input) {
+                    return input.getTableIdentifier();
                   }
                 }))
+        .setCoder(KvCoder.of(TableIdentifierCoder.of(), FileWriteResult.CODER))
         .apply("Group metadata updates by table", GroupByKey.create())
         .apply(
             "Append metadata updates to tables",
             ParDo.of(new AppendFilesToTablesDoFn(catalogConfig, manifestFilePrefix)))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.CODER));
+        .setCoder(KvCoder.of(TableIdentifierCoder.of(), SnapshotInfo.CODER));
   }
 
   private static class AppendFilesToTablesDoFn
-      extends DoFn<KV<String, Iterable<FileWriteResult>>, KV<String, SnapshotInfo>> {
+      extends DoFn<
+          KV<TableIdentifier, Iterable<FileWriteResult>>, KV<TableIdentifier, SnapshotInfo>> {
     private final Counter snapshotsCreated =
         Metrics.counter(AppendFilesToTables.class, "snapshotsCreated");
     private final Distribution committedDataFileByteSize =
@@ -122,17 +126,17 @@ class AppendFilesToTables
 
     @ProcessElement
     public void processElement(
-        @Element KV<String, Iterable<FileWriteResult>> element,
-        OutputReceiver<KV<String, SnapshotInfo>> out,
+        @Element KV<TableIdentifier, Iterable<FileWriteResult>> element,
+        OutputReceiver<KV<TableIdentifier, SnapshotInfo>> out,
         BoundedWindow window)
         throws IOException {
-      String tableStringIdentifier = element.getKey();
+      TableIdentifier tableIdentifier = element.getKey();
       Iterable<FileWriteResult> fileWriteResults = element.getValue();
       if (!fileWriteResults.iterator().hasNext()) {
         return;
       }
 
-      Table table = getCatalog().loadTable(IcebergUtils.parseTableIdentifier(element.getKey()));
+      Table table = getCatalog().loadTable(tableIdentifier);
 
       // vast majority of the time, we will simply append data files.
       // in the rare case we get a batch that contains multiple partition specs, we will group
@@ -145,7 +149,7 @@ class AppendFilesToTables
       }
 
       Snapshot snapshot = table.currentSnapshot();
-      LOG.info("Created new snapshot for table '{}': {}", tableStringIdentifier, snapshot);
+      LOG.info("Created new snapshot for table '{}': {}", tableIdentifier, snapshot);
       snapshotsCreated.inc();
       out.outputWithTimestamp(
           KV.of(element.getKey(), SnapshotInfo.fromSnapshot(snapshot)), window.maxTimestamp());
