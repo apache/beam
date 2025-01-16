@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.ordered;
 
-import org.apache.beam.sdk.extensions.ordered.ContiguousSequenceRange.CompletedSequenceRangeCoder;
+import org.apache.beam.sdk.extensions.ordered.ContiguousSequenceRange.ContiguousSequenceRangeCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
@@ -45,9 +46,9 @@ class GlobalSequenceTracker<
         EventKeyT, EventT, ResultT, StateT extends MutableState<EventT, ResultT>>
     extends PTransform<
         PCollection<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>>,
-        PCollectionView<ContiguousSequenceRange>> {
+        PCollectionView<Iterable<ContiguousSequenceRange>>> {
 
-  private final Combine.GloballyAsSingletonView<
+  private final Combine.Globally<
           TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
       sideInputProducer;
   private final @Nullable Duration frequencyOfGeneration;
@@ -59,8 +60,7 @@ class GlobalSequenceTracker<
    * @param sideInputProducer
    */
   public GlobalSequenceTracker(
-      Combine.GloballyAsSingletonView<
-              TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
+      Combine.Globally<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
           sideInputProducer) {
     this.sideInputProducer = sideInputProducer;
     this.frequencyOfGeneration = null;
@@ -68,8 +68,7 @@ class GlobalSequenceTracker<
   }
 
   public GlobalSequenceTracker(
-      Combine.GloballyAsSingletonView<
-              TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
+      Combine.Globally<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
           sideInputProducer,
       Duration globalSequenceGenerationFrequency,
       int maxElementsBeforeReevaluatingGlobalSequence) {
@@ -79,12 +78,12 @@ class GlobalSequenceTracker<
   }
 
   @Override
-  public PCollectionView<ContiguousSequenceRange> expand(
+  public PCollectionView<Iterable<ContiguousSequenceRange>> expand(
       PCollection<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> input) {
     input
         .getPipeline()
         .getCoderRegistry()
-        .registerCoderForClass(ContiguousSequenceRange.class, CompletedSequenceRangeCoder.of());
+        .registerCoderForClass(ContiguousSequenceRange.class, ContiguousSequenceRangeCoder.of());
 
     if (frequencyOfGeneration != null) {
       // This branch will only be executed in case of streaming pipelines.
@@ -107,6 +106,10 @@ class GlobalSequenceTracker<
                               AfterProcessingTime.pastFirstElementInPane()
                                   .plusDelayOf(frequencyOfGeneration)))));
     }
-    return input.apply("Create Side Input", sideInputProducer);
+    return input
+        .apply("Combine Sequences", sideInputProducer)
+        // Have to use asIterable instead of asSingleton due to
+        // https://github.com/apache/beam/issues/26465
+        .apply("Create Side Input", View.asIterable());
   }
 }

@@ -340,12 +340,12 @@ public class OrderedEventProcessorTestBase {
   static class GlobalSequenceRangePublisher
       extends PTransform<PCollection<Event>, PCollection<ContiguousSequenceRange>> {
 
-    private final PCollectionView<ContiguousSequenceRange> lastCompletedSequenceRangeView;
+    private final PCollectionView<Iterable<ContiguousSequenceRange>> lastCompletedSequenceRangeView;
     private final Coder<String> keyCoder;
     private final Coder<String> eventCoder;
 
     public GlobalSequenceRangePublisher(
-        PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange,
+        PCollectionView<Iterable<ContiguousSequenceRange>> latestCompletedSequenceRange,
         Coder<String> keyCoder,
         Coder<String> eventCoder) {
       this.lastCompletedSequenceRangeView = latestCompletedSequenceRange;
@@ -386,9 +386,9 @@ public class OrderedEventProcessorTestBase {
 
       @ProcessElement
       public void produceCompletedRange(
-          @SideInput("lastCompletedSequence") ContiguousSequenceRange sideInput,
+          @SideInput("lastCompletedSequence") Iterable<ContiguousSequenceRange> sideInput,
           OutputReceiver<ContiguousSequenceRange> outputReceiver) {
-        outputReceiver.output(sideInput);
+        outputReceiver.output(ContiguousSequenceRange.largestRange(sideInput));
       }
     }
   }

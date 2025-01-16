@@ -120,13 +120,28 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
 
       @Nullable EventKeyT key = state.read();
       if (key == null) {
-        LOG.error("Expected to get the key from the state, but got null");
+        LOG.warn(
+            "Expected to get the key from the state, but got null. "
+                + "It is expected during pipeline draining.");
         return;
       }
 
       // Null value will be an indicator to the main transform that the element is a ticker
       outputReceiver.output(KV.of(key, KV.of(0L, null)));
       tickerTimer.offset(tickerFrequency).setRelative();
+    }
+
+    /**
+     * This call will be received when the input is windowed or in case the input is in Global
+     * Window and the pipeline is drained. In either cases we need to stop the timers. We can't
+     * access the timer from this method and clear the state to indicate that the processing needs
+     * to stop.
+     *
+     * @param state
+     */
+    @OnWindowExpiration
+    public void onWindowExpiration(@StateId(STATE) ValueState<EventKeyT> state) {
+      state.clear();
     }
   }
 }
