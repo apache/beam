@@ -92,7 +92,7 @@ from apache_beam.transforms.enrichment import Enrichment
 
 # Enrichment pipeline with Redis cache
 enriched_data = (input_data 
-                 | 'Enrich with Cache' >> Enrichment(my_enrichment_transform).with_redis_cache(redis_config=redis_config))
+                 | 'Enrich with Cache' >> Enrichment(my_enrichment_transform).with_redis_cache(host, port))
 
 
 ## Related transforms
