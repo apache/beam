@@ -135,8 +135,8 @@ public class FlinkSourceSplitEnumeratorTest {
   @Test
   public void testAddSplitsBackAfterRescale() throws Exception {
     final int numSubtasks = 2;
-    final int numSplits = 8; // divisible by 2 and 4
-    final int totalNumRecords = 8;
+    final int numSplits = 10;
+    final int totalNumRecords = 10;
     TestingSplitEnumeratorContext<FlinkSourceSplit<KV<Integer, Integer>>> testContext =
         new TestingSplitEnumeratorContext<>(numSubtasks);
     TestBoundedCountingSource testSource =
@@ -157,8 +157,8 @@ public class FlinkSourceSplitEnumeratorTest {
               .collect(Collectors.toMap(KV::getKey, KV::getValue));
     }
 
-    // add more tasks
-    testContext = new TestingSplitEnumeratorContext<>(numSubtasks + 2);
+    // add tasks back
+    testContext = new TestingSplitEnumeratorContext<>(numSubtasks);
     try (FlinkSourceSplitEnumerator<KV<Integer, Integer>> splitEnumerator =
         new FlinkSourceSplitEnumerator<>(
             testContext, testSource, FlinkPipelineOptions.defaults(), numSplits, true)) {
@@ -171,7 +171,7 @@ public class FlinkSourceSplitEnumeratorTest {
 
       List<FlinkSourceSplit<KV<Integer, Integer>>> splitsForReader =
           testContext.getSplitAssignments().get(0).getAssignedSplits();
-      assertEquals(numSplits / (numSubtasks + 2), splitsForReader.size());
+      assertEquals(numSplits / numSubtasks, splitsForReader.size());
     }
   }
 
