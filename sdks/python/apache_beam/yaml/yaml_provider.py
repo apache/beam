@@ -430,7 +430,8 @@ class YamlProvider(Provider):
       yaml_create_transform: Callable[
           [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
-    from apache_beam.yaml.yaml_transform import SafeLineLoader, YamlTransform
+    from apache_beam.yaml.yaml_transform import expand_jinja, preprocess
+    from apache_beam.yaml.yaml_transform import SafeLineLoader
     spec = self._transforms[type]
     try:
       import jsonschema
@@ -440,10 +441,17 @@ class YamlProvider(Provider):
           'Please install jsonschema '
           f'for better provider validation of "{type}"')
     body = spec['body']
-    if not isinstance(body, str):
-      body = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
-    from apache_beam.yaml.yaml_transform import expand_jinja
-    return YamlTransform(expand_jinja(body, args))
+    # Stringify to apply jinja.
+    if isinstance(body, str):
+      body_str = body
+    else:
+      body_str = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
+    # Now re-parse resolved templatization.
+    body = yaml.load(expand_jinja(body_str, args), Loader=SafeLineLoader)
+    if (body.get('type') == 'chain' and 'input' not in body and
+        spec.get('requires_inputs', True)):
+      body['input'] = 'input'
+    return yaml_create_transform(preprocess(body), [])
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
@@ -724,6 +732,12 @@ class YamlProviders:
             redistribute the work) if there is more than one element in the
             collection. Defaults to True.
     """
+    # Though str and dict are technically iterable, we disallow them
+    # as using the characters or keys respectively is almost certainly
+    # not the intent.
+    if (not isinstance(elements, Iterable) or isinstance(elements, str) or
+        isinstance(elements, dict)):
+      raise TypeError('elements must be a list of elements')
     return beam.Create([element_to_rows(e) for e in elements],
                        reshuffle=reshuffle is not False)
 
