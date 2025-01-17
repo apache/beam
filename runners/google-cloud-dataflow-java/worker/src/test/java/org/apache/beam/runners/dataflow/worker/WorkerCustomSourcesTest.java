@@ -200,6 +200,7 @@ public class WorkerCustomSourcesTest {
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
     return Work.create(
         workItem,
+        workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
@@ -1007,6 +1008,7 @@ public class WorkerCustomSourcesTest {
     Work dummyWork =
         Work.create(
             workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
                 COMPUTATION_ID,

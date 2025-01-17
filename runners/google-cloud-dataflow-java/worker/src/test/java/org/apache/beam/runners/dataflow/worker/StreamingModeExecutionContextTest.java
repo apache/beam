@@ -140,6 +140,7 @@ public class StreamingModeExecutionContextTest {
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
     return Work.create(
         workItem,
+        workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),

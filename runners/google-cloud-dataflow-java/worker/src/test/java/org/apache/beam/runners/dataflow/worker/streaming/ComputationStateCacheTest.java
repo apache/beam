@@ -35,7 +35,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -59,14 +59,17 @@ public class ComputationStateCacheTest {
   private ComputationStateCache computationStateCache;
 
   private static ExecutableWork createWork(ShardedKey shardedKey, long workToken, long cacheToken) {
+    WorkItem workItem =
+        WorkItem.newBuilder()
+            .setKey(shardedKey.key())
+            .setShardingKey(shardedKey.shardingKey())
+            .setWorkToken(workToken)
+            .setCacheToken(cacheToken)
+            .build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder()
-                .setKey(shardedKey.key())
-                .setShardingKey(shardedKey.shardingKey())
-                .setWorkToken(workToken)
-                .setCacheToken(cacheToken)
-                .build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
                 "computationId",

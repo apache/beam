@@ -268,9 +268,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
@@ -428,9 +431,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -531,9 +538,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -670,9 +681,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
@@ -772,9 +787,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
@@ -942,9 +961,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeStateClient)
               .processBundleInstructionId("57L")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .outboundAggregators(
                   ImmutableMap.of(ApiServiceDescriptor.getDefaultInstance(), aggregator))
               .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
@@ -1678,9 +1701,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -1968,9 +1995,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -2178,9 +2209,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -2372,9 +2407,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -2790,9 +2828,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .build();
       List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
@@ -2875,9 +2916,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .build();
       List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
@@ -2986,9 +3030,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .build();
       List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
@@ -3081,9 +3128,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3180,9 +3230,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3321,9 +3374,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3516,9 +3572,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              // .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
+              // .coders(pProto.getComponents().getCodersMap())
+              // .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3666,9 +3729,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3722,9 +3789,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3820,9 +3891,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3938,9 +4013,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -4066,9 +4145,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       Coder coder = StringUtf8Coder.of();
@@ -4125,9 +4208,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       Coder coder = StringUtf8Coder.of();
       context.addPCollectionConsumer(

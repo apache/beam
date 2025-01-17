@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Options.RpcPriority;
 import java.util.Collections;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.joda.time.Duration;
 
 /**
  * Single place for defining the constants used in the {@code Spanner.readChangeStreams()}
@@ -75,4 +77,10 @@ public class ChangeStreamsConstants {
           .setWatermark(Timestamp.now())
           .setCreatedAt(Timestamp.now())
           .build();
+
+  /**
+   * The default period for which we will re-compute the watermark of the {@link
+   * DetectNewPartitionsDoFn} stage.
+   */
+  public static final Duration DEFAULT_WATERMARK_REFRESH_RATE = Duration.standardSeconds(1);
 }
