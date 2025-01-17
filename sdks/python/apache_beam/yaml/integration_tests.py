@@ -126,7 +126,9 @@ def provider_sets(spec, require_available=False):
   def filter_to_available(t, providers):
     if t == 'LogForTesting':
       # Don't fan out to all the (many) possibilities for this one...
-      return [p for p in providers if isinstance(p, yaml_provider.InlineProvider)]
+      return [
+          p for p in providers if isinstance(p, yaml_provider.InlineProvider)
+      ]
     elif require_available:
       for p in providers:
         if not p.available():
