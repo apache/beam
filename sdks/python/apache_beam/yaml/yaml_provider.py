@@ -204,7 +204,7 @@ class ExternalProvider(Provider):
         self._service)
 
   @classmethod
-  def provider_from_spec(cls, spec):
+  def provider_from_spec(cls, source_path, spec):
     from apache_beam.yaml.yaml_transform import SafeLineLoader
     for required in ('type', 'transforms'):
       if required not in spec:
@@ -225,7 +225,10 @@ class ExternalProvider(Provider):
       config['version'] = beam_version
     if type in cls._provider_types:
       try:
-        result = cls._provider_types[type](urns, **config)
+        constructor = cls._provider_types[type]
+        if 'provider_base_path' in inspect.signature(constructor).parameters:
+          config['provider_base_path'] = source_path
+        result = constructor(urns, **config)
         if not hasattr(result, 'to_json'):
           result.to_json = lambda: spec
         return result
@@ -248,12 +251,13 @@ class ExternalProvider(Provider):
 
 
 @ExternalProvider.register_provider_type('javaJar')
-def java_jar(urns, jar: str):
+def java_jar(urns, provider_base_path, jar: str):
   if not os.path.exists(jar):
     parsed = urllib.parse.urlparse(jar)
     if not parsed.scheme or not parsed.netloc:
       raise ValueError(f'Invalid path or url: {jar}')
-  return ExternalJavaProvider(urns, lambda: jar)
+  return ExternalJavaProvider(
+      urns, lambda: _join_url_or_filepath(provider_base_path, jar))
 
 
 @ExternalProvider.register_provider_type('mavenJar')
@@ -334,9 +338,9 @@ class ExternalJavaProvider(ExternalProvider):
 
 
 @ExternalProvider.register_provider_type('python')
-def python(urns, packages=()):
+def python(urns, provider_base_path, packages=()):
   if packages:
-    return ExternalPythonProvider(urns, packages)
+    return ExternalPythonProvider(urns, provider_base_path, packages)
   else:
     return InlineProvider({
         name:
@@ -347,8 +351,18 @@ def python(urns, packages=()):
 
 @ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
-  def __init__(self, urns, packages: Iterable[str]):
-    super().__init__(urns, PypiExpansionService(packages))
+  def __init__(self, urns, provider_base_path, packages: Iterable[str]):
+    def is_path_or_urn(package):
+      return (
+          '/' in package or urllib.parse.urlparse(package).scheme or
+          os.path.exists(package))
+
+    super().__init__(
+        urns,
+        PypiExpansionService([
+            _join_url_or_filepath(provider_base_path, package)
+            if is_path_or_urn(package) else package for package in packages
+        ]))
 
   def available(self):
     return True  # If we're running this script, we have Python installed.
@@ -1118,10 +1132,16 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
+  def __init__(
+      self,
+      transforms,
+      provider_base_path,
+      mappings,
+      underlying_provider,
+      defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
-          underlying_provider)
+          provider_base_path, underlying_provider)
     self._transforms = transforms
     self._underlying_provider = underlying_provider
     for transform in transforms.keys():
@@ -1284,7 +1304,7 @@ def parse_providers(source_path,
             f"{source_path}:{SafeLineLoader.get_line(provider_spec)}\n" +
             str(exn)) from exn
     else:
-      yield ExternalProvider.provider_from_spec(provider_spec)
+      yield ExternalProvider.provider_from_spec(source_path, provider_spec)
 
 
 def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:

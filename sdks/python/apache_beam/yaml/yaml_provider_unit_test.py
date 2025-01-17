@@ -97,7 +97,8 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda x: x)
+      lambda _,
+      x: x)
   def test_include_file(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -118,7 +119,8 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda x: x)
+      lambda _,
+      x: x)
   def test_include_url(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -139,7 +141,8 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda x: x)
+      lambda _,
+      x: x)
   def test_nested_include(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
