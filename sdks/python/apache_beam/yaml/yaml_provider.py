@@ -1106,7 +1106,8 @@ class PypiExpansionService:
             '{{PORT}}',
             '--fully_qualified_name_glob=*',
             '--pickle_library=cloudpickle',
-            '--requirements_file=' + os.path.join(venv + '-requirements.txt')
+            '--requirements_file=' + os.path.join(venv + '-requirements.txt'),
+            '--serve_loopback_worker',
         ])
     self._service = self._service_provider.__enter__()
     return self._service
