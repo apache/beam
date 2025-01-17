@@ -83,7 +83,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   }
 
   @Test
-  public void testConvert_successfulyConvertCounters() {
+  public void testConvert_successfullyConvertCounters() {
     String step = "testStepName";
     Map<MetricName, LockFreeHistogram.Snapshot> emptyHistograms = new HashMap<>();
     Map<MetricName, Long> counters = new HashMap<MetricName, Long>();
@@ -374,7 +374,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   }
 
   @Test
-  public void testConvert_successfulyConvertGauges() {
+  public void testConvert_successfullyConvertGauges() {
     String step = "testStepName";
     Map<MetricName, LockFreeHistogram.Snapshot> emptyHistograms = new HashMap<>();
     Map<MetricName, Long> counters = new HashMap<MetricName, Long>();

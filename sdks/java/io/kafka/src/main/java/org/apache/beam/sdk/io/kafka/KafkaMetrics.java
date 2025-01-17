@@ -74,12 +74,10 @@ public interface KafkaMetrics {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsImpl.class);
 
-    static ConcurrentHashMap<String, Histogram> latencyHistograms =
+    private static final Map<String, Histogram> LATENCY_HISTOGRAMS =
         new ConcurrentHashMap<String, Histogram>();
 
-    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();
-
-    static ConcurrentHashMap<String, Gauge> backlogGauges = new ConcurrentHashMap<String, Gauge>();
+    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();;
 
     abstract ConcurrentHashMap<String, Long> perTopicPartitionBacklogs();
 
@@ -92,7 +90,14 @@ public interface KafkaMetrics {
           new AtomicBoolean(true));
     }
 
-    /** Record the rpc status and latency of a successful Kafka poll RPC call. */
+    /**
+     * Record the rpc status and latency of a successful Kafka poll RPC call.
+     *
+     * <p>TODO: It's possible that `isWritable().get()` is called before it's set to false in
+     * another thread, allowing an extraneous measurement to slip in, so perTopicRpcLatencies()
+     * isn't necessarily thread safe. One way to address this would be to add syncrhoized blocks to
+     * ensure that there is only one thread ever reading/modifying the perTopicRpcLatencies() map.
+     */
     @Override
     public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {
       if (isWritable().get()) {
@@ -125,15 +130,15 @@ public interface KafkaMetrics {
       for (Map.Entry<String, ConcurrentLinkedQueue<Duration>> topicLatencies :
           perTopicRpcLatencies().entrySet()) {
         Histogram topicHistogram;
-        if (latencyHistograms.containsKey(topicLatencies.getKey())) {
-          topicHistogram = latencyHistograms.get(topicLatencies.getKey());
+        if (LATENCY_HISTOGRAMS.containsKey(topicLatencies.getKey())) {
+          topicHistogram = LATENCY_HISTOGRAMS.get(topicLatencies.getKey());
         } else {
           topicHistogram =
               KafkaSinkMetrics.createRPCLatencyHistogram(
                   KafkaSinkMetrics.RpcMethod.POLL, topicLatencies.getKey());
-          latencyHistograms.put(topicLatencies.getKey(), topicHistogram);
+          LATENCY_HISTOGRAMS.put(topicLatencies.getKey(), topicHistogram);
         }
-        // update all the latencies
+        // Update all the latencies
         for (Duration d : topicLatencies.getValue()) {
           Preconditions.checkArgumentNotNull(topicHistogram);
           topicHistogram.update(d.toMillis());
