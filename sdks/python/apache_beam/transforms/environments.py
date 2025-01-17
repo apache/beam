@@ -853,6 +853,18 @@ class AnyOfEnvironment(Environment):
         payload=beam_runner_api_pb2.AnyOfEnvironmentPayload(
             environments=environments).SerializeToString())
 
+  def __hash__(self):
+    return sum(hash(env) for env in self._environments)
+
+  def __eq__(self, other):
+    return (
+        isinstance(other, AnyOfEnvironment) and
+        set(self._environments) == set(other._environments))
+
+  def to_runner_api(self, context):
+    return self.create_proto(
+        [env.to_runner_api(context) for env in self._environments])
+
 
 class PyPIArtifactRegistry(object):
   _registered_artifacts = set()  # type: Set[Tuple[str, str]]
