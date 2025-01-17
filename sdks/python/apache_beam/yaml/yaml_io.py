@@ -536,7 +536,7 @@ def write_to_iceberg(
 
   See also the [Apache Iceberg Beam documentation](
   https://cloud.google.com/dataflow/docs/guides/managed-io#iceberg)
-  and [](
+  including the [dynamic destinations section](
   https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations)
   for use of the keep, drop, and only parameters.
 
