@@ -128,7 +128,7 @@ def provider_sets(spec, require_available=False):
       # Don't fan out to all the (many) possibilities for this one...
       return [
           p for p in providers if isinstance(p, yaml_provider.InlineProvider)
-      ]
+      ][:1]
     elif require_available:
       for p in providers:
         if not p.available():
