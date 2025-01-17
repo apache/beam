@@ -114,7 +114,7 @@ opentelemetry-semantic-conventions==0.49b1
 orjson==3.10.11
 overrides==7.7.0
 packaging==24.2
-pandas==2.1.4
+pandas==2.2.3
 parameterized==0.9.0
 pluggy==1.5.0
 proto-plus==1.25.0
