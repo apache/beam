@@ -50,11 +50,11 @@ func TestLogger(t *testing.T) {
 
 		received := catcher.msgs[0].GetLogEntries()[0]
 
-		if got, want := received.GetMessage(), "foo bar"; got != want {
+		if got, want := received.Message, "foo bar"; got != want {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got message %q, want %q", got, want)
 		}
 
-		if got, want := received.GetSeverity(), fnpb.LogEntry_Severity_DEBUG; got != want {
+		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got severity %v, want %v", got, want)
 		}
 	})
@@ -66,11 +66,11 @@ func TestLogger(t *testing.T) {
 
 		received := catcher.msgs[0].GetLogEntries()[0]
 
-		if got, want := received.GetMessage(), "failed to install dependency bar"; got != want {
+		if got, want := received.Message, "failed to install dependency bar"; got != want {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got message %q, want %q", got, want)
 		}
 
-		if got, want := received.GetSeverity(), fnpb.LogEntry_Severity_ERROR; got != want {
+		if got, want := received.Severity, fnpb.LogEntry_Severity_ERROR; got != want {
 			t.Errorf("l.Errorf(\"failed to install dependency %%v\", \"bar\"): got severity %v, want %v", got, want)
 		}
 	})

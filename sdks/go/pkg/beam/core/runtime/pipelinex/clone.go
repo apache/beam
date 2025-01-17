@@ -21,10 +21,10 @@ import (
 )
 
 func shallowClonePipeline(p *pipepb.Pipeline) *pipepb.Pipeline {
-	ret := pipepb.Pipeline_builder{
+	ret := &pipepb.Pipeline{
 		Components:   shallowCloneComponents(p.GetComponents()),
 		Requirements: reflectx.ShallowClone(p.GetRequirements()).([]string),
-	}.Build()
+	}
 	ret.RootTransformIds, _ = reflectx.ShallowClone(p.GetRootTransformIds()).([]string)
 	return ret
 }
@@ -45,15 +45,15 @@ func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 		return nil
 	}
 
-	ret := pipepb.PTransform_builder{
-		UniqueName:  t.GetUniqueName(),
-		Spec:        t.GetSpec(),
-		DisplayData: t.GetDisplayData(),
-		Annotations: t.GetAnnotations(),
-	}.Build()
-	ret.Subtransforms, _ = reflectx.ShallowClone(t.GetSubtransforms()).([]string)
-	ret.Inputs, _ = reflectx.ShallowClone(t.GetInputs()).(map[string]string)
-	ret.Outputs, _ = reflectx.ShallowClone(t.GetOutputs()).(map[string]string)
-	ret.SetEnvironmentId(t.GetEnvironmentId())
+	ret := &pipepb.PTransform{
+		UniqueName:  t.UniqueName,
+		Spec:        t.Spec,
+		DisplayData: t.DisplayData,
+		Annotations: t.Annotations,
+	}
+	ret.Subtransforms, _ = reflectx.ShallowClone(t.Subtransforms).([]string)
+	ret.Inputs, _ = reflectx.ShallowClone(t.Inputs).(map[string]string)
+	ret.Outputs, _ = reflectx.ShallowClone(t.Outputs).(map[string]string)
+	ret.EnvironmentId = t.EnvironmentId
 	return ret
 }

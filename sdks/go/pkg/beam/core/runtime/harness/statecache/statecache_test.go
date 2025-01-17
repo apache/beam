@@ -122,13 +122,15 @@ func TestSetCache_CacheableCase(t *testing.T) {
 }
 
 func makeRequest(transformID, sideInputID string, t token) *fnpb.ProcessBundleRequest_CacheToken {
-	return fnpb.ProcessBundleRequest_CacheToken_builder{
+	return &fnpb.ProcessBundleRequest_CacheToken{
 		Token: []byte(t),
-		SideInput: fnpb.ProcessBundleRequest_CacheToken_SideInput_builder{
-			TransformId: transformID,
-			SideInputId: sideInputID,
-		}.Build(),
-	}.Build()
+		Type: &fnpb.ProcessBundleRequest_CacheToken_SideInput_{
+			SideInput: &fnpb.ProcessBundleRequest_CacheToken_SideInput{
+				TransformId: transformID,
+				SideInputId: sideInputID,
+			},
+		},
+	}
 }
 
 func makeCacheToken(transformID, sideInputID string, tok token) cacheToken {

@@ -87,7 +87,7 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 				return nil, errors.WithContextf(err,
 					"resolving remote artifacts for edge %v", e.Name())
 			}
-			envs := components.GetEnvironments()
+			envs := components.Environments
 			for eid, env := range envs {
 				if strings.HasPrefix(eid, "go") {
 					continue
@@ -111,21 +111,21 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 						fullSdkPath = cfg.JoinFn(cfg.SdkPath, name)
 					}
 					resolvedDeps = append(resolvedDeps,
-						pipepb.ArtifactInformation_builder{
+						&pipepb.ArtifactInformation{
 							TypeUrn: "beam:artifact:type:file:v1",
 							TypePayload: protox.MustEncode(
-								pipepb.ArtifactFilePayload_builder{
+								&pipepb.ArtifactFilePayload{
 									Path:   fullSdkPath,
 									Sha256: sha256,
-								}.Build(),
+								},
 							),
-							RoleUrn:     a.GetRoleUrn(),
-							RolePayload: a.GetRolePayload(),
-						}.Build(),
+							RoleUrn:     a.RoleUrn,
+							RolePayload: a.RolePayload,
+						},
 					)
 					paths[fullTmpPath] = fullSdkPath
 				}
-				env.SetDependencies(resolvedDeps)
+				env.Dependencies = resolvedDeps
 			}
 		}
 	}
@@ -142,24 +142,24 @@ func UpdateArtifactTypeFromFileToURL(edges []*graph.MultiEdge) {
 				panic(errors.WithContextf(err,
 					"updating URL artifacts type for edge %v", e.Name()))
 			}
-			envs := components.GetEnvironments()
+			envs := components.Environments
 			for _, env := range envs {
 				deps := env.GetDependencies()
 				var resolvedDeps []*pipepb.ArtifactInformation
 				for _, a := range deps {
 					path, sha256 := artifact.MustExtractFilePayload(a)
 					if strings.Contains(path, "://") {
-						a.SetTypeUrn("beam:artifact:type:url:v1")
-						a.SetTypePayload(protox.MustEncode(
-							pipepb.ArtifactUrlPayload_builder{
+						a.TypeUrn = "beam:artifact:type:url:v1"
+						a.TypePayload = protox.MustEncode(
+							&pipepb.ArtifactUrlPayload{
 								Url:    path,
 								Sha256: sha256,
-							}.Build(),
-						))
+							},
+						)
 					}
 					resolvedDeps = append(resolvedDeps, a)
 				}
-				env.SetDependencies(resolvedDeps)
+				env.Dependencies = resolvedDeps
 			}
 		}
 	}

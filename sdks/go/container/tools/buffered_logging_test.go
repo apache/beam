@@ -63,11 +63,11 @@ func TestBufferedLogger(t *testing.T) {
 
 		received := catcher.msgs[0].GetLogEntries()[0]
 
-		if got, want := received.GetMessage(), "test message"; got != want {
+		if got, want := received.Message, "test message"; got != want {
 			t.Errorf("got message %q, want %q", got, want)
 		}
 
-		if got, want := received.GetSeverity(), fnpb.LogEntry_Severity_DEBUG; got != want {
+		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
 			t.Errorf("got severity %v, want %v", got, want)
 		}
 	})
@@ -96,11 +96,11 @@ func TestBufferedLogger(t *testing.T) {
 		received := catcher.msgs[0].GetLogEntries()
 
 		for i, message := range received {
-			if got, want := message.GetMessage(), messages[i]; got != want {
+			if got, want := message.Message, messages[i]; got != want {
 				t.Errorf("got message %q, want %q", got, want)
 			}
 
-			if got, want := message.GetSeverity(), fnpb.LogEntry_Severity_DEBUG; got != want {
+			if got, want := message.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
 				t.Errorf("got severity %v, want %v", got, want)
 			}
 		}
@@ -125,11 +125,11 @@ func TestBufferedLogger(t *testing.T) {
 
 		received := catcher.msgs[0].GetLogEntries()[0]
 
-		if got, want := received.GetMessage(), "test error"; got != want {
+		if got, want := received.Message, "test error"; got != want {
 			t.Errorf("got message %q, want %q", got, want)
 		}
 
-		if got, want := received.GetSeverity(), fnpb.LogEntry_Severity_ERROR; got != want {
+		if got, want := received.Severity, fnpb.LogEntry_Severity_ERROR; got != want {
 			t.Errorf("got severity %v, want %v", got, want)
 		}
 	})
@@ -158,11 +158,11 @@ func TestBufferedLogger(t *testing.T) {
 		received := catcher.msgs[0].GetLogEntries()
 
 		for i, message := range received {
-			if got, want := message.GetMessage(), messages[i]; got != want {
+			if got, want := message.Message, messages[i]; got != want {
 				t.Errorf("got message %q, want %q", got, want)
 			}
 
-			if got, want := message.GetSeverity(), fnpb.LogEntry_Severity_ERROR; got != want {
+			if got, want := message.Severity, fnpb.LogEntry_Severity_ERROR; got != want {
 				t.Errorf("got severity %v, want %v", got, want)
 			}
 		}
@@ -177,11 +177,11 @@ func TestBufferedLogger(t *testing.T) {
 
 		received := catcher.msgs[0].GetLogEntries()[0]
 
-		if got, want := received.GetMessage(), "foo bar"; got != want {
+		if got, want := received.Message, "foo bar"; got != want {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got message %q, want %q", got, want)
 		}
 
-		if got, want := received.GetSeverity(), fnpb.LogEntry_Severity_DEBUG; got != want {
+		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got severity %v, want %v", got, want)
 		}
 	})
@@ -229,11 +229,11 @@ func TestBufferedLogger(t *testing.T) {
 		messages = append(messages, lastMessage)
 
 		for i, message := range received {
-			if got, want := message.GetMessage(), messages[i]; got != want {
+			if got, want := message.Message, messages[i]; got != want {
 				t.Errorf("got message %q, want %q", got, want)
 			}
 
-			if got, want := message.GetSeverity(), fnpb.LogEntry_Severity_DEBUG; got != want {
+			if got, want := message.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
 				t.Errorf("got severity %v, want %v", got, want)
 			}
 		}

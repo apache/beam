@@ -82,7 +82,7 @@ func stageFiles(ctx context.Context, cc *grpc.ClientConn, binary, st string) err
 		}
 	}()
 
-	if err := stream.Send(jobpb.ArtifactResponseWrapper_builder{StagingToken: st}.Build()); err != nil {
+	if err := stream.Send(&jobpb.ArtifactResponseWrapper{StagingToken: st}); err != nil {
 		return errors.Wrapf(err, "failed to send staging token")
 	}
 
@@ -95,18 +95,20 @@ func stageFiles(ctx context.Context, cc *grpc.ClientConn, binary, st string) err
 			return err
 		}
 
-		switch request := in.WhichRequest(); request {
-		case jobpb.ArtifactRequestWrapper_ResolveArtifact_case:
-			err = stream.Send(jobpb.ArtifactResponseWrapper_builder{
-				ResolveArtifactResponse: jobpb.ResolveArtifactsResponse_builder{
-					Replacements: in.GetResolveArtifact().GetArtifacts(),
-				}.Build()}.Build())
+		switch request := in.Request.(type) {
+		case *jobpb.ArtifactRequestWrapper_ResolveArtifact:
+			err = stream.Send(&jobpb.ArtifactResponseWrapper{
+				Response: &jobpb.ArtifactResponseWrapper_ResolveArtifactResponse{
+					ResolveArtifactResponse: &jobpb.ResolveArtifactsResponse{
+						Replacements: request.ResolveArtifact.Artifacts,
+					},
+				}})
 			if err != nil {
 				return err
 			}
 
-		case jobpb.ArtifactRequestWrapper_GetArtifact_case:
-			switch typeUrn := in.GetGetArtifact().GetArtifact().GetTypeUrn(); typeUrn {
+		case *jobpb.ArtifactRequestWrapper_GetArtifact:
+			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
 			// TODO(https://github.com/apache/beam/issues/21459): Legacy Type URN. If requested, provide the binary.
 			// To be removed later in 2022, once thoroughly obsolete.
 			case graphx.URNArtifactGoWorker:
@@ -117,8 +119,8 @@ func stageFiles(ctx context.Context, cc *grpc.ClientConn, binary, st string) err
 					return errors.Wrapf(err, "failed to stage Go worker binary: %v", binary)
 				}
 			case graphx.URNArtifactFileType:
-				typePl := &pipepb.ArtifactFilePayload{}
-				if err := proto.Unmarshal(in.GetGetArtifact().GetArtifact().GetTypePayload(), typePl); err != nil {
+				typePl := pipepb.ArtifactFilePayload{}
+				if err := proto.Unmarshal(request.GetArtifact.Artifact.TypePayload, &typePl); err != nil {
 					return errors.Wrap(err, "failed to parse artifact file payload")
 				}
 				if err := stageFile(typePl.GetPath(), stream); err != nil {
@@ -133,7 +135,7 @@ func stageFiles(ctx context.Context, cc *grpc.ClientConn, binary, st string) err
 			}
 
 		default:
-			return errors.Errorf("request has unexpected type %v", request)
+			return errors.Errorf("request has unexpected type %T", request)
 		}
 	}
 }
@@ -149,10 +151,12 @@ func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 	for {
 		n, err := fd.Read(data)
 		if n > 0 {
-			sendErr := stream.Send(jobpb.ArtifactResponseWrapper_builder{
-				GetArtifactResponse: jobpb.GetArtifactResponse_builder{
-					Data: data[:n],
-				}.Build()}.Build())
+			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
+				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
+					GetArtifactResponse: &jobpb.GetArtifactResponse{
+						Data: data[:n],
+					},
+				}})
 			if sendErr == io.EOF {
 				return sendErr
 			}
@@ -163,9 +167,11 @@ func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 		}
 
 		if err == io.EOF {
-			sendErr := stream.Send(jobpb.ArtifactResponseWrapper_builder{
-				IsLast:              true,
-				GetArtifactResponse: &jobpb.GetArtifactResponse{}}.Build())
+			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
+				IsLast: true,
+				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
+					GetArtifactResponse: &jobpb.GetArtifactResponse{},
+				}})
 			return sendErr
 		}
 

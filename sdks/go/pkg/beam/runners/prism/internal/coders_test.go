@@ -49,11 +49,11 @@ func Test_isLeafCoder(t *testing.T) {
 		{urns.CoderKV, false},
 	}
 	for _, test := range tests {
-		undertest := pipepb.Coder_builder{
-			Spec: pipepb.FunctionSpec_builder{
+		undertest := &pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
 				Urn: test.urn,
-			}.Build(),
-		}.Build()
+			},
+		}
 		if got, want := isLeafCoder(undertest), test.isLeaf; got != want {
 			t.Errorf("isLeafCoder(%v) = %v, want %v", test.urn, got, want)
 		}
@@ -63,18 +63,18 @@ func Test_isLeafCoder(t *testing.T) {
 func Test_makeWindowedValueCoder(t *testing.T) {
 	coders := map[string]*pipepb.Coder{}
 
-	gotID, err := makeWindowedValueCoder("testPID", pipepb.Components_builder{
+	gotID, err := makeWindowedValueCoder("testPID", &pipepb.Components{
 		Pcollections: map[string]*pipepb.PCollection{
-			"testPID": pipepb.PCollection_builder{CoderId: "testCoderID"}.Build(),
+			"testPID": {CoderId: "testCoderID"},
 		},
 		Coders: map[string]*pipepb.Coder{
-			"testCoderID": pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			"testCoderID": {
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderBool,
-				}.Build(),
-			}.Build(),
+				},
+			},
 		},
-	}.Build(), coders)
+	}, coders)
 	if err != nil {
 		t.Errorf("makeWindowedValueCoder(...) = error %v, want nil", err)
 	}
@@ -103,11 +103,11 @@ func Test_makeWindowCoders(t *testing.T) {
 		}, engine.WinInterval},
 	}
 	for _, test := range tests {
-		undertest := pipepb.Coder_builder{
-			Spec: pipepb.FunctionSpec_builder{
+		undertest := &pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
 				Urn: test.urn,
-			}.Build(),
-		}.Build()
+			},
+		}
 		gotCoderType, dec, enc := makeWindowCoders(undertest)
 
 		if got, want := gotCoderType, test.coderType; got != want {
@@ -141,23 +141,23 @@ func Test_lpUnknownCoders(t *testing.T) {
 		{"alreadyProcessed",
 			urns.CoderBool, nil,
 			map[string]*pipepb.Coder{
-				"test": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"test": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{
-				"test": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"test": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 		},
 		{"alreadyProcessedLP",
 			urns.CoderBool, nil,
 			map[string]*pipepb.Coder{
-				"test_lp": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderLengthPrefix}.Build(), ComponentCoderIds: []string{"test"}}.Build(),
-				"test":    pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"test_lp": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderLengthPrefix}, ComponentCoderIds: []string{"test"}},
+				"test":    {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{
-				"test_lp": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderLengthPrefix}.Build(), ComponentCoderIds: []string{"test"}}.Build(),
-				"test":    pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"test_lp": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderLengthPrefix}, ComponentCoderIds: []string{"test"}},
+				"test":    {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 		},
 		{"noNeedForLP",
@@ -165,7 +165,7 @@ func Test_lpUnknownCoders(t *testing.T) {
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{
-				"test": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"test": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 		},
 		{"needLP",
@@ -173,43 +173,43 @@ func Test_lpUnknownCoders(t *testing.T) {
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{
-				"test_lp": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderLengthPrefix}.Build(), ComponentCoderIds: []string{"test"}}.Build(),
-				"test":    pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
+				"test_lp": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderLengthPrefix}, ComponentCoderIds: []string{"test"}},
+				"test":    {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
 			},
 		},
 		{"needLP_recurse",
 			urns.CoderKV, []string{"k", "v"},
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{
-				"k": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
-				"v": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"k": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
+				"v": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 			map[string]*pipepb.Coder{
-				"test_lp": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k_lp", "v"}}.Build(),
-				"test":    pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
-				"k_lp":    pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderLengthPrefix}.Build(), ComponentCoderIds: []string{"k"}}.Build(),
-				"k":       pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
-				"v":       pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"test_lp": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k_lp", "v"}},
+				"test":    {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
+				"k_lp":    {Spec: &pipepb.FunctionSpec{Urn: urns.CoderLengthPrefix}, ComponentCoderIds: []string{"k"}},
+				"k":       {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
+				"v":       {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 		},
 		{"alreadyLP", urns.CoderLengthPrefix, []string{"k"},
 			map[string]*pipepb.Coder{},
 			map[string]*pipepb.Coder{
-				"k": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
+				"k": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
 			},
 			map[string]*pipepb.Coder{
-				"test": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderLengthPrefix}.Build(), ComponentCoderIds: []string{"k"}}.Build(),
-				"k":    pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
+				"test": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderLengthPrefix}, ComponentCoderIds: []string{"k"}},
+				"k":    {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
 			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Add the initial coder to base.
-			test.base["test"] = pipepb.Coder_builder{
-				Spec:              pipepb.FunctionSpec_builder{Urn: test.urn}.Build(),
+			test.base["test"] = &pipepb.Coder{
+				Spec:              &pipepb.FunctionSpec{Urn: test.urn},
 				ComponentCoderIds: test.components,
-			}.Build()
+			}
 
 			lpUnknownCoders("test", test.bundle, test.base)
 
@@ -228,50 +228,50 @@ func Test_reconcileCoders(t *testing.T) {
 	}{
 		{name: "noChanges",
 			bundle: map[string]*pipepb.Coder{
-				"a": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"a": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 			base: map[string]*pipepb.Coder{
-				"a": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
-				"b": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBytes}.Build()}.Build(),
-				"c": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderStringUTF8}.Build()}.Build(),
+				"a": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
+				"b": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBytes}},
+				"c": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderStringUTF8}},
 			},
 			want: map[string]*pipepb.Coder{
-				"a": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"a": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 		},
 		{name: "KV",
 			bundle: map[string]*pipepb.Coder{
-				"kv": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
+				"kv": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
 			},
 			base: map[string]*pipepb.Coder{
-				"kv": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
-				"k":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
-				"v":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"kv": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
+				"k":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
+				"v":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 			want: map[string]*pipepb.Coder{
-				"kv": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
-				"k":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
-				"v":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
+				"kv": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
+				"k":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
+				"v":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
 			},
 		},
 		{name: "KV-nested",
 			bundle: map[string]*pipepb.Coder{
-				"kv": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
+				"kv": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
 			},
 			base: map[string]*pipepb.Coder{
-				"kv": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
-				"k":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"a", "b"}}.Build(),
-				"v":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
-				"a":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBytes}.Build()}.Build(),
-				"b":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
-				"c":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderStringUTF8}.Build()}.Build(),
+				"kv": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
+				"k":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"a", "b"}},
+				"v":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
+				"a":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBytes}},
+				"b":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
+				"c":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderStringUTF8}},
 			},
 			want: map[string]*pipepb.Coder{
-				"kv": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"k", "v"}}.Build(),
-				"k":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(), ComponentCoderIds: []string{"a", "b"}}.Build(),
-				"v":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBool}.Build()}.Build(),
-				"a":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBytes}.Build()}.Build(),
-				"b":  pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderRow}.Build()}.Build(),
+				"kv": {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"k", "v"}},
+				"k":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderKV}, ComponentCoderIds: []string{"a", "b"}},
+				"v":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBool}},
+				"a":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderBytes}},
+				"b":  {Spec: &pipepb.FunctionSpec{Urn: urns.CoderRow}},
 			},
 		},
 	}
@@ -299,75 +299,75 @@ func Test_pullDecoder(t *testing.T) {
 	}{
 		{
 			"bytes",
-			pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderBytes,
-				}.Build(),
-			}.Build(),
+				},
+			},
 			map[string]*pipepb.Coder{},
 			[]byte{3, 1, 2, 3},
 		}, {
 			"varint",
-			pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderVarInt,
-				}.Build(),
-			}.Build(),
+				},
+			},
 			map[string]*pipepb.Coder{},
 			[]byte{255, 3},
 		}, {
 			"bool",
-			pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderBool,
-				}.Build(),
-			}.Build(),
+				},
+			},
 			map[string]*pipepb.Coder{},
 			[]byte{1},
 		}, {
 			"double",
-			pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderDouble,
-				}.Build(),
-			}.Build(),
+				},
+			},
 			map[string]*pipepb.Coder{},
 			doubleBytes,
 		}, {
 			"iterable",
-			pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderIterable,
-				}.Build(),
+				},
 				ComponentCoderIds: []string{"elm"},
-			}.Build(),
+			},
 			map[string]*pipepb.Coder{
-				"elm": pipepb.Coder_builder{
-					Spec: pipepb.FunctionSpec_builder{
+				"elm": {
+					Spec: &pipepb.FunctionSpec{
 						Urn: urns.CoderVarInt,
-					}.Build(),
-				}.Build(),
+					},
+				},
 			},
 			[]byte{4, 0, 1, 2, 3},
 		}, {
 			"kv",
-			pipepb.Coder_builder{
-				Spec: pipepb.FunctionSpec_builder{
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
 					Urn: urns.CoderKV,
-				}.Build(),
+				},
 				ComponentCoderIds: []string{"key", "value"},
-			}.Build(),
+			},
 			map[string]*pipepb.Coder{
-				"key": pipepb.Coder_builder{
-					Spec: pipepb.FunctionSpec_builder{
+				"key": {
+					Spec: &pipepb.FunctionSpec{
 						Urn: urns.CoderVarInt,
-					}.Build(),
-				}.Build(),
-				"value": pipepb.Coder_builder{
-					Spec: pipepb.FunctionSpec_builder{
+					},
+				},
+				"value": {
+					Spec: &pipepb.FunctionSpec{
 						Urn: urns.CoderBool,
-					}.Build(),
-				}.Build(),
+					},
+				},
 			},
 			[]byte{3, 0},
 		},

@@ -126,27 +126,27 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 		return nil, errors.Errorf("unsupported environment %v", urn)
 	case URNEnvExternal:
 		config := extractEnvironmentConfig(ctx)
-		payload := pipepb.ExternalPayload_builder{Endpoint: pipepb.ApiServiceDescriptor_builder{Url: config}.Build()}.Build()
+		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}
 		serializedPayload = protox.MustEncode(payload)
 	case URNEnvDocker:
 		fallthrough
 	default:
 		config := extractEnvironmentConfig(ctx)
-		payload := pipepb.DockerPayload_builder{ContainerImage: config}.Build()
+		payload := &pipepb.DockerPayload{ContainerImage: config}
 		serializedPayload = protox.MustEncode(payload)
 	}
-	return pipepb.Environment_builder{
+	return &pipepb.Environment{
 		Urn:          urn,
 		Payload:      serializedPayload,
 		Capabilities: goCapabilities(),
 		Dependencies: []*pipepb.ArtifactInformation{
-			pipepb.ArtifactInformation_builder{
+			{
 				TypeUrn:     URNArtifactFileType,
 				TypePayload: protox.MustEncode(&pipepb.ArtifactFilePayload{}),
 				RoleUrn:     URNArtifactGoWorkerRole,
-			}.Build(),
+			},
 		},
-	}.Build(), nil
+	}, nil
 }
 
 // TODO(https://github.com/apache/beam/issues/23893): Along with scoped resource hints,
@@ -195,10 +195,10 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 		}
 	}
 
-	p := pipepb.Pipeline_builder{
+	p := &pipepb.Pipeline{
 		Components:   m.build(),
 		Requirements: m.getRequirements(),
-	}.Build()
+	}
 
 	p, err := pipelinex.Normalize(p)
 	if err != nil {
@@ -248,13 +248,13 @@ func newMarshaller(opt *Options) *marshaller {
 }
 
 func (m *marshaller) build() *pipepb.Components {
-	return pipepb.Components_builder{
+	return &pipepb.Components{
 		Transforms:          m.transforms,
 		Pcollections:        m.pcollections,
 		WindowingStrategies: m.windowing,
 		Environments:        m.environments,
 		Coders:              m.coders.Build(),
-	}.Build()
+	}
 }
 
 func (m *marshaller) getRequirements() []string {
@@ -292,13 +292,13 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 
 	metadata := m.opt.GetContextReg().ExtractTransformMetadata(s.Scope.Scope.Context)
 
-	transform := pipepb.PTransform_builder{
+	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
 		Annotations:   metadata.Annotations,
 		// DisplayData: metadata.DisplayData,
-	}.Build()
+	}
 
 	if err := m.updateIfCombineComposite(s, transform); err != nil {
 		return "", errors.Wrapf(err, "failed to add scope tree: %v", s)
@@ -330,14 +330,14 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 	if err != nil {
 		return errors.Wrapf(err, "failed to update PTransform spec: %v", transform)
 	}
-	payload := pipepb.CombinePayload_builder{
-		CombineFn: pipepb.FunctionSpec_builder{
+	payload := &pipepb.CombinePayload{
+		CombineFn: &pipepb.FunctionSpec{
 			Urn:     URNDoFn,
 			Payload: []byte(mustEncodeMultiEdge),
-		}.Build(),
+		},
 		AccumulatorCoderId: acID,
-	}.Build()
-	transform.SetSpec(pipepb.FunctionSpec_builder{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}.Build())
+	}
+	transform.Spec = &pipepb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
 	return nil
 }
 
@@ -414,7 +414,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 	var spec *pipepb.FunctionSpec
 	switch edge.Edge.Op {
 	case graph.Impulse:
-		spec = pipepb.FunctionSpec_builder{Urn: URNImpulse}.Build()
+		spec = &pipepb.FunctionSpec{Urn: URNImpulse}
 
 	case graph.ParDo:
 		si := make(map[string]*pipepb.SideInput)
@@ -432,18 +432,18 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					return nil, err
 				}
 
-				si[fmt.Sprintf("i%v", i)] = pipepb.SideInput_builder{
-					AccessPattern: pipepb.FunctionSpec_builder{
+				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
+					AccessPattern: &pipepb.FunctionSpec{
 						Urn: URNIterableSideInput,
-					}.Build(),
-					ViewFn: pipepb.FunctionSpec_builder{
+					},
+					ViewFn: &pipepb.FunctionSpec{
 						Urn: "foo",
-					}.Build(),
-					WindowMappingFn: pipepb.FunctionSpec_builder{
+					},
+					WindowMappingFn: &pipepb.FunctionSpec{
 						Urn:     mappingUrn,
-						Payload: siWSpec.GetPayload(),
-					}.Build(),
-				}.Build()
+						Payload: siWSpec.Payload,
+					},
+				}
 
 			case graph.Map, graph.MultiMap:
 				// Already in a MultiMap form, don't need to add a fixed key.
@@ -456,18 +456,18 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					return nil, err
 				}
 
-				si[fmt.Sprintf("i%v", i)] = pipepb.SideInput_builder{
-					AccessPattern: pipepb.FunctionSpec_builder{
+				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
+					AccessPattern: &pipepb.FunctionSpec{
 						Urn: URNMultimapSideInput,
-					}.Build(),
-					ViewFn: pipepb.FunctionSpec_builder{
+					},
+					ViewFn: &pipepb.FunctionSpec{
 						Urn: "foo",
-					}.Build(),
-					WindowMappingFn: pipepb.FunctionSpec_builder{
+					},
+					WindowMappingFn: &pipepb.FunctionSpec{
 						Urn:     mappingUrn,
-						Payload: siWSpec.GetPayload(),
-					}.Build(),
-				}.Build()
+						Payload: siWSpec.Payload,
+					},
+				}
 			default:
 				return nil, errors.Errorf("unexpected input kind: %v", edge)
 			}
@@ -478,23 +478,23 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			return handleErr(err)
 		}
 
-		payload := pipepb.ParDoPayload_builder{
-			DoFn: pipepb.FunctionSpec_builder{
+		payload := &pipepb.ParDoPayload{
+			DoFn: &pipepb.FunctionSpec{
 				Urn:     URNDoFn,
 				Payload: []byte(mustEncodeMultiEdge),
-			}.Build(),
+			},
 			SideInputs: si,
-		}.Build()
+		}
 		if edge.Edge.DoFn.IsSplittable() {
 			coderID, err := m.coders.Add(edge.Edge.RestrictionCoder)
 			if err != nil {
 				return handleErr(err)
 			}
-			payload.SetRestrictionCoderId(coderID)
+			payload.RestrictionCoderId = coderID
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
-			payload.SetRequestsFinalization(true)
+			payload.RequestsFinalization = true
 			m.requirements[URNRequiresBundleFinalization] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().StateProvider(); ok {
@@ -520,23 +520,27 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				}
 				switch ps.StateType() {
 				case state.TypeValue:
-					stateSpecs[ps.StateKey()] = pipepb.StateSpec_builder{
-						ReadModifyWriteSpec: pipepb.ReadModifyWriteStateSpec_builder{
-							CoderId: coderID,
-						}.Build(),
-						Protocol: pipepb.FunctionSpec_builder{
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
+							ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
+								CoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
 							Urn: URNBagUserState,
-						}.Build(),
-					}.Build()
+						},
+					}
 				case state.TypeBag:
-					stateSpecs[ps.StateKey()] = pipepb.StateSpec_builder{
-						BagSpec: pipepb.BagStateSpec_builder{
-							ElementCoderId: coderID,
-						}.Build(),
-						Protocol: pipepb.FunctionSpec_builder{
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_BagSpec{
+							BagSpec: &pipepb.BagStateSpec{
+								ElementCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
 							Urn: URNBagUserState,
-						}.Build(),
-					}.Build()
+						},
+					}
 				case state.TypeCombining:
 					cps := ps.(state.CombiningPipelineState).GetCombineFn()
 					f, err := graph.NewFn(cps)
@@ -555,42 +559,48 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					if err != nil {
 						return handleErr(err)
 					}
-					stateSpecs[ps.StateKey()] = pipepb.StateSpec_builder{
-						CombiningSpec: pipepb.CombiningStateSpec_builder{
-							AccumulatorCoderId: coderID,
-							CombineFn: pipepb.FunctionSpec_builder{
-								Urn:     "beam:combinefn:gosdk:v1",
-								Payload: []byte(mustEncodeMultiEdge),
-							}.Build(),
-						}.Build(),
-						Protocol: pipepb.FunctionSpec_builder{
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_CombiningSpec{
+							CombiningSpec: &pipepb.CombiningStateSpec{
+								AccumulatorCoderId: coderID,
+								CombineFn: &pipepb.FunctionSpec{
+									Urn:     "beam:combinefn:gosdk:v1",
+									Payload: []byte(mustEncodeMultiEdge),
+								},
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
 							Urn: URNBagUserState,
-						}.Build(),
-					}.Build()
+						},
+					}
 				case state.TypeMap:
-					stateSpecs[ps.StateKey()] = pipepb.StateSpec_builder{
-						MapSpec: pipepb.MapStateSpec_builder{
-							KeyCoderId:   keyCoderID,
-							ValueCoderId: coderID,
-						}.Build(),
-						Protocol: pipepb.FunctionSpec_builder{
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_MapSpec{
+							MapSpec: &pipepb.MapStateSpec{
+								KeyCoderId:   keyCoderID,
+								ValueCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
 							Urn: URNMultiMapUserState,
-						}.Build(),
-					}.Build()
+						},
+					}
 				case state.TypeSet:
-					stateSpecs[ps.StateKey()] = pipepb.StateSpec_builder{
-						SetSpec: pipepb.SetStateSpec_builder{
-							ElementCoderId: keyCoderID,
-						}.Build(),
-						Protocol: pipepb.FunctionSpec_builder{
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_SetSpec{
+							SetSpec: &pipepb.SetStateSpec{
+								ElementCoderId: keyCoderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
 							Urn: URNMultiMapUserState,
-						}.Build(),
-					}.Build()
+						},
+					}
 				default:
 					return nil, errors.Errorf("State type %v not recognized for state %v", ps.StateKey(), ps)
 				}
 			}
-			payload.SetStateSpecs(stateSpecs)
+			payload.StateSpecs = stateSpecs
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().TimerProvider(); ok {
 			m.requirements[URNRequiresStatefulProcessing] = true
@@ -600,7 +610,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			// All timers for a single DoFn have the same key and window coders, that match the input PCollection.
 			mainInputID := inputs["i0"]
 			pCol := m.pcollections[mainInputID]
-			kvCoder := m.coders.coders[pCol.GetCoderId()]
+			kvCoder := m.coders.coders[pCol.CoderId]
 			if kvCoder.GetSpec().GetUrn() != urnKVCoder {
 				return nil, errors.Errorf("timer using DoFn %v doesn't use a KV as PCollection input. Unable to extract key coder for timers, got %v", edge.Name, kvCoder.GetSpec().GetUrn())
 			}
@@ -614,15 +624,15 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 
 			for _, pt := range pipelineTimers {
 				for timerFamilyID, timeDomain := range pt.Timers() {
-					timerSpecs[timerFamilyID] = pipepb.TimerFamilySpec_builder{
+					timerSpecs[timerFamilyID] = &pipepb.TimerFamilySpec{
 						TimeDomain:         pipepb.TimeDomain_Enum(timeDomain),
 						TimerFamilyCoderId: timerCoderID,
-					}.Build()
+					}
 				}
 			}
-			payload.SetTimerFamilySpecs(timerSpecs)
+			payload.TimerFamilySpecs = timerSpecs
 		}
-		spec = pipepb.FunctionSpec_builder{Urn: URNParDo, Payload: protox.MustEncode(payload)}.Build()
+		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
 
 	case graph.Combine:
@@ -630,33 +640,33 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		payload := pipepb.ParDoPayload_builder{
-			DoFn: pipepb.FunctionSpec_builder{
+		payload := &pipepb.ParDoPayload{
+			DoFn: &pipepb.FunctionSpec{
 				Urn:     URNDoFn,
 				Payload: []byte(mustEncodeMultiEdge),
-			}.Build(),
-		}.Build()
-		spec = pipepb.FunctionSpec_builder{Urn: URNParDo, Payload: protox.MustEncode(payload)}.Build()
+			},
+		}
+		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
-		spec = pipepb.FunctionSpec_builder{Urn: URNFlatten}.Build()
+		spec = &pipepb.FunctionSpec{Urn: URNFlatten}
 
 	case graph.CoGBK:
-		spec = pipepb.FunctionSpec_builder{Urn: URNGBK}.Build()
+		spec = &pipepb.FunctionSpec{Urn: URNGBK}
 
 	case graph.WindowInto:
 		windowFn, err := makeWindowFn(edge.Edge.WindowFn)
 		if err != nil {
 			return handleErr(err)
 		}
-		payload := pipepb.WindowIntoPayload_builder{
+		payload := &pipepb.WindowIntoPayload{
 			WindowFn: windowFn,
-		}.Build()
-		spec = pipepb.FunctionSpec_builder{Urn: URNWindow, Payload: protox.MustEncode(payload)}.Build()
+		}
+		spec = &pipepb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
 
 	case graph.External:
 		pyld := edge.Edge.Payload
-		spec = pipepb.FunctionSpec_builder{Urn: pyld.URN, Payload: pyld.Data}.Build()
+		spec = &pipepb.FunctionSpec{Urn: pyld.URN, Payload: pyld.Data}
 
 		if len(pyld.InputsMap) != 0 {
 			if got, want := len(pyld.InputsMap), len(edge.Edge.Input); got != want {
@@ -690,18 +700,18 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 	}
 
 	var transformEnvID = ""
-	if !(spec.GetUrn() == URNGBK || spec.GetUrn() == URNImpulse) {
+	if !(spec.Urn == URNGBK || spec.Urn == URNImpulse) {
 		transformEnvID = m.addDefaultEnv()
 	}
 
-	transform := pipepb.PTransform_builder{
+	transform := &pipepb.PTransform{
 		UniqueName:    edge.Name,
 		Spec:          spec,
 		Inputs:        inputs,
 		Outputs:       outputs,
 		EnvironmentId: transformEnvID,
 		Annotations:   annotations,
-	}.Build()
+	}
 	m.transforms[id] = transform
 	allPIds = append(allPIds, id)
 	return allPIds, nil
@@ -724,22 +734,22 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 		inputs[tag] = nodeID(n)
 	}
 
-	spec := pipepb.FunctionSpec_builder{
+	spec := &pipepb.FunctionSpec{
 		Urn:     edge.External.Urn,
 		Payload: edge.External.Payload,
-	}.Build()
+	}
 
-	transform := pipepb.PTransform_builder{
+	transform := &pipepb.PTransform{
 		UniqueName:    namedEdge.Name,
 		Spec:          spec,
 		Inputs:        inputs,
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 
 	// Add the coders for output in the marshaller even if expanded is nil
 	// for output coder field in expansion request.
 	// We need this specifically for Python External Transforms.
-	names := strings.Split(spec.GetUrn(), ":")
+	names := strings.Split(spec.Urn, ":")
 	if len(names) > 2 && names[2] == "python" {
 		for _, out := range edge.Output {
 			id, err := m.coders.Add(out.To.Coder)
@@ -761,12 +771,12 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 			}
 			outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 		}
-		transform.SetOutputs(outputs)
+		transform.Outputs = outputs
 		environment, err := ExpandedTransform(edge.External.Expanded)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to expand cross language transform for edge: %v", namedEdge)
 		}
-		transform.SetEnvironmentId(environment.GetEnvironmentId())
+		transform.EnvironmentId = environment.EnvironmentId
 	}
 
 	m.transforms[id] = transform
@@ -815,25 +825,25 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 		// Inject(i)
 
 		injectID := fmt.Sprintf("%v_inject%v", id, i)
-		payload := pipepb.ParDoPayload_builder{
-			DoFn: pipepb.FunctionSpec_builder{
+		payload := &pipepb.ParDoPayload{
+			DoFn: &pipepb.FunctionSpec{
 				Urn: URNInject,
 				Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 					Urn:    URNInject,
 					Inject: &v1pb.InjectPayload{N: (int32)(i)},
 				})),
-			}.Build(),
-		}.Build()
-		inject := pipepb.PTransform_builder{
+			},
+		}
+		inject := &pipepb.PTransform{
 			UniqueName: injectID,
-			Spec: pipepb.FunctionSpec_builder{
+			Spec: &pipepb.FunctionSpec{
 				Urn:     URNParDo,
 				Payload: protox.MustEncode(payload),
-			}.Build(),
+			},
 			Inputs:        map[string]string{"i0": nodeID(in.From)},
 			Outputs:       map[string]string{"i0": out},
 			EnvironmentId: m.addDefaultEnv(),
-		}.Build()
+		}
 		m.transforms[injectID] = inject
 		subtransforms = append(subtransforms, injectID)
 
@@ -850,13 +860,13 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 	}
 
 	flattenID := fmt.Sprintf("%v_flatten", id)
-	flatten := pipepb.PTransform_builder{
+	flatten := &pipepb.PTransform{
 		UniqueName:    flattenID,
-		Spec:          pipepb.FunctionSpec_builder{Urn: URNFlatten}.Build(),
+		Spec:          &pipepb.FunctionSpec{Urn: URNFlatten},
 		Inputs:        inputs,
 		Outputs:       map[string]string{"i0": out},
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 	m.transforms[flattenID] = flatten
 	subtransforms = append(subtransforms, flattenID)
 
@@ -868,12 +878,12 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 	}
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
-	gbk := pipepb.PTransform_builder{
+	gbk := &pipepb.PTransform{
 		UniqueName: gbkID,
-		Spec:       pipepb.FunctionSpec_builder{Urn: URNGBK}.Build(),
+		Spec:       &pipepb.FunctionSpec{Urn: URNGBK},
 		Inputs:     map[string]string{"i0": out},
 		Outputs:    map[string]string{"i0": gbkOut},
-	}.Build()
+	}
 	m.transforms[gbkID] = gbk
 	subtransforms = append(subtransforms, gbkID)
 
@@ -884,35 +894,35 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 	}
 
 	expandID := fmt.Sprintf("%v_expand", id)
-	payload := pipepb.ParDoPayload_builder{
-		DoFn: pipepb.FunctionSpec_builder{
+	payload := &pipepb.ParDoPayload{
+		DoFn: &pipepb.FunctionSpec{
 			Urn: URNExpand,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNExpand,
 			})),
-		}.Build(),
-	}.Build()
-	expand := pipepb.PTransform_builder{
+		},
+	}
+	expand := &pipepb.PTransform{
 		UniqueName: expandID,
-		Spec: pipepb.FunctionSpec_builder{
+		Spec: &pipepb.FunctionSpec{
 			Urn:     URNParDo,
 			Payload: protox.MustEncode(payload),
-		}.Build(),
+		},
 		Inputs:        map[string]string{"i0": gbkOut},
 		Outputs:       map[string]string{"i0": nodeID(outNode)},
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 	m.transforms[id] = expand
 	subtransforms = append(subtransforms, id)
 
 	// Add composite for visualization
 
 	cogbkID := fmt.Sprintf("%v_cogbk", id)
-	m.transforms[cogbkID] = pipepb.PTransform_builder{
+	m.transforms[cogbkID] = &pipepb.PTransform{
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 	return cogbkID, nil
 }
 
@@ -992,14 +1002,16 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		m.pcollections[postReify].SetWindowingStrategyId(
-			m.internWindowingStrategy(pipepb.WindowingStrategy_builder{
+		m.pcollections[postReify].WindowingStrategyId =
+			m.internWindowingStrategy(&pipepb.WindowingStrategy{
 				// Not segregated by time...
 				WindowFn: windowFn,
 				// ...output after every element is received...
-				Trigger: pipepb.Trigger_builder{
-					Always: &pipepb.Trigger_Always{},
-				}.Build(),
+				Trigger: &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Always_{
+						Always: &pipepb.Trigger_Always{},
+					},
+				},
 				// ...and after outputing, discard the output elements...
 				AccumulationMode: pipepb.AccumulationMode_DISCARDING,
 				// ...and since every pane should have 1 element,
@@ -1013,14 +1025,14 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 				ClosingBehavior: pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
 				AllowedLateness: int64(in.From.WindowingStrategy().AllowedLateness),
 				OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
-			}.Build()))
+			})
 	}
 
 	// Inputs (i)
 
 	inputID := fmt.Sprintf("%v_reifyts", id)
-	payload := pipepb.ParDoPayload_builder{
-		DoFn: pipepb.FunctionSpec_builder{
+	payload := &pipepb.ParDoPayload{
+		DoFn: &pipepb.FunctionSpec{
 			Urn: URNReshuffleInput,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
@@ -1029,18 +1041,18 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 					CoderPayloads: coderPayloads,
 				},
 			})),
-		}.Build(),
-	}.Build()
-	input := pipepb.PTransform_builder{
+		},
+	}
+	input := &pipepb.PTransform{
 		UniqueName: inputID,
-		Spec: pipepb.FunctionSpec_builder{
+		Spec: &pipepb.FunctionSpec{
 			Urn:     URNParDo,
 			Payload: protox.MustEncode(payload),
-		}.Build(),
+		},
 		Inputs:        map[string]string{"i0": nodeID(in.From)},
 		Outputs:       map[string]string{"i0": postReify},
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 	m.transforms[inputID] = input
 	subtransforms = append(subtransforms, inputID)
 
@@ -1054,12 +1066,12 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	}
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
-	gbk := pipepb.PTransform_builder{
+	gbk := &pipepb.PTransform{
 		UniqueName: gbkID,
-		Spec:       pipepb.FunctionSpec_builder{Urn: URNGBK}.Build(),
+		Spec:       &pipepb.FunctionSpec{Urn: URNGBK},
 		Inputs:     map[string]string{"i0": postReify},
 		Outputs:    map[string]string{"i0": gbkOut},
-	}.Build()
+	}
 	m.transforms[gbkID] = gbk
 	subtransforms = append(subtransforms, gbkID)
 
@@ -1069,11 +1081,11 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	if err != nil {
 		return handleErr(err)
 	}
-	m.pcollections[outPCol].SetWindowingStrategyId(preservedWSID)
+	m.pcollections[outPCol].WindowingStrategyId = preservedWSID
 
 	outputID := fmt.Sprintf("%v_unreify", id)
-	outputPayload := pipepb.ParDoPayload_builder{
-		DoFn: pipepb.FunctionSpec_builder{
+	outputPayload := &pipepb.ParDoPayload{
+		DoFn: &pipepb.FunctionSpec{
 			Urn: URNReshuffleOutput,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
@@ -1082,31 +1094,31 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 					CoderPayloads: coderPayloads,
 				},
 			})),
-		}.Build(),
-	}.Build()
-	output := pipepb.PTransform_builder{
+		},
+	}
+	output := &pipepb.PTransform{
 		UniqueName: outputID,
-		Spec: pipepb.FunctionSpec_builder{
+		Spec: &pipepb.FunctionSpec{
 			Urn:     URNParDo,
 			Payload: protox.MustEncode(outputPayload),
-		}.Build(),
+		},
 		Inputs:        map[string]string{"i0": gbkOut},
 		Outputs:       map[string]string{"i0": nodeID(outNode)},
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 	m.transforms[id] = output
 	subtransforms = append(subtransforms, id)
 
 	// Add composite for visualization, or runner optimization
 	reshuffleID := fmt.Sprintf("%v_reshuffle", id)
-	m.transforms[reshuffleID] = pipepb.PTransform_builder{
+	m.transforms[reshuffleID] = &pipepb.PTransform{
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
-		Spec: pipepb.FunctionSpec_builder{
+		Spec: &pipepb.FunctionSpec{
 			Urn: URNReshuffle,
-		}.Build(),
+		},
 		EnvironmentId: m.addDefaultEnv(),
-	}.Build()
+	}
 	return reshuffleID, nil
 }
 
@@ -1152,12 +1164,12 @@ func (m *marshaller) makeNode(id, cid string, n *graph.Node) (string, error) {
 		return "", errors.Wrapf(err, "failed to make node %v with node id %v", n, id)
 	}
 
-	col := pipepb.PCollection_builder{
+	col := &pipepb.PCollection{
 		UniqueName:          id,
 		CoderId:             cid,
 		IsBounded:           boolToBounded(n.Bounded()),
 		WindowingStrategyId: windowingStrategyId,
-	}.Build()
+	}
 	m.pcollections[id] = col
 	return id, nil
 }
@@ -1182,7 +1194,7 @@ func (m *marshaller) addDefaultEnv() string {
 		// Add the pipeline level resource hints here for now.
 		// TODO(https://github.com/apache/beam/issues/23893) move to a better place for
 		// scoped hints in next pass, which affect number of environments set by Go pipelines.
-		env.SetResourceHints(m.opt.PipelineResourceHints.Payloads())
+		env.ResourceHints = m.opt.PipelineResourceHints.Payloads()
 		m.environments[defaultEnvId] = env
 	}
 	return defaultEnvId
@@ -1193,7 +1205,7 @@ func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, 
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to add window strategy %v", w)
 	}
-	ws.SetEnvironmentId(m.addDefaultEnv())
+	ws.EnvironmentId = m.addDefaultEnv()
 	return m.internWindowingStrategy(ws), nil
 }
 
@@ -1231,7 +1243,7 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 		mergeStat = pipepb.MergeStatus_NON_MERGING
 	}
 
-	ws := pipepb.WindowingStrategy_builder{
+	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
 		MergeStatus:      mergeStat,
 		WindowCoderId:    windowCoderID,
@@ -1241,7 +1253,7 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
 		AllowedLateness:  int64(w.AllowedLateness),
 		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY,
-	}.Build()
+	}
 	return ws, nil
 }
 
@@ -1263,25 +1275,33 @@ func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enu
 func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 	switch t := t.(type) {
 	case *trigger.DefaultTrigger:
-		return pipepb.Trigger_builder{
-			Default: &pipepb.Trigger_Default{},
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Default_{
+				Default: &pipepb.Trigger_Default{},
+			},
+		}
 	case *trigger.AlwaysTrigger:
-		return pipepb.Trigger_builder{
-			Always: &pipepb.Trigger_Always{},
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Always_{
+				Always: &pipepb.Trigger_Always{},
+			},
+		}
 	case *trigger.AfterAnyTrigger:
-		return pipepb.Trigger_builder{
-			AfterAny: pipepb.Trigger_AfterAny_builder{
-				Subtriggers: extractSubtriggers(t.SubTriggers()),
-			}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterAny_{
+				AfterAny: &pipepb.Trigger_AfterAny{
+					Subtriggers: extractSubtriggers(t.SubTriggers()),
+				},
+			},
+		}
 	case *trigger.AfterAllTrigger:
-		return pipepb.Trigger_builder{
-			AfterAll: pipepb.Trigger_AfterAll_builder{
-				Subtriggers: extractSubtriggers(t.SubTriggers()),
-			}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterAll_{
+				AfterAll: &pipepb.Trigger_AfterAll{
+					Subtriggers: extractSubtriggers(t.SubTriggers()),
+				},
+			},
+		}
 	case *trigger.AfterProcessingTimeTrigger:
 		if len(t.TimestampTransforms()) == 0 {
 			panic("AfterProcessingTime trigger set without a delay or alignment.")
@@ -1291,66 +1311,88 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 			var ttp *pipepb.TimestampTransform
 			switch tt := tt.(type) {
 			case trigger.DelayTransform:
-				ttp = pipepb.TimestampTransform_builder{
-					Delay: pipepb.TimestampTransform_Delay_builder{DelayMillis: tt.Delay}.Build()}.Build()
+				ttp = &pipepb.TimestampTransform{
+					TimestampTransform: &pipepb.TimestampTransform_Delay_{
+						Delay: &pipepb.TimestampTransform_Delay{DelayMillis: tt.Delay},
+					}}
 			case trigger.AlignToTransform:
-				ttp = pipepb.TimestampTransform_builder{
-					AlignTo: pipepb.TimestampTransform_AlignTo_builder{
-						Period: tt.Period,
-						Offset: tt.Offset,
-					}.Build()}.Build()
+				ttp = &pipepb.TimestampTransform{
+					TimestampTransform: &pipepb.TimestampTransform_AlignTo_{
+						AlignTo: &pipepb.TimestampTransform_AlignTo{
+							Period: tt.Period,
+							Offset: tt.Offset,
+						},
+					}}
 			}
 			tts = append(tts, ttp)
 		}
-		return pipepb.Trigger_builder{
-			AfterProcessingTime: pipepb.Trigger_AfterProcessingTime_builder{
-				TimestampTransforms: tts,
-			}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterProcessingTime_{
+				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{
+					TimestampTransforms: tts,
+				},
+			},
+		}
 	case *trigger.AfterCountTrigger:
-		return pipepb.Trigger_builder{
-			ElementCount: pipepb.Trigger_ElementCount_builder{ElementCount: t.ElementCount()}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_ElementCount_{
+				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount()},
+			},
+		}
 	case *trigger.AfterEndOfWindowTrigger:
 		var lateTrigger *pipepb.Trigger
 		if t.Late() != nil {
 			lateTrigger = makeTrigger(t.Late())
 		}
-		return pipepb.Trigger_builder{
-			AfterEndOfWindow: pipepb.Trigger_AfterEndOfWindow_builder{
-				EarlyFirings: makeTrigger(t.Early()),
-				LateFirings:  lateTrigger,
-			}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
+				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
+					EarlyFirings: makeTrigger(t.Early()),
+					LateFirings:  lateTrigger,
+				},
+			},
+		}
 	case *trigger.RepeatTrigger:
-		return pipepb.Trigger_builder{
-			Repeat: pipepb.Trigger_Repeat_builder{Subtrigger: makeTrigger(t.SubTrigger())}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Repeat_{
+				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTrigger())},
+			},
+		}
 	case *trigger.NeverTrigger:
-		return pipepb.Trigger_builder{
-			Never: &pipepb.Trigger_Never{},
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Never_{
+				Never: &pipepb.Trigger_Never{},
+			},
+		}
 	case *trigger.AfterSynchronizedProcessingTimeTrigger:
-		return pipepb.Trigger_builder{
-			AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
+				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
+			},
+		}
 	case *trigger.OrFinallyTrigger:
-		return pipepb.Trigger_builder{
-			OrFinally: pipepb.Trigger_OrFinally_builder{
-				Main:    makeTrigger(t.Main()),
-				Finally: makeTrigger(t.Finally()),
-			}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_OrFinally_{
+				OrFinally: &pipepb.Trigger_OrFinally{
+					Main:    makeTrigger(t.Main()),
+					Finally: makeTrigger(t.Finally()),
+				},
+			},
+		}
 	case *trigger.AfterEachTrigger:
-		return pipepb.Trigger_builder{
-			AfterEach: pipepb.Trigger_AfterEach_builder{
-				Subtriggers: extractSubtriggers(t.Subtriggers()),
-			}.Build(),
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEach_{
+				AfterEach: &pipepb.Trigger_AfterEach{
+					Subtriggers: extractSubtriggers(t.Subtriggers()),
+				},
+			},
+		}
 	default:
-		return pipepb.Trigger_builder{
-			Default: &pipepb.Trigger_Default{},
-		}.Build()
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Default_{
+				Default: &pipepb.Trigger_Default{},
+			},
+		}
 	}
 }
 
@@ -1369,37 +1411,37 @@ func extractSubtriggers(t []trigger.Trigger) []*pipepb.Trigger {
 func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: URNGlobalWindowsWindowFn,
-		}.Build(), nil
+		}, nil
 	case window.FixedWindows:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: URNFixedWindowsWindowFn,
 			Payload: protox.MustEncode(
-				pipepb.FixedWindowsPayload_builder{
+				&pipepb.FixedWindowsPayload{
 					Size: durationpb.New(w.Size),
-				}.Build(),
+				},
 			),
-		}.Build(), nil
+		}, nil
 	case window.SlidingWindows:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: URNSlidingWindowsWindowFn,
 			Payload: protox.MustEncode(
-				pipepb.SlidingWindowsPayload_builder{
+				&pipepb.SlidingWindowsPayload{
 					Size:   durationpb.New(w.Size),
 					Period: durationpb.New(w.Period),
-				}.Build(),
+				},
 			),
-		}.Build(), nil
+		}, nil
 	case window.Sessions:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: URNSessionsWindowFn,
 			Payload: protox.MustEncode(
-				pipepb.SessionWindowsPayload_builder{
+				&pipepb.SessionWindowsPayload{
 					GapSize: durationpb.New(w.Gap),
-				}.Build(),
+				},
 			),
-		}.Build(), nil
+		}, nil
 	default:
 		return nil, errors.Errorf("unexpected windowing strategy: %v", w)
 	}
@@ -1449,11 +1491,11 @@ func UpdateDefaultEnvWorkerType(typeUrn string, pyld []byte, p *pipepb.Pipeline)
 		return errors.Errorf("unable to find default Go environment with ID %q", defaultEnvId)
 	}
 	for _, dep := range env.GetDependencies() {
-		if dep.GetRoleUrn() != URNArtifactGoWorkerRole {
+		if dep.RoleUrn != URNArtifactGoWorkerRole {
 			continue
 		}
-		dep.SetTypeUrn(typeUrn)
-		dep.SetTypePayload(pyld)
+		dep.TypeUrn = typeUrn
+		dep.TypePayload = pyld
 		return nil
 	}
 	return errors.Errorf("unable to find dependency with %q role in environment with ID %q,", URNArtifactGoWorkerRole, defaultEnvId)

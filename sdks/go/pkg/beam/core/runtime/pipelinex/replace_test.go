@@ -33,130 +33,130 @@ func TestEnsureUniqueName(t *testing.T) {
 		{
 			name: "AlreadyUnique",
 			in: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "b"}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "c"}.Build(),
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "b"},
+				"3": {UniqueName: "c"},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "b"}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "c"}.Build(),
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "b"},
+				"3": {UniqueName: "c"},
 			},
 		},
 		{
 			name: "NeedsUniqueLeaves",
 			in: map[string]*pipepb.PTransform{
-				"2": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
+				"2": {UniqueName: "a"},
+				"1": {UniqueName: "a"},
+				"3": {UniqueName: "a"},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "a'1"}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "a'2"}.Build(),
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
 			},
 		},
 		{
 			name: "StripUniqueLeaves",
 			in: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "a'1"}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "a'2"}.Build(),
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "a'1"}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "a'2"}.Build(),
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
 			},
 		},
 		{
 			name: "NonTopologicalIdOrder",
 			in: map[string]*pipepb.PTransform{
-				"e1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"s1": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e1"}}.Build(),
-				"s2": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s1"}}.Build(),
-				"s3": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s2"}}.Build(), // root
+				"e1": {UniqueName: "a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a", Subtransforms: []string{"s1"}},
+				"s3": {UniqueName: "a", Subtransforms: []string{"s2"}}, // root
 			},
 			exp: map[string]*pipepb.PTransform{
-				"e1": pipepb.PTransform_builder{UniqueName: "a/a/a/a"}.Build(),
-				"s1": pipepb.PTransform_builder{UniqueName: "a/a/a", Subtransforms: []string{"e1"}}.Build(),
-				"s2": pipepb.PTransform_builder{UniqueName: "a/a", Subtransforms: []string{"s1"}}.Build(),
-				"s3": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s2"}}.Build(), // root
+				"e1": {UniqueName: "a/a/a/a"},
+				"s1": {UniqueName: "a/a/a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a/a", Subtransforms: []string{"s1"}},
+				"s3": {UniqueName: "a", Subtransforms: []string{"s2"}}, // root
 			},
 		},
 		{
 			name: "UniqueComps",
 			in: map[string]*pipepb.PTransform{
-				"e1": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e2": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"s1": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e1"}}.Build(),
-				"s2": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e2"}}.Build(),
+				"e1": {UniqueName: "a"},
+				"e2": {UniqueName: "a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a", Subtransforms: []string{"e2"}},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"e1": pipepb.PTransform_builder{UniqueName: "a/a"}.Build(),
-				"e2": pipepb.PTransform_builder{UniqueName: "a'1/a"}.Build(),
-				"s1": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e1"}}.Build(),
-				"s2": pipepb.PTransform_builder{UniqueName: "a'1", Subtransforms: []string{"e2"}}.Build(),
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
 			},
 		},
 		{
 			name: "StripComps",
 			in: map[string]*pipepb.PTransform{
-				"e1": pipepb.PTransform_builder{UniqueName: "a/a"}.Build(),
-				"e2": pipepb.PTransform_builder{UniqueName: "a'1/a"}.Build(),
-				"s1": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e1"}}.Build(),
-				"s2": pipepb.PTransform_builder{UniqueName: "a'1", Subtransforms: []string{"e2"}}.Build(),
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"e1": pipepb.PTransform_builder{UniqueName: "a/a"}.Build(),
-				"e2": pipepb.PTransform_builder{UniqueName: "a'1/a"}.Build(),
-				"s1": pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e1"}}.Build(),
-				"s2": pipepb.PTransform_builder{UniqueName: "a'1", Subtransforms: []string{"e2"}}.Build(),
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
 			},
 		},
 		{
 			name: "large",
 			in: map[string]*pipepb.PTransform{
-				"e1":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e2":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e3":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e4":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e5":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e6":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e7":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e8":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e9":  pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e10": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e11": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"e12": pipepb.PTransform_builder{UniqueName: "a"}.Build(),
-				"s1":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s2", "s3"}}.Build(),
-				"s2":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s4", "s5"}}.Build(),
-				"s3":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s6", "s7"}}.Build(),
-				"s4":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e1"}}.Build(),
-				"s5":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e2", "e3"}}.Build(),
-				"s6":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e4", "e5", "e6"}}.Build(),
-				"s7":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}}.Build(),
+				"e1":  {UniqueName: "a"},
+				"e2":  {UniqueName: "a"},
+				"e3":  {UniqueName: "a"},
+				"e4":  {UniqueName: "a"},
+				"e5":  {UniqueName: "a"},
+				"e6":  {UniqueName: "a"},
+				"e7":  {UniqueName: "a"},
+				"e8":  {UniqueName: "a"},
+				"e9":  {UniqueName: "a"},
+				"e10": {UniqueName: "a"},
+				"e11": {UniqueName: "a"},
+				"e12": {UniqueName: "a"},
+				"s1":  {UniqueName: "a", Subtransforms: []string{"s2", "s3"}},
+				"s2":  {UniqueName: "a", Subtransforms: []string{"s4", "s5"}},
+				"s3":  {UniqueName: "a", Subtransforms: []string{"s6", "s7"}},
+				"s4":  {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s5":  {UniqueName: "a", Subtransforms: []string{"e2", "e3"}},
+				"s6":  {UniqueName: "a", Subtransforms: []string{"e4", "e5", "e6"}},
+				"s7":  {UniqueName: "a", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"e1":  pipepb.PTransform_builder{UniqueName: "a/a/a/a"}.Build(),
-				"e2":  pipepb.PTransform_builder{UniqueName: "a/a/a'1/a"}.Build(),
-				"e3":  pipepb.PTransform_builder{UniqueName: "a/a/a'1/a'1"}.Build(),
-				"e4":  pipepb.PTransform_builder{UniqueName: "a/a'1/a/a"}.Build(),
-				"e5":  pipepb.PTransform_builder{UniqueName: "a/a'1/a/a'1"}.Build(),
-				"e6":  pipepb.PTransform_builder{UniqueName: "a/a'1/a/a'2"}.Build(),
-				"e7":  pipepb.PTransform_builder{UniqueName: "a/a'1/a'1/a"}.Build(),
-				"e8":  pipepb.PTransform_builder{UniqueName: "a/a'1/a'1/a'1"}.Build(),
-				"e9":  pipepb.PTransform_builder{UniqueName: "a/a'1/a'1/a'2"}.Build(),
-				"e10": pipepb.PTransform_builder{UniqueName: "a/a'1/a'1/a'3"}.Build(),
-				"e11": pipepb.PTransform_builder{UniqueName: "a/a'1/a'1/a'4"}.Build(),
-				"e12": pipepb.PTransform_builder{UniqueName: "a/a'1/a'1/a'5"}.Build(),
-				"s1":  pipepb.PTransform_builder{UniqueName: "a", Subtransforms: []string{"s2", "s3"}}.Build(),
-				"s2":  pipepb.PTransform_builder{UniqueName: "a/a", Subtransforms: []string{"s4", "s5"}}.Build(),
-				"s3":  pipepb.PTransform_builder{UniqueName: "a/a'1", Subtransforms: []string{"s6", "s7"}}.Build(),
-				"s4":  pipepb.PTransform_builder{UniqueName: "a/a/a", Subtransforms: []string{"e1"}}.Build(),
-				"s5":  pipepb.PTransform_builder{UniqueName: "a/a/a'1", Subtransforms: []string{"e2", "e3"}}.Build(),
-				"s6":  pipepb.PTransform_builder{UniqueName: "a/a'1/a", Subtransforms: []string{"e4", "e5", "e6"}}.Build(),
-				"s7":  pipepb.PTransform_builder{UniqueName: "a/a'1/a'1", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}}.Build(),
+				"e1":  {UniqueName: "a/a/a/a"},
+				"e2":  {UniqueName: "a/a/a'1/a"},
+				"e3":  {UniqueName: "a/a/a'1/a'1"},
+				"e4":  {UniqueName: "a/a'1/a/a"},
+				"e5":  {UniqueName: "a/a'1/a/a'1"},
+				"e6":  {UniqueName: "a/a'1/a/a'2"},
+				"e7":  {UniqueName: "a/a'1/a'1/a"},
+				"e8":  {UniqueName: "a/a'1/a'1/a'1"},
+				"e9":  {UniqueName: "a/a'1/a'1/a'2"},
+				"e10": {UniqueName: "a/a'1/a'1/a'3"},
+				"e11": {UniqueName: "a/a'1/a'1/a'4"},
+				"e12": {UniqueName: "a/a'1/a'1/a'5"},
+				"s1":  {UniqueName: "a", Subtransforms: []string{"s2", "s3"}},
+				"s2":  {UniqueName: "a/a", Subtransforms: []string{"s4", "s5"}},
+				"s3":  {UniqueName: "a/a'1", Subtransforms: []string{"s6", "s7"}},
+				"s4":  {UniqueName: "a/a/a", Subtransforms: []string{"e1"}},
+				"s5":  {UniqueName: "a/a/a'1", Subtransforms: []string{"e2", "e3"}},
+				"s6":  {UniqueName: "a/a'1/a", Subtransforms: []string{"e4", "e5", "e6"}},
+				"s7":  {UniqueName: "a/a'1/a'1", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}},
 			},
 		},
 	}
@@ -179,124 +179,124 @@ func TestComputeInputOutput(t *testing.T) {
 		{
 			name: "singleton composite",
 			in: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{
+				},
+				"2": {
 					UniqueName: "b",
 					Inputs:     map[string]string{"i0": "p1"},
 					Outputs:    map[string]string{"i0": "p2"},
-				}.Build(),
+				},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2"},
 					Inputs:        map[string]string{"p1": "p1"},
 					Outputs:       map[string]string{"p2": "p2"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{
+				},
+				"2": {
 					UniqueName: "b",
 					Inputs:     map[string]string{"i0": "p1"},
 					Outputs:    map[string]string{"i0": "p2"},
-				}.Build(),
+				},
 			},
 		},
 		{
 			name: "closed composite",
 			in: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2", "3"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "b", Outputs: map[string]string{"i0": "p1"}}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "c", Inputs: map[string]string{"i0": "p1"}}.Build(),
+				},
+				"2": {UniqueName: "b", Outputs: map[string]string{"i0": "p1"}},
+				"3": {UniqueName: "c", Inputs: map[string]string{"i0": "p1"}},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2", "3"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{UniqueName: "b", Outputs: map[string]string{"i0": "p1"}}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "c", Inputs: map[string]string{"i0": "p1"}}.Build(),
+				},
+				"2": {UniqueName: "b", Outputs: map[string]string{"i0": "p1"}},
+				"3": {UniqueName: "c", Inputs: map[string]string{"i0": "p1"}},
 			},
 		},
 		{
 			name: "nested composites",
 			in: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{
+				},
+				"2": {
 					UniqueName:    "b",
 					Subtransforms: []string{"3", "7", "8"},
-				}.Build(),
-				"3": pipepb.PTransform_builder{
+				},
+				"3": {
 					UniqueName:    "c",
 					Subtransforms: []string{"4", "5", "6"},
-				}.Build(),
-				"4": pipepb.PTransform_builder{UniqueName: "d", Inputs: map[string]string{"i0": "p1"}, Outputs: map[string]string{"i0": "p2"}}.Build(),
-				"5": pipepb.PTransform_builder{UniqueName: "e", Inputs: map[string]string{"i0": "p2"}, Outputs: map[string]string{"i0": "p3", "i1": "p4"}}.Build(),
-				"6": pipepb.PTransform_builder{UniqueName: "f", Inputs: map[string]string{"i0": "p2", "i1": "p5"}, Outputs: map[string]string{"i0": "p6"}}.Build(),
-				"7": pipepb.PTransform_builder{UniqueName: "g", Inputs: map[string]string{"i0": "p4", "i1": "p6", "i2": "p8"}, Outputs: map[string]string{"i0": "p7"}}.Build(),
-				"8": pipepb.PTransform_builder{UniqueName: "h", Inputs: map[string]string{"i0": "p7"}}.Build(),
+				},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}, Outputs: map[string]string{"i0": "p2"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p2"}, Outputs: map[string]string{"i0": "p3", "i1": "p4"}},
+				"6": {UniqueName: "f", Inputs: map[string]string{"i0": "p2", "i1": "p5"}, Outputs: map[string]string{"i0": "p6"}},
+				"7": {UniqueName: "g", Inputs: map[string]string{"i0": "p4", "i1": "p6", "i2": "p8"}, Outputs: map[string]string{"i0": "p7"}},
+				"8": {UniqueName: "h", Inputs: map[string]string{"i0": "p7"}},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2"},
 					Inputs:        map[string]string{"p1": "p1", "p5": "p5", "p8": "p8"},
 					Outputs:       map[string]string{"p3": "p3"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{
+				},
+				"2": {
 					UniqueName:    "b",
 					Subtransforms: []string{"3", "7", "8"},
 					Inputs:        map[string]string{"p1": "p1", "p5": "p5", "p8": "p8"},
 					Outputs:       map[string]string{"p3": "p3"},
-				}.Build(),
-				"3": pipepb.PTransform_builder{
+				},
+				"3": {
 					UniqueName:    "c",
 					Subtransforms: []string{"4", "6", "5"}, // topologically sorted.
 					Inputs:        map[string]string{"p1": "p1", "p5": "p5"},
 					Outputs:       map[string]string{"p4": "p4", "p6": "p6", "p3": "p3"},
-				}.Build(),
-				"4": pipepb.PTransform_builder{UniqueName: "d", Inputs: map[string]string{"i0": "p1"}, Outputs: map[string]string{"i0": "p2"}}.Build(),
-				"5": pipepb.PTransform_builder{UniqueName: "e", Inputs: map[string]string{"i0": "p2"}, Outputs: map[string]string{"i0": "p3", "i1": "p4"}}.Build(),
-				"6": pipepb.PTransform_builder{UniqueName: "f", Inputs: map[string]string{"i0": "p2", "i1": "p5"}, Outputs: map[string]string{"i0": "p6"}}.Build(),
-				"7": pipepb.PTransform_builder{UniqueName: "g", Inputs: map[string]string{"i0": "p4", "i1": "p6", "i2": "p8"}, Outputs: map[string]string{"i0": "p7"}}.Build(),
-				"8": pipepb.PTransform_builder{UniqueName: "h", Inputs: map[string]string{"i0": "p7"}}.Build(),
+				},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}, Outputs: map[string]string{"i0": "p2"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p2"}, Outputs: map[string]string{"i0": "p3", "i1": "p4"}},
+				"6": {UniqueName: "f", Inputs: map[string]string{"i0": "p2", "i1": "p5"}, Outputs: map[string]string{"i0": "p6"}},
+				"7": {UniqueName: "g", Inputs: map[string]string{"i0": "p4", "i1": "p6", "i2": "p8"}, Outputs: map[string]string{"i0": "p7"}},
+				"8": {UniqueName: "h", Inputs: map[string]string{"i0": "p7"}},
 			},
 		}, {
 			name: "sibling composite",
 			in: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"3", "4"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{
+				},
+				"2": {
 					UniqueName:    "b",
 					Subtransforms: []string{"5"},
-				}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "c", Outputs: map[string]string{"i0": "p1"}}.Build(),
-				"4": pipepb.PTransform_builder{UniqueName: "d", Inputs: map[string]string{"i0": "p1"}}.Build(),
-				"5": pipepb.PTransform_builder{UniqueName: "e", Inputs: map[string]string{"i0": "p1"}}.Build(),
+				},
+				"3": {UniqueName: "c", Outputs: map[string]string{"i0": "p1"}},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p1"}},
 			},
 			exp: map[string]*pipepb.PTransform{
-				"1": pipepb.PTransform_builder{
+				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"3", "4"},
 					Outputs:       map[string]string{"p1": "p1"},
-				}.Build(),
-				"2": pipepb.PTransform_builder{
+				},
+				"2": {
 					UniqueName:    "b",
 					Subtransforms: []string{"5"},
 					Inputs:        map[string]string{"p1": "p1"},
-				}.Build(),
-				"3": pipepb.PTransform_builder{UniqueName: "c", Outputs: map[string]string{"i0": "p1"}}.Build(),
-				"4": pipepb.PTransform_builder{UniqueName: "d", Inputs: map[string]string{"i0": "p1"}}.Build(),
-				"5": pipepb.PTransform_builder{UniqueName: "e", Inputs: map[string]string{"i0": "p1"}}.Build(),
+				},
+				"3": {UniqueName: "c", Outputs: map[string]string{"i0": "p1"}},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p1"}},
 			},
 		},
 	}
@@ -317,15 +317,15 @@ func BenchmarkComputeInputOutput(b *testing.B) {
 	for i := 0; i < 3000; i++ {
 		compositeID := fmt.Sprintf("x%d", i)
 		primitiveID := fmt.Sprintf("y%d", i)
-		in[compositeID] = pipepb.PTransform_builder{
+		in[compositeID] = &pipepb.PTransform{
 			UniqueName:    compositeID,
 			Subtransforms: []string{primitiveID},
-		}.Build()
-		in[primitiveID] = pipepb.PTransform_builder{
+		}
+		in[primitiveID] = &pipepb.PTransform{
 			UniqueName: primitiveID,
 			Inputs:     map[string]string{"i0": fmt.Sprintf("p%d", i)},
 			Outputs:    map[string]string{"i0": fmt.Sprintf("p%d", i+1)},
-		}.Build()
+		}
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -395,11 +395,11 @@ func TestApplySdkImageOverrides(t *testing.T) {
 				wantEnvs[id] = env
 			}
 
-			p := pipepb.Pipeline_builder{
-				Components: pipepb.Components_builder{
+			p := &pipepb.Pipeline{
+				Components: &pipepb.Components{
 					Environments: envs,
-				}.Build(),
-			}.Build()
+				},
+			}
 			if err := ApplySdkImageOverrides(p, test.patterns); err != nil {
 				t.Fatalf("ApplySdkImageOverrides failed: %v", err)
 			}
@@ -412,16 +412,16 @@ func TestApplySdkImageOverrides(t *testing.T) {
 
 func buildEnvironment(t *testing.T, containerImg string) *pipepb.Environment {
 	t.Helper()
-	env := pipepb.Environment_builder{
+	env := &pipepb.Environment{
 		Urn:          "alpha",
-		DisplayData:  []*pipepb.DisplayData{pipepb.DisplayData_builder{Urn: "beta"}.Build()},
+		DisplayData:  []*pipepb.DisplayData{{Urn: "beta"}},
 		Capabilities: []string{"delta", "gamma"},
-	}.Build()
-	pl := pipepb.DockerPayload_builder{ContainerImage: containerImg}.Build()
-	plb, err := proto.Marshal(pl)
+	}
+	pl := pipepb.DockerPayload{ContainerImage: containerImg}
+	plb, err := proto.Marshal(&pl)
 	if err != nil {
 		t.Fatalf("Failed to marshal DockerPayload with container image %v: %v", containerImg, err)
 	}
-	env.SetPayload(plb)
+	env.Payload = plb
 	return env
 }

@@ -263,27 +263,26 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					}
 				}
 
-				tsb := em.AddTestStream(stage.ID, t.GetOutputs())
+				tsb := em.AddTestStream(stage.ID, t.Outputs)
 				for _, e := range pyld.GetEvents() {
-					switch ev := e.WhichEvent(); ev {
-					case pipepb.TestStreamPayload_Event_ElementEvent_case:
+					switch ev := e.GetEvent().(type) {
+					case *pipepb.TestStreamPayload_Event_ElementEvent:
 						var elms []engine.TestStreamElement
-						for _, e := range e.GetElementEvent().GetElements() {
+						for _, e := range ev.ElementEvent.GetElements() {
 							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.FromMilliseconds(e.GetTimestamp())})
 						}
-						tsb.AddElementEvent(e.GetElementEvent().GetTag(), elms)
-						e.GetElementEvent().GetTag()
-					case pipepb.TestStreamPayload_Event_WatermarkEvent_case:
-						tsb.AddWatermarkEvent(e.GetWatermarkEvent().GetTag(), mtime.FromMilliseconds(e.GetWatermarkEvent().GetNewWatermark()))
-					case pipepb.TestStreamPayload_Event_ProcessingTimeEvent_case:
-						if e.GetProcessingTimeEvent().GetAdvanceDuration() == int64(mtime.MaxTimestamp) {
+						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
+					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
+						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.FromMilliseconds(ev.WatermarkEvent.GetNewWatermark()))
+					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:
+						if ev.ProcessingTimeEvent.GetAdvanceDuration() == int64(mtime.MaxTimestamp) {
 							// TODO: Determine the SDK common formalism for setting processing time to infinity.
 							tsb.AddProcessingTimeEvent(time.Duration(mtime.MaxTimestamp))
 						} else {
-							tsb.AddProcessingTimeEvent(time.Duration(e.GetProcessingTimeEvent().GetAdvanceDuration()) * time.Millisecond)
+							tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
 						}
 					default:
-						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %v", stage.ID, ev)
+						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %T", stage.ID, ev)
 					}
 				}
 

@@ -107,532 +107,650 @@ func TestSchemaConversion(t *testing.T) {
 		rt reflect.Type
 	}{
 		{
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "firstField",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_INT32.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT32,
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				FirstField int32 `beam:"firstField"`
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "stringField",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
-					pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+					&pipepb.Field{
 						Name: "intPtrField",
-						Type: pipepb.FieldType_builder{
-							Nullable:   true,
-							AtomicType: pipepb.AtomicType_INT32.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							Nullable: true,
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT32,
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				StringField string `beam:"stringField"`
 				IntPtrField *int32 `beam:"intPtrField"`
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "cypher",
-						Type: pipepb.FieldType_builder{
-							MapType: pipepb.MapType_builder{
-								KeyType: pipepb.FieldType_builder{
-									AtomicType: pipepb.AtomicType_BOOLEAN.Enum(),
-								}.Build(),
-								ValueType: pipepb.FieldType_builder{
-									AtomicType: pipepb.AtomicType_FLOAT.Enum(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_MapType{
+								MapType: &pipepb.MapType{
+									KeyType: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_BOOLEAN,
+										},
+									},
+									ValueType: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_FLOAT,
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: hasMapType,
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "wrapper",
-						Type: pipepb.FieldType_builder{
-							RowType: pipepb.RowType_builder{
-								Schema: pipepb.Schema_builder{
-									Fields: []*pipepb.Field{pipepb.Field_builder{
-										Name: "threshold",
-										Type: pipepb.FieldType_builder{
-											AtomicType: pipepb.AtomicType_DOUBLE.Enum(),
-										}.Build(),
-									}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{{
+											Name: "threshold",
+											Type: &pipepb.FieldType{
+												TypeInfo: &pipepb.FieldType_AtomicType{
+													AtomicType: pipepb.AtomicType_DOUBLE,
+												},
+											},
+										},
+										},
 									},
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				Wrapper struct {
 					Threshold float64 `beam:"threshold"`
 				} `beam:"wrapper"`
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "payloads",
-						Type: pipepb.FieldType_builder{
-							ArrayType: pipepb.ArrayType_builder{
-								ElementType: pipepb.FieldType_builder{
-									AtomicType: pipepb.AtomicType_BYTES.Enum(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_ArrayType{
+								ArrayType: &pipepb.ArrayType{
+									ElementType: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_BYTES,
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				Payloads [][]byte `beam:"payloads"`
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "AString",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
-					pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+					&pipepb.Field{
 						Name: "AnIntPtr",
-						Type: pipepb.FieldType_builder{
-							Nullable:   true,
-							AtomicType: pipepb.AtomicType_INT32.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							Nullable: true,
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT32,
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				AString  string
 				AnIntPtr *int32
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "A",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
-					pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+					&pipepb.Field{
 						Name: "B",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
-					pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+					&pipepb.Field{
 						Name: "C",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_BOOLEAN.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_BOOLEAN,
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(registeredType{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "D",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_INT32.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT32,
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(sRegisteredType{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					&pipepb.Field{
 						Name: "A",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
-					pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+					&pipepb.Field{
 						Name: "B",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
-					pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+					&pipepb.Field{
 						Name: "C",
-						Type: pipepb.FieldType_builder{
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "int",
-								Representation: pipepb.FieldType_builder{
-									AtomicType: pipepb.AtomicType_INT64.Enum(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "int",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_INT64,
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(justAType{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "Q",
-						Type: pipepb.FieldType_builder{
-							MapType: pipepb.MapType_builder{
-								KeyType: pipepb.FieldType_builder{
-									LogicalType: pipepb.LogicalType_builder{
-										Urn: "int",
-										Representation: pipepb.FieldType_builder{
-											AtomicType: pipepb.AtomicType_INT64.Enum(),
-										}.Build(),
-									}.Build(),
-								}.Build(),
-								ValueType: pipepb.FieldType_builder{
-									LogicalType: pipepb.LogicalType_builder{
-										Urn: "int",
-										Representation: pipepb.FieldType_builder{
-											AtomicType: pipepb.AtomicType_INT64.Enum(),
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(), pipepb.Field_builder{
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_MapType{
+								MapType: &pipepb.MapType{
+									KeyType: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
+										},
+									},
+									ValueType: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					}, {
 						Name: "T",
-						Type: pipepb.FieldType_builder{
-							ArrayType: pipepb.ArrayType_builder{
-								ElementType: pipepb.FieldType_builder{
-									LogicalType: pipepb.LogicalType_builder{
-										Urn: "int",
-										Representation: pipepb.FieldType_builder{
-											AtomicType: pipepb.AtomicType_INT64.Enum(),
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_ArrayType{
+								ArrayType: &pipepb.ArrayType{
+									ElementType: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				Q map[int]int
 				T []int
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "SuperNES",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_INT16.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
 				},
 				Options: []*pipepb.Option{optGoNillable()},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(&struct {
 				SuperNES int16
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Options: []*pipepb.Option{
 					logicalOption("schema.unexportedFields"),
 				},
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "D",
-						Type: pipepb.FieldType_builder{
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "uint64",
-								Representation: pipepb.FieldType_builder{
-									AtomicType: pipepb.AtomicType_INT64.Enum(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "uint64",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_INT64,
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: unexportedFieldsType,
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "G",
-						Type: pipepb.FieldType_builder{
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "schema.unexportedFields",
-								Representation: pipepb.FieldType_builder{
-									RowType: pipepb.RowType_builder{
-										Schema: pipepb.Schema_builder{
-											Fields: []*pipepb.Field{
-												pipepb.Field_builder{
-													Name: "D",
-													Type: pipepb.FieldType_builder{
-														LogicalType: pipepb.LogicalType_builder{
-															Urn: "uint64",
-															Representation: pipepb.FieldType_builder{
-																AtomicType: pipepb.AtomicType_INT64.Enum(),
-															}.Build(),
-														}.Build(),
-													}.Build(),
-												}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.unexportedFields",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "D",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "uint64",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
 											},
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct{ G unexportedFields }{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "H",
-						Type: pipepb.FieldType_builder{
+						Type: &pipepb.FieldType{
 							Nullable: true,
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "schema.unexportedFields",
-								Representation: pipepb.FieldType_builder{
-									RowType: pipepb.RowType_builder{
-										Schema: pipepb.Schema_builder{
-											Fields: []*pipepb.Field{
-												pipepb.Field_builder{
-													Name: "D",
-													Type: pipepb.FieldType_builder{
-														LogicalType: pipepb.LogicalType_builder{
-															Urn: "uint64",
-															Representation: pipepb.FieldType_builder{
-																AtomicType: pipepb.AtomicType_INT64.Enum(),
-															}.Build(),
-														}.Build(),
-													}.Build(),
-												}.Build(),
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.unexportedFields",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "D",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "uint64",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
 											},
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct{ H *unexportedFields }{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "E",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_INT16.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
 				},
 				Options: []*pipepb.Option{optGoNillable(), logicalOption("*schema.exportedFunc")},
-			}.Build(),
+			},
 			rt: exportedFuncType,
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "Q",
-						Type: pipepb.FieldType_builder{
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "schema.myInt",
-								Representation: pipepb.FieldType_builder{
-									LogicalType: pipepb.LogicalType_builder{
-										Urn: "int",
-										Representation: pipepb.FieldType_builder{
-											AtomicType: pipepb.AtomicType_INT64.Enum(),
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.myInt",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: anotherType,
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name:    "Exported",
 						Options: []*pipepb.Option{optGoEmbedded()},
-						Type: pipepb.FieldType_builder{
-							RowType: pipepb.RowType_builder{
-								Schema: pipepb.Schema_builder{
-									Fields: []*pipepb.Field{
-										pipepb.Field_builder{
-											Name: "G",
-											Type: pipepb.FieldType_builder{
-												LogicalType: pipepb.LogicalType_builder{
-													Urn: "schema.myInt",
-													Representation: pipepb.FieldType_builder{
-														LogicalType: pipepb.LogicalType_builder{
-															Urn: "int",
-															Representation: pipepb.FieldType_builder{
-																AtomicType: pipepb.AtomicType_INT64.Enum(),
-															}.Build(),
-														}.Build(),
-													}.Build(),
-												}.Build(),
-											}.Build(),
-										}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{
+											{
+												Name: "G",
+												Type: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_LogicalType{
+														LogicalType: &pipepb.LogicalType{
+															Urn: "schema.myInt",
+															Representation: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "int",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
 									},
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: hasEmbeddedType,
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name:    "Exported",
 						Options: []*pipepb.Option{optGoEmbedded()},
-						Type: pipepb.FieldType_builder{
+						Type: &pipepb.FieldType{
 							Nullable: true,
-							RowType: pipepb.RowType_builder{
-								Schema: pipepb.Schema_builder{
-									Fields: []*pipepb.Field{
-										pipepb.Field_builder{
-											Name: "G",
-											Type: pipepb.FieldType_builder{
-												LogicalType: pipepb.LogicalType_builder{
-													Urn: "schema.myInt",
-													Representation: pipepb.FieldType_builder{
-														LogicalType: pipepb.LogicalType_builder{
-															Urn: "int",
-															Representation: pipepb.FieldType_builder{
-																AtomicType: pipepb.AtomicType_INT64.Enum(),
-															}.Build(),
-														}.Build(),
-													}.Build(),
-												}.Build(),
-											}.Build(),
-										}.Build(),
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{
+											{
+												Name: "G",
+												Type: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_LogicalType{
+														LogicalType: &pipepb.LogicalType{
+															Urn: "schema.myInt",
+															Representation: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "int",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
 									},
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: hasEmbeddedPtrType,
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "T",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_STRING.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
 				},
 				Options: []*pipepb.Option{optGoNillable()},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(&struct {
 				myInt
 				T string
 				i int
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Options: []*pipepb.Option{
 					logicalOption("schema.exportedFunc"),
 				},
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "V",
-						Type: pipepb.FieldType_builder{
-							AtomicType: pipepb.AtomicType_INT16.Enum(),
-						}.Build(),
-					}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(exportedFunc{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "U",
-						Type: pipepb.FieldType_builder{
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "schema.exportedFunc",
-								Representation: pipepb.FieldType_builder{
-									RowType: pipepb.RowType_builder{
-										Schema: pipepb.Schema_builder{
-											Fields: []*pipepb.Field{
-												pipepb.Field_builder{
-													Name: "V",
-													Type: pipepb.FieldType_builder{
-														AtomicType: pipepb.AtomicType_INT16.Enum(),
-													}.Build(),
-												}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.exportedFunc",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "V",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_AtomicType{
+																	AtomicType: pipepb.AtomicType_INT16,
+																},
+															},
+														},
+													},
+												},
 											},
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				U exportedFunc
 			}{}),
 		}, {
-			st: pipepb.Schema_builder{
+			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
-					pipepb.Field_builder{
+					{
 						Name: "U",
-						Type: pipepb.FieldType_builder{
-							LogicalType: pipepb.LogicalType_builder{
-								Urn: "schema.nonRegisteredLogical",
-								Representation: pipepb.FieldType_builder{
-									RowType: pipepb.RowType_builder{
-										Schema: pipepb.Schema_builder{
-											Fields: []*pipepb.Field{
-												pipepb.Field_builder{
-													Name: "K",
-													Type: pipepb.FieldType_builder{
-														AtomicType: pipepb.AtomicType_INT32.Enum(),
-													}.Build(),
-												}.Build(),
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.nonRegisteredLogical",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "K",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_AtomicType{
+																	AtomicType: pipepb.AtomicType_INT32,
+																},
+															},
+														},
+													},
+												},
 											},
-										}.Build(),
-									}.Build(),
-								}.Build(),
-							}.Build(),
-						}.Build(),
-					}.Build(),
+										},
+									},
+								},
+							},
+						},
+					},
 				},
-			}.Build(),
+			},
 			rt: reflect.TypeOf(struct {
 				U nonRegisteredLogical
 			}{}),

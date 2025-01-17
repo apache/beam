@@ -63,7 +63,7 @@ func init() {
 				pprof.StopCPUProfile()
 				for _, h := range enabledProfCaptureHooks {
 					name, opts := hooks.Decode(h)
-					if err := profCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("prof%s", req.GetInstructionId()), &cpuProfBuf); err != nil {
+					if err := profCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("prof%s", req.InstructionId), &cpuProfBuf); err != nil {
 						return err
 					}
 				}
@@ -92,7 +92,7 @@ func init() {
 				trace.Stop()
 				for _, h := range enabledTraceCaptureHooks {
 					name, opts := hooks.Decode(h)
-					if err := traceCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("trace_prof%s", req.GetInstructionId()), &traceProfBuf); err != nil {
+					if err := traceCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("trace_prof%s", req.InstructionId), &traceProfBuf); err != nil {
 						return err
 					}
 				}
@@ -121,7 +121,7 @@ func init() {
 				pprof.WriteHeapProfile(&heapProfBuf)
 				for _, h := range enabledHeapCaptureHooks {
 					name, opts := hooks.Decode(h)
-					if err := heapCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("heap%s", req.GetInstructionId()), &heapProfBuf); err != nil {
+					if err := heapCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("heap%s", req.InstructionId), &heapProfBuf); err != nil {
 						return err
 					}
 				}

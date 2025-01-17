@@ -17,12 +17,11 @@ package exec
 
 import (
 	"fmt"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -72,12 +71,12 @@ func TestUnmarshalKeyedValues(t *testing.T) {
 func TestUnmarshalReshuffleCoders(t *testing.T) {
 	payloads := map[string][]byte{}
 	encode := func(id, urn string, comps ...string) {
-		payloads[id] = protox.MustEncode(pipepb.Coder_builder{
-			Spec: pipepb.FunctionSpec_builder{
+		payloads[id] = protox.MustEncode(&pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
 				Urn: urn,
-			}.Build(),
+			},
 			ComponentCoderIds: comps,
-		}.Build())
+		})
 	}
 	encode("a", "beam:coder:bytes:v1")
 	encode("b", "beam:coder:string_utf8:v1")
@@ -268,37 +267,37 @@ func TestUnmarshalWindowMapper(t *testing.T) {
 func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: graphx.URNGlobalWindowsWindowFn,
-		}.Build(), nil
+		}, nil
 	case window.FixedWindows:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: graphx.URNFixedWindowsWindowFn,
 			Payload: protox.MustEncode(
-				pipepb.FixedWindowsPayload_builder{
+				&pipepb.FixedWindowsPayload{
 					Size: durationpb.New(w.Size),
-				}.Build(),
+				},
 			),
-		}.Build(), nil
+		}, nil
 	case window.SlidingWindows:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: graphx.URNSlidingWindowsWindowFn,
 			Payload: protox.MustEncode(
-				pipepb.SlidingWindowsPayload_builder{
+				&pipepb.SlidingWindowsPayload{
 					Size:   durationpb.New(w.Size),
 					Period: durationpb.New(w.Period),
-				}.Build(),
+				},
 			),
-		}.Build(), nil
+		}, nil
 	case window.Sessions:
-		return pipepb.FunctionSpec_builder{
+		return &pipepb.FunctionSpec{
 			Urn: graphx.URNSessionsWindowFn,
 			Payload: protox.MustEncode(
-				pipepb.SessionWindowsPayload_builder{
+				&pipepb.SessionWindowsPayload{
 					GapSize: durationpb.New(w.Gap),
-				}.Build(),
+				},
 			),
-		}.Build(), nil
+		}, nil
 	default:
 		return nil, errors.Errorf("unexpected windowing strategy: %v", w)
 	}
@@ -311,11 +310,11 @@ func makeWindowMappingFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 	}
 	switch w.Kind {
 	case window.GlobalWindows:
-		wFn.SetUrn(graphx.URNWindowMappingGlobal)
+		wFn.Urn = graphx.URNWindowMappingGlobal
 	case window.FixedWindows:
-		wFn.SetUrn(graphx.URNWindowMappingFixed)
+		wFn.Urn = graphx.URNWindowMappingFixed
 	case window.SlidingWindows:
-		wFn.SetUrn(graphx.URNWindowMappingSliding)
+		wFn.Urn = graphx.URNWindowMappingSliding
 	default:
 		return nil, fmt.Errorf("unknown window fn type %v", w.Kind)
 	}
@@ -394,7 +393,7 @@ func TestUnmarshalPort(t *testing.T) {
 		{
 			inputData:   []byte{},
 			outputPort:  Port{URL: port.GetApiServiceDescriptor().GetUrl()},
-			outputStr:   (&fnpb.RemoteGrpcPort{}).GetCoderId(),
+			outputStr:   fnpb.RemoteGrpcPort{}.CoderId,
 			outputError: nil,
 		},
 	}
@@ -414,12 +413,12 @@ func TestUnmarshalPort(t *testing.T) {
 }
 
 func TestUnmarshalPlan(t *testing.T) {
-	transform := pipepb.PTransform_builder{
-		Spec: pipepb.FunctionSpec_builder{
+	transform := pipepb.PTransform{
+		Spec: &pipepb.FunctionSpec{
 			Urn: urnDataSource,
-		}.Build(),
+		},
 		Outputs: map[string]string{},
-	}.Build()
+	}
 	tests := []struct {
 		name        string
 		inputDesc   *fnpb.ProcessBundleDescriptor
@@ -428,32 +427,32 @@ func TestUnmarshalPlan(t *testing.T) {
 	}{
 		{
 			name: "test_no_root_units",
-			inputDesc: fnpb.ProcessBundleDescriptor_builder{
+			inputDesc: &fnpb.ProcessBundleDescriptor{
 				Id:         "",
 				Transforms: map[string]*pipepb.PTransform{},
-			}.Build(),
+			},
 			outputPlan:  nil,
 			outputError: errors.New("no root units"),
 		},
 		{
 			name: "test_zero_transform",
-			inputDesc: fnpb.ProcessBundleDescriptor_builder{
+			inputDesc: &fnpb.ProcessBundleDescriptor{
 				Id: "",
 				Transforms: map[string]*pipepb.PTransform{
 					"": {},
 				},
-			}.Build(),
+			},
 			outputPlan:  nil,
 			outputError: errors.New("no root units"),
 		},
 		{
 			name: "test_transform_outputs_length_not_one",
-			inputDesc: fnpb.ProcessBundleDescriptor_builder{
+			inputDesc: &fnpb.ProcessBundleDescriptor{
 				Id: "",
 				Transforms: map[string]*pipepb.PTransform{
-					"": transform,
+					"": &transform,
 				},
-			}.Build(),
+			},
 			outputPlan:  nil,
 			outputError: errors.Errorf("expected one output from DataSource, got %v", transform.GetOutputs()),
 		},
@@ -474,10 +473,10 @@ func TestUnmarshalPlan(t *testing.T) {
 }
 
 func TestNewBuilder(t *testing.T) {
-	descriptor := fnpb.ProcessBundleDescriptor_builder{
+	descriptor := fnpb.ProcessBundleDescriptor{
 		Id:         "",
 		Transforms: map[string]*pipepb.PTransform{},
-	}.Build()
+	}
 	tests := []struct {
 		name          string
 		inputDesc     *fnpb.ProcessBundleDescriptor
@@ -486,9 +485,9 @@ func TestNewBuilder(t *testing.T) {
 	}{
 		{
 			name:      "test_1",
-			inputDesc: descriptor,
+			inputDesc: &descriptor,
 			outputBuilder: &builder{
-				desc:      descriptor,
+				desc:      &descriptor,
 				coders:    graphx.NewCoderUnmarshaller(descriptor.GetCoders()),
 				prev:      make(map[string]int),
 				succ:      make(map[string][]linkID),

@@ -25,30 +25,30 @@ import (
 
 func createExternalEdge(typeUrn string, typePayload []byte) *graph.MultiEdge {
 	env := map[string]*pipepb.Environment{
-		"env_java": pipepb.Environment_builder{
+		"env_java": {
 			Dependencies: []*pipepb.ArtifactInformation{
-				pipepb.ArtifactInformation_builder{
+				{
 					TypeUrn:     typeUrn,
 					TypePayload: typePayload,
-				}.Build(),
+				},
 			},
-		}.Build(),
+		},
 	}
 	return &graph.MultiEdge{
 		Op: graph.External,
 		External: &graph.ExternalTransform{
 			Expanded: &graph.ExpandedTransform{
-				Components: pipepb.Components_builder{
+				Components: &pipepb.Components{
 					Environments: env,
-				}.Build(),
+				},
 			},
 		},
 	}
 }
 
 func TestUpdateFileArtifactWithUrlPath(t *testing.T) {
-	payload, _ := proto.Marshal(pipepb.ArtifactFilePayload_builder{
-		Path: "gs://dummy"}.Build())
+	payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
+		Path: "gs://dummy"})
 	e := createExternalEdge("beam:artifact:type:file:v1", payload)
 	UpdateArtifactTypeFromFileToURL([]*graph.MultiEdge{e})
 	expected := createExternalEdge("beam:artifact:type:url:v1", payload)
@@ -63,8 +63,8 @@ func TestUpdateFileArtifactWithUrlPath(t *testing.T) {
 }
 
 func TestUpdateFileArtifactWithLocalPath(t *testing.T) {
-	payload, _ := proto.Marshal(pipepb.ArtifactFilePayload_builder{
-		Path: "/tmp/artifact/dummy"}.Build())
+	payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
+		Path: "/tmp/artifact/dummy"})
 	e := createExternalEdge("beam:artifact:type:file:v1", payload)
 	UpdateArtifactTypeFromFileToURL([]*graph.MultiEdge{e})
 	expected := createExternalEdge("beam:artifact:type:file:v1", payload)

@@ -73,10 +73,10 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 	if err := graphx.UpdateDefaultEnvWorkerType(
 		graphx.URNArtifactURLType,
-		protox.MustEncode(pipepb.ArtifactUrlPayload_builder{
+		protox.MustEncode(&pipepb.ArtifactUrlPayload{
 			Url:    workerURL,
 			Sha256: hash,
-		}.Build()), raw); err != nil {
+		}), raw); err != nil {
 		return presult, err
 	}
 

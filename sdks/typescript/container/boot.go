@@ -104,13 +104,13 @@ func main() {
 	for _, v := range artifacts {
 		name, _ := artifact.MustExtractFilePayload(v)
 		path := filepath.Join(dir, name)
-		if v.GetRoleUrn() == "beam:artifact:type:npm_dep:v1" {
+		if v.RoleUrn == "beam:artifact:type:npm_dep:v1" {
 			// Npm cannot handle arbitrary suffixes.
 			suffixedPath := path + ".tar"
 			if err := os.Rename(path, suffixedPath); err != nil {
 				logger.Fatalf(ctx, "unable to rename %v to %v: %v", path, suffixedPath, err)
 			}
-			npmOverrides[string(v.GetRolePayload())] = suffixedPath
+			npmOverrides[string(v.RolePayload)] = suffixedPath
 		}
 	}
 	if len(npmOverrides) > 0 {
@@ -140,7 +140,7 @@ func main() {
 	for _, v := range artifacts {
 		name, _ := artifact.MustExtractFilePayload(v)
 		path := filepath.Join(dir, name)
-		if v.GetRoleUrn() == "beam:artifact:type:npm:v1" {
+		if v.RoleUrn == "beam:artifact:type:npm:v1" {
 			// Npm cannot handle arbitrary suffixes.
 			suffixedPath := path + ".tar"
 			if err := os.Rename(path, suffixedPath); err != nil {

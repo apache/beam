@@ -594,17 +594,17 @@ func (w *dataWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.writers[w.id.instID], w.id.ptransformID)
-	msg := fnpb.Elements_builder{
+	msg := &fnpb.Elements{
 		Data: []*fnpb.Elements_Data{
-			fnpb.Elements_Data_builder{
+			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				// TODO(https://github.com/apache/beam/issues/21164): Set IsLast true on final flush instead of w/empty sentinel?
 				// Empty data == sentinel
 				IsLast: true,
-			}.Build(),
+			},
 		},
-	}.Build()
+	}
 	return w.send(msg)
 }
 
@@ -617,15 +617,15 @@ func (w *dataWriter) Flush() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 
-	msg := fnpb.Elements_builder{
+	msg := &fnpb.Elements{
 		Data: []*fnpb.Elements_Data{
-			fnpb.Elements_Data_builder{
+			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				Data:          w.buf,
-			}.Build(),
+			},
 		},
-	}.Build()
+	}
 	if l := len(w.buf); l > largeBufferNotificationThreshold {
 		log.Infof(context.TODO(), "dataWriter[%v;%v].Flush flushed large buffer of length %d", w.id, w.ch.id, l)
 	}
@@ -707,16 +707,16 @@ func (w *timerWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.timerWriters[w.id.instID], timerKey{w.id.ptransformID, w.timerFamilyID})
-	msg := fnpb.Elements_builder{
+	msg := &fnpb.Elements{
 		Timers: []*fnpb.Elements_Timers{
-			fnpb.Elements_Timers_builder{
+			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				TimerFamilyId: w.timerFamilyID,
 				IsLast:        true,
-			}.Build(),
+			},
 		},
-	}.Build()
+	}
 	return w.send(msg)
 }
 
@@ -724,16 +724,16 @@ func (w *timerWriter) writeTimers(p []byte) error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 
-	msg := fnpb.Elements_builder{
+	msg := &fnpb.Elements{
 		Timers: []*fnpb.Elements_Timers{
-			fnpb.Elements_Timers_builder{
+			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				TimerFamilyId: w.timerFamilyID,
 				Timers:        p,
-			}.Build(),
+			},
 		},
-	}.Build()
+	}
 	return w.send(msg)
 }
 

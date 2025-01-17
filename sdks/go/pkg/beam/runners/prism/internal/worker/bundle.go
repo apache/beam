@@ -126,12 +126,14 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	slog.Debug("processing", "bundle", b, "worker", wk)
 
 	// Tell the SDK to start processing the bundle.
-	req := fnpb.InstructionRequest_builder{
+	req := &fnpb.InstructionRequest{
 		InstructionId: b.InstID,
-		ProcessBundle: fnpb.ProcessBundleRequest_builder{
-			ProcessBundleDescriptorId: b.PBDID,
-		}.Build(),
-	}.Build()
+		Request: &fnpb.InstructionRequest_ProcessBundle{
+			ProcessBundle: &fnpb.ProcessBundleRequest{
+				ProcessBundleDescriptorId: b.PBDID,
+			},
+		},
+	}
 	select {
 	case <-wk.StoppedChan:
 		// The worker was stopped before req was sent.
@@ -152,22 +154,22 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		dataBuf := bytes.Join(block.Bytes, []byte{})
 		switch block.Kind {
 		case engine.BlockData:
-			elms.SetData([]*fnpb.Elements_Data{
-				fnpb.Elements_Data_builder{
+			elms.Data = []*fnpb.Elements_Data{
+				{
 					InstructionId: b.InstID,
 					TransformId:   b.InputTransformID,
 					Data:          dataBuf,
-				}.Build(),
-			})
+				},
+			}
 		case engine.BlockTimer:
-			elms.SetTimers([]*fnpb.Elements_Timers{
-				fnpb.Elements_Timers_builder{
+			elms.Timers = []*fnpb.Elements_Timers{
+				{
 					InstructionId: b.InstID,
 					TransformId:   block.Transform,
 					TimerFamilyId: block.Family,
 					Timers:        dataBuf,
-				}.Build(),
-			})
+				},
+			}
 		default:
 			panic("unknown engine.Block kind")
 		}
@@ -186,12 +188,12 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	// Send last of everything for now.
 	timers := make([]*fnpb.Elements_Timers, 0, len(b.HasTimers))
 	for _, tid := range b.HasTimers {
-		timers = append(timers, fnpb.Elements_Timers_builder{
+		timers = append(timers, &fnpb.Elements_Timers{
 			InstructionId: b.InstID,
 			TransformId:   tid.TransformID,
 			TimerFamilyId: tid.TimerFamily,
 			IsLast:        true,
-		}.Build())
+		})
 	}
 	select {
 	case <-wk.StoppedChan:
@@ -200,16 +202,16 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	case <-ctx.Done():
 		b.DataOrTimerDone()
 		return b.DataWait
-	case wk.DataReqs <- fnpb.Elements_builder{
+	case wk.DataReqs <- &fnpb.Elements{
 		Timers: timers,
 		Data: []*fnpb.Elements_Data{
-			fnpb.Elements_Data_builder{
+			{
 				InstructionId: b.InstID,
 				TransformId:   b.InputTransformID,
 				IsLast:        true,
-			}.Build(),
+			},
 		},
-	}.Build():
+	}:
 	}
 
 	return b.DataWait
@@ -223,21 +225,25 @@ func (b *B) Cleanup(wk *W) {
 }
 
 func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, error) {
-	resp := wk.sendInstruction(ctx, fnpb.InstructionRequest_builder{
-		FinalizeBundle: fnpb.FinalizeBundleRequest_builder{
-			InstructionId: b.InstID,
-		}.Build(),
-	}.Build())
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_FinalizeBundle{
+			FinalizeBundle: &fnpb.FinalizeBundleRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
 	return resp.GetFinalizeBundle(), nil
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
 func (b *B) Progress(ctx context.Context, wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
-	resp := wk.sendInstruction(ctx, fnpb.InstructionRequest_builder{
-		ProcessBundleProgress: fnpb.ProcessBundleProgressRequest_builder{
-			InstructionId: b.InstID,
-		}.Build(),
-	}.Build())
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
+			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
 	if resp.GetError() != "" {
 		return nil, fmt.Errorf("progress[%v] error from SDK: %v", b.InstID, resp.GetError())
 	}
@@ -246,18 +252,20 @@ func (b *B) Progress(ctx context.Context, wk *W) (*fnpb.ProcessBundleProgressRes
 
 // Split sends a split request for the given bundle to the passed in worker, blocking on the response.
 func (b *B) Split(ctx context.Context, wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
-	resp := wk.sendInstruction(ctx, fnpb.InstructionRequest_builder{
-		ProcessBundleSplit: fnpb.ProcessBundleSplitRequest_builder{
-			InstructionId: b.InstID,
-			DesiredSplits: map[string]*fnpb.ProcessBundleSplitRequest_DesiredSplit{
-				b.InputTransformID: fnpb.ProcessBundleSplitRequest_DesiredSplit_builder{
-					FractionOfRemainder:    fraction,
-					AllowedSplitPoints:     allowedSplits,
-					EstimatedInputElements: int64(b.EstimatedInputElements),
-				}.Build(),
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
+			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
+				InstructionId: b.InstID,
+				DesiredSplits: map[string]*fnpb.ProcessBundleSplitRequest_DesiredSplit{
+					b.InputTransformID: {
+						FractionOfRemainder:    fraction,
+						AllowedSplitPoints:     allowedSplits,
+						EstimatedInputElements: int64(b.EstimatedInputElements),
+					},
+				},
 			},
-		}.Build(),
-	}.Build())
+		},
+	})
 	if resp.GetError() != "" {
 		return nil, fmt.Errorf("split[%v] error from SDK: %v", b.InstID, resp.GetError())
 	}

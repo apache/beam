@@ -34,7 +34,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"google.golang.org/protobuf/proto"
 )
 
 const urn = "beam:transform:teststream:v1"
@@ -61,14 +60,14 @@ func NewConfig() Config {
 // defined manually. Currently does not support authentication, so the TestStreamService should
 // be accessed in a trusted context.
 func (c *Config) setEndpoint(url string) {
-	c.endpoint.SetUrl(url)
+	c.endpoint.Url = url
 }
 
 // createPayload converts the Config object into a TestStreamPayload to be sent to the runner.
 func (c *Config) createPayload() *pipepb.TestStreamPayload {
 	// c0 is always the first coder in the pipeline, and inserting the TestStream as the first
 	// element in the pipeline guarantees that the c0 coder corresponds to the type it outputs.
-	return pipepb.TestStreamPayload_builder{CoderId: "c0", Events: c.events, Endpoint: c.endpoint}.Build()
+	return &pipepb.TestStreamPayload{CoderId: "c0", Events: c.events, Endpoint: c.endpoint}
 }
 
 // AdvanceWatermark adds an event to the Config Events struct advancing the watermark for the PCollection
@@ -77,9 +76,9 @@ func (c *Config) AdvanceWatermark(timestamp int64) error {
 	if c.watermark >= timestamp {
 		return fmt.Errorf("watermark must be monotonally increasing, is at %v, got %v", c.watermark, timestamp)
 	}
-	watermarkAdvance := pipepb.TestStreamPayload_Event_AdvanceWatermark_builder{NewWatermark: timestamp}.Build()
+	watermarkAdvance := &pipepb.TestStreamPayload_Event_AdvanceWatermark{NewWatermark: timestamp}
 	watermarkEvent := &pipepb.TestStreamPayload_Event_WatermarkEvent{WatermarkEvent: watermarkAdvance}
-	c.events = append(c.events, pipepb.TestStreamPayload_Event_builder{WatermarkEvent: proto.ValueOrDefault(watermarkEvent.WatermarkEvent)}.Build())
+	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: watermarkEvent})
 	c.watermark = timestamp
 	return nil
 }
@@ -92,9 +91,9 @@ func (c *Config) AdvanceWatermarkToInfinity() error {
 // AdvanceProcessingTime adds an event advancing the processing time by a given duration.
 // This advancement is applied to all of the PCollections output by the TestStream.
 func (c *Config) AdvanceProcessingTime(duration int64) {
-	processingAdvance := pipepb.TestStreamPayload_Event_AdvanceProcessingTime_builder{AdvanceDuration: duration}.Build()
+	processingAdvance := &pipepb.TestStreamPayload_Event_AdvanceProcessingTime{AdvanceDuration: duration}
 	processingEvent := &pipepb.TestStreamPayload_Event_ProcessingTimeEvent{ProcessingTimeEvent: processingAdvance}
-	c.events = append(c.events, pipepb.TestStreamPayload_Event_builder{ProcessingTimeEvent: proto.ValueOrDefault(processingEvent.ProcessingTimeEvent)}.Build())
+	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: processingEvent})
 }
 
 // AdvanceProcessingTimeToInfinity moves the TestStream processing time to the largest possible
@@ -129,11 +128,11 @@ func (c *Config) AddElements(timestamp int64, elements ...any) error {
 		if err := enc.Encode(e, &buf); err != nil {
 			return fmt.Errorf("encoding value %v failed, got %v", e, err)
 		}
-		newElements = append(newElements, pipepb.TestStreamPayload_TimestampedElement_builder{EncodedElement: buf.Bytes(), Timestamp: timestamp}.Build())
+		newElements = append(newElements, &pipepb.TestStreamPayload_TimestampedElement{EncodedElement: buf.Bytes(), Timestamp: timestamp})
 	}
-	addElementsEvent := pipepb.TestStreamPayload_Event_AddElements_builder{Elements: newElements}.Build()
+	addElementsEvent := &pipepb.TestStreamPayload_Event_AddElements{Elements: newElements}
 	elementEvent := &pipepb.TestStreamPayload_Event_ElementEvent{ElementEvent: addElementsEvent}
-	c.events = append(c.events, pipepb.TestStreamPayload_Event_builder{ElementEvent: proto.ValueOrDefault(elementEvent.ElementEvent)}.Build())
+	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: elementEvent})
 	return nil
 }
 

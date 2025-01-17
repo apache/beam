@@ -62,7 +62,7 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	// should be removed from proto before submitting expansion request.
 	extTransformID := p.GetRootTransformIds()[0]
 	extTransform := transforms[extTransformID]
-	for extTransform.GetUniqueName() != "External" {
+	for extTransform.UniqueName != "External" {
 		delete(transforms, extTransformID)
 		p, err = pipelinex.Normalize(p) // Update root transform IDs.
 		if err != nil {
@@ -136,12 +136,12 @@ func expand(
 	}
 	return h(ctx, &HandlerParams{
 		Config: config,
-		Req: jobpb.ExpansionRequest_builder{
+		Req: &jobpb.ExpansionRequest{
 			Components:          comps,
 			Transform:           transform,
 			Namespace:           ext.Namespace,
 			OutputCoderRequests: outputCoderID,
-		}.Build(),
+		},
 		edge: edge,
 		ext:  ext,
 	})

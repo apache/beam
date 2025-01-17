@@ -15,9 +15,8 @@
 
 // Boot code for the Java SDK expansion service.
 // Contract:
-//
-//	https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_expansion_api.proto
-//	https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto
+//   https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_expansion_api.proto
+//   https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto
 package main
 
 import (
@@ -38,14 +37,14 @@ import (
 //   - Expansion service port
 //   - Dependencies (for loading SchemaTransforms)
 //   - Config file path. Config file contains:
-//   - Allow-list
-//   - Per-transform dependencies config.
+//     - Allow-list
+//     - Per-transform dependencies config.
 var (
 	id               = flag.String("id", "", "Local identifier (required)")
 	port             = flag.Int("port", 0, "Port for the expansion service (required)")
 	dependencies_dir = flag.String("dependencies_dir", "", "A directory containing the set of jar files to load transforms from (required)")
 	config_file      = flag.String("config_file", "", "Expansion service config YAML file. (required)")
-	use_alts         = flag.Bool("use_alts", false, "Starts an Expansion Service with support for gRPC ALTS authentication")
+	use_alts      = flag.Bool("use_alts", false, "Starts an Expansion Service with support for gRPC ALTS authentication")
 )
 
 const entrypoint = "org.apache.beam.sdk.expansion.service.ExpansionService"

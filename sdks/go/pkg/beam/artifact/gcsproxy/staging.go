@@ -75,7 +75,7 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *jobpb.CommitMan
 	}
 	s.mu.Unlock()
 
-	data, err := proto.Marshal(jobpb.ProxyManifest_builder{Manifest: manifest, Location: loc}.Build())
+	data, err := proto.Marshal(&jobpb.ProxyManifest{Manifest: manifest, Location: loc})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal proxy manifest")
 	}
@@ -93,7 +93,7 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *jobpb.CommitMan
 	// now, but would be needed for a staging server that serves multiple
 	// jobs. Such a server would also use the ID sent with each request.
 
-	return jobpb.CommitManifestResponse_builder{RetrievalToken: gcsx.MakeObject(s.bucket, s.manifest)}.Build(), nil
+	return &jobpb.CommitManifestResponse{RetrievalToken: gcsx.MakeObject(s.bucket, s.manifest)}, nil
 }
 
 // matchLocations ensures that all artifacts have been staged and have valid
@@ -101,18 +101,18 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *jobpb.CommitMan
 func matchLocations(artifacts []*jobpb.ArtifactMetadata, blobs map[string]staged) ([]*jobpb.ProxyManifest_Location, error) {
 	var loc []*jobpb.ProxyManifest_Location
 	for _, a := range artifacts {
-		info, ok := blobs[a.GetName()]
+		info, ok := blobs[a.Name]
 		if !ok {
-			return nil, errors.Errorf("artifact %v not staged", a.GetName())
+			return nil, errors.Errorf("artifact %v not staged", a.Name)
 		}
-		if a.GetSha256() == "" {
-			a.SetSha256(info.hash)
+		if a.Sha256 == "" {
+			a.Sha256 = info.hash
 		}
-		if info.hash != a.GetSha256() {
-			return nil, errors.Errorf("staged artifact for %v has invalid SHA256: %v, want %v", a.GetName(), info.hash, a.GetSha256())
+		if info.hash != a.Sha256 {
+			return nil, errors.Errorf("staged artifact for %v has invalid SHA256: %v, want %v", a.Name, info.hash, a.Sha256)
 		}
 
-		loc = append(loc, jobpb.ProxyManifest_Location_builder{Name: a.GetName(), Uri: info.object}.Build())
+		loc = append(loc, &jobpb.ProxyManifest_Location{Name: a.Name, Uri: info.object})
 	}
 	return loc, nil
 }
@@ -129,7 +129,7 @@ func (s *StagingServer) PutArtifact(ps jobpb.LegacyArtifactStagingService_PutArt
 	if md == nil {
 		return errors.Errorf("expected header as first message: %v", header)
 	}
-	object := path.Join(s.root, md.GetName())
+	object := path.Join(s.root, md.Name)
 
 	// Stream content to GCS. We don't have to worry about partial
 	// or abandoned writes, because object writes are atomic.
@@ -142,15 +142,15 @@ func (s *StagingServer) PutArtifact(ps jobpb.LegacyArtifactStagingService_PutArt
 
 	r := &reader{sha256W: sha256.New(), stream: ps}
 	if err := gcsx.WriteObject(ctx, cl, s.bucket, object, r); err != nil {
-		return errors.Wrapf(err, "failed to stage artifact %v", md.GetName())
+		return errors.Wrapf(err, "failed to stage artifact %v", md.Name)
 	}
 	hash := r.SHA256()
-	if md.GetSha256() != "" && md.GetSha256() != hash {
-		return errors.Errorf("invalid SHA256 for artifact %v: %v want %v", md.GetName(), hash, md.GetSha256())
+	if md.Sha256 != "" && md.Sha256 != hash {
+		return errors.Errorf("invalid SHA256 for artifact %v: %v want %v", md.Name, hash, md.Sha256)
 	}
 
 	s.mu.Lock()
-	s.blobs[md.GetName()] = staged{object: gcsx.MakeObject(s.bucket, object), hash: hash}
+	s.blobs[md.Name] = staged{object: gcsx.MakeObject(s.bucket, object), hash: hash}
 	s.mu.Unlock()
 
 	return ps.SendAndClose(&jobpb.PutArtifactResponse{})
