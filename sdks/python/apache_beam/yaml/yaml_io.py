@@ -32,7 +32,6 @@ from typing import Any
 from typing import Optional
 
 import fastavro
-import yaml
 
 import apache_beam as beam
 import apache_beam.io as beam_io
@@ -573,5 +572,5 @@ def write_to_iceberg(
 
 
 def io_providers():
-  with open(os.path.join(os.path.dirname(__file__), 'standard_io.yaml')) as fin:
-    return yaml_provider.parse_providers(yaml.load(fin, Loader=yaml.SafeLoader))
+  return yaml_provider.load_providers(
+      os.path.join(os.path.dirname(__file__), 'standard_io.yaml'))

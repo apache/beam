@@ -20,6 +20,7 @@ import os
 import tempfile
 import unittest
 
+import mock
 import yaml
 
 import apache_beam as beam
@@ -88,21 +89,25 @@ class ProviderParsingTest(unittest.TestCase):
     cls.to_include_nested = os.path.join(
         cls.tempdir.name, 'nested_providers.yaml')
     with open(cls.to_include_nested, 'w') as fout:
-      yaml.dump([{'include': cls.to_include}, cls.EXTRA_PROVIDER], fout)
+      yaml.dump([{'include': './providers.yaml'}, cls.EXTRA_PROVIDER], fout)
 
   @classmethod
   def tearDownClass(cls):
     cls.tempdir.cleanup()
 
+  @mock.patch(
+      'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
+      lambda x: x)
   def test_include_file(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
-        for spec in yaml_provider.flatten_included_provider_specs([
-            self.INLINE_PROVIDER,
-            {
-                'include': self.to_include
-            },
-        ])
+        for spec in yaml_provider.parse_providers(
+            '', [
+                self.INLINE_PROVIDER,
+                {
+                    'include': self.to_include
+                },
+            ])
     ]
 
     self.assertEqual([
@@ -111,15 +116,19 @@ class ProviderParsingTest(unittest.TestCase):
     ],
                      flattened)
 
+  @mock.patch(
+      'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
+      lambda x: x)
   def test_include_url(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
-        for spec in yaml_provider.flatten_included_provider_specs([
-            self.INLINE_PROVIDER,
-            {
-                'include': 'file:///' + self.to_include
-            },
-        ])
+        for spec in yaml_provider.parse_providers(
+            '', [
+                self.INLINE_PROVIDER,
+                {
+                    'include': 'file:///' + self.to_include
+                },
+            ])
     ]
 
     self.assertEqual([
@@ -128,15 +137,19 @@ class ProviderParsingTest(unittest.TestCase):
     ],
                      flattened)
 
+  @mock.patch(
+      'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
+      lambda x: x)
   def test_nested_include(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
-        for spec in yaml_provider.flatten_included_provider_specs([
-            self.INLINE_PROVIDER,
-            {
-                'include': self.to_include_nested
-            },
-        ])
+        for spec in yaml_provider.parse_providers(
+            '', [
+                self.INLINE_PROVIDER,
+                {
+                    'include': self.to_include_nested
+                },
+            ])
     ]
 
     self.assertEqual([
@@ -195,7 +208,7 @@ class YamlDefinedProider(unittest.TestCase):
       result = p | YamlTransform(
           pipeline,
           providers=yaml_provider.parse_providers(
-              yaml.load(providers, Loader=SafeLineLoader)))
+              '', yaml.load(providers, Loader=SafeLineLoader)))
       assert_that(
           result | beam.Map(lambda x: (x.element, x.power)),
           equal_to([(0, 0), (1, 1), (2, 4), (3, 9)]))

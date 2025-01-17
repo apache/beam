@@ -20,6 +20,7 @@ for where to find and how to invoke services that vend implementations of
 various PTransforms."""
 
 import collections
+import functools
 import hashlib
 import inspect
 import json
@@ -33,14 +34,12 @@ import urllib.parse
 import warnings
 from collections.abc import Callable
 from collections.abc import Iterable
-from collections.abc import Iterator
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
 
 import docstring_parser
 import yaml
-from yaml.loader import SafeLoader
 
 import apache_beam as beam
 import apache_beam.dataframe.io
@@ -1225,8 +1224,47 @@ class RenamingProvider(Provider):
     self._underlying_provider.cache_artifacts()
 
 
-def flatten_included_provider_specs(
-    provider_specs: Iterable[Mapping]) -> Iterator[Mapping]:
+def _as_list(func):
+  @functools.wraps(func)
+  def wrapper(*args, **kwargs):
+    return list(func(*args, **kwargs))
+
+  return wrapper
+
+
+def _join_url_or_filepath(base, path):
+  base_scheme = urllib.parse.urlparse(base, '').scheme
+  path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
+  if path_scheme != base_scheme:
+    return path
+  elif base_scheme and base_scheme in urllib.parse.uses_relative:
+    return urllib.parse.urljoin(base, path)
+  else:
+    return FileSystems.join(FileSystems.split(base)[0], path)
+
+
+def _read_url_or_filepath(path):
+  scheme = urllib.parse.urlparse(path, '').scheme
+  if scheme and scheme in urllib.parse.uses_netloc:
+    with urllib.request.urlopen(path) as response:
+      return response.read()
+  else:
+    with FileSystems.open(path) as fin:
+      return fin.read()
+
+
+def load_providers(source_path: str) -> Iterable[Provider]:
+  from apache_beam.yaml.yaml_transform import SafeLineLoader
+  provider_specs = yaml.load(
+      _read_url_or_filepath(source_path), Loader=SafeLineLoader)
+  if not isinstance(provider_specs, list):
+    raise ValueError(f"Provider file {source_path} must be a list of Providers")
+  return parse_providers(source_path, provider_specs)
+
+
+@_as_list
+def parse_providers(source_path,
+                    provider_specs: Iterable[Mapping]) -> Iterable[Provider]:
   from apache_beam.yaml.yaml_transform import SafeLineLoader
   for provider_spec in provider_specs:
     if 'include' in provider_spec:
@@ -1234,32 +1272,19 @@ def flatten_included_provider_specs(
         raise ValueError(
             f"When using include, it must be the only parameter: "
             f"{provider_spec} "
-            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
-      include_uri = provider_spec['include']
+            f"at {source_path}:{SafeLineLoader.get_line(provider_spec)}")
+      include_path = _join_url_or_filepath(
+          source_path, provider_spec['include'])
       try:
-        with urllib.request.urlopen(include_uri) as response:
-          content = response.read()
-      except (ValueError, urllib.error.URLError) as exn:
-        if 'unknown url type' in str(exn):
-          with FileSystems.open(include_uri) as fin:
-            content = fin.read()
-        else:
-          raise
-      included_providers = yaml.load(content, Loader=SafeLineLoader)
-      if not isinstance(included_providers, list):
+        yield from load_providers(include_path)
+
+      except Exception as exn:
         raise ValueError(
-            f"Included file {include_uri} must be a list of Providers "
-            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
-      yield from flatten_included_provider_specs(included_providers)
+            f"Error loading providers from {include_path} included at "
+            f"{source_path}:{SafeLineLoader.get_line(provider_spec)}\n" +
+            str(exn)) from exn
     else:
-      yield provider_spec
-
-
-def parse_providers(provider_specs: Iterable[Mapping]) -> Iterable[Provider]:
-  return [
-      ExternalProvider.provider_from_spec(provider_spec)
-      for provider_spec in flatten_included_provider_specs(provider_specs)
-  ]
+      yield ExternalProvider.provider_from_spec(provider_spec)
 
 
 def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
@@ -1283,9 +1308,6 @@ def standard_providers():
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
-  with open(os.path.join(os.path.dirname(__file__),
-                         'standard_providers.yaml')) as fin:
-    standard_providers = yaml.load(fin, Loader=SafeLoader)
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
@@ -1294,4 +1316,5 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
-      parse_providers(standard_providers))
+      load_providers(
+          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
