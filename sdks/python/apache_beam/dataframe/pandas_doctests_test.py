@@ -572,6 +572,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.to_timestamp': ['*'],
         },
         skip={
+            'pandas.core.series.Series.array': [
+                "pd.array(['a', 'b'], dtype=str)",
+                "pd.array(['a', 'b'], dtype=np.dtype(\"<U1\"))",
+                "pd.array([1 + 1j, 3 + 2j])",
+                "pd.array([1, 2], dtype=np.dtype(\"int32\"))",
+            ],
             # Relies on setting values with iloc
             'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
