@@ -29,7 +29,6 @@ import threading
 import uuid
 from collections import OrderedDict
 from collections import namedtuple
-from typing import Dict
 
 import grpc
 
@@ -654,8 +653,8 @@ class ExternalTransform(ptransform.PTransform):
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
-    self._inputs: Dict[str, pvalue.PCollection] = {}
-    self._outputs: Dict[str, pvalue.PCollection] = {}
+    self._inputs: dict[str, pvalue.PCollection] = {}
+    self._outputs: dict[str, pvalue.PCollection] = {}
 
   def with_output_types(self, *args, **kwargs):
     return WithTypeHints.with_output_types(self, *args, **kwargs)

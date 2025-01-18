@@ -25,8 +25,6 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 public abstract class OperationalLimits {
 
-  private static final long DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES = 180 << 20;
-
   // Maximum size of a commit from a single work item.
   public abstract long getMaxWorkItemCommitBytes();
   // Maximum size of a single output element's serialized key.
@@ -48,7 +46,7 @@ public abstract class OperationalLimits {
 
   public static OperationalLimits.Builder builder() {
     return new AutoValue_OperationalLimits.Builder()
-        .setMaxWorkItemCommitBytes(DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES)
+        .setMaxWorkItemCommitBytes(Long.MAX_VALUE)
         .setMaxOutputKeyBytes(Long.MAX_VALUE)
         .setMaxOutputValueBytes(Long.MAX_VALUE);
   }

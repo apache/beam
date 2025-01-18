@@ -16,6 +16,7 @@
 
 """Tests for apache_beam.ml.rag.embeddings.huggingface."""
 
+import shutil
 import tempfile
 import unittest
 
@@ -72,6 +73,9 @@ class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
                 "source": "test.txt", "language": "en"
             })
     ]
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
 
   def test_embedding_pipeline(self):
     expected = [

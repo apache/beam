@@ -337,6 +337,7 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 WorkItem workItem,
+                long serializedWorkItemSize,
                 Collection<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
@@ -469,6 +470,7 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 WorkItem workItem,
+                long serializedWorkItemSize,
                 Collection<LatencyAttribution> getWorkStreamLatencies) -> {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
@@ -1341,6 +1343,7 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 Windmill.WorkItem workItem,
+                long serializedWorkItemSize,
                 Collection<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
     // Wait for 100 items or 30 seconds.
     assertTrue(latch.await(30, TimeUnit.SECONDS));

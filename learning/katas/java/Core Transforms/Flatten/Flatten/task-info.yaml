@@ -19,11 +19,11 @@
 
 type: edu
 files:
-- name: src/org/apache/beam/learning/katas/coretransforms/flatten/Task.java
-  visible: true
-  placeholders:
-  - offset: 2294
-    length: 85
-    placeholder_text: TODO()
-- name: test/org/apache/beam/learning/katas/coretransforms/flatten/TaskTest.java
-  visible: false
+  - name: src/org/apache/beam/learning/katas/coretransforms/flatten/Task.java
+    visible: true
+    placeholders:
+      - offset: 2378
+        length: 85
+        placeholder_text: TODO()
+  - name: test/org/apache/beam/learning/katas/coretransforms/flatten/TaskTest.java
+    visible: false
