@@ -154,6 +154,7 @@ else:
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
+# must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
