@@ -682,7 +682,7 @@ public class CombineFns {
       long size = 0;
       for (int i = 0; i < values.length; ++i) {
         Coder<Object> objectCoder = coders.get(i);
-        size += Coder.getEncodedElementByteSize(objectCoder, values[i]);
+        size += Coder.getEncodedElementByteSizeUsingCoder(objectCoder, values[i]);
       }
       return size;
     }
