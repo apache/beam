@@ -715,6 +715,9 @@ def preprocess_windowing(spec):
         'transforms': [modified_spec] + windowing_transforms,
         'input': spec['input'],
         'output': modified_spec['__uuid__'],
+        'config': {
+            'error_handling': spec.get('config', {}).get('error_handling', {})
+        },
         '__line__': spec['__line__'],
         '__uuid__': spec['__uuid__'],
     }
@@ -749,6 +752,9 @@ def preprocess_windowing(spec):
         'name': spec.get('name', None) or spec['type'],
         'transforms': [modified_spec] + windowing_transforms,
         'output': windowed_outputs,
+        'config': {
+            'error_handling': spec.get('config', {}).get('error_handling', {})
+        },
         '__line__': spec['__line__'],
         '__uuid__': spec['__uuid__'],
     }
