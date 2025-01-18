@@ -74,12 +74,14 @@
 * External, Process based Worker Pool support added to the Go SDK container. ([#33572](https://github.com/apache/beam/pull/33572))
   * This is used to enable sidecar containers to run SDK workers for some runners.
   * See https://beam.apache.org/documentation/runtime/sdk-harness-config/ for details.
+* Support the Process Environment for execution in the Go SDK. ([#33651](https://github.com/apache/beam/pull/33651))
 * Prism
   * Prism now uses the same single port for both pipeline submission and execution on workers. Requests are differentiated by worker-id. ([#33438](https://github.com/apache/beam/pull/33438))
     * This avoids port starvation and provides clarity on port use when running Prism in non-local environments.
   * Support for @RequiresTimeSortedInputs added. ([#33513](https://github.com/apache/beam/issues/33513))
   * Initial support for AllowedLateness added. ([#33542](https://github.com/apache/beam/pull/33542))
   * The Go SDK's inprocess Prism runner (AKA the Go SDK default runner) now supports non-loopback mode environment types. ([#33572](https://github.com/apache/beam/pull/33572))
+  * Support the Process Environment for execution in Prism ([#33651](https://github.com/apache/beam/pull/33651))
 
 ## Breaking Changes
 
