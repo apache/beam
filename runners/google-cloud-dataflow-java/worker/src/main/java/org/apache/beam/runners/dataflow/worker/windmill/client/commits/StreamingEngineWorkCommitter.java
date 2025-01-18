@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import com.google.auto.value.AutoBuilder;
+import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -227,7 +228,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       Commit commit;
       try {
         if (commits < TARGET_COMMIT_BATCH_KEYS) {
-          commit = commitQueue.poll(10 - 2L * commits, TimeUnit.MILLISECONDS);
+          commit = commitQueue.poll(Duration.ofMillis(10 - 2L * commits));
         } else {
           commit = commitQueue.poll();
         }

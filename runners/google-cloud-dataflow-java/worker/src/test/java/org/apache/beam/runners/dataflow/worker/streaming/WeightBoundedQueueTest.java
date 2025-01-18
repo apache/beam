@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.junit.Rule;
@@ -119,7 +119,7 @@ public class WeightBoundedQueueTest {
             () -> {
               int polled;
               try {
-                polled = queue.poll(pollWaitTimeMillis, TimeUnit.MILLISECONDS);
+                polled = queue.poll(Duration.ofMillis(pollWaitTimeMillis));
                 pollResult.set(polled);
               } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -152,7 +152,7 @@ public class WeightBoundedQueueTest {
             () -> {
               @Nullable Integer polled;
               try {
-                polled = queue.poll(pollWaitTimeMillis, TimeUnit.MILLISECONDS);
+                polled = queue.poll(Duration.ofMillis(pollWaitTimeMillis));
                 if (polled != null) {
                   pollResult.set(polled);
                 }
