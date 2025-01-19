@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
@@ -41,12 +42,22 @@ public class StateNamespaces {
   }
 
   public static <W extends BoundedWindow> StateNamespace window(Coder<W> windowCoder, W window) {
-    return new WindowNamespace<>(windowCoder, window);
+    return new WindowNamespace<>(windowCoder, window, null);
+  }
+
+  private static <W extends BoundedWindow> StateNamespace window(
+      Coder<W> windowCoder, W window, String stringKey) {
+    return new WindowNamespace<>(windowCoder, window, stringKey);
   }
 
   public static <W extends BoundedWindow> StateNamespace windowAndTrigger(
       Coder<W> windowCoder, W window, int triggerIdx) {
     return new WindowAndTriggerNamespace<>(windowCoder, window, triggerIdx);
+  }
+
+  private static <W extends BoundedWindow> StateNamespace windowAndTrigger(
+      Coder<W> windowCoder, W window, int triggerIdx, String stringKey) {
+    return new WindowAndTriggerNamespace<>(windowCoder, window, triggerIdx, stringKey);
   }
 
   private StateNamespaces() {}
@@ -93,9 +104,12 @@ public class StateNamespaces {
     private final Coder<W> windowCoder;
     private final W window;
 
-    private WindowNamespace(Coder<W> windowCoder, W window) {
+    private SoftReference<String> stringKeyRef;
+
+    private WindowNamespace(Coder<W> windowCoder, W window, @Nullable String stringKey) {
       this.windowCoder = windowCoder;
       this.window = window;
+      stringKeyRef = new SoftReference<>(stringKey);
     }
 
     public W getWindow() {
@@ -104,17 +118,25 @@ public class StateNamespaces {
 
     @Override
     public String stringKey() {
-      try {
-        // equivalent to String.format("/%s/", ...)
-        return "/" + CoderUtils.encodeToBase64(windowCoder, window) + "/";
-      } catch (CoderException e) {
-        throw new RuntimeException("Unable to generate string key from window " + window, e);
-      }
+      return getStringKey();
     }
 
     @Override
     public void appendTo(Appendable sb) throws IOException {
-      sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window)).append('/');
+      sb.append(getStringKey());
+    }
+
+    private String getStringKey() {
+      String stringKey = stringKeyRef.get();
+      if (stringKey == null) {
+        try {
+          stringKey = "/" + CoderUtils.encodeToBase64(windowCoder, window) + "/";
+        } catch (CoderException e) {
+          throw new RuntimeException("Unable to generate string key from window " + window, e);
+        }
+        stringKeyRef = new SoftReference<>(stringKey);
+      }
+      return stringKey;
     }
 
     /** State in the same window will all be evicted together. */
@@ -156,14 +178,24 @@ public class StateNamespaces {
   public static class WindowAndTriggerNamespace<W extends BoundedWindow> implements StateNamespace {
 
     private static final int TRIGGER_RADIX = 36;
-    private Coder<W> windowCoder;
-    private W window;
-    private int triggerIndex;
+    private final Coder<W> windowCoder;
+    private final W window;
+    private final int triggerIndex;
+    private SoftReference<String> stringKeyRef;
 
     private WindowAndTriggerNamespace(Coder<W> windowCoder, W window, int triggerIndex) {
       this.windowCoder = windowCoder;
       this.window = window;
       this.triggerIndex = triggerIndex;
+      this.stringKeyRef = new SoftReference<>(null);
+    }
+
+    private WindowAndTriggerNamespace(
+        Coder<W> windowCoder, W window, int triggerIndex, String stringKey) {
+      this.windowCoder = windowCoder;
+      this.window = window;
+      this.triggerIndex = triggerIndex;
+      this.stringKeyRef = new SoftReference<>(stringKey);
     }
 
     public W getWindow() {
@@ -176,26 +208,13 @@ public class StateNamespaces {
 
     @Override
     public String stringKey() {
-      try {
-        // equivalent to String.format("/%s/%s/", ...)
-        return "/"
-            + CoderUtils.encodeToBase64(windowCoder, window)
-            +
-            // Use base 36 so that can address 36 triggers in a single byte and still be human
-            // readable.
-            "/"
-            + Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase()
-            + "/";
-      } catch (CoderException e) {
-        throw new RuntimeException("Unable to generate string key from window " + window, e);
-      }
+
+      return getStringKey();
     }
 
     @Override
     public void appendTo(Appendable sb) throws IOException {
-      sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window));
-      sb.append('/').append(Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
-      sb.append('/');
+      sb.append(getStringKey());
     }
 
     /** State in the same window will all be evicted together. */
@@ -217,6 +236,27 @@ public class StateNamespaces {
       WindowAndTriggerNamespace<?> that = (WindowAndTriggerNamespace<?>) obj;
       return this.triggerIndex == that.triggerIndex
           && Objects.equals(this.windowStructuralValue(), that.windowStructuralValue());
+    }
+
+    private String getStringKey() {
+      String stringKey = stringKeyRef.get();
+      if (stringKey == null) {
+        try {
+          stringKey =
+              "/"
+                  + CoderUtils.encodeToBase64(windowCoder, window)
+                  +
+                  // Use base 36 so that can address 36 triggers in a single byte and still be human
+                  // readable.
+                  "/"
+                  + Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase()
+                  + "/";
+        } catch (CoderException e) {
+          throw new RuntimeException("Unable to generate string key from window " + window, e);
+        }
+        stringKeyRef = new SoftReference<>(stringKey);
+      }
+      return stringKey;
     }
 
     private Object windowStructuralValue() {
@@ -263,9 +303,9 @@ public class StateNamespaces {
       W window = CoderUtils.decodeFromBase64(windowCoder, parts.get(1));
       if (parts.size() > 3) {
         int index = Integer.parseInt(parts.get(2), WindowAndTriggerNamespace.TRIGGER_RADIX);
-        return windowAndTrigger(windowCoder, window, index);
+        return windowAndTrigger(windowCoder, window, index, stringKey);
       } else {
-        return window(windowCoder, window);
+        return window(windowCoder, window, stringKey);
       }
     } catch (Exception e) {
       throw new RuntimeException("Invalid namespace string: '" + stringKey + "'", e);
