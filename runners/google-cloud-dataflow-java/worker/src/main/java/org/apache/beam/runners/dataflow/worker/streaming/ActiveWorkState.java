@@ -221,11 +221,11 @@ public final class ActiveWorkState {
   }
 
   private synchronized void incrementActiveWorkBudget(Work work) {
-    activeGetWorkBudget = activeGetWorkBudget.apply(1, work.getWorkItem().getSerializedSize());
+    activeGetWorkBudget = activeGetWorkBudget.apply(1, work.getSerializedWorkItemSize());
   }
 
   private synchronized void decrementActiveWorkBudget(Work work) {
-    activeGetWorkBudget = activeGetWorkBudget.subtract(1, work.getWorkItem().getSerializedSize());
+    activeGetWorkBudget = activeGetWorkBudget.subtract(1, work.getSerializedWorkItemSize());
   }
 
   /**
