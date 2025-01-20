@@ -70,17 +70,20 @@ public final class Work implements RefreshableWork {
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
   private final String latencyTrackingId;
+  private final long serializedWorkItemSize;
   private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
 
   private Work(
       WorkItem workItem,
+      long serializedWorkItemSize,
       Watermarks watermarks,
       ProcessingContext processingContext,
       Supplier<Instant> clock) {
     this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
     this.workItem = workItem;
+    this.serializedWorkItemSize = serializedWorkItemSize;
     this.processingContext = processingContext;
     this.watermarks = watermarks;
     this.clock = clock;
@@ -97,11 +100,12 @@ public final class Work implements RefreshableWork {
 
   public static Work create(
       WorkItem workItem,
+      long serializedWorkItemSize,
       Watermarks watermarks,
       ProcessingContext processingContext,
       Supplier<Instant> clock,
       Collection<LatencyAttribution> getWorkStreamLatencies) {
-    Work work = new Work(workItem, watermarks, processingContext, clock);
+    Work work = new Work(workItem, serializedWorkItemSize, watermarks, processingContext, clock);
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     return work;
   }
@@ -164,6 +168,10 @@ public final class Work implements RefreshableWork {
 
   public WorkItem getWorkItem() {
     return workItem;
+  }
+
+  public long getSerializedWorkItemSize() {
+    return serializedWorkItemSize;
   }
 
   @Override

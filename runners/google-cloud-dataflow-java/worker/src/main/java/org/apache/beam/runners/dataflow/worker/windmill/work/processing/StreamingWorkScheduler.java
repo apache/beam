@@ -205,12 +205,19 @@ public class StreamingWorkScheduler {
   public void scheduleWork(
       ComputationState computationState,
       Windmill.WorkItem workItem,
+      long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
     computationState.activateWork(
         ExecutableWork.create(
-            Work.create(workItem, watermarks, processingContext, clock, getWorkStreamLatencies),
+            Work.create(
+                workItem,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                clock,
+                getWorkStreamLatencies),
             work -> processWork(computationState, work)));
   }
 
