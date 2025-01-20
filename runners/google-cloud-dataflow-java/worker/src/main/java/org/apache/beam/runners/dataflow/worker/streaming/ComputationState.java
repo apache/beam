@@ -31,7 +31,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
 
 /**
@@ -120,7 +119,7 @@ public class ComputationState {
     }
   }
 
-  public void failWork(Multimap<Long, WorkId> failedWork) {
+  public void failWork(ImmutableList<WorkIdWithShardingKey> failedWork) {
     activeWorkState.failWorkForKey(failedWork);
   }
 

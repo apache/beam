@@ -25,6 +25,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHear
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatResponse;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 
 /**
@@ -34,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multim
 @Internal
 public final class WorkHeartbeatResponseProcessor
     implements Consumer<List<ComputationHeartbeatResponse>> {
+
   /** Fetches a {@link ComputationState} for a computationId. */
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
 
@@ -46,11 +48,18 @@ public final class WorkHeartbeatResponseProcessor
   @Override
   public void accept(List<ComputationHeartbeatResponse> responses) {
     for (ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
+      ImmutableList.Builder<WorkIdWithShardingKey> failedWorkBuilder = ImmutableList.builder();
       // Maps sharding key to (work token, cache token) for work that should be marked failed.
       Multimap<Long, WorkId> failedWork = ArrayListMultimap.create();
       for (HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
+          failedWorkBuilder.add(
+              WorkIdWithShardingKey.builder()
+                  .setShardingKey(heartbeatResponse.getShardingKey())
+                  .setWorkToken(heartbeatResponse.getWorkToken())
+                  .setCacheToken(heartbeatResponse.getCacheToken())
+                  .build());
           failedWork.put(
               heartbeatResponse.getShardingKey(),
               WorkId.builder()
@@ -62,7 +71,7 @@ public final class WorkHeartbeatResponseProcessor
 
       computationStateFetcher
           .apply(computationHeartbeatResponse.getComputationId())
-          .ifPresent(state -> state.failWork(failedWork));
+          .ifPresent(state -> state.failWork(failedWorkBuilder.build()));
     }
   }
 }
