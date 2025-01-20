@@ -49,7 +49,14 @@ without breaking the linear/chaining style of pipeline construction.&lt;/li>
 &lt;li>Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn (&lt;a href="https://github.com/apache/beam/issues/31111">#31111&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;p>N/A&lt;/p>
+&lt;ul>
+&lt;li>[Managed Iceberg] DataFile metadata is assigned incorrect partition values (&lt;a href="https://github.com/apache/beam/issues/33497">#33497&lt;/a>).
+&lt;ul>
+&lt;li>Fixed in 2.62.0&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>[Python] If you are using the official Apache Beam Python containers for version 2.61.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project&amp;rsquo;s dependency list. (&lt;a href="https://github.com/apache/beam/issues/33639">#33639&lt;/a>).&lt;/li>
+&lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.60.0 release. Thank you to all contributors!&lt;/p>
