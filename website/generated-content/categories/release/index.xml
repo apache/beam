@@ -1,4 +1,101 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 25 Nov 2024 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.61.0</title><link>/blog/beam-2.61.0/</link><pubDate>Mon, 25 Nov 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.61.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 21 Jan 2025 10:30:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.62.0</title><link>/blog/beam-2.62.0/</link><pubDate>Tue, 21 Jan 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.62.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.62.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.62.0, check out the &lt;a href="https://github.com/apache/beam/milestone/26">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added support for stateful processing in Spark Runner for streaming pipelines. Timer functionality is not yet supported and will be implemented in a future release (&lt;a href="https://github.com/apache/beam/issues/33237">#33237&lt;/a>).&lt;/li>
+&lt;li>The datetime module is now available for use in jinja templatization for yaml.&lt;/li>
+&lt;li>Improved batch performance of SparkRunner&amp;rsquo;s GroupByKey (&lt;a href="https://github.com/apache/beam/pull/20943">#20943&lt;/a>).&lt;/li>
+&lt;li>Support OnWindowExpiration in Prism (&lt;a href="https://github.com/apache/beam/issues/32211">#32211&lt;/a>).
+&lt;ul>
+&lt;li>This enables initial Java GroupIntoBatches support.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Support OrderedListState in Prism (&lt;a href="https://github.com/apache/beam/issues/32929">#32929&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>gcs-connector config options can be set via GcsOptions (Java) (&lt;a href="https://github.com/apache/beam/pull/32769">#32769&lt;/a>).&lt;/li>
+&lt;li>[Managed Iceberg] Support partitioning by time (year, month, day, hour) for types &lt;code>date&lt;/code>, &lt;code>time&lt;/code>, &lt;code>timestamp&lt;/code>, and &lt;code>timestamp(tz)&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/32939">#32939&lt;/a>)&lt;/li>
+&lt;li>Upgraded the default version of Hadoop dependencies to 3.4.1. Hadoop 2.10.2 is still supported (Java) (&lt;a href="https://github.com/apache/beam/issues/33011">#33011&lt;/a>).&lt;/li>
+&lt;li>[BigQueryIO] Create managed BigLake tables dynamically (&lt;a href="https://github.com/apache/beam/pull/33125">#33125&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Upgraded ZetaSQL to 2024.11.1 (&lt;a href="https://github.com/apache/beam/pull/32902">#32902&lt;/a>). Java11+ is now needed if Beam&amp;rsquo;s ZetaSQL component is used.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed EventTimeTimer ordering in Prism. (&lt;a href="https://github.com/apache/beam/issues/32222">#32222&lt;/a>).&lt;/li>
+&lt;li>[Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values (&lt;a href="https://github.com/apache/beam/pull/33549">#33549&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="security-fixes">Security Fixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2024-47561">CVE-2024-47561&lt;/a> (Java) by upgrading Avro version to 1.11.4&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>[Python] If you are using the official Apache Beam Python containers for version 2.62.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project&amp;rsquo;s dependency list. (&lt;a href="https://github.com/apache/beam/issues/33639">#33639&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.62.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud,
+Ahmet Altay,
+Alex Merose,
+Andrew Crites,
+Arnout Engelen,
+Attila Doroszlai,
+Bartosz Zablocki,
+Chamikara Jayalath,
+Claire McGinty,
+Claude van der Merwe,
+Damon Douglas,
+Danny McCormick,
+Gabija Balvociute,
+Hai Joey Tran,
+Hakampreet Singh Pandher,
+Ian Sullivan,
+Jack McCluskey,
+Jan Lukavský,
+Jeff Kinard,
+Jeffrey Kinard,
+Laura Detmer,
+Kenneth Knowles,
+Martin Trieu,
+Mattie Fu,
+Michel Davit,
+Naireen Hussain,
+Nick Anikin,
+Radosław Stankiewicz,
+Ravi Magham,
+Reeba Qureshi,
+Robert Bradshaw,
+Robert Burke,
+Rohit Sinha,
+S. Veyrié,
+Sam Whittle,
+Shingo Furuyama,
+Shunping Huang,
+Svetak Sundhar,
+Valentyn Tymofieiev,
+Vlado Djerek,
+XQ Hu,
+Yi Hu,
+twosom&lt;/p></description></item><item><title>Blog: Apache Beam 2.61.0</title><link>/blog/beam-2.61.0/</link><pubDate>Mon, 25 Nov 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.61.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4998,60 +5095,4 @@ Peter Backx, Rakesh Kumar, Rasmi Elasmar, Reuven Lax, Reza Rokni, Robbe Sneyders
 Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Ruoyun Huang,
 Shoaib Zafar, Slava Chernyak, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
 Tim Robertson, Tim van der Lippe, Udi Meiri, Valentyn Tymofieiev, Varun Dhussa,
-Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.&lt;/p></description></item><item><title>Blog: Apache Beam 2.13.0</title><link>/blog/beam-2.13.0/</link><pubDate>Fri, 07 Jun 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.13.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.13.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2130-2019-05-21">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.13.0, check out the
-&lt;a href="https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345166">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Support reading query results with the BigQuery storage API.&lt;/li>
-&lt;li>Support KafkaIO to be configured externally for use with other SDKs.&lt;/li>
-&lt;li>BigQuery IO now supports BYTES datatype on Python 3.&lt;/li>
-&lt;li>Avro IO support enabled on Python 3.&lt;/li>
-&lt;li>For Python 3 pipelines, the default Avro library used by Beam AvroIO and Dataflow workers was switched from avro-python3 to fastavro.&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Flink 1.8 support added.&lt;/li>
-&lt;li>Support to run word count on Portable Spark runner.&lt;/li>
-&lt;li>ElementCount metrics in FnApi Dataflow Runner.&lt;/li>
-&lt;li>Support to create BinaryCombineFn from lambdas.&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>When writing BYTES Datatype into Bigquery with Beam Bigquery IO on Python DirectRunner, users need to base64-encode bytes values before passing them to Bigquery IO. Accordingly, when reading bytes data from BigQuery, the IO will also return base64-encoded bytes. This change only affects Bigquery IO on Python DirectRunner. New DirectRunner behavior is consistent with treatment of Bytes by Beam Java Bigquery IO, and Python Dataflow Runner.&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.13.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aaron Li, Ahmet Altay, Aizhamal Nurmamat kyzy, Alex Amato, Alexey Romanenko,
-Andrew Pilloud, Ankur Goenka, Anton Kedin, apstndb, Boyuan Zhang, Brian Hulette,
-Brian Quinlan, Chamikara Jayalath, Cyrus Maden, Daniel Chen, Daniel Oliveira,
-David Cavazos, David Moravek, David Yan, EdgarLGB, Etienne Chauchot, frederik2,
-Gleb Kanterov, Harshit Dwivedi, Harsh Vardhan, Heejong Lee, Hennadiy Leontyev,
-Henri-Mayeul de Benque, Ismaël Mejía, Jae-woo Kim, Jamie Kirkpatrick, Jan Lukavský,
-Jason Kuster, Jean-Baptiste Onofré, JohnZZGithub, Jozef Vilcek, Juta, Kenneth Jung,
-Kenneth Knowles, Kyle Weaver, Łukasz Gajowy, Luke Cwik, Mark Liu, Mathieu Blanchard,
-Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Kaplinskiy,
-Mike Pedersen, Mikhail Gryzykhin, Mikhail-Ivanov, Niklas Hansson, pabloem,
-Pablo Estrada, Pranay Nanda, Reuven Lax, Richard Moorhead, Robbe Sneyders,
-Robert Bradshaw, Robert Burke, Roman van der Krogt, rosetn, Rui Wang, Ryan Yuan,
-Sam Whittle, sudhan499, Sylwester Kardziejonek, Ted, Thomas Weise, Tim Robertson,
-ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, Yifan Zou,
-yoshiki.obata, Yueyang Qiu&lt;/p></description></item></channel></rss>
+Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.&lt;/p></description></item></channel></rss>

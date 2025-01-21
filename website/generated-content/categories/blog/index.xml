@@ -1,4 +1,101 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 25 Nov 2024 15:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.61.0</title><link>/blog/beam-2.61.0/</link><pubDate>Mon, 25 Nov 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.61.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 21 Jan 2025 10:30:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.62.0</title><link>/blog/beam-2.62.0/</link><pubDate>Tue, 21 Jan 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.62.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.62.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.62.0, check out the &lt;a href="https://github.com/apache/beam/milestone/26">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added support for stateful processing in Spark Runner for streaming pipelines. Timer functionality is not yet supported and will be implemented in a future release (&lt;a href="https://github.com/apache/beam/issues/33237">#33237&lt;/a>).&lt;/li>
+&lt;li>The datetime module is now available for use in jinja templatization for yaml.&lt;/li>
+&lt;li>Improved batch performance of SparkRunner&amp;rsquo;s GroupByKey (&lt;a href="https://github.com/apache/beam/pull/20943">#20943&lt;/a>).&lt;/li>
+&lt;li>Support OnWindowExpiration in Prism (&lt;a href="https://github.com/apache/beam/issues/32211">#32211&lt;/a>).
+&lt;ul>
+&lt;li>This enables initial Java GroupIntoBatches support.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Support OrderedListState in Prism (&lt;a href="https://github.com/apache/beam/issues/32929">#32929&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>gcs-connector config options can be set via GcsOptions (Java) (&lt;a href="https://github.com/apache/beam/pull/32769">#32769&lt;/a>).&lt;/li>
+&lt;li>[Managed Iceberg] Support partitioning by time (year, month, day, hour) for types &lt;code>date&lt;/code>, &lt;code>time&lt;/code>, &lt;code>timestamp&lt;/code>, and &lt;code>timestamp(tz)&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/32939">#32939&lt;/a>)&lt;/li>
+&lt;li>Upgraded the default version of Hadoop dependencies to 3.4.1. Hadoop 2.10.2 is still supported (Java) (&lt;a href="https://github.com/apache/beam/issues/33011">#33011&lt;/a>).&lt;/li>
+&lt;li>[BigQueryIO] Create managed BigLake tables dynamically (&lt;a href="https://github.com/apache/beam/pull/33125">#33125&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Upgraded ZetaSQL to 2024.11.1 (&lt;a href="https://github.com/apache/beam/pull/32902">#32902&lt;/a>). Java11+ is now needed if Beam&amp;rsquo;s ZetaSQL component is used.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed EventTimeTimer ordering in Prism. (&lt;a href="https://github.com/apache/beam/issues/32222">#32222&lt;/a>).&lt;/li>
+&lt;li>[Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values (&lt;a href="https://github.com/apache/beam/pull/33549">#33549&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="security-fixes">Security Fixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2024-47561">CVE-2024-47561&lt;/a> (Java) by upgrading Avro version to 1.11.4&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>[Python] If you are using the official Apache Beam Python containers for version 2.62.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project&amp;rsquo;s dependency list. (&lt;a href="https://github.com/apache/beam/issues/33639">#33639&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.62.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud,
+Ahmet Altay,
+Alex Merose,
+Andrew Crites,
+Arnout Engelen,
+Attila Doroszlai,
+Bartosz Zablocki,
+Chamikara Jayalath,
+Claire McGinty,
+Claude van der Merwe,
+Damon Douglas,
+Danny McCormick,
+Gabija Balvociute,
+Hai Joey Tran,
+Hakampreet Singh Pandher,
+Ian Sullivan,
+Jack McCluskey,
+Jan Lukavský,
+Jeff Kinard,
+Jeffrey Kinard,
+Laura Detmer,
+Kenneth Knowles,
+Martin Trieu,
+Mattie Fu,
+Michel Davit,
+Naireen Hussain,
+Nick Anikin,
+Radosław Stankiewicz,
+Ravi Magham,
+Reeba Qureshi,
+Robert Bradshaw,
+Robert Burke,
+Rohit Sinha,
+S. Veyrié,
+Sam Whittle,
+Shingo Furuyama,
+Shunping Huang,
+Svetak Sundhar,
+Valentyn Tymofieiev,
+Vlado Djerek,
+XQ Hu,
+Yi Hu,
+twosom&lt;/p></description></item><item><title>Blog: Apache Beam 2.61.0</title><link>/blog/beam-2.61.0/</link><pubDate>Mon, 25 Nov 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.61.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7122,145 +7219,4 @@ Udi Meiri
 vachan-shetty
 Valentyn Tymofieiev
 Yichi Zhang
-zhoufek&lt;/p></description></item><item><title>Blog: Apache Beam 2.34.0</title><link>/blog/beam-2.34.0/</link><pubDate>Thu, 11 Nov 2021 00:11:00 -0800</pubDate><guid>/blog/beam-2.34.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.34.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2340-2021-11-11">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.34.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350405">detailed release
-notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>The Beam Java API for Calcite SqlTransform is no longer experimental (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12680">BEAM-12680&lt;/a>).&lt;/li>
-&lt;li>Python&amp;rsquo;s ParDo (Map, FlatMap, etc.) transforms now suport a &lt;code>with_exception_handling&lt;/code> option for easily ignoring bad records and implementing the dead letter pattern.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>&lt;code>ReadFromBigQuery&lt;/code> and &lt;code>ReadAllFromBigQuery&lt;/code> now run queries with BATCH priority by default. The &lt;code>query_priority&lt;/code> parameter is introduced to the same transforms to allow configuring the query priority (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12913">BEAM-12913&lt;/a>).&lt;/li>
-&lt;li>[EXPERIMENTAL] Support for &lt;a href="https://cloud.google.com/bigquery/docs/reference/storage">BigQuery Storage Read API&lt;/a> added to &lt;code>ReadFromBigQuery&lt;/code>. The newly introduced &lt;code>method&lt;/code> parameter can be set as &lt;code>DIRECT_READ&lt;/code> to use the Storage Read API. The default is &lt;code>EXPORT&lt;/code> which invokes a BigQuery export request. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/li>
-&lt;li>[EXPERIMENTAL] Added &lt;code>use_native_datetime&lt;/code> parameter to &lt;code>ReadFromBigQuery&lt;/code> to configure the return type of &lt;a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type">DATETIME&lt;/a> fields when using &lt;code>ReadFromBigQuery&lt;/code>. This parameter can &lt;em>only&lt;/em> be used when &lt;code>method = DIRECT_READ&lt;/code>(Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Upgrade to Calcite 1.26.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9379">BEAM-9379&lt;/a>).&lt;/li>
-&lt;li>Added a new &lt;code>dataframe&lt;/code> extra to the Python SDK that tracks &lt;code>pandas&lt;/code> versions
-we&amp;rsquo;ve verified compatibility with. We now recommend installing Beam with &lt;code>pip install apache-beam[dataframe]&lt;/code> when you intend to use the DataFrame API
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12906">BEAM-12906&lt;/a>).&lt;/li>
-&lt;li>Add an &lt;a href="https://github.com/cometta/python-apache-beam-spark">example&lt;/a> of deploying Python Apache Beam job with Spark Cluster&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>SQL Rows are no longer flattened (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5505">BEAM-5505&lt;/a>).&lt;/li>
-&lt;li>[Go SDK] beam.TryCrossLanguage&amp;rsquo;s signature now matches beam.CrossLanguage. Like other Try functions it returns an error instead of panicking. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9918">BEAM-9918&lt;/a>).&lt;/li>
-&lt;li>&lt;a href="https://jira.apache.org/jira/browse/BEAM-12925">BEAM-12925&lt;/a> was fixed. It used to silently pass incorrect null data read from JdbcIO. Pipelines affected by this will now start throwing failures instead of silently passing incorrect data.&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed error while writing multiple DeferredFrames to csv (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12701">BEAM-12701&lt;/a>).&lt;/li>
-&lt;li>Fixed error when importing the DataFrame API with pandas 1.0.x installed (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12945">BEAM-12945&lt;/a>).&lt;/li>
-&lt;li>Fixed top.SmallestPerKey implementation in the Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12946">BEAM-12946&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>Large Java BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used).
-This results in the error message: &lt;code>IllegalArgumentException: Attempting to access unknown side input&lt;/code>.
-Please upgrade to a newer version (&amp;gt; 2.34.0) or use another write method (e.g. &lt;code>STORAGE_WRITE_API&lt;/code>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.34.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay,
-Aizhamal Nurmamat kyzy,
-Alex Amato,
-Alexander Chermenin,
-Alexey Romanenko,
-AlikRodriguez,
-Andrew Pilloud,
-Andy Xu,
-Ankur Goenka,
-Aydar Farrakhov,
-Aydar Zainutdinov,
-Aydar Zaynutdinov,
-AydarZaynutdinov,
-Benjamin Gonzalez,
-BenWhitehead,
-Brachi Packter,
-Brian Hulette,
-Bu Sun Kim,
-Chamikara Jayalath,
-Chris Gray,
-Chuck Yang,
-Chun Yang,
-Claire McGinty,
-comet,
-Daniel Collins,
-Daniel Oliveira,
-Daniel Thevessen,
-daria.malkova,
-David Cavazos,
-David Huntsperger,
-Dmytro Kozhevin,
-dpcollins-google,
-Eduardo Sánchez López,
-Elias Djurfeldt,
-emily,
-Emily Ye,
-Enis Sert,
-Etienne Chauchot,
-Fernando Morales,
-Heejong Lee,
-Ihor Indyk,
-Ismaël Mejía,
-Israel Herraiz,
-Jack McCluskey,
-Jonathan Hourany,
-Judah Rand,
-Kenneth Knowles,
-KevinGG,
-Ke Wu,
-kileys,
-Kyle Weaver,
-Luke Cwik,
-masahitojp,
-MiguelAnzoWizeline,
-Minbo Bae,
-Niels Basjes,
-Ning Kang,
-Pablo Estrada,
-pareshsarafmdb,
-Paul Féraud,
-Piotr Szczepanik,
-Reuven Lax,
-Ritesh Ghorse,
-R. Miles McCain,
-Robert Bradshaw,
-Robert Burke,
-Rogan Morrow,
-Ruwan Lambrichts,
-rvballada,
-Ryan Thompson,
-Sam Rohde,
-Sam Whittle,
-Ștefan Istrate,
-Steve Niemitz,
-Thomas Li Fredriksen,
-Tomo Suzuki,
-tvalentyn,
-Udi Meiri,
-Vachan,
-Valentyn Tymofieiev,
-Vincent Marquez,
-WinsonT,
-Yichi Zhang,
-Yifan Mai,
-Yilei &amp;ldquo;Dolee&amp;rdquo; Yang,
 zhoufek&lt;/p></description></item></channel></rss>
