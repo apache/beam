@@ -950,7 +950,6 @@ public class KafkaIOIT {
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withKeySerializer(ByteArraySerializer.class)
         .withValueSerializer(ByteArraySerializer.class)
-        .withValueSerializer(ByteArraySerializer.class)
         .withProducerConfigUpdates(
             ImmutableMap.of(
                 ProducerConfig.RETRIES_CONFIG, RETRIES_CONFIG,
