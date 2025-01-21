@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -130,5 +132,15 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .collect(Collectors.toList());
 
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
+
+    String queryByPartition =
+        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
+    rows = bqClient.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool", "datetime"));
+    beamRows =
+        rows.stream()
+            .map(tr -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tr))
+            .collect(Collectors.toList());
+    assertThat(beamRows, containsInAnyOrder(inputRows.stream().map(rowFilter::filter).toArray()));
   }
 }
