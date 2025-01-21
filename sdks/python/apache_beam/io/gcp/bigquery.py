@@ -356,6 +356,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import collections
+import inspect
 import io
 import itertools
 import json
@@ -366,6 +367,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -1883,6 +1885,11 @@ class _StreamToBigQuery(PTransform):
 # Flag to be passed to WriteToBigQuery to force schema autodetection
 SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
 
+# CDC configuration type definition
+CdcWritesWithRows = Callable[[beam.pvalue.Row], beam.pvalue.Row]
+CdcWritesWithDicts = Callable[[Dict], Dict]
+UseCdcWrites = Union[bool, CdcWritesWithRows, CdcWritesWithDicts]
+
 
 class WriteToBigQuery(PTransform):
   """Write data to BigQuery.
@@ -1930,7 +1937,7 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
-      use_cdc_writes: bool = False,
+      use_cdc_writes: UseCdcWrites = False,
       primary_key: List[str] = None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
@@ -2538,6 +2545,26 @@ class StorageWriteToBigQuery(PTransform):
   CDC_SQN = "change_sequence_number"
   # magic string to tell Java that these rows are going to dynamic destinations
   DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
+  # CDC record input for type hints
+  CDC_INFO_TYPE_HINT = (
+      CDC_INFO,
+      RowTypeConstraint.from_fields([(CDC_MUTATION_TYPE, str), (CDC_SQN, str)]))
+  # BQ table schema for CDC related information
+  CDC_INFO_SCHEMA = {
+      "name": "row_mutation_info",
+      "type": "STRUCT",
+      "fields": [
+          # setting both fields are required
+          {
+              "name": "mutation_type", "type": "STRING", "mode": "REQUIRED"
+          },
+          {
+              "name": "change_sequence_number",
+              "type": "STRING",
+              "mode": "REQUIRED"
+          }
+      ]
+  }
 
   def __init__(
       self,
@@ -2550,7 +2577,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
-      use_cdc_writes: bool = False,
+      use_cdc_writes: UseCdcWrites = False,
       primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
@@ -2566,6 +2593,46 @@ class StorageWriteToBigQuery(PTransform):
     self._primary_key = primary_key
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
+
+  @staticmethod
+  def check_and_return_callable(func: Callable, callable_expected_type):
+    signature = inspect.signature(func)
+    params = signature.parameters.values()
+    if len(params) < 1:
+      raise TypeError(
+          "Callable for CDC mutation information " +
+          "should have an input parameter. Received: " + str(signature))
+    param = next(iter(params))
+    if not param.annotation is callable_expected_type:
+      raise TypeError(
+          "For Beam Row values, while using CDC writes," +
+          " we expect a Callable[[" + str(callable_expected_type) + "], " +
+          str(callable_expected_type) + "]. " +
+          "Received a Callable with argument: " + str(param.annotation))
+    if not signature.return_annotation is callable_expected_type:
+      raise TypeError(
+          "For Beam Row values, while using CDC writes," +
+          " we expect a Callable[[" + str(callable_expected_type) + "], " +
+          str(callable_expected_type) + "]. " +
+          "Received a Callable with return: " +
+          str(signature.return_annotation))
+    return func
+
+  def extract_cdc_info_fn_rows(self):
+    cdc_writes = self._use_cdc_writes
+    if isinstance(cdc_writes, bool):
+      return None
+    elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
+      return self.check_and_return_callable(cdc_writes, beam.pvalue.Row)
+    return None
+
+  def extract_cdc_info_fn_dicts(self):
+    cdc_writes = self._use_cdc_writes
+    if isinstance(cdc_writes, bool):
+      return None
+    elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
+      return self.check_and_return_callable(cdc_writes, Dict)
+    return None
 
   def expand(self, input):
     if self._schema is None:
@@ -2592,12 +2659,16 @@ class StorageWriteToBigQuery(PTransform):
     # if writing to one destination, just convert to Beam rows and send over
     if not callable(table):
       if is_rows:
-        input_beam_rows = input
+        input_beam_rows = (
+            input | "Prepare Beam Row" >> self.PrepareBeamRows(
+                input.element_type, False,
+                self.extract_cdc_info_fn_rows()).with_output_types())
       else:
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, False).with_output_types())
+                schema, False,
+                self.extract_cdc_info_fn_dicts()).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2614,24 +2685,21 @@ class StorageWriteToBigQuery(PTransform):
       if is_rows:
         input_beam_rows = (
             input_rows
-            | "Wrap in Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[0],
-                        StorageWriteToBigQuery.RECORD: row[1]
-                    })).with_output_types(
-                        RowTypeConstraint.from_fields([
-                            (StorageWriteToBigQuery.DESTINATION, str),
-                            (StorageWriteToBigQuery.RECORD, input.element_type)
-                        ])))
+            | "Prepare Beam Row" >> self.PrepareBeamRows(
+                input.element_type, True,
+                self.extract_cdc_info_fn_rows()).with_output_types())
       # otherwise, convert to Beam Rows
       else:
         input_beam_rows = (
             input_rows
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, True).with_output_types())
+                schema, True,
+                self.extract_cdc_info_fn_dicts()).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
+
+    cdc_writes = self._use_cdc_writes if not callable(
+        self._use_cdc_writes) else True
 
     output = (
         input_beam_rows
@@ -2646,7 +2714,7 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
-            use_cdc_writes=self._use_cdc_writes,
+            use_cdc_writes=cdc_writes,
             primary_key=self._primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
@@ -2670,43 +2738,148 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
 
+  @staticmethod
+  def extract_type_hint(
+      is_row_data: bool,
+      dynamic_destination: bool,
+      element_type,
+      mutation_info_fn: Callable):
+    if dynamic_destination:
+      fields = [(StorageWriteToBigQuery.DESTINATION, str),
+                (
+                    StorageWriteToBigQuery.RECORD,
+                    element_type if is_row_data else
+                    RowTypeConstraint.from_fields(element_type))]
+      if callable(mutation_info_fn):
+        fields.append(StorageWriteToBigQuery.CDC_INFO_TYPE_HINT)
+      type_hint = RowTypeConstraint.from_fields(fields)
+    else:
+      if callable(mutation_info_fn):
+        type_hint = RowTypeConstraint.from_fields([
+            (
+                StorageWriteToBigQuery.RECORD,
+                element_type if is_row_data else
+                RowTypeConstraint.from_fields(element_type)),
+            StorageWriteToBigQuery.CDC_INFO_TYPE_HINT
+        ])
+      else:
+        type_hint = RowTypeConstraint.from_user_type(
+            element_type) if is_row_data else RowTypeConstraint.from_fields(
+                element_type)
+    return type_hint
+
+  @staticmethod
+  def maybe_add_mutation_info_dynamic_destination(
+      destination, data, mutation_info_fn, schema=None):
+    if callable(mutation_info_fn):
+      cdc_info = mutation_info_fn(data)
+      return beam.Row(
+          **{
+              StorageWriteToBigQuery.DESTINATION: destination,
+              StorageWriteToBigQuery.RECORD: data if not schema else
+              bigquery_tools.beam_row_from_dict(data, schema),
+              StorageWriteToBigQuery.CDC_INFO: cdc_info
+              if not schema else bigquery_tools.beam_row_from_dict(
+                  cdc_info, StorageWriteToBigQuery.CDC_INFO_SCHEMA)
+          })
+    else:
+      return beam.Row(
+          **{
+              StorageWriteToBigQuery.DESTINATION: destination,
+              StorageWriteToBigQuery.RECORD: data if not schema else
+              bigquery_tools.beam_row_from_dict(data, schema)
+          })
+
+  class PrepareBeamRows(PTransform):
+    def __init__(
+        self,
+        element_type,
+        dynamic_destinations,
+        mutation_info_fn: CdcWritesWithRows = None):
+      self.element_type = element_type
+      self.dynamic_destinations = dynamic_destinations
+      self.mutation_info_fn = mutation_info_fn
+
+    def expand(self, input_rows):
+      if self.dynamic_destinations:
+        return (
+            input_rows
+            | "Wrap and maybe include CDC info" >> beam.Map(
+                lambda data_and_dest: StorageWriteToBigQuery.
+                maybe_add_mutation_info_dynamic_destination(
+                    data_and_dest[0], data_and_dest[1], self.mutation_info_fn)))
+      else:
+        if callable(self.mutation_info_fn):
+          return (
+              input_rows
+              | "Wrap and maybe include CDC info" >> beam.Map(
+                  lambda row: beam.Row(
+                      **{
+                          StorageWriteToBigQuery.RECORD: row,
+                          StorageWriteToBigQuery.CDC_INFO: self.
+                          mutation_info_fn(row)
+                      })))
+        else:
+          return input_rows
+
+    def with_output_types(self):
+      return super().with_output_types(
+          StorageWriteToBigQuery.extract_type_hint(
+              True,
+              self.dynamic_destinations,
+              self.element_type,
+              self.mutation_info_fn))
+
   class ConvertToBeamRows(PTransform):
-    def __init__(self, schema, dynamic_destinations):
+    def __init__(
+        self,
+        schema,
+        dynamic_destinations,
+        mutation_info_fn: CdcWritesWithDicts = None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
+      self.mutation_info_fn = mutation_info_fn
 
     def expand(self, input_dicts):
       if self.dynamic_destinations:
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[0],
-                        StorageWriteToBigQuery.RECORD: bigquery_tools.
-                        beam_row_from_dict(row[1], self.schema)
-                    })))
+                lambda data_with_dest: StorageWriteToBigQuery.
+                maybe_add_mutation_info_dynamic_destination(
+                    data_with_dest[0],
+                    data_with_dest[1],
+                    self.mutation_info_fn,
+                    self.schema)))
       else:
         return (
             input_dicts
-            | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
-        )
+            | "Convert dict to Beam Row" >>
+            beam.Map(lambda dict_data: self.maybe_add_mutation_info(dict_data)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
           self.schema)
-      if self.dynamic_destinations:
-        type_hint = RowTypeConstraint.from_fields([
-            (StorageWriteToBigQuery.DESTINATION, str),
-            (
-                StorageWriteToBigQuery.RECORD,
-                RowTypeConstraint.from_fields(row_type_hints))
-        ])
-      else:
-        type_hint = RowTypeConstraint.from_fields(row_type_hints)
+      return super().with_output_types(
+          StorageWriteToBigQuery.extract_type_hint(
+              False,
+              self.dynamic_destinations,
+              row_type_hints,
+              self.mutation_info_fn))
 
-      return super().with_output_types(type_hint)
+    def maybe_add_mutation_info(self, dict_data):
+      if callable(self.mutation_info_fn):
+        return beam.Row(
+            **{
+                StorageWriteToBigQuery.RECORD: bigquery_tools.
+                beam_row_from_dict(dict_data, self.schema),
+                StorageWriteToBigQuery.CDC_INFO: bigquery_tools.
+                beam_row_from_dict(
+                    self.mutation_info_fn(dict_data),
+                    StorageWriteToBigQuery.CDC_INFO_SCHEMA)
+            })
+      else:
+        return bigquery_tools.beam_row_from_dict(dict_data, self.schema)
 
 
 class ReadFromBigQuery(PTransform):
