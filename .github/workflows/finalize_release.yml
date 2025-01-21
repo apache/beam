@@ -113,7 +113,7 @@ jobs:
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
       run: |
-        wget -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
+        wget -e robots=off -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
         cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
         echo "Will upload the following files to PyPI:"
         ls
