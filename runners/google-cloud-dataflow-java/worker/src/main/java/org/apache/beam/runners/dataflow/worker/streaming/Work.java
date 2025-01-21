@@ -21,8 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -88,7 +87,7 @@ public final class Work implements RefreshableWork {
     this.watermarks = watermarks;
     this.clock = clock;
     this.startTime = clock.get();
-    this.totalDurationPerState = new EnumMap<>(LatencyAttribution.State.class);
+    this.totalDurationPerState = new HashMap<>();
     this.id = WorkId.of(workItem);
     this.latencyTrackingId =
         Long.toHexString(workItem.getShardingKey())
@@ -103,11 +102,8 @@ public final class Work implements RefreshableWork {
       long serializedWorkItemSize,
       Watermarks watermarks,
       ProcessingContext processingContext,
-      Supplier<Instant> clock,
-      Collection<LatencyAttribution> getWorkStreamLatencies) {
-    Work work = new Work(workItem, serializedWorkItemSize, watermarks, processingContext, clock);
-    work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
-    return work;
+      Supplier<Instant> clock) {
+    return new Work(workItem, serializedWorkItemSize, watermarks, processingContext, clock);
   }
 
   public static ProcessingContext createProcessingContext(
@@ -256,7 +252,8 @@ public final class Work implements RefreshableWork {
     return id;
   }
 
-  private void recordGetWorkStreamLatencies(Collection<LatencyAttribution> getWorkStreamLatencies) {
+  public void recordGetWorkStreamLatencies(
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     for (LatencyAttribution latency : getWorkStreamLatencies) {
       totalDurationPerState.put(
           latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
