@@ -53,34 +53,10 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 		// We've been given a choice!
 		ap := &pipepb.AnyOfEnvironmentPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ap); err != nil {
-			logger.Error("unmarshing any environment payload", "error", err)
+			logger.Error("unmarshaling any environment payload", "error", err)
 			return err
 		}
-
-		// Prefer external, then process, then docker, unknown environments are 0.
-		ranks := map[string]int{
-			urns.EnvDocker:   1,
-			urns.EnvProcess:  5,
-			urns.EnvExternal: 10,
-		}
-
-		envs := ap.GetEnvironments()
-
-		slices.SortStableFunc(envs, func(a, b *pipepb.Environment) int {
-			rankA := ranks[a.GetUrn()]
-			rankB := ranks[b.GetUrn()]
-
-			// Reverse the comparison so our favourite is at the front
-			switch {
-			case rankA > rankB:
-				return -1 // Usually "greater than" would be 1
-			case rankA < rankB:
-				return 1 // Usually "less than" would be -1
-			}
-			return 0
-		})
-		// Pick our favourite.
-		e = envs[0]
+		e = selectAnyOfEnv(ap)
 		logger.Info("AnyEnv resolved", "selectedUrn", e.GetUrn(), "worker", wk.ID)
 		// Process the environment as normal.
 	}
@@ -89,7 +65,7 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	case urns.EnvExternal:
 		ep := &pipepb.ExternalPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ep); err != nil {
-			logger.Error("unmarshing external environment payload", "error", err)
+			logger.Error("unmarshaling external environment payload", "error", err)
 			return err
 		}
 		go func() {
@@ -100,14 +76,14 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	case urns.EnvDocker:
 		dp := &pipepb.DockerPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), dp); err != nil {
-			logger.Error("unmarshing docker environment payload", "error", err)
+			logger.Error("unmarshaling docker environment payload", "error", err)
 			return err
 		}
 		return dockerEnvironment(ctx, logger, dp, wk, j.ArtifactEndpoint())
 	case urns.EnvProcess:
 		pp := &pipepb.ProcessPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), pp); err != nil {
-			logger.Error("unmarshing process environment payload", "error", err)
+			logger.Error("unmarshaling process environment payload", "error", err)
 			return err
 		}
 		go func() {
@@ -118,6 +94,33 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	default:
 		return fmt.Errorf("environment %v with urn %v unimplemented", env, e.GetUrn())
 	}
+}
+
+func selectAnyOfEnv(ap *pipepb.AnyOfEnvironmentPayload) *pipepb.Environment {
+	// Prefer external, then process, then docker, unknown environments are 0.
+	ranks := map[string]int{
+		urns.EnvDocker:   1,
+		urns.EnvProcess:  5,
+		urns.EnvExternal: 10,
+	}
+
+	envs := ap.GetEnvironments()
+
+	slices.SortStableFunc(envs, func(a, b *pipepb.Environment) int {
+		rankA := ranks[a.GetUrn()]
+		rankB := ranks[b.GetUrn()]
+
+		// Reverse the comparison so our favourite is at the front
+		switch {
+		case rankA > rankB:
+			return -1 // Usually "greater than" would be 1
+		case rankA < rankB:
+			return 1
+		}
+		return 0
+	})
+	// Pick our favourite.
+	return envs[0]
 }
 
 func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *worker.W) {
