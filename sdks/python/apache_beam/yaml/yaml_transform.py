@@ -464,8 +464,9 @@ def expand_composite_transform(spec, scope):
           for (key, value) in empty_if_explicitly_empty(spec['input']).items()
       },
       spec['transforms'],
+      # TODO(robertwb): Are scoped providers ever used? Worth supporting?
       yaml_provider.merge_providers(
-          yaml_provider.parse_providers(spec.get('providers', [])),
+          yaml_provider.parse_providers('', spec.get('providers', [])),
           scope.providers),
       scope.input_providers)
 
@@ -1027,7 +1028,8 @@ def expand_pipeline(
     pipeline,
     pipeline_spec,
     providers=None,
-    validate_schema='generic' if jsonschema is not None else None):
+    validate_schema='generic' if jsonschema is not None else None,
+    pipeline_path=''):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
@@ -1038,5 +1040,6 @@ def expand_pipeline(
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
       yaml_provider.merge_providers(
-          yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
+          yaml_provider.parse_providers(
+              pipeline_path, pipeline_spec.get('providers', [])),
           providers or {})).expand(beam.pvalue.PBegin(pipeline))
