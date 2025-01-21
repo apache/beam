@@ -29,7 +29,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -508,7 +508,7 @@ public class RecordWriterManagerTest {
     for (Schema.Field field : primitiveTypeSchema.getFields()) {
       Object val = checkStateNotNull(row.getValue(field.getName()));
       if (dateTypes.contains(field.getName())) {
-        val = URLEncoder.encode(val.toString(), Charset.defaultCharset().toString());
+        val = URLEncoder.encode(val.toString(), StandardCharsets.UTF_8.toString());
       }
       expectedPartitions.add(field.getName() + "=" + val);
     }
