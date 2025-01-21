@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -30,11 +33,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BoundedQueueExecutor {
+
   private final ThreadPoolExecutor executor;
   private final long maximumBytesOutstanding;
 
   // Used to guard elementsOutstanding and bytesOutstanding.
   private final Monitor monitor = new Monitor();
+  private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
 
@@ -61,6 +66,7 @@ public class BoundedQueueExecutor {
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
     this.maximumPoolSize = maximumPoolSize;
+
     executor =
         new ThreadPoolExecutor(
             maximumPoolSize,
@@ -235,10 +241,32 @@ public class BoundedQueueExecutor {
   }
 
   private void decrementCounters(long workBytes) {
-    monitor.enter();
-    --elementsOutstanding;
-    bytesOutstanding -= workBytes;
-    monitor.leave();
+    // All threads queue decrements and one thread grabs the monitor and updates
+    // counters. We do this to reduce contention on monitor which is locked by
+    // GetWork thread
+    decrementQueue.add(workBytes);
+    synchronized (decrementQueue) {
+      Long polledElement;
+      List<Long> bytesList = new ArrayList<>();
+      while (true) {
+        polledElement = decrementQueue.poll();
+        if (polledElement == null) {
+          break;
+        }
+        bytesList.add(polledElement);
+      }
+      if (bytesList.isEmpty()) {
+        return;
+      }
+
+      monitor.enter();
+      bytesList.forEach(
+          bytes -> {
+            --elementsOutstanding;
+            bytesOutstanding -= bytes;
+          });
+      monitor.leave();
+    }
   }
 
   private long bytesAvailable() {
