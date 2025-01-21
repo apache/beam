@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -103,12 +104,13 @@ class DataflowMetrics extends MetricResults {
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
     ImmutableList<MetricResult<GaugeResult>> gauges = ImmutableList.of();
     ImmutableList<MetricResult<StringSetResult>> stringSets = ImmutableList.of();
+    ImmutableList<MetricResult<BoundedTrieResult>> boudedTries = ImmutableList.of();
     JobMetrics jobMetrics;
     try {
       jobMetrics = getJobMetrics();
     } catch (IOException e) {
       LOG.warn("Unable to query job metrics.\n");
-      return MetricQueryResults.create(counters, distributions, gauges, stringSets);
+      return MetricQueryResults.create(counters, distributions, gauges, stringSets, boudedTries);
     }
     metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
@@ -386,7 +388,8 @@ class DataflowMetrics extends MetricResults {
           extractor.getCounterResults(),
           extractor.getDistributionResults(),
           extractor.getGaugeResults(),
-          extractor.geStringSetResults());
+          extractor.geStringSetResults(),
+          ImmutableList.of());
     }
   }
 }

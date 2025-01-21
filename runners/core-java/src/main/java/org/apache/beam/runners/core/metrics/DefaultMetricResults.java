@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -42,16 +43,19 @@ public class DefaultMetricResults extends MetricResults {
   private final Iterable<MetricResult<DistributionResult>> distributions;
   private final Iterable<MetricResult<GaugeResult>> gauges;
   private final Iterable<MetricResult<StringSetResult>> stringSets;
+  private final Iterable<MetricResult<BoundedTrieResult>> boundedTries;
 
   public DefaultMetricResults(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
-      Iterable<MetricResult<StringSetResult>> stringSets) {
+      Iterable<MetricResult<StringSetResult>> stringSets,
+      Iterable<MetricResult<BoundedTrieResult>> boundedTries) {
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;
     this.stringSets = stringSets;
+    this.boundedTries = boundedTries;
   }
 
   @Override
@@ -62,6 +66,8 @@ public class DefaultMetricResults extends MetricResults {
             distributions, distribution -> MetricFiltering.matches(filter, distribution.getKey())),
         Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())),
         Iterables.filter(
-            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())));
+            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())),
+        Iterables.filter(
+            boundedTries, boundedTries -> MetricFiltering.matches(filter, boundedTries.getKey())));
   }
 }
