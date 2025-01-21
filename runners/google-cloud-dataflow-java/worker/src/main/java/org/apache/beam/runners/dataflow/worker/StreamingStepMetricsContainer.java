@@ -185,6 +185,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
+    // Streaming metrics are updated as delta and not cumulative.
     return counterUpdates()
         .append(distributionUpdates())
         .append(gaugeUpdates().append(stringSetUpdates()));
@@ -237,7 +238,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
               public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, StringSetCell> entry) {
                 return MetricsToCounterUpdateConverter.fromStringSet(
-                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
+                    MetricKey.create(stepName, entry.getKey()),
+                    false, entry.getValue().getAndReset());
               }
             })
         .filter(Predicates.notNull());
