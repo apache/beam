@@ -82,6 +82,8 @@
   * Initial support for AllowedLateness added. ([#33542](https://github.com/apache/beam/pull/33542))
   * The Go SDK's inprocess Prism runner (AKA the Go SDK default runner) now supports non-loopback mode environment types. ([#33572](https://github.com/apache/beam/pull/33572))
   * Support the Process Environment for execution in Prism ([#33651](https://github.com/apache/beam/pull/33651))
+  * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
+     * This improves support for developing Xlang pipelines, when using a compatible cross language service.
 
 ## Breaking Changes
 
