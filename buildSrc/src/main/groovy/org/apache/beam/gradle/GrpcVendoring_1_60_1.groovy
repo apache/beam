@@ -37,7 +37,7 @@ class GrpcVendoring_1_60_1 {
   // See https://github.com/grpc/grpc-java/blob/v1.60.1/gradle/libs.versions.toml
   // or https://search.maven.org/search?q=io.grpc%201.60.1
   static def guava_version = "32.0.1-jre"
-  static def protobuf_version = "3.24.0"
+  static def protobuf_version = "4.28.1"
   static def gson_version = "2.10.1"
   static def google_auth_version = "1.4.0"
   static def opencensus_version = "0.31.1"
