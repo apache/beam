@@ -480,12 +480,21 @@ class BatchLoads<DestinationT, ElementT>
     TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> singlePartitionTag =
         new TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>>("singlePartitionTag") {};
 
+    PTransform<
+            PCollection<WriteBundlesToFiles.Result<DestinationT>>,
+            PCollection<Iterable<WriteBundlesToFiles.Result<DestinationT>>>>
+        reifyTransform;
+    if (p.getOptions().as(BigQueryOptions.class).getGroupFilesFileLoad()) {
+      reifyTransform = new CombineAsIterable<>();
+    } else {
+      reifyTransform = new ReifyAsIterable<>();
+    }
     // This transform will look at the set of files written for each table, and if any table has
     // too many files or bytes, will partition that table's files into multiple partitions for
     // loading.
     PCollectionTuple partitions =
         results
-            .apply("ReifyResults", new CombineAsIterable<>())
+            .apply("ReifyResults", reifyTransform)
             .setCoder(IterableCoder.of(WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
             .apply(
                 "WritePartitionUntriggered",
