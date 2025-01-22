@@ -84,8 +84,8 @@ public class LazyFlinkSourceSplitEnumerator<T>
           }
         },
         (sourceSplits, error) -> {
-          pendingSplits.addAll(sourceSplits);
           if (error != null) {
+            pendingSplits.addAll(sourceSplits);
             throw new RuntimeException("Failed to start source enumerator.", error);
           }
         });
