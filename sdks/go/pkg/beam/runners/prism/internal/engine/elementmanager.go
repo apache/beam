@@ -1195,6 +1195,7 @@ func (ss *stageState) AddPending(newPending []element) int {
 		}
 		newPending = origPending
 	}
+	//slog.Warn("AddPending", "stage", ss.ID, "pending", newPending)
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
@@ -1377,10 +1378,22 @@ keysPerBundle:
 			minTs = dnt.elements[0].timestamp
 		}
 
+		dataInBundle := false
+
 		// Can we pre-compute this bit when adding to pendingByKeys?
 		// startBundle is in run in a single scheduling goroutine, so moving per-element code
 		// to be computed by the bundle parallel goroutines will speed things up a touch.
 		for dnt.elements.Len() > 0 {
+			// We can't mix data and timers in the same bundle, as there's no
+			// guarantee which is processed first SDK side.
+			// If the bundle already contains data, then it's before the timer
+			// by the heap invariant, and must be processed before we can fire a timer.
+			// AKA, keep them seperate.
+			if len(toProcess) > 0 && // If we have already picked some elements AND
+				((dataInBundle && dnt.elements[0].IsTimer()) || // we're about to add a timer to a Bundle that already has data OR
+					(!dataInBundle && !dnt.elements[0].IsTimer())) { // we're about to add data to a bundle that already has a time
+				break
+			}
 			e := heap.Pop(&dnt.elements).(element)
 			if e.IsTimer() {
 				lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
@@ -1395,6 +1408,8 @@ keysPerBundle:
 				holdsInBundle[e.holdTimestamp] += 1
 				// Clear the "fired" timer so subsequent matches can be ignored.
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
+			} else {
+				dataInBundle = true
 			}
 			toProcess = append(toProcess, e)
 			if OneElementPerKey {
@@ -1526,6 +1541,7 @@ func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []
 	ss.inprogressKeysByBundle[bundID] = newKeys
 	ss.inprogressKeys.merge(newKeys)
 	ss.inprogressHoldsByBundle[bundID] = holdsInBundle
+	//slog.Warn("makeInProgressBundle", "stage", ss.ID, "toProcess", toProcess)
 	return bundID
 }
 
