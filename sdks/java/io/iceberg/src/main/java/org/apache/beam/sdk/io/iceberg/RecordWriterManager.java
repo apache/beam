@@ -158,10 +158,11 @@ class RecordWriterManager implements AutoCloseable {
     boolean write(Record record) {
       routingPartitionKey.partition(getPartitionableRecord(record));
 
-      if (writers.getIfPresent(routingPartitionKey) == null && openWriters >= maxNumWriters) {
+      @Nullable RecordWriter writer = writers.getIfPresent(routingPartitionKey);
+      if (writer == null && openWriters >= maxNumWriters) {
         return false;
       }
-      RecordWriter writer = fetchWriterForPartition(routingPartitionKey);
+      writer = fetchWriterForPartition(routingPartitionKey, writer);
       writer.write(record);
       return true;
     }
@@ -171,9 +172,8 @@ class RecordWriterManager implements AutoCloseable {
      * no {@link RecordWriter} exists or if it has reached the maximum limit of bytes written, a new
      * one is created and returned.
      */
-    private RecordWriter fetchWriterForPartition(PartitionKey partitionKey) {
-      RecordWriter recordWriter = writers.getIfPresent(partitionKey);
-
+    private RecordWriter fetchWriterForPartition(
+        PartitionKey partitionKey, @Nullable RecordWriter recordWriter) {
       if (recordWriter == null || recordWriter.bytesWritten() > maxFileSize) {
         // each writer must have its own PartitionKey object
         PartitionKey copy = partitionKey.copy();
