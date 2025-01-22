@@ -215,6 +215,9 @@ public class TestHiveMetastore {
 
     Path warehouseRoot = new Path(hiveWarehousePath);
     FileSystem fs = Util.getFs(warehouseRoot, hiveConf);
+    if (!fs.exists(warehouseRoot)) {
+      return;
+    }
     for (FileStatus fileStatus : fs.listStatus(warehouseRoot)) {
       if (!fileStatus.getPath().getName().equals("derby.log")
           && !fileStatus.getPath().getName().equals("metastore_db")) {
