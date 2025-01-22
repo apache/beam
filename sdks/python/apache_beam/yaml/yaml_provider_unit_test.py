@@ -216,6 +216,50 @@ class YamlDefinedProider(unittest.TestCase):
           result | beam.Map(lambda x: (x.element, x.power)),
           equal_to([(0, 0), (1, 1), (2, 4), (3, 9)]))
 
+  def test_recursive(self):
+    providers = '''
+    - type: yaml
+      transforms:
+        Factorial:
+          config_schema:
+            properties:
+              n: {type: integer}
+          requires_inputs: false
+          body: |
+            {% if n <= 1 %}
+              type: Create
+              config:
+                elements:
+                  - {value: 1}
+            {% else %}
+              type: chain
+              transforms:
+                - type: Factorial
+                  config:
+                    n: {{n-1}}
+                - type: MapToFields
+                  name: Multiply
+                  config:
+                    language: python
+                    fields:
+                      value: value * {{n}}
+            {% endif %}
+    '''
+
+    pipeline = '''
+    type: Factorial
+    config:
+      n: 5
+    '''
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          pipeline,
+          providers=yaml_provider.parse_providers(
+              '', yaml.load(providers, Loader=SafeLineLoader)))
+      assert_that(result | beam.Map(lambda x: x.value), equal_to([120]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

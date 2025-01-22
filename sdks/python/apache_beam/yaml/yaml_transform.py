@@ -307,6 +307,34 @@ class Scope(LightweightScope):
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
+    if spec['type'] == 'composite':
+
+      class _CompositeTransformStub(beam.PTransform):
+        @staticmethod
+        def expand(pcolls):
+          if isinstance(pcolls, beam.PCollection):
+            pcolls = {'input': pcolls}
+          elif isinstance(pcolls, beam.pvalue.PBegin):
+            pcolls = {}
+
+          inner_scope = Scope(
+              self.root,
+              pcolls,
+              spec['transforms'],
+              self.providers,
+              self.input_providers)
+          inner_scope.compute_all()
+          if '__implicit_outputs__' in spec['output']:
+            return inner_scope.get_outputs(
+                spec['output']['__implicit_outputs__'])
+          else:
+            return {
+                key: inner_scope.get_pcollection(value)
+                for (key, value) in spec['output'].items()
+            }
+
+      return _CompositeTransformStub()
+
     if spec['type'] not in self.providers:
       raise ValueError(
           'Unknown transform type %r at %s' %
@@ -344,11 +372,14 @@ class Scope(LightweightScope):
           spec['type'], config, self.create_ptransform)
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
-      annotations = dict(
-          yaml_type=spec['type'],
-          yaml_args=json.dumps(config),
-          yaml_provider=json.dumps(provider.to_json()),
-          **ptransform.annotations())
+      annotations = {
+          **{
+              'yaml_type': spec['type'],
+              'yaml_args': json.dumps(config),
+              'yaml_provider': json.dumps(provider.to_json())
+          },
+          **ptransform.annotations()
+      }
       ptransform.annotations = lambda: annotations
       original_expand = ptransform.expand
 
@@ -387,7 +418,8 @@ class Scope(LightweightScope):
     if 'name' in spec:
       name = spec['name']
       strictness += 1
-    elif 'ExternalTransform' not in ptransform.label:
+    elif ('ExternalTransform' not in ptransform.label and
+          not ptransform.label.startswith('_')):
       # The label may have interesting information.
       name = ptransform.label
     else:
