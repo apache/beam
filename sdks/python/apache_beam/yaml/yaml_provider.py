@@ -1039,8 +1039,20 @@ class PypiExpansionService:
 
   @classmethod
   def _key(cls, base_python: str, packages: list[str]) -> str:
+    def normalize_package(package):
+      if os.path.exists(package):
+        # Ignore the exact path by which this package was referenced,
+        # but do create a new environment if it changed.
+        with open(package, 'rb') as fin:
+          return os.path.basename(package) + '-' + hashlib.file_digest(
+              fin, 'sha256').hexdigest()
+      else:
+        # Assume urls and pypi identifiers are immutable.
+        return package
+
     return json.dumps({
-        'binary': base_python, 'packages': sorted(packages)
+        'binary': base_python,
+        'packages': sorted(normalize_package(p) for p in packages)
     },
                       sort_keys=True)
 
