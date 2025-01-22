@@ -24,8 +24,8 @@ import static org.hamcrest.Matchers.equalTo;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.runners.core.metrics.HistogramCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
@@ -39,9 +39,13 @@ import org.junit.runners.JUnit4;
 // TODO:Naireen - Refactor to remove duplicate code between the two sinks
 @RunWith(JUnit4.class)
 public class KafkaMetricsTest {
-  public static class TestHistogram implements Histogram {
+  public static class TestHistogramCell extends HistogramCell {
     public List<Double> values = Lists.newArrayList();
     private MetricName metricName = MetricName.named("KafkaSink", "name");
+
+    public TestHistogramCell(KV<MetricName, HistogramData.BucketType> kv) {
+      super(kv);
+    }
 
     @Override
     public void update(double value) {
@@ -55,24 +59,20 @@ public class KafkaMetricsTest {
   }
 
   public static class TestMetricsContainer extends MetricsContainerImpl {
-    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>
+    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>
         perWorkerHistograms =
-            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>();
+            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>();
 
     public TestMetricsContainer() {
       super("TestStep");
     }
 
     @Override
-    public Histogram getPerWorkerHistogram(
+    public TestHistogramCell getPerWorkerHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
-      perWorkerHistograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogram());
+      perWorkerHistograms.computeIfAbsent(
+          KV.of(metricName, bucketType), kv -> new TestHistogramCell(kv));
       return perWorkerHistograms.get(KV.of(metricName, bucketType));
-    }
-
-    @Override
-    public void reset() {
-      perWorkerHistograms.clear();
     }
   }
 
