@@ -486,10 +486,7 @@ class TrivialInferenceTest(unittest.TestCase):
         [row_type.RowTypeConstraint.from_fields([('x', int), ('y', str)])])
 
   def testFString(self):
-    self.assertReturnType(
-        str,
-        lambda x, y: f'{x}: {y:0.2}',
-        [str, float])
+    self.assertReturnType(str, lambda x, y: f'{x}: {y:0.2}', [str, float])
 
   def testPyCallable(self):
     self.assertReturnType(
