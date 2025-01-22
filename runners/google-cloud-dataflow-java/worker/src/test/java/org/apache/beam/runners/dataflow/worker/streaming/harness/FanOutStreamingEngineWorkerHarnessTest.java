@@ -119,7 +119,11 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   private FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider;
 
   private static WorkItemScheduler noOpProcessWorkItemFn() {
-    return (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
+    return (workItem,
+        serializedWorkItemSize,
+        watermarks,
+        processingContext,
+        getWorkStreamLatencies) -> {};
   }
 
   private static GetWorkRequest getWorkRequest(long items, long bytes) {
@@ -242,7 +246,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   @Test
   public void testOnNewWorkerMetadata_correctlyRemovesStaleWindmillServers()
       throws InterruptedException {
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor = spy(new TestGetWorkBudgetDistributor());
+    GetWorkBudgetDistributor getWorkBudgetDistributor = mock(GetWorkBudgetDistributor.class);
     fanOutStreamingEngineWorkProvider =
         newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),

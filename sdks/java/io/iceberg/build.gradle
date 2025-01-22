@@ -63,6 +63,8 @@ dependencies {
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_gcs_connector
     testImplementation library.java.bigdataoss_util_hadoop
+    testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
+    testImplementation "org.apache.parquet:parquet-common:$parquet_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
@@ -78,6 +80,9 @@ dependencies {
         exclude group: "org.apache.hive", module: "hive-exec"
         exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
     }
+
+    // BigQueryMetastore catalog dep
+    testImplementation project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
 
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
@@ -119,7 +124,7 @@ hadoopVersions.each { kv ->
     }
 }
 
-task catalogTests(type: Test) {
+task integrationTest(type: Test) {
     group = "Verification"
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://managed-iceberg-integration-tests'
@@ -132,6 +137,11 @@ task catalogTests(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+    // BQ metastore catalog doesn't support java 8
+    if (project.findProperty('testJavaVersion') == '8' ||
+            JavaVersion.current().equals(JavaVersion.VERSION_1_8)) {
+        exclude '**/BigQueryMetastoreCatalogIT.class'
+    }
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath

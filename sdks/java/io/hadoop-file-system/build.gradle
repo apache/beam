@@ -72,6 +72,11 @@ hadoopVersions.each {kv ->
       force "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
       force "org.apache.hadoop:hadoop-hdfs-client:$kv.value:tests"
       force library.java.slf4j_jdk14
+      if ("$kv.value" == "2.10.2" || "$kv.value" == "3.2.4") {
+        // Older Hadoop only works with older protobuf
+        force "com.google.protobuf:protobuf-java:3.25.5"
+        force "com.google.protobuf:protobuf-java-util:3.25.5"
+      }
     }
   }
 }

@@ -23,15 +23,18 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.storage.model.Objects;
+import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -65,16 +68,21 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.DateTimeUtil;
+import org.apache.iceberg.util.PartitionUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -85,6 +93,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,51 +137,64 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return testName.getMethodName() + ".test_table";
   }
 
+  public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass) {
+    return String.format(
+        "%s/%s/%s",
+        TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), RANDOM);
+  }
+
   public String catalogName = "test_catalog_" + System.nanoTime();
 
   @Before
   public void setUp() throws Exception {
     options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    warehouse =
-        String.format(
-            "%s/%s/%s",
-            TestPipeline.testingPipelineOptions().getTempLocation(),
-            getClass().getSimpleName(),
-            RANDOM);
+    warehouse = warehouse(getClass());
     catalogSetup();
     catalog = createCatalog();
   }
 
   @After
   public void cleanUp() throws Exception {
-    catalogCleanup();
+    try {
+      catalogCleanup();
+    } catch (Exception e) {
+      LOG.warn("Catalog cleanup failed.", e);
+    }
 
     try {
       GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
 
-      Objects objects =
-          gcsUtil.listObjects(
-              path.getBucket(),
-              getClass().getSimpleName() + "/" + path.getFileName().toString(),
-              null);
-      List<String> filesToDelete =
-          objects.getItems().stream()
-              .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
-              .collect(Collectors.toList());
+      @Nullable
+      List<StorageObject> objects =
+          gcsUtil
+              .listObjects(
+                  path.getBucket(),
+                  getClass().getSimpleName() + "/" + path.getFileName().toString(),
+                  null)
+              .getItems();
 
-      gcsUtil.remove(filesToDelete);
+      // sometimes a catalog's cleanup will take care of all the files.
+      // If any files are left though, manually delete them with GCS utils
+      if (objects != null) {
+        List<String> filesToDelete =
+            objects.stream()
+                .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
+                .collect(Collectors.toList());
+        gcsUtil.remove(filesToDelete);
+      }
     } catch (Exception e) {
-      LOG.warn("Failed to clean up files.", e);
+      LOG.warn("Failed to clean up GCS files.", e);
     }
   }
 
   protected static String warehouse;
   public Catalog catalog;
-  protected GcpOptions options;
+  protected static GcpOptions options;
   private static final String RANDOM = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
@@ -262,7 +284,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     int totalRecords = 0;
     for (int shardNum = 0; shardNum < NUM_SHARDS; ++shardNum) {
       String filepath = table.location() + "/" + UUID.randomUUID();
-      OutputFile file = table.io().newOutputFile(filepath);
+      OutputFile file;
+      try (FileIO io = table.io()) {
+        file = io.newOutputFile(filepath);
+      }
       DataWriter<Record> writer =
           Parquet.writeData(file)
               .schema(ICEBERG_SCHEMA)
@@ -289,29 +314,53 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return expectedRows;
   }
 
-  private List<Record> readRecords(Table table) {
+  private static Map<Integer, ?> constantsMap(
+      FileScanTask task,
+      BiFunction<Type, Object, Object> converter,
+      org.apache.iceberg.Schema schema) {
+    PartitionSpec spec = task.spec();
+    Set<Integer> idColumns = spec.identitySourceIds();
+    org.apache.iceberg.Schema partitionSchema = TypeUtil.select(schema, idColumns);
+    boolean projectsIdentityPartitionColumns = !partitionSchema.columns().isEmpty();
+
+    if (projectsIdentityPartitionColumns) {
+      return PartitionUtil.constantsMap(task, converter);
+    } else {
+      return Collections.emptyMap();
+    }
+  }
+
+  private List<Record> readRecords(Table table) throws IOException {
     org.apache.iceberg.Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
     List<Record> writtenRecords = new ArrayList<>();
-    for (CombinedScanTask task : tableScan.planTasks()) {
-      InputFilesDecryptor descryptor =
-          new InputFilesDecryptor(task, table.io(), table.encryption());
+    CloseableIterable<CombinedScanTask> tasks = tableScan.planTasks();
+    for (CombinedScanTask task : tasks) {
+      InputFilesDecryptor decryptor;
+      try (FileIO io = table.io()) {
+        decryptor = new InputFilesDecryptor(task, io, table.encryption());
+      }
       for (FileScanTask fileTask : task.files()) {
-        InputFile inputFile = descryptor.getInputFile(fileTask);
+        Map<Integer, ?> idToConstants =
+            constantsMap(fileTask, IdentityPartitionConverters::convertConstant, tableSchema);
+        InputFile inputFile = decryptor.getInputFile(fileTask);
         CloseableIterable<Record> iterable =
             Parquet.read(inputFile)
                 .split(fileTask.start(), fileTask.length())
                 .project(tableSchema)
                 .createReaderFunc(
-                    fileSchema -> GenericParquetReaders.buildReader(tableSchema, fileSchema))
+                    fileSchema ->
+                        GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
                 .filter(fileTask.residual())
                 .build();
 
         for (Record rec : iterable) {
           writtenRecords.add(rec);
         }
+        iterable.close();
       }
     }
+    tasks.close();
     return writtenRecords;
   }
 
@@ -331,7 +380,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWrite() {
+  public void testWrite() throws IOException {
     // Write with Beam
     // Expect the sink to create the table
     Map<String, Object> config = managedIcebergConfig(tableId());
@@ -349,7 +398,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWriteToPartitionedTable() {
+  public void testWriteToPartitionedTable() throws IOException {
     // For an example row where bool=true, modulo_5=3, str=value_303,
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
@@ -380,7 +429,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingWrite() {
+  public void testStreamingWrite() throws IOException {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
@@ -410,7 +459,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingWriteWithPriorWindowing() {
+  public void testStreamingWriteWithPriorWindowing() throws IOException {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
@@ -442,7 +491,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  private void writeToDynamicDestinations(@Nullable String filterOp) {
+  private void writeToDynamicDestinations(@Nullable String filterOp) throws IOException {
     writeToDynamicDestinations(filterOp, false, false);
   }
 
@@ -452,7 +501,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
    *     and "only"
    */
   private void writeToDynamicDestinations(
-      @Nullable String filterOp, boolean streaming, boolean partitioning) {
+      @Nullable String filterOp, boolean streaming, boolean partitioning) throws IOException {
     int numRecords = numRecords();
     String tableIdentifierTemplate = tableId() + "_{modulo_5}_{char}";
     Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(tableIdentifierTemplate));
@@ -553,27 +602,27 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWriteToDynamicDestinations() {
+  public void testWriteToDynamicDestinations() throws IOException {
     writeToDynamicDestinations(null);
   }
 
   @Test
-  public void testWriteToDynamicDestinationsAndDropFields() {
+  public void testWriteToDynamicDestinationsAndDropFields() throws IOException {
     writeToDynamicDestinations("drop");
   }
 
   @Test
-  public void testWriteToDynamicDestinationsWithOnlyRecord() {
+  public void testWriteToDynamicDestinationsWithOnlyRecord() throws IOException {
     writeToDynamicDestinations("only");
   }
 
   @Test
-  public void testStreamToDynamicDestinationsAndKeepFields() {
+  public void testStreamToDynamicDestinationsAndKeepFields() throws IOException {
     writeToDynamicDestinations("keep", true, false);
   }
 
   @Test
-  public void testStreamToPartitionedDynamicDestinations() {
+  public void testStreamToPartitionedDynamicDestinations() throws IOException {
     writeToDynamicDestinations(null, true, true);
   }
 }

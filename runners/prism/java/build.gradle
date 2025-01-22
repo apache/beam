@@ -96,8 +96,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerEarly',
     'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle',
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
-    // Requires Allowed Lateness, among others.
-    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
     'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate',
     'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode',
     'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
@@ -114,10 +112,6 @@ def sickbayTests = [
 
     // Coding error somehow: short write: reached end of stream after reading 5 bytes; 98 bytes expected
     'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
-
-    // Prism not firing sessions correctly (seems to be merging inapppropriately)
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine',
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
 
     // Java side dying during execution.
     // https://github.com/apache/beam/issues/32930
@@ -177,23 +171,8 @@ def sickbayTests = [
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
-    // Requires Time Sorted Input
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInput',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
-
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
-
-    // TestStream + BundleFinalization.
-    // Tests seem to assume individual element bundles from test stream, but prism will aggregate them, preventing
-    // a subsequent firing. Tests ultimately hang until timeout.
-    // Either a test problem, or a misunderstanding of how test stream must work problem in prism.
-    // Biased to test problem, due to how they are constructed.
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalization',
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithSideInputs',
 
     // Filtered by PortableRunner tests.
     // Teardown not called in exceptions
