@@ -735,8 +735,7 @@ class YamlProviders:
     # Though str and dict are technically iterable, we disallow them
     # as using the characters or keys respectively is almost certainly
     # not the intent.
-    if (not isinstance(elements, Iterable) or isinstance(elements, str) or
-        isinstance(elements, dict)):
+    if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
     return beam.Create([element_to_rows(e) for e in elements],
                        reshuffle=reshuffle is not False)
