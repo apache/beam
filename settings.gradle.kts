@@ -107,6 +107,7 @@ include(":it:common")
 include(":it:conditions")
 include(":it:elasticsearch")
 include(":it:google-cloud-platform")
+include("it:iceberg")
 include(":it:jdbc")
 include(":it:kafka")
 include(":it:testcontainers")
@@ -360,5 +361,7 @@ include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
 include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:testing")
+findProject(":sdks:java:io:iceberg:hive:testing")?.name = "testing"
 include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"

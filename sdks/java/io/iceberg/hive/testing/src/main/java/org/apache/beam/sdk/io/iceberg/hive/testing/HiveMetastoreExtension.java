@@ -15,11 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg.catalog.hiveutils;
+package org.apache.beam.sdk.io.iceberg.hive.testing;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.HashMap;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.Database;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A class that interacts with {@link TestHiveMetastore}.
@@ -28,15 +33,14 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
  * href="https://github.com/apache/iceberg/blob/main/hive-metastore/src/test/java/org/apache/iceberg/hive/HiveMetastoreExtension.java">Iceberg's
  * integration testing util</a>
  */
+// @SuppressWarnings("all")
 public class HiveMetastoreExtension {
-  private HiveMetaStoreClient metastoreClient;
-  private TestHiveMetastore metastore;
+  private @Nullable HiveMetaStoreClient metastoreClient;
+  private @Nullable TestHiveMetastore metastore;
 
-  public HiveMetastoreExtension(String warehousePath) throws MetaException {
-    metastore = new TestHiveMetastore(warehousePath);
+  public HiveMetastoreExtension(String warehousePath) throws Exception {
     HiveConf hiveConf = new HiveConf(TestHiveMetastore.class);
-
-    metastore.start(hiveConf);
+    metastore = new TestHiveMetastore(warehousePath, hiveConf);
     metastoreClient = new HiveMetaStoreClient(hiveConf);
   }
 
@@ -47,22 +51,24 @@ public class HiveMetastoreExtension {
 
     if (metastore != null) {
       metastore.reset();
-      metastore.stop();
+      checkNotNull(metastore).stop();
     }
 
     metastoreClient = null;
     metastore = null;
   }
 
-  public HiveMetaStoreClient metastoreClient() {
-    return metastoreClient;
+  public Configuration hiveConf() {
+    return checkNotNull(metastore).hiveConf();
   }
 
-  public HiveConf hiveConf() {
-    return metastore.hiveConf();
+  public String metastoreUri() {
+    return checkNotNull(metastore).hiveConf().getVar(HiveConf.ConfVars.METASTOREURIS);
   }
 
-  public TestHiveMetastore metastore() {
-    return metastore;
+  public void createDatabase(String name) throws Exception {
+    String dbPath = checkNotNull(metastore).getDatabasePath(name);
+    Database db = new Database(name, "description", dbPath, new HashMap<>());
+    checkNotNull(metastoreClient).createDatabase(db);
   }
 }

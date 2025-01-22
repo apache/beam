@@ -19,18 +19,14 @@ package org.apache.beam.sdk.io.iceberg.catalog;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.io.iceberg.catalog.hiveutils.HiveMetastoreExtension;
+import org.apache.beam.sdk.io.iceberg.hive.testing.HiveMetastoreExtension;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.hive.HiveCatalog;
 
 /**
- * Read and write tests using {@link HiveCatalog}.
+ * Read and write tests using HiveCatalog.
  *
  * <p>Spins up a local Hive metastore to manage the Iceberg table. Warehouse path is set to a GCS
  * bucket.
@@ -47,15 +43,13 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
   @Override
   public void catalogSetup() throws Exception {
     hiveMetastoreExtension = new HiveMetastoreExtension(warehouse);
-    String dbPath = hiveMetastoreExtension.metastore().getDatabasePath(TEST_DB);
-    Database db = new Database(TEST_DB, "description", dbPath, Maps.newHashMap());
-    hiveMetastoreExtension.metastoreClient().createDatabase(db);
+    hiveMetastoreExtension.createDatabase(TEST_DB);
   }
 
   @Override
   public Catalog createCatalog() {
     return CatalogUtil.loadCatalog(
-        HiveCatalog.class.getName(),
+        "org.apache.iceberg.hive.HiveCatalog",
         "hive_" + catalogName,
         ImmutableMap.of(
             CatalogProperties.CLIENT_POOL_CACHE_EVICTION_INTERVAL_MS,
@@ -72,12 +66,10 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public Map<String, Object> managedIcebergConfig(String tableId) {
-    String metastoreUri = hiveMetastoreExtension.hiveConf().getVar(HiveConf.ConfVars.METASTOREURIS);
+    String metastoreUri = hiveMetastoreExtension.metastoreUri();
 
     Map<String, String> confProperties =
-        ImmutableMap.<String, String>builder()
-            .put(HiveConf.ConfVars.METASTOREURIS.varname, metastoreUri)
-            .build();
+        ImmutableMap.<String, String>builder().put("hive.metastore.uris", metastoreUri).build();
 
     return ImmutableMap.<String, Object>builder()
         .put("table", tableId)
