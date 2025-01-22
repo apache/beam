@@ -84,7 +84,6 @@ public class WindmillStateCache implements StatusDataProvider {
     this.stateCache =
         CacheBuilder.newBuilder()
             .maximumWeight(workerCacheBytes)
-            .weakValues()
             .recordStats()
             .weigher(Weighers.weightedKeysAndValues())
             .concurrencyLevel(stateCacheConcurrencyLevel)
