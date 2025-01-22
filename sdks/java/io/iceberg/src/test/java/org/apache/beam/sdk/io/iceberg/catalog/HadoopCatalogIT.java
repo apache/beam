@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.io.iceberg.catalog;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 
 public class HadoopCatalogIT extends IcebergCatalogBaseIT {
@@ -46,7 +49,12 @@ public class HadoopCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public void catalogCleanup() throws IOException {
-    ((HadoopCatalog) catalog).close();
+    HadoopCatalog hadoopCatalog = (HadoopCatalog) catalog;
+    List<TableIdentifier> tables = hadoopCatalog.listTables(Namespace.of(testName.getMethodName()));
+    for (TableIdentifier identifier : tables) {
+      hadoopCatalog.dropTable(identifier);
+    }
+    hadoopCatalog.close();
   }
 
   @Override
@@ -58,6 +66,7 @@ public class HadoopCatalogIT extends IcebergCatalogBaseIT {
             ImmutableMap.<String, String>builder()
                 .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
                 .put("warehouse", warehouse)
+                .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
                 .build())
         .build();
   }
