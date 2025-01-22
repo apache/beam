@@ -26,10 +26,6 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.List;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
@@ -225,22 +221,6 @@ public class SchemaRegistryTest {
     registry.registerPOJO(SimplePOJO.class);
     Schema schema = registry.getSchema(SimplePOJO.class);
     assertTrue(SIMPLE_POJO_SCHEMA.equivalent(schema));
-  }
-
-  @Test
-  public void testSchemaTypeParameterInsideCoder() throws CannotProvideCoderException {
-    SchemaRegistry schemaRegistry = SchemaRegistry.createDefault();
-    schemaRegistry.registerPOJO(SimplePOJO.class);
-
-    CoderRegistry coderRegistry = CoderRegistry.createDefault(schemaRegistry);
-    Coder<Iterable<SimplePOJO>> coder =
-        coderRegistry.getCoder(TypeDescriptors.iterables(TypeDescriptor.of(SimplePOJO.class)));
-    assertTrue(coder instanceof IterableCoder);
-    assertEquals(1, coder.getCoderArguments().size());
-    assertTrue(coder.getCoderArguments().get(0) instanceof SchemaCoder);
-    assertTrue(
-        SIMPLE_POJO_SCHEMA.equivalent(
-            ((SchemaCoder<SimplePOJO>) coder.getCoderArguments().get(0)).getSchema()));
   }
 
   @Test

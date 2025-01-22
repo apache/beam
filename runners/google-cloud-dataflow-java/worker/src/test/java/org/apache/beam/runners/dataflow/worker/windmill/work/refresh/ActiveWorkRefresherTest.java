@@ -48,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.direct.Clock;
@@ -118,14 +119,17 @@ public class ActiveWorkRefresherTest {
 
   private ExecutableWork createOldWork(
       ShardedKey shardedKey, int workIds, Consumer<Work> processWork) {
+    WorkItem workItem =
+        WorkItem.newBuilder()
+            .setKey(shardedKey.key())
+            .setShardingKey(shardedKey.shardingKey())
+            .setWorkToken(workIds)
+            .setCacheToken(workIds)
+            .build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder()
-                .setKey(shardedKey.key())
-                .setShardingKey(shardedKey.shardingKey())
-                .setWorkToken(workIds)
-                .setCacheToken(workIds)
-                .build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),

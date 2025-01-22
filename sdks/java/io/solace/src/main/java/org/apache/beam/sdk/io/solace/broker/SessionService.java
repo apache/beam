@@ -19,7 +19,11 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
+import java.util.Queue;
 import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +32,8 @@ import org.slf4j.LoggerFactory;
  * messaging system. It allows for establishing a connection, creating a message-receiver object,
  * checking if the connection is closed or not, and gracefully closing the session.
  *
- * <p>Override this class and the method {@link #initializeSessionProperties(JCSMPProperties)} with
- * your specific properties, including all those related to authentication.
+ * <p>Override this class and the method {@link #getSessionProperties()} with your specific
+ * properties, including all those related to authentication.
  *
  * <p>The connector will call the method only once per session created, so you can perform
  * relatively heavy operations in that method (e.g. connect to a store or vault to retrieve
@@ -66,24 +70,25 @@ import org.slf4j.LoggerFactory;
  * <p>The connector ensures that no two threads will be calling that method at the same time, so you
  * don't have to take any specific precautions to avoid race conditions.
  *
- * <p>For basic authentication, use {@link BasicAuthJcsmpSessionService} and {@link
- * BasicAuthJcsmpSessionServiceFactory}.
+ * <p>For basic authentication, use {@link BasicAuthJcsmpSessionServiceFactory}.
  *
- * <p>For other situations, you need to extend this class. For instance:
+ * <p>For other situations, you need to extend this class and implement the `equals` method, so two
+ * instances of your class can be compared by value. We recommend using AutoValue for that. For
+ * instance:
  *
  * <pre>{@code
+ * {@literal }@AutoValue
  * public class MySessionService extends SessionService {
- *   private final String authToken;
+ *   abstract String authToken();
  *
- *   public MySessionService(String token) {
- *    this.oauthToken = token;
- *    ...
+ *   public static MySessionService create(String authToken) {
+ *       return new AutoValue_MySessionService(authToken);
  *   }
  *
  *   {@literal }@Override
  *   public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProps) {
  *     baseProps.setProperty(JCSMPProperties.AUTHENTICATION_SCHEME, JCSMPProperties.AUTHENTICATION_SCHEME_OAUTH2);
- *     baseProps.setProperty(JCSMPProperties.OAUTH2_ACCESS_TOKEN, authToken);
+ *     baseProps.setProperty(JCSMPProperties.OAUTH2_ACCESS_TOKEN, authToken());
  *     return props;
  *   }
  *
@@ -101,6 +106,7 @@ public abstract class SessionService implements Serializable {
 
   public static final String DEFAULT_VPN_NAME = "default";
 
+  private static final int TESTING_PUB_ACK_WINDOW = 1;
   private static final int STREAMING_PUB_ACK_WINDOW = 50;
   private static final int BATCHED_PUB_ACK_WINDOW = 255;
 
@@ -114,25 +120,29 @@ public abstract class SessionService implements Serializable {
   public abstract void close();
 
   /**
-   * Checks whether the connection to the service is currently closed. This method is called when an
-   * `UnboundedSolaceReader` is starting to read messages - a session will be created if this
-   * returns true.
+   * Returns a MessageReceiver object for receiving messages from Solace. If it is the first time
+   * this method is used, the receiver is created from the session instance, otherwise it returns
+   * the receiver created initially.
    */
-  public abstract boolean isClosed();
+  public abstract MessageReceiver getReceiver();
 
   /**
-   * Creates a MessageReceiver object for receiving messages from Solace. Typically, this object is
-   * created from the session instance.
+   * Returns a MessageProducer object for publishing messages to Solace. If it is the first time
+   * this method is used, the producer is created from the session instance, otherwise it returns
+   * the producer created initially.
    */
-  public abstract MessageReceiver createReceiver();
+  public abstract MessageProducer getInitializedProducer(SubmissionMode mode);
+
+  /**
+   * Returns the {@link Queue<PublishResult>} instance associated with this session, with the
+   * asynchronously received callbacks from Solace for message publications. The queue
+   * implementation has to be thread-safe for production use-cases.
+   */
+  public abstract Queue<PublishResult> getPublishedResultsQueue();
 
   /**
    * Override this method and provide your specific properties, including all those related to
-   * authentication, and possibly others too. The {@code}baseProperties{@code} parameter sets the
-   * Solace VPN to "default" if none is specified.
-   *
-   * <p>You should add your properties to the parameter {@code}baseProperties{@code}, and return the
-   * result.
+   * authentication, and possibly others too.
    *
    * <p>The method will be used whenever the session needs to be created or refreshed. If you are
    * setting credentials with expiration, just make sure that the latest available credentials (e.g.
@@ -145,7 +155,21 @@ public abstract class SessionService implements Serializable {
    *       href="https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html">https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html</a>
    * </ul>
    */
-  public abstract JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties);
+  public abstract JCSMPProperties getSessionProperties();
+
+  /**
+   * You need to override this method to be able to compare these objects by value. We recommend
+   * using AutoValue for that.
+   */
+  @Override
+  public abstract boolean equals(@Nullable Object other);
+
+  /**
+   * You need to override this method to be able to compare these objects by value. We recommend
+   * using AutoValue for that.
+   */
+  @Override
+  public abstract int hashCode();
 
   /**
    * This method will be called by the write connector when a new session is started.
@@ -158,20 +182,8 @@ public abstract class SessionService implements Serializable {
    * token), this method will be called again.
    */
   public final JCSMPProperties initializeWriteSessionProperties(SolaceIO.SubmissionMode mode) {
-    JCSMPProperties jcsmpProperties = initializeSessionProperties(getDefaultProperties());
+    JCSMPProperties jcsmpProperties = getSessionProperties();
     return overrideConnectorProperties(jcsmpProperties, mode);
-  }
-
-  private static JCSMPProperties getDefaultProperties() {
-    JCSMPProperties props = new JCSMPProperties();
-    props.setProperty(JCSMPProperties.VPN_NAME, DEFAULT_VPN_NAME);
-    // Outgoing messages will have a sender timestamp field populated
-    props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, true);
-    // Make XMLProducer safe to access from several threads. This is the default value, setting
-    // it just in case.
-    props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, true);
-
-    return props;
   }
 
   /**
@@ -181,55 +193,98 @@ public abstract class SessionService implements Serializable {
   private static JCSMPProperties overrideConnectorProperties(
       JCSMPProperties props, SolaceIO.SubmissionMode mode) {
 
+    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+      props.setProperty(JCSMPProperties.VPN_NAME, DEFAULT_VPN_NAME);
+    }
+    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+      // Outgoing messages will have a sender timestamp field populated
+      props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, true);
+    }
+    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+      // Make XMLProducer safe to access from several threads. This is the default value, setting
+      // it just in case.
+      props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, true);
+    }
+
     // PUB_ACK_WINDOW_SIZE heavily affects performance when publishing persistent
     // messages. It can be a value between 1 and 255. This is the batch size for the ack
     // received from Solace. A value of 1 will have the lowest latency, but a very low
     // throughput and a monumental backpressure.
 
-    // This controls how the messages are sent to Solace
-    if (mode == SolaceIO.SubmissionMode.HIGHER_THROUGHPUT) {
-      // Create a parallel thread and a queue to send the messages
+    // Retrieve current values of the properties
+    Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
+    Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
 
-      Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
-      if (msgCbProp != null && msgCbProp) {
+    switch (mode) {
+      case HIGHER_THROUGHPUT:
+        // Check if it was set by user, show override warning
+        if (msgCbProp != null && msgCbProp) {
+          LOG.warn(
+              "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to false since"
+                  + " HIGHER_THROUGHPUT mode was selected");
+        }
+        if ((ackWindowSize != null && ackWindowSize != BATCHED_PUB_ACK_WINDOW)) {
+          LOG.warn(
+              String.format(
+                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
+                      + " HIGHER_THROUGHPUT mode was selected",
+                  BATCHED_PUB_ACK_WINDOW));
+        }
+
+        // Override the properties
+        // Use a dedicated thread for callbacks, increase the ack window size
+        props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, false);
+        props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, BATCHED_PUB_ACK_WINDOW);
+        LOG.info(
+            "SolaceIO.Write: Using HIGHER_THROUGHPUT mode, MESSAGE_CALLBACK_ON_REACTOR is FALSE,"
+                + " PUB_ACK_WINDOW_SIZE is {}",
+            BATCHED_PUB_ACK_WINDOW);
+        break;
+      case LOWER_LATENCY:
+        // Check if it was set by user, show override warning
+        if (msgCbProp != null && !msgCbProp) {
+          LOG.warn(
+              "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to true since"
+                  + " LOWER_LATENCY mode was selected");
+        }
+
+        if ((ackWindowSize != null && ackWindowSize != STREAMING_PUB_ACK_WINDOW)) {
+          LOG.warn(
+              String.format(
+                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
+                      + " LOWER_LATENCY mode was selected",
+                  STREAMING_PUB_ACK_WINDOW));
+        }
+
+        // Override the properties
+        // Send from the same thread where the produced is being called. This offers the lowest
+        // latency, but a low throughput too.
+        props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
+        props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, STREAMING_PUB_ACK_WINDOW);
+        LOG.info(
+            "SolaceIO.Write: Using LOWER_LATENCY mode, MESSAGE_CALLBACK_ON_REACTOR is TRUE,"
+                + " PUB_ACK_WINDOW_SIZE is {}",
+            STREAMING_PUB_ACK_WINDOW);
+
+        break;
+      case CUSTOM:
+        LOG.info(
+            " SolaceIO.Write: Using the custom JCSMP properties set by the user. No property has"
+                + " been overridden by the connector.");
+        break;
+      case TESTING:
         LOG.warn(
-            "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to false since"
-                + " HIGHER_THROUGHPUT mode was selected");
-      }
-
-      props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, false);
-
-      Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
-      if ((ackWindowSize != null && ackWindowSize != BATCHED_PUB_ACK_WINDOW)) {
-        LOG.warn(
-            String.format(
-                "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                    + " HIGHER_THROUGHPUT mode was selected",
-                BATCHED_PUB_ACK_WINDOW));
-      }
-      props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, BATCHED_PUB_ACK_WINDOW);
-    } else {
-      // Send from the same thread where the produced is being called. This offers the lowest
-      // latency, but a low throughput too.
-      Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
-      if (msgCbProp != null && !msgCbProp) {
-        LOG.warn(
-            "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to true since"
-                + " LOWER_LATENCY mode was selected");
-      }
-
-      props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
-
-      Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
-      if ((ackWindowSize != null && ackWindowSize != STREAMING_PUB_ACK_WINDOW)) {
-        LOG.warn(
-            String.format(
-                "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                    + " LOWER_LATENCY mode was selected",
-                STREAMING_PUB_ACK_WINDOW));
-      }
-
-      props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, STREAMING_PUB_ACK_WINDOW);
+            "SolaceIO.Write: Overriding JCSMP properties for testing. **IF THIS IS AN"
+                + " ACTUAL PIPELINE, CHANGE THE SUBMISSION MODE TO HIGHER_THROUGHPUT "
+                + "OR LOWER_LATENCY.**");
+        // Minimize multi-threading for testing
+        props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
+        props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, TESTING_PUB_ACK_WINDOW);
+        break;
+      default:
+        LOG.error(
+            "SolaceIO.Write: no submission mode is selected. Set the submission mode to"
+                + " HIGHER_THROUGHPUT or LOWER_LATENCY;");
     }
     return props;
   }

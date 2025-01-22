@@ -137,15 +137,14 @@ public class CombineRunners {
         throws IOException {
       // Get objects needed to create the runner.
       RehydratedComponents rehydratedComponents =
-          RehydratedComponents.forComponents(
-              RunnerApi.Components.newBuilder()
-                  .putAllCoders(context.getCoders())
-                  .putAllWindowingStrategies(context.getWindowingStrategies())
-                  .build());
+          RehydratedComponents.forComponents(context.getComponents());
       String mainInputTag =
           Iterables.getOnlyElement(context.getPTransform().getInputsMap().keySet());
       RunnerApi.PCollection mainInput =
-          context.getPCollections().get(context.getPTransform().getInputsOrThrow(mainInputTag));
+          context
+              .getComponents()
+              .getPcollectionsMap()
+              .get(context.getPTransform().getInputsOrThrow(mainInputTag));
 
       // Input coder may sometimes be WindowedValueCoder depending on runner, instead of the
       // expected KvCoder.

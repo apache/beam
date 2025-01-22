@@ -246,14 +246,10 @@ def set_add(state, arg):
 
 
 def map_add(state, arg):
-  if sys.version_info >= (3, 8):
-    # PEP 572 The MAP_ADD expects the value as the first element in the stack
-    # and the key as the second element.
-    new_value_type = Const.unwrap(state.stack.pop())
-    new_key_type = Const.unwrap(state.stack.pop())
-  else:
-    new_key_type = Const.unwrap(state.stack.pop())
-    new_value_type = Const.unwrap(state.stack.pop())
+  # PEP 572 The MAP_ADD expects the value as the first element in the stack
+  # and the key as the second element.
+  new_value_type = Const.unwrap(state.stack.pop())
+  new_key_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = Dict[Union[state.stack[-arg].key_type, new_key_type],
                            Union[state.stack[-arg].value_type, new_value_type]]
 

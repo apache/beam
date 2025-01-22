@@ -17,6 +17,7 @@ package graphx
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -122,8 +123,12 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 	var serializedPayload []byte
 	switch urn {
 	case URNEnvProcess:
-		// TODO Support process based SDK Harness.
-		return nil, errors.Errorf("unsupported environment %v", urn)
+		config := extractEnvironmentConfig(ctx)
+		payload := &pipepb.ProcessPayload{}
+		if err := json.Unmarshal([]byte(config), payload); err != nil {
+			return nil, fmt.Errorf("unable to json unmarshal --environment_config: %w", err)
+		}
+		serializedPayload = protox.MustEncode(payload)
 	case URNEnvExternal:
 		config := extractEnvironmentConfig(ctx)
 		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}

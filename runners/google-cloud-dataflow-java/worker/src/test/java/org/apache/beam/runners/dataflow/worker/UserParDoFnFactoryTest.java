@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.theInstance;
@@ -151,6 +152,21 @@ public class UserParDoFnFactoryTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) {}
+  }
+
+  private static class TestStatefulDoFnWithWindowExpiration
+      extends DoFn<KV<String, Integer>, Void> {
+
+    public static final String STATE_ID = "state-id";
+
+    @StateId(STATE_ID)
+    private final StateSpec<ValueState<String>> spec = StateSpecs.value(StringUtf8Coder.of());
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {}
+
+    @OnWindowExpiration
+    public void onWindowExpiration() {}
   }
 
   private static final TupleTag<String> MAIN_OUTPUT = new TupleTag<>("1");
@@ -371,6 +387,92 @@ public class UserParDoFnFactoryTest {
             IntervalWindow.getCoder(),
             firstWindow.maxTimestamp().plus(Duration.millis(1L)),
             firstWindow.maxTimestamp().plus(Duration.millis(1L)));
+  }
+
+  /**
+   * Regression test for global window + OnWindowExpiration + allowed lateness > max allowed time
+   */
+  @Test
+  public void testCleanupTimerForGlobalWindowWithAllowedLateness() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CounterSet counters = new CounterSet();
+    DoFn<?, ?> initialFn = new TestStatefulDoFnWithWindowExpiration();
+    Duration allowedLateness = Duration.standardDays(2);
+    CloudObject cloudObject =
+        getCloudObject(
+            initialFn, WindowingStrategy.globalDefault().withAllowedLateness(allowedLateness));
+
+    StateInternals stateInternals = InMemoryStateInternals.forKey("dummy");
+
+    TimerInternals timerInternals = mock(TimerInternals.class);
+
+    DataflowStepContext stepContext = mock(DataflowStepContext.class);
+    when(stepContext.timerInternals()).thenReturn(timerInternals);
+    DataflowStepContext userStepContext = mock(DataflowStepContext.class);
+    when(stepContext.namespacedToUser()).thenReturn(userStepContext);
+    when(stepContext.stateInternals()).thenReturn(stateInternals);
+    when(userStepContext.stateInternals()).thenReturn((StateInternals) stateInternals);
+
+    DataflowExecutionContext<DataflowStepContext> executionContext =
+        mock(DataflowExecutionContext.class);
+    TestOperationContext operationContext = TestOperationContext.create(counters);
+    when(executionContext.getStepContext(operationContext)).thenReturn(stepContext);
+    when(executionContext.getSideInputReader(any(), any(), any()))
+        .thenReturn(NullSideInputReader.empty());
+
+    ParDoFn parDoFn =
+        factory.create(
+            options,
+            cloudObject,
+            Collections.emptyList(),
+            MAIN_OUTPUT,
+            ImmutableMap.of(MAIN_OUTPUT, 0),
+            executionContext,
+            operationContext);
+
+    Receiver rcvr = new OutputReceiver();
+    parDoFn.startBundle(rcvr);
+
+    GlobalWindow globalWindow = GlobalWindow.INSTANCE;
+    parDoFn.processElement(
+        WindowedValue.of("foo", new Instant(1), globalWindow, PaneInfo.NO_FIRING));
+
+    assertThat(
+        globalWindow.maxTimestamp().plus(allowedLateness),
+        greaterThan(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    verify(stepContext)
+        .setStateCleanupTimer(
+            SimpleParDoFn.CLEANUP_TIMER_ID,
+            globalWindow,
+            GlobalWindow.Coder.INSTANCE,
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)));
+
+    StateNamespace globalWindowNamespace =
+        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, globalWindow);
+    StateTag<ValueState<String>> tag =
+        StateTags.tagForSpec(
+            TestStatefulDoFnWithWindowExpiration.STATE_ID, StateSpecs.value(StringUtf8Coder.of()));
+
+    when(userStepContext.getNextFiredTimer((Coder) GlobalWindow.Coder.INSTANCE)).thenReturn(null);
+    when(stepContext.getNextFiredTimer((Coder) GlobalWindow.Coder.INSTANCE))
+        .thenReturn(
+            TimerData.of(
+                SimpleParDoFn.CLEANUP_TIMER_ID,
+                globalWindowNamespace,
+                BoundedWindow.TIMESTAMP_MAX_VALUE,
+                BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
+                TimeDomain.EVENT_TIME))
+        .thenReturn(null);
+
+    // Set up non-empty state. We don't mock + verify calls to clear() but instead
+    // check that state is actually empty. We mustn't care how it is accomplished.
+    stateInternals.state(globalWindowNamespace, tag).write("first");
+
+    // And this should clean up the second window
+    parDoFn.processTimers();
+
+    assertThat(stateInternals.state(globalWindowNamespace, tag).read(), nullValue());
   }
 
   @Test

@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import logging
+import subprocess
 import typing
 import unittest
 
@@ -68,6 +69,22 @@ class SqlTransformTest(unittest.TestCase):
         --test-pipeline-options="--runner=FlinkRunner"
   """
   _multiprocess_can_split_ = True
+
+  @staticmethod
+  def _disable_zetasql_test():
+    # disable if run on Java8 which is no longer supported by ZetaSQL
+    try:
+      result = subprocess.run(['java', '-version'],
+                              check=True,
+                              capture_output=True,
+                              text=True)
+      version_line = result.stderr.splitlines()[0]
+      version = version_line.split()[2].strip('\"')
+      if version.startswith("1."):
+        return True
+      return False
+    except:  # pylint: disable=bare-except
+      return False
 
   def test_generate_data(self):
     with TestPipeline() as p:
@@ -150,6 +167,9 @@ class SqlTransformTest(unittest.TestCase):
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
   def test_zetasql_generate_data(self):
+    if self._disable_zetasql_test():
+      raise unittest.SkipTest("ZetaSQL tests need Java11+")
+
     with TestPipeline() as p:
       out = p | SqlTransform(
           """SELECT

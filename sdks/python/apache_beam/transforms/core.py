@@ -2117,15 +2117,13 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   r""":func:`MapTuple` is like :func:`Map` but expects tuple inputs and
   flattens them into multiple input arguments.
 
-      beam.MapTuple(lambda a, b, ...: ...)
-
   In other words
 
-      beam.MapTuple(fn)
+      "SwapKV" >> beam.Map(lambda kv: (kv[1], kv[0]))
 
   is equivalent to
 
-      beam.Map(lambda element, ...: fn(\*element, ...))
+      "SwapKV" >> beam.MapTuple(lambda k, v: (v, k))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
@@ -2191,19 +2189,13 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   r""":func:`FlatMapTuple` is like :func:`FlatMap` but expects tuple inputs and
   flattens them into multiple input arguments.
 
-      beam.FlatMapTuple(lambda a, b, ...: ...)
-
-  is equivalent to Python 2
-
-      beam.FlatMap(lambda (a, b, ...), ...: ...)
-
   In other words
 
-      beam.FlatMapTuple(fn)
+      beam.FlatMap(lambda start_end: range(start_end[0], start_end[1]))
 
   is equivalent to
 
-      beam.FlatMap(lambda element, ...: fn(\*element, ...))
+      beam.FlatMapTuple(lambda start, end: range(start, end))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
@@ -2238,7 +2230,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if defaults or args or kwargs:
     wrapper = lambda x, *args, **kwargs: fn(*(tuple(x) + args), **kwargs)
   else:
-    wrapper = lambda x: fn(*x)
+    wrapper = lambda x: fn(*tuple(x))
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.

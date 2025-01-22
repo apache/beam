@@ -237,6 +237,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
+      public void start() {}
+
+      @Override
       public void shutdown() {}
 
       @Override
@@ -272,6 +275,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
                   inputDataWatermark,
                   Instant.now(),
                   workItem,
+                  workItem.getSerializedSize(),
                   Collections.singletonList(
                       LatencyAttribution.newBuilder()
                           .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
@@ -298,6 +302,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public String backendWorkerToken() {
         return "";
       }
+
+      @Override
+      public void start() {}
 
       @Override
       public void shutdown() {}
@@ -379,6 +386,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public String backendWorkerToken() {
         return "";
       }
+
+      @Override
+      public void start() {}
 
       @Override
       public void shutdown() {}

@@ -65,7 +65,6 @@ transforms, and Java's ManagedSchemaTransform is used under the hood.
 """
 
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 import yaml
@@ -77,12 +76,16 @@ from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
+BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
 _EXPANSION_SERVICE_JAR_TARGETS = {
     "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
+    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
+        BIGQUERY
+    ]
 }
 
-__all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
+__all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
 
 class Read(PTransform):
@@ -90,12 +93,13 @@ class Read(PTransform):
   _READ_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn
   }
 
   def __init__(
       self,
       source: str,
-      config: Optional[Dict[str, Any]] = None,
+      config: Optional[dict[str, Any]] = None,
       config_url: Optional[str] = None,
       expansion_service=None):
     super().__init__()
@@ -130,12 +134,13 @@ class Write(PTransform):
   _WRITE_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_WRITE.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn
   }
 
   def __init__(
       self,
       sink: str,
-      config: Optional[Dict[str, Any]] = None,
+      config: Optional[dict[str, Any]] = None,
       config_url: Optional[str] = None,
       expansion_service=None):
     super().__init__()

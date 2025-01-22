@@ -105,7 +105,7 @@ public class StateFetchingIterators {
       // many different state subcaches.
       return 0;
     }
-  };
+  }
 
   /** A mutable iterable that supports prefetch and is backed by a cache. */
   static class CachingStateIterable<T> extends PrefetchableIterables.Default<T> {
@@ -138,8 +138,8 @@ public class StateFetchingIterators {
     private static <T> long sumWeight(List<Block<T>> blocks) {
       try {
         long sum = 0;
-        for (int i = 0; i < blocks.size(); ++i) {
-          sum = Math.addExact(sum, blocks.get(i).getWeight());
+        for (Block<T> block : blocks) {
+          sum = Math.addExact(sum, block.getWeight());
         }
         return sum;
       } catch (ArithmeticException e) {
@@ -437,50 +437,59 @@ public class StateFetchingIterators {
           if (currentBlock.getValues().size() > currentCachedBlockValueIndex) {
             return true;
           }
-          if (currentBlock.getNextToken() == null) {
+          final ByteString nextToken = currentBlock.getNextToken();
+          if (nextToken == null) {
             return false;
           }
-          Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
-          boolean isFirstBlock = ByteString.EMPTY.equals(currentBlock.getNextToken());
+          // Release the block while we are loading the next one.
+          currentBlock =
+              Block.fromValues(new WeightedList<>(Collections.emptyList(), 0L), ByteString.EMPTY);
+
+          @Nullable Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
+          boolean isFirstBlock = ByteString.EMPTY.equals(nextToken);
           if (existing == null) {
-            currentBlock = loadNextBlock(currentBlock.getNextToken());
+            currentBlock = loadNextBlock(nextToken);
             if (isFirstBlock) {
               cache.put(
                   IterableCacheKey.INSTANCE,
                   new BlocksPrefix<>(Collections.singletonList(currentBlock)));
             }
+          } else if (isFirstBlock) {
+            currentBlock = existing.getBlocks().get(0);
           } else {
-            if (isFirstBlock) {
-              currentBlock = existing.getBlocks().get(0);
-            } else {
-              checkState(
-                  existing instanceof BlocksPrefix,
-                  "Unexpected blocks type %s, expected a %s.",
-                  existing.getClass(),
-                  BlocksPrefix.class);
-              List<Block<T>> blocks = existing.getBlocks();
-              int currentBlockIndex = 0;
-              for (; currentBlockIndex < blocks.size(); ++currentBlockIndex) {
-                if (currentBlock
-                    .getNextToken()
-                    .equals(blocks.get(currentBlockIndex).getNextToken())) {
-                  break;
-                }
+            checkState(
+                existing instanceof BlocksPrefix,
+                "Unexpected blocks type %s, expected a %s.",
+                existing.getClass(),
+                BlocksPrefix.class);
+            List<Block<T>> blocks = existing.getBlocks();
+            int currentBlockIndex = 0;
+            for (; currentBlockIndex < blocks.size(); ++currentBlockIndex) {
+              if (nextToken.equals(blocks.get(currentBlockIndex).getNextToken())) {
+                break;
               }
-              // Load the next block from cache if it was found.
-              if (currentBlockIndex + 1 < blocks.size()) {
-                currentBlock = blocks.get(currentBlockIndex + 1);
-              } else {
-                // Otherwise load the block from state API.
-                currentBlock = loadNextBlock(currentBlock.getNextToken());
-
-                // Append this block to the existing set of blocks if it is logically the next one.
-                if (currentBlockIndex == blocks.size() - 1) {
-                  List<Block<T>> newBlocks = new ArrayList<>(currentBlockIndex + 1);
-                  newBlocks.addAll(blocks);
-                  newBlocks.add(currentBlock);
-                  cache.put(IterableCacheKey.INSTANCE, new BlocksPrefix<>(newBlocks));
-                }
+            }
+            // Take the next block from the cache if it was found.
+            if (currentBlockIndex + 1 < blocks.size()) {
+              currentBlock = blocks.get(currentBlockIndex + 1);
+            } else {
+              // Otherwise load the block from state API.
+              // Remove references on the cached values while we are loading the next block.
+              existing = null;
+              blocks = null;
+              currentBlock = loadNextBlock(nextToken);
+              existing = cache.peek(IterableCacheKey.INSTANCE);
+              // Append this block to the existing set of blocks if it is logically the next one
+              // according to the
+              // tokens.
+              if (existing != null
+                  && !existing.getBlocks().isEmpty()
+                  && nextToken.equals(
+                      existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken())) {
+                List<Block<T>> newBlocks = new ArrayList<>(currentBlockIndex + 1);
+                newBlocks.addAll(existing.getBlocks());
+                newBlocks.add(currentBlock);
+                cache.put(IterableCacheKey.INSTANCE, new BlocksPrefix<>(newBlocks));
               }
             }
           }

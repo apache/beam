@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
@@ -48,9 +49,6 @@ public final class GrpcGetWorkerMetadataStream
   private final Object metadataLock;
 
   @GuardedBy("metadataLock")
-  private long metadataVersion;
-
-  @GuardedBy("metadataLock")
   private WorkerMetadataResponse latestResponse;
 
   private GrpcGetWorkerMetadataStream(
@@ -61,10 +59,10 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      long metadataVersion,
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
+        LOG,
         "GetWorkerMetadataStream",
         startGetWorkerMetadataRpcFn,
         backoff,
@@ -73,7 +71,6 @@ public final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         "");
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
-    this.metadataVersion = metadataVersion;
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
     this.serverMappingConsumer = serverMappingConsumer;
     this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
@@ -88,23 +85,17 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      int metadataVersion,
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingUpdater) {
-    GrpcGetWorkerMetadataStream getWorkerMetadataStream =
-        new GrpcGetWorkerMetadataStream(
-            startGetWorkerMetadataRpcFn,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            jobHeader,
-            metadataVersion,
-            getWorkerMetadataThrottleTimer,
-            serverMappingUpdater);
-    LOG.info("Started GetWorkerMetadataStream. {}", getWorkerMetadataStream);
-    getWorkerMetadataStream.startStream();
-    return getWorkerMetadataStream;
+    return new GrpcGetWorkerMetadataStream(
+        startGetWorkerMetadataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        jobHeader,
+        getWorkerMetadataThrottleTimer,
+        serverMappingUpdater);
   }
 
   /**
@@ -118,25 +109,23 @@ public final class GrpcGetWorkerMetadataStream
 
   /**
    * Acquires the {@link #metadataLock} Returns {@link Optional<WindmillEndpoints>} if the
-   * metadataVersion in the response is not stale (older or equal to {@link #metadataVersion}), else
-   * returns empty {@link Optional}.
+   * metadataVersion in the response is not stale (older or equal to current {@link
+   * WorkerMetadataResponse#getMetadataVersion()}), else returns empty {@link Optional}.
    */
   private Optional<WindmillEndpoints> extractWindmillEndpointsFrom(
       WorkerMetadataResponse response) {
     synchronized (metadataLock) {
-      if (response.getMetadataVersion() > this.metadataVersion) {
-        this.metadataVersion = response.getMetadataVersion();
+      if (response.getMetadataVersion() > latestResponse.getMetadataVersion()) {
         this.latestResponse = response;
         return Optional.of(WindmillEndpoints.from(response));
       } else {
         // If the currentMetadataVersion is greater than or equal to one in the response, the
         // response data is stale, and we do not want to do anything.
-        LOG.info(
-            "Received WorkerMetadataResponse={}; Received metadata version={}; Current metadata version={}. "
+        LOG.debug(
+            "Received metadata version={}; Current metadata version={}. "
                 + "Skipping update because received stale metadata",
-            response,
             response.getMetadataVersion(),
-            this.metadataVersion);
+            latestResponse.getMetadataVersion());
       }
     }
 
@@ -144,9 +133,12 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected synchronized void onNewStream() {
-    send(workerMetadataRequest);
+  protected void onNewStream() throws WindmillStreamShutdownException {
+    trySend(workerMetadataRequest);
   }
+
+  @Override
+  protected void shutdownInternal() {}
 
   @Override
   protected boolean hasPendingRequests() {
@@ -159,16 +151,16 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected void sendHealthCheck() {
-    send(HEALTH_CHECK_REQUEST);
+  protected void sendHealthCheck() throws WindmillStreamShutdownException {
+    trySend(HEALTH_CHECK_REQUEST);
   }
 
   @Override
   protected void appendSpecificHtml(PrintWriter writer) {
     synchronized (metadataLock) {
       writer.format(
-          "GetWorkerMetadataStream: version=[%d] , job_header=[%s], latest_response=[%s]",
-          this.metadataVersion, workerMetadataRequest.getHeader(), this.latestResponse);
+          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s]",
+          workerMetadataRequest.getHeader(), latestResponse);
     }
   }
 }

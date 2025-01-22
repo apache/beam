@@ -20,8 +20,8 @@ package org.apache.beam.runners.core.metrics;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -54,13 +54,13 @@ public abstract class StringSetData implements Serializable {
     if (set.isEmpty()) {
       return empty();
     }
-    HashSet<String> combined = new HashSet<>();
+    Set<String> combined = ConcurrentHashMap.newKeySet();
     long stringSize = addUntilCapacity(combined, 0L, set);
     return new AutoValue_StringSetData(combined, stringSize);
   }
 
   /** Returns a {@link StringSetData} which is made from the given set in place. */
-  private static StringSetData createInPlace(HashSet<String> set, long stringSize) {
+  private static StringSetData createInPlace(Set<String> set, long stringSize) {
     return new AutoValue_StringSetData(set, stringSize);
   }
 
@@ -76,11 +76,12 @@ public abstract class StringSetData implements Serializable {
    * <p>>Should only be used by {@link StringSetCell#add}.
    */
   public StringSetData addAll(String... strings) {
-    HashSet<String> combined;
-    if (this.stringSet() instanceof HashSet) {
-      combined = (HashSet<String>) this.stringSet();
+    Set<String> combined;
+    if (this.stringSet() instanceof ConcurrentHashMap.KeySetView) {
+      combined = this.stringSet();
     } else {
-      combined = new HashSet<>(this.stringSet());
+      combined = ConcurrentHashMap.newKeySet();
+      combined.addAll(this.stringSet());
     }
     long stringSize = addUntilCapacity(combined, this.stringSize(), Arrays.asList(strings));
     return StringSetData.createInPlace(combined, stringSize);
@@ -95,7 +96,8 @@ public abstract class StringSetData implements Serializable {
     } else if (other.stringSet().isEmpty()) {
       return this;
     } else {
-      HashSet<String> combined = new HashSet<>(this.stringSet());
+      Set<String> combined = ConcurrentHashMap.newKeySet();
+      combined.addAll(this.stringSet());
       long stringSize = addUntilCapacity(combined, this.stringSize(), other.stringSet());
       return StringSetData.createInPlace(combined, stringSize);
     }
@@ -105,7 +107,8 @@ public abstract class StringSetData implements Serializable {
    * Combines this {@link StringSetData} with others, all original StringSetData are left intact.
    */
   public StringSetData combine(Iterable<StringSetData> others) {
-    HashSet<String> combined = new HashSet<>(this.stringSet());
+    Set<String> combined = ConcurrentHashMap.newKeySet();
+    combined.addAll(this.stringSet());
     long stringSize = this.stringSize();
     for (StringSetData other : others) {
       stringSize = addUntilCapacity(combined, stringSize, other.stringSet());
@@ -120,7 +123,7 @@ public abstract class StringSetData implements Serializable {
 
   /** Add strings into set until reach capacity. Return the all string size of added set. */
   private static long addUntilCapacity(
-      HashSet<String> combined, long currentSize, Iterable<String> others) {
+      Set<String> combined, long currentSize, Iterable<String> others) {
     if (currentSize > STRING_SET_SIZE_LIMIT) {
       // already at capacity
       return currentSize;

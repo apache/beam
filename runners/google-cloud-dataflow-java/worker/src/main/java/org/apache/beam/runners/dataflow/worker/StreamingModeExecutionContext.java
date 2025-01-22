@@ -101,6 +101,7 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 @Internal
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
 
   private final String computationId;
@@ -191,7 +192,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean workIsFailed() {
-    return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
+    return work != null && work.isFailed();
   }
 
   public void start(
@@ -553,6 +554,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   private static class ScopedReadStateSupplier implements Supplier<Closeable> {
+
     private final ExecutionState readState;
     private final @Nullable ExecutionStateTracker stateTracker;
 

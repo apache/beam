@@ -33,10 +33,11 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.RpcException;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.WindmillRpcException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -66,6 +67,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
+  private final ThrottledTimeTracker throttledTimeTracker;
 
   SingleSourceWorkerHarness(
       WorkCommitter workCommitter,
@@ -74,7 +76,8 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher,
-      GetWorkSender getWorkSender) {
+      GetWorkSender getWorkSender,
+      ThrottledTimeTracker throttledTimeTracker) {
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
     this.heartbeatSender = heartbeatSender;
@@ -90,6 +93,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                 .build());
     this.isRunning = new AtomicBoolean(false);
     this.getWorkSender = getWorkSender;
+    this.throttledTimeTracker = throttledTimeTracker;
   }
 
   public static SingleSourceWorkerHarness.Builder builder() {
@@ -144,6 +148,11 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
     workCommitter.stop();
   }
 
+  @Override
+  public long getAndResetThrottleTime() {
+    return throttledTimeTracker.getAndResetThrottleTime();
+  }
+
   private void streamingEngineDispatchLoop(
       Function<WorkItemReceiver, WindmillStream.GetWorkStream> getWorkStreamFactory) {
     while (isRunning.get()) {
@@ -153,6 +162,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                   inputDataWatermark,
                   synchronizedProcessingTime,
                   workItem,
+                  serializedWorkItemSize,
                   getWorkStreamLatencies) ->
                   computationStateFetcher
                       .apply(computationId)
@@ -162,6 +172,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
+                                serializedWorkItemSize,
                                 Watermarks.builder()
                                     .setInputDataWatermark(
                                         Preconditions.checkNotNull(inputDataWatermark))
@@ -199,7 +210,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
           if (workResponse.getWorkCount() > 0) {
             break;
           }
-        } catch (RpcException e) {
+        } catch (WindmillRpcException e) {
           LOG.warn("GetWork failed, retrying:", e);
         }
         sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);
@@ -228,6 +239,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
           streamingWorkScheduler.scheduleWork(
               computationState,
               workItem,
+              workItem.getSerializedSize(),
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
@@ -253,6 +265,8 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         Function<String, Optional<ComputationState>> computationStateFetcher);
 
     Builder setGetWorkSender(GetWorkSender getWorkSender);
+
+    Builder setThrottledTimeTracker(ThrottledTimeTracker throttledTimeTracker);
 
     SingleSourceWorkerHarness build();
   }

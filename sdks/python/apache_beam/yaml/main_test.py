@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import datetime
 import glob
 import logging
 import os
@@ -99,6 +100,18 @@ class MainTest(unittest.TestCase):
             '--another_arg=foo',
             'pos_arg',
         ])
+
+  def test_jinja_datetime(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      out_path = os.path.join(tmpdir, 'out.txt')
+      main.run([
+          '--yaml_pipeline',
+          TEST_PIPELINE.replace('PATH', out_path).replace(
+              'ELEMENT', '"{{datetime.datetime.now().strftime("%Y-%m-%d")}}"'),
+      ])
+      with open(glob.glob(out_path + '*')[0], 'rt') as fin:
+        self.assertEqual(
+            fin.read().strip(), datetime.datetime.now().strftime("%Y-%m-%d"))
 
 
 if __name__ == '__main__':

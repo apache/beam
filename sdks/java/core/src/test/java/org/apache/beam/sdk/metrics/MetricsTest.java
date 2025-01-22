@@ -24,7 +24,9 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.greaterThan;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -244,6 +247,24 @@ public class MetricsTest implements Serializable {
 
       counter.dec(5L);
       verify(mockCounter).inc(-5);
+    }
+
+    @Test
+    public void testMetricsFlag() {
+      Metrics.resetDefaultPipelineOptions();
+      assertFalse(Metrics.MetricsFlag.counterDisabled());
+      assertFalse(Metrics.MetricsFlag.stringSetDisabled());
+      PipelineOptions options =
+          PipelineOptionsFactory.fromArgs("--experiments=disableCounterMetrics").create();
+      Metrics.setDefaultPipelineOptions(options);
+      assertTrue(Metrics.MetricsFlag.counterDisabled());
+      assertFalse(Metrics.MetricsFlag.stringSetDisabled());
+      Metrics.resetDefaultPipelineOptions();
+      options = PipelineOptionsFactory.fromArgs("--experiments=disableStringSetMetrics").create();
+      Metrics.setDefaultPipelineOptions(options);
+      assertFalse(Metrics.MetricsFlag.counterDisabled());
+      assertTrue(Metrics.MetricsFlag.stringSetDisabled());
+      Metrics.resetDefaultPipelineOptions();
     }
   }
 

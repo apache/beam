@@ -105,7 +105,9 @@ This method requires building image artifacts from Beam source. For additional i
 
 2. Customize the `Dockerfile` for a given language, typically `sdks/<language>/container/Dockerfile` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile).
 
-3. Return to the root Beam directory and run the Gradle `docker` target for your image.
+3. Return to the root Beam directory and run the Gradle `docker` target for your
+   image. For self-contained instructions on building a container image,
+   follow [this guide](/documentation/sdks/python-sdk-image-build).
 
   ```
   cd $BEAM_WORKDIR

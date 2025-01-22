@@ -125,12 +125,14 @@ Config = typing.NamedTuple(
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
      ('fetch_size', typing.Optional[np.int16]),
+     ('disable_autocommit', typing.Optional[bool]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
      ('max_connections', typing.Optional[np.int16]),
-     ('driver_jars', typing.Optional[str])],
+     ('driver_jars', typing.Optional[str]),
+     ('write_batch_size', typing.Optional[np.int64])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
@@ -186,6 +188,7 @@ class WriteToJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
+      write_batch_size=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -217,6 +220,9 @@ class WriteToJdbc(ExternalTransform):
                       package (e.g. "org.postgresql:postgresql:42.3.1").
                       By default, this argument includes a Postgres SQL JDBC
                       driver.
+    :param write_batch_size: sets the maximum size in number of SQL statement
+                             for the batch.
+                             default is {@link JdbcIO.DEFAULT_BATCH_SIZE}
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
@@ -234,8 +240,10 @@ class WriteToJdbc(ExternalTransform):
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=statement,
+                            write_batch_size=write_batch_size,
                             read_query=None,
                             fetch_size=None,
+                            disable_autocommit=None,
                             output_parallelization=None,
                             autosharding=autosharding,
                             max_connections=max_connections,
@@ -286,6 +294,7 @@ class ReadFromJdbc(ExternalTransform):
       username,
       password,
       query=None,
+      disable_autocommit=None,
       output_parallelization=None,
       fetch_size=None,
       partition_column=None,
@@ -305,6 +314,7 @@ class ReadFromJdbc(ExternalTransform):
     :param username: database username
     :param password: database password
     :param query: sql query to be executed
+    :param disable_autocommit: disable autocommit on read
     :param output_parallelization: is output parallelization on
     :param fetch_size: how many rows to fetch
     :param partition_column: enable partitioned reads by splitting on this
@@ -348,8 +358,10 @@ class ReadFromJdbc(ExternalTransform):
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=None,
+                            write_batch_size=None,
                             read_query=query,
                             fetch_size=fetch_size,
+                            disable_autocommit=disable_autocommit,
                             output_parallelization=output_parallelization,
                             autosharding=None,
                             max_connections=max_connections,

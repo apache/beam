@@ -22,12 +22,12 @@ plugins { id 'org.apache.beam.module' }
 // Shade away runner execution utilities till because this causes ServiceLoader conflicts with
 // TransformPayloadTranslatorRegistrar amongst other runners. This only happens in the DirectRunner
 // because it is likely to appear on the classpath of another runner.
-def dependOnProjects = [
-                        ":runners:core-java",
-                        ":runners:local-java",
-                        ":runners:java-fn-execution",
-                        ":sdks:java:core",
-                        ]
+def dependOnProjectsAndConfigs = [
+        ":runners:core-java":null,
+        ":runners:local-java":null,
+        ":runners:java-fn-execution":null,
+        ":sdks:java:core":"shadow",
+]
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.direct',
@@ -36,8 +36,8 @@ applyJavaNature(
         ],
         shadowClosure: {
           dependencies {
-            dependOnProjects.each {
-              include(project(path: it, configuration: "shadow"))
+            dependOnProjectsAndConfigs.each {
+              include(project(path: it.key, configuration: "shadow"))
             }
           }
         },
@@ -63,8 +63,10 @@ configurations {
 dependencies {
   shadow library.java.vendored_guava_32_1_2_jre
   shadow project(path: ":model:pipeline", configuration: "shadow")
-  dependOnProjects.each {
-    implementation project(it)
+  dependOnProjectsAndConfigs.each {
+    // For projects producing shadowjar, use the packaged jar as dependency to
+    // handle redirected packages from it
+    implementation project(path: it.key, configuration: it.value)
   }
   shadow library.java.vendored_grpc_1_60_1
   shadow library.java.joda_time

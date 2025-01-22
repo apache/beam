@@ -20,13 +20,17 @@ import io
 import itertools
 import re
 
+import docstring_parser
 import yaml
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import schemas
 from apache_beam.utils import subprocess_server
+from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_errors import ErrorHandlingConfig
 
 
 def _singular(name):
@@ -135,8 +139,29 @@ def config_docs(schema):
   def maybe_optional(t):
     return " (Optional)" if t.nullable else ""
 
+  def normalize_error_handling(f):
+    doc = docstring_parser.parse(
+        ErrorHandlingConfig.__doc__, docstring_parser.DocstringStyle.GOOGLE)
+    if f.name == "error_handling":
+      f = schema_pb2.Field(
+          name="error_handling",
+          type=schema_pb2.FieldType(
+              row_type=schema_pb2.RowType(
+                  schema=schema_pb2.Schema(
+                      fields=[
+                          schemas.schema_field(
+                              param.arg_name,
+                              PythonCallableWithSource.load_from_expression(
+                                  param.type_name),
+                              param.description) for param in doc.params
+                      ])),
+              nullable=True),
+          description=f.description or doc.short_description)
+    return f
+
   def lines():
     for f in schema.fields:
+      f = normalize_error_handling(f)
       yield ''.join([
           f'**{f.name}** `{pretty_type(f.type)}`',
           maybe_optional(f.type),
@@ -165,11 +190,39 @@ def io_grouping_key(transform_name):
     return 0, transform_name
 
 
-SKIP = [
-    'Combine',
-    'Filter',
-    'MapToFields',
-]
+# Exclude providers
+SKIP = {}
+
+
+def add_transform_links(transform, description, provider_list):
+  """
+  Convert references of Providers to urls that link to their respective pages.
+
+  For example,
+    "Some description talking about MyTransform."
+  would be converted to
+    "Some description talking about <a href="#mytransform">MyTransform</a>"
+
+  meanwhile::
+
+    type: MyTransform
+    config:
+      ...
+
+  Would remain unchanged.
+
+  Avoid self-linking within a Transform page.
+  """
+  for p in provider_list:
+    # Match all instances of built-in transforms within the description
+    # excluding the transform whose description is currently being evaluated.
+    # Match the entire word boundary so that partial matches do not count.
+    # (i.e. OtherTransform should not match Transform)
+    description = re.sub(
+        rf"(?<!type: )\b(?!{transform}\b)\b{p}\b",
+        f'<a href="#{p.lower()}">{p}</a>',
+        description or '')
+  return description
 
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
@@ -177,7 +230,10 @@ def transform_docs(transform_base, transforms, providers, extra_docs=''):
       f'## {transform_base}',
       '',
       longest(
-          lambda t: longest(lambda p: p.description(t), providers[t]),
+          lambda t: longest(
+              lambda p: add_transform_links(
+                  t, p.description(t), providers.keys()),
+              providers[t]),
           transforms).replace('::\n', '\n\n    :::yaml\n'),
       '',
       extra_docs,
@@ -212,7 +268,8 @@ def main():
   options = parser.parse_args()
   include = re.compile(options.include).match
   exclude = (
-      re.compile(options.exclude).match if options.exclude else lambda _: False)
+      re.compile(options.exclude).match
+      if options.exclude else lambda x: x in SKIP)
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
@@ -227,7 +284,7 @@ def main():
         if options.markdown_file or options.html_file:
           if '-' in transforms[0]:
             extra_docs = 'Supported languages: ' + ', '.join(
-                t.split('-')[-1] for t in sorted(transforms))
+                t.split('-')[-1] for t in sorted(transforms)) + '.'
           else:
             extra_docs = ''
           markdown_out.write(

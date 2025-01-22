@@ -18,10 +18,7 @@
 import datetime
 import logging
 import unittest
-from typing import Dict
-from typing import List
 from typing import NamedTuple
-from typing import Tuple
 from unittest.mock import MagicMock
 
 import pytest
@@ -57,8 +54,8 @@ class ValidateResponse(beam.DoFn):
   def __init__(
       self,
       n_fields: int,
-      fields: List[str],
-      enriched_fields: Dict[str, List[str]],
+      fields: list[str],
+      enriched_fields: dict[str, list[str]],
       include_timestamp: bool = False,
   ):
     self.n_fields = n_fields
@@ -88,7 +85,7 @@ class ValidateResponse(beam.DoFn):
               "Response from bigtable should contain a %s column_family with "
               "%s columns." % (column_family, columns))
         if (self._include_timestamp and
-            not isinstance(element_dict[column_family][key][0], Tuple)):  # type: ignore[arg-type]
+            not isinstance(element_dict[column_family][key][0], tuple)):
           raise BeamAssertException(
               "Response from bigtable should contain timestamp associated with "
               "its value.")

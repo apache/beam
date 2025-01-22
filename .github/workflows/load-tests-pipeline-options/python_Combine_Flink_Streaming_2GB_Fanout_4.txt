@@ -28,3 +28,4 @@
 --streaming
 --use_stateful_load_generator
 --runner=PortableRunner
+--max_cache_memory_usage_mb=256

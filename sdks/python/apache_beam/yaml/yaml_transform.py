@@ -16,22 +16,19 @@
 #
 
 import collections
+import datetime
 import functools
 import json
 import logging
 import os
 import pprint
 import re
-import uuid
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Iterable
-from typing import List
-from typing import Mapping
-from typing import Set
 
 import jinja2
 import yaml
-from yaml.loader import SafeLoader
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -41,6 +38,7 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
+from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 __all__ = ["YamlTransform"]
 
@@ -129,59 +127,6 @@ def empty_if_explicitly_empty(io):
     return io
 
 
-class SafeLineLoader(SafeLoader):
-  """A yaml loader that attaches line information to mappings and strings."""
-  class TaggedString(str):
-    """A string class to which we can attach metadata.
-
-    This is primarily used to trace a string's origin back to its place in a
-    yaml file.
-    """
-    def __reduce__(self):
-      # Pickle as an ordinary string.
-      return str, (str(self), )
-
-  def construct_scalar(self, node):
-    value = super().construct_scalar(node)
-    if isinstance(value, str):
-      value = SafeLineLoader.TaggedString(value)
-      value._line_ = node.start_mark.line + 1
-    return value
-
-  def construct_mapping(self, node, deep=False):
-    mapping = super().construct_mapping(node, deep=deep)
-    mapping['__line__'] = node.start_mark.line + 1
-    mapping['__uuid__'] = self.create_uuid()
-    return mapping
-
-  @classmethod
-  def create_uuid(cls):
-    return str(uuid.uuid4())
-
-  @classmethod
-  def strip_metadata(cls, spec, tagged_str=True):
-    if isinstance(spec, Mapping):
-      return {
-          cls.strip_metadata(key, tagged_str):
-          cls.strip_metadata(value, tagged_str)
-          for (key, value) in spec.items()
-          if key not in ('__line__', '__uuid__')
-      }
-    elif isinstance(spec, Iterable) and not isinstance(spec, (str, bytes)):
-      return [cls.strip_metadata(value, tagged_str) for value in spec]
-    elif isinstance(spec, SafeLineLoader.TaggedString) and tagged_str:
-      return str(spec)
-    else:
-      return spec
-
-  @staticmethod
-  def get_line(obj):
-    if isinstance(obj, dict):
-      return obj.get('__line__', 'unknown')
-    else:
-      return getattr(obj, '_line_', 'unknown')
-
-
 class LightweightScope(object):
   def __init__(self, transforms):
     self._transforms = transforms
@@ -230,7 +175,7 @@ class Scope(LightweightScope):
     self.root = root
     self._inputs = inputs
     self.providers = providers
-    self._seen_names: Set[str] = set()
+    self._seen_names: set[str] = set()
     self.input_providers = input_providers
     self._all_followers = None
 
@@ -308,7 +253,7 @@ class Scope(LightweightScope):
     def best_matches(
         possible_providers: Iterable[yaml_provider.Provider],
         adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
-    ) -> List[yaml_provider.Provider]:
+    ) -> list[yaml_provider.Provider]:
       """Given a set of possible providers, and a set of providers for each
       adjacent transform, returns the top possible providers as ranked by
       affinity to the adjacent transforms' providers.
@@ -493,7 +438,7 @@ def expand_leaf_transform(spec, scope):
       outputs = inputs | scope.unique_name(spec, ptransform) >> ptransform
   except Exception as exn:
     raise ValueError(
-        f"Error apply transform {identify_object(spec)}: {exn}") from exn
+        f"Error applying transform {identify_object(spec)}: {exn}") from exn
   if isinstance(outputs, dict):
     # TODO: Handle (or at least reject) nested case.
     return outputs
@@ -519,8 +464,9 @@ def expand_composite_transform(spec, scope):
           for (key, value) in empty_if_explicitly_empty(spec['input']).items()
       },
       spec['transforms'],
+      # TODO(robertwb): Are scoped providers ever used? Worth supporting?
       yaml_provider.merge_providers(
-          yaml_provider.parse_providers(spec.get('providers', [])),
+          yaml_provider.parse_providers('', spec.get('providers', [])),
           scope.providers),
       scope.input_providers)
 
@@ -576,8 +522,8 @@ def chain_as_composite(spec):
         pass
       else:
         raise ValueError(
-            f'Transform {identify_object(transform)} is part of a chain, '
-            'must have implicit inputs and outputs.')
+            f'Transform {identify_object(transform)} is part of a chain. '
+            'Cannot define explicit inputs on chain pipeline')
     if ix == 0:
       if is_explicitly_empty(transform.get('input', None)):
         pass
@@ -770,6 +716,9 @@ def preprocess_windowing(spec):
         'transforms': [modified_spec] + windowing_transforms,
         'input': spec['input'],
         'output': modified_spec['__uuid__'],
+        'config': {
+            'error_handling': spec.get('config', {}).get('error_handling', {})
+        },
         '__line__': spec['__line__'],
         '__uuid__': spec['__uuid__'],
     }
@@ -804,6 +753,9 @@ def preprocess_windowing(spec):
         'name': spec.get('name', None) or spec['type'],
         'transforms': [modified_spec] + windowing_transforms,
         'output': windowed_outputs,
+        'config': {
+            'error_handling': spec.get('config', {}).get('error_handling', {})
+        },
         '__line__': spec['__line__'],
         '__uuid__': spec['__uuid__'],
     }
@@ -955,6 +907,21 @@ def preprocess(spec, verbose=False, known_transforms=None):
     else:
       return spec
 
+  def validate_transform_references(spec):
+    name = spec.get('name', '')
+    transform_type = spec.get('type')
+    inputs = spec.get('input').get('input', [])
+
+    if not is_empty(inputs):
+      input_values = [inputs] if isinstance(inputs, str) else inputs
+      for input_value in input_values:
+        if input_value in (name, transform_type):
+          raise ValueError(
+              f"Circular reference detected: Transform {name} "
+              f"references itself as input in {identify_object(spec)}")
+
+    return spec
+
   for phase in [
       ensure_transforms_have_types,
       normalize_mapping,
@@ -965,6 +932,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       preprocess_chain,
       tag_explicit_inputs,
       normalize_inputs_outputs,
+      validate_transform_references,
       preprocess_flattened_inputs,
       ensure_errors_consumed,
       preprocess_windowing,
@@ -992,7 +960,7 @@ def expand_jinja(
       jinja2.Environment(
           undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
       .from_string(jinja_template)
-      .render(**jinja_variables))
+      .render(datetime=datetime, **jinja_variables))
 
 
 class YamlTransform(beam.PTransform):
@@ -1060,7 +1028,8 @@ def expand_pipeline(
     pipeline,
     pipeline_spec,
     providers=None,
-    validate_schema='generic' if jsonschema is not None else None):
+    validate_schema='generic' if jsonschema is not None else None,
+    pipeline_path=''):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
@@ -1071,5 +1040,6 @@ def expand_pipeline(
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
       yaml_provider.merge_providers(
-          yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
+          yaml_provider.parse_providers(
+              pipeline_path, pipeline_spec.get('providers', [])),
           providers or {})).expand(beam.pvalue.PBegin(pipeline))

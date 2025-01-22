@@ -21,7 +21,6 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
@@ -61,6 +61,7 @@ final class GrpcDirectGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectGetWorkStream.class);
+
   private static final StreamingGetWorkRequest HEALTH_CHECK_REQUEST =
       StreamingGetWorkRequest.newBuilder()
           .setRequestExtension(
@@ -88,6 +89,8 @@ final class GrpcDirectGetWorkStream
    */
   private final ConcurrentMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
 
+  private final boolean requestBatchedGetWorkResponse;
+
   private GrpcDirectGetWorkStream(
       String backendWorkerToken,
       Function<
@@ -99,12 +102,14 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler) {
     super(
+        LOG,
         "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
@@ -126,6 +131,7 @@ final class GrpcDirectGetWorkStream
                 .setItems(requestHeader.getMaxItems())
                 .setBytes(requestHeader.getMaxBytes())
                 .build());
+    this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
   }
 
   static GrpcDirectGetWorkStream create(
@@ -139,27 +145,26 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler) {
-    GrpcDirectGetWorkStream getWorkStream =
-        new GrpcDirectGetWorkStream(
-            backendWorkerToken,
-            startGetWorkRpcFn,
-            request,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            getWorkThrottleTimer,
-            heartbeatSender,
-            getDataClient,
-            workCommitter,
-            workItemScheduler);
-    getWorkStream.startStream();
-    return getWorkStream;
+    return new GrpcDirectGetWorkStream(
+        backendWorkerToken,
+        startGetWorkRpcFn,
+        request,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        requestBatchedGetWorkResponse,
+        getWorkThrottleTimer,
+        heartbeatSender,
+        getDataClient,
+        workCommitter,
+        workItemScheduler);
   }
 
   private static Watermarks createWatermarks(
@@ -174,7 +179,7 @@ final class GrpcDirectGetWorkStream
   /**
    * @implNote Do not lock/synchronize here due to this running on grpc serial executor for message
    *     which can deadlock since we send on the stream beneath the synchronization. {@link
-   *     AbstractWindmillStream#send(Object)} is synchronized so the sends are already guarded.
+   *     AbstractWindmillStream#trySend(Object)} is synchronized so the sends are already guarded.
    */
   private void maybeSendRequestExtension(GetWorkBudget extension) {
     if (extension.items() > 0 || extension.bytes() > 0) {
@@ -190,8 +195,8 @@ final class GrpcDirectGetWorkStream
             lastRequest.set(request);
             budgetTracker.recordBudgetRequested(extension);
             try {
-              send(request);
-            } catch (IllegalStateException e) {
+              trySend(request);
+            } catch (WindmillStreamShutdownException e) {
               // Stream was closed.
             }
           });
@@ -199,24 +204,23 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  protected synchronized void onNewStream() {
+  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
     workItemAssemblers.clear();
-    if (!isShutdown()) {
-      budgetTracker.reset();
-      GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
-      StreamingGetWorkRequest request =
-          StreamingGetWorkRequest.newBuilder()
-              .setRequest(
-                  requestHeader
-                      .toBuilder()
-                      .setMaxItems(initialGetWorkBudget.items())
-                      .setMaxBytes(initialGetWorkBudget.bytes())
-                      .build())
-              .build();
-      lastRequest.set(request);
-      budgetTracker.recordBudgetRequested(initialGetWorkBudget);
-      send(request);
-    }
+    budgetTracker.reset();
+    GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
+    StreamingGetWorkRequest request =
+        StreamingGetWorkRequest.newBuilder()
+            .setRequest(
+                requestHeader
+                    .toBuilder()
+                    .setMaxItems(initialGetWorkBudget.items())
+                    .setMaxBytes(initialGetWorkBudget.bytes())
+                    .build())
+            .setSupportsMultipleWorkItemsInChunk(requestBatchedGetWorkResponse)
+            .build();
+    lastRequest.set(request);
+    budgetTracker.recordBudgetRequested(initialGetWorkBudget);
+    trySend(request);
   }
 
   @Override
@@ -234,9 +238,12 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public void sendHealthCheck() {
-    send(HEALTH_CHECK_REQUEST);
+  public void sendHealthCheck() throws WindmillStreamShutdownException {
+    trySend(HEALTH_CHECK_REQUEST);
   }
+
+  @Override
+  protected void shutdownInternal() {}
 
   @Override
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {
@@ -244,7 +251,7 @@ final class GrpcDirectGetWorkStream
     workItemAssemblers
         .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
         .append(chunk)
-        .ifPresent(this::consumeAssembledWorkItem);
+        .forEach(this::consumeAssembledWorkItem);
   }
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
@@ -253,6 +260,7 @@ final class GrpcDirectGetWorkStream
         assembledWorkItem.computationMetadata();
     workItemScheduler.scheduleWork(
         workItem,
+        assembledWorkItem.bufferedSize(),
         createWatermarks(workItem, metadata),
         createProcessingContext(metadata.computationId()),
         assembledWorkItem.latencyAttributions());
@@ -275,14 +283,6 @@ final class GrpcDirectGetWorkStream
   public void setBudget(GetWorkBudget newBudget) {
     GetWorkBudget extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
     maybeSendRequestExtension(extension);
-  }
-
-  private void executeSafely(Runnable runnable) {
-    try {
-      executor().execute(runnable);
-    } catch (RejectedExecutionException e) {
-      LOG.debug("{} has been shutdown.", getClass());
-    }
   }
 
   /**

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.options;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -108,6 +109,16 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   boolean getLogMdc();
 
   void setLogMdc(boolean value);
+
+  /** This option controls whether logging will be redirected through the FnApi. */
+  @Description(
+      "Controls whether logging will be redirected through the FnApi. In normal usage, setting "
+          + "this to a non-default value will cause log messages to be dropped.")
+  @Default.Boolean(true)
+  @Hidden
+  boolean getEnableLogViaFnApi();
+
+  void setEnableLogViaFnApi(boolean enableLogViaFnApi);
 
   /**
    * Size (in MB) of each grouping table used to pre-combine elements. Larger values may reduce the
@@ -385,5 +396,22 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
       }
     }
     return configuredLoggers;
+  }
+
+  @Hidden
+  @Description(
+      "Timeout used for cache of bundle processors. Defaults to a minute for batch and an hour for streaming.")
+  @Default.InstanceFactory(BundleProcessorCacheTimeoutFactory.class)
+  Duration getBundleProcessorCacheTimeout();
+
+  void setBundleProcessorCacheTimeout(Duration duration);
+
+  class BundleProcessorCacheTimeoutFactory implements DefaultValueFactory<Duration> {
+    @Override
+    public Duration create(PipelineOptions options) {
+      return options.as(StreamingOptions.class).isStreaming()
+          ? Duration.ofHours(1)
+          : Duration.ofMinutes(1);
+    }
   }
 }

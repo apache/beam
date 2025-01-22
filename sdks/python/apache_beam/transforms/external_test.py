@@ -52,6 +52,7 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
 from apache_beam.utils.subprocess_server import JavaJarServer
+from apache_beam.utils.subprocess_server import SubprocessServer
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -718,6 +719,9 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
 
 class JavaJarExpansionServiceTest(unittest.TestCase):
+  def setUp(self):
+    SubprocessServer._cache._live_owners = set()
+
   def test_classpath(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       try:

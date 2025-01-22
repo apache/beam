@@ -185,6 +185,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             .setSendKeyedGetDataRequests(sendKeyedGetDataRequests)
             .setHealthCheckIntervalMillis(
                 testOptions.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+            .setRequestBatchedGetWorkResponse(
+                testOptions.getWindmillRequestBatchedGetWorkResponse())
             .build();
 
     return new GrpcWindmillServer(testOptions, windmillStreamFactory, dispatcherClient);
@@ -290,13 +292,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
                 e.getStatus());
           }
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
-            throw new RpcException(e);
+            throw new WindmillRpcException(e);
           }
         } catch (IOException | InterruptedException i) {
           if (i instanceof InterruptedException) {
             Thread.currentThread().interrupt();
           }
-          RpcException rpcException = new RpcException(e);
+          WindmillRpcException rpcException = new WindmillRpcException(e);
           rpcException.addSuppressed(i);
           throw rpcException;
         }
@@ -310,7 +312,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.getWork(request));
     }
 
-    throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("GetWork"));
+    throw new WindmillRpcException(unsupportedUnaryRequestInStreamingEngineException("GetWork"));
   }
 
   @Override
@@ -319,7 +321,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.getData(request));
     }
 
-    throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("GetData"));
+    throw new WindmillRpcException(unsupportedUnaryRequestInStreamingEngineException("GetData"));
   }
 
   @Override
@@ -327,32 +329,53 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     if (syncApplianceStub != null) {
       return callWithBackoff(() -> syncApplianceStub.commitWork(request));
     }
-    throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("CommitWork"));
+    throw new WindmillRpcException(unsupportedUnaryRequestInStreamingEngineException("CommitWork"));
   }
 
+  /**
+   * @implNote Returns a {@link GetWorkStream} in the started state (w/ the initial header already
+   *     sent).
+   */
   @Override
   public GetWorkStream getWorkStream(GetWorkRequest request, WorkItemReceiver receiver) {
-    return windmillStreamFactory.createGetWorkStream(
-        dispatcherClient.getWindmillServiceStub(),
-        GetWorkRequest.newBuilder(request)
-            .setJobId(options.getJobId())
-            .setProjectId(options.getProject())
-            .setWorkerId(options.getWorkerId())
-            .build(),
-        throttleTimers.getWorkThrottleTimer(),
-        receiver);
+    GetWorkStream getWorkStream =
+        windmillStreamFactory.createGetWorkStream(
+            dispatcherClient.getWindmillServiceStub(),
+            GetWorkRequest.newBuilder(request)
+                .setJobId(options.getJobId())
+                .setProjectId(options.getProject())
+                .setWorkerId(options.getWorkerId())
+                .build(),
+            throttleTimers.getWorkThrottleTimer(),
+            receiver);
+    getWorkStream.start();
+    return getWorkStream;
   }
 
+  /**
+   * @implNote Returns a {@link GetDataStream} in the started state (w/ the initial header already
+   *     sent).
+   */
   @Override
   public GetDataStream getDataStream() {
-    return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+    GetDataStream getDataStream =
+        windmillStreamFactory.createGetDataStream(
+            dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+    getDataStream.start();
+    return getDataStream;
   }
 
+  /**
+   * @implNote Returns a {@link CommitWorkStream} in the started state (w/ the initial header
+   *     already sent).
+   */
   @Override
   public CommitWorkStream commitWorkStream() {
-    return windmillStreamFactory.createCommitWorkStream(
-        dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+    CommitWorkStream commitWorkStream =
+        windmillStreamFactory.createCommitWorkStream(
+            dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+    commitWorkStream.start();
+    return commitWorkStream;
   }
 
   @Override
@@ -361,7 +384,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.getConfig(request));
     }
 
-    throw new RpcException(
+    throw new WindmillRpcException(
         new UnsupportedOperationException("GetConfig not supported in Streaming Engine."));
   }
 
@@ -371,7 +394,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.reportStats(request));
     }
 
-    throw new RpcException(
+    throw new WindmillRpcException(
         new UnsupportedOperationException("ReportStats not supported in Streaming Engine."));
   }
 

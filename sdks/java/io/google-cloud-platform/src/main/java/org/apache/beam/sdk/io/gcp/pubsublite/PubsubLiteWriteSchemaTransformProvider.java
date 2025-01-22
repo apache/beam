@@ -82,6 +82,13 @@ public class PubsubLiteWriteSchemaTransformProvider
     return PubsubLiteWriteSchemaTransformConfiguration.class;
   }
 
+  @Override
+  public String description() {
+    return "Performs a write to Google Pub/Sub Lite.\n"
+        + "\n"
+        + "**Note**: This provider is deprecated. See Pub/Sub Lite <a href=\"https://cloud.google.com/pubsub/lite/docs\">documentation</a> for more information.";
+  }
+
   public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
     private final SerializableFunction<Row, byte[]> toBytesFn;
     private final Counter errorCounter;
