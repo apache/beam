@@ -19,11 +19,13 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.TypeAndMaxId;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamFieldTypeToIcebergFieldType;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.parseTableIdentifier;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -49,6 +52,7 @@ import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Test class for {@link IcebergUtils}. */
 @RunWith(Enclosed.class)
@@ -800,6 +804,42 @@ public class IcebergUtilsTest {
       Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(ICEBERG_SCHEMA_STRUCT);
 
       assertEquals(BEAM_SCHEMA_STRUCT, convertedBeamSchema);
+    }
+  }
+
+  @RunWith(Parameterized.class)
+  public static class TableIdentifierParseTests {
+
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+      return Arrays.asList(
+          new Object[][] {
+            {
+              "{\"namespace\": [\"dogs\", \"owners.and.handlers\"], \"name\": \"food\"}",
+              "dogs.owners.and.handlers.food",
+              true
+            },
+            {"dogs.owners.and.handlers.food", "dogs.owners.and.handlers.food", true},
+            {"{\"name\": \"food\"}", "food", true},
+            {"{\"table_name\": \"food\"}", "{\"table_name\": \"food\"}", false},
+          });
+    }
+
+    @Parameterized.Parameter public String input;
+
+    @Parameterized.Parameter(1)
+    public String expected;
+
+    @Parameterized.Parameter(2)
+    public boolean shouldSucceed;
+
+    @Test
+    public void test() {
+      if (shouldSucceed) {
+        assertEquals(expected, parseTableIdentifier(input).toString());
+      } else {
+        assertThrows(IllegalArgumentException.class, () -> parseTableIdentifier(input));
+      }
     }
   }
 }

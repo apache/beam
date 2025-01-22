@@ -29,9 +29,9 @@ public interface DynamicDestinations extends Serializable {
 
   Row getData(Row element);
 
-  IcebergDestination instantiateDestination(String destination);
+  IcebergDestination instantiateDestination(TableIdentifier destination);
 
-  String getTableStringIdentifier(ValueInSingleWindow<Row> element);
+  SerializableTableIdentifier getTableIdentifier(ValueInSingleWindow<Row> element);
 
   static DynamicDestinations singleTable(TableIdentifier tableId, Schema inputSchema) {
     return new OneTableDynamicDestinations(tableId, inputSchema);

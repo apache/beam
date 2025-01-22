@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
@@ -53,6 +54,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
@@ -102,7 +105,8 @@ public class IcebergWriteSchemaTransformProviderTest {
 
   @Test
   public void testSimpleAppend() {
-    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    TableIdentifier identifier =
+        TableIdentifier.parse("default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
     Map<String, String> properties = new HashMap<>();
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
@@ -110,7 +114,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     Configuration config =
         Configuration.builder()
-            .setTable(identifier)
+            .setTable(identifier.toString())
             .setCatalogName("name")
             .setCatalogProperties(properties)
             .build();
@@ -133,8 +137,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     testPipeline.run().waitUntilFinish();
 
-    TableIdentifier tableId = TableIdentifier.parse(identifier);
-    Table table = warehouse.loadTable(tableId);
+    Table table = warehouse.loadTable(identifier);
 
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
 
@@ -143,7 +146,8 @@ public class IcebergWriteSchemaTransformProviderTest {
 
   @Test
   public void testWriteUsingManagedTransform() {
-    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    TableIdentifier identifier =
+        TableIdentifier.parse("default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
     String yamlConfig =
         String.format(
@@ -167,7 +171,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     testPipeline.run().waitUntilFinish();
 
-    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    Table table = warehouse.loadTable(identifier);
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
@@ -256,15 +260,20 @@ public class IcebergWriteSchemaTransformProviderTest {
     Instant first = new Instant(0);
     Instant second = first.plus(Duration.standardDays(1));
     Instant third = second.plus(Duration.standardDays(1));
-    String identifier0 =
-        interpolator.interpolate(
-            ValueInSingleWindow.of(rows.get(0), first, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-    String identifier1 =
-        interpolator.interpolate(
-            ValueInSingleWindow.of(rows.get(1), second, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-    String identifier2 =
-        interpolator.interpolate(
-            ValueInSingleWindow.of(rows.get(2), third, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+
+    List<Instant> instants = Lists.newArrayList(first, second, third);
+
+    List<TableIdentifier> identifiers =
+        Streams.zip(
+                rows.stream(),
+                instants.stream(),
+                (row, instant) -> {
+                  return ValueInSingleWindow.of(
+                      row, instant, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+                })
+            .map(interpolator::interpolate)
+            .map(TableIdentifier::parse)
+            .collect(Collectors.toList());
 
     org.apache.iceberg.Schema icebergSchema =
         IcebergUtils.beamSchemaToIcebergSchema(filter.outputSchema());
@@ -301,13 +310,15 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     PAssert.that(result)
         .satisfies(
-            new VerifyOutputs(Arrays.asList(identifier0, identifier1, identifier2), "append"));
+            new VerifyOutputs(
+                Arrays.asList(identifiers.get(0), identifiers.get(1), identifiers.get(2)),
+                "append"));
 
     testPipeline.run().waitUntilFinish();
 
-    Table table0 = warehouse.loadTable(TableIdentifier.parse(identifier0));
-    Table table1 = warehouse.loadTable(TableIdentifier.parse(identifier1));
-    Table table2 = warehouse.loadTable(TableIdentifier.parse(identifier2));
+    Table table0 = warehouse.loadTable(identifiers.get(0));
+    Table table1 = warehouse.loadTable(identifiers.get(1));
+    Table table2 = warehouse.loadTable(identifiers.get(2));
     List<Record> table0Records = ImmutableList.copyOf(IcebergGenerics.read(table0).build());
     List<Record> table1Records = ImmutableList.copyOf(IcebergGenerics.read(table1).build());
     List<Record> table2Records = ImmutableList.copyOf(IcebergGenerics.read(table2).build());
@@ -352,19 +363,21 @@ public class IcebergWriteSchemaTransformProviderTest {
   }
 
   private static class VerifyOutputs implements SerializableFunction<Iterable<Row>, Void> {
-    private final List<String> tableIds;
+    private final List<SerializableTableIdentifier> tableIds;
     private final String operation;
 
-    public VerifyOutputs(List<String> identifier, String operation) {
-      this.tableIds = identifier;
+    public VerifyOutputs(List<TableIdentifier> identifier, String operation) {
+      this.tableIds =
+          identifier.stream().map(SerializableTableIdentifier::of).collect(Collectors.toList());
       this.operation = operation;
     }
 
     @Override
     public Void apply(Iterable<Row> input) {
       Row row = input.iterator().next();
-
-      assertThat(tableIds, Matchers.hasItem(row.getString("table")));
+      TableIdentifier tableIdentifier =
+          SerializableTableIdentifier.fromRow(row.getRow("table")).toTableIdentifier();
+      assertThat(tableIds, Matchers.hasItem(SerializableTableIdentifier.of(tableIdentifier)));
       assertEquals(operation, row.getString("operation"));
       return null;
     }
@@ -405,13 +418,14 @@ public class IcebergWriteSchemaTransformProviderTest {
             .hour("h_datetime")
             .hour("h_datetime_tz")
             .build();
-    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    TableIdentifier identifier =
+        TableIdentifier.parse("default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
-    warehouse.createTable(TableIdentifier.parse(identifier), icebergSchema, spec);
+    warehouse.createTable(identifier, icebergSchema, spec);
     Map<String, Object> config =
         ImmutableMap.of(
             "table",
-            identifier,
+            identifier.toString(),
             "catalog_properties",
             ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location));
 

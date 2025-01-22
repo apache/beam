@@ -24,7 +24,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -47,6 +46,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -56,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * written via another method.
  */
 class WriteUngroupedRowsToFiles
-    extends PTransform<PCollection<KV<String, Row>>, WriteUngroupedRowsToFiles.Result> {
+    extends PTransform<PCollection<KV<TableIdentifier, Row>>, WriteUngroupedRowsToFiles.Result> {
 
   /**
    * Maximum number of writers that will be created per bundle. Any elements requiring more writers
@@ -68,8 +68,8 @@ class WriteUngroupedRowsToFiles
 
   private static final TupleTag<FileWriteResult> WRITTEN_FILES_TAG = new TupleTag<>("writtenFiles");
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
-  private static final TupleTag<KV<ShardedKey<String>, Row>> SPILLED_ROWS_TAG =
-      new TupleTag<KV<ShardedKey<String>, Row>>("spilledRows") {};
+  private static final TupleTag<KV<ShardedKey<TableIdentifier>, Row>> SPILLED_ROWS_TAG =
+      new TupleTag<KV<ShardedKey<TableIdentifier>, Row>>("spilledRows") {};
 
   private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
@@ -85,7 +85,7 @@ class WriteUngroupedRowsToFiles
   }
 
   @Override
-  public Result expand(PCollection<KV<String, Row>> input) {
+  public Result expand(PCollection<KV<TableIdentifier, Row>> input) {
 
     PCollectionTuple resultTuple =
         input.apply(
@@ -110,7 +110,7 @@ class WriteUngroupedRowsToFiles
             .get(SPILLED_ROWS_TAG)
             .setCoder(
                 KvCoder.of(
-                    ShardedKey.Coder.of(StringUtf8Coder.of()),
+                    ShardedKey.Coder.of(TableIdentifierCoder.of()),
                     RowCoder.of(dynamicDestinations.getDataSchema()))));
   }
 
@@ -122,14 +122,14 @@ class WriteUngroupedRowsToFiles
 
     private final Pipeline pipeline;
     private final PCollection<Row> writtenRows;
-    private final PCollection<KV<ShardedKey<String>, Row>> spilledRows;
+    private final PCollection<KV<ShardedKey<TableIdentifier>, Row>> spilledRows;
     private final PCollection<FileWriteResult> writtenFiles;
 
     private Result(
         Pipeline pipeline,
         PCollection<FileWriteResult> writtenFiles,
         PCollection<Row> writtenRows,
-        PCollection<KV<ShardedKey<String>, Row>> spilledRows) {
+        PCollection<KV<ShardedKey<TableIdentifier>, Row>> spilledRows) {
       this.pipeline = pipeline;
       this.writtenFiles = writtenFiles;
       this.writtenRows = writtenRows;
@@ -140,7 +140,7 @@ class WriteUngroupedRowsToFiles
       return writtenRows;
     }
 
-    public PCollection<KV<ShardedKey<String>, Row>> getSpilledRows() {
+    public PCollection<KV<ShardedKey<TableIdentifier>, Row>> getSpilledRows() {
       return spilledRows;
     }
 
@@ -182,7 +182,7 @@ class WriteUngroupedRowsToFiles
    * </ul>
    */
   private static class WriteUngroupedRowsToFilesDoFn
-      extends DoFn<KV<String, Row>, FileWriteResult> {
+      extends DoFn<KV<TableIdentifier, Row>, FileWriteResult> {
 
     // When we spill records, shard the output keys to prevent hotspots.
     private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
@@ -224,12 +224,12 @@ class WriteUngroupedRowsToFiles
 
     @ProcessElement
     public void processElement(
-        @Element KV<String, Row> element,
+        @Element KV<TableIdentifier, Row> element,
         BoundedWindow window,
         PaneInfo pane,
         MultiOutputReceiver out)
         throws Exception {
-      String dest = element.getKey();
+      TableIdentifier dest = element.getKey();
       Row data = element.getValue();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =

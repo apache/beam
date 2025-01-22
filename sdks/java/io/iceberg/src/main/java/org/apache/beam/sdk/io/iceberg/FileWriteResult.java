@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.iceberg;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.DataFile;
@@ -30,18 +33,29 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
 abstract class FileWriteResult {
+  public static final SchemaCoder<FileWriteResult> CODER;
+
+  static {
+    try {
+      SchemaRegistry registry = SchemaRegistry.createDefault();
+      CODER = registry.getSchemaCoder(FileWriteResult.class);
+
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   private transient @MonotonicNonNull TableIdentifier cachedTableIdentifier;
   private transient @MonotonicNonNull DataFile cachedDataFile;
 
-  abstract String getTableIdentifierString();
+  abstract SerializableTableIdentifier getSerializableTableIdentifier();
 
   abstract SerializableDataFile getSerializableDataFile();
 
   @SchemaIgnore
   public TableIdentifier getTableIdentifier() {
     if (cachedTableIdentifier == null) {
-      cachedTableIdentifier = TableIdentifier.parse(getTableIdentifierString());
+      cachedTableIdentifier = getSerializableTableIdentifier().toTableIdentifier();
     }
     return cachedTableIdentifier;
   }
@@ -61,13 +75,13 @@ abstract class FileWriteResult {
   @AutoValue.Builder
   abstract static class Builder {
 
-    abstract Builder setTableIdentifierString(String tableIdString);
+    abstract Builder setSerializableTableIdentifier(SerializableTableIdentifier tableId);
 
     abstract Builder setSerializableDataFile(SerializableDataFile dataFile);
 
     @SchemaIgnore
     public Builder setTableIdentifier(TableIdentifier tableId) {
-      return setTableIdentifierString(tableId.toString());
+      return setSerializableTableIdentifier(SerializableTableIdentifier.of(tableId));
     }
 
     public abstract FileWriteResult build();
