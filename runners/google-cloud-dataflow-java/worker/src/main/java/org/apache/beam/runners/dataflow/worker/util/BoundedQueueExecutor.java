@@ -30,6 +30,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BoundedQueueExecutor {
+
   private final ThreadPoolExecutor executor;
   private final long maximumBytesOutstanding;
 
@@ -54,17 +55,17 @@ public class BoundedQueueExecutor {
   private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
-      int maximumPoolSize,
+      int initialMaximumPoolSize,
       long keepAliveTime,
       TimeUnit unit,
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
-    this.maximumPoolSize = maximumPoolSize;
+    this.maximumPoolSize = initialMaximumPoolSize;
     executor =
         new ThreadPoolExecutor(
-            maximumPoolSize,
-            maximumPoolSize,
+            initialMaximumPoolSize,
+            initialMaximumPoolSize,
             keepAliveTime,
             unit,
             new LinkedBlockingQueue<>(),
