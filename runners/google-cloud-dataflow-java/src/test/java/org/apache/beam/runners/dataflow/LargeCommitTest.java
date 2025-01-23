@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
