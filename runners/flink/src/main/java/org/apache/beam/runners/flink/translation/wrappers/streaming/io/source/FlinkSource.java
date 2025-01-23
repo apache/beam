@@ -29,8 +29,6 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.im
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -73,18 +71,6 @@ public abstract class FlinkSource<T, OutputT>
     return new FlinkUnboundedSource<>(stepName, source, serializablePipelineOptions, numSplits);
   }
 
-  public static FlinkUnboundedSource<byte[]> unboundedImpulse(long shutdownSourceAfterIdleMs) {
-    FlinkPipelineOptions flinkPipelineOptions = FlinkPipelineOptions.defaults();
-    flinkPipelineOptions.setShutdownSourcesAfterIdleMs(shutdownSourceAfterIdleMs);
-    return new FlinkUnboundedSource<>(
-        "Impulse",
-        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(
-            new BeamImpulseSource()),
-        new SerializablePipelineOptions(flinkPipelineOptions),
-        1,
-        record -> BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
-  }
-
   public static FlinkBoundedSource<byte[]> boundedImpulse() {
     return new FlinkBoundedSource<>(
         "Impulse",
@@ -117,7 +103,8 @@ public abstract class FlinkSource<T, OutputT>
 
   @Override
   public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
-      createEnumerator(SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
+      createEnumerator(SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) {
+
     return new FlinkSourceSplitEnumerator<>(
         enumContext, beamSource, serializablePipelineOptions.get(), numSplits);
   }
@@ -126,11 +113,11 @@ public abstract class FlinkSource<T, OutputT>
   public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
       restoreEnumerator(
           SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext,
-          Map<Integer, List<FlinkSourceSplit<T>>> checkpoint)
-          throws Exception {
+          Map<Integer, List<FlinkSourceSplit<T>>> checkpoint) {
+
     FlinkSourceSplitEnumerator<T> enumerator =
         new FlinkSourceSplitEnumerator<>(
-            enumContext, beamSource, serializablePipelineOptions.get(), numSplits);
+            enumContext, beamSource, serializablePipelineOptions.get(), numSplits, true);
     checkpoint.forEach(
         (subtaskId, splitsForSubtask) -> enumerator.addSplitsBack(splitsForSubtask, subtaskId));
     return enumerator;

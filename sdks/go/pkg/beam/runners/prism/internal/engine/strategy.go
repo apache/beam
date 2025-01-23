@@ -23,28 +23,16 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
-type winStrat interface {
-	EarliestCompletion(typex.Window) mtime.Time
+// WinStrat configures the windowing strategy for the stage, based on the
+// stage's input PCollection.
+type WinStrat struct {
+	AllowedLateness time.Duration // Used to extend duration
 }
 
-type defaultStrat struct{}
-
-func (ws defaultStrat) EarliestCompletion(w typex.Window) mtime.Time {
-	return w.MaxTimestamp()
+func (ws WinStrat) EarliestCompletion(w typex.Window) mtime.Time {
+	return w.MaxTimestamp().Add(ws.AllowedLateness)
 }
 
-func (defaultStrat) String() string {
-	return "default"
-}
-
-type sessionStrat struct {
-	GapSize time.Duration
-}
-
-func (ws sessionStrat) EarliestCompletion(w typex.Window) mtime.Time {
-	return w.MaxTimestamp().Add(ws.GapSize)
-}
-
-func (ws sessionStrat) String() string {
-	return fmt.Sprintf("session[GapSize:%v]", ws.GapSize)
+func (ws WinStrat) String() string {
+	return fmt.Sprintf("WinStrat[AllowedLateness:%v]", ws.AllowedLateness)
 }

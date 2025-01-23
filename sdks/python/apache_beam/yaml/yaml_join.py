@@ -17,8 +17,6 @@
 
 """This module defines the Join operation."""
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Union
 
@@ -176,9 +174,9 @@ def _SqlJoinTransform(
     pcolls,
     sql_transform_constructor,
     *,
-    equalities: Union[str, List[Dict[str, str]]],
-    type: Union[str, Dict[str, List]] = 'inner',
-    fields: Optional[Dict[str, Any]] = None):
+    equalities: Union[str, list[dict[str, str]]],
+    type: Union[str, dict[str, list]] = 'inner',
+    fields: Optional[dict[str, Any]] = None):
   """Joins two or more inputs using a specified condition.
 
   For example::

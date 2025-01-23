@@ -110,7 +110,6 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
-import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -255,7 +254,11 @@ public final class StreamingDataflowWorker {
                   .setBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               windmillStreamFactory,
-              (workItem, watermarks, processingContext, getWorkStreamLatencies) ->
+              (workItem,
+                  serializedWorkItemSize,
+                  watermarks,
+                  processingContext,
+                  getWorkStreamLatencies) ->
                   computationStateCache
                       .get(processingContext.computationId())
                       .ifPresent(
@@ -264,6 +267,7 @@ public final class StreamingDataflowWorker {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
+                                serializedWorkItemSize,
                                 watermarks,
                                 processingContext,
                                 getWorkStreamLatencies);
@@ -789,7 +793,8 @@ public final class StreamingDataflowWorker {
         .setSendKeyedGetDataRequests(
             !options.isEnableStreamingEngine()
                 || DataflowRunner.hasExperiment(
-                    options, "streaming_engine_disable_new_heartbeat_requests"));
+                    options, "streaming_engine_disable_new_heartbeat_requests"))
+        .setRequestBatchedGetWorkResponse(options.getWindmillRequestBatchedGetWorkResponse());
   }
 
   private static JobHeader createJobHeader(DataflowWorkerHarnessOptions options, long clientId) {
@@ -833,10 +838,6 @@ public final class StreamingDataflowWorker {
     if (options.isEnableStreamingEngine()
         && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {
       enableBigQueryMetrics();
-    }
-
-    if (DataflowRunner.hasExperiment(options, "enable_kafka_metrics")) {
-      KafkaSinkMetrics.setSupportKafkaMetrics(true);
     }
 
     JvmInitializers.runBeforeProcessing(options);

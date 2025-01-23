@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -57,6 +56,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 @Internal
 public final class ActiveWorkState {
+
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
   /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown for observability.*/
@@ -77,14 +77,15 @@ public final class ActiveWorkState {
    * activated in {@link #activateWorkForKey(ExecutableWork)}, and decremented when work is
    * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
    */
-  private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
+  @GuardedBy("this")
+  private GetWorkBudget activeGetWorkBudget;
 
   private ActiveWorkState(
       Map<ShardedKey, Deque<ExecutableWork>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     this.activeWork = activeWork;
     this.computationStateCache = computationStateCache;
-    this.activeGetWorkBudget = new AtomicReference<>(GetWorkBudget.noBudget());
+    this.activeGetWorkBudget = GetWorkBudget.noBudget();
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
@@ -219,14 +220,12 @@ public final class ActiveWorkState {
         .collect(toImmutableList());
   }
 
-  private void incrementActiveWorkBudget(Work work) {
-    activeGetWorkBudget.updateAndGet(
-        getWorkBudget -> getWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
+  private synchronized void incrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget = activeGetWorkBudget.apply(1, work.getSerializedWorkItemSize());
   }
 
-  private void decrementActiveWorkBudget(Work work) {
-    activeGetWorkBudget.updateAndGet(
-        getWorkBudget -> getWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
+  private synchronized void decrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget = activeGetWorkBudget.subtract(1, work.getSerializedWorkItemSize());
   }
 
   /**
@@ -331,8 +330,8 @@ public final class ActiveWorkState {
    * means that the work is received from Windmill, being processed or queued to be processed in
    * {@link ActiveWorkState}, and not committed back to Windmill.
    */
-  GetWorkBudget currentActiveWorkBudget() {
-    return activeGetWorkBudget.get();
+  synchronized GetWorkBudget currentActiveWorkBudget() {
+    return activeGetWorkBudget;
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
