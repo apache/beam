@@ -82,6 +82,110 @@ providers:
 We offer a [python provider starter project](https://github.com/apache/beam-starter-python-provider)
 that serves as a complete example for how to do this.
 
+## YAML
+
+New, re-usable transforms can be defined in YAML as well.
+This type of provider simply has a mapping of names to their YAML definitions.
+Jinja2 templatization of their string representations is used to parameterize
+them.
+
+The `config_schema` section of the transform definition specifies what
+parameters are required (with their types) and the `body` section gives
+the implementation in terms of other YAML transforms.
+
+```
+- type: yaml
+  transforms:
+    # Define the first transform of type "RaiseElementToPower"
+    RaiseElementToPower:
+      config_schema:
+        properties:
+          n: {type: integer}
+      body:
+        type: MapToFields
+        config:
+          language: python
+          append: true
+          fields:
+            power: "element ** {{n}}"
+
+    # Define a second transform that produces consecutive integers.
+    Range:
+      config_schema:
+        properties:
+          end: {type: integer}
+      # Setting this parameter lets this transform type be used as a source.
+      requires_inputs: false
+      body: |
+        type: Create
+        config:
+          elements:
+            {% for ix in range(end) %}
+            - {{ix}}
+            {% endfor %}
+```
+
+Note that in this second example the `body` of Range is defined as a
+[block string literal](https://yaml-multiline.info/)
+to prevent any attempt by the system to parse the `{%` and `%}` pragmas used
+for control statements before a specialization with a concrete value for `end`
+is instantiated and the loop is expanded.
+
+These could then be used in a pipeline as
+
+```
+transforms:
+  - type: Range
+    config:
+      end: 10
+  - type: RaiseElementToPower
+    input: Range
+    config:
+      n: 3
+  ...
+```
+
+One can define composite transforms as well, e.g. in a provider listing one
+could have
+
+```
+- type: yaml
+  transforms:
+    ConsecutivePowers:
+      # This takes two parameters.
+      config_schema:
+        properties:
+          end: {type: integer}
+          n: {type: integer}
+
+      # It can be used as a source transform.
+      requires_inputs: false
+
+      # The body uses the transforms defined above linked together in a chain.
+      body: |
+        type: chain
+        transforms:
+          - type: Range
+            config:
+              end: {{end}}
+          - type: RaiseElementToPower
+            config:
+              n: {{n}}
+```
+
+which allows one to use this whole fragment as
+
+```
+type: ConsecutivePowers
+config:
+  end: 10
+  n: 3
+```
+
+Note that YAML-defined transforms work better in a listing file than directly
+in the `providers` block of a pipeline file as pipeline files are always
+pre-processed with Jinja2 themselves which would necessitate double escaping.
+
 ## YAML Provider listing files
 
 One can reference an external listings of providers in the yaml pipeline file
