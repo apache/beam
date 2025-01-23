@@ -55,17 +55,17 @@ public class BoundedQueueExecutor {
   private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
-      int maximumPoolSize,
+      int initialMaximumPoolSize,
       long keepAliveTime,
       TimeUnit unit,
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
-    this.maximumPoolSize = maximumPoolSize;
+    this.maximumPoolSize = initialMaximumPoolSize;
     executor =
         new ThreadPoolExecutor(
-            maximumPoolSize,
-            maximumPoolSize,
+            initialMaximumPoolSize,
+            initialMaximumPoolSize,
             keepAliveTime,
             unit,
             new LinkedBlockingQueue<>(),
@@ -74,8 +74,7 @@ public class BoundedQueueExecutor {
           protected void beforeExecute(Thread t, Runnable r) {
             super.beforeExecute(t, r);
             synchronized (BoundedQueueExecutor.this) {
-              if (++activeCount >= BoundedQueueExecutor.this.maximumPoolSize
-                  && startTimeMaxActiveThreadsUsed == 0) {
+              if (++activeCount >= maximumPoolSize && startTimeMaxActiveThreadsUsed == 0) {
                 startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
             }
@@ -85,8 +84,7 @@ public class BoundedQueueExecutor {
           protected void afterExecute(Runnable r, Throwable t) {
             super.afterExecute(r, t);
             synchronized (BoundedQueueExecutor.this) {
-              if (--activeCount < BoundedQueueExecutor.this.maximumPoolSize
-                  && startTimeMaxActiveThreadsUsed > 0) {
+              if (--activeCount < maximumPoolSize && startTimeMaxActiveThreadsUsed > 0) {
                 totalTimeMaxActiveThreadsUsed +=
                     (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
