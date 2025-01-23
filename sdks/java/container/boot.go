@@ -28,7 +28,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
@@ -273,10 +272,6 @@ func main() {
 	}
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
-
-	// Give the agent some time to do a final scan and retrieve logs
-	logger.Printf(ctx, "Take a 15-second break ...")
-	time.Sleep(15 * time.Second)
 
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
 }
