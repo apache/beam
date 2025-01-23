@@ -50,6 +50,7 @@ import org.junit.runners.JUnit4;
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class BoundedQueueExecutorTest {
+
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final int DEFAULT_MAX_THREADS = 2;
   private static final int DEFAULT_THREAD_EXPIRATION_SEC = 60;
@@ -247,7 +248,8 @@ public class BoundedQueueExecutorTest {
   }
 
   @Test
-  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumPoolSizeUpdated() throws Exception {
+  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumPoolSizeIsIncreased()
+      throws Exception {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
@@ -284,6 +286,58 @@ public class BoundedQueueExecutorTest {
     // for the thread which reached the old max pool size.
     assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
 
+    executor.shutdown();
+  }
+
+  @Test
+  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumPoolSizeIsReduced()
+      throws Exception {
+    CountDownLatch processStart1 = new CountDownLatch(1);
+    CountDownLatch processStop1 = new CountDownLatch(1);
+    CountDownLatch processStart2 = new CountDownLatch(1);
+    CountDownLatch processStop2 = new CountDownLatch(1);
+    CountDownLatch processStart3 = new CountDownLatch(1);
+    CountDownLatch processStop3 = new CountDownLatch(1);
+    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
+    Runnable m3 = createSleepProcessWorkFn(processStart3, processStop3);
+
+    // Initial state.
+    assertEquals(0, executor.activeCount());
+    assertEquals(2, executor.getMaximumPoolSize());
+
+    // m1 is accepted.
+    executor.execute(m1, 1);
+    processStart1.await();
+    assertEquals(1, executor.activeCount());
+    assertEquals(2, executor.getMaximumPoolSize());
+    assertEquals(0L, executor.allThreadsActiveTime());
+
+    processStop1.countDown();
+    while (executor.activeCount() != 0) {
+      // Waiting for all threads to be ended.
+      Thread.sleep(200);
+    }
+
+    // Reduce max pool size to 1
+    executor.setMaximumPoolSize(1, 105);
+
+    assertEquals(0, executor.activeCount());
+    executor.execute(m2, 1);
+    processStart2.await();
+    Thread.sleep(100);
+    assertEquals(1, executor.activeCount());
+    assertEquals(1, executor.getMaximumPoolSize());
+    processStop2.countDown();
+
+    while (executor.activeCount() != 0) {
+      // Waiting for all threads to be ended.
+      Thread.sleep(200);
+    }
+
+    // allThreadsActiveTime() should be recorded
+    // since when the second task was running it reached the new max pool size.
+    assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
     executor.shutdown();
   }
 
