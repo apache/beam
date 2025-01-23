@@ -1,8 +1,12 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
-  "stopReviewerNotifications": true,
+  "reviewersAssignedForLabels": {
+    "java": "Abacn",
+    "build": "damccorm",
+    "io": "johnjcasey"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
