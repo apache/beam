@@ -66,7 +66,7 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
-
+* Adding Google Storage Requests Pays feature (Golang)([#30747](https://github.com/apache/beam/issues/30747)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag (Python) ([#33413](https://github.com/apache/beam/pull/33413)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
