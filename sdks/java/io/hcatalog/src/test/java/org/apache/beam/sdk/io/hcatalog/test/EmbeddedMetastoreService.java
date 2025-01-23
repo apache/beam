@@ -28,7 +28,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.DriverFactory;
 import org.apache.hadoop.hive.ql.IDriver;
-import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
+import org.apache.hadoop.hive.ql.processors.CommandProcessorException;
 import org.apache.hadoop.hive.ql.session.SessionState;
 
 /**
@@ -58,11 +58,11 @@ public final class EmbeddedMetastoreService implements AutoCloseable {
     String testWarehouseDirPath = makePathASafeFileName(testDataDirPath + "/warehouse");
 
     hiveConf = new HiveConf(getClass());
-    hiveConf.setVar(HiveConf.ConfVars.PREEXECHOOKS, "");
-    hiveConf.setVar(HiveConf.ConfVars.POSTEXECHOOKS, "");
+    hiveConf.setVar(HiveConf.ConfVars.PRE_EXEC_HOOKS, "");
+    hiveConf.setVar(HiveConf.ConfVars.POST_EXEC_HOOKS, "");
     hiveConf.setBoolVar(HiveConf.ConfVars.HIVE_SUPPORT_CONCURRENCY, false);
-    hiveConf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, testWarehouseDirPath);
-    hiveConf.setBoolVar(HiveConf.ConfVars.HIVEOPTIMIZEMETADATAQUERIES, true);
+    hiveConf.setVar(HiveConf.ConfVars.METASTORE_WAREHOUSE, testWarehouseDirPath);
+    hiveConf.setBoolVar(HiveConf.ConfVars.HIVE_OPTIMIZE_METADATA_QUERIES, true);
     hiveConf.setVar(
         HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER,
         "org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorizationProvider");
@@ -75,9 +75,10 @@ public final class EmbeddedMetastoreService implements AutoCloseable {
 
   /** Executes the passed query on the embedded metastore service. */
   public void executeQuery(String query) {
-    CommandProcessorResponse response = driver.run(query);
-    if (response.failed()) {
-      throw new RuntimeException(response.getException());
+    try {
+      driver.run(query);
+    } catch (CommandProcessorException e) {
+      throw new RuntimeException(e);
     }
   }
 

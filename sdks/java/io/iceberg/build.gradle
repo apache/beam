@@ -40,7 +40,7 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 def iceberg_version = "1.6.1"
 def parquet_version = "1.12.0"
 def orc_version = "1.9.2"
-def hive_version = "3.1.3"
+def hive_version = "4.0.1"
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
@@ -76,6 +76,7 @@ dependencies {
     testImplementation "org.apache.iceberg:iceberg-common:$iceberg_version"
     testImplementation ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
     testImplementation ("org.apache.hive:hive-metastore:$hive_version")
+    testImplementation ("org.apache.hive:hive-standalone-metastore-server:$hive_version")
     testImplementation "org.assertj:assertj-core:3.11.1"
     testRuntimeOnly ("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
         exclude group: "org.apache.hive", module: "hive-exec"
