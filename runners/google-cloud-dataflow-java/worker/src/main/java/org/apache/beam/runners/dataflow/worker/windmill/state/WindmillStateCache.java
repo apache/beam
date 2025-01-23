@@ -79,15 +79,17 @@ public class WindmillStateCache implements StatusDataProvider {
 
   WindmillStateCache(long sizeMb, boolean supportMapViaMultimap) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
+    int stateCacheConcurrencyLevel =
+        Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
     this.stateCache =
         CacheBuilder.newBuilder()
             .maximumWeight(workerCacheBytes)
             .recordStats()
             .weigher(Weighers.weightedKeysAndValues())
-            .concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL)
+            .concurrencyLevel(stateCacheConcurrencyLevel)
             .build();
     this.keyIndex =
-        new MapMaker().weakValues().concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL).makeMap();
+        new MapMaker().weakValues().concurrencyLevel(stateCacheConcurrencyLevel).makeMap();
     this.supportMapViaMultimap = supportMapViaMultimap;
   }
 

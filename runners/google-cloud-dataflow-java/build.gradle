@@ -840,7 +840,7 @@ def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDist
   }
   dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroess",
           root: "apache",
           tag: project.sdk_version)
   doLast {

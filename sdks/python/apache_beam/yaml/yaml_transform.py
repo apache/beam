@@ -307,6 +307,34 @@ class Scope(LightweightScope):
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
+    if spec['type'] == 'composite':
+
+      class _CompositeTransformStub(beam.PTransform):
+        @staticmethod
+        def expand(pcolls):
+          if isinstance(pcolls, beam.PCollection):
+            pcolls = {'input': pcolls}
+          elif isinstance(pcolls, beam.pvalue.PBegin):
+            pcolls = {}
+
+          inner_scope = Scope(
+              self.root,
+              pcolls,
+              spec['transforms'],
+              self.providers,
+              self.input_providers)
+          inner_scope.compute_all()
+          if '__implicit_outputs__' in spec['output']:
+            return inner_scope.get_outputs(
+                spec['output']['__implicit_outputs__'])
+          else:
+            return {
+                key: inner_scope.get_pcollection(value)
+                for (key, value) in spec['output'].items()
+            }
+
+      return _CompositeTransformStub()
+
     if spec['type'] not in self.providers:
       raise ValueError(
           'Unknown transform type %r at %s' %
@@ -344,11 +372,14 @@ class Scope(LightweightScope):
           spec['type'], config, self.create_ptransform)
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
-      annotations = dict(
-          yaml_type=spec['type'],
-          yaml_args=json.dumps(config),
-          yaml_provider=json.dumps(provider.to_json()),
-          **ptransform.annotations())
+      annotations = {
+          **{
+              'yaml_type': spec['type'],
+              'yaml_args': json.dumps(config),
+              'yaml_provider': json.dumps(provider.to_json())
+          },
+          **ptransform.annotations()
+      }
       ptransform.annotations = lambda: annotations
       original_expand = ptransform.expand
 
@@ -387,7 +418,8 @@ class Scope(LightweightScope):
     if 'name' in spec:
       name = spec['name']
       strictness += 1
-    elif 'ExternalTransform' not in ptransform.label:
+    elif ('ExternalTransform' not in ptransform.label and
+          not ptransform.label.startswith('_')):
       # The label may have interesting information.
       name = ptransform.label
     else:
@@ -464,8 +496,9 @@ def expand_composite_transform(spec, scope):
           for (key, value) in empty_if_explicitly_empty(spec['input']).items()
       },
       spec['transforms'],
+      # TODO(robertwb): Are scoped providers ever used? Worth supporting?
       yaml_provider.merge_providers(
-          yaml_provider.parse_providers(spec.get('providers', [])),
+          yaml_provider.parse_providers('', spec.get('providers', [])),
           scope.providers),
       scope.input_providers)
 
@@ -1027,7 +1060,8 @@ def expand_pipeline(
     pipeline,
     pipeline_spec,
     providers=None,
-    validate_schema='generic' if jsonschema is not None else None):
+    validate_schema='generic' if jsonschema is not None else None,
+    pipeline_path=''):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
@@ -1038,5 +1072,6 @@ def expand_pipeline(
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
       yaml_provider.merge_providers(
-          yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
+          yaml_provider.parse_providers(
+              pipeline_path, pipeline_spec.get('providers', [])),
           providers or {})).expand(beam.pvalue.PBegin(pipeline))

@@ -113,7 +113,7 @@ jobs:
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
       run: |
-        wget -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
+        wget -e robots=off -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
         cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
         echo "Will upload the following files to PyPI:"
         ls
@@ -146,9 +146,9 @@ jobs:
         git rev-list $RC_TAG -n 1
         
         # Tag for Go SDK
-        git tag "sdks/$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "sdks/$VERSION_TAG"
         
         # Tag for repo root.
-        git tag "$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "$VERSION_TAG"
