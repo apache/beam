@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -40,6 +38,7 @@ public class BoundedQueueExecutor {
   // Used to guard elementsOutstanding and bytesOutstanding.
   private final Monitor monitor = new Monitor();
   private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
+  private final Object decrementQueueDrainLock = new Object();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
 
@@ -245,26 +244,23 @@ public class BoundedQueueExecutor {
     // counters. We do this to reduce contention on monitor which is locked by
     // GetWork thread
     decrementQueue.add(workBytes);
-    synchronized (decrementQueue) {
-      Long polledElement;
-      List<Long> bytesList = new ArrayList<>();
+    synchronized (decrementQueueDrainLock) {
+      long bytesToDecrement = 0, elementsToDecrement = 0;
       while (true) {
-        polledElement = decrementQueue.poll();
-        if (polledElement == null) {
+        Long pollResult = decrementQueue.poll();
+        if (pollResult == null) {
           break;
         }
-        bytesList.add(polledElement);
+        bytesToDecrement += pollResult;
+        ++elementsToDecrement;
       }
-      if (bytesList.isEmpty()) {
+      if (elementsToDecrement == 0) {
         return;
       }
 
       monitor.enter();
-      bytesList.forEach(
-          bytes -> {
-            --elementsOutstanding;
-            bytesOutstanding -= bytes;
-          });
+      elementsOutstanding -= elementsToDecrement;
+      bytesOutstanding -= bytesToDecrement;
       monitor.leave();
     }
   }
