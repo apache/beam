@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
@@ -135,14 +136,25 @@ func main() {
 
 	const jarsDir = "/opt/apache/beam/jars"
 	const javaHarnessJar = "beam-sdks-java-harness.jar"
-	cp := []string{
-		filepath.Join(jarsDir, "slf4j-api.jar"),
-		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
-		filepath.Join(jarsDir, "jcl-over-slf4j.jar"),
-		filepath.Join(jarsDir, "log4j-over-slf4j.jar"),
-		filepath.Join(jarsDir, "log4j-to-slf4j.jar"),
-		filepath.Join(jarsDir, javaHarnessJar),
+	defaultLoggingJars := []string{
+		"slf4j-api.jar",
+		"slf4j-jdk14.jar",
+		"jcl-over-slf4j.jar",
+		"log4j-over-slf4j.jar",
+		"log4j-to-slf4j.jar",
 	}
+	cp := []string{}
+	if strings.Contains(options, "use_custom_logging_libraries") {
+		// In this case, the logging libraries will be provided from the staged
+		// artifacts.
+		logger.Warnf(ctx, "Skipping default slf4j dependencies in classpath")
+	} else {
+		logger.Printf(ctx, "Using default slf4j dependencies in classpath")
+		for _, jar := range defaultLoggingJars {
+			cp = append(cp, filepath.Join(jarsDir, jar))
+		}
+	}
+	cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
 	for _, a := range artifacts {
@@ -261,6 +273,10 @@ func main() {
 	}
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
+
+	// Give the agent some time to do a final scan and retrieve logs
+	logger.Printf(ctx, "Take a 15-second break ...")
+	time.Sleep(15 * time.Second)
 
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
 }
