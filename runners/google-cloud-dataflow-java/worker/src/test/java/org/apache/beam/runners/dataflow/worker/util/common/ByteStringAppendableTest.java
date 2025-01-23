@@ -75,7 +75,7 @@ public class ByteStringAppendableTest {
 
   @Test
   public void equivalentToOutputStreamWriterChar() throws IOException {
-    for (char c = 0; c <= 255; ++c) {
+    for (char c=0; c<=255; ++c) {
       ByteString byteString1, byteString2;
       {
         ByteStringOutputStream stream = new ByteStringOutputStream();
