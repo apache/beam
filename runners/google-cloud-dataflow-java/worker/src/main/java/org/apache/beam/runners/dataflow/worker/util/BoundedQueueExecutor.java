@@ -245,7 +245,8 @@ public class BoundedQueueExecutor {
     // GetWork thread
     decrementQueue.add(workBytes);
     synchronized (decrementQueueDrainLock) {
-      long bytesToDecrement = 0, elementsToDecrement = 0;
+      long bytesToDecrement = 0;
+      int elementsToDecrement = 0;
       while (true) {
         Long pollResult = decrementQueue.poll();
         if (pollResult == null) {
