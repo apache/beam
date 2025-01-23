@@ -160,6 +160,22 @@ public class Metrics {
     return new DelegatingStringSet(MetricName.named(namespace, name));
   }
 
+  /**
+   * Create a metric that accumulates and reports set of unique string values bounded to a max
+   * limit.
+   */
+  public static BoundedTrie boundedTrie(Class<?> namespace, String name) {
+    return new DelegatingBoundedTrie(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that accumulates and reports set of unique string values bounded to a max
+   * limit.
+   */
+  public static BoundedTrie boundedTrie(String namespace, String name) {
+    return new DelegatingBoundedTrie(MetricName.named(namespace, name));
+  }
+
   /*
    * A dedicated namespace for client throttling time. User DoFn can increment this metrics and then
    * runner will put back pressure on scaling decision, if supported.
@@ -251,6 +267,30 @@ public class Metrics {
     @Override
     public MetricName getName() {
       return name;
+    }
+  }
+
+  /**
+   * Implementation of {@link BoundedTrie} that delegates to the instance for the current context.
+   */
+  private static class DelegatingBoundedTrie implements Metric, BoundedTrie, Serializable {
+    private final MetricName name;
+
+    private DelegatingBoundedTrie(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+
+    @Override
+    public void add(Iterable<String> values) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getBoundedTrie(name).add(values);
+      }
     }
   }
 }
