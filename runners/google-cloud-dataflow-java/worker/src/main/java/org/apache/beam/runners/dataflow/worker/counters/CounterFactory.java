@@ -382,7 +382,7 @@ public class CounterFactory {
 
   /** Implements a {@link Counter} for tracking the sum of long values. */
   public static class LongSumCounterValue extends BaseCounterValue<Long, Long> {
-    protected final LongAdder aggregate = new LongAdder();
+    private final LongAdder aggregate = new LongAdder();
 
     @Override
     public Long getAggregate() {
