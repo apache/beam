@@ -236,6 +236,8 @@ class ValidatesRunnerConfig {
 def sickbayTests = [
         // TODO(https://github.com/apache/beam/issues/21306)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+        // TODO(https://github.com/apache/beam/issues/18198)
+        'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
 ]
 
 def createValidatesRunnerTask(Map m) {
