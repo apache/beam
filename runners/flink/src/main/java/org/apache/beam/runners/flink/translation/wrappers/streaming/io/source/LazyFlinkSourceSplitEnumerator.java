@@ -53,21 +53,30 @@ public class LazyFlinkSourceSplitEnumerator<T>
   private final PipelineOptions pipelineOptions;
   private final int numSplits;
   private final List<FlinkSourceSplit<T>> pendingSplits;
+  private boolean splitsInitialized;
 
   public LazyFlinkSourceSplitEnumerator(
       SplitEnumeratorContext<FlinkSourceSplit<T>> context,
       Source<T> beamSource,
       PipelineOptions pipelineOptions,
-      int numSplits) {
+      int numSplits,
+      boolean splitInitialized) {
     this.context = context;
     this.beamSource = beamSource;
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
     this.pendingSplits = new ArrayList<>(numSplits);
+    this.splitsInitialized = splitInitialized;
   }
 
   @Override
   public void start() {
+    if (!splitsInitialized) {
+      initializeSplits();
+    }
+  }
+
+  public void initializeSplits() {
     context.callAsync(
         () -> {
           try {
