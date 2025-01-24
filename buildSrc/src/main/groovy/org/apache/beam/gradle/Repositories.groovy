@@ -25,7 +25,6 @@ class Repositories {
   static void register(Project project) {
 
     project.repositories {
-      maven { url "${project.rootDir}/tempLib" }
       maven { url project.offlineRepositoryRoot }
 
       // To run gradle in offline mode, one must first invoke
