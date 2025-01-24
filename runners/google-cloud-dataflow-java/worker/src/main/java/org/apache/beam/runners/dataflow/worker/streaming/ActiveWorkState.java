@@ -65,7 +65,7 @@ public final class ActiveWorkState {
    * Queue<Work>} is actively processing.
    */
   @GuardedBy("this")
-  private final Map<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
+  private final Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
 
   @GuardedBy("this")
   private final Map<WorkIdWithShardingKey, ExecutableWork> workIndex;
@@ -82,7 +82,7 @@ public final class ActiveWorkState {
   private GetWorkBudget activeGetWorkBudget;
 
   private ActiveWorkState(
-      Map<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
+      Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
       Map<WorkIdWithShardingKey, ExecutableWork> workIndex,
       ForComputation computationStateCache) {
     this.activeWork = activeWork;
@@ -97,7 +97,7 @@ public final class ActiveWorkState {
 
   @VisibleForTesting
   static ActiveWorkState forTesting(
-      Map<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
+      Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     return new ActiveWorkState(activeWork, new HashMap<>(), computationStateCache);
   }
@@ -127,20 +127,21 @@ public final class ActiveWorkState {
    */
   synchronized ActivateWorkResult activateWorkForKey(ExecutableWork executableWork) {
     ShardedKey shardedKey = executableWork.work().getShardedKey();
+    long shardingKey = shardedKey.shardingKey();
     WorkIdWithShardingKey workIdWithShardingKey =
         WorkIdWithShardingKey.builder()
-            .setShardingKey(shardedKey.shardingKey())
+            .setShardingKey(shardingKey)
             .setWorkToken(executableWork.getWorkItem().getWorkToken())
             .setCacheToken(executableWork.getWorkItem().getCacheToken())
             .build();
     LinkedHashMap<WorkId, ExecutableWork> workQueue =
-        activeWork.getOrDefault(shardedKey, new LinkedHashMap<>());
+        activeWork.getOrDefault(shardingKey, new LinkedHashMap<>());
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
-    if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
+    if (!activeWork.containsKey(shardingKey) || workQueue.isEmpty()) {
       workQueue.put(executableWork.id(), executableWork);
       workIndex.put(workIdWithShardingKey, executableWork);
-      activeWork.put(shardedKey, workQueue);
+      activeWork.put(shardingKey, workQueue);
       incrementActiveWorkBudget(executableWork.work());
       return ActivateWorkResult.EXECUTE;
     }
@@ -197,7 +198,7 @@ public final class ActiveWorkState {
    *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
    *     structure.
    */
-  synchronized ImmutableListMultimap<ShardedKey, RefreshableWork> getReadOnlyActiveWork() {
+  synchronized ImmutableListMultimap<Long, RefreshableWork> getReadOnlyActiveWork() {
     return activeWork.entrySet().stream()
         .collect(
             flatteningToImmutableListMultimap(
@@ -231,7 +232,8 @@ public final class ActiveWorkState {
    */
   synchronized Optional<ExecutableWork> completeWorkAndGetNextWorkForKey(
       ShardedKey shardedKey, WorkId workId) {
-    @Nullable LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(shardedKey);
+    @Nullable
+    LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(shardedKey.shardingKey());
     if (workQueue == null) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn(
@@ -285,7 +287,7 @@ public final class ActiveWorkState {
     Optional<ExecutableWork> nextWork =
         Optional.ofNullable(firstEntry(workQueue)).map(Entry::getValue);
     if (!nextWork.isPresent()) {
-      Preconditions.checkState(workQueue == activeWork.remove(shardedKey));
+      Preconditions.checkState(workQueue == activeWork.remove(shardedKey.shardingKey()));
     }
     return nextWork;
   }
@@ -316,17 +318,16 @@ public final class ActiveWorkState {
     // Determine the stuck commit keys but complete them outside the loop iterating over
     // activeWork as completeWork may delete the entry from activeWork.
     ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
-    for (Entry<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
-      ShardedKey shardedKey = entry.getKey();
+    for (Entry<Long, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
       @Nullable Entry<WorkId, ExecutableWork> executableWork = firstEntry(entry.getValue());
       if (executableWork != null) {
         Work work = executableWork.getValue().work();
         if (work.isStuckCommittingAt(stuckCommitDeadline)) {
           LOG.error(
               "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
-              shardedKey,
+              work.getShardedKey(),
               work.getStateStartTime());
-          stuckCommits.put(shardedKey, work.id());
+          stuckCommits.put(work.getShardedKey(), work.id());
         }
       }
     }
@@ -362,7 +363,7 @@ public final class ActiveWorkState {
     // Use StringBuilder because we are appending in loop.
     StringBuilder activeWorkStatus = new StringBuilder();
     int commitsPendingCount = 0;
-    for (Entry<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
+    for (Entry<Long, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
       LinkedHashMap<WorkId, ExecutableWork> workQueue =
           Preconditions.checkNotNull(entry.getValue());
       Work activeWork = Preconditions.checkNotNull(firstEntry(workQueue)).getValue().work();

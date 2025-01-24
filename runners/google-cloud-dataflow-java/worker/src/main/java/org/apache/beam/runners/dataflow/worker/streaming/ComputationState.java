@@ -145,7 +145,7 @@ public class ComputationState {
     executor.forceExecute(executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
-  public ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWorkReadOnly() {
+  public ImmutableListMultimap<Long, RefreshableWork> currentActiveWorkReadOnly() {
     return activeWorkState.getReadOnlyActiveWork();
   }
 
