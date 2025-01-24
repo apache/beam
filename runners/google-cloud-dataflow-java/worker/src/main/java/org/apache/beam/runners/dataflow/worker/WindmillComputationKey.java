@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
+import java.util.Objects;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
@@ -44,5 +45,11 @@ public abstract class WindmillComputationKey {
   public final String toString() {
     return String.format(
         "%s: %s-%d", computationId(), TextFormat.escapeBytes(key()), shardingKey());
+  }
+
+  @Override
+  public final int hashCode() {
+    // Sharding key collisions are unexpected, avoid hashing full key
+    return Objects.hash(shardingKey(), computationId());
   }
 }

@@ -50,14 +50,11 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.expressions.Literal;
-import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.transforms.Transforms;
-import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,12 +103,14 @@ class RecordWriterManager implements AutoCloseable {
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
     private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
+    private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
       this.icebergDestination = icebergDestination;
       this.schema = table.schema();
       this.spec = table.spec();
       this.routingPartitionKey = new PartitionKey(spec, schema);
+      this.wrapper = new InternalRecordWrapper(schema.asStruct());
       this.table = table;
       for (PartitionField partitionField : spec.fields()) {
         partitionFieldMap.put(partitionField.name(), partitionField);
@@ -156,12 +155,13 @@ class RecordWriterManager implements AutoCloseable {
      * can't create a new writer, the {@link Record} is rejected and {@code false} is returned.
      */
     boolean write(Record record) {
-      routingPartitionKey.partition(getPartitionableRecord(record));
+      routingPartitionKey.partition(wrapper.wrap(record));
 
-      if (!writers.asMap().containsKey(routingPartitionKey) && openWriters >= maxNumWriters) {
+      @Nullable RecordWriter writer = writers.getIfPresent(routingPartitionKey);
+      if (writer == null && openWriters >= maxNumWriters) {
         return false;
       }
-      RecordWriter writer = fetchWriterForPartition(routingPartitionKey);
+      writer = fetchWriterForPartition(routingPartitionKey, writer);
       writer.write(record);
       return true;
     }
@@ -171,9 +171,8 @@ class RecordWriterManager implements AutoCloseable {
      * no {@link RecordWriter} exists or if it has reached the maximum limit of bytes written, a new
      * one is created and returned.
      */
-    private RecordWriter fetchWriterForPartition(PartitionKey partitionKey) {
-      RecordWriter recordWriter = writers.getIfPresent(partitionKey);
-
+    private RecordWriter fetchWriterForPartition(
+        PartitionKey partitionKey, @Nullable RecordWriter recordWriter) {
       if (recordWriter == null || recordWriter.bytesWritten() > maxFileSize) {
         // each writer must have its own PartitionKey object
         PartitionKey copy = partitionKey.copy();
@@ -206,30 +205,6 @@ class RecordWriterManager implements AutoCloseable {
                 icebergDestination.getTableIdentifier(), partitionKey),
             e);
       }
-    }
-
-    /**
-     * Resolves an input {@link Record}'s partition values and returns another {@link Record} that
-     * can be applied to the destination's {@link PartitionSpec}.
-     */
-    private Record getPartitionableRecord(Record record) {
-      if (spec.isUnpartitioned()) {
-        return record;
-      }
-      Record output = GenericRecord.create(schema);
-      for (PartitionField partitionField : spec.fields()) {
-        Transform<?, ?> transform = partitionField.transform();
-        Types.NestedField field = schema.findField(partitionField.sourceId());
-        String name = field.name();
-        Object value = record.getField(name);
-        @Nullable Literal<Object> literal = Literal.of(value.toString()).to(field.type());
-        if (literal == null || transform.isVoid() || transform.isIdentity()) {
-          output.setField(name, value);
-        } else {
-          output.setField(name, literal.value());
-        }
-      }
-      return output;
     }
   }
 

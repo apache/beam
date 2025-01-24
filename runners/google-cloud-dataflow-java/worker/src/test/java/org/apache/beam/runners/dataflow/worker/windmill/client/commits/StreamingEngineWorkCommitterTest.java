@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
@@ -75,13 +76,16 @@ public class StreamingEngineWorkCommitterTest {
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
   private static Work createMockWork(long workToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder()
+    WorkItem workItem =
+        WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setWorkToken(workToken)
             .setCacheToken(1L)
             .setShardingKey(2L)
-            .build(),
+            .build();
+    return Work.create(
+        workItem,
+        workItem.getSerializedSize(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
             "computationId",
@@ -90,8 +94,7 @@ public class StreamingEngineWorkCommitterTest {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
-        Instant::now,
-        Collections.emptyList());
+        Instant::now);
   }
 
   private static ComputationState createComputationState(String computationId) {

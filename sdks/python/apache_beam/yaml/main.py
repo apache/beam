@@ -141,7 +141,10 @@ def run(argv=None):
                           known_args.jinja_variables)}) as p:
       print("Building pipeline...")
       yaml_transform.expand_pipeline(
-          p, pipeline_spec, validate_schema=known_args.json_schema_validation)
+          p,
+          pipeline_spec,
+          validate_schema=known_args.json_schema_validation,
+          pipeline_path=known_args.yaml_pipeline_file)
       print("Running pipeline...")
 
 

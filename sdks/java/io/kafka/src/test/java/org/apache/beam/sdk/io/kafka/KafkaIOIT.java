@@ -94,6 +94,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -141,6 +142,16 @@ public class KafkaIOIT {
   private static final String TIMESTAMP = Instant.now().toString();
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOIT.class);
+
+  private static final int RETRIES_CONFIG = 10;
+
+  private static final int REQUEST_TIMEOUT_MS_CONFIG = 600000;
+
+  private static final int MAX_BLOCK_MS_CONFIG = 300000;
+
+  private static final int BUFFER_MEMORY_CONFIG = 100554432;
+
+  private static final int RETRY_BACKOFF_MS_CONFIG = 5000;
 
   private static SyntheticSourceOptions sourceOptions;
 
@@ -938,7 +949,14 @@ public class KafkaIOIT {
     return KafkaIO.<byte[], byte[]>write()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withKeySerializer(ByteArraySerializer.class)
-        .withValueSerializer(ByteArraySerializer.class);
+        .withValueSerializer(ByteArraySerializer.class)
+        .withProducerConfigUpdates(
+            ImmutableMap.of(
+                ProducerConfig.RETRIES_CONFIG, RETRIES_CONFIG,
+                ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, REQUEST_TIMEOUT_MS_CONFIG,
+                ProducerConfig.MAX_BLOCK_MS_CONFIG, MAX_BLOCK_MS_CONFIG,
+                ProducerConfig.BUFFER_MEMORY_CONFIG, BUFFER_MEMORY_CONFIG,
+                ProducerConfig.RETRY_BACKOFF_MS_CONFIG, RETRY_BACKOFF_MS_CONFIG));
   }
 
   private KafkaIO.Read<byte[], byte[]> readFromBoundedKafka() {

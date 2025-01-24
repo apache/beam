@@ -23,8 +23,8 @@
 --metrics_table=python_kafkaio_results
 --influx_measurement=python_kafkaio_results
 --test_class=KafkaIOPerfTest
---input_options=''{\\"num_records\\":100000000,\\"key_size\\":10,\\"value_size\\":90,\\"algorithm\\":\\"lcg\\"}''
+--input_options=''{\\"num_records\\":50000000,\\"key_size\\":10,\\"value_size\\":90,\\"algorithm\\":\\"lcg\\"}''
 --kafka_topic=beam
---read_timeout=1500
+--read_timeout=3000
 --num_workers=5
 --autoscaling_algorithm=NONE

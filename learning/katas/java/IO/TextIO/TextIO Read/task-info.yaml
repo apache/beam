@@ -19,16 +19,16 @@
 
 type: edu
 files:
-- name: countries.txt
-  visible: true
-- name: src/org/apache/beam/learning/katas/io/textio/read/Task.java
-  visible: true
-  placeholders:
-  - offset: 1615
-    length: 29
-    placeholder_text: TODO()
-  - offset: 1855
-    length: 65
-    placeholder_text: TODO()
-- name: test/org/apache/beam/learning/katas/io/textio/read/TaskTest.java
-  visible: false
+  - name: countries.txt
+    visible: true
+  - name: src/org/apache/beam/learning/katas/io/textio/read/Task.java
+    visible: true
+    placeholders:
+      - offset: 1615
+        length: 29
+        placeholder_text: TODO()
+      - offset: 1855
+        length: 65
+        placeholder_text: TODO()
+  - name: test/org/apache/beam/learning/katas/io/textio/read/TaskTest.java
+    visible: false

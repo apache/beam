@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
@@ -57,6 +57,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -71,6 +72,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public class StreamingWorkScheduler {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkScheduler.class);
 
   private final DataflowWorkerHarnessOptions options;
@@ -205,13 +207,14 @@ public class StreamingWorkScheduler {
   public void scheduleWork(
       ComputationState computationState,
       Windmill.WorkItem workItem,
+      long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
-      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     computationState.activateWork(
         ExecutableWork.create(
-            Work.create(workItem, watermarks, processingContext, clock, getWorkStreamLatencies),
-            work -> processWork(computationState, work)));
+            Work.create(workItem, serializedWorkItemSize, watermarks, processingContext, clock),
+            work -> processWork(computationState, work, getWorkStreamLatencies)));
   }
 
   /**
@@ -221,6 +224,14 @@ public class StreamingWorkScheduler {
    *
    * @implNote This will block the calling thread during execution of user DoFns.
    */
+  private void processWork(
+      ComputationState computationState,
+      Work work,
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
+    work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
+    processWork(computationState, work);
+  }
+
   private void processWork(ComputationState computationState, Work work) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
@@ -422,6 +433,7 @@ public class StreamingWorkScheduler {
 
   @AutoValue
   abstract static class ExecuteWorkResult {
+
     private static ExecuteWorkResult create(
         Windmill.WorkItemCommitRequest.Builder commitWorkRequest, long stateBytesRead) {
       return new AutoValue_StreamingWorkScheduler_ExecuteWorkResult(

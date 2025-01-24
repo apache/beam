@@ -20,6 +20,7 @@ for where to find and how to invoke services that vend implementations of
 various PTransforms."""
 
 import collections
+import functools
 import hashlib
 import inspect
 import json
@@ -31,18 +32,14 @@ import subprocess
 import sys
 import urllib.parse
 import warnings
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Mapping
 from typing import Optional
 
 import docstring_parser
 import yaml
-from yaml.loader import SafeLoader
 
 import apache_beam as beam
 import apache_beam.dataframe.io
@@ -150,7 +147,7 @@ def as_provider_list(name, lst):
 
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
-  _provider_types: Dict[str, Callable[..., Provider]] = {}
+  _provider_types: dict[str, Callable[..., Provider]] = {}
 
   def __init__(self, urns, service):
     self._urns = urns
@@ -207,7 +204,7 @@ class ExternalProvider(Provider):
         self._service)
 
   @classmethod
-  def provider_from_spec(cls, spec):
+  def provider_from_spec(cls, source_path, spec):
     from apache_beam.yaml.yaml_transform import SafeLineLoader
     for required in ('type', 'transforms'):
       if required not in spec:
@@ -228,7 +225,10 @@ class ExternalProvider(Provider):
       config['version'] = beam_version
     if type in cls._provider_types:
       try:
-        result = cls._provider_types[type](urns, **config)
+        constructor = cls._provider_types[type]
+        if 'provider_base_path' in inspect.signature(constructor).parameters:
+          config['provider_base_path'] = source_path
+        result = constructor(urns, **config)
         if not hasattr(result, 'to_json'):
           result.to_json = lambda: spec
         return result
@@ -251,12 +251,13 @@ class ExternalProvider(Provider):
 
 
 @ExternalProvider.register_provider_type('javaJar')
-def java_jar(urns, jar: str):
+def java_jar(urns, provider_base_path, jar: str):
   if not os.path.exists(jar):
     parsed = urllib.parse.urlparse(jar)
     if not parsed.scheme or not parsed.netloc:
       raise ValueError(f'Invalid path or url: {jar}')
-  return ExternalJavaProvider(urns, lambda: jar)
+  return ExternalJavaProvider(
+      urns, lambda: _join_url_or_filepath(provider_base_path, jar))
 
 
 @ExternalProvider.register_provider_type('mavenJar')
@@ -337,9 +338,9 @@ class ExternalJavaProvider(ExternalProvider):
 
 
 @ExternalProvider.register_provider_type('python')
-def python(urns, packages=()):
+def python(urns, provider_base_path, packages=()):
   if packages:
-    return ExternalPythonProvider(urns, packages)
+    return ExternalPythonProvider(urns, provider_base_path, packages)
   else:
     return InlineProvider({
         name:
@@ -350,8 +351,18 @@ def python(urns, packages=()):
 
 @ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
-  def __init__(self, urns, packages: Iterable[str]):
-    super().__init__(urns, PypiExpansionService(packages))
+  def __init__(self, urns, provider_base_path, packages: Iterable[str]):
+    def is_path_or_urn(package):
+      return (
+          '/' in package or urllib.parse.urlparse(package).scheme or
+          os.path.exists(package))
+
+    super().__init__(
+        urns,
+        PypiExpansionService([
+            _join_url_or_filepath(provider_base_path, package)
+            if is_path_or_urn(package) else package for package in packages
+        ]))
 
   def available(self):
     return True  # If we're running this script, we have Python installed.
@@ -419,7 +430,8 @@ class YamlProvider(Provider):
       yaml_create_transform: Callable[
           [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
-    from apache_beam.yaml.yaml_transform import SafeLineLoader, YamlTransform
+    from apache_beam.yaml.yaml_transform import expand_jinja, preprocess
+    from apache_beam.yaml.yaml_transform import SafeLineLoader
     spec = self._transforms[type]
     try:
       import jsonschema
@@ -429,10 +441,17 @@ class YamlProvider(Provider):
           'Please install jsonschema '
           f'for better provider validation of "{type}"')
     body = spec['body']
-    if not isinstance(body, str):
-      body = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
-    from apache_beam.yaml.yaml_transform import expand_jinja
-    return YamlTransform(expand_jinja(body, args))
+    # Stringify to apply jinja.
+    if isinstance(body, str):
+      body_str = body
+    else:
+      body_str = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
+    # Now re-parse resolved templatization.
+    body = yaml.load(expand_jinja(body_str, args), Loader=SafeLineLoader)
+    if (body.get('type') == 'chain' and 'input' not in body and
+        spec.get('requires_inputs', True)):
+      body['input'] = 'input'
+    return yaml_create_transform(preprocess(body), [])
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
@@ -689,7 +708,7 @@ class YamlProviders:
              - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
              - {first: 1, second: {str: "bar", values: [4, 5, 6]}}
 
-    will result in a schema of the form (int, Row(string, List[int])).
+    will result in a schema of the form (int, Row(string, list[int])).
 
     This can also be expressed as YAML::
 
@@ -713,6 +732,11 @@ class YamlProviders:
             redistribute the work) if there is more than one element in the
             collection. Defaults to True.
     """
+    # Though str and dict are technically iterable, we disallow them
+    # as using the characters or keys respectively is almost certainly
+    # not the intent.
+    if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
+      raise TypeError('elements must be a list of elements')
     return beam.Create([element_to_rows(e) for e in elements],
                        reshuffle=reshuffle is not False)
 
@@ -1027,14 +1051,14 @@ class PypiExpansionService:
     self._base_python = base_python
 
   @classmethod
-  def _key(cls, base_python: str, packages: List[str]) -> str:
+  def _key(cls, base_python: str, packages: list[str]) -> str:
     return json.dumps({
         'binary': base_python, 'packages': sorted(packages)
     },
                       sort_keys=True)
 
   @classmethod
-  def _path(cls, base_python: str, packages: List[str]) -> str:
+  def _path(cls, base_python: str, packages: list[str]) -> str:
     return os.path.join(
         cls.VENV_CACHE,
         hashlib.sha256(cls._key(base_python,
@@ -1042,7 +1066,7 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_from_scratch(
-      cls, base_python: str, packages: List[str]) -> str:
+      cls, base_python: str, packages: list[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1061,7 +1085,7 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_from_clone(
-      cls, base_python: str, packages: List[str]) -> str:
+      cls, base_python: str, packages: list[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1085,6 +1109,7 @@ class PypiExpansionService:
     if '.dev' in beam_version:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
+      return base_venv
     return cls._create_venv_from_scratch(
         base_python,
         [
@@ -1107,7 +1132,8 @@ class PypiExpansionService:
             '{{PORT}}',
             '--fully_qualified_name_glob=*',
             '--pickle_library=cloudpickle',
-            '--requirements_file=' + os.path.join(venv + '-requirements.txt')
+            '--requirements_file=' + os.path.join(venv + '-requirements.txt'),
+            '--serve_loopback_worker',
         ])
     self._service = self._service_provider.__enter__()
     return self._service
@@ -1119,10 +1145,16 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
+  def __init__(
+      self,
+      transforms,
+      provider_base_path,
+      mappings,
+      underlying_provider,
+      defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
-          underlying_provider)
+          provider_base_path, underlying_provider)
     self._transforms = transforms
     self._underlying_provider = underlying_provider
     for transform in transforms.keys():
@@ -1225,8 +1257,47 @@ class RenamingProvider(Provider):
     self._underlying_provider.cache_artifacts()
 
 
-def flatten_included_provider_specs(
-    provider_specs: Iterable[Mapping]) -> Iterator[Mapping]:
+def _as_list(func):
+  @functools.wraps(func)
+  def wrapper(*args, **kwargs):
+    return list(func(*args, **kwargs))
+
+  return wrapper
+
+
+def _join_url_or_filepath(base, path):
+  base_scheme = urllib.parse.urlparse(base, '').scheme
+  path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
+  if path_scheme != base_scheme:
+    return path
+  elif base_scheme and base_scheme in urllib.parse.uses_relative:
+    return urllib.parse.urljoin(base, path)
+  else:
+    return FileSystems.join(FileSystems.split(base)[0], path)
+
+
+def _read_url_or_filepath(path):
+  scheme = urllib.parse.urlparse(path, '').scheme
+  if scheme and scheme in urllib.parse.uses_netloc:
+    with urllib.request.urlopen(path) as response:
+      return response.read()
+  else:
+    with FileSystems.open(path) as fin:
+      return fin.read()
+
+
+def load_providers(source_path: str) -> Iterable[Provider]:
+  from apache_beam.yaml.yaml_transform import SafeLineLoader
+  provider_specs = yaml.load(
+      _read_url_or_filepath(source_path), Loader=SafeLineLoader)
+  if not isinstance(provider_specs, list):
+    raise ValueError(f"Provider file {source_path} must be a list of Providers")
+  return parse_providers(source_path, provider_specs)
+
+
+@_as_list
+def parse_providers(source_path,
+                    provider_specs: Iterable[Mapping]) -> Iterable[Provider]:
   from apache_beam.yaml.yaml_transform import SafeLineLoader
   for provider_spec in provider_specs:
     if 'include' in provider_spec:
@@ -1234,32 +1305,19 @@ def flatten_included_provider_specs(
         raise ValueError(
             f"When using include, it must be the only parameter: "
             f"{provider_spec} "
-            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
-      include_uri = provider_spec['include']
+            f"at {source_path}:{SafeLineLoader.get_line(provider_spec)}")
+      include_path = _join_url_or_filepath(
+          source_path, provider_spec['include'])
       try:
-        with urllib.request.urlopen(include_uri) as response:
-          content = response.read()
-      except (ValueError, urllib.error.URLError) as exn:
-        if 'unknown url type' in str(exn):
-          with FileSystems.open(include_uri) as fin:
-            content = fin.read()
-        else:
-          raise
-      included_providers = yaml.load(content, Loader=SafeLineLoader)
-      if not isinstance(included_providers, list):
+        yield from load_providers(include_path)
+
+      except Exception as exn:
         raise ValueError(
-            f"Included file {include_uri} must be a list of Providers "
-            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
-      yield from flatten_included_provider_specs(included_providers)
+            f"Error loading providers from {include_path} included at "
+            f"{source_path}:{SafeLineLoader.get_line(provider_spec)}\n" +
+            str(exn)) from exn
     else:
-      yield provider_spec
-
-
-def parse_providers(provider_specs: Iterable[Mapping]) -> Iterable[Provider]:
-  return [
-      ExternalProvider.provider_from_spec(provider_spec)
-      for provider_spec in flatten_included_provider_specs(provider_specs)
-  ]
+      yield ExternalProvider.provider_from_spec(source_path, provider_spec)
 
 
 def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
@@ -1283,9 +1341,6 @@ def standard_providers():
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
-  with open(os.path.join(os.path.dirname(__file__),
-                         'standard_providers.yaml')) as fin:
-    standard_providers = yaml.load(fin, Loader=SafeLoader)
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
@@ -1294,4 +1349,5 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
-      parse_providers(standard_providers))
+      load_providers(
+          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))

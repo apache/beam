@@ -1649,8 +1649,8 @@ public class JdbcIO {
           }
           if (fqn != null) {
             fqn.reportLineage(Lineage.getSources(), table);
-            reportedLineage = table;
           }
+          reportedLineage = table;
         }
       }
       return connection;
@@ -2717,8 +2717,8 @@ public class JdbcIO {
           }
           if (fqn != null) {
             fqn.reportLineage(Lineage.getSinks(), table);
-            reportedLineage = table;
           }
+          reportedLineage = table;
         }
       }
       return connection;
