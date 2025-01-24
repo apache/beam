@@ -31,7 +31,6 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -144,8 +143,7 @@ public class StreamingModeExecutionContextTest {
         watermarks,
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
-        Instant::now,
-        Collections.emptyList());
+        Instant::now);
   }
 
   @Test

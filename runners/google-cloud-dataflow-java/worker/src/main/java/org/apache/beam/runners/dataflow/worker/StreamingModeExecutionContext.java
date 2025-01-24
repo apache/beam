@@ -195,6 +195,27 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return work != null && work.isFailed();
   }
 
+  public boolean offsetBasedDeduplicationSupported() {
+    return activeReader != null
+        && activeReader.getCurrentSource().offsetBasedDeduplicationSupported();
+  }
+
+  public byte[] getCurrentRecordId() {
+    if (!offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException(
+          "Unexpected getCurrentRecordId() while offset-based deduplication is not enabled.");
+    }
+    return activeReader.getCurrentRecordId();
+  }
+
+  public byte[] getCurrentRecordOffset() {
+    if (!offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException(
+          "Unexpected getCurrentRecordOffset() while offset-based deduplication is not enabled.");
+    }
+    return activeReader.getCurrentRecordOffset();
+  }
+
   public void start(
       @Nullable Object key,
       Work work,
@@ -440,6 +461,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           throw new RuntimeException("Exception while encoding checkpoint", e);
         }
         sourceStateBuilder.setState(stream.toByteString());
+        if (activeReader.getCurrentSource().offsetBasedDeduplicationSupported()) {
+          byte[] offsetLimit = checkpointMark.getOffsetLimit();
+          if (offsetLimit.length == 0) {
+            throw new RuntimeException("Checkpoint offset limit must be non-empty.");
+          }
+          sourceStateBuilder.setOffsetLimit(ByteString.copyFrom(offsetLimit));
+        }
       }
       outputBuilder.setSourceWatermark(WindmillTimeUtils.harnessToWindmillTimestamp(watermark));
 

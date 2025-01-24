@@ -28,7 +28,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -76,8 +75,7 @@ public class ComputationStateCacheTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
-            Instant::now,
-            Collections.emptyList()),
+            Instant::now),
         ignored -> {});
   }
 

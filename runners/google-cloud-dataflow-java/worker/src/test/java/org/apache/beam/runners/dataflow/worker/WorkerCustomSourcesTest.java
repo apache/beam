@@ -204,8 +204,7 @@ public class WorkerCustomSourcesTest {
         watermarks,
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
-        Instant::now,
-        Collections.emptyList());
+        Instant::now);
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {
@@ -1015,8 +1014,7 @@ public class WorkerCustomSourcesTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
-            Instant::now,
-            Collections.emptyList());
+            Instant::now);
     context.start(
         "key",
         dummyWork,

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failure
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.mock;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -95,8 +94,7 @@ public class WorkFailureProcessorTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
-            clock,
-            new ArrayList<>()),
+            clock),
         processWorkFn);
   }
 

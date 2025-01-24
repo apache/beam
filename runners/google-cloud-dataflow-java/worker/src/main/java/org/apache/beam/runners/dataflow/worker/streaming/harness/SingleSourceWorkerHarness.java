@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.co
 
 import com.google.auto.value.AutoBuilder;
 import com.google.auto.value.AutoOneOf;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,6 +43,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSe
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -243,7 +243,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
-              /* getWorkStreamLatencies= */ Collections.emptyList());
+              /* getWorkStreamLatencies= */ ImmutableList.of());
         }
       }
     }

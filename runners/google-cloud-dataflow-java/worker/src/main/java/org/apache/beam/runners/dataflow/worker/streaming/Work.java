@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.EnumMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
@@ -41,6 +40,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -49,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataCl
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -61,6 +62,9 @@ import org.joda.time.Instant;
 @NotThreadSafe
 @Internal
 public final class Work implements RefreshableWork {
+
+  private static final EnumMap<LatencyAttribution.State, Duration> EMPTY_ENUM_MAP =
+      new EnumMap<>(LatencyAttribution.State.class);
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -88,7 +92,10 @@ public final class Work implements RefreshableWork {
     this.watermarks = watermarks;
     this.clock = clock;
     this.startTime = clock.get();
-    this.totalDurationPerState = new EnumMap<>(LatencyAttribution.State.class);
+    Preconditions.checkState(EMPTY_ENUM_MAP.isEmpty());
+    // Create by passing EMPTY_ENUM_MAP to avoid recreating
+    // keyUniverse inside EnumMap every time.
+    this.totalDurationPerState = new EnumMap<>(EMPTY_ENUM_MAP);
     this.id = WorkId.of(workItem);
     this.latencyTrackingId =
         Long.toHexString(workItem.getShardingKey())
@@ -103,11 +110,8 @@ public final class Work implements RefreshableWork {
       long serializedWorkItemSize,
       Watermarks watermarks,
       ProcessingContext processingContext,
-      Supplier<Instant> clock,
-      Collection<LatencyAttribution> getWorkStreamLatencies) {
-    Work work = new Work(workItem, serializedWorkItemSize, watermarks, processingContext, clock);
-    work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
-    return work;
+      Supplier<Instant> clock) {
+    return new Work(workItem, serializedWorkItemSize, watermarks, processingContext, clock);
   }
 
   public static ProcessingContext createProcessingContext(
@@ -256,7 +260,8 @@ public final class Work implements RefreshableWork {
     return id;
   }
 
-  private void recordGetWorkStreamLatencies(Collection<LatencyAttribution> getWorkStreamLatencies) {
+  public void recordGetWorkStreamLatencies(
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     for (LatencyAttribution latency : getWorkStreamLatencies) {
       totalDurationPerState.put(
           latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
@@ -350,6 +355,7 @@ public final class Work implements RefreshableWork {
    */
   @AutoValue
   abstract static class TimedState {
+
     private static TimedState create(State state, Instant startTime) {
       return new AutoValue_Work_TimedState(state, startTime);
     }

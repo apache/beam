@@ -94,8 +94,7 @@ public class StreamingEngineWorkCommitterTest {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
-        Instant::now,
-        Collections.emptyList());
+        Instant::now);
   }
 
   private static ComputationState createComputationState(String computationId) {

@@ -26,9 +26,11 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,7 +136,7 @@ final class GetWorkResponseChunkAssembler {
     private static AssembledWorkItem create(
         WorkItem workItem,
         ComputationMetadata computationMetadata,
-        List<Windmill.LatencyAttribution> latencyAttributions,
+        ImmutableList<LatencyAttribution> latencyAttributions,
         long size) {
       return new AutoValue_GetWorkResponseChunkAssembler_AssembledWorkItem(
           workItem, computationMetadata, latencyAttributions, size);
@@ -144,7 +146,7 @@ final class GetWorkResponseChunkAssembler {
 
     abstract ComputationMetadata computationMetadata();
 
-    abstract List<Windmill.LatencyAttribution> latencyAttributions();
+    abstract ImmutableList<LatencyAttribution> latencyAttributions();
 
     abstract long bufferedSize();
   }
