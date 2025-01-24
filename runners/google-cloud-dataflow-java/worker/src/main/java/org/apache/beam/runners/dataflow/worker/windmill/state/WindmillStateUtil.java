@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 import java.io.IOException;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.dataflow.worker.util.common.ByteStringAppendable;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -34,13 +33,12 @@ class WindmillStateUtil {
       // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
       // a lot, and this leads to better performance results. See associated benchmarks.
       ByteStringOutputStream stream = new ByteStringOutputStream();
-      ByteStringAppendable appendable = new ByteStringAppendable(stream);
       // stringKey starts and ends with a slash.  We separate it from the
       // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
       // ID comes from the user.
-      namespace.appendTo(appendable);
-      appendable.append('+');
-      address.appendTo(appendable);
+      namespace.appendTo(stream);
+      stream.append('+');
+      address.appendTo(stream);
       return stream.toByteString();
     } catch (IOException e) {
       throw new RuntimeException(e);
