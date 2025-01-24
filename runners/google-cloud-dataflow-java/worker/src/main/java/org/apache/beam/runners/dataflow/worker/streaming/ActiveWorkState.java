@@ -142,7 +142,7 @@ public final class ActiveWorkState {
    * <p>4. STALE: A work queue for the {@link ShardedKey} exists, and there is a queued {@link Work}
    * with a greater workToken than the passed in {@link Work}.
    */
-  synchronized ActivateWorkResult activateWorkForKey(ExecutableWork executableWork) {
+  ActivateWorkResult activateWorkForKey(ExecutableWork executableWork) {
     ShardedKey shardedKey = executableWork.work().getShardedKey();
     WorkIdWithShardingKey workIdWithShardingKey =
         WorkIdWithShardingKey.builder()
@@ -150,45 +150,47 @@ public final class ActiveWorkState {
             .setWorkToken(executableWork.getWorkItem().getWorkToken())
             .setCacheToken(executableWork.getWorkItem().getCacheToken())
             .build();
-    Deque<ExecutableWork> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
-    // This key does not have any work queued up on it. Create one, insert Work, and mark the work
-    // to be executed.
-    if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
-      workQueue.addLast(executableWork);
-      workIndex.put(workIdWithShardingKey, executableWork);
-      activeWork.put(shardedKey, workQueue);
-      incrementActiveWorkBudget(executableWork.work());
-      return ActivateWorkResult.EXECUTE;
-    }
-
-    // Check to see if we have this work token queued.
-    Iterator<ExecutableWork> workIterator = workQueue.iterator();
-    while (workIterator.hasNext()) {
-      ExecutableWork queuedWork = workIterator.next();
-      if (queuedWork.id().equals(executableWork.id())) {
-        return ActivateWorkResult.DUPLICATE;
+    synchronized (this) {
+      Deque<ExecutableWork> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
+      // This key does not have any work queued up on it. Create one, insert Work, and mark the work
+      // to be executed.
+      if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
+        workQueue.addLast(executableWork);
+        workIndex.put(workIdWithShardingKey, executableWork);
+        activeWork.put(shardedKey, workQueue);
+        incrementActiveWorkBudget(executableWork.work());
+        return ActivateWorkResult.EXECUTE;
       }
-      if (queuedWork.id().cacheToken() == executableWork.id().cacheToken()) {
-        if (executableWork.id().workToken() > queuedWork.id().workToken()) {
-          // Check to see if the queuedWork is active. We only want to remove it if it is NOT
-          // currently active.
-          if (!queuedWork.equals(workQueue.peek())) {
-            workIterator.remove();
-            workIndex.remove(workIdWithShardingKey);
-            decrementActiveWorkBudget(queuedWork.work());
+
+      // Check to see if we have this work token queued.
+      Iterator<ExecutableWork> workIterator = workQueue.iterator();
+      while (workIterator.hasNext()) {
+        ExecutableWork queuedWork = workIterator.next();
+        if (queuedWork.id().equals(executableWork.id())) {
+          return ActivateWorkResult.DUPLICATE;
+        }
+        if (queuedWork.id().cacheToken() == executableWork.id().cacheToken()) {
+          if (executableWork.id().workToken() > queuedWork.id().workToken()) {
+            // Check to see if the queuedWork is active. We only want to remove it if it is NOT
+            // currently active.
+            if (!queuedWork.equals(workQueue.peek())) {
+              workIterator.remove();
+              workIndex.remove(workIdWithShardingKey);
+              decrementActiveWorkBudget(queuedWork.work());
+            }
+            // Continue here to possibly remove more non-active stale work that is queued.
+          } else {
+            return ActivateWorkResult.STALE;
           }
-          // Continue here to possibly remove more non-active stale work that is queued.
-        } else {
-          return ActivateWorkResult.STALE;
         }
       }
-    }
 
-    // Queue the work for later processing.
-    workQueue.addLast(executableWork);
-    workIndex.put(workIdWithShardingKey, executableWork);
-    incrementActiveWorkBudget(executableWork.work());
-    return ActivateWorkResult.QUEUED;
+      // Queue the work for later processing.
+      workQueue.addLast(executableWork);
+      workIndex.put(workIdWithShardingKey, executableWork);
+      incrementActiveWorkBudget(executableWork.work());
+      return ActivateWorkResult.QUEUED;
+    }
   }
 
   /**
