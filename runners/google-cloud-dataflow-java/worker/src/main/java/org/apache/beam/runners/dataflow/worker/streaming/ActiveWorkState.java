@@ -61,11 +61,11 @@ public final class ActiveWorkState {
   private static final int MAX_PRINTABLE_COMMIT_PENDING_KEYS = 50;
 
   /**
-   * Map from {@link ShardedKey} to {@link Work} for the key. The first item in the {@link
-   * Queue<Work>} is actively processing.
+   * Map from shardingKey to {@link Work} for the key. The first item in the {@link
+   * LinkedHashMap} is actively processing.
    */
   @GuardedBy("this")
-  private final Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
+  private final Map<Long /*shardingKey*/, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
 
   @GuardedBy("this")
   private final WindmillStateCache.ForComputation computationStateCache;
