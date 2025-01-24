@@ -358,8 +358,7 @@ public class StreamingDataflowWorkerTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
-            Instant::now,
-            Collections.emptyList()),
+            Instant::now),
         processWorkFn);
   }
 
@@ -3523,8 +3522,7 @@ public class StreamingDataflowWorkerTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
-            clock,
-            Collections.emptyList());
+            clock);
 
     clock.sleep(Duration.millis(10));
     work.setState(Work.State.PROCESSING);

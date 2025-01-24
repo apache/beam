@@ -54,7 +54,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -133,8 +132,7 @@ public class ActiveWorkRefresherTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
-            A_LONG_TIME_AGO,
-            ImmutableList.of()),
+            A_LONG_TIME_AGO),
         processWork);
   }
 
