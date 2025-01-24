@@ -58,18 +58,17 @@ public class BoundedQueueExecutor {
   private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
-      int maximumPoolSize,
+      int initialMaximumPoolSize,
       long keepAliveTime,
       TimeUnit unit,
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
-    this.maximumPoolSize = maximumPoolSize;
-
+    this.maximumPoolSize = initialMaximumPoolSize;
     executor =
         new ThreadPoolExecutor(
-            maximumPoolSize,
-            maximumPoolSize,
+            initialMaximumPoolSize,
+            initialMaximumPoolSize,
             keepAliveTime,
             unit,
             new LinkedBlockingQueue<>(),

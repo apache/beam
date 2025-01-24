@@ -19,13 +19,13 @@
 
 type: edu
 files:
-- name: src/org/apache/beam/learning/katas/windowing/fixedwindow/Task.java
-  visible: true
-  placeholders:
-  - offset: 3167
-    length: 119
-    placeholder_text: TODO()
-- name: test/org/apache/beam/learning/katas/windowing/fixedwindow/TaskTest.java
-  visible: false
-- name: test/org/apache/beam/learning/katas/windowing/fixedwindow/WindowedEvent.java
-  visible: false
+  - name: src/org/apache/beam/learning/katas/windowing/fixedwindow/Task.java
+    visible: true
+    placeholders:
+      - offset: 3270
+        length: 119
+        placeholder_text: TODO()
+  - name: test/org/apache/beam/learning/katas/windowing/fixedwindow/TaskTest.java
+    visible: false
+  - name: test/org/apache/beam/learning/katas/windowing/fixedwindow/WindowedEvent.java
+    visible: false

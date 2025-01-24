@@ -22,6 +22,9 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
+	"slices"
+	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -44,16 +47,26 @@ import (
 
 func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *worker.W) error {
 	logger := j.Logger.With(slog.String("envID", wk.Env))
-	// TODO fix broken abstraction.
-	// We're starting a worker pool here, because that's the loopback environment.
-	// It's sort of a mess, largely because of loopback, which has
-	// a different flow from a provisioned docker container.
 	e := j.Pipeline.GetComponents().GetEnvironments()[env]
+
+	if e.GetUrn() == urns.EnvAnyOf {
+		// We've been given a choice!
+		ap := &pipepb.AnyOfEnvironmentPayload{}
+		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ap); err != nil {
+			logger.Error("unmarshaling any environment payload", "error", err)
+			return err
+		}
+		e = selectAnyOfEnv(ap)
+		logger.Info("AnyEnv resolved", "selectedUrn", e.GetUrn(), "worker", wk.ID)
+		// Process the environment as normal.
+	}
+
 	switch e.GetUrn() {
 	case urns.EnvExternal:
 		ep := &pipepb.ExternalPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ep); err != nil {
-			logger.Error("unmarshing external environment payload", "error", err)
+			logger.Error("unmarshaling external environment payload", "error", err)
+			return err
 		}
 		go func() {
 			externalEnvironment(ctx, ep, wk)
@@ -63,12 +76,51 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	case urns.EnvDocker:
 		dp := &pipepb.DockerPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), dp); err != nil {
-			logger.Error("unmarshing docker environment payload", "error", err)
+			logger.Error("unmarshaling docker environment payload", "error", err)
+			return err
 		}
 		return dockerEnvironment(ctx, logger, dp, wk, j.ArtifactEndpoint())
+	case urns.EnvProcess:
+		pp := &pipepb.ProcessPayload{}
+		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), pp); err != nil {
+			logger.Error("unmarshaling process environment payload", "error", err)
+			return err
+		}
+		go func() {
+			processEnvironment(ctx, pp, wk)
+			logger.Debug("environment stopped", slog.String("job", j.String()))
+		}()
+		return nil
 	default:
 		return fmt.Errorf("environment %v with urn %v unimplemented", env, e.GetUrn())
 	}
+}
+
+func selectAnyOfEnv(ap *pipepb.AnyOfEnvironmentPayload) *pipepb.Environment {
+	// Prefer external, then process, then docker, unknown environments are 0.
+	ranks := map[string]int{
+		urns.EnvDocker:   1,
+		urns.EnvProcess:  5,
+		urns.EnvExternal: 10,
+	}
+
+	envs := ap.GetEnvironments()
+
+	slices.SortStableFunc(envs, func(a, b *pipepb.Environment) int {
+		rankA := ranks[a.GetUrn()]
+		rankB := ranks[b.GetUrn()]
+
+		// Reverse the comparison so our favourite is at the front
+		switch {
+		case rankA > rankB:
+			return -1 // Usually "greater than" would be 1
+		case rankA < rankB:
+			return 1
+		}
+		return 0
+	})
+	// Pick our favourite.
+	return envs[0]
 }
 
 func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *worker.W) {
@@ -230,4 +282,23 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	}()
 
 	return nil
+}
+
+func processEnvironment(ctx context.Context, pp *pipepb.ProcessPayload, wk *worker.W) {
+	cmd := exec.CommandContext(ctx, pp.GetCommand(), "--id="+wk.ID, "--provision_endpoint="+wk.Endpoint())
+
+	cmd.WaitDelay = time.Millisecond * 100
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Env = os.Environ()
+
+	for k, v := range pp.GetEnv() {
+		cmd.Env = append(cmd.Environ(), fmt.Sprintf("%v=%v", k, v))
+	}
+	if err := cmd.Start(); err != nil {
+		return
+	}
+	// Job processing happens here, but orchestrated by other goroutines
+	// This call blocks until the context is cancelled, or the command exits.
+	cmd.Wait()
 }

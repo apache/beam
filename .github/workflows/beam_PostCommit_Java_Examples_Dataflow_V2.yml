@@ -79,6 +79,10 @@ jobs:
         with:
             gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
             max-workers: 12
+      - name: Setup Java 17 environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 17
       - name: run PostCommit Java Distroless Examples Dataflow V2 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

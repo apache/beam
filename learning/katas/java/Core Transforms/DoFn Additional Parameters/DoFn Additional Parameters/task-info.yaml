@@ -19,7 +19,7 @@
 
 type: theory
 files:
-- name: src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java
-  visible: true
-- name: test/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/TaskTest.java
-  visible: false
+  - name: src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java
+    visible: true
+  - name: test/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/TaskTest.java
+    visible: false
