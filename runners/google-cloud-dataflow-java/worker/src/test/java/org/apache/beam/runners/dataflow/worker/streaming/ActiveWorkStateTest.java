@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -37,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -47,6 +49,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ActiveWorkStateTest {
+
   private final WindmillStateCache.ForComputation computationStateCache =
       mock(WindmillStateCache.ForComputation.class);
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
@@ -443,5 +446,81 @@ public class ActiveWorkStateTest {
     assertEquals(ActivateWorkResult.STALE, activateWorkResult);
     assertFalse(readOnlyActiveWork.get(shardedKey).contains(newWork));
     assertEquals(queuedWork, readOnlyActiveWork.get(shardedKey).peek());
+  }
+
+  @Test
+  public void testFailWork() {
+    ShardedKey shardedKey1 = shardedKey("someKey1", 1L);
+    ShardedKey shardedKey2 = shardedKey("someKey2", 2L);
+
+    for (long workToken : Arrays.asList(1L, 2L)) {
+      for (long cacheToken : Arrays.asList(1L, 2L)) {
+        ExecutableWork work1 = createWork(createWorkItem(workToken, cacheToken, shardedKey1));
+        ExecutableWork work2 = createWork(createWorkItem(workToken, cacheToken, shardedKey2));
+        assertEquals(ActivateWorkResult.EXECUTE, activeWorkState.activateWorkForKey(work1));
+        assertEquals(ActivateWorkResult.EXECUTE, activeWorkState.activateWorkForKey(work2));
+        assertEquals(1, readOnlyActiveWork.get(shardedKey1).size());
+        assertEquals(1, readOnlyActiveWork.get(shardedKey2).size());
+        activeWorkState.failWorkForKey(
+            ImmutableList.of(
+                WorkIdWithShardingKey.builder()
+                    .setWorkToken(workToken)
+                    .setShardingKey(shardedKey1.shardingKey())
+                    .setCacheToken(cacheToken)
+                    .build()));
+        assertTrue(readOnlyActiveWork.get(shardedKey1).getFirst().work().isFailed());
+        assertFalse(readOnlyActiveWork.get(shardedKey2).getFirst().work().isFailed());
+        activeWorkState.failWorkForKey(
+            ImmutableList.of(
+                WorkIdWithShardingKey.builder()
+                    .setWorkToken(workToken)
+                    .setShardingKey(shardedKey2.shardingKey())
+                    .setCacheToken(cacheToken)
+                    .build()));
+        assertTrue(readOnlyActiveWork.get(shardedKey1).getFirst().work().isFailed());
+        assertTrue(readOnlyActiveWork.get(shardedKey2).getFirst().work().isFailed());
+
+        activeWorkState.completeWorkAndGetNextWorkForKey(
+            shardedKey1, workId(workToken, cacheToken));
+        activeWorkState.completeWorkAndGetNextWorkForKey(
+            shardedKey2, workId(workToken, cacheToken));
+      }
+    }
+  }
+
+  @Test
+  public void testFailWork_batchFail() {
+    ShardedKey shardedKey1 = shardedKey("someKey1", 1L);
+    ShardedKey shardedKey2 = shardedKey("someKey2", 2L);
+
+    for (long workToken : Arrays.asList(1L, 2L)) {
+      for (long cacheToken : Arrays.asList(1L, 2L)) {
+        ExecutableWork work1 = createWork(createWorkItem(workToken, cacheToken, shardedKey1));
+        ExecutableWork work2 = createWork(createWorkItem(workToken, cacheToken, shardedKey2));
+        assertEquals(ActivateWorkResult.EXECUTE, activeWorkState.activateWorkForKey(work1));
+        assertEquals(ActivateWorkResult.EXECUTE, activeWorkState.activateWorkForKey(work2));
+        assertEquals(1, readOnlyActiveWork.get(shardedKey1).size());
+        assertEquals(1, readOnlyActiveWork.get(shardedKey2).size());
+        activeWorkState.failWorkForKey(
+            ImmutableList.of(
+                WorkIdWithShardingKey.builder()
+                    .setWorkToken(workToken)
+                    .setShardingKey(shardedKey1.shardingKey())
+                    .setCacheToken(cacheToken)
+                    .build(),
+                WorkIdWithShardingKey.builder()
+                    .setWorkToken(workToken)
+                    .setShardingKey(shardedKey2.shardingKey())
+                    .setCacheToken(cacheToken)
+                    .build()));
+        assertTrue(readOnlyActiveWork.get(shardedKey1).getFirst().work().isFailed());
+        assertTrue(readOnlyActiveWork.get(shardedKey2).getFirst().work().isFailed());
+
+        activeWorkState.completeWorkAndGetNextWorkForKey(
+            shardedKey1, workId(workToken, cacheToken));
+        activeWorkState.completeWorkAndGetNextWorkForKey(
+            shardedKey2, workId(workToken, cacheToken));
+      }
+    }
   }
 }
