@@ -49,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataCl
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -63,7 +64,7 @@ import org.joda.time.Instant;
 public final class Work implements RefreshableWork {
 
   private static final EnumMap<LatencyAttribution.State, Duration> EMPTY_ENUM_MAP =
-      new EnumMap<LatencyAttribution.State, Duration>(LatencyAttribution.State.class);
+      new EnumMap<>(LatencyAttribution.State.class);
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -91,6 +92,7 @@ public final class Work implements RefreshableWork {
     this.watermarks = watermarks;
     this.clock = clock;
     this.startTime = clock.get();
+    Preconditions.checkState(EMPTY_ENUM_MAP.isEmpty());
     // Create by passing EMPTY_ENUM_MAP to avoid recreating
     // keyUniverse inside EnumMap every time.
     this.totalDurationPerState = new EnumMap<>(EMPTY_ENUM_MAP);
