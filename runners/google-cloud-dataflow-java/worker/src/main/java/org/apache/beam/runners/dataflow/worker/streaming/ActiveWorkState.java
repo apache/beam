@@ -68,9 +68,6 @@ public final class ActiveWorkState {
   private final Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
 
   @GuardedBy("this")
-  private final Map<WorkIdWithShardingKey, ExecutableWork> workIndex;
-
-  @GuardedBy("this")
   private final WindmillStateCache.ForComputation computationStateCache;
 
   /**
@@ -83,23 +80,21 @@ public final class ActiveWorkState {
 
   private ActiveWorkState(
       Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
-      Map<WorkIdWithShardingKey, ExecutableWork> workIndex,
       ForComputation computationStateCache) {
     this.activeWork = activeWork;
-    this.workIndex = workIndex;
     this.computationStateCache = computationStateCache;
     this.activeGetWorkBudget = GetWorkBudget.noBudget();
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
-    return new ActiveWorkState(new HashMap<>(), new HashMap<>(), computationStateCache);
+    return new ActiveWorkState(new HashMap<>(), computationStateCache);
   }
 
   @VisibleForTesting
   static ActiveWorkState forTesting(
       Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
-    return new ActiveWorkState(activeWork, new HashMap<>(), computationStateCache);
+    return new ActiveWorkState(activeWork, computationStateCache);
   }
 
   private static String elapsedString(Instant start, Instant end) {
@@ -128,19 +123,12 @@ public final class ActiveWorkState {
   synchronized ActivateWorkResult activateWorkForKey(ExecutableWork executableWork) {
     ShardedKey shardedKey = executableWork.work().getShardedKey();
     long shardingKey = shardedKey.shardingKey();
-    WorkIdWithShardingKey workIdWithShardingKey =
-        WorkIdWithShardingKey.builder()
-            .setShardingKey(shardingKey)
-            .setWorkToken(executableWork.getWorkItem().getWorkToken())
-            .setCacheToken(executableWork.getWorkItem().getCacheToken())
-            .build();
     LinkedHashMap<WorkId, ExecutableWork> workQueue =
         activeWork.getOrDefault(shardingKey, new LinkedHashMap<>());
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
     if (!activeWork.containsKey(shardingKey) || workQueue.isEmpty()) {
       workQueue.put(executableWork.id(), executableWork);
-      workIndex.put(workIdWithShardingKey, executableWork);
       activeWork.put(shardingKey, workQueue);
       incrementActiveWorkBudget(executableWork.work());
       return ActivateWorkResult.EXECUTE;
@@ -159,7 +147,6 @@ public final class ActiveWorkState {
           // currently active.
           if (!queuedWork.equals(Preconditions.checkNotNull(firstEntry(workQueue)).getValue())) {
             workIterator.remove();
-            workIndex.remove(workIdWithShardingKey);
             decrementActiveWorkBudget(queuedWork.work());
           }
           // Continue here to possibly remove more non-active stale work that is queued.
@@ -171,7 +158,6 @@ public final class ActiveWorkState {
 
     // Queue the work for later processing.
     workQueue.put(executableWork.id(), executableWork);
-    workIndex.put(workIdWithShardingKey, executableWork);
     incrementActiveWorkBudget(executableWork.work());
     return ActivateWorkResult.QUEUED;
   }
@@ -183,7 +169,15 @@ public final class ActiveWorkState {
    */
   synchronized void failWorkForKey(ImmutableList<WorkIdWithShardingKey> failedWork) {
     for (WorkIdWithShardingKey id : failedWork) {
-      Preconditions.checkNotNull(workIndex.get(id)).work().setFailed();
+      Preconditions.checkNotNull(
+              Preconditions.checkNotNull(activeWork.get(id.shardingKey()))
+                  .get(
+                      WorkId.builder()
+                          .setWorkToken(id.workToken())
+                          .setCacheToken(id.cacheToken())
+                          .build()))
+          .work()
+          .setFailed();
       LOG.debug(
           "Failing work {} {} The work will be retried and is not lost.",
           computationStateCache.getComputation(),
@@ -269,15 +263,8 @@ public final class ActiveWorkState {
           completedWork.id());
       return;
     }
-    WorkIdWithShardingKey workIdWithShardingKey =
-        WorkIdWithShardingKey.builder()
-            .setShardingKey(shardedKey.shardingKey())
-            .setWorkToken(completedWork.getWorkItem().getWorkToken())
-            .setCacheToken(completedWork.getWorkItem().getCacheToken())
-            .build();
     // We consumed the matching work item.
     completedWorkIterator.remove();
-    workIndex.remove(workIdWithShardingKey);
     decrementActiveWorkBudget(completedWork.work());
   }
 
