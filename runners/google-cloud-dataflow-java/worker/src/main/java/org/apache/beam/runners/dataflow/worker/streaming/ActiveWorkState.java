@@ -178,7 +178,7 @@ public final class ActiveWorkState {
       }
       executableWork.work().setFailed();
       LOG.debug(
-          "Failing work {} {} The work will be retried and is not lost.",
+          "Failing work {} {}. The work will be retried and is not lost.",
           computationStateCache.getComputation(),
           failedId);
     }
