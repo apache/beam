@@ -21,10 +21,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
 import java.io.PrintWriter;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -66,7 +65,7 @@ public final class ActiveWorkState {
    * Queue<Work>} is actively processing.
    */
   @GuardedBy("this")
-  private final Map<ShardedKey, Deque<ExecutableWork>> activeWork;
+  private final Map<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
 
   @GuardedBy("this")
   private final Map<WorkIdWithShardingKey, ExecutableWork> workIndex;
@@ -83,7 +82,7 @@ public final class ActiveWorkState {
   private GetWorkBudget activeGetWorkBudget;
 
   private ActiveWorkState(
-      Map<ShardedKey, Deque<ExecutableWork>> activeWork,
+      Map<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
       Map<WorkIdWithShardingKey, ExecutableWork> workIndex,
       ForComputation computationStateCache) {
     this.activeWork = activeWork;
@@ -98,25 +97,9 @@ public final class ActiveWorkState {
 
   @VisibleForTesting
   static ActiveWorkState forTesting(
-      Map<ShardedKey, Deque<ExecutableWork>> activeWork,
+      Map<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
-    HashMap<WorkIdWithShardingKey, ExecutableWork> workIndex = new HashMap<>();
-    activeWork.forEach(
-        ((shardedKey, executableWorks) -> {
-          executableWorks.forEach(
-              executableWork -> {
-                ExecutableWork existingVal =
-                    workIndex.put(
-                        WorkIdWithShardingKey.builder()
-                            .setShardingKey(shardedKey.shardingKey())
-                            .setWorkToken(executableWork.getWorkItem().getWorkToken())
-                            .setCacheToken(executableWork.getWorkItem().getCacheToken())
-                            .build(),
-                        executableWork);
-                Preconditions.checkState(existingVal == null);
-              });
-        }));
-    return new ActiveWorkState(activeWork, workIndex, computationStateCache);
+    return new ActiveWorkState(activeWork, new HashMap<>(), computationStateCache);
   }
 
   private static String elapsedString(Instant start, Instant end) {
@@ -150,11 +133,12 @@ public final class ActiveWorkState {
             .setWorkToken(executableWork.getWorkItem().getWorkToken())
             .setCacheToken(executableWork.getWorkItem().getCacheToken())
             .build();
-    Deque<ExecutableWork> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
+    LinkedHashMap<WorkId, ExecutableWork> workQueue =
+        activeWork.getOrDefault(shardedKey, new LinkedHashMap<>());
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
     if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
-      workQueue.addLast(executableWork);
+      workQueue.put(executableWork.id(), executableWork);
       workIndex.put(workIdWithShardingKey, executableWork);
       activeWork.put(shardedKey, workQueue);
       incrementActiveWorkBudget(executableWork.work());
@@ -162,9 +146,9 @@ public final class ActiveWorkState {
     }
 
     // Check to see if we have this work token queued.
-    Iterator<ExecutableWork> workIterator = workQueue.iterator();
+    Iterator<Entry<WorkId, ExecutableWork>> workIterator = workQueue.entrySet().iterator();
     while (workIterator.hasNext()) {
-      ExecutableWork queuedWork = workIterator.next();
+      ExecutableWork queuedWork = workIterator.next().getValue();
       if (queuedWork.id().equals(executableWork.id())) {
         return ActivateWorkResult.DUPLICATE;
       }
@@ -172,7 +156,7 @@ public final class ActiveWorkState {
         if (executableWork.id().workToken() > queuedWork.id().workToken()) {
           // Check to see if the queuedWork is active. We only want to remove it if it is NOT
           // currently active.
-          if (!queuedWork.equals(workQueue.peek())) {
+          if (!queuedWork.equals(Preconditions.checkNotNull(firstEntry(workQueue)).getValue())) {
             workIterator.remove();
             workIndex.remove(workIdWithShardingKey);
             decrementActiveWorkBudget(queuedWork.work());
@@ -185,7 +169,7 @@ public final class ActiveWorkState {
     }
 
     // Queue the work for later processing.
-    workQueue.addLast(executableWork);
+    workQueue.put(executableWork.id(), executableWork);
     workIndex.put(workIdWithShardingKey, executableWork);
     incrementActiveWorkBudget(executableWork.work());
     return ActivateWorkResult.QUEUED;
@@ -219,13 +203,13 @@ public final class ActiveWorkState {
             flatteningToImmutableListMultimap(
                 Entry::getKey,
                 e ->
-                    e.getValue().stream()
+                    e.getValue().values().stream()
                         .map(executableWork -> (RefreshableWork) executableWork.work())));
   }
 
   synchronized ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {
     return activeWork.values().stream()
-        .flatMap(Deque::stream)
+        .flatMap(workMap -> workMap.values().stream())
         .map(ExecutableWork::work)
         .filter(work -> !work.isFailed() && work.getStartTime().isBefore(refreshDeadline))
         .collect(toImmutableList());
@@ -247,7 +231,7 @@ public final class ActiveWorkState {
    */
   synchronized Optional<ExecutableWork> completeWorkAndGetNextWorkForKey(
       ShardedKey shardedKey, WorkId workId) {
-    @Nullable Queue<ExecutableWork> workQueue = activeWork.get(shardedKey);
+    @Nullable LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(shardedKey);
     if (workQueue == null) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn(
@@ -262,14 +246,15 @@ public final class ActiveWorkState {
   }
 
   private synchronized void removeCompletedWorkFromQueue(
-      Queue<ExecutableWork> workQueue, ShardedKey shardedKey, WorkId workId) {
-    @Nullable ExecutableWork completedWork = workQueue.peek();
-    if (completedWork == null) {
+      LinkedHashMap<WorkId, ExecutableWork> workQueue, ShardedKey shardedKey, WorkId workId) {
+    Iterator<Entry<WorkId, ExecutableWork>> completedWorkIterator = workQueue.entrySet().iterator();
+    if (!completedWorkIterator.hasNext()) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn("Active key {} without work, expected token {}", shardedKey, workId);
       return;
     }
 
+    ExecutableWork completedWork = completedWorkIterator.next().getValue();
     if (!completedWork.id().equals(workId)) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn(
@@ -289,18 +274,19 @@ public final class ActiveWorkState {
             .setCacheToken(completedWork.getWorkItem().getCacheToken())
             .build();
     // We consumed the matching work item.
-    workQueue.remove();
+    completedWorkIterator.remove();
     workIndex.remove(workIdWithShardingKey);
     decrementActiveWorkBudget(completedWork.work());
   }
 
+  @SuppressWarnings("ReferenceEquality")
   private synchronized Optional<ExecutableWork> getNextWork(
-      Queue<ExecutableWork> workQueue, ShardedKey shardedKey) {
-    Optional<ExecutableWork> nextWork = Optional.ofNullable(workQueue.peek());
+      LinkedHashMap<WorkId, ExecutableWork> workQueue, ShardedKey shardedKey) {
+    Optional<ExecutableWork> nextWork =
+        Optional.ofNullable(firstEntry(workQueue)).map(Entry::getValue);
     if (!nextWork.isPresent()) {
       Preconditions.checkState(workQueue == activeWork.remove(shardedKey));
     }
-
     return nextWork;
   }
 
@@ -319,16 +305,22 @@ public final class ActiveWorkState {
     }
   }
 
+  private static @Nullable Entry<WorkId, ExecutableWork> firstEntry(
+      Map<WorkId, ExecutableWork> map) {
+    Iterator<Entry<WorkId, ExecutableWork>> iterator = map.entrySet().iterator();
+    return iterator.hasNext() ? iterator.next() : null;
+  }
+
   private synchronized ImmutableMap<ShardedKey, WorkId> getStuckCommitsAt(
       Instant stuckCommitDeadline) {
     // Determine the stuck commit keys but complete them outside the loop iterating over
     // activeWork as completeWork may delete the entry from activeWork.
     ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
-    for (Entry<ShardedKey, Deque<ExecutableWork>> entry : activeWork.entrySet()) {
+    for (Entry<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
       ShardedKey shardedKey = entry.getKey();
-      @Nullable ExecutableWork executableWork = entry.getValue().peek();
+      @Nullable Entry<WorkId, ExecutableWork> executableWork = firstEntry(entry.getValue());
       if (executableWork != null) {
-        Work work = executableWork.work();
+        Work work = executableWork.getValue().work();
         if (work.isStuckCommittingAt(stuckCommitDeadline)) {
           LOG.error(
               "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
@@ -370,9 +362,10 @@ public final class ActiveWorkState {
     // Use StringBuilder because we are appending in loop.
     StringBuilder activeWorkStatus = new StringBuilder();
     int commitsPendingCount = 0;
-    for (Map.Entry<ShardedKey, Deque<ExecutableWork>> entry : activeWork.entrySet()) {
-      Queue<ExecutableWork> workQueue = Preconditions.checkNotNull(entry.getValue());
-      Work activeWork = Preconditions.checkNotNull(workQueue.peek()).work();
+    for (Entry<ShardedKey, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
+      LinkedHashMap<WorkId, ExecutableWork> workQueue =
+          Preconditions.checkNotNull(entry.getValue());
+      Work activeWork = Preconditions.checkNotNull(firstEntry(workQueue)).getValue().work();
       WorkItem workItem = activeWork.getWorkItem();
       if (activeWork.isCommitPending()) {
         if (++commitsPendingCount >= MAX_PRINTABLE_COMMIT_PENDING_KEYS) {
