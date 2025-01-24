@@ -252,13 +252,13 @@ public class BoundedQueueExecutor {
       return;
     }
     synchronized (decrementQueueDrainLock) {
-      // Only threads that flipped isDecrementBatchPending to true from false will
-      // reach here, and they will process all updates that happened before setting
-      // isDecrementBatchPending back to false here.
+      // By setting false here, we may allow another decrement to claim submission of the next batch
+      // and start waiting on the decrementQueueDrainLock.
       //
-      // Any decrements queuing after setting isDecrementBatchPending to false
-      // here are not guaranteed to get processed by the current thread and will be
-      // picked up by other threads that flip isDecrementBatchPending to true.
+      // However this prevents races that would leave decrements in the queue and unclaimed and we
+      // are ensured there is at most one additional thread blocked. This helps prevent the executor
+      // from creating threads over the limit if many were contending on the lock while their
+      // decrements were already applied.
       isDecrementBatchPending.set(false);
       long bytesToDecrement = 0;
       int elementsToDecrement = 0;
