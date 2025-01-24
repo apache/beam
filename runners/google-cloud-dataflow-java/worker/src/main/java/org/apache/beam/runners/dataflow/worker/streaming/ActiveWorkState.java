@@ -138,7 +138,8 @@ public final class ActiveWorkState {
       if (queuedWork.id().equals(executableWork.id())) {
         return ActivateWorkResult.DUPLICATE;
       }
-      if (queuedWork.id().cacheToken() == executableWork.id().cacheToken()) {
+      if (queuedWork.id().cacheToken() == executableWork.id().cacheToken()
+          && queuedWork.work().getShardedKey().equals(executableWork.work().getShardedKey())) {
         if (executableWork.id().workToken() > queuedWork.id().workToken()) {
           // Check to see if the queuedWork is active. We only want to remove it if it is NOT
           // currently active.
