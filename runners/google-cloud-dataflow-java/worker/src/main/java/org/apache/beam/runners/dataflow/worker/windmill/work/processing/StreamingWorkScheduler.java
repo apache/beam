@@ -229,7 +229,10 @@ public class StreamingWorkScheduler {
       Work work,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
+    processWork(computationState, work);
+  }
 
+  private void processWork(ComputationState computationState, Work work) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
@@ -299,10 +302,6 @@ public class StreamingWorkScheduler {
       resetWorkLoggingContext(work.getLatencyTrackingId());
       work.setProcessingThreadName("");
     }
-  }
-
-  private void processWork(ComputationState computationState, Work work) {
-    processWork(computationState, work, ImmutableList.of());
   }
 
   private Windmill.WorkItemCommitRequest validateCommitRequestSize(
