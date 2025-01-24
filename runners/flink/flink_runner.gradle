@@ -242,6 +242,8 @@ def sickbayTests = [
         'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests',
         'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
         // TODO(https://github.com/apache/beam/issues/18198)
+        'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
+        // testTriggeredLatestSingleton gets "stuck" both with or without --useDatastreamForBatch
 ]
 
 def createValidatesRunnerTask(Map m) {
