@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -61,8 +59,8 @@ public final class ActiveWorkState {
   private static final int MAX_PRINTABLE_COMMIT_PENDING_KEYS = 50;
 
   /**
-   * Map from shardingKey to {@link Work} for the key. The first item in the {@link
-   * LinkedHashMap} is actively processing.
+   * Map from shardingKey to {@link Work} for the key. The first item in the {@link LinkedHashMap}
+   * is actively processing.
    */
   @GuardedBy("this")
   private final Map<Long /*shardingKey*/, LinkedHashMap<WorkId, ExecutableWork>> activeWork;
@@ -124,12 +122,11 @@ public final class ActiveWorkState {
     ShardedKey shardedKey = executableWork.work().getShardedKey();
     long shardingKey = shardedKey.shardingKey();
     LinkedHashMap<WorkId, ExecutableWork> workQueue =
-        activeWork.getOrDefault(shardingKey, new LinkedHashMap<>());
+        activeWork.computeIfAbsent(shardingKey, (unused) -> new LinkedHashMap<>());
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
-    if (!activeWork.containsKey(shardingKey) || workQueue.isEmpty()) {
+    if (workQueue.isEmpty()) {
       workQueue.put(executableWork.id(), executableWork);
-      activeWork.put(shardingKey, workQueue);
       incrementActiveWorkBudget(executableWork.work());
       return ActivateWorkResult.EXECUTE;
     }
@@ -184,23 +181,6 @@ public final class ActiveWorkState {
           computationStateCache.getComputation(),
           failedId);
     }
-  }
-
-  /**
-   * Returns a read only view of current active work.
-   *
-   * @implNote Do not return a reference to the underlying workQueue as iterations over it will
-   *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
-   *     structure.
-   */
-  synchronized ImmutableListMultimap<Long, RefreshableWork> getReadOnlyActiveWork() {
-    return activeWork.entrySet().stream()
-        .collect(
-            flatteningToImmutableListMultimap(
-                Entry::getKey,
-                e ->
-                    e.getValue().values().stream()
-                        .map(executableWork -> (RefreshableWork) executableWork.work())));
   }
 
   synchronized ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {

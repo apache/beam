@@ -29,7 +29,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 
@@ -143,10 +142,6 @@ public class ComputationState {
 
   private void forceExecute(ExecutableWork executableWork) {
     executor.forceExecute(executableWork, executableWork.work().getSerializedWorkItemSize());
-  }
-
-  public ImmutableListMultimap<Long, RefreshableWork> currentActiveWorkReadOnly() {
-    return activeWorkState.getReadOnlyActiveWork();
   }
 
   public ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {
