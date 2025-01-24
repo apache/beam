@@ -158,14 +158,6 @@ toxTask "testPy39transformers-428", "py39-transformers-428", "${posargs}"
 test.dependsOn "testPy39transformers-428"
 postCommitPyDep.dependsOn "testPy39transformers-428"
 
-toxTask "testPy39transformers-429", "py39-transformers-429", "${posargs}"
-test.dependsOn "testPy39transformers-429"
-postCommitPyDep.dependsOn "testPy39transformers-429"
-
-toxTask "testPy39transformers-430", "py39-transformers-430", "${posargs}"
-test.dependsOn "testPy39transformers-430"
-postCommitPyDep.dependsOn "testPy39transformers-430"
-
 //toxTask "testPy39transformers-445", "py39-transformers-445", "${posargs}"
 //test.dependsOn "testPy39transformers-445"
 //postCommitPyDep.dependsOn "testPy39transformers-445"
