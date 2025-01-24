@@ -239,7 +239,9 @@ def sickbayTests = [
         // Flink errors are not deterministic. Exception may just be
         // org.apache.flink.runtime.operators.coordination.TaskNotRunningException: Task is not running, but in state FAILED
         // instead of the actual cause. Real cause is visible in the logs.
-        'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests'
+        'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests',
+        'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+        // TODO(https://github.com/apache/beam/issues/18198)
 ]
 
 def createValidatesRunnerTask(Map m) {
