@@ -24,7 +24,9 @@ import static org.hamcrest.Matchers.equalTo;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -59,6 +61,9 @@ public class KafkaMetricsTest {
         perWorkerHistograms =
             new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>();
 
+    public ConcurrentHashMap<MetricName, GaugeCell> perWorkerGauges =
+        new ConcurrentHashMap<MetricName, GaugeCell>();
+
     public TestMetricsContainer() {
       super("TestStep");
     }
@@ -71,8 +76,15 @@ public class KafkaMetricsTest {
     }
 
     @Override
+    public Gauge getPerWorkerGauge(MetricName metricName) {
+      perWorkerGauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
+      return perWorkerGauges.get(metricName);
+    }
+
+    @Override
     public void reset() {
       perWorkerHistograms.clear();
+      perWorkerGauges.clear();
     }
   }
 
@@ -83,10 +95,11 @@ public class KafkaMetricsTest {
 
     KafkaMetrics results = KafkaMetrics.NoOpKafkaMetrics.getInstance();
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
-
+    results.updateBacklogBytes("test-topic", 0, 10);
     results.updateKafkaMetrics();
 
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
+    assertThat(testContainer.perWorkerGauges.size(), equalTo(0));
   }
 
   @Test
@@ -99,6 +112,7 @@ public class KafkaMetricsTest {
     KafkaMetrics results = KafkaSinkMetrics.kafkaMetrics();
 
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
+    results.updateBacklogBytes("test-topic", 0, 10);
 
     results.updateKafkaMetrics();
     // RpcLatency*rpc_method:POLL;topic_name:test-topic
@@ -110,6 +124,11 @@ public class KafkaMetricsTest {
     assertThat(
         testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
         containsInAnyOrder(Double.valueOf(10.0)));
+
+    MetricName gaugeName =
+        MetricName.named("KafkaSink", "EstimatedBacklogSize*partition_id:0;topic_name:test-topic;");
+    assertThat(testContainer.perWorkerGauges.size(), equalTo(1));
+    assertThat(testContainer.perWorkerGauges.get(gaugeName).getCumulative().value(), equalTo(10L));
   }
 
   @Test
