@@ -48,12 +48,12 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -118,19 +118,21 @@ public class ActiveWorkRefresherTest {
 
   private ExecutableWork createOldWork(
       ShardedKey shardedKey, int workIds, Consumer<Work> processWork) {
+    WorkItem workItem =
+        WorkItem.newBuilder()
+            .setKey(shardedKey.key())
+            .setShardingKey(shardedKey.shardingKey())
+            .setWorkToken(workIds)
+            .setCacheToken(workIds)
+            .build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder()
-                .setKey(shardedKey.key())
-                .setShardingKey(shardedKey.shardingKey())
-                .setWorkToken(workIds)
-                .setCacheToken(workIds)
-                .build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
-            A_LONG_TIME_AGO,
-            ImmutableList.of()),
+            A_LONG_TIME_AGO),
         processWork);
   }
 

@@ -153,12 +153,15 @@ public class BeamFnDataWriteRunnerTest {
             .beamFnDataClient(mockBeamFnDataClient)
             .processBundleInstructionIdSupplier(bundleId::get)
             .outboundAggregators(aggregators)
-            .pCollections(
-                ImmutableMap.of(
-                    localInputId,
-                    RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
-            .coders(COMPONENTS.getCodersMap())
-            .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(
+                        ImmutableMap.of(
+                            localInputId,
+                            RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
+                    .putAllCoders(COMPONENTS.getCodersMap())
+                    .putAllWindowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+                    .build())
             .build();
 
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(context);

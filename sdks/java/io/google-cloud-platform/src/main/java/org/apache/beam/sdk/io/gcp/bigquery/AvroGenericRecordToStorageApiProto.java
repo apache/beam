@@ -86,7 +86,7 @@ public class AvroGenericRecordToStorageApiProto {
           .put(Schema.Type.STRING, Object::toString)
           .put(Schema.Type.BOOLEAN, Function.identity())
           .put(Schema.Type.ENUM, o -> o.toString())
-          .put(Schema.Type.BYTES, o -> ByteString.copyFrom(((ByteBuffer) o).duplicate()))
+          .put(Schema.Type.BYTES, AvroGenericRecordToStorageApiProto::convertBytes)
           .build();
 
   // A map of supported logical types to their encoding functions.
@@ -143,6 +143,16 @@ public class AvroGenericRecordToStorageApiProto {
                 Schema.create(Schema.Type.NULL), // dummy schema, not used
                 logicalType);
     return BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bigDecimal);
+  }
+
+  static ByteString convertBytes(Object value) {
+    if (value instanceof byte[]) {
+      // for backward compatibility
+      // this is not accepted by the avro spec, but users may have abused it
+      return ByteString.copyFrom((byte[]) value);
+    } else {
+      return ByteString.copyFrom(((ByteBuffer) value).duplicate());
+    }
   }
 
   /**

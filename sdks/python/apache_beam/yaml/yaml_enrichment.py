@@ -16,7 +16,6 @@
 #
 
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 import apache_beam as beam
@@ -43,7 +42,7 @@ except ImportError:
 def enrichment_transform(
     pcoll,
     enrichment_handler: str,
-    handler_config: Dict[str, Any],
+    handler_config: dict[str, Any],
     timeout: Optional[float] = 30):
   # pylint: disable=line-too-long
 

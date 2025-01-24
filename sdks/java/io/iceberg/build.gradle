@@ -55,10 +55,9 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
-    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     implementation library.java.hadoop_common
-    implementation library.java.jackson_core
-    implementation library.java.jackson_databind
+    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
 
     testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client

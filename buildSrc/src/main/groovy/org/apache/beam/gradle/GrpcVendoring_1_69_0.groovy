@@ -159,10 +159,18 @@ class GrpcVendoring_1_69_0 {
       // android annotations, autovalue annotations, errorprone, checkerframework, JDK8 annotations, objenesis, junit,
       // apache commons, log4j, slf4j and mockito
       "android/annotation/**/",
+<<<<<<< HEAD
+=======
+      "com/google/apps/**",
+>>>>>>> 3cb1440933d60d1088178e5b74f407453f0c62cd
       "com/google/auto/value/**",
       "com/google/errorprone/**",
       "com/google/instrumentation/**",
       "com/google/j2objc/annotations/**",
+<<<<<<< HEAD
+=======
+      "com/google/shopping/**",
+>>>>>>> 3cb1440933d60d1088178e5b74f407453f0c62cd
       "io/grpc/netty/shaded/io/netty/handler/codec/marshalling/**",
       "io/grpc/netty/shaded/io/netty/handler/codec/spdy/**",
       "io/grpc/netty/shaded/io/netty/handler/codec/compression/JZlib*",

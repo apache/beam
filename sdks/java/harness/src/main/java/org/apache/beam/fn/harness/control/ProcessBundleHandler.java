@@ -66,11 +66,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
-import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
@@ -236,6 +233,7 @@ public class ProcessBundleHandler {
       Supplier<List<CacheToken>> cacheTokens,
       Supplier<Cache<?, ?>> bundleCache,
       ProcessBundleDescriptor processBundleDescriptor,
+      RunnerApi.Components components,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       Set<String> processedPTransformIds,
@@ -268,6 +266,7 @@ public class ProcessBundleHandler {
             cacheTokens,
             bundleCache,
             processBundleDescriptor,
+            components,
             pCollectionIdsToConsumingPTransforms,
             pCollectionConsumerRegistry,
             processedPTransformIds,
@@ -358,18 +357,8 @@ public class ProcessBundleHandler {
                     }
 
                     @Override
-                    public Map<String, PCollection> getPCollections() {
-                      return processBundleDescriptor.getPcollectionsMap();
-                    }
-
-                    @Override
-                    public Map<String, Coder> getCoders() {
-                      return processBundleDescriptor.getCodersMap();
-                    }
-
-                    @Override
-                    public Map<String, WindowingStrategy> getWindowingStrategies() {
-                      return processBundleDescriptor.getWindowingStrategiesMap();
+                    public RunnerApi.Components getComponents() {
+                      return components;
                     }
 
                     @Override
@@ -867,6 +856,13 @@ public class ProcessBundleHandler {
         continue;
       }
 
+      RunnerApi.Components components =
+          RunnerApi.Components.newBuilder()
+              .putAllCoders(bundleDescriptor.getCodersMap())
+              .putAllPcollections(bundleDescriptor.getPcollectionsMap())
+              .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
+              .build();
+
       createRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
           beamFnDataClient,
@@ -876,6 +872,7 @@ public class ProcessBundleHandler {
           bundleProcessor::getCacheTokens,
           bundleProcessor::getBundleCache,
           bundleDescriptor,
+          components,
           pCollectionIdsToConsumingPTransforms,
           pCollectionConsumerRegistry,
           processedPTransformIds,

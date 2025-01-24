@@ -1437,3 +1437,14 @@ Hi everyone,
 Please review and vote on the release candidate #1 for the version 2.XX.1. Given the time sensitive nature of patch releases, I will finalize the release as soon as I have 3 binding approvals AND at least 24 hours have passed.
 …
 ```
+
+## Tips
+
+### Revert a commit on a release branch
+
+The recomended approach is to use `git revert`, for example,
+```bash
+git checkout origin/release-2.62.0
+git revert 41215a3116b5e866d1e5b017611a479eeee72df1
+git push origin HEAD:release-2.62.0
+```

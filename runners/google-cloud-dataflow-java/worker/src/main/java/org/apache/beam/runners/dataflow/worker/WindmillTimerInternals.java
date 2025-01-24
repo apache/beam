@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -33,8 +32,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
-import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -54,6 +51,7 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillTimerInternals implements TimerInternals {
+
   private static final Instant OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE =
       GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
 
@@ -406,36 +404,27 @@ class WindmillTimerInternals implements TimerInternals {
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
-    ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
-    try {
-      if (useNewTimerTagEncoding(timerData)) {
-        tagString =
-            new StringBuilder()
-                .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-                .append(
-                    timerData.getNamespace().stringKey()) // this must begin and end with a slash
-                .append('+')
-                .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-                .append('+')
-                .append(timerData.getTimerFamilyId())
-                .toString();
-        out.write(tagString.getBytes(StandardCharsets.UTF_8));
-      } else {
-        // Timers without timerFamily would have timerFamily would be an empty string
-        tagString =
-            new StringBuilder()
-                .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-                .append(
-                    timerData.getNamespace().stringKey()) // this must begin and end with a slash
-                .append('+')
-                .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-                .toString();
-        out.write(tagString.getBytes(StandardCharsets.UTF_8));
-      }
-      return ByteString.readFrom(new ExposedByteArrayInputStream(out.toByteArray()));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    if (useNewTimerTagEncoding(timerData)) {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .append('+')
+              .append(timerData.getTimerFamilyId())
+              .toString();
+    } else {
+      // Timers without timerFamily would have timerFamily would be an empty string
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .toString();
     }
+    return ByteString.copyFromUtf8(tagString);
   }
 
   /**

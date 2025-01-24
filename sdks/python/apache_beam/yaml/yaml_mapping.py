@@ -19,13 +19,11 @@
 import itertools
 import re
 from collections import abc
+from collections.abc import Callable
+from collections.abc import Collection
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Collection
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Mapping
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -349,7 +347,7 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
 
 def _as_callable_for_pcoll(
     pcoll,
-    fn_spec: Union[str, Dict[str, str]],
+    fn_spec: Union[str, dict[str, str]],
     msg: str,
     language: Optional[str]):
   if language == 'javascript':
@@ -495,7 +493,7 @@ class _Validate(beam.PTransform):
   """
   def __init__(
       self,
-      schema: Dict[str, Any],
+      schema: dict[str, Any],
       error_handling: Optional[Mapping[str, Any]] = None):
     self._schema = schema
     self._exception_handling_args = exception_handling_args(error_handling)
@@ -615,7 +613,7 @@ class _Explode(beam.PTransform):
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
-    pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+    pcoll, keep: Union[str, dict[str, str]], language: Optional[str] = None):
   """Keeps only records that satisfy the given criteria.
 
   See more complete documentation on
@@ -740,8 +738,8 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 @beam.ptransform.ptransform_fn
 def _Partition(
     pcoll,
-    by: Union[str, Dict[str, str]],
-    outputs: List[str],
+    by: Union[str, dict[str, str]],
+    outputs: list[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
@@ -820,7 +818,7 @@ def _Partition(
 @maybe_with_exception_handling_transform_fn
 def _AssignTimestamps(
     pcoll,
-    timestamp: Union[str, Dict[str, str]],
+    timestamp: Union[str, dict[str, str]],
     language: Optional[str] = None):
   """Assigns a new timestamp each element of its input.
 

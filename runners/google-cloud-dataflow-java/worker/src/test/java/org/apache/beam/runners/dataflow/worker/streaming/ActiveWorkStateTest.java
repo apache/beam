@@ -62,10 +62,10 @@ public class ActiveWorkStateTest {
     return ExecutableWork.create(
         Work.create(
             workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
-            Instant::now,
-            Collections.emptyList()),
+            Instant::now),
         ignored -> {});
   }
 
@@ -73,10 +73,10 @@ public class ActiveWorkStateTest {
     return ExecutableWork.create(
         Work.create(
             workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
-            () -> Instant.EPOCH,
-            Collections.emptyList()),
+            () -> Instant.EPOCH),
         ignored -> {});
   }
 

@@ -35,4 +35,10 @@ public abstract class ShardedKey {
   public final String toString() {
     return String.format("%016x", shardingKey());
   }
+
+  @Override
+  public final int hashCode() {
+    // Sharding key collisions are unexpected, avoid hashing full key
+    return Long.hashCode(shardingKey());
+  }
 }
