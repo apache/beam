@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestOptions_Add(t *testing.T) {
@@ -97,132 +98,151 @@ func TestExpansionAddr(t *testing.T) {
 	}
 }
 
-/*
-TestOutputType tests the OutputType option for setting the output type
-in an SQL transformation in Beam. It verifies both cases: when
-components are provided and when they are not. The test checks if
-the 'outType' field in the options is set correctly based on the
-output type and components.
-
-@Author: Mohit Paddhariya
-@Description: This test checks the functionality of OutputType
-option, ensuring that it properly handles setting the output type
-both with and without components.
-
-@Use: This test ensures that the OutputType option behaves as expected
-when used in SQL transformations.
-*/
+// TestOutputType tests the OutputType option for setting the output type
+// in an SQL transformation in Beam. It verifies both cases: when
+// components are provided and when they are not. The test checks if
+// the 'outType' field in the options is set correctly based on the
+// output type and components.
 func TestOutputType(t *testing.T) {
-	o := &options{}
-	typ := reflect.TypeOf(int64(0))
-	components := []typex.FullType{typex.New(reflect.TypeOf(""))}
-
-	// Test without components
-	opt1 := OutputType(typ)
-	opt1(o)
-	expected1 := typex.New(typ)
-	if !reflect.DeepEqual(o.outType, expected1) {
-		t.Errorf("OutputType() without components failed: got %v, want %v", o.outType, expected1)
+	testCases := []struct {
+		name       string
+		typ        reflect.Type
+		components []typex.FullType
+		wantNil    bool
+	}{
+		{
+			name: "output_type_without_components",
+			typ:  reflect.TypeOf(int64(0)),
+		},
+		{
+			name:       "output_type_with_components",
+			typ:        reflect.TypeOf(int64(0)),
+			components: []typex.FullType{typex.New(reflect.TypeOf(""))},
+		},
 	}
 
-	// Test with components
-	opt2 := OutputType(typ, components...)
-	opt2(o)
-	expected2 := typex.New(typ, components...)
-	if !reflect.DeepEqual(o.outType, expected2) {
-		t.Errorf("OutputType() with components failed: got %v, want %v", o.outType, expected2)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &options{}
+
+			var opt Option
+			if len(tc.components) > 0 {
+				opt = OutputType(tc.typ, tc.components...)
+			} else {
+				opt = OutputType(tc.typ)
+			}
+
+			opt(o)
+
+			var expected typex.FullType
+			if len(tc.components) > 0 {
+				expected = typex.New(tc.typ, tc.components...)
+			} else {
+				expected = typex.New(tc.typ)
+			}
+
+			opts := cmp.Options{
+				cmp.Comparer(func(x, y typex.FullType) bool {
+					// Compare only the type and components
+					return x.Type() == y.Type()
+				}),
+			}
+			if !cmp.Equal(o.outType, expected, opts) {
+				t.Errorf("OutputType() failed:\n%s", cmp.Diff(expected, o.outType, opts))
+			}
+		})
 	}
 }
 
-/*
-TestTransform tests the behavior of the Transform function
-in the context of SQL transformations. Specifically, it checks
-that the function panics when an output type is missing.
-
-@Author: Mohit Paddhariya
-@Description: This test verifies that Transform() panics when the
-output type is not specified for a SQL transformation.
-
-@Use: Ensures that missing output type results in a panic,
-helping to catch incorrect or incomplete transformations.
-*/
-func TestTransform(t *testing.T) {
-	// Test just the panic case for missing output type
-	// as we can't easily test the actual transformation without an expansion service
-	t.Run("Missing output type", func(t *testing.T) {
-		p := beam.NewPipeline()
-		s := p.Root()
-		col := beam.Create(s, 1, 2, 3)
-
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Error("Transform() with missing output type should panic")
-			}
-			if msg, ok := r.(string); !ok || msg != "output type must be specified for sql.Transform" {
-				t.Errorf("Transform() unexpected panic message: %v", r)
-			}
-		}()
-
-		Transform(s, "SELECT value FROM test", Input("test", col))
-	})
-}
-
-/*
-TestMultipleOptions tests applying multiple options at once
-and verifying that they are all correctly applied to the options object.
-
-@Author: Mohit Paddhariya
-@Description: This test ensures that multiple options, including
-Input, Dialect, ExpansionAddr, and OutputType, are correctly
-applied to the options object. It also verifies that a custom
-option can be added and applied.
-
-@Use: Ensures that multiple options can be applied in sequence and
-all the fields in the options object are correctly set.
-*/
-func TestMultipleOptions(t *testing.T) {
-	o := &options{
-		inputs: make(map[string]beam.PCollection),
-	}
-
+// TestTransform tests the behavior of the Transform function
+// in the context of SQL transformations. It checks that the function
+// panics when an output type is missing.
+func TestTransform_MissingOutputType(t *testing.T) {
 	p := beam.NewPipeline()
 	s := p.Root()
 	col := beam.Create(s, 1, 2, 3)
-	name := "test"
-	dialect := "zetasql"
-	addr := "localhost:8080"
-	typ := reflect.TypeOf(int64(0))
-	customOpt := sqlx.Option{Urn: "test"}
 
-	// Apply multiple options
-	opts := []Option{
-		Input(name, col),
-		Dialect(dialect),
-		ExpansionAddr(addr),
-		OutputType(typ),
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("Transform() with missing output type should panic")
+		}
+		if msg, ok := r.(string); !ok || msg != "output type must be specified for sql.Transform" {
+			t.Errorf("Transform() unexpected panic message: %v", r)
+		}
+	}()
+
+	Transform(s, "SELECT value FROM test", Input("test", col))
+}
+
+// TestMultipleOptions tests applying multiple options at once
+// and verifying that they are all correctly applied to the options object.
+func TestMultipleOptions(t *testing.T) {
+	p := beam.NewPipeline()
+	s := p.Root()
+	col := beam.Create(s, 1, 2, 3)
+
+	testCases := []struct {
+		name          string
+		inputName     string
+		dialect       string
+		expansionAddr string
+		typ           reflect.Type
+		customOpt     sqlx.Option
+	}{
+		{
+			name:          "all_options",
+			inputName:     "test",
+			dialect:       "zetasql",
+			expansionAddr: "localhost:8080",
+			typ:           reflect.TypeOf(int64(0)),
+			customOpt:     sqlx.Option{Urn: "test"},
+		},
 	}
 
-	// Apply all options
-	for _, opt := range opts {
-		opt(o)
-	}
-	o.Add(customOpt)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &options{
+				inputs: make(map[string]beam.PCollection),
+			}
 
-	// Verify all fields
-	if _, ok := o.inputs[name]; !ok {
-		t.Error("Input option not applied correctly")
-	}
-	if o.dialect != dialect {
-		t.Error("Dialect option not applied correctly")
-	}
-	if o.expansionAddr != addr {
-		t.Error("ExpansionAddr option not applied correctly")
-	}
-	if !reflect.DeepEqual(o.outType, typex.New(typ)) {
-		t.Error("OutputType option not applied correctly")
-	}
-	if len(o.customs) != 1 {
-		t.Error("Custom option not applied correctly")
+			opts := []Option{
+				Input(tc.inputName, col),
+				Dialect(tc.dialect),
+				ExpansionAddr(tc.expansionAddr),
+				OutputType(tc.typ),
+			}
+
+			// Apply all options
+			for _, opt := range opts {
+				opt(o)
+			}
+			o.Add(tc.customOpt)
+
+			// Verify all fields
+			if got, ok := o.inputs[tc.inputName]; !ok {
+				t.Errorf("Input option with name %q not applied correctly: got nothing, want PCollection", tc.inputName)
+			} else if !reflect.DeepEqual(got, col) {
+				t.Errorf("Input option with name %q not applied correctly: got %v, want %v", tc.inputName, got, col)
+			}
+
+			if o.dialect != tc.dialect {
+				t.Errorf("Dialect option not applied correctly: got %q, want %q", o.dialect, tc.dialect)
+			}
+
+			if o.expansionAddr != tc.expansionAddr {
+				t.Errorf("ExpansionAddr option not applied correctly: got %q, want %q", o.expansionAddr, tc.expansionAddr)
+			}
+
+			if !reflect.DeepEqual(o.outType, typex.New(tc.typ)) {
+				t.Errorf("OutputType option not applied correctly: got %v, want %v", o.outType, typex.New(tc.typ))
+			}
+
+			if len(o.customs) != 1 {
+				t.Errorf("Custom option not applied correctly: got %d options, want 1 option", len(o.customs))
+			} else if !reflect.DeepEqual(o.customs[0], tc.customOpt) {
+				t.Errorf("Custom option not applied correctly: got %v, want %v", o.customs[0], tc.customOpt)
+			}
+		})
 	}
 }
