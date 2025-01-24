@@ -466,21 +466,17 @@ public class ActiveWorkStateTest {
         assertEquals(1, readOnlyActiveWork.get(shardedKey2.shardingKey()).size());
         activeWorkState.failWorkForKey(
             ImmutableList.of(
-                WorkIdWithShardingKey.builder()
-                    .setWorkToken(workToken)
-                    .setShardingKey(shardedKey1.shardingKey())
-                    .setCacheToken(cacheToken)
-                    .build()));
+                WorkIdWithShardingKey.create(
+                    shardedKey1.shardingKey(),
+                    WorkId.builder().setWorkToken(workToken).setCacheToken(cacheToken).build())));
         assertTrue(firstValue(readOnlyActiveWork.get(shardedKey1.shardingKey())).work().isFailed());
         assertFalse(
             firstValue(readOnlyActiveWork.get(shardedKey2.shardingKey())).work().isFailed());
         activeWorkState.failWorkForKey(
             ImmutableList.of(
-                WorkIdWithShardingKey.builder()
-                    .setWorkToken(workToken)
-                    .setShardingKey(shardedKey2.shardingKey())
-                    .setCacheToken(cacheToken)
-                    .build()));
+                WorkIdWithShardingKey.create(
+                    shardedKey2.shardingKey(),
+                    WorkId.builder().setWorkToken(workToken).setCacheToken(cacheToken).build())));
         assertTrue(firstValue(readOnlyActiveWork.get(shardedKey1.shardingKey())).work().isFailed());
         assertTrue(firstValue(readOnlyActiveWork.get(shardedKey2.shardingKey())).work().isFailed());
 
@@ -507,16 +503,12 @@ public class ActiveWorkStateTest {
         assertEquals(1, readOnlyActiveWork.get(shardedKey2.shardingKey()).size());
         activeWorkState.failWorkForKey(
             ImmutableList.of(
-                WorkIdWithShardingKey.builder()
-                    .setWorkToken(workToken)
-                    .setShardingKey(shardedKey1.shardingKey())
-                    .setCacheToken(cacheToken)
-                    .build(),
-                WorkIdWithShardingKey.builder()
-                    .setWorkToken(workToken)
-                    .setShardingKey(shardedKey2.shardingKey())
-                    .setCacheToken(cacheToken)
-                    .build()));
+                WorkIdWithShardingKey.create(
+                    shardedKey1.shardingKey(),
+                    WorkId.builder().setWorkToken(workToken).setCacheToken(cacheToken).build()),
+                WorkIdWithShardingKey.create(
+                    shardedKey2.shardingKey(),
+                    WorkId.builder().setWorkToken(workToken).setCacheToken(cacheToken).build())));
         assertTrue(firstValue(readOnlyActiveWork.get(shardedKey1.shardingKey())).work().isFailed());
         assertTrue(firstValue(readOnlyActiveWork.get(shardedKey2.shardingKey())).work().isFailed());
 

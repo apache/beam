@@ -24,9 +24,7 @@ import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatResponse;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 
 /**
  * Processes {@link ComputationHeartbeatResponse}(s). Marks {@link Work} that is invalid from
@@ -49,23 +47,16 @@ public final class WorkHeartbeatResponseProcessor
   public void accept(List<ComputationHeartbeatResponse> responses) {
     for (ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
       ImmutableList.Builder<WorkIdWithShardingKey> failedWorkBuilder = ImmutableList.builder();
-      // Maps sharding key to (work token, cache token) for work that should be marked failed.
-      Multimap<Long, WorkId> failedWork = ArrayListMultimap.create();
       for (HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
-          failedWorkBuilder.add(
-              WorkIdWithShardingKey.builder()
-                  .setShardingKey(heartbeatResponse.getShardingKey())
-                  .setWorkToken(heartbeatResponse.getWorkToken())
-                  .setCacheToken(heartbeatResponse.getCacheToken())
-                  .build());
-          failedWork.put(
-              heartbeatResponse.getShardingKey(),
+          WorkId workId =
               WorkId.builder()
                   .setWorkToken(heartbeatResponse.getWorkToken())
                   .setCacheToken(heartbeatResponse.getCacheToken())
-                  .build());
+                  .build();
+          failedWorkBuilder.add(
+              WorkIdWithShardingKey.create(heartbeatResponse.getShardingKey(), workId));
         }
       }
 

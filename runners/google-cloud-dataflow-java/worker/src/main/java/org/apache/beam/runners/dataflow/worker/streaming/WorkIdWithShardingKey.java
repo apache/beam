@@ -22,25 +22,11 @@ import com.google.auto.value.AutoValue;
 @AutoValue
 abstract class WorkIdWithShardingKey {
 
-  public static WorkIdWithShardingKey.Builder builder() {
-    return new AutoValue_WorkIdWithShardingKey.Builder();
+  public static WorkIdWithShardingKey create(long shardingKey, WorkId workId) {
+    return new AutoValue_WorkIdWithShardingKey(shardingKey, workId);
   }
 
   public abstract long shardingKey();
 
-  public abstract long cacheToken();
-
-  public abstract long workToken();
-
-  @AutoValue.Builder
-  public abstract static class Builder {
-
-    public abstract Builder setShardingKey(long value);
-
-    public abstract Builder setCacheToken(long value);
-
-    public abstract Builder setWorkToken(long value);
-
-    public abstract WorkIdWithShardingKey build();
-  }
+  public abstract WorkId workId();
 }

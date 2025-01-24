@@ -168,20 +168,21 @@ public final class ActiveWorkState {
    * @param failedWork a map from sharding_key to tokens for the corresponding work.
    */
   synchronized void failWorkForKey(ImmutableList<WorkIdWithShardingKey> failedWork) {
-    for (WorkIdWithShardingKey id : failedWork) {
-      Preconditions.checkNotNull(
-              Preconditions.checkNotNull(activeWork.get(id.shardingKey()))
-                  .get(
-                      WorkId.builder()
-                          .setWorkToken(id.workToken())
-                          .setCacheToken(id.cacheToken())
-                          .build()))
-          .work()
-          .setFailed();
+    for (WorkIdWithShardingKey failedId : failedWork) {
+      LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(failedId.shardingKey());
+      if (workQueue == null) {
+        // Work could complete/fail before heartbeat response arrives
+        continue;
+      }
+      ExecutableWork executableWork = workQueue.get(failedId.workId());
+      if (executableWork == null) {
+        continue;
+      }
+      executableWork.work().setFailed();
       LOG.debug(
           "Failing work {} {} The work will be retried and is not lost.",
           computationStateCache.getComputation(),
-          id);
+          failedId);
     }
   }
 
