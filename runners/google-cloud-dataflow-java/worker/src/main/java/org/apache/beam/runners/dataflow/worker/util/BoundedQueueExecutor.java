@@ -22,6 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
@@ -39,6 +40,7 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
   private final Object decrementQueueDrainLock = new Object();
+  private final AtomicBoolean decrementBatchOpen = new AtomicBoolean(false);
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
 
@@ -243,7 +245,14 @@ public class BoundedQueueExecutor {
     // counters. We do this to reduce contention on monitor which is locked by
     // GetWork thread
     decrementQueue.add(workBytes);
+    boolean submittedToExistingBatch = decrementBatchOpen.getAndSet(true);
+    if (submittedToExistingBatch) {
+      // There is already a thread about to drain the decrement queue
+      // Current thread does not need to drain.
+      return;
+    }
     synchronized (decrementQueueDrainLock) {
+      decrementBatchOpen.set(false);
       long bytesToDecrement = 0;
       int elementsToDecrement = 0;
       while (true) {
