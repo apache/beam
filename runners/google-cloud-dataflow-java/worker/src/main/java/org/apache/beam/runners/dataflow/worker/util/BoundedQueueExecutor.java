@@ -40,7 +40,7 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
   private final Object decrementQueueDrainLock = new Object();
-  private final AtomicBoolean decrementBatchOpen = new AtomicBoolean(false);
+  private final AtomicBoolean isDecrementBatchPending = new AtomicBoolean(false);
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
 
@@ -245,14 +245,21 @@ public class BoundedQueueExecutor {
     // counters. We do this to reduce contention on monitor which is locked by
     // GetWork thread
     decrementQueue.add(workBytes);
-    boolean submittedToExistingBatch = decrementBatchOpen.getAndSet(true);
+    boolean submittedToExistingBatch = isDecrementBatchPending.getAndSet(true);
     if (submittedToExistingBatch) {
       // There is already a thread about to drain the decrement queue
       // Current thread does not need to drain.
       return;
     }
     synchronized (decrementQueueDrainLock) {
-      decrementBatchOpen.set(false);
+      // Only threads that flipped isDecrementBatchPending to true from false will
+      // reach here, and they will process all updates that happened before setting
+      // isDecrementBatchPending back to false here.
+      //
+      // Any decrements queuing after setting isDecrementBatchPending to false
+      // here are not guaranteed to get processed by the current thread and will be
+      // picked up by other threads that flip isDecrementBatchPending to true.
+      isDecrementBatchPending.set(false);
       long bytesToDecrement = 0;
       int elementsToDecrement = 0;
       while (true) {
