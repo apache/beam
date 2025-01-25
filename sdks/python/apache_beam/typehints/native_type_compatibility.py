@@ -319,12 +319,6 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
     return typehints.Any
-  elif sys.version_info >= (3, 10) and isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
-    # Special case for NewType, where, since Python 3.10, NewType is now a class
-    # rather than a function.
-    # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
-    _LOGGER.info('Converting NewType type hint to Any: "%s"', typ)
-    return typehints.Any
   elif typ_module == 'apache_beam.typehints.native_type_compatibility' and \
       getattr(typ, "__name__", typ.__origin__.__name__) == 'TypedWindowedValue':
     # Need to pass through WindowedValue class so that it can be converted
