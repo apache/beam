@@ -39,17 +39,17 @@ from tenacity import wait_fixed
 from urllib.request import urlopen, Request, URLError, HTTPError
 
 SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla public license']
-RETRY_NUM = 9
-THREADS = 16
+RETRY_NUM = 12
+THREADS = 8
 
-# workaround of a breaking change introduced in tenacity 8.5+ 
+# workaround of a breaking change introduced in tenacity 8.5+
 # See https://github.com/jd/tenacity/issues/486
 def resolve_retry_number(retried_fn):
     return retried_fn.retry.statistics.get("attempt_number") or \
         retried_fn.statistics.get("attempt_number")
 
 @retry(reraise=True,
-       wait=wait_fixed(5),
+       wait=wait_fixed(10),
        stop=stop_after_attempt(RETRY_NUM))
 def pull_from_url(file_name, url, dep, no_list):
     if url == 'skip':
