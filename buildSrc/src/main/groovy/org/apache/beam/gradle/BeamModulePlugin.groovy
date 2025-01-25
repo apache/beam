@@ -2420,7 +2420,7 @@ class BeamModulePlugin implements Plugin<Project> {
           shadowClosure: GrpcVendoring_1_69_0.shadowClosure() << {
             // We perform all the code relocations but don't include
             // any of the actual dependencies since they will be supplied
-            // by org.apache.beam:beam-vendor-grpc-v1p60p1
+            // by org.apache.beam:beam-vendor-grpc-v1p69p0
             dependencies {
               include(dependency { return false })
             }
