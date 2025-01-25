@@ -166,6 +166,24 @@ class AnyTypeConstraintTestCase(TypeHintTestCase):
     self.assertCompatible(object, typehints.Any)
     self.assertCompatible(typehints.Any, object)
 
+  def test_newtype_compatibility(self):
+    UserID = typing.NewType('UserID', str)
+    SuperUserID = typing.NewType('SuperUserID', UserID)
+
+    self.assertCompatible(UserID, typehints.Any)
+    self.assertCompatible(typehints.Any, UserID)
+
+    self.assertCompatible(UserID, UserID)
+    self.assertCompatible(str, UserID)
+    self.assertNotCompatible(UserID, str)
+
+    self.assertCompatible(SuperUserID, SuperUserID)
+    self.assertCompatible(UserID, SuperUserID)
+    self.assertNotCompatible(SuperUserID, UserID)
+
+    self.assertCompatible(str, SuperUserID)
+    self.assertNotCompatible(SuperUserID, str)
+
   def test_int_float_complex_compatibility(self):
     self.assertCompatible(float, int)
     self.assertCompatible(complex, int)

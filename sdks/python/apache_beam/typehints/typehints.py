@@ -1287,6 +1287,15 @@ _KNOWN_PRIMITIVE_TYPES.update({
 })
 
 
+# newtype cases
+# is_consistent_with(sub=UserID, base=int)
+# is_consistent_with(sub=int, base=UserID)
+# is_consistent_with(sub=SuperUserID, base=UserID)
+# is_consistent_with(sub=UserID, base=SuperUserID)
+def _is_newtype(type_hint):
+  return hasattr(type_hint, '__supertype__')
+
+
 def is_consistent_with(sub, base):
   """Checks whether sub a is consistent with base.
 
@@ -1303,6 +1312,17 @@ def is_consistent_with(sub, base):
     return True
   if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
     return True
+  if _is_newtype(base) and not _is_newtype(sub):
+    return False  # non-newtypes are never subtypes of newtypes
+  if _is_newtype(sub):
+    supertypes = [sub.__supertype__]
+    while _is_newtype(supertypes[-1]):
+      supertypes.append(supertypes[-1].__supertype__)
+    if _is_newtype(base):
+      return base in supertypes
+    else:
+      return is_consistent_with(supertypes[-1], base)
+
   # Per PEP484, ints are considered floats and complexes and
   # floats are considered complexes.
   if sub is int and base in (float, complex):
