@@ -44,3 +44,275 @@ func TestEarliestCompletion(t *testing.T) {
 		}
 	}
 }
+
+func TestTriggers_isReady(t *testing.T) {
+	type io struct {
+		input      triggerInput
+		shouldFire bool
+	}
+	tests := []struct {
+		name   string
+		trig   Trigger
+		inputs []io
+	}{
+		{
+			name: "never", trig: &TriggerNever{},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 2}, false},
+				{triggerInput{newElementCount: 4}, false},
+			},
+		}, {
+			name: "count[1]", trig: &TriggerElementCount{ElementCount: 1},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, true},  // First should fire.
+				{triggerInput{newElementCount: 1}, false}, // Subsequent ones should not since the trigger is finished, and not reset.
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "count[2]", trig: &TriggerElementCount{ElementCount: 2},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false}, // Shouldn't fire because we havne't hit the threshold yet.
+				{triggerInput{newElementCount: 1}, true},  // Should fire, because the count will hit the threshold.
+				{triggerInput{newElementCount: 1}, false}, // Subsequent ones should not since the trigger is finished, and not reset.
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "count[2]_jumpover", trig: &TriggerElementCount{ElementCount: 2},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false}, // Shouldn't fire because we havne't hit the threshold yet.
+				{triggerInput{newElementCount: 2}, true},  // Should fire, because the count will hit and pass the threshold.
+				{triggerInput{newElementCount: 1}, false}, // Subsequent ones should not since the trigger is finished, and not reset.
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "count[2]_repeated", trig: &TriggerRepeatedly{&TriggerElementCount{ElementCount: 2}},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false}, // Shouldn't fire because we havne't hit the threshold yet.
+				{triggerInput{newElementCount: 2}, true},  // Should fire, because the count will hit and pass the threshold.
+				{triggerInput{newElementCount: 1}, false}, // Insufficient incrementing, so not fired.
+				{triggerInput{newElementCount: 1}, true},  // Threshold hit, it should fire.
+				{triggerInput{newElementCount: 2}, true},  // Automatically hit, it should fire.
+			},
+		}, {
+			name: "always", trig: &TriggerAlways{}, // Equivalent to Repeat { ElementCount(1) }
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, true},
+				{triggerInput{newElementCount: 2}, true},
+				{triggerInput{newElementCount: 4}, true},
+			},
+		}, {
+			name: "afterEach_2_1_3",
+			trig: &TriggerAfterEach{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerElementCount{1},
+					&TriggerElementCount{3},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // first is ready
+				{triggerInput{newElementCount: 1}, true}, // second is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},  // third is ready
+				{triggerInput{newElementCount: 1}, false}, // never resets after this.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "afterAny_2_3_4",
+			trig: &TriggerAfterAny{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerElementCount{3},
+					&TriggerElementCount{4},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},  // ElmCount 2 is ready
+				{triggerInput{newElementCount: 1}, false}, // Should never fire again as a result.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "afterAll_2_3_4",
+			trig: &TriggerAfterAll{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerElementCount{3},
+					&TriggerElementCount{4},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false}, // ElmCount 2 is ready
+				{triggerInput{newElementCount: 1}, false}, // ElmCount 3 is ready.
+				{triggerInput{newElementCount: 1}, true},  // ElmCount 4 is ready, so fire now.
+				{triggerInput{newElementCount: 1}, false}, // Should never fire again as a result.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "orFinally_2_7",
+			trig: &TriggerOrFinally{
+				Main:    &TriggerElementCount{2},
+				Finally: &TriggerElementCount{7},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},  // Main is ready
+				{triggerInput{newElementCount: 1}, true},  // Finally is Ready
+				{triggerInput{newElementCount: 1}, false}, // Should never fire again as a result.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "repeated_afterEach_2_1_3",
+			trig: &TriggerRepeatedly{&TriggerAfterEach{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerElementCount{1},
+					&TriggerElementCount{3},
+				},
+			}},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // first is ready
+				{triggerInput{newElementCount: 1}, true}, // second is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // third is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // first is ready again
+				{triggerInput{newElementCount: 1}, true}, // second is ready again
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // third is ready again
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "repeated_afterAny_2_3_4",
+			trig: &TriggerRepeatedly{&TriggerAfterAny{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerElementCount{3},
+					&TriggerElementCount{4},
+				},
+			}},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 2 is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 2 is ready again
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 2 is ready again
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 2 is ready again
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 2 is ready again
+			},
+		}, {
+			name: "repeated_afterAll_2_3_4",
+			trig: &TriggerRepeatedly{&TriggerAfterAll{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerElementCount{3},
+					&TriggerElementCount{4},
+				},
+			}},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false}, // ElmCount 2 is ready
+				{triggerInput{newElementCount: 1}, false}, // ElmCount 3 is ready.
+				{triggerInput{newElementCount: 1}, true},  // ElmCount 4 is ready, so fire now.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // all ready again.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
+			name: "repeated_orFinally_2_7",
+			trig: &TriggerRepeatedly{&TriggerOrFinally{
+				Main:    &TriggerElementCount{2},
+				Finally: &TriggerElementCount{7},
+			}},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+				{triggerInput{newElementCount: 1}, true}, // Finally is Ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Main is ready
+			},
+		}, {
+			name: "afterEndOfWindow_Early2",
+			trig: &TriggerAfterEndOfWindow{
+				Early: &TriggerElementCount{2},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // Early is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},                           // Early is ready
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // End of window
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
+			},
+		}, {
+			name: "afterEndOfWindow_EarlyNever_Late2",
+			trig: &TriggerAfterEndOfWindow{
+				Early: &TriggerNever{},
+				Late:  &TriggerElementCount{2},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // End of window
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := StateData{}
+			for i, in := range test.inputs {
+				if got, want := test.trig.isReady(in.input, &state), in.shouldFire; got != want {
+					t.Errorf("%v: %#v.isReady([%d]%+v)) = %v, want %v; state: %v", test.name, test.trig, i, in, got, want, state.Trigger)
+				}
+			}
+		})
+	}
+}
