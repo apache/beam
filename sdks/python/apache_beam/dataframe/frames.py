@@ -4232,8 +4232,10 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         projection=name)
 
   @frame_base.with_docs_from(DataFrameGroupBy)
-  def agg(self, fn, *args, **kwargs):
-    if _is_associative(fn):
+  def agg(self, fn=None, *args, **kwargs):
+    if fn is None:
+      return _agg_with_no_function(self._expr, **kwargs)
+    elif _is_associative(fn):
       return _liftable_agg(fn)(self, *args, **kwargs)
     elif _is_liftable_with_sum(fn):
       return _liftable_agg(fn, postagg_meth='sum')(self, *args, **kwargs)
@@ -4696,6 +4698,43 @@ def _check_str_or_np_builtin(agg_func, func_list):
       getattr(agg_func, '__name__', None) in func_list
       and agg_func.__module__ in ('numpy', 'builtins'))
 
+def _agg_with_no_function(expr, **kwargs):
+  if not kwargs:
+    raise ValueError("No aggregation functions specified")
+
+  # Handle dictionary-like input for aggregation.
+  result_columns, result_frames = [], []
+  for col_name, (input_col, agg_fn) in kwargs.items():
+    if not callable(agg_fn) and not isinstance(agg_fn, str):
+      raise ValueError(
+        f"Invalid aggregation function for column {col_name}: {agg_fn!r}"
+      )
+
+    # Create a ComputedExpression for each column aggregation and wrap it in
+    # a DeferredDataFrame.
+    result_columns.append(col_name)
+    result_frames.append(
+      DeferredDataFrame(
+        expressions.ComputedExpression(
+            f"agg_{col_name}",
+            lambda gb, ic=input_col, af=agg_fn: gb[ic].agg(af),
+            [expr],
+            requires_partition_by=partitionings.Index(),
+            preserves_partition_by=partitionings.Singleton(),
+        )
+      )
+    )
+
+  # Combine all the resulting DeferredDataFrames into a single DataFrame.
+  return DeferredDataFrame(
+      expressions.ComputedExpression(
+          "agg",
+          lambda *results: pd.concat(results, axis=1, keys=result_columns),
+          [frame._expr for frame in result_frames],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=partitionings.Singleton(),
+      )
+  )
 
 def _is_associative(agg_func):
   return _check_str_or_np_builtin(agg_func, LIFTABLE_AGGREGATIONS)
