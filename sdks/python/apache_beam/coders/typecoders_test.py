@@ -16,6 +16,7 @@
 #
 
 """Unit tests for the typecoders module."""
+import typing
 # pytype: skip-file
 
 import unittest
@@ -120,6 +121,12 @@ class TypeCodersTest(unittest.TestCase):
     values = [b'abc', b'xyz']
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(values), expected_coder.encode(values))
+
+  def test_newtype_coder(self):
+    UserID = typing.NewType('UserID', str)
+    expected_coder = typecoders.registry.get_coder(str)
+    real_coder = typecoders.registry.get_coder(UserID)
+    self.assertEqual(expected_coder, real_coder)
 
   @unittest.skip('https://github.com/apache/beam/issues/21658')
   def test_list_coder(self):

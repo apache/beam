@@ -129,6 +129,10 @@ class CoderRegistry(object):
       # See https://github.com/apache/beam/issues/21541
       # TODO(robertwb): Remove once all runners are portable.
       typehint = getattr(typehint, '__name__', str(typehint))
+    if hasattr(typehint, '__supertype__'):
+      # Typehint is a typing.NewType. We need to get the underlying type.
+      while hasattr(typehint, '__supertype__'):
+        typehint = typehint.__supertype__
     coder = self._coders.get(
         typehint.__class__
         if isinstance(typehint, typehints.TypeConstraint) else typehint,
