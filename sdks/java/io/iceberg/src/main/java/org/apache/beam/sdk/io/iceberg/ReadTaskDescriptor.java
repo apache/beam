@@ -45,6 +45,12 @@ abstract class ReadTaskDescriptor implements Serializable {
 
   abstract List<String> getFileScanTaskJsonList();
 
+  abstract long getTotalByteSize();
+
+  int numTasks() {
+    return getFileScanTaskJsonList().size();
+  }
+
   @SchemaIgnore
   CombinedScanTask getCombinedScanTask() {
     if (cachedCombinedScanTask == null) {
@@ -54,7 +60,7 @@ abstract class ReadTaskDescriptor implements Serializable {
   }
 
   @SchemaIgnore
-  List<FileScanTask> getFileScanTasks() {
+  private List<FileScanTask> getFileScanTasks() {
     if (cachedFileScanTasks == null) {
       cachedFileScanTasks =
           getFileScanTaskJsonList().stream()
@@ -64,11 +70,18 @@ abstract class ReadTaskDescriptor implements Serializable {
     return cachedFileScanTasks;
   }
 
+  @SchemaIgnore
+  FileScanTask getFileScanTask(long index) {
+    return getFileScanTasks().get((int) index);
+  }
+
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
 
     abstract Builder setFileScanTaskJsonList(List<String> fromSnapshot);
+
+    abstract Builder setTotalByteSize(long byteSize);
 
     @SchemaIgnore
     Builder setCombinedScanTask(CombinedScanTask combinedScanTask) {

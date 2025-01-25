@@ -31,15 +31,20 @@ class TableCache {
   private static final Cache<TableIdentifier, Table> CACHE =
       CacheBuilder.newBuilder().expireAfterWrite(3, TimeUnit.MINUTES).build();
 
-  static Table get(TableIdentifier identifier, Catalog catalog) throws ExecutionException {
-    return CACHE.get(identifier, () -> catalog.loadTable(identifier));
+  static Table get(TableIdentifier identifier, Catalog catalog) {
+    try {
+      return CACHE.get(identifier, () -> catalog.loadTable(identifier));
+    } catch (ExecutionException e) {
+      throw new RuntimeException(
+          "Encountered a problem fetching table " + identifier + " from cache.", e);
+    }
   }
 
-  static Table get(String identifier, Catalog catalog) throws ExecutionException {
+  static Table get(String identifier, Catalog catalog) {
     return get(TableIdentifier.parse(identifier), catalog);
   }
 
-  static Table getRefreshed(TableIdentifier identifier, Catalog catalog) throws ExecutionException {
+  static Table getRefreshed(TableIdentifier identifier, Catalog catalog) {
     @Nullable Table table = CACHE.getIfPresent(identifier);
     if (table == null) {
       return get(identifier, catalog);
@@ -49,7 +54,7 @@ class TableCache {
     return table;
   }
 
-  static Table getRefreshed(String identifier, Catalog catalog) throws ExecutionException {
+  static Table getRefreshed(String identifier, Catalog catalog) {
     return getRefreshed(TableIdentifier.parse(identifier), catalog);
   }
 }

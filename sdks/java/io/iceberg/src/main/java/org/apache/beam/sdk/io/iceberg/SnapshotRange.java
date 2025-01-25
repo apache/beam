@@ -23,33 +23,40 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class SnapshotRange implements Serializable {
-  public static Builder builder() {
+  private transient @MonotonicNonNull TableIdentifier cachedTableIdentifier;
+
+  static Builder builder() {
     return new AutoValue_SnapshotRange.Builder();
   }
 
-  abstract String getTable();
+  abstract String getTableIdentifierString();
 
-  abstract long getFromSnapshot();
+  abstract @Nullable Long getFromSnapshot();
 
   abstract long getToSnapshot();
 
   @SchemaIgnore
   public TableIdentifier getTableIdentifier() {
-    return TableIdentifier.parse(getTable());
+    if (cachedTableIdentifier == null) {
+      cachedTableIdentifier = TableIdentifier.parse(getTableIdentifierString());
+    }
+    return cachedTableIdentifier;
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setTable(String table);
+  abstract static class Builder {
+    abstract Builder setTableIdentifierString(String table);
 
-    public abstract Builder setFromSnapshot(Long fromSnapshot);
+    abstract Builder setFromSnapshot(@Nullable Long fromSnapshot);
 
-    public abstract Builder setToSnapshot(Long toSnapshot);
+    abstract Builder setToSnapshot(Long toSnapshot);
 
-    public abstract SnapshotRange build();
+    abstract SnapshotRange build();
   }
 }

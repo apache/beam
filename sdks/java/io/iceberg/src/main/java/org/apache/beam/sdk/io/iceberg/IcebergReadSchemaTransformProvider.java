@@ -91,15 +91,14 @@ public class IcebergReadSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       IcebergIO.ReadRows readRows =
           IcebergIO.readRows(configuration.getIcebergCatalog())
-              .from(TableIdentifier.parse(configuration.getTable()));
+              .from(TableIdentifier.parse(configuration.getTable()))
+              .fromSnapshotExclusive(configuration.getFromSnapshotExclusive())
+              .toSnapshot(configuration.getToSnapshot());
 
       @Nullable Integer triggeringFrequencySeconds = configuration.getTriggeringFrequencySeconds();
       if (triggeringFrequencySeconds != null) {
         readRows =
-            readRows
-                .fromSnapshotExclusive(configuration.getFromSnapshotExclusive())
-                .toSnapshot(configuration.getToSnapshot())
-                .withTriggeringFrequency(Duration.standardSeconds(triggeringFrequencySeconds));
+            readRows.withTriggeringFrequency(Duration.standardSeconds(triggeringFrequencySeconds));
       }
 
       PCollection<Row> output = input.getPipeline().apply(readRows);

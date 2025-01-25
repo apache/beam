@@ -460,11 +460,11 @@ public class IcebergIO {
               .setFromSnapshotExclusive(getFromSnapshotExclusive())
               .setToSnapshot(getToSnapshot())
               .build();
-
-      @Nullable Duration triggeringFrequency = getTriggeringFrequency();
-      if (triggeringFrequency != null) {
+      if (getTriggeringFrequency() != null
+          || scanConfig.getToSnapshot() != null
+          || scanConfig.getFromSnapshotExclusive() != null) {
         return input
-            .apply(new IncrementalScanSource(scanConfig, triggeringFrequency))
+            .apply(new IncrementalScanSource(scanConfig, getTriggeringFrequency()))
             .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
       }
 

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -30,12 +31,13 @@ import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.CloseableIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Creates a collection of {@link FileScanTask}s for each {@link SnapshotRange}. Each task
- * represents a data file that was appended within a given snapshot range.
+ * represents a portion of a data file that was appended within a given snapshot range.
  */
 class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
   private static final Logger LOG = LoggerFactory.getLogger(CreateReadTasksDoFn.class);
@@ -51,23 +53,28 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
   public void process(@Element SnapshotRange range, OutputReceiver<ReadTaskDescriptor> out)
       throws IOException, ExecutionException {
     Table table = TableCache.get(range.getTableIdentifier(), catalogConfig.catalog());
-
-    long fromSnapshot = range.getFromSnapshot();
+    @Nullable Long fromSnapshot = range.getFromSnapshot();
     long toSnapshot = range.getToSnapshot();
 
     LOG.info("Planning to scan snapshot range ({}, {}]", fromSnapshot, toSnapshot);
     IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
-    if (fromSnapshot > -1) {
+    if (fromSnapshot != null) {
       scan = scan.fromSnapshotExclusive(fromSnapshot);
     }
     try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
       List<FileScanTask> taskList = new ArrayList<>();
-      combinedScanTasks.forEach(combined -> taskList.addAll(combined.tasks()));
+      AtomicLong byteSize = new AtomicLong();
+      combinedScanTasks.forEach(
+          combined -> {
+            taskList.addAll(combined.tasks());
+            byteSize.addAndGet(combined.sizeBytes());
+          });
 
       ReadTaskDescriptor taskDescriptor =
           ReadTaskDescriptor.builder()
-              .setTableIdentifierString(range.getTable())
+              .setTableIdentifierString(range.getTableIdentifierString())
               .setCombinedScanTask(new BaseCombinedScanTask(taskList))
+              .setTotalByteSize(byteSize.get())
               .build();
       numFileScanTasks.inc(taskList.size());
       out.output(taskDescriptor);

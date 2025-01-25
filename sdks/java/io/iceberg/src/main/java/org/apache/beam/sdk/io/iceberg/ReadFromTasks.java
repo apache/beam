@@ -41,8 +41,10 @@ import org.apache.iceberg.parquet.Parquet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Reads Iceberg {@link Record}s from a {@link FileScanTask} and converts to Beam {@link Row}s
- * before outputting.
+ * An SDF that operates on a collection of {@link FileScanTask}s. For each task, reads Iceberg
+ * {@link Record}s, and converts to Beam {@link Row}s.
+ *
+ * <p>Can split
  */
 @DoFn.BoundedPerElement
 class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
@@ -79,7 +81,7 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
       if (!tracker.tryClaim(taskIndex)) {
         return;
       }
-      FileScanTask task = taskDescriptor.getFileScanTasks().get((int) taskIndex);
+      FileScanTask task = taskDescriptor.getFileScanTask(taskIndex);
       InputFile inputFile = decryptor.getInputFile(task);
 
       Map<Integer, ?> idToConstants =
@@ -107,7 +109,7 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
 
   @GetInitialRestriction
   public OffsetRange getInitialRange(@Element ReadTaskDescriptor taskDescriptor) {
-    return new OffsetRange(0, taskDescriptor.getFileScanTaskJsonList().size());
+    return new OffsetRange(0, taskDescriptor.numTasks());
   }
 
   @GetSize
@@ -116,7 +118,7 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
       throws Exception {
     double size = 0;
     for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
-      size += taskDescriptor.getFileScanTasks().get((int) i).sizeBytes();
+      size += taskDescriptor.getFileScanTask(i).sizeBytes();
     }
     return size;
   }

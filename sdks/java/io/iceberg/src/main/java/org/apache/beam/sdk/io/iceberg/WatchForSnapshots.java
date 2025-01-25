@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Watch;
@@ -32,16 +32,17 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Watches for Iceberg table {@link org.apache.iceberg.Snapshot}s and continuously outputs a range
- * of snapshots.
+ * Keeps watches over an Iceberg table continuously outputs a range of snapshots, at the specified
+ * triggering frequency.
  *
- * <p>Downstream, a collection of scan tasks are created for each range.
+ * <p>A downstream transform will create a list of scan tasks for each range.
  */
 class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
   private final Duration pollInterval;
@@ -55,77 +56,65 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
   @Override
   public PCollection<SnapshotRange> expand(PBegin input) {
     return input
-        .apply(Impulse.create())
+        .apply(Create.of(scanConfig.getTableIdentifier()))
         .apply(
-            "Watch for snapshots",
+            "Watch for Snapshots",
             Watch.growthOf(new SnapshotPollFn(scanConfig)).withPollInterval(pollInterval))
         .apply(
-            "Create snapshot intervals",
-            MapElements.into(TypeDescriptor.of(SnapshotRange.class))
-                .via(
-                    result -> {
-                      long from = result.getValue().getKey();
-                      long to = result.getValue().getValue();
-
-                      return SnapshotRange.builder()
-                          .setTable(scanConfig.getTableIdentifier())
-                          .setFromSnapshot(from)
-                          .setToSnapshot(to)
-                          .build();
-                    }));
+            "Strip key",
+            MapElements.into(TypeDescriptor.of(SnapshotRange.class)).via(KV::getValue));
   }
 
-  private static class SnapshotPollFn extends Watch.Growth.PollFn<byte[], KV<Long, Long>> {
+  private static class SnapshotPollFn extends Watch.Growth.PollFn<String, SnapshotRange> {
     private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
     private final IcebergScanConfig scanConfig;
-    private Long fromSnapshot;
+    private @Nullable Long fromSnapshot;
 
     SnapshotPollFn(IcebergScanConfig scanConfig) {
       this.scanConfig = scanConfig;
-      this.fromSnapshot =
-          scanConfig.getFromSnapshotExclusive() != null
-              ? scanConfig.getFromSnapshotExclusive()
-              : -1;
+      this.fromSnapshot = scanConfig.getFromSnapshotExclusive();
     }
 
     @Override
-    public PollResult<KV<Long, Long>> apply(byte[] element, Context c) throws Exception {
+    public PollResult<SnapshotRange> apply(String tableIdentifier, Context c) {
       // fetch a fresh table to catch updated snapshots
       Table table =
-          TableCache.getRefreshed(
-              scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
+          TableCache.getRefreshed(tableIdentifier, scanConfig.getCatalogConfig().catalog());
       Instant timestamp = Instant.now();
 
       Long currentSnapshot = table.currentSnapshot().snapshotId();
       if (currentSnapshot.equals(fromSnapshot)) {
-        // no new values since last poll. return empty result.
+        // no new snapshot since last poll. return empty result.
         return getPollResult(null, timestamp);
       }
 
-      // we are reading data either up to a specified snapshot or up to the latest available
-      // snapshot
-      Long toSnapshot =
-          scanConfig.getToSnapshot() != null ? scanConfig.getToSnapshot() : currentSnapshot;
+      // if no upper bound is specified, we read up to the current snapshot
+      Long toSnapshot = MoreObjects.firstNonNull(scanConfig.getSnapshot(), currentSnapshot);
       latestSnapshot.set(toSnapshot);
 
-      KV<Long, Long> fromTo = KV.of(fromSnapshot, toSnapshot);
+      SnapshotRange range =
+          SnapshotRange.builder()
+              .setFromSnapshot(fromSnapshot)
+              .setToSnapshot(toSnapshot)
+              .setTableIdentifierString(tableIdentifier)
+              .build();
 
       // update lower bound to current snapshot
       fromSnapshot = currentSnapshot;
 
-      return getPollResult(fromTo, timestamp);
+      return getPollResult(range, timestamp);
     }
 
     /** Returns an appropriate PollResult based on the requested boundedness. */
-    private PollResult<KV<Long, Long>> getPollResult(
-        @Nullable KV<Long, Long> fromTo, Instant timestamp) {
-      List<TimestampedValue<KV<Long, Long>>> timestampedValues =
-          fromTo == null
+    private PollResult<SnapshotRange> getPollResult(
+        @Nullable SnapshotRange range, Instant timestamp) {
+      List<TimestampedValue<SnapshotRange>> timestampedValues =
+          range == null
               ? Collections.emptyList()
-              : Collections.singletonList(TimestampedValue.of(fromTo, timestamp));
+              : Collections.singletonList(TimestampedValue.of(range, timestamp));
 
       return scanConfig.getToSnapshot() != null
-          ? PollResult.complete(timestampedValues) // stop at specified
+          ? PollResult.complete(timestampedValues) // stop at specified snapshot
           : PollResult.incomplete(timestampedValues); // continue forever
     }
   }

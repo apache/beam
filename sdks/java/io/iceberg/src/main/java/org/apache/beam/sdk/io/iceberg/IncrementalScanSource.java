@@ -17,33 +17,58 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.iceberg.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * An unbounded source that polls for new {@link org.apache.iceberg.Snapshot}s and performs {@link
- * org.apache.iceberg.IncrementalAppendScan}s to create a list of {@link
- * org.apache.iceberg.FileScanTask}s for each range of snapshots. An SDF is used to process each
- * file and output its rows.
+ * An incremental Iceberg source that reads range(s) of table Snapshots. The unbounded
+ * implementation will continuously poll for new Snapshots at a specified frequency. For each range
+ * of Snapshots, the transform will create a list of FileScanTasks. An SDF is used to process each
+ * task and output its rows.
  */
 class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
-  private final Duration pollInterval;
+  private final @Nullable Duration pollInterval;
   private final IcebergScanConfig scanConfig;
 
-  IncrementalScanSource(IcebergScanConfig scanConfig, Duration pollInterval) {
+  IncrementalScanSource(IcebergScanConfig scanConfig, @Nullable Duration pollInterval) {
     this.scanConfig = scanConfig;
     this.pollInterval = pollInterval;
   }
 
   @Override
   public PCollection<Row> expand(PBegin input) {
-    return input
-        .apply(new WatchForSnapshots(scanConfig, pollInterval))
-        .apply(ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
-        .apply(ParDo.of(new ReadFromTasks(scanConfig.getCatalogConfig())));
+    PCollection<SnapshotRange> snapshotRanges;
+    if (pollInterval != null) { // unbounded
+      snapshotRanges = input.apply(new WatchForSnapshots(scanConfig, pollInterval));
+    } else { // bounded
+      @Nullable Long to = scanConfig.getToSnapshot();
+      if (to == null) {
+        Table table =
+            TableCache.getRefreshed(
+                scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
+        to = table.currentSnapshot().snapshotId();
+      }
+      snapshotRanges =
+          input.apply(
+              "Create Single Snapshot Range",
+              Create.of(
+                  SnapshotRange.builder()
+                      .setTableIdentifierString(scanConfig.getTableIdentifier())
+                      .setFromSnapshot(scanConfig.getFromSnapshotExclusive())
+                      .setToSnapshot(to)
+                      .build()));
+    }
+
+    return snapshotRanges
+        .apply(
+            "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
+        .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig.getCatalogConfig())));
   }
 }
