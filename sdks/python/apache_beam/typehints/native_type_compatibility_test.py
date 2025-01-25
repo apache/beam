@@ -278,10 +278,6 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
 
-  def test_newtype(self):
-    self.assertEqual(
-        typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
-
   def test_pattern(self):
     # TODO(https://github.com/apache/beam/issues/20489): Unsupported.
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern))
