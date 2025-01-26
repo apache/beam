@@ -146,9 +146,16 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
         Partitioner partitioner = getPartitioner(context);
-        if (context.isCandidateForGroupByKeyAndWindow(transform)
+        boolean enableHugeValuesTranslation =
+            context
+                .getOptions()
+                .as(SparkPipelineOptions.class)
+                .getPreferGroupByKeyToHandleHugeValues();
+        if (enableHugeValuesTranslation
+            && context.isCandidateForGroupByKeyAndWindow(transform)
             && GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
-          // we can have a memory sensitive translation for non-merging windows
+          // we prefer memory sensitive translation of GBK which can support large values per
+          // key and does not require them to fit into memory
           groupedByKey =
               GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
                   inRDD, keyCoder, coder.getValueCoder(), windowingStrategy, partitioner);
