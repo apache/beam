@@ -117,21 +117,22 @@ func (t *TriggerAfterAll) isReady(input triggerInput, state *StateData) bool {
 	if ts.finished {
 		return false
 	}
-	// Track fired states.
-	if ts.extra == nil {
-		ts.extra = map[Trigger]bool{}
-	}
-	isFinished := ts.extra.(map[Trigger]bool)
+	finishedCount := 0
 	for _, t := range t.SubTriggers {
 		// Don't re-evaluate.
-		if isFinished[t] {
+		if state.getTriggerState(t).finished {
+			finishedCount++
 			continue
 		}
+		// If this trigger ever becomes ready, mark it finished, since triggerAfterAll only fires once anyway.
 		if t.isReady(input, state) {
-			isFinished[t] = true
+			finishedCount++
+			sts := state.getTriggerState(t)
+			sts.finished = true
+			state.setTriggerState(t, sts)
 		}
 	}
-	ready := len(isFinished) == len(t.SubTriggers)
+	ready := finishedCount == len(t.SubTriggers)
 	if ready {
 		ts.finished = true
 	}
@@ -185,6 +186,8 @@ func (t *TriggerAfterAny) reset(state *StateData) {
 // TriggerAfterEach processes each trigger before executing the next.
 // Starting with the first subtrigger, ready when the _current_ subtrigger
 // is ready. After output, advances the current trigger by one.
+//
+// TriggerAfterEach stores the current trigger index in it's extra state field.
 type TriggerAfterEach struct {
 	SubTriggers []Trigger
 }
@@ -221,6 +224,8 @@ func (t *TriggerAfterEach) reset(state *StateData) {
 
 // TriggerElementCount triggers when there have been at least the required number
 // of elements have arrived.
+//
+// TriggerElementCount stores the current element count in it's extra state field.
 type TriggerElementCount struct {
 	ElementCount int
 }

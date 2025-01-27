@@ -165,6 +165,26 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1}, false},
 			},
 		}, {
+			name: "afterAll_afterEach_3_never",
+			trig: &TriggerAfterAll{
+				SubTriggers: []Trigger{
+					&TriggerAfterEach{SubTriggers: []Trigger{&TriggerElementCount{3}, &TriggerNever{}}},
+					&TriggerElementCount{5},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false}, // ElmCount 2 is ready
+				{triggerInput{newElementCount: 1}, false}, // AfterEach(ElmCount 3) is ready,
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},  // ElmCount 5 is ready, so fire now.
+				{triggerInput{newElementCount: 1}, false}, // Should never fire again as a result.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
 			name: "orFinally_2_7",
 			trig: &TriggerOrFinally{
 				Main:    &TriggerElementCount{2},

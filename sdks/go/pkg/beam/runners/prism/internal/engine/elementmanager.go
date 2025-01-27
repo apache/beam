@@ -1395,7 +1395,9 @@ keysPerBundle:
 				break
 			}
 			e := heap.Pop(&dnt.elements).(element)
-			if e.IsTimer() {
+			if e.IsData() {
+				dataInBundle = true
+			} else {
 				lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
 				if !ok {
 					timerCleared = true
@@ -1405,11 +1407,9 @@ keysPerBundle:
 					timerCleared = true
 					continue
 				}
-				holdsInBundle[e.holdTimestamp] += 1
+				holdsInBundle[e.holdTimestamp]++
 				// Clear the "fired" timer so subsequent matches can be ignored.
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
-			} else {
-				dataInBundle = true
 			}
 			toProcess = append(toProcess, e)
 			if OneElementPerKey {
