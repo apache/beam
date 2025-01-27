@@ -33,7 +33,10 @@ def avatica_version = "1.25.0"
 dependencies {
     // dependencies needed to run with iceberg's hive catalog
     // these dependencies are going to be included in io-expansion-service
-    runtimeOnly ("org.apache.hive:hive-iceberg-catalog:$hive_version")
+    runtimeOnly ("org.apache.hive:hive-iceberg-handler:$hive_version") {
+        // prefer to use unshaded hive-exec
+        exclude group: "org.apache.hive", module: "hive-exec"
+    }
     // analyzeClassesDependencies fails with "Cannot accept visitor on URL", likely the plugin does not recognize "core" classifier
     // use "core" classifier to depend on un-shaded jar
     runtimeOnly ("org.apache.hive:hive-exec:$hive_version:core") {
