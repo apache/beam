@@ -626,6 +626,8 @@ class MainTest(unittest.TestCase):
             size: 4
           input: {{input: input}}
       output: {result['transforms'][0]['__uuid__']}
+      config: 
+        error_handling: {{}}
     '''
     self.assertYaml(expected, result)
 
@@ -747,6 +749,8 @@ class MainTest(unittest.TestCase):
             type: fixed
             size: 4
       output: {result['transforms'][1]["__uuid__"]}
+      config: 
+        error_handling: {{}}
     '''
     self.maxDiff = 1e9
 

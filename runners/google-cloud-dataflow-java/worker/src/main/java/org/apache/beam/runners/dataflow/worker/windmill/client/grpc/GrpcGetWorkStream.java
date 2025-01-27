@@ -36,7 +36,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Thrott
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,6 +185,7 @@ final class GrpcGetWorkStream
         assembledWorkItem.computationMetadata().inputDataWatermark(),
         assembledWorkItem.computationMetadata().synchronizedProcessingTime(),
         assembledWorkItem.workItem(),
+        assembledWorkItem.bufferedSize(),
         assembledWorkItem.latencyAttributions());
 
     // Record the fact that there are now fewer outstanding messages and bytes on the stream.

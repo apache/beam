@@ -46,14 +46,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Thrott
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.util.MutableHandlerRegistry;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
@@ -67,7 +67,11 @@ import org.junit.runners.JUnit4;
 public class GrpcDirectGetWorkStreamTest {
 
   private static final WorkItemScheduler NO_OP_WORK_ITEM_SCHEDULER =
-      (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
+      (workItem,
+          serializedWorkItemSize,
+          watermarks,
+          processingContext,
+          getWorkStreamLatencies) -> {};
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
           .setClientId(1L)
@@ -282,7 +286,11 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
     Windmill.WorkItem workItem =
@@ -327,7 +335,7 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) ->
+            (work, serializedWorkItemSize, watermarks, processingContext, getWorkStreamLatencies) ->
                 scheduledWorkItems.add(work));
     Windmill.WorkItem workItem =
         Windmill.WorkItem.newBuilder()
@@ -362,7 +370,11 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
     Windmill.WorkItem workItem1 =
@@ -400,7 +412,11 @@ public class GrpcDirectGetWorkStreamTest {
             testStub,
             initialBudget,
             new ThrottleTimer(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
     Windmill.WorkItem workItem1 =

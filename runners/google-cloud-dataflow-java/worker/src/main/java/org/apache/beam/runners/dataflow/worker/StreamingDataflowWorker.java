@@ -254,7 +254,11 @@ public final class StreamingDataflowWorker {
                   .setBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               windmillStreamFactory,
-              (workItem, watermarks, processingContext, getWorkStreamLatencies) ->
+              (workItem,
+                  serializedWorkItemSize,
+                  watermarks,
+                  processingContext,
+                  getWorkStreamLatencies) ->
                   computationStateCache
                       .get(processingContext.computationId())
                       .ifPresent(
@@ -263,6 +267,7 @@ public final class StreamingDataflowWorker {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
+                                serializedWorkItemSize,
                                 watermarks,
                                 processingContext,
                                 getWorkStreamLatencies);

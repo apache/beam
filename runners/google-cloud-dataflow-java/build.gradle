@@ -118,7 +118,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_grpc_1_69_0
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -840,7 +840,7 @@ def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDist
   }
   dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroess",
           root: "apache",
           tag: project.sdk_version)
   doLast {

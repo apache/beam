@@ -45,7 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -260,6 +260,7 @@ final class GrpcDirectGetWorkStream
         assembledWorkItem.computationMetadata();
     workItemScheduler.scheduleWork(
         workItem,
+        assembledWorkItem.bufferedSize(),
         createWatermarks(workItem, metadata),
         createProcessingContext(metadata.computationId()),
         assembledWorkItem.latencyAttributions());

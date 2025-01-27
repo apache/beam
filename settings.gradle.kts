@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.18.2"
+  id("com.gradle.develocity") version "3.19"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.2"
 }
 
@@ -315,7 +315,6 @@ include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:grpc-1_60_1")
 include(":vendor:grpc-1_69_0")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-32_1_2-jre")

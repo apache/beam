@@ -78,23 +78,24 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShu
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptors;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Deadline;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptors;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Deadline;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -337,7 +338,8 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
+                long serializedWorkItemSize,
+                ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
@@ -469,7 +471,8 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
+                long serializedWorkItemSize,
+                ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
@@ -1341,7 +1344,8 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 Windmill.WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
+                long serializedWorkItemSize,
+                ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
     // Wait for 100 items or 30 seconds.
     assertTrue(latch.await(30, TimeUnit.SECONDS));
     // Confirm that we report at least as much throttle time as our server sent errors for.  We will
@@ -1385,7 +1389,7 @@ public class GrpcWindmillServerTest {
     // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
     // GET_WORK_IN_TRANSIT_TO_USER_WORKER: 34, 33, 32, 31 -> sum to 130
     Map<State, LatencyAttribution> latencies = new HashMap<>();
-    List<LatencyAttribution> attributions = tracker.getLatencyAttributions();
+    ImmutableList<LatencyAttribution> attributions = tracker.getLatencyAttributions();
     assertEquals(3, attributions.size());
     for (LatencyAttribution attribution : attributions) {
       latencies.put(attribution.getState(), attribution);
@@ -1437,7 +1441,7 @@ public class GrpcWindmillServerTest {
     // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
     // GET_WORK_IN_TRANSIT_TO_USER_WORKER: not observed due to skew
     Map<State, LatencyAttribution> latencies = new HashMap<>();
-    List<LatencyAttribution> attributions = tracker.getLatencyAttributions();
+    ImmutableList<LatencyAttribution> attributions = tracker.getLatencyAttributions();
     assertEquals(2, attributions.size());
     for (LatencyAttribution attribution : attributions) {
       latencies.put(attribution.getState(), attribution);

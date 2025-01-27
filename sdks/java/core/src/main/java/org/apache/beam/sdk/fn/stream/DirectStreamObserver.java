@@ -21,8 +21,8 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private final int maxMessagesBeforeCheck;
 
   private final Object lock = new Object();
-  private int numMessages = -1;
+  private int numMessages;
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
     this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
@@ -69,7 +69,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   @Override
   public void onNext(T value) {
     synchronized (lock) {
-      if (++numMessages >= maxMessagesBeforeCheck) {
+      if (numMessages >= maxMessagesBeforeCheck) {
         numMessages = 0;
         int waitSeconds = 1;
         int totalSecondsWaited = 0;
@@ -114,6 +114,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         }
       }
       outboundObserver.onNext(value);
+      numMessages += 1;
     }
   }
 

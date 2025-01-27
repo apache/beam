@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,9 +35,10 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -56,13 +56,16 @@ public class StreamingApplianceWorkCommitterTest {
   private StreamingApplianceWorkCommitter workCommitter;
 
   private static Work createMockWork(long workToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder()
+    WorkItem workItem =
+        WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setWorkToken(workToken)
             .setCacheToken(1L)
             .setShardingKey(2L)
-            .build(),
+            .build();
+    return Work.create(
+        workItem,
+        workItem.getSerializedSize(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
             "computationId",
@@ -71,8 +74,7 @@ public class StreamingApplianceWorkCommitterTest {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
-        Instant::now,
-        Collections.emptyList());
+        Instant::now);
   }
 
   private static ComputationState createComputationState(String computationId) {
