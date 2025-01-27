@@ -154,7 +154,6 @@ else:
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
-# must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
@@ -400,7 +399,7 @@ if __name__ == '__main__':
               'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
-              'pandas<2.3.0',
+              'pandas<2.2.0',
               'openai'
           ],
           'test': [
@@ -409,7 +408,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.3.0',
+              'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'requests_mock>=1.7,<2.0',
