@@ -25,16 +25,13 @@ implementations of the same transforms, the configs must be kept in sync.
 
 import io
 import os
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Mapping
 from typing import Optional
-from typing import Tuple
 
 import fastavro
-import yaml
 
 import apache_beam as beam
 import apache_beam.io as beam_io
@@ -110,7 +107,7 @@ def read_from_bigquery(
     row_restriction (str): Optional SQL text filtering statement, similar to a
       WHERE clause in a query. Aggregates are not supported. Restricted to a
       maximum length for 1 MB.
-    selected_fields (List[str]): Optional List of names of the fields in the
+    selected_fields (list[str]): Optional List of names of the fields in the
       table that should be read. If empty, all fields will be read. If the
       specified field is a nested field, all the sub-fields in the field will be
       selected. The output field order is unrelated to the order of fields
@@ -211,7 +208,7 @@ def write_to_bigquery(
 
 def _create_parser(
     format,
-    schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
+    schema: Any) -> tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
 
   format = format.upper()
 
@@ -355,7 +352,7 @@ def read_from_pubsub(
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
   payload_schema, parser = _create_parser(format, schema)
-  extra_fields: List[schema_pb2.Field] = []
+  extra_fields: list[schema_pb2.Field] = []
   if not attributes and not attributes_map:
     mapper = lambda msg: parser(msg)
   else:
@@ -443,7 +440,7 @@ def write_to_pubsub(
   """
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 
-  extra_fields: List[str] = []
+  extra_fields: list[str] = []
   if isinstance(attributes, str):
     attributes = [attributes]
   if attributes:
@@ -484,6 +481,96 @@ def write_to_pubsub(
           timestamp_attribute=timestamp_attribute))
 
 
+def read_from_iceberg(
+    table: str,
+    catalog_name: Optional[str] = None,
+    catalog_properties: Optional[Mapping[str, str]] = None,
+    config_properties: Optional[Mapping[str, str]] = None,
+):
+  # TODO(robertwb): It'd be nice to derive this list of parameters, along with
+  # their types and docs, programmatically from the iceberg (or managed)
+  # schemas.
+
+  """Reads an Apache Iceberg table.
+
+  See also the [Apache Iceberg Beam documentation](
+  https://cloud.google.com/dataflow/docs/guides/managed-io#iceberg).
+
+  Args:
+    table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    catalog_name: The name of the catalog. Example: "local".
+    catalog_properties: A map of configuration properties for the Apache Iceberg
+      catalog.
+      The required properties depend on the catalog. For more information, see
+      CatalogUtil in the Apache Iceberg documentation.
+    config_properties: An optional set of Hadoop configuration properties.
+      For more information, see CatalogUtil in the Apache Iceberg documentation.
+  """
+  return beam.managed.Read(
+      "iceberg",
+      config=dict(
+          table=table,
+          catalog_name=catalog_name,
+          catalog_properties=catalog_properties,
+          config_properties=config_properties))
+
+
+def write_to_iceberg(
+    table: str,
+    catalog_name: Optional[str] = None,
+    catalog_properties: Optional[Mapping[str, str]] = None,
+    config_properties: Optional[Mapping[str, str]] = None,
+    triggering_frequency_seconds: Optional[int] = None,
+    keep: Optional[Iterable[str]] = None,
+    drop: Optional[Iterable[str]] = None,
+    only: Optional[str] = None,
+):
+  # TODO(robertwb): It'd be nice to derive this list of parameters, along with
+  # their types and docs, programmatically from the iceberg (or managed)
+  # schemas.
+
+  """Writes to an Apache Iceberg table.
+
+  See also the [Apache Iceberg Beam documentation](
+  https://cloud.google.com/dataflow/docs/guides/managed-io#iceberg)
+  including the [dynamic destinations section](
+  https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations)
+  for use of the keep, drop, and only parameters.
+
+  Args:
+    table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    catalog_name: The name of the catalog. Example: "local".
+    catalog_properties: A map of configuration properties for the Apache Iceberg
+      catalog.
+      The required properties depend on the catalog. For more information, see
+      CatalogUtil in the Apache Iceberg documentation.
+    config_properties: An optional set of Hadoop configuration properties.
+      For more information, see CatalogUtil in the Apache Iceberg documentation.
+    triggering_frequency_seconds: For streaming write pipelines, the frequency
+      at which the sink attempts to produce snapshots, in seconds.
+
+    keep: An optional list of field names to keep when writing to the
+      destination. Other fields are dropped. Mutually exclusive with drop
+      and only.
+    drop: An optional list of field names to drop before writing to the
+        destination. Mutually exclusive with keep and only.
+    only: The name of exactly one field to keep as the top level record when
+      writing to the destination. All other fields are dropped. This field must
+      be of row type. Mutually exclusive with drop and keep.
+  """
+  return beam.managed.Write(
+      "iceberg",
+      config=dict(
+          table=table,
+          catalog_name=catalog_name,
+          catalog_properties=catalog_properties,
+          config_properties=config_properties,
+          triggering_frequency_seconds=triggering_frequency_seconds,
+          keep=keep,
+          drop=drop,
+          only=only))
+
+
 def io_providers():
-  with open(os.path.join(os.path.dirname(__file__), 'standard_io.yaml')) as fin:
-    return yaml_provider.parse_providers(yaml.load(fin, Loader=yaml.SafeLoader))
+  return yaml_provider.load_providers(
+      os.path.join(os.path.dirname(__file__), 'standard_io.yaml'))

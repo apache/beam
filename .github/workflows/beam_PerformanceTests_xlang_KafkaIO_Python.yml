@@ -23,12 +23,12 @@ on:
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: write
-  checks: write
+  pull-requests: read
+  checks: read
   contents: read
   deployments: read
   id-token: none
-  issues: write
+  issues: read
   discussions: read
   packages: read
   pages: read
@@ -42,24 +42,25 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
-  beam_PerformanceTests_xlang_KafkaIO_Python:
+  # Using 'PerfTests' instead of 'PerformanceTests' to comply with Kafka Strimzi's name length limitations.
+  beam_PerfTests_xlang_KafkaIO_Python:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python xlang KafkaIO Performance Test'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PerformanceTests_xlang_KafkaIO_Python"]
+        job_name: ["beam_PerfTests_xlang_KafkaIO_Python"]
         job_phrase: ["Run Python xlang KafkaIO Performance Test"]
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +77,7 @@ jobs:
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
         with:
-          cluster_name: beam-utility
+          cluster_name: kafka-workflows
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
           cluster_zone: us-central1
       - name: Install Kafka
@@ -119,4 +120,4 @@ jobs:
             -Prunner=DataflowRunner \
             -PloadTest.mainClass=apache_beam.io.external.xlang_kafkaio_perf_test \
             -PpythonVersion=3.9 \
-            '-PloadTest.args=${{ env.beam_PerformanceTests_xlang_KafkaIO_Python_test_arguments_1 }}'
+            '-PloadTest.args=${{ env.beam_PerfTests_xlang_KafkaIO_Python_test_arguments_1 }}'

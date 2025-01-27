@@ -118,7 +118,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_grpc_1_69_0
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -831,4 +831,37 @@ task GCSUpload(type: JavaExec) {
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
        "--filesToStage=${testFilesToStage}"
+}
+
+def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
+  def javaVer = getSupportedJavaVersion()
+  if(project.hasProperty('testJavaVersion')) {
+    javaVer = "java${project.getProperty('testJavaVersion')}"
+  }
+  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
+  def defaultDockerImageName = containerImageName(
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroess",
+          root: "apache",
+          tag: project.sdk_version)
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
+    }
+  }
+}
+
+task examplesJavaDistrolessRunnerV2PreCommit(type: Test) {
+  group = "Verification"
+  dependsOn buildAndPushDistrolessDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }

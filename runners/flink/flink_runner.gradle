@@ -168,7 +168,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_grpc_1_69_0
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
@@ -236,6 +236,8 @@ class ValidatesRunnerConfig {
 def sickbayTests = [
         // TODO(https://github.com/apache/beam/issues/21306)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+        // TODO(https://github.com/apache/beam/issues/18198)
+        'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
 ]
 
 def createValidatesRunnerTask(Map m) {

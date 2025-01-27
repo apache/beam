@@ -34,8 +34,8 @@ import itertools
 import logging
 import math
 import typing
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
 from typing import List
 from typing import Tuple
 
@@ -321,8 +321,8 @@ class ApproximateQuantiles(object):
     }
 
   @typehints.with_input_types(
-      typehints.Union[typing.Sequence[T], typing.Tuple[T, float]])
-  @typehints.with_output_types(typing.List[T])
+      typehints.Union[typing.Sequence[T], Tuple[T, float]])
+  @typehints.with_output_types(List[T])
   class Globally(PTransform):
     """
     PTransform takes PCollection and returns a list whose single value is
@@ -374,9 +374,8 @@ class ApproximateQuantiles(object):
           input_batched=self._input_batched)
 
   @typehints.with_input_types(
-      typehints.Union[typing.Tuple[K, V],
-                      typing.Tuple[K, typing.Tuple[V, float]]])
-  @typehints.with_output_types(typing.Tuple[K, typing.List[V]])
+      typehints.Union[Tuple[K, V], Tuple[K, Tuple[V, float]]])
+  @typehints.with_output_types(Tuple[K, List[V]])
   class PerKey(PTransform):
     """
     PTransform takes PCollection of KV and returns a list based on each key
@@ -478,7 +477,7 @@ class _QuantileBuffer(object):
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
   def __init__(
       self, elements, weights, weighted, level=0, min_val=None, max_val=None):
-    # type: (List, List, bool, int, Any, Any) -> None
+    # type: (list, list, bool, int, Any, Any) -> None
     self.elements = elements
     # In non-weighted case weights contains a single element representing weight
     # of the buffer in the sense of the original algorithm. In weighted case,

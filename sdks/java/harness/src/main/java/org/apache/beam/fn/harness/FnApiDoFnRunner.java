@@ -116,8 +116,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -180,9 +180,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getCacheTokensSupplier(),
               context.getBundleCacheSupplier(),
               context.getProcessWideCache(),
-              context.getPCollections(),
-              context.getCoders(),
-              context.getWindowingStrategies(),
+              context.getComponents(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
               context::addResetFunction,
@@ -354,9 +352,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
       Supplier<Cache<?, ?>> bundleCache,
       Cache<?, ?> processWideCache,
-      Map<String, PCollection> pCollections,
-      Map<String, RunnerApi.Coder> coders,
-      Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+      RunnerApi.Components components,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
       Consumer<ThrowingRunnable> addResetFunction,
@@ -375,13 +371,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         ImmutableMap.builder();
     try {
       rehydratedComponents =
-          RehydratedComponents.forComponents(
-                  RunnerApi.Components.newBuilder()
-                      .putAllCoders(coders)
-                      .putAllPcollections(pCollections)
-                      .putAllWindowingStrategies(windowingStrategies)
-                      .build())
-              .withPipeline(Pipeline.create());
+          RehydratedComponents.forComponents(components).withPipeline(Pipeline.create());
       parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
       doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
       doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
@@ -404,7 +394,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Iterables.getOnlyElement(
               Sets.difference(
                   pTransform.getInputsMap().keySet(), parDoPayload.getSideInputsMap().keySet()));
-      PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
+      PCollection mainInput =
+          components.getPcollectionsMap().get(pTransform.getInputsOrThrow(mainInputTag));
       Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       // TODO: Stop passing windowed value coders within PCollections.
       if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
@@ -426,7 +417,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputCoders = Maps.newHashMap();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         TupleTag<?> outputTag = new TupleTag<>(entry.getKey());
-        RunnerApi.PCollection outputPCollection = pCollections.get(entry.getValue());
+        RunnerApi.PCollection outputPCollection =
+            components.getPcollectionsMap().get(entry.getValue());
         Coder<?> outputCoder = rehydratedComponents.getCoder(outputPCollection.getCoderId());
         if (outputCoder instanceof WindowedValueCoder) {
           outputCoder = ((WindowedValueCoder) outputCoder).getValueCoder();
@@ -443,7 +435,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         String sideInputTag = entry.getKey();
         RunnerApi.SideInput sideInput = entry.getValue();
         PCollection sideInputPCollection =
-            pCollections.get(pTransform.getInputsOrThrow(sideInputTag));
+            components.getPcollectionsMap().get(pTransform.getInputsOrThrow(sideInputTag));
         WindowingStrategy sideInputWindowingStrategy =
             rehydratedComponents.getWindowingStrategy(
                 sideInputPCollection.getWindowingStrategyId());
@@ -1586,11 +1578,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(bytesOut.toByteString());
       // We don't want to change the output watermarks or set the checkpoint resume time since
       // that applies to the current window.
-      Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp>
           outputWatermarkMapForUnprocessedWindows = new HashMap<>();
       if (!initialWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(initialWatermark.getMillis() / 1000)
                 .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                 .build();
@@ -1630,11 +1622,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setTransformId(pTransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString());
-      Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp>
           outputWatermarkMap = new HashMap<>();
       if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
                 .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
                 .build();

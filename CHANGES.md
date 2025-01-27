@@ -62,17 +62,34 @@
 
 ## I/Os
 
+* Support gcs-connector 3.x+ in GcsUtil ([#33368](https://github.com/apache/beam/pull/33368))
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag (Python) ([#33413](https://github.com/apache/beam/pull/33413)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
+* [GCSIO] Added retry logic to each batch method of the GCS IO (Python) ([#33539](https://github.com/apache/beam/pull/33539))
+* External, Process based Worker Pool support added to the Go SDK container. ([#33572](https://github.com/apache/beam/pull/33572))
+  * This is used to enable sidecar containers to run SDK workers for some runners.
+  * See https://beam.apache.org/documentation/runtime/sdk-harness-config/ for details.
+* Support the Process Environment for execution in the Go SDK. ([#33651](https://github.com/apache/beam/pull/33651))
+* Prism
+  * Prism now uses the same single port for both pipeline submission and execution on workers. Requests are differentiated by worker-id. ([#33438](https://github.com/apache/beam/pull/33438))
+    * This avoids port starvation and provides clarity on port use when running Prism in non-local environments.
+  * Support for @RequiresTimeSortedInputs added. ([#33513](https://github.com/apache/beam/issues/33513))
+  * Initial support for AllowedLateness added. ([#33542](https://github.com/apache/beam/pull/33542))
+  * The Go SDK's inprocess Prism runner (AKA the Go SDK default runner) now supports non-loopback mode environment types. ([#33572](https://github.com/apache/beam/pull/33572))
+  * Support the Process Environment for execution in Prism ([#33651](https://github.com/apache/beam/pull/33651))
+  * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
+     * This improves support for developing Xlang pipelines, when using a compatible cross language service.
 
 ## Breaking Changes
 
 * AWS V1 I/Os have been removed (Java). As part of this, x-lang Python Kinesis I/O has been updated to consume the V2 IO and it also no longer supports setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)), but forced Debezium IO to use protobuf 3 ([#33541](https://github.com/apache/beam/issues/33541) because Debezium clients are not protobuf 4 compatible. This may cause conflicts when using clients which are only compatible with protobuf 4.
+* Minimum Go version for Beam Go updated to 1.22.10 ([#33609](https://github.com/apache/beam/pull/33609))
 
 ## Deprecations
 
@@ -80,8 +97,13 @@
 
 ## Bugfixes
 
+* Fix data loss issues when reading gzipped files with TextIO (Python) ([#18390](https://github.com/apache/beam/issues/18390), [#31040](https://github.com/apache/beam/issues/31040)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [BigQueryIO] Fixed an issue where Storage Write API sometimes doesn't pick up auto-schema updates ([#33231](https://github.com/apache/beam/pull/33231))
+* Prism
+  * Fixed an edge case where Bundle Finalization might not become enabled. ([#33493](https://github.com/apache/beam/issues/33493)).
+  * Fixed session window aggregation, which wasn't being performed per-key. ([#33542](https://github.com/apache/beam/issues/33542)).)
+* [Dataflow Streaming Appliance] Fixed commits failing with KeyCommitTooLargeException when a key outputs >180MB of results. [#33588](https://github.com/apache/beam/issues/33588).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -90,7 +112,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.62.0] - Unreleased
+# [2.62.0] - 2025-01-21
 
 ## I/Os
 
@@ -107,6 +129,7 @@
 * Support OnWindowExpiration in Prism ([#32211](https://github.com/apache/beam/issues/32211)).
   * This enables initial Java GroupIntoBatches support.
 * Support OrderedListState in Prism ([#32929](https://github.com/apache/beam/issues/32929)).
+* Add apache_beam.ml.rag package with RAG types, base chunking, LangChain chunking and HuggingFace embedding components (Python) ([#33364](https://github.com/apache/beam/pull/33364)).
 
 ## Breaking Changes
 
@@ -115,10 +138,18 @@
 ## Bugfixes
 
 * Fixed EventTimeTimer ordering in Prism. ([#32222](https://github.com/apache/beam/issues/32222)).
+* [Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values ([#33549](https://github.com/apache/beam/pull/33549)).
 
 ## Security Fixes
 
 * Fixed (CVE-2024-47561)[https://www.cve.org/CVERecord?id=CVE-2024-47561] (Java) by upgrading Avro version to 1.11.4
+
+## Known Issues
+
+* [Python] If you are using the official Apache Beam Python containers for version 2.62.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project's dependency list. ([#33639](https://github.com/apache/beam/issues/33639)).
+* [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+  * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
+  * To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable [Streaming Engine](https://cloud.google.com/dataflow/docs/streaming-engine#use).
 
 # [2.61.0] - 2024-11-25
 
@@ -156,6 +187,15 @@
 * (Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine ([#32892](https://github.com/apache/beam/issues/32892)).
 * Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn ([#31111](https://github.com/apache/beam/issues/31111))
 * (Python) Fixed BigQuery Enrichment bug that can lead to multiple conditions returning duplicate rows, batching returning incorrect results and conditions not scoped by row during batching ([#32780](https://github.com/apache/beam/pull/32780)).
+
+## Known Issues
+
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
+* [Python] If you are using the official Apache Beam Python containers for version 2.61.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project's dependency list. ([#33639](https://github.com/apache/beam/issues/33639)).
+* [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+  * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
+  * To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable [Streaming Engine](https://cloud.google.com/dataflow/docs/streaming-engine#use).
 
 # [2.60.0] - 2024-10-17
 
@@ -211,6 +251,11 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
   * Fixed in 2.61.0.
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
+* [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+  * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
+  * To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable [Streaming Engine](https://cloud.google.com/dataflow/docs/streaming-engine#use).
 
 # [2.59.0] - 2024-09-11
 
@@ -259,6 +304,8 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
   * Fixed in 2.61.0.
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
 
 # [2.58.1] - 2024-08-15
 

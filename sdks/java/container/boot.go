@@ -134,21 +134,42 @@ func main() {
 	}
 
 	const jarsDir = "/opt/apache/beam/jars"
-	cp := []string{
-		filepath.Join(jarsDir, "slf4j-api.jar"),
-		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
-		filepath.Join(jarsDir, "jcl-over-slf4j.jar"),
-		filepath.Join(jarsDir, "log4j-over-slf4j.jar"),
-		filepath.Join(jarsDir, "log4j-to-slf4j.jar"),
-		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
+	const javaHarnessJar = "beam-sdks-java-harness.jar"
+	defaultLoggingJars := []string{
+		"slf4j-api.jar",
+		"slf4j-jdk14.jar",
+		"jcl-over-slf4j.jar",
+		"log4j-over-slf4j.jar",
+		"log4j-to-slf4j.jar",
 	}
+	cp := []string{}
+	if strings.Contains(options, "use_custom_logging_libraries") {
+		// In this case, the logging libraries will be provided from the staged
+		// artifacts.
+		logger.Warnf(ctx, "Skipping default slf4j dependencies in classpath")
+	} else {
+		logger.Printf(ctx, "Using default slf4j dependencies in classpath")
+		for _, jar := range defaultLoggingJars {
+			cp = append(cp, filepath.Join(jarsDir, jar))
+		}
+	}
+	cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
 	for _, a := range artifacts {
 		name, _ := artifact.MustExtractFilePayload(a)
 		if hasWorkerExperiment {
-			if strings.HasPrefix(name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
-				continue
+			if strings.HasPrefix(name, "beam-sdks-java-harness") {
+				// Remove system "beam-sdks-java-harness.jar". User-provided jar will be
+				// added to classpath as a normal user jar further below.
+				for i, cl := range cp {
+					if !strings.HasSuffix(cl, javaHarnessJar) {
+						continue
+					}
+					logger.Printf(ctx, "Using staged java harness: %v", name)
+					cp = append(cp[:i], cp[i+1:]...)
+					break
+				}
 			}
 			if name == "dataflow-worker.jar" {
 				continue

@@ -17,9 +17,9 @@
 
 """This module defines the basic Combine operation."""
 
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
 
 import apache_beam as beam
