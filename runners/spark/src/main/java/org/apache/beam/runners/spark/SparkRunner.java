@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.GroupByKeyVisitor;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
@@ -213,6 +214,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       // update the cache candidates
       updateCacheCandidates(pipeline, translator, evaluationContext);
+
+      // update GBK candidates for memory optimized transform
+      pipeline.traverseTopologically(new GroupByKeyVisitor(translator, evaluationContext));
 
       initAccumulators(pipelineOptions, jsc);
       startPipeline =
