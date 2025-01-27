@@ -24,7 +24,7 @@ go 1.22.10
 
 require (
 	cloud.google.com/go/bigquery v1.65.0
-	cloud.google.com/go/bigtable v1.34.0
+	cloud.google.com/go/bigtable v1.35.0
 	cloud.google.com/go/datastore v1.20.0
 	cloud.google.com/go/profiler v0.4.2
 	cloud.google.com/go/pubsub v1.45.3
@@ -61,7 +61,7 @@ require (
 	google.golang.org/api v0.217.0
 	google.golang.org/genproto v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.69.4
-	google.golang.org/protobuf v1.36.3
+	google.golang.org/protobuf v1.36.4
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )

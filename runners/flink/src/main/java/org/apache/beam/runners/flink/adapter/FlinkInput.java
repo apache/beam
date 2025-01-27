@@ -32,7 +32,7 @@ import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
 /**
  * A Beam PTransform used for marking an input that comes from Flink.

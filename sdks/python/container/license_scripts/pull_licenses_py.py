@@ -75,7 +75,7 @@ def copy_license_files(dep):
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=2),
-    stop=stop_after_attempt(5))
+    stop=stop_after_attempt(10))
 def pull_from_url(dep, configs):
   '''
   :param dep: name of a dependency

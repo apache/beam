@@ -886,7 +886,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     # doctest framework
     df = pd.DataFrame([[pd.NA, 2.12], [3.356, 4.567]])
     self._run_test(
-        lambda df: df.map(lambda x: len(str(x)), na_action='ignore'),
+        lambda df: df.applymap(lambda x: len(str(x)), na_action='ignore'),
         df,
         # TODO: generate proxy using naive type inference on fn
         check_proxy=False)
