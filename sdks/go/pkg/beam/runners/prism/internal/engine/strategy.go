@@ -186,8 +186,6 @@ func (t *TriggerAfterAny) reset(state *StateData) {
 // TriggerAfterEach processes each trigger before executing the next.
 // Starting with the first subtrigger, ready when the _current_ subtrigger
 // is ready. After output, advances the current trigger by one.
-//
-// TriggerAfterEach stores the current trigger index in it's extra state field.
 type TriggerAfterEach struct {
 	SubTriggers []Trigger
 }
@@ -197,20 +195,22 @@ func (t *TriggerAfterEach) isReady(input triggerInput, state *StateData) bool {
 	if ts.finished {
 		return false
 	}
-	// Use extra for the current trigger index.
-	if ts.extra == nil {
-		ts.extra = int(0)
-	}
-	current := ts.extra.(int)
 	ready := false
-	if t.SubTriggers[current].isReady(input, state) {
-		current++
-		ready = true
+	current := 0
+	for _, st := range t.SubTriggers {
+		if state.getTriggerState(st).finished {
+			current++
+			continue
+		}
+		ready = st.isReady(input, state)
+		if state.getTriggerState(st).finished {
+			current++
+		}
+		break
 	}
 	if current >= len(t.SubTriggers) {
 		ts.finished = true
 	}
-	ts.extra = current
 	state.setTriggerState(t, ts)
 	return ready
 }

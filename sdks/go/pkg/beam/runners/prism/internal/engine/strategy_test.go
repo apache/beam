@@ -185,6 +185,30 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1}, false},
 			},
 		}, {
+			name: "afterEach_afterEach",
+			trig: &TriggerAfterEach{
+				SubTriggers: []Trigger{
+					&TriggerAfterEach{SubTriggers: []Trigger{&TriggerElementCount{3}, &TriggerElementCount{1}}},
+					&TriggerAfterEach{SubTriggers: []Trigger{&TriggerElementCount{3}, &TriggerElementCount{2}}},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 3 is ready
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 1 is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 3 is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true}, // ElmCount 2 is ready
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
 			name: "orFinally_2_7",
 			trig: &TriggerOrFinally{
 				Main:    &TriggerElementCount{2},
