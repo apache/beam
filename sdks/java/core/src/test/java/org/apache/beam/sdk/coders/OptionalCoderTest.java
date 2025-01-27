@@ -138,7 +138,7 @@ public class OptionalCoderTest {
   public void testDecodingError() throws Exception {
     thrown.expect(CoderException.class);
     thrown.expectMessage(
-        equalTo("OptionalCoder expects either a byte valued 0 (empty) " + "or 1 (present), got 5"));
+        equalTo("NullableCoder expects either a byte valued 0 (null) or 1 (present), got 5"));
 
     InputStream input = new ByteArrayInputStream(new byte[] {5});
     TEST_CODER.decode(input);

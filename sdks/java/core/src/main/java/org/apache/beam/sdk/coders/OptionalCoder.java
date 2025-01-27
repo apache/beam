@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,7 +25,6 @@ import java.util.Optional;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@link OptionalCoder} encodes optional values of type {@code T} using a nested {@code
@@ -43,47 +40,30 @@ public class OptionalCoder<T> extends StructuredCoder<Optional<T>> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private final Coder<T> valueCoder;
-  private static final int ENCODE_EMPTY = 0;
-  private static final int ENCODE_PRESENT = 1;
+  private final NullableCoder<T> nullableCoder;
 
   private OptionalCoder(Coder<T> valueCoder) {
-    this.valueCoder = valueCoder;
+    this.nullableCoder = NullableCoder.of(valueCoder);
   }
 
   /** Returns the inner {@link Coder} wrapped by this {@link OptionalCoder} instance. */
   public Coder<T> getValueCoder() {
-    return valueCoder;
+    return nullableCoder.getValueCoder();
   }
 
   @Override
   public void encode(Optional<T> value, OutputStream outStream) throws IOException, CoderException {
-    if (!value.isPresent()) {
-      outStream.write(ENCODE_EMPTY);
-    } else {
-      outStream.write(ENCODE_PRESENT);
-      valueCoder.encode(value.get(), outStream);
-    }
+    nullableCoder.encode(value.orElse(null), outStream);
   }
 
   @Override
   public Optional<T> decode(InputStream inStream) throws IOException, CoderException {
-    int b = inStream.read();
-    if (b == ENCODE_EMPTY) {
-      return Optional.empty();
-    } else if (b != ENCODE_PRESENT) {
-      throw new CoderException(
-          String.format(
-              "OptionalCoder expects either a byte valued %s (empty) or %s (present), got %s",
-              ENCODE_EMPTY, ENCODE_PRESENT, b));
-    }
-    T value = checkNotNull(valueCoder.decode(inStream), "cannot decode a null");
-    return Optional.of(value);
+    return Optional.ofNullable(nullableCoder.decode(inStream));
   }
 
   @Override
   public List<Coder<T>> getCoderArguments() {
-    return ImmutableList.of(valueCoder);
+    return nullableCoder.getCoderArguments();
   }
 
   /**
@@ -93,7 +73,7 @@ public class OptionalCoder<T> extends StructuredCoder<Optional<T>> {
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(this, "Value coder must be deterministic", valueCoder);
+    nullableCoder.verifyDeterministic();
   }
 
   /**
@@ -103,12 +83,12 @@ public class OptionalCoder<T> extends StructuredCoder<Optional<T>> {
    */
   @Override
   public boolean consistentWithEquals() {
-    return valueCoder.consistentWithEquals();
+    return nullableCoder.consistentWithEquals();
   }
 
   @Override
   public Object structuralValue(Optional<T> value) {
-    return value.map(valueCoder::structuralValue);
+    return nullableCoder.structuralValue(value.orElse(null));
   }
 
   /**
@@ -121,10 +101,7 @@ public class OptionalCoder<T> extends StructuredCoder<Optional<T>> {
   @Override
   public void registerByteSizeObserver(Optional<T> value, ElementByteSizeObserver observer)
       throws Exception {
-    observer.update(1);
-    if (value.isPresent()) {
-      valueCoder.registerByteSizeObserver(value.get(), observer);
-    }
+    nullableCoder.registerByteSizeObserver(value.orElse(null), observer);
   }
 
   /**
@@ -136,19 +113,7 @@ public class OptionalCoder<T> extends StructuredCoder<Optional<T>> {
    */
   @Override
   protected long getEncodedElementByteSize(Optional<T> value) throws Exception {
-    if (!value.isPresent()) {
-      return 1;
-    }
-
-    if (valueCoder instanceof StructuredCoder) {
-      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
-      // the value, adding 1 byte to count the null indicator.
-      return 1 + valueCoder.getEncodedElementByteSize(value.get());
-    }
-
-    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
-    // of encoding and counting the bytes. The encoding will include the null indicator byte.
-    return super.getEncodedElementByteSize(value);
+    return nullableCoder.getEncodedElementByteSize(value.orElse(null));
   }
 
   /**
@@ -158,12 +123,12 @@ public class OptionalCoder<T> extends StructuredCoder<Optional<T>> {
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Optional<T> value) {
-    return value.map(valueCoder::isRegisterByteSizeObserverCheap).orElse(true);
+    return nullableCoder.isRegisterByteSizeObserverCheap(value.orElse(null));
   }
 
   @Override
   public TypeDescriptor<Optional<T>> getEncodedTypeDescriptor() {
     return new TypeDescriptor<Optional<T>>() {}.where(
-        new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
+        new TypeParameter<T>() {}, getValueCoder().getEncodedTypeDescriptor());
   }
 }
