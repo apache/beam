@@ -33,6 +33,7 @@ import java.sql.DriverManager;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,10 +44,7 @@ import org.apache.hadoop.hive.metastore.HMSHandlerProxyFactory;
 import org.apache.hadoop.hive.metastore.IHMSHandler;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TSetIpAddressProcessor;
-import org.apache.hadoop.hive.metastore.api.GetTableRequest;
-import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.iceberg.ClientPool;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.common.DynConstructors;
 import org.apache.iceberg.common.DynMethods;
 import org.apache.iceberg.hadoop.Util;
@@ -63,8 +61,8 @@ import org.apache.thrift.transport.TTransportFactory;
  * HiveMetastoreExtension} instead.
  *
  * <p>Copied over from <a
- * href="https://github.com/apache/hive/blob/branch-4.0/iceberg/iceberg-catalog/src/test/java/org/apache/iceberg/hive/TestHiveMetastore.java">Iceberg's
- * integration testing util</a>
+ * href="https://github.com/apache/hive/blob/branch-4.0/iceberg/iceberg-catalog/src/test/java/org/apache/iceberg/hive/TestHiveMetastore.java">
+ * Hive metastore Iceberg integration utils</a>
  */
 public class TestHiveMetastore {
 
@@ -106,7 +104,6 @@ public class TestHiveMetastore {
   // It's tricky to clear all static fields in an HMS instance in order to switch derby root dir.
   // Therefore, we reuse the same derby root between tests and remove it after JVM exits.
   private static final File HIVE_LOCAL_DIR;
-  private static final File HIVE_EXTERNAL_WAREHOUSE_DIR;
   private static final String DERBY_PATH;
 
   static {
@@ -114,7 +111,6 @@ public class TestHiveMetastore {
       HIVE_LOCAL_DIR =
           createTempDirectory("hive", asFileAttribute(fromString("rwxrwxrwx"))).toFile();
       DERBY_PATH = new File(HIVE_LOCAL_DIR, "metastore_db").getPath();
-      HIVE_EXTERNAL_WAREHOUSE_DIR = new File(HIVE_LOCAL_DIR, "external");
       File derbyLogFile = new File(HIVE_LOCAL_DIR, "derby.log");
       System.setProperty("derby.stream.error.file", derbyLogFile.getAbsolutePath());
       setupMetastoreDB("jdbc:derby:" + DERBY_PATH + ";create=true");
@@ -202,6 +198,12 @@ public class TestHiveMetastore {
     }
     if (executorService != null) {
       executorService.shutdown();
+      try {
+        // Give it a reasonable timeout
+        executorService.awaitTermination(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
     if (baseHandler != null) {
       baseHandler.shutdown();
@@ -241,20 +243,15 @@ public class TestHiveMetastore {
 
     Path warehouseRoot = new Path(hiveWarehousePath);
     FileSystem fs = Util.getFs(warehouseRoot, hiveConf);
+    if (!fs.exists(warehouseRoot)) {
+      return;
+    }
     for (FileStatus fileStatus : fs.listStatus(warehouseRoot)) {
       if (!fileStatus.getPath().getName().equals("derby.log")
           && !fileStatus.getPath().getName().equals("metastore_db")) {
         fs.delete(fileStatus.getPath(), true);
       }
     }
-  }
-
-  public Table getTable(String dbName, String tableName) throws TException, InterruptedException {
-    return clientPool.run(client -> client.getTable(new GetTableRequest(dbName, tableName)));
-  }
-
-  public Table getTable(TableIdentifier identifier) throws TException, InterruptedException {
-    return getTable(identifier.namespace().toString(), identifier.name());
   }
 
   public <T> T run(ClientPool.Action<T, IMetaStoreClient, TException> action)
@@ -285,16 +282,13 @@ public class TestHiveMetastore {
   private void initConf(HiveConf conf, int port) {
     conf.set(HiveConf.ConfVars.METASTORE_URIS.varname, "thrift://localhost:" + port);
     conf.set(HiveConf.ConfVars.METASTORE_WAREHOUSE.varname, hiveWarehousePath);
-    conf.set(
-        HiveConf.ConfVars.HIVE_METASTORE_WAREHOUSE_EXTERNAL.varname,
-        "file:" + HIVE_EXTERNAL_WAREHOUSE_DIR.getAbsolutePath());
+    conf.set(HiveConf.ConfVars.HIVE_METASTORE_WAREHOUSE_EXTERNAL.varname, hiveWarehousePath);
     conf.set(HiveConf.ConfVars.METASTORE_TRY_DIRECT_SQL.varname, "false");
     conf.set(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
     conf.set("iceberg.hive.client-pool-size", "2");
-    // set to false so that TxnManager#checkLock does not throw exception when using UNSET data type
-    // operation
-    // in the requested lock component
-    conf.setBoolVar(HiveConf.ConfVars.HIVE_IN_TEST, false);
+    // Setting this to avoid thrift exception during running Iceberg tests outside Iceberg.
+    conf.set(
+        HiveConf.ConfVars.HIVE_IN_TEST.varname, HiveConf.ConfVars.HIVE_IN_TEST.getDefaultValue());
   }
 
   private static void setupMetastoreDB(String dbURL) throws Exception {
