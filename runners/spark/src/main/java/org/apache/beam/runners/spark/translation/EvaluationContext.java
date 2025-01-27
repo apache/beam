@@ -61,6 +61,7 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
+  private final Map<PCollection<?>, Integer> dependentTransforms = new HashMap<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
@@ -305,6 +306,26 @@ public class EvaluationContext {
    */
   public <K, V> boolean isCandidateForGroupByKeyAndWindow(GroupByKey<K, V> transform) {
     return groupByKeyCandidatesForMemoryOptimizedTranslation.containsKey(transform);
+  }
+
+  /**
+   * Get the map of dependent transforms hold by the evaluation context.
+   *
+   * @return The current {@link Map} of dependent transforms.
+   */
+  public Map<PCollection<?>, Integer> getDependentTransforms() {
+    return this.dependentTransforms;
+  }
+
+  /**
+   * Get if given {@link PCollection} is a leaf or not. {@link PCollection} is a leaf when there is
+   * no other {@link PTransform} consuming it / depending on it.
+   *
+   * @param pCollection to be checked if it is a leaf
+   * @return true if pCollection is leaf; otherwise false
+   */
+  public boolean isLeaf(PCollection<?> pCollection) {
+    return this.dependentTransforms.get(pCollection) == 0;
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
