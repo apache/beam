@@ -139,11 +139,11 @@ public class ComputationState {
   }
 
   private void execute(ExecutableWork executableWork) {
-    executor.execute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
+    executor.execute(executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
   private void forceExecute(ExecutableWork executableWork) {
-    executor.forceExecute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
+    executor.forceExecute(executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
   public ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWorkReadOnly() {

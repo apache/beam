@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.2"
 }
 
 
@@ -36,7 +36,8 @@ val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { S
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
-  server = "https://ge.apache.org"
+  server = "https://develocity.apache.org"
+  projectId = "beam"
 
   buildScan {
     uploadInBackground = !isCi
@@ -169,6 +170,9 @@ include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
 include(":sdks:java:container:java21")
+include(":sdks:java:container:distroless")
+include(":sdks:java:container:distroless:java17")
+include(":sdks:java:container:distroless:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -282,6 +286,11 @@ include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
 include(":sdks:python:container:py312")
+include(":sdks:python:container:distroless")
+include(":sdks:python:container:distroless:py39")
+include(":sdks:python:container:distroless:py310")
+include(":sdks:python:container:distroless:py311")
+include(":sdks:python:container:distroless:py312")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py39")
@@ -306,7 +315,7 @@ include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:grpc-1_60_1")
+include(":vendor:grpc-1_69_0")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-32_1_2-jre")
 include(":website")
@@ -350,3 +359,5 @@ include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
 include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:bqms")
+findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"

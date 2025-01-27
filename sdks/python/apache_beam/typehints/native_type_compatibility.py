@@ -449,8 +449,8 @@ def convert_to_beam_types(args):
     return [convert_to_beam_type(v) for v in args]
 
 
-def convert_to_typing_type(typ):
-  """Converts a given Beam type to a typing type.
+def convert_to_python_type(typ):
+  """Converts a given Beam type to a python type.
 
   This is the reverse of convert_to_beam_type.
 
@@ -482,33 +482,33 @@ def convert_to_typing_type(typ):
   if isinstance(typ, typehints.AnyTypeConstraint):
     return typing.Any
   if isinstance(typ, typehints.DictConstraint):
-    return typing.Dict[convert_to_typing_type(typ.key_type),
-                       convert_to_typing_type(typ.value_type)]
+    return dict[convert_to_python_type(typ.key_type),
+                convert_to_python_type(typ.value_type)]
   if isinstance(typ, typehints.ListConstraint):
-    return typing.List[convert_to_typing_type(typ.inner_type)]
+    return list[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.IterableTypeConstraint):
-    return typing.Iterable[convert_to_typing_type(typ.inner_type)]
+    return collections.abc.Iterable[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.UnionConstraint):
     if not typ.union_types:
       # Gracefully handle the empty union type.
       return typing.Any
-    return typing.Union[tuple(convert_to_typing_types(typ.union_types))]
+    return typing.Union[tuple(convert_to_python_types(typ.union_types))]
   if isinstance(typ, typehints.SetTypeConstraint):
-    return typing.Set[convert_to_typing_type(typ.inner_type)]
+    return set[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.FrozenSetTypeConstraint):
-    return typing.FrozenSet[convert_to_typing_type(typ.inner_type)]
+    return frozenset[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.TupleConstraint):
-    return typing.Tuple[tuple(convert_to_typing_types(typ.tuple_types))]
+    return tuple[tuple(convert_to_python_types(typ.tuple_types))]
   if isinstance(typ, typehints.TupleSequenceConstraint):
-    return typing.Tuple[convert_to_typing_type(typ.inner_type), ...]
+    return tuple[convert_to_python_type(typ.inner_type), ...]
   if isinstance(typ, typehints.IteratorTypeConstraint):
-    return typing.Iterator[convert_to_typing_type(typ.yielded_type)]
+    return collections.abc.Iterator[convert_to_python_type(typ.yielded_type)]
 
   raise ValueError('Failed to convert Beam type: %s' % typ)
 
 
-def convert_to_typing_types(args):
-  """Convert the given list or dictionary of args to typing types.
+def convert_to_python_types(args):
+  """Convert the given list or dictionary of args to python types.
 
   Args:
     args: Either an iterable of types, or a dictionary where the values are
@@ -519,6 +519,6 @@ def convert_to_typing_types(args):
     a dictionary with the same keys, and values which have been converted.
   """
   if isinstance(args, dict):
-    return {k: convert_to_typing_type(v) for k, v in args.items()}
+    return {k: convert_to_python_type(v) for k, v in args.items()}
   else:
-    return [convert_to_typing_type(v) for v in args]
+    return [convert_to_python_type(v) for v in args]

@@ -67,7 +67,7 @@ import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -149,12 +149,17 @@ public class BeamFnDataReadRunnerTest {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(INPUT_TRANSFORM_ID, pTransform)
               .processBundleInstructionId(DEFAULT_BUNDLE_ID)
-              .pCollections(
-                  ImmutableMap.of(
-                      localOutputId,
-                      RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()))
-              .coders(COMPONENTS.getCodersMap())
-              .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(
+                          ImmutableMap.of(
+                              localOutputId,
+                              RunnerApi.PCollection.newBuilder()
+                                  .setCoderId(ELEMENT_CODER_SPEC_ID)
+                                  .build()))
+                      .putAllCoders(COMPONENTS.getCodersMap())
+                      .putAllWindowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+                      .build())
               .build();
       context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
@@ -187,12 +192,17 @@ public class BeamFnDataReadRunnerTest {
                   INPUT_TRANSFORM_ID,
                   RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform())
               .processBundleInstructionIdSupplier(bundleId::get)
-              .pCollections(
-                  ImmutableMap.of(
-                      localOutputId,
-                      RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()))
-              .coders(COMPONENTS.getCodersMap())
-              .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(
+                          ImmutableMap.of(
+                              localOutputId,
+                              RunnerApi.PCollection.newBuilder()
+                                  .setCoderId(ELEMENT_CODER_SPEC_ID)
+                                  .build()))
+                      .putAllCoders(COMPONENTS.getCodersMap())
+                      .putAllWindowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+                      .build())
               .build();
       context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
@@ -659,12 +669,17 @@ public class BeamFnDataReadRunnerTest {
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
             .processBundleInstructionId(DEFAULT_BUNDLE_ID)
-            .pCollections(
-                ImmutableMap.of(
-                    localOutputId,
-                    RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()))
-            .coders(COMPONENTS.getCodersMap())
-            .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(
+                        ImmutableMap.of(
+                            localOutputId,
+                            RunnerApi.PCollection.newBuilder()
+                                .setCoderId(ELEMENT_CODER_SPEC_ID)
+                                .build()))
+                    .putAllCoders(COMPONENTS.getCodersMap())
+                    .putAllWindowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+                    .build())
             .build();
     context.addPCollectionConsumer(localOutputId, consumer);
 

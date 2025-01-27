@@ -55,10 +55,9 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
-    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     implementation library.java.hadoop_common
-    implementation library.java.jackson_core
-    implementation library.java.jackson_databind
+    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
 
     testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client
@@ -82,6 +81,11 @@ dependencies {
         exclude group: "org.apache.hive", module: "hive-exec"
         exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
     }
+
+    // BigQueryMetastore catalog dep
+    testImplementation project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation library.java.google_api_services_bigquery
 
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
@@ -136,6 +140,11 @@ task integrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+    // BQ metastore catalog doesn't support java 8
+    if (project.findProperty('testJavaVersion') == '8' ||
+            JavaVersion.current().equals(JavaVersion.VERSION_1_8)) {
+        exclude '**/BigQueryMetastoreCatalogIT.class'
+    }
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath

@@ -114,9 +114,13 @@ public abstract class PTransformRunnerFactoryTestContext
         .cacheTokensSupplier(() -> Collections.emptyList())
         .bundleCacheSupplier(() -> Caches.noop())
         .processWideCache(Caches.noop())
-        .pCollections(Collections.emptyMap()) // expected to be immutable
-        .coders(Collections.emptyMap()) // expected to be immutable
-        .windowingStrategies(Collections.emptyMap()) // expected to be immutable
+        .components(
+            RunnerApi.Components.newBuilder()
+                .putAllCoders(Collections.emptyMap())
+                .putAllEnvironments(Collections.emptyMap())
+                .putAllWindowingStrategies(Collections.emptyMap())
+                .putAllPcollections(Collections.emptyMap())
+                .build())
         .pCollectionConsumers(new HashMap<>())
         .startBundleFunctions(new ArrayList<>())
         .finishBundleFunctions(new ArrayList<>())
@@ -175,11 +179,13 @@ public abstract class PTransformRunnerFactoryTestContext
       return processBundleInstructionIdSupplier(() -> value);
     }
 
-    Builder pCollections(Map<String, RunnerApi.PCollection> value);
+    // Builder pCollections(Map<String, RunnerApi.PCollection> value);
 
-    Builder coders(Map<String, RunnerApi.Coder> value);
+    Builder components(RunnerApi.Components value);
 
-    Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
+    // Builder coders(Map<String, RunnerApi.Coder> value);
+
+    // Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
 
     Builder runnerCapabilities(Set<String> value);
 

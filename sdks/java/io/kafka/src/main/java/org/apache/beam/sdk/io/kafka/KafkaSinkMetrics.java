@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import org.apache.beam.sdk.metrics.DelegatingGauge;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -40,6 +42,7 @@ public class KafkaSinkMetrics {
 
   // Base Metric names
   private static final String RPC_LATENCY = "RpcLatency";
+  private static final String ESTIMATED_BACKLOG_SIZE = "EstimatedBacklogSize";
 
   // Kafka Consumer Method names
   enum RpcMethod {
@@ -49,11 +52,12 @@ public class KafkaSinkMetrics {
   // Metric labels
   private static final String TOPIC_LABEL = "topic_name";
   private static final String RPC_METHOD = "rpc_method";
+  private static final String PARTITION_ID = "partition_id";
 
   /**
-   * Creates an Histogram metric to record RPC latency. Metric will have name.
+   * Creates a {@link Histogram} metric to record RPC latency with the name
    *
-   * <p>'RpcLatency*rpc_method:{method};topic_name:{topic};'
+   * <p>'RpcLatency*rpc_method:{method};topic_name:{topic};'.
    *
    * @param method Kafka method associated with this metric.
    * @param topic Kafka topic associated with this metric.
@@ -69,6 +73,48 @@ public class KafkaSinkMetrics {
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
 
     return new DelegatingHistogram(metricName, buckets, false, true);
+  }
+
+  /**
+   * Creates a {@link Gauge} metric to record per partition backlog with the name
+   *
+   * <p>'EstimatedBacklogSize*topic_name:{topic};partitionId:{partitionId};'.
+   *
+   * @param topic Kafka topic associated with this metric.
+   * @param partitionId partition id associated with this metric.
+   * @return Counter.
+   */
+  public static Gauge createBacklogGauge(String topic, int partitionId) {
+    return new DelegatingGauge(getMetricGaugeName(topic, partitionId), false, true);
+  }
+
+  /**
+   * Creates a {@link Gauge} metric to record per partition backlog with the name
+   *
+   * <p>'name'.
+   *
+   * @param name MetricName for the KafkaSink.
+   * @return Counter.
+   */
+  public static Gauge createBacklogGauge(MetricName name) {
+    return new DelegatingGauge(name, false, true);
+  }
+
+  /**
+   * Creates an MetricName based on topic name and partition id.
+   *
+   * <p>'EstimatedBacklogSize*topic_name:{topic};partition_id:{partitionId};'
+   *
+   * @param topic Kafka topic associated with this metric.
+   * @param partitionId partition id associated with this metric.
+   * @return MetricName.
+   */
+  public static MetricName getMetricGaugeName(String topic, int partitionId) {
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
+    nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
+    nameBuilder.addLabel(TOPIC_LABEL, topic);
+    return nameBuilder.build(METRICS_NAMESPACE);
   }
 
   /**
