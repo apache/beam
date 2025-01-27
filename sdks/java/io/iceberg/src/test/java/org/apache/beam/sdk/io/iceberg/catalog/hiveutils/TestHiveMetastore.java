@@ -257,7 +257,7 @@ public class TestHiveMetastore {
     return getTable(identifier.namespace().toString(), identifier.name());
   }
 
-  public <R> R run(ClientPool.Action<R, IMetaStoreClient, TException> action)
+  public <T> T run(ClientPool.Action<T, IMetaStoreClient, TException> action)
       throws InterruptedException, TException {
     return clientPool.run(action, false);
   }

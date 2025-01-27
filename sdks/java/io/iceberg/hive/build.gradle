@@ -28,13 +28,12 @@ ext.summary = "Runtime dependencies needed for Hive catalog integration."
 def hive_version = "4.0.1"
 def hbase_version = "2.6.1-hadoop3"
 def hadoop_version = "3.4.1"
-def iceberg_version = "1.6.1"
 def avatica_version = "1.25.0"
 
 dependencies {
     // dependencies needed to run with iceberg's hive catalog
     // these dependencies are going to be included in io-expansion-service
-    runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
+    runtimeOnly ("org.apache.hive:hive-iceberg-catalog:$hive_version")
     // analyzeClassesDependencies fails with "Cannot accept visitor on URL", likely the plugin does not recognize "core" classifier
     // use "core" classifier to depend on un-shaded jar
     runtimeOnly ("org.apache.hive:hive-exec:$hive_version:core") {

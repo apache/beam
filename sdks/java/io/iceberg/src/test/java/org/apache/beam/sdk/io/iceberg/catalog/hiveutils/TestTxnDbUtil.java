@@ -324,7 +324,7 @@ public final class TestTxnDbUtil {
 
   /**
    * Utility method used to run COUNT queries like "select count(*) from ..." against metastore
-   * tables
+   * tables.
    *
    * @param countQuery countQuery text
    * @return count countQuery result
