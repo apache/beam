@@ -126,7 +126,8 @@ public final class WorkFailureProcessor {
 
   private void executeWithDelay(long delayMs, ExecutableWork executableWork) {
     Uninterruptibles.sleepUninterruptibly(delayMs, TimeUnit.MILLISECONDS);
-    workUnitExecutor.forceExecute(executableWork, executableWork.getWorkItem().getSerializedSize());
+    workUnitExecutor.forceExecute(
+        executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
   private boolean shouldRetryLocally(String computationId, Work work, Throwable t) {

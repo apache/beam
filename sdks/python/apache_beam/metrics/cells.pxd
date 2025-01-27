@@ -55,8 +55,23 @@ cdef class StringSetCell(AbstractMetricCell):
   pass
 
 
+cdef class BoundedTrieCell(AbstractMetricCell):
+  pass
+
+
 cdef class DistributionData(object):
   cdef readonly libc.stdint.int64_t sum
   cdef readonly libc.stdint.int64_t count
   cdef readonly libc.stdint.int64_t min
   cdef readonly libc.stdint.int64_t max
+
+
+cdef class _BoundedTrieNode(object):
+  cdef readonly libc.stdint.int64_t _size
+  cdef readonly dict _children
+  cdef readonly bint _truncated
+
+cdef class BoundedTrieData(object):
+  cdef readonly libc.stdint.int64_t _bound
+  cdef readonly object _singleton
+  cdef readonly _BoundedTrieNode _root

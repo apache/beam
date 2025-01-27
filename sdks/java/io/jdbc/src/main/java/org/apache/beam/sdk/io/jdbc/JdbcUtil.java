@@ -83,20 +83,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
-class JdbcUtil {
+public class JdbcUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  public static final String MYSQL = "mysql";
+  public static final String POSTGRES = "postgres";
+  public static final String ORACLE = "oracle";
+  public static final String MSSQL = "mssql";
 
   static final Map<String, String> JDBC_DRIVER_MAP =
       new HashMap<>(
           ImmutableMap.of(
-              "mysql",
+              MYSQL,
               "com.mysql.cj.jdbc.Driver",
-              "postgres",
+              POSTGRES,
               "org.postgresql.Driver",
-              "oracle",
+              ORACLE,
               "oracle.jdbc.driver.OracleDriver",
-              "mssql",
+              MSSQL,
               "com.microsoft.sqlserver.jdbc.SQLServerDriver"));
 
   @VisibleForTesting

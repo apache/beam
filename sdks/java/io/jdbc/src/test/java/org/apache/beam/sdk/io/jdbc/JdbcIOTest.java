@@ -550,6 +550,22 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteWithBatchSize() throws Exception {
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
+    try {
+      ArrayList<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
+      pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName).withBatchSize(10L));
+
+      pipeline.run();
+
+      assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
   public void testWriteWithAutosharding() throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
     DatabaseTestHelper.createTable(DATA_SOURCE, tableName);

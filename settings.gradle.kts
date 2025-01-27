@@ -19,13 +19,13 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
   }
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.17.6"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
+  id("com.gradle.develocity") version "3.19"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.2"
 }
 
 
@@ -36,7 +36,8 @@ val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { S
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
-  server = "https://ge.apache.org"
+  server = "https://develocity.apache.org"
+  projectId = "beam"
 
   buildScan {
     uploadInBackground = !isCi
@@ -169,6 +170,9 @@ include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
 include(":sdks:java:container:java21")
+include(":sdks:java:container:distroless")
+include(":sdks:java:container:distroless:java17")
+include(":sdks:java:container:distroless:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -204,8 +208,8 @@ include(":sdks:java:extensions:timeseries")
 include(":sdks:java:extensions:zetasketch")
 include(":sdks:java:harness")
 include(":sdks:java:harness:jmh")
-include(":sdks:java:io:amazon-web-services")
 include(":sdks:java:io:amazon-web-services2")
+include(":sdks:java:io:amazon-web-services2:expansion-service")
 include(":sdks:java:io:amqp")
 include(":sdks:java:io:azure")
 include(":sdks:java:io:azure-cosmos")
@@ -238,8 +242,6 @@ include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
 include(":sdks:java:io:kafka:upgrade")
-include(":sdks:java:io:kinesis")
-include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")
 include(":sdks:java:io:mongodb")
 include(":sdks:java:io:mqtt")
@@ -280,32 +282,32 @@ include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
 include(":sdks:python:container")
-include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
 include(":sdks:python:container:py312")
+include(":sdks:python:container:distroless")
+include(":sdks:python:container:distroless:py39")
+include(":sdks:python:container:distroless:py310")
+include(":sdks:python:container:distroless:py311")
+include(":sdks:python:container:distroless:py312")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
-include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
 include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:direct")
-include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
 include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:xlang")
-include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
 include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:tox:pycommon")
-include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
@@ -313,7 +315,7 @@ include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:grpc-1_60_1")
+include(":vendor:grpc-1_69_0")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-32_1_2-jre")
 include(":website")
@@ -357,5 +359,5 @@ include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
 include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
-include("sdks:java:io:iceberg:hive:exec")
-findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"
+include("sdks:java:io:iceberg:bqms")
+findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"

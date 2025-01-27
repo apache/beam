@@ -19,12 +19,11 @@
 import itertools
 import re
 from collections import abc
+from collections.abc import Callable
+from collections.abc import Collection
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Collection
-from typing import Dict
-from typing import List
-from typing import Mapping
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -348,7 +347,7 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
 
 def _as_callable_for_pcoll(
     pcoll,
-    fn_spec: Union[str, Dict[str, str]],
+    fn_spec: Union[str, dict[str, str]],
     msg: str,
     language: Optional[str]):
   if language == 'javascript':
@@ -428,19 +427,19 @@ class _StripErrorMetadata(beam.PTransform):
 
   For example, in the following pipeline snippet::
 
-    - name: MyMappingTransform
-      type: MapToFields
-      input: SomeInput
-      config:
-        language: python
-        fields:
-          ...
-        error_handling:
-          output: errors
+      - name: MyMappingTransform
+        type: MapToFields
+        input: SomeInput
+        config:
+          language: python
+          fields:
+            ...
+          error_handling:
+            output: errors
 
-    - name: RecoverOriginalElements
-      type: StripErrorMetadata
-      input: MyMappingTransform.errors
+      - name: RecoverOriginalElements
+        type: StripErrorMetadata
+        input: MyMappingTransform.errors
 
   the output of `RecoverOriginalElements` will contain exactly those elements
   from SomeInput that failed to processes (whereas `MyMappingTransform.errors`
@@ -452,6 +451,9 @@ class _StripErrorMetadata(beam.PTransform):
   """
 
   _ERROR_FIELD_NAMES = ('failed_row', 'element', 'record')
+
+  def __init__(self):
+    super().__init__(label=None)
 
   def expand(self, pcoll):
     try:
@@ -491,7 +493,7 @@ class _Validate(beam.PTransform):
   """
   def __init__(
       self,
-      schema: Dict[str, Any],
+      schema: dict[str, Any],
       error_handling: Optional[Mapping[str, Any]] = None):
     self._schema = schema
     self._exception_handling_args = exception_handling_args(error_handling)
@@ -611,11 +613,18 @@ class _Explode(beam.PTransform):
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
-    pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+    pcoll, keep: Union[str, dict[str, str]], language: Optional[str] = None):
   """Keeps only records that satisfy the given criteria.
 
   See more complete documentation on
   [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
+
+  Args:
+    keep: An expression evaluating to true for those records that should be kept.
+    language: The language of the above expression.
+      Defaults to generic.
+    error_handling: Whether and where to output records that throw errors when
+      the above expressions are evaluated.
   """  # pylint: disable=line-too-long
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
   return pcoll | beam.Filter(keep_fn)
@@ -661,14 +670,32 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
-def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
+def _PyJsMapToFields(
+    pcoll,
+    fields: Mapping[str, Union[str, Mapping[str, str]]],
+    append: Optional[bool] = False,
+    drop: Optional[Iterable[str]] = None,
+    language: Optional[str] = None):
   """Creates records with new fields defined in terms of the input fields.
 
   See more complete documentation on
   [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#mapping-functions).
+
+  Args:
+    fields: The output fields to compute, each mapping to the expression or
+      callable that creates them.
+    append: Whether to append the created fields to the set of
+      fields already present, outputting a union of both the new fields and
+      the original fields for each record.  Defaults to False.
+    drop: If `append` is true, enumerates a subset of fields from the
+      original record that should not be kept
+    language: The language used to define (and execute) the
+      expressions and/or callables in `fields`. Defaults to generic.
+    error_handling: Whether and where to output records that throw errors when
+      the above expressions are evaluated.
   """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
-      pcoll, language=language, **mapping_args)
+      pcoll, fields, drop or (), append, language=language or 'generic')
   if language == 'javascript':
     options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
 
@@ -711,8 +738,8 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 @beam.ptransform.ptransform_fn
 def _Partition(
     pcoll,
-    by: Union[str, Dict[str, str]],
-    outputs: List[str],
+    by: Union[str, dict[str, str]],
+    outputs: list[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
@@ -791,7 +818,7 @@ def _Partition(
 @maybe_with_exception_handling_transform_fn
 def _AssignTimestamps(
     pcoll,
-    timestamp: Union[str, Dict[str, str]],
+    timestamp: Union[str, dict[str, str]],
     language: Optional[str] = None):
   """Assigns a new timestamp each element of its input.
 

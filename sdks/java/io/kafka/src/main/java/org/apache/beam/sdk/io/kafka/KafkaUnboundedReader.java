@@ -227,12 +227,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
         rawSizes.update(recordSize);
 
-        // Pass metrics to container.
         kafkaResults.updateKafkaMetrics();
         return true;
       } else { // -- (b)
+        kafkaResults = KafkaSinkMetrics.kafkaMetrics();
         nextBatch();
-
+        kafkaResults.updateKafkaMetrics();
         if (!curBatch.hasNext()) {
           return false;
         }
@@ -302,7 +302,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public long getSplitBacklogBytes() {
     long backlogBytes = 0;
-
     for (PartitionState<K, V> p : partitionStates) {
       long pBacklog = p.approxBacklogInBytes();
       if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
@@ -453,6 +452,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       this.latestOffsetFetchTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.timestampPolicy = timestampPolicy;
+    }
+
+    public TopicPartition topicPartition() {
+      return topicPartition;
     }
 
     // Update consumedOffset, avgRecordSize, and avgOffsetGap
@@ -606,13 +609,20 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
       Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
 
-      consumer.commitSync(
-          checkpointMark.getPartitions().stream()
-              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-              .collect(
-                  Collectors.toMap(
-                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                      p -> new OffsetAndMetadata(p.getNextOffset()))));
+      try {
+        consumer.commitSync(
+            checkpointMark.getPartitions().stream()
+                .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+                .collect(
+                    Collectors.toMap(
+                        p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                        p -> new OffsetAndMetadata(p.getNextOffset()))));
+      } catch (Exception e) {
+        // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
+        // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
+        LOG.warn(
+            String.format("%s: Could not commit finalized checkpoint %s", this, checkpointMark), e);
+      }
     }
   }
 
@@ -665,6 +675,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
 
     reportBacklog();
+    reportBacklogMetrics();
 
     // cycle through the partitions in order to interleave records from each.
     curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
@@ -734,6 +745,16 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       splitBacklogMessages = UnboundedReader.BACKLOG_UNKNOWN;
     }
     backlogElementsOfSplit.set(splitBacklogMessages);
+  }
+
+  private void reportBacklogMetrics() {
+    for (PartitionState<K, V> p : partitionStates) {
+      long pBacklog = p.approxBacklogInBytes();
+      if (pBacklog != UnboundedReader.BACKLOG_UNKNOWN) {
+        kafkaResults.updateBacklogBytes(
+            p.topicPartition().topic(), p.topicPartition().partition(), pBacklog);
+      }
+    }
   }
 
   private long getSplitBacklogMessageCount() {

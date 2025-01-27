@@ -22,7 +22,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Indicates that an output element was too large. */
 public class OutputTooLargeException extends RuntimeException {
   public OutputTooLargeException(String reason) {
-    super(reason);
+    super(
+        reason
+            + " See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception.");
   }
 
   /** Returns whether an exception was caused by a {@link OutputTooLargeException}. */

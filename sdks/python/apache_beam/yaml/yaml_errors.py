@@ -24,7 +24,7 @@ from apache_beam.typehints.row_type import RowTypeConstraint
 
 
 class ErrorHandlingConfig(NamedTuple):
-  """Class to define Error Handling parameters.
+  """This option specifies whether and where to output error rows.
 
       Args:
         output (str): Name to use for the output error collection

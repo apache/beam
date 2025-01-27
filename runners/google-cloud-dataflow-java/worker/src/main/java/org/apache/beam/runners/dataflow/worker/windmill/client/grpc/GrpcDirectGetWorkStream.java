@@ -45,7 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +61,7 @@ final class GrpcDirectGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectGetWorkStream.class);
+
   private static final StreamingGetWorkRequest HEALTH_CHECK_REQUEST =
       StreamingGetWorkRequest.newBuilder()
           .setRequestExtension(
@@ -88,6 +89,8 @@ final class GrpcDirectGetWorkStream
    */
   private final ConcurrentMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
 
+  private final boolean requestBatchedGetWorkResponse;
+
   private GrpcDirectGetWorkStream(
       String backendWorkerToken,
       Function<
@@ -99,6 +102,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -127,6 +131,7 @@ final class GrpcDirectGetWorkStream
                 .setItems(requestHeader.getMaxItems())
                 .setBytes(requestHeader.getMaxBytes())
                 .build());
+    this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
   }
 
   static GrpcDirectGetWorkStream create(
@@ -140,6 +145,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -153,6 +159,7 @@ final class GrpcDirectGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
+        requestBatchedGetWorkResponse,
         getWorkThrottleTimer,
         heartbeatSender,
         getDataClient,
@@ -209,6 +216,7 @@ final class GrpcDirectGetWorkStream
                     .setMaxItems(initialGetWorkBudget.items())
                     .setMaxBytes(initialGetWorkBudget.bytes())
                     .build())
+            .setSupportsMultipleWorkItemsInChunk(requestBatchedGetWorkResponse)
             .build();
     lastRequest.set(request);
     budgetTracker.recordBudgetRequested(initialGetWorkBudget);
@@ -243,7 +251,7 @@ final class GrpcDirectGetWorkStream
     workItemAssemblers
         .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
         .append(chunk)
-        .ifPresent(this::consumeAssembledWorkItem);
+        .forEach(this::consumeAssembledWorkItem);
   }
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
@@ -252,6 +260,7 @@ final class GrpcDirectGetWorkStream
         assembledWorkItem.computationMetadata();
     workItemScheduler.scheduleWork(
         workItem,
+        assembledWorkItem.bufferedSize(),
         createWatermarks(workItem, metadata),
         createProcessingContext(metadata.computationId()),
         assembledWorkItem.latencyAttributions());

@@ -1421,6 +1421,37 @@ class PaneInfoCoderImpl(StreamCoderImpl):
     return size
 
 
+class _OrderedUnionCoderImpl(StreamCoderImpl):
+  def __init__(self, coder_impl_types, fallback_coder_impl):
+    assert len(coder_impl_types) < 128
+    self._types, self._coder_impls = zip(*coder_impl_types)
+    self._fallback_coder_impl = fallback_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    value_t = type(value)
+    for (ix, t) in enumerate(self._types):
+      if value_t is t:
+        out.write_byte(ix)
+        c = self._coder_impls[ix]  # for typing
+        c.encode_to_stream(value, out, nested)
+        break
+    else:
+      if self._fallback_coder_impl is None:
+        raise ValueError("No fallback.")
+      out.write_byte(0xFF)
+      self._fallback_coder_impl.encode_to_stream(value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    ix = in_stream.read_byte()
+    if ix == 0xFF:
+      if self._fallback_coder_impl is None:
+        raise ValueError("No fallback.")
+      return self._fallback_coder_impl.decode_from_stream(in_stream, nested)
+    else:
+      c = self._coder_impls[ix]  # for typing
+      return c.decode_from_stream(in_stream, nested)
+
+
 class WindowedValueCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
