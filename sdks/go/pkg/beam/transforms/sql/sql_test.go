@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestOptions_Add(t *testing.T) {
@@ -147,8 +148,8 @@ func TestOutputType(t *testing.T) {
 					return x.Type() == y.Type()
 				}),
 			}
-			if !cmp.Equal(o.outType, expected, opts) {
-				t.Errorf("OutputType() failed:\n%s", cmp.Diff(expected, o.outType, opts))
+			if d := cmp.Diff(expected, o.outType, opts); d != "" {
+				t.Errorf("OutputType() failed: (-want, +got)\n%s", d)
 			}
 		})
 	}
@@ -178,10 +179,6 @@ func TestTransform_MissingOutputType(t *testing.T) {
 // TestMultipleOptions tests applying multiple options at once
 // and verifying that they are all correctly applied to the options object.
 func TestMultipleOptions(t *testing.T) {
-	p := beam.NewPipeline()
-	s := p.Root()
-	col := beam.Create(s, 1, 2, 3)
-
 	testCases := []struct {
 		name          string
 		inputName     string
@@ -202,6 +199,10 @@ func TestMultipleOptions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			p := beam.NewPipeline()
+			s := p.Root()
+			col := beam.Create(s, 1, 2, 3)
+
 			o := &options{
 				inputs: make(map[string]beam.PCollection),
 			}
@@ -213,35 +214,35 @@ func TestMultipleOptions(t *testing.T) {
 				OutputType(tc.typ),
 			}
 
-			// Apply all options
 			for _, opt := range opts {
 				opt(o)
 			}
 			o.Add(tc.customOpt)
 
-			// Verify all fields
-			if got, ok := o.inputs[tc.inputName]; !ok {
-				t.Errorf("Input option with name %q not applied correctly: got nothing, want PCollection", tc.inputName)
-			} else if !reflect.DeepEqual(got, col) {
-				t.Errorf("Input option with name %q not applied correctly: got %v, want %v", tc.inputName, got, col)
+			// Construct the expected options struct
+			expected := &options{
+				inputs: map[string]beam.PCollection{
+					tc.inputName: col,
+				},
+				dialect:       tc.dialect,
+				expansionAddr: tc.expansionAddr,
+				outType:       typex.New(tc.typ),
+				customs:       []sqlx.Option{tc.customOpt},
 			}
 
-			if o.dialect != tc.dialect {
-				t.Errorf("Dialect option not applied correctly: got %q, want %q", o.dialect, tc.dialect)
-			}
+			// Define a custom comparer for typex.FullType
+			fullTypeComparer := cmp.Comparer(func(x, y typex.FullType) bool {
+				return x.Type() == y.Type() // Compare only the underlying reflect.Type
+			})
 
-			if o.expansionAddr != tc.expansionAddr {
-				t.Errorf("ExpansionAddr option not applied correctly: got %q, want %q", o.expansionAddr, tc.expansionAddr)
-			}
-
-			if !reflect.DeepEqual(o.outType, typex.New(tc.typ)) {
-				t.Errorf("OutputType option not applied correctly: got %v, want %v", o.outType, typex.New(tc.typ))
-			}
-
-			if len(o.customs) != 1 {
-				t.Errorf("Custom option not applied correctly: got %d options, want 1 option", len(o.customs))
-			} else if !reflect.DeepEqual(o.customs[0], tc.customOpt) {
-				t.Errorf("Custom option not applied correctly: got %v, want %v", o.customs[0], tc.customOpt)
+			if d := cmp.Diff(
+				expected,
+				o,
+				cmp.AllowUnexported(options{}),
+				cmpopts.IgnoreUnexported(beam.PCollection{}),
+				fullTypeComparer, // Use the custom comparer for typex.FullType
+			); d != "" {
+				t.Errorf("Options mismatch: (-want, +got)\n%s", d)
 			}
 		})
 	}
