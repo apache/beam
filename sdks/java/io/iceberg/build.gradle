@@ -74,7 +74,7 @@ dependencies {
     // Hive catalog test dependencies
     testImplementation project(path: ":sdks:java:io:iceberg:hive")
     testImplementation "org.apache.iceberg:iceberg-common:$iceberg_version"
-    testImplementation ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
+    testImplementation ("org.apache.hive:hive-iceberg-catalog:$hive_version")
     testImplementation ("org.apache.hive:hive-metastore:$hive_version")
     testImplementation ("org.apache.hive:hive-standalone-metastore-server:$hive_version")
     testImplementation "org.assertj:assertj-core:3.11.1"
