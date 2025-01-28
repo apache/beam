@@ -135,8 +135,8 @@ cloud.google.com/go/bigquery v1.47.0/go.mod h1:sA9XOgy0A8vQK9+MWhEQTY6Tix87M/Zur
 cloud.google.com/go/bigquery v1.48.0/go.mod h1:QAwSz+ipNgfL5jxiaK7weyOhzdoAy1zFm0Nf1fysJac=
 cloud.google.com/go/bigquery v1.49.0/go.mod h1:Sv8hMmTFFYBlt/ftw2uN6dFdQPzBlREY9yBh7Oy7/4Q=
 cloud.google.com/go/bigquery v1.50.0/go.mod h1:YrleYEh2pSEbgTBZYMJ5SuSr0ML3ypjRB1zgf7pvQLU=
-cloud.google.com/go/bigquery v1.65.0 h1:ZZ1EOJMHTYf6R9lhxIXZJic1qBD4/x9loBIS+82moUs=
-cloud.google.com/go/bigquery v1.65.0/go.mod h1:9WXejQ9s5YkTW4ryDYzKXBooL78u5+akWGXgJqQkY6A=
+cloud.google.com/go/bigquery v1.66.0 h1:cDM3xEUUTf6RDepFEvNZokCysGFYoivHHTIZOWXbV2E=
+cloud.google.com/go/bigquery v1.66.0/go.mod h1:Cm1hMRzZ8teV4Nn8KikgP8bT9jd54ivP8fvXWZREmG4=
 cloud.google.com/go/bigtable v1.35.0 h1:UEacPwaejN2mNbz67i1Iy3G812rxtgcs6ePj1TAg7dw=
 cloud.google.com/go/bigtable v1.35.0/go.mod h1:EabtwwmTcOJFXp+oMZAT/jZkyDIjNwrv53TrS4DGrrM=
 cloud.google.com/go/billing v1.4.0/go.mod h1:g9IdKBEFlItS8bTtlrZdVLWSSdSyFUZKXNS02zKMOZY=
