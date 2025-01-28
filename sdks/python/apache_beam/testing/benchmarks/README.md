@@ -48,7 +48,7 @@ The file needs the Apache 2.0 license header at the top of the file, then each f
 * Staging and Temp locations
 * A requirements file path in the repository (if additional dependencies are needed)
 * Benchmark-specific values
-    * `publish_to_big_query` 
+    * `publish_to_big_query`
         * This is always `true` for cost benchmarks
     * Metrics Dataset for Output
         * For `RunInference` workloads this will be `beam_run_inference`
