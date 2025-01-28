@@ -236,8 +236,14 @@ class ValidatesRunnerConfig {
 def sickbayTests = [
         // TODO(https://github.com/apache/beam/issues/21306)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
-        // TODO(https://github.com/apache/beam/issues/18198)
+        // Flink errors are not deterministic. Exception may just be
+        // org.apache.flink.runtime.operators.coordination.TaskNotRunningException: Task is not running, but in state FAILED
+        // instead of the actual cause. Real cause is visible in the logs.
+        'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests',
         'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+        // TODO(https://github.com/apache/beam/issues/18198)
+        'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
+        // testTriggeredLatestSingleton gets "stuck" both with or without --useDatastreamForBatch
 ]
 
 def createValidatesRunnerTask(Map m) {
@@ -251,7 +257,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptionsArray = ["--runner=TestFlinkRunner",
                                 "--streaming=${config.streaming}",
                                 "--useDataStreamForBatch=${config.useDataStreamForBatch}",
-                                "--parallelism=2",
+                                "--parallelism=1",
     ]
     if (config.checkpointing) {
       pipelineOptionsArray.addAll([
@@ -268,6 +274,8 @@ def createValidatesRunnerTask(Map m) {
     )
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
+    def flinkConfDir = System.getProperty("user.dir") + "/runners/flink/src/test/validatesRunnerConfig"
+    environment("FLINK_CONF_DIR", flinkConfDir)
     useJUnit {
       if (config.checkpointing) {
         includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
