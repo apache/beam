@@ -22,8 +22,8 @@
 Writing a Dataflow Cost Benchmark to estimate the financial cost of executing a pipeline on Google Cloud Platform Dataflow requires 4 components in the repository:
 
 1. A pipeline to execute (ideally one located in the examples directory)
-1. A text file with pipeline options in the `.github/workflows/cost-benchmarks-pipeline-options` directory
-1. A test class inheriting from the `DataflowCostBenchmark` class
+1. A text file with pipeline options in the `.github/workflows/cost-benchmarks-pipeline-options` [directory](../../../../../.github/workflows/cost-benchmarks-pipeline-options)
+1. A test class inheriting from the `DataflowCostBenchmark` [class](../load_tests/dataflow_cost_benchmark.py)
 1. An entry to execute the pipeline as part of the cost benchmarks workflow action
 
 ### Choosing a Pipeline
@@ -37,7 +37,8 @@ Pipelines that are worth benchmarking in terms of performance and cost have a fe
 Additionally, the `run()` call for the pipeline should return a `PipelineResult` object, which the benchmark framework uses to query metrics from Dataflow after the run completes.
 
 ### Pipeline Options
-Once you have a functioning pipeline to configure as a benchmark, the options needs to be saved as a `.txt` file in the `.github/workflows/cost-benchmarks-pipeline-options` directory. The file needs the Apache 2.0 license header at the top of the file, then each flag will need to be provided on a separate line. These arguments include:
+Once you have a functioning pipeline to configure as a benchmark, the options needs to be saved as a `.txt` file in the `.github/workflows/cost-benchmarks-pipeline-options` [directory](../../../../../.github/workflows/cost-benchmarks-pipeline-options).
+The file needs the Apache 2.0 license header at the top of the file, then each flag will need to be provided on a separate line. These arguments include:
 
 * GCP Region (usually us-central1)
 * Machine Type
@@ -52,7 +53,8 @@ Once you have a functioning pipeline to configure as a benchmark, the options ne
     * Metrics Table for Output
 
 ### Configuring the Test Class
-With the pipeline itself chosen and the arguments set, we can build out the test class that will execute the pipeline. Navigate to `sdks/python/apache_beam/testing/benchmarks` and select an appropriate sub-directory (or create one if necessary.) The class for `wordcount` is shown below:
+With the pipeline itself chosen and the arguments set, we can build out the test class that will execute the pipeline. Navigate to [`sdks/python/apache_beam/testing/benchmarks`](../../testing/benchmarks/) and select an appropriate sub-directory (or create one if necessary.)
+The class for `wordcount` is shown below:
 
 ```py
 import logging
@@ -82,8 +84,17 @@ The important notes here: if there are any arguments with common arg names (like
 
 You should also make sure that you save the output of the `run()` call from the pipeline in the `self.result` field, as the framework will try to re-run the pipeline without the extra opts if that value is missing. Beyond those two key notes, the benchmarking framework does all of the other work in terms of setup, teardown, and metrics querying.
 
+#### Streaming Workloads
+
+If the pipeline is a streaming use case, two versions need to be created: one operating on a backlog of work items (e.g. the entire test corpus is placed into the streaming source
+before the pipeline begins) and one operating in steady state (e.g. elements are added to the streaming source at a regular rate.) The former is relatively simple, simply add an extra
+step to the `test()` function to stage the input data into the streaming source being read from. For the latter, a separate Python thread should be spun up to stage one element at a time
+repeatedly over a given time interval (the interval between elements and the duration of the staging should be defined as part of the benchmark configuration.) Once the streaming pipeline
+is out of data and does not receive more for an extended period of time, the pipeline will exit and the benchmarking framework will process the results in the same manner as the batch case.
+In the steady state case, remember to call `join()` to close the thread after exectution.
+
 ### Updating the Benchmark Workflow
-Navigate to `.github/workflows/beam_Python_CostBenchmarks_Dataflow.yml` and make the following changes:
+Navigate to [`.github/workflows/beam_Python_CostBenchmarks_Dataflow.yml`](../../../../../.github/workflows/beam_Python_CostBenchmarks_Dataflow.yml) and make the following changes:
 
 1. Add the pipeline options `.txt` file written above to the `argument-file-paths` list. This will load those pipeline options as an entry in the workflow environment, with the entry getting the value `env.beam_Python_Cost_Benchmarks_Dataflow_test_arguments_X`. X is an integer value corresponding to the position of the text file in the list of files, starting from `1`.
 2. Create an entry for the benchmark. The entry for wordcount is as follows:
