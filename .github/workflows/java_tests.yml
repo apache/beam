@@ -23,13 +23,13 @@ on:
   
   schedule:
     - cron: '10 2 * * *'
-  push:
-    branches: ['master', 'release-*']
-    tags: ['v*']
-  pull_request:
-    branches: ['master', 'release-*']
-    tags: ['v*']
-    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**', 'examples/kotlin/**', 'release/**', 'buildSrc/**']
+#  push:
+#    branches: ['master', 'release-*']
+#    tags: ['v*']
+#  pull_request:
+#    branches: ['master', 'release-*']
+#    tags: ['v*']
+#    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**', 'examples/kotlin/**', 'release/**', 'buildSrc/**']
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'

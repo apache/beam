@@ -221,7 +221,11 @@ class OptimizeGrid(beam.PTransform):
 
       # Run L-BFGS-B optimizer
       result = minimize(lambda x: np.sum(sim.simulate(x)), x0, bounds=bounds)
-      return result.x.tolist(), sim.simulate(result.x)
+
+      # Ensure result.x is explicitly a NumPy array before calling .tolist()
+      x_values = np.array(result.x)  # Convert to NumPy array explicitly
+
+      return x_values.tolist(), sim.simulate(x_values)
 
     def process(self, element):
       mapping_identifier, greenhouse = element[0]
