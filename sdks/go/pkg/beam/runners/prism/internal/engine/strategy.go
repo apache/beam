@@ -46,6 +46,8 @@ import (
 // stage's input PCollection.
 type WinStrat struct {
 	AllowedLateness time.Duration // Used to extend duration
+
+	Trigger Trigger // Evaluated during execution.
 }
 
 // EarliestCompletion marks when we can close a window.
@@ -269,7 +271,7 @@ func (t *TriggerOrFinally) isReady(input triggerInput, state *StateData) bool {
 	mainReady := t.Main.isReady(input, state)
 	finallyReady := t.Finally.isReady(input, state)
 
-	if mainReady || finallyReady {
+	if finallyReady || state.getTriggerState(t.Main).finished {
 		t.Main.reset(state)
 	}
 
@@ -373,6 +375,20 @@ func (t *TriggerAfterEndOfWindow) reset(state *StateData) {
 	delete(state.Trigger, t)
 }
 
+// TriggerDefault fires once the window ends, but then fires per element
+// received for late data. Equivalent to AfterEndOfWindow{Late: Always{}}
+type TriggerDefault struct{}
+
+func (t *TriggerDefault) isReady(input triggerInput, state *StateData) bool {
+	if input.endOfWindowReached {
+		return true
+	}
+	return false
+}
+
+func (t *TriggerDefault) reset(state *StateData) {
+	delete(state.Trigger, t)
+}
+
 // TODO
 // TriggerAfterProcessingTime
-// TriggerDefault

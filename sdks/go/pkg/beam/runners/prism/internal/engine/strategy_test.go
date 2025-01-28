@@ -228,6 +228,30 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1}, false},
 			},
 		}, {
+			name: "orFinally_afterEach_2_1_7_afterEach_4_5",
+			trig: &TriggerOrFinally{
+				Main: &TriggerAfterEach{
+					SubTriggers: []Trigger{&TriggerElementCount{2}, &TriggerElementCount{1}, &TriggerElementCount{7}},
+				},
+				Finally: &TriggerAfterEach{
+					SubTriggers: []Trigger{&TriggerElementCount{4}, &TriggerElementCount{5}},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},  // Main is ready
+				{triggerInput{newElementCount: 1}, true},  // Main is ready
+				{triggerInput{newElementCount: 1}, true},  // Finally is ready
+				{triggerInput{newElementCount: 1}, false}, // Should never fire again as a result.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
 			name: "repeated_afterEach_2_1_3",
 			trig: &TriggerRepeatedly{&TriggerAfterEach{
 				SubTriggers: []Trigger{
@@ -345,6 +369,22 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
+			},
+		}, {
+			name: "default",
+			trig: &TriggerDefault{},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // End of window
+				{triggerInput{newElementCount: 2, endOfWindowReached: true}, true},
+				{triggerInput{newElementCount: 3, endOfWindowReached: true}, true},
+				{triggerInput{newElementCount: 4, endOfWindowReached: true}, true},
+				{triggerInput{newElementCount: 5, endOfWindowReached: true}, true},
+				{triggerInput{newElementCount: 6, endOfWindowReached: true}, true},
+				{triggerInput{newElementCount: 7, endOfWindowReached: true}, true},
 			},
 		},
 	}
