@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import json
 import logging
 import unittest
 import uuid
@@ -78,16 +77,16 @@ class DistribOptimizationTest(unittest.TestCase):
     # Only 1 result
     self.assertEqual(len(lines), 1)
 
+    # Handle NumPy string representation before parsing
+    cleaned_line = lines[0].replace("np.str_('", "'").replace("')", "'")
+
     # parse result line and verify optimum
-    optimum = json.loads(lines[0])
+    optimum = make_tuple(cleaned_line)
     self.assertAlmostEqual(optimum['cost'], 454.39597, places=3)
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
-
-    # Ensure production values are NumPy arrays before comparison
     production = optimum['production']
     for plant in ['A', 'B', 'C']:
-      values = np.array(production[plant])  # Convert to NumPy array if needed
-      np.testing.assert_almost_equal(values, np.ones(3))
+      np.testing.assert_almost_equal(production[plant], np.ones(3))
 
 
 if __name__ == '__main__':
