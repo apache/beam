@@ -218,7 +218,7 @@ def binary_slice(state, args):
 
 
 def store_slice(state, args):
-  """Clears elements off the stack like it was constructing a 
+  """Clears elements off the stack like it was constructing a
   container, but leaves the container type back at stack[-1]
   since that's all that is relevant for type checking.
   """
@@ -342,6 +342,10 @@ def build_const_key_map(state, arg):
 def list_to_tuple(state, arg):
   base = state.stack.pop()
   state.stack.append(Tuple[element_type(base), ...])
+
+
+def build_string(state, arg):
+  state.stack[-arg:] = [str]
 
 
 def list_extend(state, arg):
@@ -497,7 +501,7 @@ def load_closure(state, arg):
   # See https://docs.python.org/3/library/dis.html#opcode-LOAD_CLOSURE
   if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
     arg -= len(state.co.co_varnames)
-  state.stack.append(state.get_closure(arg))
+  state.stack.append(state.closure_type(arg))
 
 
 def load_deref(state, arg):
@@ -552,6 +556,21 @@ def make_closure(state, arg):
 
 def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
+
+
+def format_value(state, arg):
+  if arg & 0x04:
+    state.stack.pop()
+  state.stack.pop()
+  state.stack.append(str)
+
+
+def format_simple(state, arg):
+  state.stack[-1:][str]
+
+
+def format_with_spec(state, arg):
+  state.stack[-2:][str]
 
 
 def _unpack_lists(state, arg):
