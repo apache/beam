@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.ordered.combiner;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.extensions.ordered.ContiguousSequenceRange;
 import org.joda.time.Instant;
@@ -274,6 +278,64 @@ public class SequenceRangeAccumulatorTest {
     int expectedNumberOfRanges = 1;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
+  }
+
+  @Test
+  public void testMergingAdjacentRangesWithSingleValue() {
+    Event[] set1 =
+        new Event[] {
+          new Event(4, nextTimestamp()),
+        };
+    Event[] set2 =
+        new Event[] {
+          new Event(1, nextTimestamp(), true),
+          new Event(3, nextTimestamp()),
+          new Event(2, nextTimestamp())
+        };
+
+    ContiguousSequenceRange expectedResult =
+        ContiguousSequenceRange.of(1, 5, eventTimestamp(set2, 2L));
+    int expectedNumberOfRanges = 1;
+
+    doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
+  }
+
+  @Test
+  public void testLargeVolumeMerging() {
+    int numberOfSets = 3000;
+    ArrayList<Set<Event>> eventSets = new ArrayList<>(numberOfSets);
+
+    for (int i = 0; i < numberOfSets; i++) {
+      eventSets.add(new HashSet<>());
+    }
+
+    int eventCount = 100000;
+
+    Random random = new Random();
+    Instant lastTimestamp = null;
+    for (int i = 0; i < eventCount; i++) {
+      int setNumber = random.nextInt(numberOfSets);
+      Set<Event> currentSet = eventSets.get(setNumber);
+      boolean initialEvent = i == 0;
+      lastTimestamp = nextTimestamp();
+      currentSet.add(new Event(i, lastTimestamp, initialEvent));
+    }
+
+    final SequenceRangeAccumulator initialAccumulator = new SequenceRangeAccumulator();
+    eventSets.get(0).forEach(e -> initialAccumulator.add(e.sequence, e.timestamp, e.initialEvent));
+
+    for (int i = 1; i < numberOfSets; i++) {
+      SequenceRangeAccumulator nextAccumulator = new SequenceRangeAccumulator();
+      eventSets.get(i).forEach(e -> nextAccumulator.add(e.sequence, e.timestamp, e.initialEvent));
+      initialAccumulator.merge(nextAccumulator);
+    }
+
+    ContiguousSequenceRange expectedResult =
+        ContiguousSequenceRange.of(0, eventCount, lastTimestamp);
+    Assert.assertEquals(
+        "Accumulated results", expectedResult, initialAccumulator.largestContinuousRange());
+
+    Assert.assertEquals("Number of ranges", 1, initialAccumulator.numberOfRanges());
   }
 
   @Test

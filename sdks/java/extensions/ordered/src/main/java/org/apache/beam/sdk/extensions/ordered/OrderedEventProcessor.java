@@ -54,6 +54,10 @@ import org.joda.time.Instant;
  * <p>There are two sequencing modes - a sequence per key and a global sequence. See {@link
  * OrderedProcessingHandler} for details on how to configure this transform.
  *
+ * <p>Notice: the global sequence processing on the Dataflow Runner requires running under Runner
+ * V2. Refer to <a href="https://cloud.google.com/dataflow/docs/runner-v2">Dataflow
+ * documentation</a> for details.
+ *
  * @param <EventT> type of event
  * @param <EventKeyT> type of event key
  * @param <StateT> type of the state
@@ -235,7 +239,7 @@ public abstract class OrderedEventProcessor<
     PCollectionTuple processingResult;
     boolean streamingProcessing = input.isBounded() == IsBounded.UNBOUNDED;
 
-    final PCollectionView<ContiguousSequenceRange> latestContiguousRange =
+    final PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange =
         input
             .apply("Convert to SequenceAndTimestamp", ParDo.of(new ToTimestampedEventConverter<>()))
             .apply(

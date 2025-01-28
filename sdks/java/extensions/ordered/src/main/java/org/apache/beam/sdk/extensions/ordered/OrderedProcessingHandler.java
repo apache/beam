@@ -24,11 +24,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.ordered.combiner.DefaultSequenceCombiner;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
+import org.apache.beam.sdk.transforms.Combine.Globally;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /**
@@ -253,11 +255,13 @@ public abstract class OrderedProcessingHandler<
      *
      * @return combiner
      */
-    public GloballyAsSingletonView<
+    public @UnknownKeyFor @NonNull @Initialized Globally<
             TimestampedValue<KV<KeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
         getGlobalSequenceCombiner() {
-      return Combine.globally(new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer()))
-          .asSingletonView();
+      Globally<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, ContiguousSequenceRange> result =
+          Combine.globally(new DefaultSequenceCombiner<>(getEventExaminer()));
+      result = result.withoutDefaults();
+      return result;
     }
 
     /**

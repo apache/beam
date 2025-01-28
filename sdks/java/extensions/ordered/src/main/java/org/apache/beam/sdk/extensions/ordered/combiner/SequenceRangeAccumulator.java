@@ -39,7 +39,6 @@ import org.joda.time.Instant;
 
 /** Default accumulator used to combine sequence ranges. */
 public class SequenceRangeAccumulator {
-
   private static Instant max(Instant a, Instant b) {
     return a.isAfter(b) ? a : b;
   }
@@ -217,7 +216,7 @@ public class SequenceRangeAccumulator {
 
   private Instant removeAllRanges(long lowerBound, long upperBound, Instant currentTimestamp) {
     Instant result = currentTimestamp;
-    SortedMap<Long, Pair<Long, Instant>> rangesToRemove = data.subMap(lowerBound, upperBound);
+    SortedMap<Long, Pair<Long, Instant>> rangesToRemove = data.subMap(lowerBound, upperBound + 1);
     for (Pair<Long, Instant> value : rangesToRemove.values()) {
       result = result.isAfter(value.getRight()) ? result : value.getRight();
     }
