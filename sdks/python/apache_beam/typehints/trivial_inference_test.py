@@ -479,6 +479,15 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda row: (row.x, getattr(row, 'y')),
         [row_type.RowTypeConstraint.from_fields([('x', int), ('y', str)])])
 
+  def testRowMissingAttr(self):
+    self.assertReturnType(
+        typehints.Any,
+        lambda row: getattr(row, '_asdict'),
+        [row_type.RowTypeConstraint.from_fields([('x', int), ('y', str)])])
+
+  def testFString(self):
+    self.assertReturnType(str, lambda x, y: f'{x}: {y:0.2}', [str, float])
+
   def testPyCallable(self):
     self.assertReturnType(
         typehints.Tuple[int, str],
