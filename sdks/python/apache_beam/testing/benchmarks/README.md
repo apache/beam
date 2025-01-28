@@ -48,9 +48,12 @@ The file needs the Apache 2.0 license header at the top of the file, then each f
 * Staging and Temp locations
 * A requirements file path in the repository (if additional dependencies are needed)
 * Benchmark-specific values
-    * `publish_to_big_query` - always true for benchmarks
+    * `publish_to_big_query` 
+        * This is always `true` for cost benchmarks
     * Metrics Dataset for Output
+        * For `RunInference` workloads this will be `beam_run_inference`
     * Metrics Table for Output
+        * This should be named for the benchmark being run
 
 ### Configuring the Test Class
 With the pipeline itself chosen and the arguments set, we can build out the test class that will execute the pipeline. Navigate to [`sdks/python/apache_beam/testing/benchmarks`](../../testing/benchmarks/) and select an appropriate sub-directory (or create one if necessary.)
