@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import json
 import logging
 import unittest
 import uuid
@@ -78,7 +79,7 @@ class DistribOptimizationTest(unittest.TestCase):
     self.assertEqual(len(lines), 1)
 
     # parse result line and verify optimum
-    optimum = make_tuple(lines[0])
+    optimum = json.loads(lines[0])
     self.assertAlmostEqual(optimum['cost'], 454.39597, places=3)
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
 
