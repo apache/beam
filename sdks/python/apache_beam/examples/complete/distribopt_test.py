@@ -61,7 +61,7 @@ class DistribOptimizationTest(unittest.TestCase):
     # Run pipeline
     # Avoid dependency on SciPy
     scipy_mock = MagicMock()
-    result_mock = MagicMock(x=np.ones(3))
+    result_mock = MagicMock(x=np.ones(3).tolist())  # Convert NumPy array to a list for compatibility
     scipy_mock.optimize.minimize = MagicMock(return_value=result_mock)
     modules = {'scipy': scipy_mock, 'scipy.optimize': scipy_mock.optimize}
 
@@ -79,11 +79,14 @@ class DistribOptimizationTest(unittest.TestCase):
 
     # parse result line and verify optimum
     optimum = make_tuple(lines[0])
-    self.assertAlmostEqual(optimum['cost'], 454.39597, places=3)
+    self.assertAlmostEqual(float(optimum['cost']), 454.39597, places=3)
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
-    production = optimum['production']
+
+    # Convert NumPy arrays to lists for compatibility in NumPy 2
+    production = {k: np.array(v).tolist() if isinstance(v, np.ndarray) else v for k, v in optimum['production'].items()}
+
     for plant in ['A', 'B', 'C']:
-      np.testing.assert_almost_equal(production[plant], np.ones(3))
+      np.testing.assert_almost_equal(production[plant], np.ones(3).tolist())  # Ensure lists are compared, not NumPy arrays
 
 
 if __name__ == '__main__':
