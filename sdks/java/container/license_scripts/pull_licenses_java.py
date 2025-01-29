@@ -194,11 +194,11 @@ def execute(dep):
     name_version = name + '-' + version
     # javac is not a runtime dependency
     if name == 'javac':
-      logging.debug('Skipping', name_version)
+      logging.debug('Skipping %s', name_version)
       return
     # skip self dependencies
     if dep['moduleName'].lower().startswith('beam'):
-      logging.debug('Skipping', name_version)
+      logging.debug('Skipping %s', name_version)
       return
     dir_name = '{output_dir}/{name_version}.jar'.format(
         output_dir=output_dir, name_version=name_version)
@@ -231,8 +231,8 @@ def execute(dep):
         except:
             license_url = ''
         logging.debug(
-            'License/notice for {name_version} were pulled automatically. License_url {license_url}'.
-            format(name_version=name_version, license_url=license_url))
+            'License/notice for {name_version} were pulled automatically.'.
+            format(name_version=name_version))
 
     # get license_type to decide if pull source code.
     try:
