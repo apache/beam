@@ -147,7 +147,7 @@ def write_to_bigquery(
 
         Defaults to `{BigQueryDisposition.CREATE_IF_NEEDED}`.
 
-      write_disposition (BigQueryDisposition): A string describing what happens
+    write_disposition (BigQueryDisposition): A string describing what happens
         if the table has already some data. Possible values are:
 
         * :attr:`{BigQueryDisposition.WRITE_TRUNCATE}`: delete existing rows.
@@ -159,7 +159,7 @@ def write_to_bigquery(
 
         Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
 
-      error_handling: If specified, should be a mapping giving an output into
+    error_handling: If specified, should be a mapping giving an output into
         which to emit records that failed to bet written to BigQuery, as
         described at https://beam.apache.org/documentation/sdks/yaml-errors/
         Otherwise permanently failing records will cause pipeline failure.
