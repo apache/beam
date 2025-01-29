@@ -88,7 +88,6 @@ class SklearnInference(unittest.TestCase):
       true_label, expected_prediction = expected_outputs[i].split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
-
   # TODO(https://github.com/apache/beam/issues/33796) use older numpy version for python 3.9 and 3.10
   @unittest.skipIf((3, 9, 0) <= sys.version_info < (3, 11, 0), "Beam#33796")
   def test_sklearn_mnist_classification_large_model(self):
