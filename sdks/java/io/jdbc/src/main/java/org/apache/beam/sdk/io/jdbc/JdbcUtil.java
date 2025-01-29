@@ -679,7 +679,7 @@ public class JdbcUtil {
   @AutoValue
   abstract static class FQNComponents {
 
-    static String DEFAULT_SCHEMA = "default";
+    static final String DEFAULT_SCHEMA = "default";
 
     abstract String getScheme();
 
