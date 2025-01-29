@@ -90,7 +90,7 @@ while((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXEC
   try {
     tables = t.run "bq query --use_legacy_sql=false SELECT table_name FROM ${t.bqDataset()}.INFORMATION_SCHEMA.TABLES"
     if(tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")) {
-      query_result = t.run """bq query --batch "SELECT user FROM `${t.gcpProject()}.${t.bqDataset()}.leaderboard_${runner}_user` LIMIT 10\""""
+      query_result = t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}.${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
       if(t.seeAnyOf(mobileGamingCommands.COLORS, query_result)){
         isSuccess = true
         break
