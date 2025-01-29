@@ -53,8 +53,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20240930'
-ext.dataflowFnapiContainerVersion = 'beam-master-20240930'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250128'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250128'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -639,11 +639,12 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
     filter {
-      // Only needs to run on direct runner
+      // Error handling tests, only needs to run on direct runner
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.spanner.SpannerReadIT.testReadFailsBadSession'
     }
   }
 }
@@ -697,11 +698,12 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit {
     filter {
-      // Only needs to run on direct runner
+      // Error handling tests, only needs to run on direct runner
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.spanner.SpannerReadIT.testReadFailsBadSession'
     }
   }
 }
