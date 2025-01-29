@@ -1611,7 +1611,7 @@ public class JdbcIO {
 
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
-    private @Nullable String reportedLineage;
+    private @Nullable KV<@Nullable String, String> reportedLineage;
 
     private ReadFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn,
@@ -1641,16 +1641,17 @@ public class JdbcIO {
         this.connection = connection;
 
         // report Lineage if not haven't done so
-        String table = JdbcUtil.extractTableFromReadQuery(query.get());
-        if (!table.equals(reportedLineage)) {
+        KV<@Nullable String, String> schemaWithTable =
+            JdbcUtil.extractTableFromReadQuery(query.get());
+        if (schemaWithTable != null && !schemaWithTable.equals(reportedLineage)) {
           JdbcUtil.FQNComponents fqn = JdbcUtil.FQNComponents.of(validSource);
           if (fqn == null) {
             fqn = JdbcUtil.FQNComponents.of(connection);
           }
           if (fqn != null) {
-            fqn.reportLineage(Lineage.getSources(), table);
+            fqn.reportLineage(Lineage.getSources(), schemaWithTable);
           }
-          reportedLineage = table;
+          reportedLineage = schemaWithTable;
         }
       }
       return connection;
@@ -2665,7 +2666,7 @@ public class JdbcIO {
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
     private @Nullable PreparedStatement preparedStatement;
-    private @Nullable String reportedLineage;
+    private @Nullable KV<@Nullable String, String> reportedLineage;
     private static @Nullable FluentBackoff retryBackOff;
 
     public WriteFn(WriteFnSpec<T, V> spec) {
@@ -2705,20 +2706,21 @@ public class JdbcIO {
             connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
         this.connection = connection;
 
-        // report Lineage if haven't done so
-        String table = spec.getTable();
-        if (Strings.isNullOrEmpty(table) && spec.getStatement() != null) {
-          table = JdbcUtil.extractTableFromWriteQuery(spec.getStatement().get());
+        KV<@Nullable String, String> tableWithSchema;
+        if (Strings.isNullOrEmpty(spec.getTable()) && spec.getStatement() != null) {
+          tableWithSchema = JdbcUtil.extractTableFromWriteQuery(spec.getStatement().get());
+        } else {
+          tableWithSchema = JdbcUtil.extractTableFromTable(spec.getTable());
         }
-        if (!Objects.equals(table, reportedLineage)) {
+        if (!Objects.equals(tableWithSchema, reportedLineage)) {
           JdbcUtil.FQNComponents fqn = JdbcUtil.FQNComponents.of(validSource);
           if (fqn == null) {
             fqn = JdbcUtil.FQNComponents.of(connection);
           }
           if (fqn != null) {
-            fqn.reportLineage(Lineage.getSinks(), table);
+            fqn.reportLineage(Lineage.getSinks(), tableWithSchema);
           }
-          reportedLineage = table;
+          reportedLineage = tableWithSchema;
         }
       }
       return connection;
