@@ -60,7 +60,7 @@ class DaskOptions(PipelineOptions):
 
   @staticmethod
   def _extract_bag_kwargs(dask_options: t.Dict) -> t.Dict:
-    """Parse keyword arguments for `dask.Bag`s, used during graph translation."""
+    """Parse keyword arguments for `dask.Bag`s; used in graph translation."""
     out = {}
 
     if npartitions := dask_options.pop('npartitions', None):
