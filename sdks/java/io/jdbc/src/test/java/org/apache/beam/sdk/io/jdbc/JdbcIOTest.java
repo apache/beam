@@ -248,7 +248,9 @@ public class JdbcIOTest implements Serializable {
     PipelineResult result = pipeline.run();
     assertThat(
         Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(Lineage.getFqName("derby", ImmutableList.of("memory", "testDB", READ_TABLE_NAME))));
+        hasItem(
+            Lineage.getFqName(
+                "derby", ImmutableList.of("memory", "testDB", "default", READ_TABLE_NAME))));
   }
 
   @Test
@@ -271,7 +273,9 @@ public class JdbcIOTest implements Serializable {
     PipelineResult result = pipeline.run();
     assertThat(
         Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(Lineage.getFqName("derby", ImmutableList.of("memory", "testDB", READ_TABLE_NAME))));
+        hasItem(
+            Lineage.getFqName(
+                "derby", ImmutableList.of("memory", "testDB", "default", READ_TABLE_NAME))));
   }
 
   @Test
@@ -543,7 +547,9 @@ public class JdbcIOTest implements Serializable {
       assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
       assertThat(
           Lineage.query(result.metrics(), Lineage.Type.SINK),
-          hasItem(Lineage.getFqName("derby", ImmutableList.of("memory", "testDB", tableName))));
+          hasItem(
+              Lineage.getFqName(
+                  "derby", ImmutableList.of("memory", "testDB", "default", tableName))));
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
     }
