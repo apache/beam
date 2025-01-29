@@ -678,14 +678,29 @@ public class JdbcUtil {
   /** Jdbc fully qualified name components. */
   @AutoValue
   abstract static class FQNComponents {
+
+    static String DEFAULT_SCHEMA = "default";
+
     abstract String getScheme();
 
     abstract Iterable<String> getSegments();
 
-    void reportLineage(Lineage lineage, @Nullable String table) {
+    void reportLineage(Lineage lineage, @Nullable KV<@Nullable String, String> tableWithSchema) {
       ImmutableList.Builder<String> builder = ImmutableList.<String>builder().addAll(getSegments());
-      if (table != null && !table.isEmpty()) {
-        builder.add(table);
+      if (tableWithSchema != null) {
+        if (tableWithSchema.getKey() != null && !tableWithSchema.getKey().isEmpty()) {
+          builder.add(tableWithSchema.getKey());
+        } else {
+          // Every database engine has the default schema or search path if user hasn't provided
+          // one. The name
+          // is specific to db engine. For PostgreSQL it is public, for MSSQL it is dbo.
+          // Users can have custom default scheme for the benefit of the user but dataflow is unable
+          // to determine that.
+          builder.add(DEFAULT_SCHEMA);
+        }
+        if (!tableWithSchema.getValue().isEmpty()) {
+          builder.add(tableWithSchema.getValue());
+        }
       }
       lineage.add(getScheme(), builder.build());
     }
@@ -792,41 +807,66 @@ public class JdbcUtil {
     }
   }
 
+  private static final Pattern TABLE_PATTERN =
+      Pattern.compile(
+          "(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?`?(?<tableName>[^\\s\\[\\]`]+)\\]?`?",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Pattern READ_STATEMENT_PATTERN =
       Pattern.compile(
-          "SELECT\\s+.+?\\s+FROM\\s+\\[?(?<tableName>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+          "SELECT\\s+.+?\\s+FROM\\s+(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?`?(?<tableName>[^\\s\\[\\]`]+)\\]?`?",
+          Pattern.CASE_INSENSITIVE);
 
   private static final Pattern WRITE_STATEMENT_PATTERN =
       Pattern.compile(
-          "INSERT\\s+INTO\\s+\\[?(?<tableName>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+          "INSERT\\s+INTO\\s+(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?(?<tableName>[^\\s\\[\\]]+)\\]?",
+          Pattern.CASE_INSENSITIVE);
 
-  /** Extract table name a SELECT statement. Return empty string if fail to extract. */
-  static String extractTableFromReadQuery(@Nullable String query) {
+  /** Extract schema and table name a SELECT statement. Return null if fail to extract. */
+  static @Nullable KV<@Nullable String, String> extractTableFromReadQuery(@Nullable String query) {
     if (query == null) {
-      return "";
+      return null;
     }
     Matcher matchRead = READ_STATEMENT_PATTERN.matcher(query);
     if (matchRead.find()) {
-      String matched = matchRead.group("tableName");
-      if (matched != null) {
-        return matched;
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      System.out.println(matchedSchema);
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
       }
     }
-    return "";
+    return null;
+  }
+
+  static @Nullable KV<@Nullable String, String> extractTableFromTable(@Nullable String table) {
+    if (table == null) {
+      return null;
+    }
+    Matcher matchRead = TABLE_PATTERN.matcher(table);
+    if (matchRead.find()) {
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
+      }
+    }
+    return null;
   }
 
   /** Extract table name from an INSERT statement. Return empty string if fail to extract. */
-  static String extractTableFromWriteQuery(@Nullable String query) {
+  static @Nullable KV<@Nullable String, String> extractTableFromWriteQuery(@Nullable String query) {
     if (query == null) {
-      return "";
+      return null;
     }
     Matcher matchRead = WRITE_STATEMENT_PATTERN.matcher(query);
     if (matchRead.find()) {
-      String matched = matchRead.group("tableName");
-      if (matched != null) {
-        return matched;
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
       }
     }
-    return "";
+    return null;
   }
 }
