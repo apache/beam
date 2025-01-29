@@ -127,8 +127,11 @@ class DaskBagOp(abc.ABC):
   Attributes
     applied: The underlying `AppliedPTransform` which holds the code for the
       target operation.
+    bag_kwargs: (optional) Keyword arguments applied to input bags, usually
+      from the pipeline's `DaskOptions`.
   """
   applied: AppliedPTransform
+  bag_kwargs: t.Dict = dataclasses.field(default_factory=dict)
 
   @property
   def transform(self):
@@ -151,10 +154,30 @@ class Create(DaskBagOp):
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
+
+    npartitions = self.bag_kwargs.get('npartitions')
+    partition_size = self.bag_kwargs.get('partition_size')
+    if npartitions and partition_size:
+        raise ValueError(
+          f'Please specify either `dask_npartitions` or '
+          f'`dask_parition_size` but not both: '
+          f'{npartitions=}, {partition_size=}.'
+        )
+    if not npartitions and not partition_size:
+        # partition_size is inversely related to `npartitions`.
+        # Ideal "chunk sizes" in dask are around 10-100 MBs.
+        # Let's hope ~128 items per partition is around this
+        # memory overhead.
+        partition_size = max(
+          128,
+          math.ceil(math.sqrt(len(items)) / 10)
+        )
+
     return db.from_sequence(
-        items,
-        partition_size=max(
-            1, math.ceil(math.sqrt(len(items)) / math.sqrt(100))))
+      items,
+      npartitions=npartitions,
+      partition_size=partition_size
+    )
 
 
 def apply_dofn_to_bundle(
