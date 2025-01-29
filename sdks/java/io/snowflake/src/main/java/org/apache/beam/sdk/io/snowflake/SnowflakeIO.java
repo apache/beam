@@ -1192,7 +1192,13 @@ public class SnowflakeIO {
     }
 
     private String quoteField(String field, String quotation) {
-      return String.format("%s%s%s", quotation, field, quotation);
+      String quoted;
+      if (field.isEmpty()) {
+        quoted = field;
+      } else {
+        quoted = String.format("%s%s%s", quotation, field, quotation);
+      }
+      return quoted;
     }
   }
 
