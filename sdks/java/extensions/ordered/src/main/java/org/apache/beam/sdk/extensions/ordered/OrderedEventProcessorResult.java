@@ -55,7 +55,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       unprocessedEventPCollection;
   private final TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag;
 
-  private final @Nullable PCollectionView<ContiguousSequenceRange> latestContiguousRange;
+  private final @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange;
 
   OrderedEventProcessorResult(
       Pipeline pipeline,
@@ -85,7 +85,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       TupleTag<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusTupleTag,
       PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
       TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
-      @Nullable PCollectionView<ContiguousSequenceRange> latestContiguousRange) {
+      @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange) {
 
     this.pipeline = pipeline;
     this.outputPCollection = outputPCollection;
@@ -132,11 +132,17 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     return outputPCollection;
   }
 
+  /** @return events which failed to process, including the reasons for failure. */
   public PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEvents() {
     return unprocessedEventPCollection;
   }
 
-  public @Nullable PCollectionView<ContiguousSequenceRange> latestContiguousRange() {
+  /**
+   * @return a view to a calculated side input with the last contiguous range. Note: an iterator is
+   *     returned instead of a single value. Use {@link
+   *     ContiguousSequenceRange#largestRange(Iterable)} to get the largest range.
+   */
+  public @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange() {
     return latestContiguousRange;
   }
 }
