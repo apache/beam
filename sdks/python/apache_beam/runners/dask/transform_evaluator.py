@@ -158,26 +158,19 @@ class Create(DaskBagOp):
     npartitions = self.bag_kwargs.get('npartitions')
     partition_size = self.bag_kwargs.get('partition_size')
     if npartitions and partition_size:
-        raise ValueError(
+      raise ValueError(
           f'Please specify either `dask_npartitions` or '
           f'`dask_parition_size` but not both: '
-          f'{npartitions=}, {partition_size=}.'
-        )
+          f'{npartitions=}, {partition_size=}.')
     if not npartitions and not partition_size:
-        # partition_size is inversely related to `npartitions`.
-        # Ideal "chunk sizes" in dask are around 10-100 MBs.
-        # Let's hope ~128 items per partition is around this
-        # memory overhead.
-        partition_size = max(
-          128,
-          math.ceil(math.sqrt(len(items)) / 10)
-        )
+      # partition_size is inversely related to `npartitions`.
+      # Ideal "chunk sizes" in dask are around 10-100 MBs.
+      # Let's hope ~128 items per partition is around this
+      # memory overhead.
+      partition_size = max(128, math.ceil(math.sqrt(len(items)) / 10))
 
     return db.from_sequence(
-      items,
-      npartitions=npartitions,
-      partition_size=partition_size
-    )
+        items, npartitions=npartitions, partition_size=partition_size)
 
 
 def apply_dofn_to_bundle(

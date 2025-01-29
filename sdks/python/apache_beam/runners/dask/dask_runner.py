@@ -112,14 +112,15 @@ class DaskOptions(PipelineOptions):
         type=int,
         default=None,
         help='The desired number of `dask.Bag` partitions. When unspecified, '
-             'an educated guess is made.')
+        'an educated guess is made.')
     partitions_parser.add_argument(
         '--dask_partition_size',
         dest='partition_size',
         type=int,
         default=None,
         help='The length of each `dask.Bag` partition. When unspecified, '
-             'an educated guess is made.')
+        'an educated guess is made.')
+
 
 @dataclasses.dataclass
 class DaskRunnerResult(PipelineResult):
