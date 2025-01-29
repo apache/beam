@@ -138,22 +138,13 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_69_0
   implementation library.java.vendored_guava_32_1_2_jre
-  implementation(library.java.arrow_memory_core) {
-    // Arrow 15 has compile dependency of slf4j 2.x where Beam does not support
-    exclude group: 'org.slf4j', module: 'slf4j-api'
-  }
-  implementation(library.java.arrow_vector) {
-    // Arrow 15 has compile dependency of slf4j 2.x where Beam does not support
-    exclude group: 'org.slf4j', module: 'slf4j-api'
-  }
+  implementation library.java.arrow_memory_core
+  implementation library.java.arrow_vector
 
   implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
 
-  testImplementation(library.java.arrow_memory_netty) {
-    // Arrow 15 has compile dependency of slf4j 2.x where Beam does not support
-    exclude group: 'org.slf4j', module: 'slf4j-api'
-  }
+  testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
