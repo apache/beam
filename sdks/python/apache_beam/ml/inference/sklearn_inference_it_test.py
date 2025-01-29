@@ -55,7 +55,7 @@ def file_lines_sorted(filepath):
 @pytest.mark.it_postcommit
 class SklearnInference(unittest.TestCase):
 
-  # TODO(https://github.com/apache/beam/issues/33796) use older numpy version for python 3.9 and 3.10
+  # TODO(https://github.com/apache/beam/issues/33796) use older numpy
   @unittest.skipIf((3, 9, 0) <= sys.version_info < (3, 11, 0), "Beam#33796")
   def test_sklearn_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -88,7 +88,7 @@ class SklearnInference(unittest.TestCase):
       true_label, expected_prediction = expected_outputs[i].split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
-  # TODO(https://github.com/apache/beam/issues/33796) use older numpy version for python 3.9 and 3.10
+  # TODO(https://github.com/apache/beam/issues/33796) use older numpy
   @unittest.skipIf((3, 9, 0) <= sys.version_info < (3, 11, 0), "Beam#33796")
   def test_sklearn_mnist_classification_large_model(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -123,7 +123,7 @@ class SklearnInference(unittest.TestCase):
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
   # TODO(https://github.com/apache/beam/issues/27151) use model with sklearn 1.2
-  # TODO(https://github.com/apache/beam/issues/33796) use older numpy version for python 3.9 and 3.10
+  # TODO(https://github.com/apache/beam/issues/33796) use older numpy
   @unittest.skipIf(sys.version_info >= (3, 9, 0), "Beam#27151")
   def test_sklearn_regression(self):
     test_pipeline = TestPipeline(is_integration_test=True)
