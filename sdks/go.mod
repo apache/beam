@@ -44,7 +44,7 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20250106100439-5c39aecd6999
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.13.1
-	github.com/nats-io/nats-server/v2 v2.10.24
+	github.com/nats-io/nats-server/v2 v2.10.25
 	github.com/nats-io/nats.go v1.38.0
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.8.1
