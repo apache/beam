@@ -75,6 +75,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -712,24 +713,41 @@ public class JdbcUtil {
       String maybeSqlInstance;
       String url;
       try {
-        Class<?> hikariClass = Class.forName("com.zaxxer.hikari.HikariDataSource");
-        if (!hikariClass.isInstance(dataSource)) {
-          return null;
-        }
-        Method getProperties = hikariClass.getMethod("getDataSourceProperties");
-        Properties properties = (Properties) getProperties.invoke(dataSource);
-        if (properties == null) {
-          return null;
-        }
-        maybeSqlInstance = properties.getProperty("cloudSqlInstance");
-        if (maybeSqlInstance == null) {
-          // not a cloudSqlInstance
-          return null;
-        }
-        Method getUrl = hikariClass.getMethod("getJdbcUrl");
-        url = (String) getUrl.invoke(dataSource);
-        if (url == null) {
-          return null;
+        if (dataSource instanceof BasicDataSource) {
+          // try default data source implementation
+          BasicDataSource source = (BasicDataSource) dataSource;
+          Method getProperties = source.getClass().getDeclaredMethod("getConnectionProperties");
+          getProperties.setAccessible(true);
+          Properties properties = (Properties) getProperties.invoke(dataSource);
+          if (properties == null) {
+            return null;
+          }
+          maybeSqlInstance = properties.getProperty("cloudSqlInstance");
+          if (maybeSqlInstance == null) {
+            // not a cloudSqlInstance
+            return null;
+          }
+          url = source.getUrl();
+        } else { // try recommended as per best practice
+          Class<?> hikariClass = Class.forName("com.zaxxer.hikari.HikariDataSource");
+          if (!hikariClass.isInstance(dataSource)) {
+            return null;
+          }
+          Method getProperties = hikariClass.getMethod("getDataSourceProperties");
+          Properties properties = (Properties) getProperties.invoke(dataSource);
+          if (properties == null) {
+            return null;
+          }
+          maybeSqlInstance = properties.getProperty("cloudSqlInstance");
+          if (maybeSqlInstance == null) {
+            // not a cloudSqlInstance
+            return null;
+          }
+          Method getUrl = hikariClass.getMethod("getJdbcUrl");
+          url = (String) getUrl.invoke(dataSource);
+          if (url == null) {
+            return null;
+          }
         }
       } catch (ClassNotFoundException
           | InvocationTargetException
