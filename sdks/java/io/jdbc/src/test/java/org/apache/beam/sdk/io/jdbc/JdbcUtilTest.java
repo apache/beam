@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -323,6 +324,20 @@ public class JdbcUtilTest {
     config.validate();
     config.copyStateTo((HikariConfig) dataSource);
     JdbcUtil.FQNComponents components = JdbcUtil.FQNComponents.of(dataSource);
+    assertEquals("cloudsql_postgresql", components.getScheme());
+    assertEquals(
+        ImmutableList.of("example.com:project", "some-region", "instance-name", "postgres"),
+        components.getSegments());
+  }
+
+  @Test
+  public void testFqnFromBasicDataSourcePostgreSql() {
+    BasicDataSource source = new BasicDataSource();
+    source.setUrl("jdbc:postgresql:///postgres");
+    source.setUsername("postgres");
+    source.setConnectionProperties(
+        "cloudSqlInstance=example.com:project:some-region:instance-name");
+    JdbcUtil.FQNComponents components = JdbcUtil.FQNComponents.of(source);
     assertEquals("cloudsql_postgresql", components.getScheme());
     assertEquals(
         ImmutableList.of("example.com:project", "some-region", "instance-name", "postgres"),
