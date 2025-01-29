@@ -99,7 +99,7 @@ class LeaderBoardRunner {
     String query_result = ""
     while ((System.currentTimeMillis() - startTime) / 60000 < mobileGamingCommands.EXECUTION_TIMEOUT_IN_MINUTES) {
       try {
-        tables = t.run "bq query --use_legacy_sql=false SELECT table_id FROM ${t.bqDataset()}.INFORMATION_SCHEMA.TABLES"
+        tables = t.run "bq query --use_legacy_sql=false SELECT table_name FROM ${t.bqDataset()}.INFORMATION_SCHEMA.TABLES"
         if (tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")) {
           query_result = t.run """bq query --batch "SELECT user FROM `${t.gcpProject()}:${
             t.bqDataset()
