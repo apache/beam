@@ -25,6 +25,7 @@ from dataclasses import field
 
 import abc
 import dask.bag as db
+import logging
 import math
 import typing as t
 
@@ -53,6 +54,7 @@ OpSide = t.Optional[t.Sequence[SideInputMap]]
 # Value types for PCollections (possibly Windowed Values).
 PCollVal = t.Union[WindowedValue, t.Any]
 
+_LOGGER = logging.getLogger(__name__)
 
 def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
   """Wraps a value (item) inside a Window."""
@@ -168,7 +170,11 @@ class Create(DaskBagOp):
       # Ideal "chunk sizes" in dask are around 10-100 MBs.
       # Let's hope ~128 items per partition is around this
       # memory overhead.
-      partition_size = max(128, math.ceil(math.sqrt(len(items)) / 10))
+      default_size = 128
+      partition_size = max(default_size, math.ceil(math.sqrt(len(items)) / 10))
+      if partition_size == default_size:
+        _LOGGER.warning('The new default partition size is %d, it used to be 1 '
+                        'in previous DaskRunner versions.' % default_size)
 
     return db.from_sequence(
         items, npartitions=npartitions, partition_size=partition_size)
