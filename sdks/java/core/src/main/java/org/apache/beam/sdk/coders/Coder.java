@@ -198,8 +198,7 @@ public abstract class Coder<T> implements Serializable {
     }
   }
 
-  public static <T> long getEncodedElementByteSizeUsingCoder(Coder<T> target, T value)
-      throws Exception {
+  public static <T> long getEncodedElementByteSizeUsingCoder(Coder<T> target, T value) throws Exception {
     return target.getEncodedElementByteSize(value);
   }
   /**
