@@ -1177,7 +1177,7 @@ public class SnowflakeIO {
         if (o instanceof String) {
           String field = (String) o;
           field = field.replace("'", "''");
-          field = quoteField(field);
+          field = quoteNonEmptyField(field);
 
           csvItems.add(field);
         } else {
@@ -1187,11 +1187,11 @@ public class SnowflakeIO {
       context.output(Joiner.on(",").useForNull("").join(csvItems));
     }
 
-    private String quoteField(String field) {
-      return quoteField(field, this.quotationMark);
+    private String quoteNonEmptyField(String field) {
+      return quoteNonEmptyField(field, this.quotationMark);
     }
 
-    private String quoteField(String field, String quotation) {
+    private String quoteNonEmptyField(String field, String quotation) {
       String quoted;
       if (field.isEmpty()) {
         quoted = field;
