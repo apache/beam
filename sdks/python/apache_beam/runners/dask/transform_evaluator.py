@@ -56,6 +56,7 @@ PCollVal = t.Union[WindowedValue, t.Any]
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
   """Wraps a value (item) inside a Window."""
   if isinstance(item, TaggedOutput):
@@ -173,8 +174,9 @@ class Create(DaskBagOp):
       default_size = 128
       partition_size = max(default_size, math.ceil(math.sqrt(len(items)) / 10))
       if partition_size == default_size:
-        _LOGGER.warning('The new default partition size is %d, it used to be 1 '
-                        'in previous DaskRunner versions.' % default_size)
+        _LOGGER.warning(
+          'The new default partition size is %d, it used to be 1 '
+          'in previous DaskRunner versions.' % default_size)
 
     return db.from_sequence(
         items, npartitions=npartitions, partition_size=partition_size)
