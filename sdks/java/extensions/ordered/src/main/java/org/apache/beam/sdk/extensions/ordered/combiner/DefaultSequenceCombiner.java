@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.ordered.combiner;
 
 import java.util.Iterator;
-import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -31,9 +30,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,15 +54,6 @@ public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableSt
 
   private static final Logger LOG = LoggerFactory.getLogger(DefaultSequenceCombiner.class);
 
-  public static final BiFunction<@NonNull Instant, @Nullable Instant, @Nullable Instant>
-      OLDEST_TIMESTAMP_SELECTOR =
-          (instant1, instant2) -> {
-            if (instant2 == null) {
-              return instant1;
-            }
-            @NonNull Instant nonNullableSecondValue = instant2;
-            return instant1.isAfter(nonNullableSecondValue) ? instant1 : nonNullableSecondValue;
-          };
   private final EventExaminer<EventT, StateT> eventExaminer;
 
   public DefaultSequenceCombiner(EventExaminer<EventT, StateT> eventExaminer) {
@@ -93,20 +81,22 @@ public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableSt
   @Override
   public SequenceRangeAccumulator mergeAccumulators(
       Iterable<SequenceRangeAccumulator> accumulators) {
+
     // There should be at least one accumulator.
     Iterator<SequenceRangeAccumulator> iterator = accumulators.iterator();
     SequenceRangeAccumulator result = iterator.next();
     while (iterator.hasNext()) {
       result.merge(iterator.next());
     }
+
     return result;
   }
 
   @Override
   public ContiguousSequenceRange extractOutput(SequenceRangeAccumulator accum) {
     ContiguousSequenceRange result = accum.largestContinuousRange();
-    if (LOG.isTraceEnabled()) {
-      LOG.trace("Returning completed sequence range: " + result);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Returning completed sequence range: " + result);
     }
     return result;
   }
