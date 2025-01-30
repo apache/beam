@@ -64,6 +64,8 @@
 
 * Support gcs-connector 3.x+ in GcsUtil ([#33368](https://github.com/apache/beam/pull/33368))
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Introduced `--groupFilesFileLoad` pipeline option to mitigate side-input related issues in BigQueryIO
+  batch FILE_LOAD on certain runners (including Dataflow Runner V2) (Java) ([#33587](https://github.com/apache/beam/pull/33587)).
 
 ## New Features / Improvements
 
