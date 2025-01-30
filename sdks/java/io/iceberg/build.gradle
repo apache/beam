@@ -56,6 +56,7 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     implementation library.java.hadoop_common
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
 
@@ -84,6 +85,8 @@ dependencies {
 
     // BigQueryMetastore catalog dep
     testImplementation project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation library.java.google_api_services_bigquery
 
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

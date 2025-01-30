@@ -23,7 +23,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 @VisibleForTesting

@@ -735,7 +735,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20241222-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20240310-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20240817-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20241209-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20241206-2.0.0",  // [bomupgrader] sets version
@@ -906,7 +906,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_solace                       : "org.testcontainers:solace:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
-        vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.3",
+        vendored_grpc_1_69_0                        : "org.apache.beam:beam-vendor-grpc-1_69_0:0.1",
         vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -2417,10 +2417,10 @@ class BeamModulePlugin implements Plugin<Project> {
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-          shadowClosure: GrpcVendoring_1_60_1.shadowClosure() << {
+          shadowClosure: GrpcVendoring_1_69_0.shadowClosure() << {
             // We perform all the code relocations but don't include
             // any of the actual dependencies since they will be supplied
-            // by org.apache.beam:beam-vendor-grpc-v1p60p1
+            // by org.apache.beam:beam-vendor-grpc-v1p69p0
             dependencies {
               include(dependency { return false })
             }
@@ -2437,14 +2437,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_60_1.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_60_1.grpc_version}" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_69_0.grpc_version}" }
         }
 
         generateProtoTasks {
@@ -2458,7 +2458,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring_1_60_1.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_60_1 }
+      project.dependencies GrpcVendoring_1_69_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_69_0 }
     }
 
     /** ***********************************************************************************************/

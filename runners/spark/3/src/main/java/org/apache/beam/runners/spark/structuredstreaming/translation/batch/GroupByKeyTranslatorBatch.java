@@ -49,6 +49,7 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.GroupAlsoByWindowViaOutputBufferFn;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -84,8 +85,10 @@ import scala.collection.immutable.List;
  *
  * <p>Note: Using {@code collect_list} isn't any worse than using {@link ReduceFnRunner}. In the
  * latter case the entire group (iterator) has to be loaded into memory as well. Either way there's
- * a risk of OOM errors. When disabling {@link #useCollectList}, a more memory sensitive iterable is
- * used that can be traversed just once. Attempting to traverse the iterable again will throw.
+ * a risk of OOM errors. When enabling {@link
+ * SparkCommonPipelineOptions#getPreferGroupByKeyToHandleHugeValues()}, a more memory sensitive
+ * iterable is used that can be traversed just once. Attempting to traverse the iterable again will
+ * throw.
  *
  * <ul>
  *   <li>When using the default global window, window information is dropped and restored after the
@@ -108,15 +111,8 @@ class GroupByKeyTranslatorBatch<K, V>
   private static final List<Expression> GLOBAL_WINDOW_DETAILS =
       windowDetails(lit(new byte[][] {EMPTY_BYTE_ARRAY}));
 
-  private boolean useCollectList = true;
-
   GroupByKeyTranslatorBatch() {
     super(0.2f);
-  }
-
-  GroupByKeyTranslatorBatch(boolean useCollectList) {
-    super(0.2f);
-    this.useCollectList = useCollectList;
   }
 
   @Override
@@ -135,6 +131,10 @@ class GroupByKeyTranslatorBatch<K, V>
     // In batch we can ignore triggering and allowed lateness parameters
     final Dataset<WindowedValue<KV<K, Iterable<V>>>> result;
 
+    boolean useCollectList =
+        !cxt.getOptions()
+            .as(SparkCommonPipelineOptions.class)
+            .getPreferGroupByKeyToHandleHugeValues();
     if (useCollectList && eligibleForGlobalGroupBy(windowing, false)) {
       // Collects all values per key in memory. This might be problematic if there's few keys only
       // or some highly skewed distribution.

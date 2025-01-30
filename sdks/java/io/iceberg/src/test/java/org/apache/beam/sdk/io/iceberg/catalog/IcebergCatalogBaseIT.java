@@ -147,7 +147,12 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Before
   public void setUp() throws Exception {
-    options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+    warehouse =
+        String.format(
+            "%s/%s/%s",
+            TestPipeline.testingPipelineOptions().getTempLocation(),
+            getClass().getSimpleName(),
+            RANDOM);
     warehouse = warehouse(getClass());
     catalogSetup();
     catalog = createCatalog();
@@ -162,7 +167,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
 
     try {
-      GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
+      GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
 
       @Nullable
@@ -190,7 +195,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   protected static String warehouse;
   public Catalog catalog;
-  protected static GcpOptions options;
+  protected static final GcpOptions OPTIONS =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class);
   private static final String RANDOM = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
@@ -210,7 +216,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           .addInt32Field("nested_int")
           .addFloatField("nested_float")
           .build();
-  private static final Schema BEAM_SCHEMA =
+  protected static final Schema BEAM_SCHEMA =
       Schema.builder()
           .addStringField("str")
           .addStringField("char")
@@ -262,16 +268,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         }
       };
 
-  private static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
+  protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
       IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA);
-  private static final SimpleFunction<Row, Record> RECORD_FUNC =
+  protected static final SimpleFunction<Row, Record> RECORD_FUNC =
       new SimpleFunction<Row, Record>() {
         @Override
         public Record apply(Row input) {
           return IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, input);
         }
       };
-  private final List<Row> inputRows =
+  protected final List<Row> inputRows =
       LongStream.range(0, numRecords()).boxed().map(ROW_FUNC::apply).collect(Collectors.toList());
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */

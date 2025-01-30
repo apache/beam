@@ -316,11 +316,17 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testWriteEmptyPCollection() throws Exception {
     assumeTrue(!useStreaming);
     assumeTrue(!useStorageApi);
+    writeEmptyPCollection();
+    checkNotNull(
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
+  }
+
+  void writeEmptyPCollection() {
     TableSchema schema =
         new TableSchema()
             .setFields(
                 ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
-
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -331,14 +337,27 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
+  }
 
-    checkNotNull(
+  @Test
+  public void testWriteEmptyPCollectionGroupFilesFileLoad() throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setGroupFilesFileLoad(true);
+    writeEmptyPCollection();
+    assertNull(
         fakeDatasetService.getTable(
             BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
   }
 
   @Test
   public void testWriteDynamicDestinations() throws Exception {
+    writeDynamicDestinations(false, false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsGroupFilesFileLoad() throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setGroupFilesFileLoad(true);
     writeDynamicDestinations(false, false);
   }
 

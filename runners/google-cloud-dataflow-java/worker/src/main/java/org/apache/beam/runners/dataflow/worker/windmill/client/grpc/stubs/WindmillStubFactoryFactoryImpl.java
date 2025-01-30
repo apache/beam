@@ -23,7 +23,7 @@ import com.google.auth.Credentials;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 
 public class WindmillStubFactoryFactoryImpl implements WindmillStubFactoryFactory {
 

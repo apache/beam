@@ -216,7 +216,7 @@ public class MqttIOTest {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, wildcardTopic))
             .withMaxNumRecords(10)
-            .withMaxReadTime(Duration.standardSeconds(5));
+            .withMaxReadTime(Duration.standardSeconds(10));
 
     final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithMetadata);
     PAssert.that(output)

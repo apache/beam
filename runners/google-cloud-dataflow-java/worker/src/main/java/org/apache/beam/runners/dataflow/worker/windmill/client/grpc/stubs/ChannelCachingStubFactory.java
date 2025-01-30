@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
 
 public interface ChannelCachingStubFactory extends WindmillStubFactory {
 

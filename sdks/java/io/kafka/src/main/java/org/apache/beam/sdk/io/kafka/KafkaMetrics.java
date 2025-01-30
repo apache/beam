@@ -19,11 +19,13 @@ package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.value.AutoValue;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,8 @@ public interface KafkaMetrics {
 
   void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime);
 
+  void updateBacklogBytes(String topic, int partitionId, long backlog);
+
   void updateKafkaMetrics();
 
   /** No-op implementation of {@code KafkaResults}. */
@@ -41,6 +45,9 @@ public interface KafkaMetrics {
 
     @Override
     public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {}
+
+    @Override
+    public void updateBacklogBytes(String topic, int partitionId, long elapsedTime) {}
 
     @Override
     public void updateKafkaMetrics() {}
@@ -67,18 +74,30 @@ public interface KafkaMetrics {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsImpl.class);
 
-    static HashMap<String, Histogram> latencyHistograms = new HashMap<String, Histogram>();
+    private static final Map<String, Histogram> LATENCY_HISTOGRAMS =
+        new ConcurrentHashMap<String, Histogram>();
 
-    abstract HashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();
+    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();;
+
+    abstract ConcurrentHashMap<String, Long> perTopicPartitionBacklogs();
 
     abstract AtomicBoolean isWritable();
 
     public static KafkaMetricsImpl create() {
       return new AutoValue_KafkaMetrics_KafkaMetricsImpl(
-          new HashMap<String, ConcurrentLinkedQueue<Duration>>(), new AtomicBoolean(true));
+          new ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>>(),
+          new ConcurrentHashMap<String, Long>(),
+          new AtomicBoolean(true));
     }
 
-    /** Record the rpc status and latency of a successful Kafka poll RPC call. */
+    /**
+     * Record the rpc status and latency of a successful Kafka poll RPC call.
+     *
+     * <p>TODO: It's possible that `isWritable().get()` is called before it's set to false in
+     * another thread, allowing an extraneous measurement to slip in, so perTopicRpcLatencies()
+     * isn't necessarily thread safe. One way to address this would be to add syncrhoized blocks to
+     * ensure that there is only one thread ever reading/modifying the perTopicRpcLatencies() map.
+     */
     @Override
     public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {
       if (isWritable().get()) {
@@ -86,10 +105,23 @@ public interface KafkaMetrics {
         if (latencies == null) {
           latencies = new ConcurrentLinkedQueue<Duration>();
           latencies.add(elapsedTime);
-          perTopicRpcLatencies().put(topic, latencies);
+          perTopicRpcLatencies().putIfAbsent(topic, latencies);
         } else {
           latencies.add(elapsedTime);
         }
+      }
+    }
+
+    /**
+     * @param topicName topicName
+     * @param partitionId partitionId
+     * @param backlog backlog for the specific partitionID of topicName
+     */
+    @Override
+    public void updateBacklogBytes(String topicName, int partitionId, long backlog) {
+      if (isWritable().get()) {
+        String name = KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId).getName();
+        perTopicPartitionBacklogs().put(name, backlog);
       }
     }
 
@@ -98,19 +130,27 @@ public interface KafkaMetrics {
       for (Map.Entry<String, ConcurrentLinkedQueue<Duration>> topicLatencies :
           perTopicRpcLatencies().entrySet()) {
         Histogram topicHistogram;
-        if (latencyHistograms.containsKey(topicLatencies.getKey())) {
-          topicHistogram = latencyHistograms.get(topicLatencies.getKey());
+        if (LATENCY_HISTOGRAMS.containsKey(topicLatencies.getKey())) {
+          topicHistogram = LATENCY_HISTOGRAMS.get(topicLatencies.getKey());
         } else {
           topicHistogram =
               KafkaSinkMetrics.createRPCLatencyHistogram(
                   KafkaSinkMetrics.RpcMethod.POLL, topicLatencies.getKey());
-          latencyHistograms.put(topicLatencies.getKey(), topicHistogram);
+          LATENCY_HISTOGRAMS.put(topicLatencies.getKey(), topicHistogram);
         }
-        // update all the latencies
+        // Update all the latencies
         for (Duration d : topicLatencies.getValue()) {
           Preconditions.checkArgumentNotNull(topicHistogram);
           topicHistogram.update(d.toMillis());
         }
+      }
+    }
+
+    private void recordBacklogBytes() {
+      for (Map.Entry<String, Long> backlogs : perTopicPartitionBacklogs().entrySet()) {
+        Gauge gauge =
+            KafkaSinkMetrics.createBacklogGauge(MetricName.named("KafkaSink", backlogs.getKey()));
+        gauge.set(backlogs.getValue());
       }
     }
 
@@ -125,6 +165,7 @@ public interface KafkaMetrics {
         LOG.warn("Updating stale Kafka metrics container");
         return;
       }
+      recordBacklogBytes();
       recordRpcLatencyMetrics();
     }
   }

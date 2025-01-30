@@ -1689,7 +1689,6 @@ class Tee(PTransform):
 
   def expand(self, input):
     for consumer in self._consumers:
-      print("apply", consumer)
       if callable(consumer):
         _ = input | ptransform_fn(consumer)()
       else:
