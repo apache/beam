@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.HistogramParsingException;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
@@ -37,8 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.runners.core.metrics.BoundedTrieData.BoundedTrieNode;
-import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
