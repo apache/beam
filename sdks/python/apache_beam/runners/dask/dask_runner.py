@@ -22,6 +22,7 @@ transformations across processes and workers via Dask distributed's
 scheduler.
 """
 import argparse
+import collections
 import dataclasses
 import typing as t
 
@@ -143,8 +144,8 @@ class DaskRunner(BundleBasedDirectRunner):
 
     @dataclasses.dataclass
     class DaskBagVisitor(PipelineVisitor):
-      bags: t.Dict[AppliedPTransform,
-                   db.Bag] = dataclasses.field(default_factory=dict)
+      bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.field(
+          default_factory=collections.OrderedDict)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
         op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
@@ -212,6 +213,10 @@ class DaskRunner(BundleBasedDirectRunner):
 
     dask_visitor = self.to_dask_bag_visitor()
     pipeline.visit(dask_visitor)
-    opt_graph = dask.optimize(*list(dask_visitor.bags.values()))
+    # The dictionary in this visitor keeps a mapping of every Beam
+    # PTransform to the equivalent Bag operation. This is highly
+    # redundant. Thus, we can get away with computing just the last
+    # value, which should be connected to the full Bag Task Graph.
+    opt_graph = dask.optimize(list(dask_visitor.bags.values())[-1])
     futures = client.compute(opt_graph)
     return DaskRunnerResult(client, futures)

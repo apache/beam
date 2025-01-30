@@ -19,8 +19,6 @@
 
 A minimum set of operation substitutions, to adap Beam's PTransform model
 to Dask Bag functions.
-
-TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
 import abc
 import dataclasses
