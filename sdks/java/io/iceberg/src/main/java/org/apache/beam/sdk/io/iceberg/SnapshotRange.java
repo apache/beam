@@ -37,7 +37,7 @@ abstract class SnapshotRange implements Serializable {
 
   abstract String getTableIdentifierString();
 
-  abstract @Nullable Long getFromSnapshot();
+  abstract @Nullable Long getFromSnapshotExclusive();
 
   abstract long getToSnapshot();
 
@@ -53,7 +53,7 @@ abstract class SnapshotRange implements Serializable {
   abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
 
-    abstract Builder setFromSnapshot(@Nullable Long fromSnapshot);
+    abstract Builder setFromSnapshotExclusive(@Nullable Long fromSnapshot);
 
     abstract Builder setToSnapshot(Long toSnapshot);
 

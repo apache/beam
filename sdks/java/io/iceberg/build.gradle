@@ -50,6 +50,7 @@ dependencies {
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
+    implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
     implementation "org.apache.orc:orc-core:$orc_version"
     implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"

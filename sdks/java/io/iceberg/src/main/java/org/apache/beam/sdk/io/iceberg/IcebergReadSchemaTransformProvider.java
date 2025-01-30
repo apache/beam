@@ -139,8 +139,8 @@ public class IcebergReadSchemaTransformProvider
     abstract @Nullable Long getFromSnapshotExclusive();
 
     @SchemaFieldDescription(
-        "Reads up to this snapshot ID (inclusive). If unset, the source will poll "
-            + "for new snapshots forever.")
+        "Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read up to the current snapshot. "
+            + "The unbounded source will continue polling for new snapshots forever.")
     abstract @Nullable Long getToSnapshot();
 
     @AutoValue.Builder

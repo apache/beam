@@ -17,23 +17,36 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.ShardedKey;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * An incremental Iceberg source that reads range(s) of table Snapshots. The unbounded
- * implementation will continuously poll for new Snapshots at a specified frequency. For each range
- * of Snapshots, the transform will create a list of FileScanTasks. An SDF is used to process each
- * task and output its rows.
+ * An Iceberg source that reads a table incrementally using range(s) of table Snapshots. The
+ * unbounded implementation will continuously poll for new Snapshots at the specified frequency. A
+ * collection of FileScanTasks are created for each snapshot range. An SDF (shared by bounded and
+ * unbounded implementations) is used to process each task and output Beam rows.
  */
 class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
+  // For the unbounded implementation.
+  private static final long MAX_FILES_BATCH_BYTE_SIZE = 1L << 32; // 4 GB
   private final @Nullable Duration pollInterval;
   private final IcebergScanConfig scanConfig;
 
@@ -44,31 +57,65 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
 
   @Override
   public PCollection<Row> expand(PBegin input) {
-    PCollection<SnapshotRange> snapshotRanges;
-    if (pollInterval != null) { // unbounded
-      snapshotRanges = input.apply(new WatchForSnapshots(scanConfig, pollInterval));
-    } else { // bounded
-      @Nullable Long to = scanConfig.getToSnapshot();
-      if (to == null) {
-        Table table =
-            TableCache.getRefreshed(
-                scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
-        to = table.currentSnapshot().snapshotId();
-      }
-      snapshotRanges =
-          input.apply(
-              "Create Single Snapshot Range",
-              Create.of(
-                  SnapshotRange.builder()
-                      .setTableIdentifierString(scanConfig.getTableIdentifier())
-                      .setFromSnapshot(scanConfig.getFromSnapshotExclusive())
-                      .setToSnapshot(to)
-                      .build()));
-    }
+    Table table =
+        TableCache.getRefreshed(
+            scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
+    long to =
+        MoreObjects.firstNonNull(scanConfig.getToSnapshot(), table.currentSnapshot().snapshotId());
 
-    return snapshotRanges
+    PCollection<Row> rows =
+        pollInterval == null ? readBounded(input, to) : readUnbounded(input, pollInterval);
+    return rows.setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
+  }
+
+  /**
+   * Watches for new snapshots and creates tasks for each range. Using GiB for autosharding, this
+   * groups tasks in batches of up to 4GB, then reads from each batch using an SDF.
+   */
+  private PCollection<Row> readUnbounded(PBegin input, Duration duration) {
+    return input
+        .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, duration))
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
+        .setCoder(KvCoder.of(ReadTaskDescriptor.CODER, ReadTask.CODER))
+        .apply(
+            "Apply User Trigger",
+            Window.<KV<ReadTaskDescriptor, ReadTask>>into(new GlobalWindows())
+                .triggering(
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(duration)))
+                .discardingFiredPanes())
+        .apply(
+            GroupIntoBatches.<ReadTaskDescriptor, ReadTask>ofByteSize(
+                    MAX_FILES_BATCH_BYTE_SIZE, ReadTask::getByteSize)
+                .withMaxBufferingDuration(duration)
+                .withShardedKey())
+        .setCoder(
+            KvCoder.of(
+                ShardedKey.Coder.of(ReadTaskDescriptor.CODER), IterableCoder.of(ReadTask.CODER)))
+        .apply(
+            "Read Rows From Grouped Tasks",
+            ParDo.of(new ReadFromGroupedTasks(scanConfig.getCatalogConfig())));
+  }
+
+  /**
+   * Scans a single snapshot range and creates read tasks. Tasks are redistributed and processed
+   * individually using a regular DoFn.
+   */
+  private PCollection<Row> readBounded(PBegin input, long toSnapshot) {
+    return input
+        .apply(
+            "Create Single Snapshot Range",
+            Create.of(
+                SnapshotRange.builder()
+                    .setTableIdentifierString(scanConfig.getTableIdentifier())
+                    .setFromSnapshotExclusive(scanConfig.getFromSnapshotExclusive())
+                    .setToSnapshot(toSnapshot)
+                    .build()))
+        .apply(
+            "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
+        .setCoder(KvCoder.of(ReadTaskDescriptor.CODER, ReadTask.CODER))
+        .apply(Redistribute.arbitrarily())
         .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig.getCatalogConfig())));
   }
 }

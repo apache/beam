@@ -39,10 +39,10 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Keeps watches over an Iceberg table continuously outputs a range of snapshots, at the specified
- * triggering frequency.
+ * Keeps watch over an Iceberg table and continuously outputs a range of snapshots, at the specified
+ * interval.
  *
- * <p>A downstream transform will create a list of scan tasks for each range.
+ * <p>A downstream transform will create a list of read tasks for each range.
  */
 class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
   private final Duration pollInterval;
@@ -94,7 +94,7 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
 
       SnapshotRange range =
           SnapshotRange.builder()
-              .setFromSnapshot(fromSnapshot)
+              .setFromSnapshotExclusive(fromSnapshot)
               .setToSnapshot(toSnapshot)
               .setTableIdentifierString(tableIdentifier)
               .build();

@@ -81,10 +81,15 @@ import org.joda.time.Duration;
  *     template to use dynamic destinations (see the `Dynamic Destinations` section below for details). </td>
  *   </tr>
  *   <tr>
- *       <td> {@code triggering_frequency_seconds} </td> <td> {@code int} </td> <td> Required for streaming writes. Roughly every
+ *     <td> {@code triggering_frequency_seconds} </td>
+ *     <td> {@code int} </td>
+ *     <td>
+ *         <p><b>Sink:</b> Required for streaming writes. Roughly every
  *       {@code triggering_frequency_seconds} duration, the sink will write records to data files and produce a table snapshot.
  *       Generally, a higher value will produce fewer, larger data files.
- *       </td>
+ *       <p><b>Source:</b> Enables streaming reads. Roughly every {@code triggering_frequency_seconds} duration, the source
+ *       will scan the table for new snapshots and read new records.
+ *     </td>
  *   </tr>
  *   <tr>
  *     <td> {@code catalog_name} </td> <td> {@code str} </td> <td> The name of the catalog. Defaults to {@code apache-beam-<VERSION>}. </td>
@@ -100,6 +105,20 @@ import org.joda.time.Duration;
  *     to instantiate the catalog's Hadoop {@link Configuration}. Required properties will depend on your catalog
  *     implementation, but <a href="https://iceberg.apache.org/docs/latest/configuration/#hadoop-configuration">this list</a>
  *     is a good starting point.
+ *   </tr>
+ *   <tr>
+ *     <td> {@code from_snapshot_exclusive} </td>
+ *     <td> {@code long} </td>
+ *     <td> For the source; starts reading from this snapshot ID (exclusive). If unset, it will start reading from the
+ *     oldest snapshot (inclusive).
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code to_snapshot} </td>
+ *     <td> {@code long} </td>
+ *     <td> For the source; Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
+ *     up to the current snapshot (inclusive). If unset and source is unbounded, it will continue polling for new snapshots forever.
+ *     </td>
  *   </tr>
  * </table>
  *

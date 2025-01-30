@@ -18,30 +18,29 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.iceberg.BaseCombinedScanTask;
+import org.apache.beam.sdk.values.KV;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
+import org.apache.iceberg.ScanTaskParser;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Creates a collection of {@link FileScanTask}s for each {@link SnapshotRange}. Each task
- * represents a portion of a data file that was appended within a given snapshot range.
+ * Scans the given {@link SnapshotRange}, and creates multiple {@link ReadTask}s. Each task
+ * represents a portion of a data file that was appended within the snapshot range.
  */
-class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
+class CreateReadTasksDoFn extends DoFn<SnapshotRange, KV<ReadTaskDescriptor, ReadTask>> {
   private static final Logger LOG = LoggerFactory.getLogger(CreateReadTasksDoFn.class);
-  private final Counter numFileScanTasks =
+  private static final Counter numFileScanTasks =
       Metrics.counter(CreateReadTasksDoFn.class, "numFileScanTasks");
   private final IcebergCatalogConfig catalogConfig;
 
@@ -50,34 +49,42 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
   }
 
   @ProcessElement
-  public void process(@Element SnapshotRange range, OutputReceiver<ReadTaskDescriptor> out)
+  public void process(
+      @Element SnapshotRange range, OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException, ExecutionException {
     Table table = TableCache.get(range.getTableIdentifier(), catalogConfig.catalog());
-    @Nullable Long fromSnapshot = range.getFromSnapshot();
+    @Nullable Long fromSnapshot = range.getFromSnapshotExclusive();
     long toSnapshot = range.getToSnapshot();
 
     LOG.info("Planning to scan snapshot range ({}, {}]", fromSnapshot, toSnapshot);
-    IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
+    IncrementalAppendScan scan =
+        table
+            .newIncrementalAppendScan()
+            .toSnapshot(toSnapshot)
+            .option(TableProperties.SPLIT_SIZE, String.valueOf(TableProperties.SPLIT_SIZE_DEFAULT));
     if (fromSnapshot != null) {
       scan = scan.fromSnapshotExclusive(fromSnapshot);
     }
-    try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
-      List<FileScanTask> taskList = new ArrayList<>();
-      AtomicLong byteSize = new AtomicLong();
-      combinedScanTasks.forEach(
-          combined -> {
-            taskList.addAll(combined.tasks());
-            byteSize.addAndGet(combined.sizeBytes());
-          });
 
-      ReadTaskDescriptor taskDescriptor =
-          ReadTaskDescriptor.builder()
-              .setTableIdentifierString(range.getTableIdentifierString())
-              .setCombinedScanTask(new BaseCombinedScanTask(taskList))
-              .setTotalByteSize(byteSize.get())
-              .build();
-      numFileScanTasks.inc(taskList.size());
-      out.output(taskDescriptor);
+    try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
+      for (CombinedScanTask combinedScanTask : combinedScanTasks) {
+        // A single DataFile can be broken up into multiple FileScanTasks
+        // if it is large enough.
+        for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
+          ReadTask task =
+              ReadTask.builder()
+                  .setTableIdentifierString(range.getTableIdentifierString())
+                  .setFileScanTaskJson(ScanTaskParser.toJson(fileScanTask))
+                  .setByteSize(fileScanTask.sizeBytes())
+                  .build();
+          ReadTaskDescriptor descriptor =
+              ReadTaskDescriptor.builder()
+                  .setTableIdentifierString(range.getTableIdentifierString())
+                  .build();
+          out.output(KV.of(descriptor, task));
+          numFileScanTasks.inc();
+        }
+      }
     }
   }
 }

@@ -23,31 +23,57 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.ScanTaskParser;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-/** Describes the table and snapshot a {@link ReadTask} belongs to. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-abstract class ReadTaskDescriptor {
-  static final Coder<ReadTaskDescriptor> CODER;
+abstract class ReadTask {
+  static final Coder<ReadTask> CODER;
 
   static {
     try {
-      CODER = SchemaRegistry.createDefault().getSchemaCoder(ReadTaskDescriptor.class);
+      CODER = SchemaRegistry.createDefault().getSchemaCoder(ReadTask.class);
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
   }
 
+  private transient @MonotonicNonNull FileScanTask cachedFileScanTask;
+
   static Builder builder() {
-    return new AutoValue_ReadTaskDescriptor.Builder();
+    return new AutoValue_ReadTask.Builder();
   }
 
   abstract String getTableIdentifierString();
+
+  abstract String getFileScanTaskJson();
+
+  abstract long getByteSize();
+
+  @SchemaIgnore
+  FileScanTask getFileScanTask() {
+    if (cachedFileScanTask == null) {
+      cachedFileScanTask = ScanTaskParser.fromJson(getFileScanTaskJson(), true);
+    }
+    return cachedFileScanTask;
+  }
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
 
-    abstract ReadTaskDescriptor build();
+    abstract Builder setFileScanTaskJson(String jsonTask);
+
+    abstract Builder setByteSize(long size);
+
+    @SchemaIgnore
+    Builder setFileScanTask(FileScanTask task) {
+      return setFileScanTaskJson(ScanTaskParser.toJson(task));
+    }
+
+    abstract ReadTask build();
   }
 }
