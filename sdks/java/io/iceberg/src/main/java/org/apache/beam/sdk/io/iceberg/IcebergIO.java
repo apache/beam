@@ -81,10 +81,15 @@ import org.joda.time.Duration;
  *     template to use dynamic destinations (see the `Dynamic Destinations` section below for details). </td>
  *   </tr>
  *   <tr>
- *       <td> {@code triggering_frequency_seconds} </td> <td> {@code int} </td> <td> Required for streaming writes. Roughly every
+ *     <td> {@code triggering_frequency_seconds} </td>
+ *     <td> {@code int} </td>
+ *     <td>
+ *         <p><b>Sink:</b> Required for streaming writes. Roughly every
  *       {@code triggering_frequency_seconds} duration, the sink will write records to data files and produce a table snapshot.
  *       Generally, a higher value will produce fewer, larger data files.
- *       </td>
+ *       <p><b>Source:</b> Enables streaming reads. Roughly every {@code triggering_frequency_seconds} duration, the source
+ *       will scan the table for new snapshots and read new records.
+ *     </td>
  *   </tr>
  *   <tr>
  *     <td> {@code catalog_name} </td> <td> {@code str} </td> <td> The name of the catalog. Defaults to {@code apache-beam-<VERSION>}. </td>
@@ -100,6 +105,20 @@ import org.joda.time.Duration;
  *     to instantiate the catalog's Hadoop {@link Configuration}. Required properties will depend on your catalog
  *     implementation, but <a href="https://iceberg.apache.org/docs/latest/configuration/#hadoop-configuration">this list</a>
  *     is a good starting point.
+ *   </tr>
+ *   <tr>
+ *     <td> {@code from_snapshot_exclusive} </td>
+ *     <td> {@code long} </td>
+ *     <td> For the source; starts reading from this snapshot ID (exclusive). If unset, it will start reading from the
+ *     oldest snapshot (inclusive).
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code to_snapshot} </td>
+ *     <td> {@code long} </td>
+ *     <td> For the source; Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
+ *     up to the current snapshot (inclusive). If unset and source is unbounded, it will continue polling for new snapshots forever.
+ *     </td>
  *   </tr>
  * </table>
  *
@@ -405,6 +424,12 @@ public class IcebergIO {
 
     abstract @Nullable TableIdentifier getTableIdentifier();
 
+    abstract @Nullable Long getFromSnapshotExclusive();
+
+    abstract @Nullable Long getToSnapshot();
+
+    abstract @Nullable Duration getTriggeringFrequency();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -413,11 +438,29 @@ public class IcebergIO {
 
       abstract Builder setTableIdentifier(TableIdentifier identifier);
 
+      abstract Builder setFromSnapshotExclusive(@Nullable Long fromSnapshotExclusive);
+
+      abstract Builder setToSnapshot(@Nullable Long toSnapshot);
+
+      abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
+
       abstract ReadRows build();
     }
 
     public ReadRows from(TableIdentifier tableIdentifier) {
       return toBuilder().setTableIdentifier(tableIdentifier).build();
+    }
+
+    public ReadRows fromSnapshotExclusive(@Nullable Long fromSnapshotExclusive) {
+      return toBuilder().setFromSnapshotExclusive(fromSnapshotExclusive).build();
+    }
+
+    public ReadRows toSnapshot(@Nullable Long toSnapshot) {
+      return toBuilder().setToSnapshot(toSnapshot).build();
+    }
+
+    public ReadRows withTriggeringFrequency(Duration triggeringFrequency) {
+      return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
     }
 
     @Override
@@ -427,15 +470,24 @@ public class IcebergIO {
 
       Table table = getCatalogConfig().catalog().loadTable(tableId);
 
-      return input.apply(
-          Read.from(
-              new ScanSource(
-                  IcebergScanConfig.builder()
-                      .setCatalogConfig(getCatalogConfig())
-                      .setScanType(IcebergScanConfig.ScanType.TABLE)
-                      .setTableIdentifier(tableId)
-                      .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
-                      .build())));
+      IcebergScanConfig scanConfig =
+          IcebergScanConfig.builder()
+              .setCatalogConfig(getCatalogConfig())
+              .setScanType(IcebergScanConfig.ScanType.TABLE)
+              .setTableIdentifier(tableId)
+              .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
+              .setFromSnapshotExclusive(getFromSnapshotExclusive())
+              .setToSnapshot(getToSnapshot())
+              .build();
+      if (getTriggeringFrequency() != null
+          || scanConfig.getToSnapshot() != null
+          || scanConfig.getFromSnapshotExclusive() != null) {
+        return input
+            .apply(new IncrementalScanSource(scanConfig, getTriggeringFrequency()))
+            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
+      }
+
+      return input.apply(Read.from(new ScanSource(scanConfig)));
     }
   }
 }

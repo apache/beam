@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.OUTPUT_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -101,8 +102,8 @@ public class IcebergReadSchemaTransformProviderTest {
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    SchemaTransformConfiguration readConfig =
-        SchemaTransformConfiguration.builder()
+    Configuration readConfig =
+        Configuration.builder()
             .setTable(identifier)
             .setCatalogName("name")
             .setCatalogProperties(properties)
