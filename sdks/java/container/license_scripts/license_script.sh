@@ -50,7 +50,8 @@ pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 FLAGS="--license_index=${INDEX_FILE} \
        --output_dir=${DOWNLOAD_DIR} \
        --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml \
-       --manual_license_path=${SCRIPT_DIR}/manual_licenses"
+       --manual_license_path=${SCRIPT_DIR}/manual_licenses \
+       --use_license_cache"
 
 echo "Executing python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
 python "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS

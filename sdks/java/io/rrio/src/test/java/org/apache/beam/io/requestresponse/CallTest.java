@@ -358,7 +358,9 @@ public class CallTest {
     private final Duration timeout;
 
     CallerExceedsTimeout(Duration timeout) {
-      this.timeout = timeout.plus(Duration.standardSeconds(1L));
+      // The timeout testing is flaky so we set a sleep time with a minute padding beyond what
+      // should trigger the timeout.
+      this.timeout = timeout.plus(Duration.standardMinutes(1L));
     }
 
     @Override
@@ -397,7 +399,9 @@ public class CallTest {
     private final Duration timeout;
 
     private SetupExceedsTimeout(Duration timeout) {
-      this.timeout = timeout.plus(Duration.standardSeconds(1L));
+      // The timeout testing is flaky so we set a sleep time with a minute padding beyond what
+      // should trigger the timeout.
+      this.timeout = timeout.plus(Duration.standardMinutes(1L));
     }
 
     @Override
@@ -443,7 +447,9 @@ public class CallTest {
     private final Duration timeout;
 
     private TeardownExceedsTimeout(Duration timeout) {
-      this.timeout = timeout.plus(Duration.standardSeconds(1L));
+      // The timeout testing is flaky so we set a sleep time with a minute padding beyond what
+      // should trigger the timeout.
+      this.timeout = timeout.plus(Duration.standardMinutes(1L));
     }
 
     @Override

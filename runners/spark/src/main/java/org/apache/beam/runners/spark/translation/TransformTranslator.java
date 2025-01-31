@@ -146,32 +146,44 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
         Partitioner partitioner = getPartitioner(context);
-        // As this is batch, we can ignore triggering and allowed lateness parameters.
-        if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
-            && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
-          // we can drop the windows and recover them later
-          groupedByKey =
-              GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
-                  inRDD, keyCoder, coder.getValueCoder(), partitioner);
-        } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
-          // we can have a memory sensitive translation for non-merging windows
+        boolean enableHugeValuesTranslation =
+            context
+                .getOptions()
+                .as(SparkPipelineOptions.class)
+                .getPreferGroupByKeyToHandleHugeValues();
+        if (enableHugeValuesTranslation
+            && context.isCandidateForGroupByKeyAndWindow(transform)
+            && GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
+          // we prefer memory sensitive translation of GBK which can support large values per
+          // key and does not require them to fit into memory
           groupedByKey =
               GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
                   inRDD, keyCoder, coder.getValueCoder(), windowingStrategy, partitioner);
         } else {
-          // --- group by key only.
-          JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
-              GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
-          // --- now group also by window.
-          // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
-          groupedByKey =
-              groupedByKeyOnly.flatMap(
-                  new SparkGroupAlsoByWindowViaOutputBufferFn<>(
-                      windowingStrategy,
-                      new TranslationUtils.InMemoryStateInternalsFactory<>(),
-                      SystemReduceFn.buffering(coder.getValueCoder()),
-                      context.getSerializableOptions()));
+          // As this is batch, we can ignore triggering and allowed lateness parameters.
+          if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
+              && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+
+            // we can drop the windows and recover them later
+            groupedByKey =
+                GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+                    inRDD, keyCoder, coder.getValueCoder(), partitioner);
+          } else {
+            // --- group by key only.
+            JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
+                GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
+
+            // --- now group also by window.
+            // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
+            groupedByKey =
+                groupedByKeyOnly.flatMap(
+                    new SparkGroupAlsoByWindowViaOutputBufferFn<>(
+                        windowingStrategy,
+                        new TranslationUtils.InMemoryStateInternalsFactory<>(),
+                        SystemReduceFn.buffering(coder.getValueCoder()),
+                        context.getSerializableOptions()));
+          }
         }
         context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
