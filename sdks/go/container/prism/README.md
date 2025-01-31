@@ -109,5 +109,5 @@ Open http://localhost:8074 for the web UI.
 Using a Kubernetes Job, we launch the Beam pipeline:
 
 ```
-ko apply -f ./go/container/prism/example -L --platform=linux/$(arch)
+kubectl apply -f ./example
 ```
