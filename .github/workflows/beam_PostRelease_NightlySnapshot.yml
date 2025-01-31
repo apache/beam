@@ -26,7 +26,7 @@ on:
         description: Location of the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
         required: true
   schedule:
-    - cron: '15 16 * * *'
+    - cron: '15 */2 * * *'
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
