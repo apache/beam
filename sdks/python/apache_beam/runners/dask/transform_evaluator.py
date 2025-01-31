@@ -175,8 +175,8 @@ class Create(DaskBagOp):
       partition_size = max(default_size, math.ceil(math.sqrt(len(items)) / 10))
       if partition_size == default_size:
         _LOGGER.warning(
-          'The new default partition size is %d, it used to be 1 '
-          'in previous DaskRunner versions.' % default_size)
+            'The new default partition size is %d, it used to be 1 '
+            'in previous DaskRunner versions.' % default_size)
 
     return db.from_sequence(
         items, npartitions=npartitions, partition_size=partition_size)
