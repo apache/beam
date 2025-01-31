@@ -20,16 +20,16 @@
 A minimum set of operation substitutions, to adap Beam's PTransform model
 to Dask Bag functions.
 """
-import dataclasses
-from dataclasses import field
-
 import abc
-import dask.bag as db
+import dataclasses
+
 import logging
 import math
 import typing as t
+from dataclasses import field
 
 import apache_beam
+import dask.bag as db
 from apache_beam import DoFn
 from apache_beam import TaggedOutput
 from apache_beam.pipeline import AppliedPTransform
