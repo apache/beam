@@ -393,8 +393,9 @@ func TestTriggers_isReady(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			state := StateData{}
 			for i, in := range test.inputs {
-				if got, want := test.trig.isReady(in.input, &state), in.shouldFire; got != want {
-					t.Errorf("%v: %#v.isReady([%d]%+v)) = %v, want %v; state: %v", test.name, test.trig, i, in, got, want, state.Trigger)
+				ws := WinStrat{Trigger: test.trig}
+				if got, want := ws.IsTriggerReady(in.input, &state), in.shouldFire; got != want {
+					t.Errorf("%v[%d]: %#v.isReady(%+v)) = %v, want %v; state: %v", test.name, i, test.trig, in, got, want, state.Trigger)
 				}
 			}
 		})
