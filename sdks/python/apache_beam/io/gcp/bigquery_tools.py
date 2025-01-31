@@ -1606,11 +1606,13 @@ bigquery_v2_messages.TableSchema):
     # This requires that each row has all the fields in the schema.
     # However, it's possible that some nullable fields don't appear in the row.
     # For this case, we create the field with a `None` value
-    if name not in row and mode == "NULLABLE":
+    # None is also set when a repeated field is missing as BigQuery
+    # converts Null Repeated fields to empty lists
+    if name not in row and (mode == "NULLABLE" or mode == "REPEATED"):
       row[name] = None
 
     value = row[name]
-    if type in ["RECORD", "STRUCT"]:
+    if type in ["RECORD", "STRUCT"] and value:
       # if this is a list of records, we create a list of Beam Rows
       if mode == "REPEATED":
         list_of_beam_rows = []
