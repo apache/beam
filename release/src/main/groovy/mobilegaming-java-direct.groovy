@@ -101,6 +101,7 @@ while (!tables.contains(userTable) || !tables.contains(teamTable)) {
   sleep(3000)
   tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
 }
+println "Tables ${userTable} and ${teamTable} created successfully."
 
 def InjectorThread = Thread.start() {
   t.run(mobileGamingCommands.createInjectorCommand())
