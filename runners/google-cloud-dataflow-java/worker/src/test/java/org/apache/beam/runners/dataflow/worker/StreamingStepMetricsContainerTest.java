@@ -315,14 +315,14 @@ public class StreamingStepMetricsContainerTest {
             .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
-    assertThat(updates, containsInAnyOrder(name2Update));
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
 
-    // test deltas
     c1.getStringSet(name1).add("op");
-    name1Update.setStringList(new StringList().setElements(Arrays.asList("op")));
+    name1Update.setStringList(
+        new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh", "op")));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
-    assertThat(updates, containsInAnyOrder(name1Update));
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
   }
 
   @Test

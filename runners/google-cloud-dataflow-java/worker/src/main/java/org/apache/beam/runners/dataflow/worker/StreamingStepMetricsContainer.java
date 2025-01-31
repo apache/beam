@@ -34,7 +34,6 @@ import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.runners.core.metrics.StringSetCell;
-import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -74,7 +73,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private final ConcurrentHashMap<MetricName, GaugeCell> perWorkerGauges =
       new ConcurrentHashMap<>();
 
-  private MetricsMap<MetricName, StringSetCell> stringSets = new MetricsMap<>(StringSetCell::new);
+  private MetricsMap<MetricName, StringSetCell> stringSet = new MetricsMap<>(StringSetCell::new);
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
@@ -183,7 +182,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   @Override
   public StringSet getStringSet(MetricName metricName) {
-    return stringSets.get(metricName);
+    return stringSet.get(metricName);
   }
 
   @Override
@@ -203,11 +202,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
-    // Streaming metrics are updated as delta and not cumulative.
     return counterUpdates()
         .append(distributionUpdates())
-        .append(gaugeUpdates())
-        .append(stringSetUpdates());
+        .append(gaugeUpdates().append(stringSetUpdates()));
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -250,18 +247,14 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   private FluentIterable<CounterUpdate> stringSetUpdates() {
-    return FluentIterable.from(stringSets.entries())
+    return FluentIterable.from(stringSet.entries())
         .transform(
             new Function<Entry<MetricName, StringSetCell>, CounterUpdate>() {
               @Override
               public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, StringSetCell> entry) {
-                StringSetData value = entry.getValue().getAndReset();
-                if (value.stringSet().isEmpty()) {
-                  return null;
-                }
                 return MetricsToCounterUpdateConverter.fromStringSet(
-                    MetricKey.create(stepName, entry.getKey()), false, value);
+                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
               }
             })
         .filter(Predicates.notNull());
