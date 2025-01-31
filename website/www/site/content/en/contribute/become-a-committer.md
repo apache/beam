@@ -29,15 +29,16 @@ Everyone is welcome to join and contribute to the project in many ways, not only
 
 {{< contributor/list_with_icons ways_of_contribution >}}
 
-### What are the traits of an Apache Beam committer?
+### What are the expectations of an Apache Beam committer?
 
 {{< contributor/row_of_traits committer_traits >}}
 
 ### Process
 The [PMC](https://www.apache.org/foundation/how-it-works.html#pmc-members)
 makes someone a committer via nomination, discussion, and then majority vote.
-We use data from as many sources as possible to inform our reasoning. Here are
-some examples:
+We use data from as many sources as possible to inform our reasoning and
+evaluate potential committers against the expectations above. Here are some
+examples:
 
  - [dev@ archives](https://lists.apache.org/list.html?dev@beam.apache.org)
  - [user@ archives](https://lists.apache.org/list.html?user@beam.apache.org)
