@@ -19,11 +19,12 @@ package org.apache.beam.sdk.util.construction.resources;
 
 import java.io.Serializable;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Interface for an algorithm detecting classpath resources for pipelines. */
 public interface PipelineResourcesDetector extends Serializable {
 
-  List<String> detect(ClassLoader classLoader);
+  List<String> detect(@Nullable ClassLoader classLoader);
 
   /** Provides pipeline resources detection algorithm. */
   interface Factory {

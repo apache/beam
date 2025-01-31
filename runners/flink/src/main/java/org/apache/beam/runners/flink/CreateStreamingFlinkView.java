@@ -40,9 +40,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** Flink streaming overrides for various view (side input) transforms. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 class CreateStreamingFlinkView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
   private final PCollectionView<ViewT> view;
@@ -110,7 +107,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
           PCollection<ElemT>,
           PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
 
-    static final Factory INSTANCE = new Factory();
+    static final Factory<?, ?> INSTANCE = new Factory<>();
 
     private Factory() {}
 
