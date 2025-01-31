@@ -22,7 +22,6 @@ to Dask Bag functions.
 """
 import abc
 import dataclasses
-
 import logging
 import math
 import typing as t
