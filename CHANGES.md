@@ -86,6 +86,7 @@
   * Support the Process Environment for execution in Prism ([#33651](https://github.com/apache/beam/pull/33651))
   * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
      * This improves support for developing Xlang pipelines, when using a compatible cross language service.
+* Partitions are now configurable for the DaskRunner in the Python SDK ([#33805](https://github.com/apache/beam/pull/33805)).
 
 ## Breaking Changes
 
