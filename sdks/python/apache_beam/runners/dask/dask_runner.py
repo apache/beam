@@ -58,6 +58,18 @@ class DaskOptions(PipelineOptions):
       import dask
       return dask.config.no_default
 
+  @staticmethod
+  def _extract_bag_kwargs(dask_options: t.Dict) -> t.Dict:
+    """Parse keyword arguments for `dask.Bag`s; used in graph translation."""
+    out = {}
+
+    if npartitions := dask_options.pop('npartitions', None):
+      out['npartitions'] = npartitions
+    if partition_size := dask_options.pop('partition_size', None):
+      out['partition_size'] = partition_size
+
+    return out
+
   @classmethod
   def _add_argparse_args(cls, parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
@@ -93,6 +105,21 @@ class DaskOptions(PipelineOptions):
         default=512,
         help='The number of open comms to maintain at once in the connection '
         'pool.')
+    partitions_parser = parser.add_mutually_exclusive_group()
+    partitions_parser.add_argument(
+        '--dask_npartitions',
+        dest='npartitions',
+        type=int,
+        default=None,
+        help='The desired number of `dask.Bag` partitions. When unspecified, '
+        'an educated guess is made.')
+    partitions_parser.add_argument(
+        '--dask_partition_size',
+        dest='partition_size',
+        type=int,
+        default=None,
+        help='The length of each `dask.Bag` partition. When unspecified, '
+        'an educated guess is made.')
 
 
 @dataclasses.dataclass
@@ -139,8 +166,11 @@ class DaskRunnerResult(PipelineResult):
 class DaskRunner(BundleBasedDirectRunner):
   """Executes a pipeline on a Dask distributed client."""
   @staticmethod
-  def to_dask_bag_visitor() -> PipelineVisitor:
+  def to_dask_bag_visitor(bag_kwargs=None) -> PipelineVisitor:
     from dask import bag as db
+
+    if bag_kwargs is None:
+      bag_kwargs = {}
 
     @dataclasses.dataclass
     class DaskBagVisitor(PipelineVisitor):
@@ -149,7 +179,7 @@ class DaskRunner(BundleBasedDirectRunner):
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
         op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
-        op = op_class(transform_node)
+        op = op_class(transform_node, bag_kwargs=bag_kwargs)
 
         op_kws = {"input_bag": None, "side_inputs": None}
         inputs = list(transform_node.inputs)
@@ -195,7 +225,7 @@ class DaskRunner(BundleBasedDirectRunner):
   def run_pipeline(self, pipeline, options):
     import dask
 
-    # TODO(alxr): Create interactive notebook support.
+    # TODO(alxmrs): Create interactive notebook support.
     if is_in_notebook():
       raise NotImplementedError('interactive support will come later!')
 
@@ -207,11 +237,12 @@ class DaskRunner(BundleBasedDirectRunner):
 
     dask_options = options.view_as(DaskOptions).get_all_options(
         drop_default=True)
+    bag_kwargs = DaskOptions._extract_bag_kwargs(dask_options)
     client = ddist.Client(**dask_options)
 
     pipeline.replace_all(dask_overrides())
 
-    dask_visitor = self.to_dask_bag_visitor()
+    dask_visitor = self.to_dask_bag_visitor(bag_kwargs)
     pipeline.visit(dask_visitor)
     # The dictionary in this visitor keeps a mapping of every Beam
     # PTransform to the equivalent Bag operation. This is highly
