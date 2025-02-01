@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Objects;
 import org.apache.beam.sdk.metrics.BoundedTrie;
@@ -31,6 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * In that case retrieving the underlying cell and reporting directly to it avoids a step of
  * indirection.
  */
+@SuppressFBWarnings(
+    value = "IS2_INCONSISTENT_SYNC",
+    justification = "Some access on purpose are left unsynchronized")
 public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData> {
 
   private final DirtyState dirty = new DirtyState();
