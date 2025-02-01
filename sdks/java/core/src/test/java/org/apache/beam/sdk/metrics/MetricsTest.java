@@ -263,6 +263,7 @@ public class MetricsTest implements Serializable {
       Metrics.resetDefaultPipelineOptions();
       assertFalse(Metrics.MetricsFlag.counterDisabled());
       assertFalse(Metrics.MetricsFlag.stringSetDisabled());
+      assertFalse(Metrics.MetricsFlag.boundedTrieDisabled());
       PipelineOptions options =
           PipelineOptionsFactory.fromArgs("--experiments=disableCounterMetrics").create();
       Metrics.setDefaultPipelineOptions(options);
@@ -273,6 +274,12 @@ public class MetricsTest implements Serializable {
       Metrics.setDefaultPipelineOptions(options);
       assertFalse(Metrics.MetricsFlag.counterDisabled());
       assertTrue(Metrics.MetricsFlag.stringSetDisabled());
+      Metrics.resetDefaultPipelineOptions();
+      options = PipelineOptionsFactory.fromArgs("--experiments=disableBoundedTrieMetrics").create();
+      Metrics.setDefaultPipelineOptions(options);
+      assertFalse(Metrics.MetricsFlag.counterDisabled());
+      assertFalse(Metrics.MetricsFlag.stringSetDisabled());
+      assertTrue(Metrics.MetricsFlag.boundedTrieDisabled());
       Metrics.resetDefaultPipelineOptions();
     }
   }
