@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -83,6 +84,11 @@ public class DataflowMetricsContainer implements MetricsContainer {
   @Override
   public StringSet getStringSet(MetricName metricName) {
     return getCurrentContainer().getStringSet(metricName);
+  }
+
+  @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return getCurrentContainer().getBoundedTrie(metricName);
   }
 
   @Override

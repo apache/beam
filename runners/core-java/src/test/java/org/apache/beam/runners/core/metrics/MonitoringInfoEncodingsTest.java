@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeStringSet;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleDistribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
@@ -30,8 +32,12 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.runners.core.metrics.BoundedTrieData.BoundedTrieNode;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -90,6 +96,38 @@ public class MonitoringInfoEncodingsTest {
     data = StringSetData.create(ImmutableSet.of("ab", "", "ef"));
     payload = encodeStringSet(data);
     assertEquals(data, decodeStringSet(payload));
+  }
+
+  @Test
+  public void testBoundedTrieEncoding() {
+    // test empty bounded trie encoding
+    BoundedTrieData data = new BoundedTrieData(Collections.emptyList());
+    ByteString payload = encodeBoundedTrie(data);
+    assertEquals(data, decodeBoundedTrie(payload));
+
+    // test singleton encoding
+    data = new BoundedTrieData(ImmutableList.of("ab"));
+    payload = encodeBoundedTrie(data);
+    assertEquals(data, decodeBoundedTrie(payload));
+
+    // test multiple element bounded trie encoding
+    data = new BoundedTrieData(ImmutableList.of("a", "b"));
+    data.add(ImmutableList.of("c", "d"));
+    payload = encodeBoundedTrie(data);
+    assertEquals(data, decodeBoundedTrie(payload));
+
+    // test encoding with trim
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "b", "d"),
+                Arrays.asList("a", "e"))));
+    root.trim();
+    data = new BoundedTrieData(root);
+    payload = encodeBoundedTrie(data);
+    assertEquals(data, decodeBoundedTrie(payload));
   }
 
   @Test
