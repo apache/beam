@@ -113,10 +113,20 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
         partitions.size() > 0,
         "Could not find any partitions. Please check Kafka configuration and topic names");
 
-    int numSplits = Math.min(desiredNumSplits, partitions.size());
-    // XXX make all splits have the same # of partitions
-    while (partitions.size() % numSplits > 0) {
-      ++numSplits;
+    int numSplits;
+    if (offsetBasedDeduplicationSupported()) {
+      // Enforce 1:1 split to partition ratio for offset deduplication.
+      numSplits = partitions.size();
+      LOG.info(
+          "Offset-based deduplication is enabled for KafkaUnboundedSource. "
+              + "Forcing the number of splits to equal the number of total partitions: {}.",
+          numSplits);
+    } else {
+      numSplits = Math.min(desiredNumSplits, partitions.size());
+      // Make all splits have the same # of partitions.
+      while (partitions.size() % numSplits > 0) {
+        ++numSplits;
+      }
     }
     List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
 
@@ -175,6 +185,11 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     // Kafka records are ordered with in partitions. In addition checkpoint guarantees
     // records are not consumed twice.
     return false;
+  }
+
+  @Override
+  public boolean offsetBasedDeduplicationSupported() {
+    return spec.getOffsetDeduplication() != null && spec.getOffsetDeduplication();
   }
 
   @Override
