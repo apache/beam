@@ -718,6 +718,9 @@ public class KafkaIO {
     public abstract int getRedistributeNumKeys();
 
     @Pure
+    public abstract @Nullable Boolean getOffsetDeduplication();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -781,6 +784,8 @@ public class KafkaIO {
       abstract Builder<K, V> setAllowDuplicates(boolean allowDuplicates);
 
       abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
+
+      abstract Builder<K, V> setOffsetDeduplication(Boolean offsetDeduplication);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -886,11 +891,16 @@ public class KafkaIO {
           if (config.allowDuplicates != null) {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
-
+          if (config.redistribute
+              && (config.allowDuplicates == null || !config.allowDuplicates)
+              && config.offsetDeduplication != null) {
+            builder.setOffsetDeduplication(config.offsetDeduplication);
+          }
         } else {
           builder.setRedistributed(false);
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
+          builder.setOffsetDeduplication(false);
         }
       }
 
@@ -959,6 +969,7 @@ public class KafkaIO {
         private Integer redistributeNumKeys;
         private Boolean redistribute;
         private Boolean allowDuplicates;
+        private Boolean offsetDeduplication;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1015,6 +1026,10 @@ public class KafkaIO {
         public void setAllowDuplicates(Boolean allowDuplicates) {
           this.allowDuplicates = allowDuplicates;
         }
+
+        public void setOffsetDeduplication(Boolean offsetDeduplication) {
+          this.offsetDeduplication = offsetDeduplication;
+        }
       }
     }
 
@@ -1066,24 +1081,19 @@ public class KafkaIO {
      * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
      */
     public Read<K, V> withRedistribute() {
-      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
-        LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
-      }
       return toBuilder().setRedistributed(true).build();
     }
 
     public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
-      if (!isAllowDuplicates()) {
-        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
-      }
       return toBuilder().setAllowDuplicates(allowDuplicates).build();
     }
 
     public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
-      checkState(
-          isRedistributed(),
-          "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
+    }
+
+    public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
+      return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
     }
 
     /**
@@ -1541,6 +1551,9 @@ public class KafkaIO {
               ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
         }
       }
+
+      checkRedistributeConfiguration();
+
       warnAboutUnsafeConfigurations(input);
 
       // Infer key/value coders if not specified explicitly
@@ -1571,6 +1584,26 @@ public class KafkaIO {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    private void checkRedistributeConfiguration() {
+      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
+        LOG.warn(
+            "withRedistribute without withRedistributeNumKeys will create a key per record, which is sub-optimal for most use cases.");
+      }
+      if (isAllowDuplicates()) {
+        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
+      }
+      if (getRedistributeNumKeys() > 0) {
+        checkState(
+            isRedistributed(),
+            "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
+      }
+      if (getOffsetDeduplication() != null && getOffsetDeduplication()) {
+        checkState(
+            isRedistributed() && !isAllowDuplicates(),
+            "withOffsetDeduplication should only be used with withRedistribute and withAllowDuplicates(false).");
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {

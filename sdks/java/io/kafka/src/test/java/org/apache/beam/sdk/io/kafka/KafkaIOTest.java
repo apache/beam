@@ -391,7 +391,20 @@ public class KafkaIOTest {
         timestampFn,
         false, /*redistribute*/
         false, /*allowDuplicates*/
-        0);
+        0, /*numKeys*/
+        null /*offsetDeduplication*/);
+  }
+
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithOffsetDedup(
+      int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
+    return mkKafkaReadTransform(
+        numElements,
+        numElements,
+        timestampFn,
+        true, /*redistribute*/
+        false, /*allowDuplicates*/
+        100, /*numKeys*/
+        true /*offsetDeduplication*/);
   }
 
   /**
@@ -404,7 +417,8 @@ public class KafkaIOTest {
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
       @Nullable Boolean redistribute,
       @Nullable Boolean withAllowDuplicates,
-      @Nullable Integer numKeys) {
+      @Nullable Integer numKeys,
+      @Nullable Boolean offsetDeduplication) {
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
@@ -427,15 +441,15 @@ public class KafkaIOTest {
       reader = reader.withTimestampFn(timestampFn);
     }
 
-    if (redistribute) {
-      if (numKeys != null) {
-        reader =
-            reader
-                .withRedistribute()
-                .withAllowDuplicates(withAllowDuplicates)
-                .withRedistributeNumKeys(numKeys);
-      }
+    if (redistribute != null && redistribute) {
       reader = reader.withRedistribute();
+      reader = reader.withAllowDuplicates(withAllowDuplicates);
+      if (numKeys != null) {
+        reader = reader.withRedistributeNumKeys(numKeys);
+      }
+      if (offsetDeduplication != null && offsetDeduplication) {
+        reader.withOffsetDeduplication(offsetDeduplication);
+      }
     }
     return reader;
   }
@@ -667,7 +681,8 @@ public class KafkaIOTest {
                         new ValueAsTimestampFn(),
                         true, /*redistribute*/
                         true, /*allowDuplicates*/
-                        0)
+                        0, /*numKeys*/
+                        null /*offsetDeduplication*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -693,7 +708,8 @@ public class KafkaIOTest {
                         new ValueAsTimestampFn(),
                         true, /*redistribute*/
                         false, /*allowDuplicates*/
-                        0)
+                        0, /*numKeys*/
+                        null /*offsetDeduplication*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -720,7 +736,8 @@ public class KafkaIOTest {
                         new ValueAsTimestampFn(),
                         false, /*redistribute*/
                         false, /*allowDuplicates*/
-                        0)
+                        0, /*numKeys*/
+                        null /*offsetDeduplication*/)
                     .withRedistributeNumKeys(100)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
@@ -2091,12 +2108,27 @@ public class KafkaIOTest {
                         new ValueAsTimestampFn(),
                         false, /*redistribute*/
                         false, /*allowDuplicates*/
-                        0)
+                        0, /*numKeys*/
+                        null /*offsetDeduplication*/)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
             .apply(Values.create());
 
     addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
+    p.run();
+  }
+
+  @Test
+  public void testOffsetDeduplication() {
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransformWithOffsetDedup(numElements, new ValueAsTimestampFn())
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements, numElements, 0, numElements - 1);
     p.run();
   }
 
@@ -2121,7 +2153,8 @@ public class KafkaIOTest {
                     new ValueAsTimestampFn(),
                     false, /*redistribute*/
                     false, /*allowDuplicates*/
-                    0)
+                    0, /*numKeys*/
+                    null /*offsetDeduplication*/)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
         .apply(Values.create());
