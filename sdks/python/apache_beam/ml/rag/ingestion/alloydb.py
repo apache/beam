@@ -112,21 +112,33 @@ class ConflictResolution:
   action: Literal["UPDATE", "IGNORE"] = "UPDATE"
   update_fields: Optional[List[str]] = None
 
+  def maybe_set_default_update_fields(self, columns: List[str]):
+    if self.action != "UPDATE":
+      return
+    if self.update_fields is not None:
+      return
+
+    conflict_fields = ([self.on_conflict_fields] if isinstance(
+        self.on_conflict_fields, str) else self.on_conflict_fields)
+    self.conflict_resolution.update_fields = [
+        col for col in columns if col not in conflict_fields
+    ]
+
   def get_conflict_clause(self) -> str:
     """Get conflict clause with update fields."""
-    fields = [self.on_conflict_fields] \
+    conflict_fields = [self.on_conflict_fields] \
       if isinstance(self.on_conflict_fields, str) \
         else self.on_conflict_fields
 
     if self.action == "IGNORE":
-      return f"ON CONFLICT ({', '.join(fields)}) DO NOTHING"
+      return f"ON CONFLICT ({', '.join(conflict_fields)}) DO NOTHING"
 
     # update_fields should be set by query builder before this is called
     assert self.update_fields is not None, \
       "update_fields must be set before generating conflict clause"
     updates = [f"{field} = EXCLUDED.{field}" for field in self.update_fields]
     return f"ON CONFLICT " \
-      f"({', '.join(fields)}) DO UPDATE SET {', '.join(updates)}"
+      f"({', '.join(conflict_fields)}) DO UPDATE SET {', '.join(updates)}"
 
 
 @dataclass
@@ -134,50 +146,61 @@ class ColumnSpec:
   """Specification for mapping Chunk fields to SQL columns for insertion.
     
     Defines how to extract and format values from Chunks into database columns,
-    including type conversion and SQL type casting.
+    handling the full pipeline from Python value to SQL insertion:
+
+    The insertion process works as follows:
+    - value_fn extracts a value from the Chunk and formats it as needed
+    - The value is stored in a NamedTuple field with the specified python_type
+    - During SQL insertion, the value is bound to a ? placeholder
+    - If sql_typecast is specified, it's appended to the placeholder for
+      explicit casting (e.g. "?::float[]" for vector arrays, "?::jsonb" for
+      JSON data)
 
     Attributes:
         name: The column name in the database table.
-        python_type: Python type for the column value (used in NamedTuple field)
+        python_type: Python type for the NamedTuple field that will hold the
+            value. Must be compatible with must be compatible with
+            :class:`~apache_beam.coders.row_coder.RowCoder`.
         value_fn: Function to extract and format the value from a Chunk.
             Takes a Chunk and returns a value of python_type.
-        sql_typecast: Optional SQL type cast to apply (e.g. "::float[]" for 
-            vectors).
+        sql_typecast: Optional SQL type cast to append to the ? placeholder.
+            Common examples:
+            - "::float[]" for vector arrays
+            - "::jsonb" for JSON data
     
     Examples:
-        Basic text column:
+        Basic text column (uses standard JDBC type mapping):
         >>> ColumnSpec.text(
         ...     name="content",
         ...     value_fn=lambda chunk: chunk.content.text
         ... )
+        # Results in: INSERT INTO table (content) VALUES (?)
 
-        Vector column with type casting:
+        Vector column with explicit array casting:
         >>> ColumnSpec.vector(
         ...     name="embedding",
-        ...     value_fn=lambda chunk: ('{' + 
-        ...       ','.join(map(str, chunk.embedding.dense_embedding)) + '}')
+        ...     value_fn=lambda chunk: '{' + 
+        ...         ','.join(map(str, chunk.embedding.dense_embedding)) + '}'
         ... )
+        # Results in: INSERT INTO table (embedding) VALUES (?::float[])
+        # The value_fn formats [1.0, 2.0] as '{1.0,2.0}' for PostgreSQL array
 
-        Custom metadata column:
-        >>> ColumnSpec.text(
-        ...     name="source",
-        ...     value_fn=lambda chunk: chunk.metadata.get("source", "unknown")
-        ... )
-
-        Timestamp column with type casting:
+        Timestamp from metadata with explicit casting:
         >>> ColumnSpec(
-        ...     name="timestamp",
+        ...     name="created_at",
         ...     python_type=str,
-        ...     value_fn=lambda chunk: chunk.metadata.get("timestamp", ""),
+        ...     value_fn=lambda chunk: chunk.metadata.get("timestamp"),
         ...     sql_typecast="::timestamp"
         ... )
+        # Results in: INSERT INTO table (created_at) VALUES (?::timestamp)
+        # Allows inserting string timestamps with proper PostgreSQL casting
 
     Factory Methods:
-        text: Creates a text column specification.
-        integer: Creates an integer column specification.
-        float: Creates a float column specification.
+        text: Creates a text column specification (no type cast).
+        integer: Creates an integer column specification (no type cast).
+        float: Creates a float column specification (no type cast).
         vector: Creates a vector column specification with float[] casting.
-        jsonb: Creates a JSONB column specification.
+        jsonb: Creates a JSONB column specification with jsonb casting.
     """
   name: str  # Column name in database
   python_type: Type  # Type for NamedTuple field
@@ -336,16 +359,11 @@ class _AlloyDBQueryBuilder:
     # Store columns for SQL generation
     self.columns = columns
 
-    # Set default update fields for conflict resolution
-    if self.conflict_resolution and self.conflict_resolution.action == "UPDATE":
-      if self.conflict_resolution.update_fields is None:
-        conflict_fields = ([self.conflict_resolution.on_conflict_fields]
-                           if isinstance(
-                               self.conflict_resolution.on_conflict_fields, str)
-                           else self.conflict_resolution.on_conflict_fields)
-        self.conflict_resolution.update_fields = [
-            col.name for col in columns if col.name not in conflict_fields
-        ]
+    # Set default update fields to all non-conflict fields if update fields are
+    # not specified
+    if self.conflict_resolution:
+      self.conflict_resolution.maybe_set_default_update_fields(
+          [col.name for col in columns if col.name])
 
   def build_insert(self) -> str:
     """Build INSERT query with proper type casting."""
@@ -409,11 +427,12 @@ class AlloyDBVectorWriterConfig(VectorDatabaseWriteConfig):
             Defaults to text column named "content" using chunk_content_fn.
         metadata_spec: Optional specification for metadata handling.
             Can be either:
-            - Single ColumnSpec for JSON metadata column
-            - Dict mapping metadata keys to individual column specs
+            - Single :class:`.ColumnSpec` for JSON metadata column
+            - Dict mapping metadata keys to individual :class:`.ColumnSpec`
             Defaults to JSONB column named "metadata" using chunk_metadata_fn.
         custom_column_specs: Optional list of custom column specifications.
         conflict_resolution: Optional strategy for handling insert conflicts.
+            Unset by default, in which case the insert will fail on conflict.
     
     Examples:
         Basic usage with default schema:
