@@ -166,6 +166,10 @@ toxTask "testPy39transformers-448", "py39-transformers-448", "${posargs}"
 test.dependsOn "testPy39transformers-448"
 postCommitPyDep.dependsOn "testPy39transformers-448"
 
+toxTask "testPy39transformers-latest", "py39-transformers-latest", "${posargs}"
+test.dependsOn "testPy39transformers-latest"
+postCommitPyDep.dependsOn "testPy39transformers-latest"
+
 toxTask "testPy39embeddingsMLTransform", "py39-embeddings", "${posargs}"
 test.dependsOn "testPy39embeddingsMLTransform"
 postCommitPyDep.dependsOn "testPy39embeddingsMLTransform"

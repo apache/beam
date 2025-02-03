@@ -19,11 +19,13 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -140,6 +142,17 @@ public final class KafkaIOUtils {
 
     double get() {
       return avg;
+    }
+  }
+
+  static final class OffsetBasedDeduplication {
+
+    static byte[] encodeOffset(long offset) {
+      return Longs.toByteArray(offset);
+    }
+
+    static byte[] getUniqueId(String topic, int partition, long offset) {
+      return (topic + "-" + partition + "-" + offset).getBytes(StandardCharsets.UTF_8);
     }
   }
 }

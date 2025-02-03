@@ -137,6 +137,7 @@ public class MetricsContainerStepMap implements Serializable {
     Map<MetricKey, MetricResult<DistributionData>> distributions = new HashMap<>();
     Map<MetricKey, MetricResult<GaugeData>> gauges = new HashMap<>();
     Map<MetricKey, MetricResult<StringSetData>> sets = new HashMap<>();
+    Map<MetricKey, MetricResult<BoundedTrieData>> boundedTries = new HashMap<>();
 
     attemptedMetricsContainers.forEachMetricContainer(
         container -> {
@@ -146,6 +147,8 @@ public class MetricsContainerStepMap implements Serializable {
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeAttemptedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
           mergeAttemptedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
+          mergeAttemptedResults(
+              boundedTries, cumulative.boundedTrieUpdates(), BoundedTrieData::combine);
         });
     committedMetricsContainers.forEachMetricContainer(
         container -> {
@@ -155,6 +158,8 @@ public class MetricsContainerStepMap implements Serializable {
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeCommittedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
           mergeCommittedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
+          mergeCommittedResults(
+              boundedTries, cumulative.boundedTrieUpdates(), BoundedTrieData::combine);
         });
 
     return new DefaultMetricResults(
@@ -167,6 +172,9 @@ public class MetricsContainerStepMap implements Serializable {
             .collect(toList()),
         sets.values().stream()
             .map(result -> result.transform(StringSetData::extractResult))
+            .collect(toList()),
+        boundedTries.values().stream()
+            .map(result -> result.transform(BoundedTrieData::extractResult))
             .collect(toList()));
   }
 

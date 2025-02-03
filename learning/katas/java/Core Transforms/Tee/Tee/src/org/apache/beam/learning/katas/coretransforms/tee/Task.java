@@ -25,6 +25,19 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 
+// beam-playground:
+//   name: Tee
+//   description: Task from katas that demonstrates the use of Apache Beam's Tee transform to apply side transformations while preserving the main pipeline flow.
+//   multifile: false
+//   context_line: 42
+//   categories:
+//     - Tee
+//   complexity: BASIC
+//   tags:
+//     - tee
+//     - transforms
+//     - branching
+
 public class Task {
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
