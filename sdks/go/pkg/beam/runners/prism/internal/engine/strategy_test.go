@@ -345,8 +345,8 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1}, false},
 				{triggerInput{newElementCount: 1}, true}, // Early is ready
 				{triggerInput{newElementCount: 1}, false},
-				{triggerInput{newElementCount: 1}, true},                           // Early is ready
-				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // End of window
+				{triggerInput{newElementCount: 1}, true},                            // Early is ready
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false}, // End of window
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
@@ -362,9 +362,8 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1}, false},
 				{triggerInput{newElementCount: 1}, false},
 				{triggerInput{newElementCount: 1}, false},
-				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // End of window
-				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
-				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false}, // End of window
+				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true},  // Late
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, false},

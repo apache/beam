@@ -50,7 +50,8 @@ type WinStrat struct {
 	Trigger Trigger // Evaluated during execution.
 }
 
-// IsTriggerReady updates and returns wether the trigger is able to fire or not.
+// IsTriggerReady updates the trigger state with the given input, and returns
+// if the trigger is ready to fire.
 func (ws WinStrat) IsTriggerReady(input triggerInput, state *StateData) bool {
 	ws.Trigger.onElement(input, state)
 
@@ -66,8 +67,13 @@ func (ws WinStrat) EarliestCompletion(w typex.Window) mtime.Time {
 	return w.MaxTimestamp().Add(ws.AllowedLateness)
 }
 
+func (ws WinStrat) IsNeverTrigger() bool {
+	_, ok := ws.Trigger.(*TriggerNever)
+	return ok
+}
+
 func (ws WinStrat) String() string {
-	return fmt.Sprintf("WinStrat[AllowedLateness:%v]", ws.AllowedLateness)
+	return fmt.Sprintf("WinStrat[AllowedLateness:%v Trigger:%v]", ws.AllowedLateness, ws.Trigger)
 }
 
 // triggerInput represents a Key + window + stage's trigger conditions.
@@ -104,6 +110,10 @@ type triggerState struct {
 	extra any
 }
 
+func (ts triggerState) String() string {
+	return fmt.Sprintf("triggerState[finished: %v; state: %v]", ts.finished, ts.extra)
+}
+
 // nullTrigger is a 0 size object that exists to be embedded in triggers that
 // perform no action on trigger method calls. Triggers with this embedded will
 // gain an implementation of the trigger methods that do nothing, and behavior
@@ -120,6 +130,12 @@ type TriggerNever struct{ nullTrigger }
 
 func (*TriggerNever) shouldFire(*StateData) bool {
 	return false
+}
+
+func (t *TriggerNever) reset(state *StateData) {}
+
+func (t *TriggerNever) String() string {
+	return "Never"
 }
 
 // TriggerAlways is always ready.
@@ -154,6 +170,10 @@ func triggerClearAndFinish(t Trigger, state *StateData) {
 	ts := state.getTriggerState(t)
 	ts.finished = true
 	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAlways) String() string {
+	return "Always"
 }
 
 // TriggerAfterAll is ready when all subTriggers are ready.
@@ -199,6 +219,10 @@ func (t *TriggerAfterAll) reset(state *StateData) {
 	subTriggersReset(t, state, t.SubTriggers)
 }
 
+func (t *TriggerAfterAll) String() string {
+	return fmt.Sprintf("AfterAll[%v]", t.SubTriggers)
+}
+
 // TriggerAfterAny is ready the first time any of the subTriggers are ready.
 // Logically, an "OR" trigger.
 type TriggerAfterAny struct {
@@ -231,6 +255,10 @@ func (t *TriggerAfterAny) onFire(state *StateData) {
 
 func (t *TriggerAfterAny) reset(state *StateData) {
 	subTriggersReset(t, state, t.SubTriggers)
+}
+
+func (t *TriggerAfterAny) String() string {
+	return fmt.Sprintf("AfterAny[%v]", t.SubTriggers)
 }
 
 // TriggerAfterEach processes each trigger before executing the next.
@@ -289,6 +317,10 @@ func (t *TriggerAfterEach) reset(state *StateData) {
 	subTriggersReset(t, state, t.SubTriggers)
 }
 
+func (t *TriggerAfterEach) String() string {
+	return fmt.Sprintf("AfterEach[%v]", t.SubTriggers)
+}
+
 // TriggerElementCount triggers when there have been at least the required number
 // of elements have arrived.
 //
@@ -334,6 +366,10 @@ func (t *TriggerElementCount) onFire(state *StateData) {
 
 func (t *TriggerElementCount) reset(state *StateData) {
 	delete(state.Trigger, t)
+}
+
+func (t *TriggerElementCount) String() string {
+	return fmt.Sprintf("ElementCount[%v]", t.ElementCount)
 }
 
 // TriggerOrFinally is ready whenever either of it's subtriggers fire.
@@ -383,6 +419,10 @@ func (t *TriggerOrFinally) reset(state *StateData) {
 	delete(state.Trigger, t)
 }
 
+func (t *TriggerOrFinally) String() string {
+	return fmt.Sprintf("OrFinally[Repeat:%v Until:%v]", t.Main, t.Finally)
+}
+
 // TriggerRepeatedly is a composite trigger that will fire whenever the Repeated trigger is ready.
 // If the Repeated trigger is finished, it's state will be reset.
 type TriggerRepeatedly struct {
@@ -413,6 +453,10 @@ func (t *TriggerRepeatedly) reset(state *StateData) {
 	delete(state.Trigger, t)
 }
 
+func (t *TriggerRepeatedly) String() string {
+	return fmt.Sprintf("Repeat[%v]", t.Repeated)
+}
+
 // TriggerAfterEndOfWindow is a composite trigger that will fire whenever the
 // the early Triggers are ready prior to the end of window, implicitly repeated.
 // After the end of window, the Late trigger will be implicitly repeated.
@@ -426,6 +470,18 @@ func (t *TriggerAfterEndOfWindow) onElement(input triggerInput, state *StateData
 	ts := state.getTriggerState(t)
 	if ts.finished {
 		return
+	}
+	if ts.extra == nil {
+		ts.extra = false
+	}
+	previouslyEndOfWindow := ts.extra.(bool)
+	if !previouslyEndOfWindow && input.endOfWindowReached {
+		// We have transitioned. Clear early state and mark it finished
+		triggerClearAndFinish(t.Early, state)
+		if t.Late == nil {
+			triggerClearAndFinish(t, state)
+			return
+		}
 	}
 	ts.extra = input.endOfWindowReached
 	state.setTriggerState(t, ts)
@@ -444,11 +500,11 @@ func (t *TriggerAfterEndOfWindow) shouldFire(state *StateData) bool {
 		return false
 	}
 	if !state.getTriggerState(t.Early).finished {
-		return ts.extra.(bool) || t.Early.shouldFire(state)
-	} else if t.Late != nil {
-		return t.Late.shouldFire(state)
+		return t.Early.shouldFire(state) || ts.extra.(bool)
+	} else if t.Late == nil {
+		return false
 	}
-	return ts.extra.(bool) // Return true if endOfWindowReached was true.
+	return t.Late.shouldFire(state)
 }
 
 func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
@@ -463,32 +519,28 @@ func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
 				t.Early.reset(state)
 			}
 		}
-		if ts.extra.(bool) {
-			t.Early.reset(state)
-			earlyState := state.getTriggerState(t.Early)
-			earlyState.finished = true
-			state.setTriggerState(t.Early, earlyState)
-			if t.Late == nil {
-				ts.finished = true
-				state.setTriggerState(t, ts)
-			}
-		}
-	} else if t.Late != nil {
+	} else if t.Late == nil {
+		return
+	} else {
 		t.Late.onFire(state)
 		if state.getTriggerState(t.Late).finished {
 			t.Late.reset(state)
 		}
-	} else {
-		ts.finished = true
-		ts.extra = nil
-		state.setTriggerState(t, ts)
 	}
 }
 
 func (t *TriggerAfterEndOfWindow) reset(state *StateData) {
-	t.Early.reset(state)
-	t.Late.reset(state)
+	if t.Early != nil {
+		t.Early.reset(state)
+	}
+	if t.Late != nil {
+		t.Late.reset(state)
+	}
 	delete(state.Trigger, t)
+}
+
+func (t *TriggerAfterEndOfWindow) String() string {
+	return fmt.Sprintf("AfterEndOfWindow[Early: %v Late: %v]", t.Early, t.Late)
 }
 
 // TriggerDefault fires once the window ends, but then fires per element
@@ -513,6 +565,10 @@ func (t *TriggerDefault) shouldFire(state *StateData) bool {
 }
 
 func (t *TriggerDefault) onFire(*StateData) {}
+
+func (t *TriggerDefault) String() string {
+	return "Default"
+}
 
 // TODO
 // TriggerAfterProcessingTime
