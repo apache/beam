@@ -269,8 +269,9 @@ public class StateBackedIterableTest {
               .sum();
       observer.advance();
       // 5 comes from size and hasNext (see IterableLikeCoder)
-      // observer receives scaled
-      assertTrue(iterateBytes + 5 >= observer.total);
+      // observer receives scaled, StringUtf8Coder is not cheap so sampling may produce value that is off
+      assertTrue(
+          com.google.common.math.DoubleMath.fuzzyEquals(iterateBytes + 5, observer.total, 3));
     }
   }
 
