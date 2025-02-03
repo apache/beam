@@ -98,7 +98,7 @@ type Trigger interface {
 	// a finished state.
 	onFire(state *StateData)
 
-	// TODO merging triggers and state for merging windows
+	// TODO handle https://github.com/apache/beam/issues/31438 merging triggers and state for merging windows (sessions, but also custom merging windows)
 }
 
 // triggerState retains additional state for a given trigger execution.
@@ -477,7 +477,9 @@ func (t *TriggerAfterEndOfWindow) onElement(input triggerInput, state *StateData
 	previouslyEndOfWindow := ts.extra.(bool)
 	if !previouslyEndOfWindow && input.endOfWindowReached {
 		// We have transitioned. Clear early state and mark it finished
-		triggerClearAndFinish(t.Early, state)
+		if t.Early != nil {
+			triggerClearAndFinish(t.Early, state)
+		}
 		if t.Late == nil {
 			triggerClearAndFinish(t, state)
 			return
@@ -486,10 +488,10 @@ func (t *TriggerAfterEndOfWindow) onElement(input triggerInput, state *StateData
 	ts.extra = input.endOfWindowReached
 	state.setTriggerState(t, ts)
 
-	if !state.getTriggerState(t.Early).finished {
+	if t.Early != nil && !state.getTriggerState(t.Early).finished {
 		t.Early.onElement(input, state)
 		return
-	} else if t.Late != nil {
+	} else if t.Late != nil && input.endOfWindowReached {
 		t.Late.onElement(input, state)
 	}
 }
@@ -499,12 +501,12 @@ func (t *TriggerAfterEndOfWindow) shouldFire(state *StateData) bool {
 	if ts.finished {
 		return false
 	}
-	if !state.getTriggerState(t.Early).finished {
+	if t.Early != nil && !state.getTriggerState(t.Early).finished {
 		return t.Early.shouldFire(state) || ts.extra.(bool)
-	} else if t.Late == nil {
-		return false
+	} else if t.Late != nil && ts.extra.(bool) {
+		return t.Late.shouldFire(state)
 	}
-	return t.Late.shouldFire(state)
+	return false
 }
 
 func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
@@ -512,7 +514,7 @@ func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
 	if ts.finished {
 		return
 	}
-	if !state.getTriggerState(t.Early).finished {
+	if t.Early != nil && !state.getTriggerState(t.Early).finished {
 		if t.Early.shouldFire(state) {
 			t.Early.onFire(state)
 			if state.getTriggerState(t.Early).finished {
@@ -521,7 +523,7 @@ func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
 		}
 	} else if t.Late == nil {
 		return
-	} else {
+	} else if ts.extra.(bool) { // If we're in late firings.
 		t.Late.onFire(state)
 		if state.getTriggerState(t.Late).finished {
 			t.Late.reset(state)
@@ -570,5 +572,4 @@ func (t *TriggerDefault) String() string {
 	return "Default"
 }
 
-// TODO
-// TriggerAfterProcessingTime
+// TODO https://github.com/apache/beam/issues/31438 Handle TriggerAfterProcessingTime
