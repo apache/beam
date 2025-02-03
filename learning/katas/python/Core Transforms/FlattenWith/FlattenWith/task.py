@@ -27,21 +27,21 @@
 #     - strings
 
 def flatten_with():
-    # [START flatten_with]
-    import apache_beam as beam
+  # [START flatten_with]
+  import apache_beam as beam
 
-    with beam.Pipeline() as p:
-        wordsStartingWithA = \
-            p | 'Words starting with A' >> beam.Create(['apple', 'ant', 'arrow'])
+  with beam.Pipeline() as p:
+    wordsStartingWithA = \
+        p | 'Words starting with A' >> beam.Create(['apple', 'ant', 'arrow'])
 
-        wordsStartingWithB = \
-            p | 'Words starting with B' >> beam.Create(['ball', 'book', 'bow'])
+    wordsStartingWithB = \
+        p | 'Words starting with B' >> beam.Create(['ball', 'book', 'bow'])
 
-        (wordsStartingWithA
-            | 'Transform A to Uppercase' >> beam.Map(lambda x: x.upper())
-            | beam.FlattenWith(wordsStartingWithB)
-            | beam.LogElements())
-    # [END flatten_with]
+    (wordsStartingWithA
+      | 'Transform A to Uppercase' >> beam.Map(lambda x: x.upper())
+      | beam.FlattenWith(wordsStartingWithB)
+      | beam.LogElements())
+  # [END flatten_with]
 
 if __name__ == '__main__':
-    flatten_with()
+  flatten_with()
