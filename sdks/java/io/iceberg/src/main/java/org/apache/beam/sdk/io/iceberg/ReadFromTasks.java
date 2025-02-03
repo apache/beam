@@ -52,6 +52,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>For each {@link ReadTask}, reads Iceberg {@link Record}s, and converts to Beam {@link Row}s.
  */
 class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
+  // default is 8MB. keep this low to avoid overwhelming memory
+  private static final int MAX_FILE_BUFFER_SIZE = 1 << 20; // 1MB
   private final IcebergCatalogConfig catalogConfig;
 
   ReadFromTasks(IcebergCatalogConfig catalogConfig) {
@@ -112,7 +114,7 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
     optionsBuilder =
         optionsBuilder
             .withRange(task.start(), task.start() + task.length())
-            .withMaxAllocationInBytes(1 << 20); // 1MB
+            .withMaxAllocationInBytes(MAX_FILE_BUFFER_SIZE);
 
     return new ParquetReader<>(
         inputFile,
