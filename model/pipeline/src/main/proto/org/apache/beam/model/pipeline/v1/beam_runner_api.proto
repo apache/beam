@@ -969,9 +969,9 @@ message StandardCoders {
     //         10 - late
     //         11 - unknown
     //     * bit 6 is 1 if this is the last pane, 0 otherwise. 
-    //         Commonly set with `byte |= 0x01`
-    //     * bit 7 is 1 if this is the first pane, 0 otherwise.
     //         Commonly set with `byte |= 0x02`
+    //     * bit 7 is 1 if this is the first pane, 0 otherwise.
+    //         Commonly set with `byte |= 0x01`
     //
     //   element - The element incoded using the supplied element coder.
     //
