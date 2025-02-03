@@ -594,8 +594,8 @@ message BagStateSpec {
   string element_coder_id = 1;
 }
 
-// OrderedListState values are encoded with the var int encoded millis followed
-// by the value encoded by the provided coder.
+// OrderedListState values are encoded with the var int encoded
+// millis-since-epoch followed by the value encoded by the provided coder.
 // Be aware this is not the standard timestamp value encoding.
 message OrderedListStateSpec {
   string element_coder_id = 1;
