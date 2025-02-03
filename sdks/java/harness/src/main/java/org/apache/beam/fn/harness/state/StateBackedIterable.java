@@ -157,9 +157,10 @@ public class StateBackedIterable<T>
     public T next() {
       T value = wrappedIterator.next();
       try {
-        if (sampleElement() || elementCoder.isRegisterByteSizeObserverCheap(value)) {
+        boolean cheap = elementCoder.isRegisterByteSizeObserverCheap(value);
+        if (cheap || sampleElement()) {
           observerProxy.setScalingFactor(
-              Math.max(samplingToken, SAMPLING_CUTOFF) / (double) SAMPLING_CUTOFF);
+              cheap ? 1.0 : Math.max(samplingToken, SAMPLING_CUTOFF) / (double) SAMPLING_CUTOFF);
           elementCoder.registerByteSizeObserver(value, observerProxy);
           if (observerProxy.getIsLazy()) {
             // The observer will only be notified of bytes as the result
