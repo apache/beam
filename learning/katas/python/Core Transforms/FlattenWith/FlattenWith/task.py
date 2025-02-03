@@ -20,7 +20,7 @@
 #   multifile: false
 #   context_line: 33
 #   categories:
-#     - FlattenWith
+#     - Flatten
 #   complexity: BASIC
 #   tags:
 #     - merge
