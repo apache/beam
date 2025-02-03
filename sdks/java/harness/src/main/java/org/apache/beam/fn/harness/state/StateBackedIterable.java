@@ -30,7 +30,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
@@ -106,7 +107,6 @@ public class StateBackedIterable<T>
 
     private boolean observerNeedsAdvance = false;
     private boolean exceptionLogged = false;
-    private final Random randomGenerator = new Random();
 
     // Lowest sampling probability: 0.001%.
     private static final int SAMPLING_TOKEN_UPPER_BOUND = 1000000;
@@ -141,7 +141,7 @@ public class StateBackedIterable<T>
       // samplingCutoff / samplingTokenUpperBound. This algorithm may be refined
       // later.
       samplingToken = Math.min(samplingToken + 1, SAMPLING_TOKEN_UPPER_BOUND);
-      return randomGenerator.nextInt(samplingToken) < SAMPLING_CUTOFF;
+      return ThreadLocalRandom.current().nextInt(samplingToken) < SAMPLING_CUTOFF;
     }
 
     @Override
