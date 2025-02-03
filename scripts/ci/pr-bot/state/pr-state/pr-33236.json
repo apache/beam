@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "lostluck",
-    "io": "damondouglas"
+    "go": "jrmccluskey",
+    "io": "johnjcasey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
