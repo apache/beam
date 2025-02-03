@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
@@ -32,6 +33,8 @@ from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.jdbc import WriteToJdbc
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import Chunk
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -131,7 +134,9 @@ class ConflictResolution:
         else self.on_conflict_fields
 
     if self.action == "IGNORE":
-      return f"ON CONFLICT ({', '.join(conflict_fields)}) DO NOTHING"
+      conflict_fields_string = f"({', '.join(conflict_fields)})" \
+        if len(conflict_fields) > 0 else ""
+      return f"ON CONFLICT {conflict_fields_string} DO NOTHING"
 
     # update_fields should be set by query builder before this is called
     assert self.update_fields is not None, \
@@ -382,6 +387,7 @@ class _AlloyDBQueryBuilder:
     if self.conflict_resolution:
       query += f" {self.conflict_resolution.get_conflict_clause()}"
 
+    _LOGGER.info("Query with placeholders %s", query)
     return query
 
   def create_converter(self) -> Callable[[Chunk], NamedTuple]:
@@ -409,7 +415,8 @@ class AlloyDBVectorWriterConfig(VectorDatabaseWriteConfig):
       metadata_spec: Optional[MetadataSpec] = ColumnSpec.jsonb(
           name="metadata", value_fn=chunk_metadata_fn),
       custom_column_specs: Optional[List[ColumnSpec]] = None,
-      conflict_resolution: Optional[ConflictResolution] = None):
+      conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
+          on_conflict_fields=[], action='IGNORE')):
     """Configuration for writing vectors to AlloyDB using managed transforms.
     
     Supports flexible schema configuration through column specifications and
@@ -432,7 +439,8 @@ class AlloyDBVectorWriterConfig(VectorDatabaseWriteConfig):
             Defaults to JSONB column named "metadata" using chunk_metadata_fn.
         custom_column_specs: Optional list of custom column specifications.
         conflict_resolution: Optional strategy for handling insert conflicts.
-            Unset by default, in which case the insert will fail on conflict.
+            ON CONFLICT DO NOTHING by default, which skips inserting on
+            conflict with any unique constraints. 
     
     Examples:
         Basic usage with default schema:
