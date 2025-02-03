@@ -594,6 +594,9 @@ message BagStateSpec {
   string element_coder_id = 1;
 }
 
+// OrderedListState values are encoded with the var int encoded millis followed
+// by the value encoded by the provided coder.
+// Be aware this is not the standard timestamp value encoding.
 message OrderedListStateSpec {
   string element_coder_id = 1;
 }
@@ -946,7 +949,7 @@ message StandardCoders {
     //     coder.
     //
     //   pane - The first byte of the pane info determines which type of
-    //     encoding is used, as well as the is_first, is_last, and timing
+    //     encoding is used, as well as the is_first, is_last and timing
     //     fields. If this byte is bits [0 1 2 3 4 5 6 7], then:
     //     * bits [0 1 2 3] determine the encoding as follows:
     //         0000 - The entire pane info is encoded as a single byte.
@@ -954,7 +957,7 @@ message StandardCoders {
     //                as below, and the index and non-speculative index are
     //                both zero (and hence are not encoded here).
     //         0001 - The pane info is encoded as this byte plus a single
-    //                VarInt encoed integer representing the pane index. The
+    //                VarInt encoded integer representing the pane index. The
     //                non-speculative index can be derived as follows:
     //                  -1 if the pane is early, otherwise equal to index.
     //         0010 - The pane info is encoded as this byte plus two VarInt
@@ -965,8 +968,8 @@ message StandardCoders {
     //         01 - on time
     //         10 - late
     //         11 - unknown
-    //     * bit 6 is 1 if this is the first pane, 0 otherwise.
-    //     * bit 7 is 1 if this is the last pane, 0 otherwise.
+    //     * bit 6 is 1 if this is the last pane, 0 otherwise.
+    //     * bit 7 is 1 if this is the first pane, 0 otherwise.
     //
     //   element - The element incoded using the supplied element coder.
     //
@@ -1329,7 +1332,7 @@ message Trigger {
   message AfterSynchronizedProcessingTime {
   }
 
-  // The default trigger. Equivalent to Repeat { AfterEndOfWindow } but
+  // The default trigger. Equivalent to AfterEndOfWindow { Late: Always }} but
   // specially denoted to indicate the user did not alter the triggering.
   message Default {
   }
@@ -1339,12 +1342,12 @@ message Trigger {
     int32 element_count = 1;
   }
 
-  // Never ready. There will only be an ON_TIME output and a final
-  // output at window expiration.
+  // Never ready. There will only be an ON_TIME final output at window
+  // expiration.
   message Never {
   }
 
-  // Always ready. This can also be expressed as ElementCount(1) but
+  // Always ready. This can also be expressed as Repeat{ ElementCount(1) } but
   // is more explicit.
   message Always {
   }
