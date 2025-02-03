@@ -26,28 +26,21 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.function.BiFunction;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.iceberg.FileScanTask;
-import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
-import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
-import org.apache.iceberg.util.PartitionUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -410,10 +403,6 @@ public class IcebergUtils {
     }
   }
 
-  public static Row icebergRecordToBeamRow(org.apache.iceberg.Schema schema, Record record) {
-    return icebergRecordToBeamRow(icebergSchemaToBeamSchema(schema), record);
-  }
-
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);
@@ -516,21 +505,5 @@ public class IcebergUtils {
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
-  }
-
-  static Map<Integer, ?> constantsMap(
-      FileScanTask task,
-      BiFunction<Type, Object, Object> converter,
-      org.apache.iceberg.Schema schema) {
-    PartitionSpec spec = task.spec();
-    Set<Integer> idColumns = spec.identitySourceIds();
-    org.apache.iceberg.Schema partitionSchema = TypeUtil.select(schema, idColumns);
-    boolean projectsIdentityPartitionColumns = !partitionSchema.columns().isEmpty();
-
-    if (projectsIdentityPartitionColumns) {
-      return PartitionUtil.constantsMap(task, converter);
-    } else {
-      return Collections.emptyMap();
-    }
   }
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Create;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -60,11 +63,11 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
     Table table =
         TableCache.getRefreshed(
             scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
-    long to =
-        MoreObjects.firstNonNull(scanConfig.getToSnapshot(), table.currentSnapshot().snapshotId());
 
     PCollection<Row> rows =
-        pollInterval == null ? readBounded(input, to) : readUnbounded(input, pollInterval);
+        pollInterval == null
+            ? readBounded(input, table.currentSnapshot())
+            : readUnbounded(input, pollInterval);
     return rows.setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
   }
 
@@ -102,7 +105,12 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
    * Scans a single snapshot range and creates read tasks. Tasks are redistributed and processed
    * individually using a regular DoFn.
    */
-  private PCollection<Row> readBounded(PBegin input, long toSnapshot) {
+  private PCollection<Row> readBounded(PBegin input, @Nullable Snapshot toSnapshot) {
+    checkStateNotNull(
+        toSnapshot,
+        "Table %s does not have any snapshots to read from.",
+        scanConfig.getTableIdentifier());
+    long to = MoreObjects.firstNonNull(scanConfig.getToSnapshot(), toSnapshot.snapshotId());
     return input
         .apply(
             "Create Single Snapshot Range",
@@ -110,7 +118,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
                 SnapshotRange.builder()
                     .setTableIdentifierString(scanConfig.getTableIdentifier())
                     .setFromSnapshotExclusive(scanConfig.getFromSnapshotExclusive())
-                    .setToSnapshot(toSnapshot)
+                    .setToSnapshot(to)
                     .build()))
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))

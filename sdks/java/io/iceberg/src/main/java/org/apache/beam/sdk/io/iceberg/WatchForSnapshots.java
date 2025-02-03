@@ -33,6 +33,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -68,11 +70,11 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
   private static class SnapshotPollFn extends Watch.Growth.PollFn<String, SnapshotRange> {
     private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
     private final IcebergScanConfig scanConfig;
-    private @Nullable Long fromSnapshot;
+    private @Nullable Long fromSnapshotId;
 
     SnapshotPollFn(IcebergScanConfig scanConfig) {
       this.scanConfig = scanConfig;
-      this.fromSnapshot = scanConfig.getFromSnapshotExclusive();
+      this.fromSnapshotId = scanConfig.getFromSnapshotExclusive();
     }
 
     @Override
@@ -82,25 +84,26 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
           TableCache.getRefreshed(tableIdentifier, scanConfig.getCatalogConfig().catalog());
       Instant timestamp = Instant.now();
 
-      Long currentSnapshot = table.currentSnapshot().snapshotId();
-      if (currentSnapshot.equals(fromSnapshot)) {
+      Snapshot currentSnapshot = table.currentSnapshot();
+      if (currentSnapshot == null || Objects.equal(currentSnapshot.snapshotId(), fromSnapshotId)) {
         // no new snapshot since last poll. return empty result.
         return getPollResult(null, timestamp);
       }
+      Long currentSnapshotId = currentSnapshot.snapshotId();
 
       // if no upper bound is specified, we read up to the current snapshot
-      Long toSnapshot = MoreObjects.firstNonNull(scanConfig.getSnapshot(), currentSnapshot);
+      Long toSnapshot = MoreObjects.firstNonNull(scanConfig.getSnapshot(), currentSnapshotId);
       latestSnapshot.set(toSnapshot);
 
       SnapshotRange range =
           SnapshotRange.builder()
-              .setFromSnapshotExclusive(fromSnapshot)
+              .setFromSnapshotExclusive(fromSnapshotId)
               .setToSnapshot(toSnapshot)
               .setTableIdentifierString(tableIdentifier)
               .build();
 
       // update lower bound to current snapshot
-      fromSnapshot = currentSnapshot;
+      fromSnapshotId = currentSnapshotId;
 
       return getPollResult(range, timestamp);
     }

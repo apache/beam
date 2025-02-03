@@ -119,8 +119,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       DataFile file = fileTask.file();
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
-          IcebergUtils.constantsMap(
-              fileTask, IdentityPartitionConverters::convertConstant, project);
+          ReadUtils.constantsMap(fileTask, IdentityPartitionConverters::convertConstant, project);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {

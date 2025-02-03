@@ -18,32 +18,18 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.parquet.GenericParquetReaders;
-import org.apache.iceberg.encryption.EncryptedFiles;
-import org.apache.iceberg.encryption.EncryptedInputFile;
-import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
-import org.apache.iceberg.parquet.ParquetReader;
-import org.apache.parquet.HadoopReadOptions;
-import org.apache.parquet.ParquetReadOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -52,8 +38,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>For each {@link ReadTask}, reads Iceberg {@link Record}s, and converts to Beam {@link Row}s.
  */
 class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
-  // default is 8MB. keep this low to avoid overwhelming memory
-  private static final int MAX_FILE_BUFFER_SIZE = 1 << 20; // 1MB
   private final IcebergCatalogConfig catalogConfig;
 
   ReadFromTasks(IcebergCatalogConfig catalogConfig) {
@@ -73,57 +57,11 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
 
     FileScanTask task = readTask.getFileScanTask();
 
-    try (CloseableIterable<Record> reader = getReader(task, table, mapping)) {
+    try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, mapping)) {
       for (Record record : reader) {
         Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
         out.output(row);
       }
     }
-  }
-
-  private static final Collection<String> READ_PROPERTIES_TO_REMOVE =
-      Sets.newHashSet(
-          "parquet.read.filter",
-          "parquet.private.read.filter.predicate",
-          "parquet.read.support.class",
-          "parquet.crypto.factory.class");
-
-  static ParquetReader<Record> getReader(FileScanTask task, Table table, NameMapping mapping) {
-    String filePath = task.file().path().toString();
-    InputFile inputFile;
-    try (FileIO io = table.io()) {
-      EncryptedInputFile encryptedInput =
-          EncryptedFiles.encryptedInput(io.newInputFile(filePath), task.file().keyMetadata());
-      inputFile = table.encryption().decrypt(encryptedInput);
-    }
-    Map<Integer, ?> idToConstants =
-        IcebergUtils.constantsMap(
-            task, IdentityPartitionConverters::convertConstant, table.schema());
-
-    ParquetReadOptions.Builder optionsBuilder;
-    if (inputFile instanceof HadoopInputFile) {
-      // remove read properties already set that may conflict with this read
-      Configuration conf = new Configuration(((HadoopInputFile) inputFile).getConf());
-      for (String property : READ_PROPERTIES_TO_REMOVE) {
-        conf.unset(property);
-      }
-      optionsBuilder = HadoopReadOptions.builder(conf);
-    } else {
-      optionsBuilder = ParquetReadOptions.builder();
-    }
-    optionsBuilder =
-        optionsBuilder
-            .withRange(task.start(), task.start() + task.length())
-            .withMaxAllocationInBytes(MAX_FILE_BUFFER_SIZE);
-
-    return new ParquetReader<>(
-        inputFile,
-        table.schema(),
-        optionsBuilder.build(),
-        fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
-        mapping,
-        task.residual(),
-        false,
-        true);
   }
 }

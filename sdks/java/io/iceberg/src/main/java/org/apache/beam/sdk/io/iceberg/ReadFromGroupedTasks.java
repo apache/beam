@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.ReadFromTasks.getReader;
-
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -81,7 +79,7 @@ class ReadFromGroupedTasks
         return;
       }
       FileScanTask task = readTasks.get((int) taskIndex).getFileScanTask();
-      try (CloseableIterable<Record> reader = getReader(task, table, mapping)) {
+      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, mapping)) {
         for (Record record : reader) {
           Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
           out.output(row);
