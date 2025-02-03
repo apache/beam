@@ -1608,7 +1608,7 @@ bigquery_v2_messages.TableSchema):
     # For this case, we create the field with a `None` value
     # None is also set when a repeated field is missing as BigQuery
     # converts Null Repeated fields to empty lists
-    if name not in row and (mode == "NULLABLE" or mode == "REPEATED"):
+    if name not in row and mode != "REQUIRED":
       row[name] = None
 
     value = row[name]
