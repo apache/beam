@@ -28,20 +28,20 @@
 #     - branching
 
 def tee():
-    # [START tee]
-    import apache_beam as beam
+  # [START tee]
+  import apache_beam as beam
 
-    with beam.Pipeline() as p:
-        even_elements = lambda pcoll: pcoll | "Filter Even" >> beam.Filter(lambda x: x % 2 == 0)
-        odd_elements = lambda pcoll: pcoll | "Filter Even" >> beam.Filter(lambda x: x % 2 != 0)
+  with beam.Pipeline() as p:
+    even_elements = lambda pcoll: pcoll | "Filter Even" >> beam.Filter(lambda x: x % 2 == 0)
+    odd_elements = lambda pcoll: pcoll | "Filter Even" >> beam.Filter(lambda x: x % 2 != 0)
 
-        input_data = p | "Create Input" >> beam.Create([1, 2, 3, 4, 5])
+    input_data = p | "Create Input" >> beam.Create([1, 2, 3, 4, 5])
 
-        (input_data
-         | "Tee Operations" >> beam.Tee(even_elements, odd_elements)
-         | "Continue Pipeline" >> beam.Map(lambda x: x * 10)
-         | beam.LogElements())
-    # [END tee]
+    (input_data
+      | "Tee Operations" >> beam.Tee(even_elements, odd_elements)
+      | "Continue Pipeline" >> beam.Map(lambda x: x * 10)
+      | beam.LogElements())
+  # [END tee]
 
 if __name__ == '__main__':
-    tee()
+  tee()
