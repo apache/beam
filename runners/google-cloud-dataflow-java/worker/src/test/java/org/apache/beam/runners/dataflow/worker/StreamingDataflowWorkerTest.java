@@ -1062,7 +1062,7 @@ public class StreamingDataflowWorkerTest {
       // Same work token.
       server
           .whenGetWorkCalled()
-          .thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)))
+          .thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), i))
           .thenReturn(
               makeInput(
                   i + 1000, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), i + 1000));
@@ -1090,7 +1090,13 @@ public class StreamingDataflowWorkerTest {
     for (int i = 1; i <= numIters; ++i) {
       assertTrue(result.containsKey((long) i));
       assertEquals(
-          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(),
+          makeExpectedOutput(
+                  i,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  i,
+                  keyStringForIndex(i))
+              .build(),
           removeDynamicFields(result.get((long) i)));
       assertTrue(result.containsKey((long) i + 1000));
       assertEquals(
