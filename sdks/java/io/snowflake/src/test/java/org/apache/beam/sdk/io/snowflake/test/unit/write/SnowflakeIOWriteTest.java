@@ -75,6 +75,7 @@ public class SnowflakeIOWriteTest {
     testDataInStrings.add("Third row with \"double\" quotation");
     testDataInStrings.add("Third row with double one \" quotation");
     testDataInStrings.add("Third row with double twice \"\" quotation");
+    testDataInStrings.add("");
   }
 
   @Before
@@ -208,7 +209,7 @@ public class SnowflakeIOWriteTest {
     List<String> escapedTestData =
         testDataInStrings.stream()
             .map(e -> e.replace("'", "''"))
-            .map(e -> String.format("\"%s\"", e))
+            .map(e -> e.isEmpty() ? "" : String.format("\"%s\"", e))
             .collect(Collectors.toList());
     assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
   }

@@ -56,18 +56,20 @@ var (
 
 var (
 	// SDK transforms.
-	TransformParDo                = ptUrn(pipepb.StandardPTransforms_PAR_DO)
-	TransformCombinePerKey        = ctUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY)
-	TransformCombineGlobally      = ctUrn(pipepb.StandardPTransforms_COMBINE_GLOBALLY)
-	TransformReshuffle            = ctUrn(pipepb.StandardPTransforms_RESHUFFLE)
-	TransformCombineGroupedValues = cmbtUrn(pipepb.StandardPTransforms_COMBINE_GROUPED_VALUES)
-	TransformPreCombine           = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_PRECOMBINE)
-	TransformMerge                = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_MERGE_ACCUMULATORS)
-	TransformExtract              = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_EXTRACT_OUTPUTS)
-	TransformPairWithRestriction  = sdfUrn(pipepb.StandardPTransforms_PAIR_WITH_RESTRICTION)
-	TransformSplitAndSize         = sdfUrn(pipepb.StandardPTransforms_SPLIT_AND_SIZE_RESTRICTIONS)
-	TransformProcessSizedElements = sdfUrn(pipepb.StandardPTransforms_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS)
-	TransformTruncate             = sdfUrn(pipepb.StandardPTransforms_TRUNCATE_SIZED_RESTRICTION)
+	TransformParDo                   = ptUrn(pipepb.StandardPTransforms_PAR_DO)
+	TransformCombinePerKey           = ctUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY)
+	TransformCombineGlobally         = ctUrn(pipepb.StandardPTransforms_COMBINE_GLOBALLY)
+	TransformReshuffle               = ctUrn(pipepb.StandardPTransforms_RESHUFFLE)
+	TransformRedistributeArbitrarily = ctUrn(pipepb.StandardPTransforms_REDISTRIBUTE_ARBITRARILY)
+	TransformRedistributeByKey       = ctUrn(pipepb.StandardPTransforms_REDISTRIBUTE_BY_KEY)
+	TransformCombineGroupedValues    = cmbtUrn(pipepb.StandardPTransforms_COMBINE_GROUPED_VALUES)
+	TransformPreCombine              = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_PRECOMBINE)
+	TransformMerge                   = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_MERGE_ACCUMULATORS)
+	TransformExtract                 = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_EXTRACT_OUTPUTS)
+	TransformPairWithRestriction     = sdfUrn(pipepb.StandardPTransforms_PAIR_WITH_RESTRICTION)
+	TransformSplitAndSize            = sdfUrn(pipepb.StandardPTransforms_SPLIT_AND_SIZE_RESTRICTIONS)
+	TransformProcessSizedElements    = sdfUrn(pipepb.StandardPTransforms_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS)
+	TransformTruncate                = sdfUrn(pipepb.StandardPTransforms_TRUNCATE_SIZED_RESTRICTION)
 
 	// Window Manipulation
 	TransformAssignWindows = ptUrn(pipepb.StandardPTransforms_ASSIGN_WINDOWS)
@@ -145,4 +147,5 @@ var (
 	EnvProcess  = envUrn(pipepb.StandardEnvironments_PROCESS)
 	EnvExternal = envUrn(pipepb.StandardEnvironments_EXTERNAL)
 	EnvDefault  = envUrn(pipepb.StandardEnvironments_DEFAULT)
+	EnvAnyOf    = envUrn(pipepb.StandardEnvironments_ANYOF)
 )

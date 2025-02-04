@@ -36,7 +36,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -62,10 +62,10 @@ public class ActiveWorkStateTest {
     return ExecutableWork.create(
         Work.create(
             workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
-            Instant::now,
-            Collections.emptyList()),
+            Instant::now),
         ignored -> {});
   }
 
@@ -73,10 +73,10 @@ public class ActiveWorkStateTest {
     return ExecutableWork.create(
         Work.create(
             workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
-            () -> Instant.EPOCH,
-            Collections.emptyList()),
+            () -> Instant.EPOCH),
         ignored -> {});
   }
 

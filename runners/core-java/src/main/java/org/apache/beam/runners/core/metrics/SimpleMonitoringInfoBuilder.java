@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleDistribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
@@ -156,6 +157,16 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder setStringSetValue(StringSetData value) {
     this.builder.setPayload(encodeStringSet(value));
     this.builder.setType(MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE);
+    return this;
+  }
+
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#BOUNDED_TRIE_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setBoundedTrieValue(BoundedTrieData value) {
+    this.builder.setPayload(encodeBoundedTrie(value));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE);
     return this;
   }
 

@@ -38,6 +38,7 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcessorTestBase {
+  private static final ContiguousSequenceRange NOT_USED_FOR_TESTING = null;
 
   @Test
   public void testPerfectOrderingProcessing() throws CannotProvideCoderException {
@@ -62,7 +63,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
                 4,
                 Arrays.stream(events).filter(e -> e.getKey().equals("id-1")).count(),
                 0,
-                false)));
+                false,
+                NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             "id-2",
@@ -74,7 +76,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
                 2,
                 Arrays.stream(events).filter(e -> e.getKey().equals("id-2")).count(),
                 0,
-                false)));
+                false,
+                NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -120,7 +123,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
                 4,
                 Arrays.stream(events).filter(e -> e.getKey().equals("id-1")).count(),
                 0,
-                false)));
+                false,
+                NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             "id-2",
@@ -132,7 +136,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
                 5,
                 Arrays.stream(events).filter(e -> e.getKey().equals("id-2")).count(),
                 0,
-                false)));
+                false,
+                NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -168,9 +173,14 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
     expectedStatuses.add(
-        KV.of("id-1", OrderedProcessingStatus.create(0L, 2, 2L, 3L, 3, 1L, 0, false)));
+        KV.of(
+            "id-1",
+            OrderedProcessingStatus.create(0L, 2, 2L, 3L, 3, 1L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
-        KV.of("id-2", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2L, 0, false)));
+        KV.of(
+            "id-2",
+            OrderedProcessingStatus.create(
+                1L, 0, null, null, 2, 2L, 0, false, NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -203,7 +213,15 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         KV.of(
             "id-1",
             OrderedProcessingStatus.create(
-                3L, 0, null, null, events.length, resultCount, duplicateCount, false)));
+                3L,
+                0,
+                null,
+                null,
+                events.length,
+                resultCount,
+                duplicateCount,
+                false,
+                NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -239,7 +257,10 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
     expectedStatuses.add(
-        KV.of("id-1", OrderedProcessingStatus.create(1L, 1, 3L, 3L, events.length, 2, 0, false)));
+        KV.of(
+            "id-1",
+            OrderedProcessingStatus.create(
+                1L, 1, 3L, 3L, events.length, 2, 0, false, NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -277,9 +298,15 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
     expectedStatuses.add(
-        KV.of("id-1", OrderedProcessingStatus.create(3L, 0, null, null, 4, 2L, 0, false)));
+        KV.of(
+            "id-1",
+            OrderedProcessingStatus.create(
+                3L, 0, null, null, 4, 2L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
-        KV.of("id-2", OrderedProcessingStatus.create(1L, 0, null, null, 2, 1L, 0, false)));
+        KV.of(
+            "id-2",
+            OrderedProcessingStatus.create(
+                1L, 0, null, null, 2, 1L, 0, false, NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -335,7 +362,15 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
             KV.of(
                 key,
                 OrderedProcessingStatus.create(
-                    null, bufferedEventCount, 2L, sequence, bufferedEventCount, 0L, 0, false)));
+                    null,
+                    bufferedEventCount,
+                    2L,
+                    sequence,
+                    bufferedEventCount,
+                    0L,
+                    0,
+                    false,
+                    NOT_USED_FOR_TESTING)));
       }
     }
 
@@ -353,7 +388,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
                   sequences.length,
                   lastOutputSequence,
                   0,
-                  false)));
+                  false,
+                  NOT_USED_FOR_TESTING)));
     }
 
     // -- Final status - indicates that everything has been fully processed
@@ -368,7 +404,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
                 sequences.length,
                 sequences.length,
                 0,
-                false)));
+                false,
+                NOT_USED_FOR_TESTING)));
 
     testPerKeySequenceProcessing(
         events.toArray(new Event[events.size()]),
@@ -408,54 +445,54 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                null, 1, 2L, 2L, ++numberOfReceivedEvents, 0L, 0, false)));
+                null, 1, 2L, 2L, ++numberOfReceivedEvents, 0L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                null, 2, 2L, 3L, ++numberOfReceivedEvents, 0L, 0, false)));
+                null, 2, 2L, 3L, ++numberOfReceivedEvents, 0L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                null, 3, 2L, 7L, ++numberOfReceivedEvents, 0L, 0, false)));
+                null, 3, 2L, 7L, ++numberOfReceivedEvents, 0L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                null, 4, 2L, 8L, ++numberOfReceivedEvents, 0L, 0, false)));
+                null, 4, 2L, 8L, ++numberOfReceivedEvents, 0L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                null, 5, 2L, 9L, ++numberOfReceivedEvents, 0L, 0, false)));
+                null, 5, 2L, 9L, ++numberOfReceivedEvents, 0L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                null, 6, 2L, 10L, ++numberOfReceivedEvents, 0L, 0, false)));
+                null, 6, 2L, 10L, ++numberOfReceivedEvents, 0L, 0, false, NOT_USED_FOR_TESTING)));
     // --- 1 has appeared and caused the batch to be sent out.
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                3L, 4, 7L, 10L, ++numberOfReceivedEvents, 3L, 0, false)));
+                3L, 4, 7L, 10L, ++numberOfReceivedEvents, 3L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                4L, 4, 7L, 10L, ++numberOfReceivedEvents, 4L, 0, false)));
+                4L, 4, 7L, 10L, ++numberOfReceivedEvents, 4L, 0, false, NOT_USED_FOR_TESTING)));
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                5L, 4, 7L, 10L, ++numberOfReceivedEvents, 5L, 0, false)));
+                5L, 4, 7L, 10L, ++numberOfReceivedEvents, 5L, 0, false, NOT_USED_FOR_TESTING)));
     // --- 6 came and 6, 7, and 8 got output
     expectedStatuses.add(
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                8L, 2, 9L, 10L, ++numberOfReceivedEvents, 8L, 0, false)));
+                8L, 2, 9L, 10L, ++numberOfReceivedEvents, 8L, 0, false, NOT_USED_FOR_TESTING)));
     // Last timer run produces the final status. Number of received events doesn't
     // increase,
     // this is the result of a timer processing
@@ -463,7 +500,7 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         KV.of(
             key,
             OrderedProcessingStatus.create(
-                10L, 0, null, null, numberOfReceivedEvents, 10L, 0, false)));
+                10L, 0, null, null, numberOfReceivedEvents, 10L, 0, false, NOT_USED_FOR_TESTING)));
 
     testPerKeySequenceProcessing(
         events.toArray(new Event[events.size()]),
@@ -485,7 +522,10 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
     expectedStatuses.add(
-        KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 3, 2, 0, false)));
+        KV.of(
+            "id-1",
+            OrderedProcessingStatus.create(
+                1L, 0, null, null, 3, 2, 0, false, NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -524,7 +564,15 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         KV.of(
             "id-1",
             OrderedProcessingStatus.create(
-                2L, 0, null, null, events.length, events.length, 0, LAST_EVENT_RECEIVED)));
+                2L,
+                0,
+                null,
+                null,
+                events.length,
+                events.length,
+                0,
+                LAST_EVENT_RECEIVED,
+                NOT_USED_FOR_TESTING)));
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
@@ -668,17 +716,38 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
     PAssert.that("Statuses match in window 1", processingResult.processingStatuses())
         .inWindow(window1)
         .containsInAnyOrder(
-            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
-            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
-            KV.of("id-2", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
-            KV.of("id-2", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
-            KV.of("id-2", OrderedProcessingStatus.create(2L, 0, null, null, 3, 3, 0, false)));
+            KV.of(
+                "id-1",
+                OrderedProcessingStatus.create(
+                    0L, 0, null, null, 1, 1, 0, false, NOT_USED_FOR_TESTING)),
+            KV.of(
+                "id-1",
+                OrderedProcessingStatus.create(
+                    1L, 0, null, null, 2, 2, 0, false, NOT_USED_FOR_TESTING)),
+            KV.of(
+                "id-2",
+                OrderedProcessingStatus.create(
+                    0L, 0, null, null, 1, 1, 0, false, NOT_USED_FOR_TESTING)),
+            KV.of(
+                "id-2",
+                OrderedProcessingStatus.create(
+                    1L, 0, null, null, 2, 2, 0, false, NOT_USED_FOR_TESTING)),
+            KV.of(
+                "id-2",
+                OrderedProcessingStatus.create(
+                    2L, 0, null, null, 3, 3, 0, false, NOT_USED_FOR_TESTING)));
 
     PAssert.that("Statuses match in window 2", processingResult.processingStatuses())
         .inWindow(window2)
         .containsInAnyOrder(
-            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
-            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)));
+            KV.of(
+                "id-1",
+                OrderedProcessingStatus.create(
+                    0L, 0, null, null, 1, 1, 0, false, NOT_USED_FOR_TESTING)),
+            KV.of(
+                "id-1",
+                OrderedProcessingStatus.create(
+                    1L, 0, null, null, 2, 2, 0, false, NOT_USED_FOR_TESTING)));
 
     PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
         .containsInAnyOrder(NO_EXPECTED_DLQ_EVENTS);

@@ -123,7 +123,7 @@ public class CallTest {
 
   @Test
   public void givenCallerTimeout_emitsFailurePCollection() {
-    Duration timeout = Duration.standardSeconds(1L);
+    Duration timeout = Duration.standardMinutes(1L);
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
@@ -182,7 +182,7 @@ public class CallTest {
 
   @Test
   public void givenSetupTimeout_throwsError() {
-    Duration timeout = Duration.standardSeconds(1L);
+    Duration timeout = Duration.standardMinutes(1L);
 
     pipeline
         .apply(Create.of(new Request("")))
@@ -231,7 +231,7 @@ public class CallTest {
 
   @Test
   public void givenTeardownTimeout_throwsError() {
-    Duration timeout = Duration.standardSeconds(1L);
+    Duration timeout = Duration.standardMinutes(1L);
     pipeline
         .apply(Create.of(new Request("")))
         .apply(

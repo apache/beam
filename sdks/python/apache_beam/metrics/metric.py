@@ -339,8 +339,8 @@ class Lineage:
   for lineage tracking."""
 
   LINEAGE_NAMESPACE = "lineage"
-  SOURCE = "sources"
-  SINK = "sinks"
+  SOURCE = "sources_v2"
+  SINK = "sinks_v2"
 
   _METRICS = {
       SOURCE: Metrics.bounded_trie(LINEAGE_NAMESPACE, SOURCE),

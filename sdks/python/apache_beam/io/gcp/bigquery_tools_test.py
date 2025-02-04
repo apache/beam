@@ -867,7 +867,15 @@ class TestBeamRowFromDict(unittest.TestCase):
     self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
 
   def test_dict_to_beam_row_all_types_nullable(self):
-    schema = {"fields": self.get_schema_fields_with_mode("nullable")}
+    schema_fields_with_nested = [{
+        "name": "nested_record",
+        "type": "record",
+        "mode": "repeated",
+        "fields": self.get_schema_fields_with_mode("nullable")
+    }]
+    schema_fields_with_nested.extend(
+        self.get_schema_fields_with_mode("nullable"))
+    schema = {"fields": schema_fields_with_nested}
     dict_row = {k: None for k in self.DICT_ROW}
 
     # input dict row with missing nullable fields should still yield a full
@@ -876,6 +884,7 @@ class TestBeamRowFromDict(unittest.TestCase):
     del dict_row['bool']
 
     expected_beam_row = beam.Row(
+        nested_record=None,
         str=None,
         bool=None,
         bytes=None,

@@ -163,6 +163,10 @@ public class TestDataWarehouse extends ExternalResource {
     return catalog.createTable(tableId, schema, partitionSpec);
   }
 
+  public Catalog.TableBuilder buildTable(TableIdentifier tableId, Schema schema) {
+    return catalog.buildTable(tableId, schema);
+  }
+
   public Table loadTable(TableIdentifier tableId) {
     return catalog.loadTable(tableId);
   }

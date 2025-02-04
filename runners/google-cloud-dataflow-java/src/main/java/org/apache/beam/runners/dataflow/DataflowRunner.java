@@ -39,12 +39,10 @@ import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
@@ -170,8 +168,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -1524,15 +1522,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
           "Location must be local or on Cloud Storage, got %s.",
           fileLocation);
-      ResourceId fileResource = FileSystems.matchNewResource(fileLocation, false /* isDirectory */);
-      String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
-      try (PrintWriter printWriter =
-          new PrintWriter(
-              new BufferedWriter(
-                  new OutputStreamWriter(
-                      Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)),
-                      UTF_8)))) {
-        printWriter.print(workSpecJson);
+
+      try {
+        printWorkSpecJsonToFile(fileLocation, newJob);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
         String error = String.format("Cannot create output file at %s", fileLocation);
@@ -1542,6 +1534,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           LOG.warn(error, ex);
         }
       }
+
       if (isTemplate) {
         LOG.info("Template successfully created.");
         return new DataflowTemplateJob();
@@ -1627,6 +1620,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         MonitoringUtil.getGcloudCancelCommand(options, jobResult.getId()));
 
     return dataflowPipelineJob;
+  }
+
+  private static void printWorkSpecJsonToFile(String fileLocation, Job job) throws IOException {
+    String workSpecJson = DataflowPipelineTranslator.jobToString(job);
+    ResourceId fileResource = FileSystems.matchNewResource(fileLocation, false /* isDirectory */);
+    try (OutputStreamWriter writer =
+        new OutputStreamWriter(
+            Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)), UTF_8)) {
+      // Not using PrintWriter as it swallows IOException.
+      // Not using BufferedWriter as this invokes write() only once.
+      writer.write(workSpecJson);
+    }
   }
 
   private static EnvironmentInfo getEnvironmentInfoFromEnvironmentId(

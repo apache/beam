@@ -24,11 +24,15 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.catalog.Catalog;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
+  private transient @MonotonicNonNull Catalog cachedCatalog;
+
   @Pure
   @Nullable
   public abstract String getCatalogName();
@@ -47,6 +51,9 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public org.apache.iceberg.catalog.Catalog catalog() {
+    if (cachedCatalog != null) {
+      return cachedCatalog;
+    }
     String catalogName = getCatalogName();
     if (catalogName == null) {
       catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
@@ -63,7 +70,8 @@ public abstract class IcebergCatalogConfig implements Serializable {
     for (Map.Entry<String, String> prop : confProps.entrySet()) {
       config.set(prop.getKey(), prop.getValue());
     }
-    return CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
+    cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
+    return cachedCatalog;
   }
 
   @AutoValue.Builder

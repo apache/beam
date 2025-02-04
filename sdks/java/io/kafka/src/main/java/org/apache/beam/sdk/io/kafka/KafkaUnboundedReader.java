@@ -66,6 +66,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -227,12 +228,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
         rawSizes.update(recordSize);
 
-        // Pass metrics to container.
         kafkaResults.updateKafkaMetrics();
         return true;
       } else { // -- (b)
+        kafkaResults = KafkaSinkMetrics.kafkaMetrics();
         nextBatch();
-
+        kafkaResults.updateKafkaMetrics();
         if (!curBatch.hasNext()) {
           return false;
         }
@@ -300,9 +301,32 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   }
 
   @Override
+  public byte[] getCurrentRecordId() throws NoSuchElementException {
+    if (!offsetBasedDeduplicationSupported()) {
+      // Defer result to super if offset deduplication is not supported.
+      return super.getCurrentRecordId();
+    }
+    if (curRecord == null) {
+      throw new NoSuchElementException("KafkaUnboundedReader's curRecord is null.");
+    }
+    return KafkaIOUtils.OffsetBasedDeduplication.getUniqueId(
+        curRecord.getTopic(), curRecord.getPartition(), curRecord.getOffset());
+  }
+
+  @Override
+  public byte[] getCurrentRecordOffset() throws NoSuchElementException {
+    if (!offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException("UnboundedSource must enable offset-based deduplication.");
+    }
+    if (curRecord == null) {
+      throw new NoSuchElementException("KafkaUnboundedReader's curRecord is null.");
+    }
+    return KafkaIOUtils.OffsetBasedDeduplication.encodeOffset(curRecord.getOffset());
+  }
+
+  @Override
   public long getSplitBacklogBytes() {
     long backlogBytes = 0;
-
     for (PartitionState<K, V> p : partitionStates) {
       long pBacklog = p.approxBacklogInBytes();
       if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
@@ -312,6 +336,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     return backlogBytes;
+  }
+
+  public boolean offsetBasedDeduplicationSupported() {
+    return source.offsetBasedDeduplicationSupported();
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -332,8 +360,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private final String name;
   private @Nullable Consumer<byte[], byte[]> consumer = null;
   private final List<PartitionState<K, V>> partitionStates;
-  private @Nullable KafkaRecord<K, V> curRecord = null;
-  private @Nullable Instant curTimestamp = null;
+  private @MonotonicNonNull KafkaRecord<K, V> curRecord = null;
+  private @MonotonicNonNull Instant curTimestamp = null;
   private Iterator<PartitionState<K, V>> curBatch = Collections.emptyIterator();
 
   private @Nullable Deserializer<K> keyDeserializerInstance = null;
@@ -453,6 +481,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       this.latestOffsetFetchTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.timestampPolicy = timestampPolicy;
+    }
+
+    public TopicPartition topicPartition() {
+      return topicPartition;
     }
 
     // Update consumedOffset, avgRecordSize, and avgOffsetGap
@@ -672,6 +704,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
 
     reportBacklog();
+    reportBacklogMetrics();
 
     // cycle through the partitions in order to interleave records from each.
     curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
@@ -741,6 +774,16 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       splitBacklogMessages = UnboundedReader.BACKLOG_UNKNOWN;
     }
     backlogElementsOfSplit.set(splitBacklogMessages);
+  }
+
+  private void reportBacklogMetrics() {
+    for (PartitionState<K, V> p : partitionStates) {
+      long pBacklog = p.approxBacklogInBytes();
+      if (pBacklog != UnboundedReader.BACKLOG_UNKNOWN) {
+        kafkaResults.updateBacklogBytes(
+            p.topicPartition().topic(), p.topicPartition().partition(), pBacklog);
+      }
+    }
   }
 
   private long getSplitBacklogMessageCount() {

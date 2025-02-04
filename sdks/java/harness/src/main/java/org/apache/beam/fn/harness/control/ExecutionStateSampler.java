@@ -36,6 +36,7 @@ import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -47,7 +48,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -223,6 +224,14 @@ public class ExecutionStateSampler {
         return tracker.currentState.metricsContainer.getStringSet(metricName);
       }
       return tracker.metricsContainerRegistry.getUnboundContainer().getStringSet(metricName);
+    }
+
+    @Override
+    public BoundedTrie getBoundedTrie(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getBoundedTrie(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getBoundedTrie(metricName);
     }
 
     @Override

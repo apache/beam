@@ -17,18 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo.Event;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -125,12 +123,12 @@ final class GetWorkTimingInfosTracker {
     workItemLastChunkReceivedByWorkerTime = now;
   }
 
-  List<LatencyAttribution> getLatencyAttributions() {
+  ImmutableList<LatencyAttribution> getLatencyAttributions() {
     if (workItemCreationLatency == null && aggregatedGetWorkStreamLatencies.isEmpty()) {
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
-    List<LatencyAttribution> latencyAttributions =
-        new ArrayList<>(aggregatedGetWorkStreamLatencies.size() + 1);
+    ImmutableList.Builder<LatencyAttribution> latencyAttributions =
+        ImmutableList.builderWithExpectedSize(aggregatedGetWorkStreamLatencies.size() + 1);
     if (workItemCreationLatency != null) {
       latencyAttributions.add(workItemCreationLatency);
     }
@@ -167,7 +165,7 @@ final class GetWorkTimingInfosTracker {
                   .setTotalDurationMillis(durationMills)
                   .build());
         });
-    return latencyAttributions;
+    return latencyAttributions.build();
   }
 
   void reset() {

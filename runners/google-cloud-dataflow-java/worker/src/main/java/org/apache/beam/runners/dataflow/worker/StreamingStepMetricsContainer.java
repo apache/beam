@@ -30,10 +30,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.metrics.BoundedTrieCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.runners.core.metrics.StringSetCell;
+import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -58,6 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StreamingStepMetricsContainer implements MetricsContainer {
+
   private final String stepName;
 
   private static boolean enablePerWorkerMetrics = false;
@@ -69,10 +73,16 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
-  private MetricsMap<MetricName, StringSetCell> stringSet = new MetricsMap<>(StringSetCell::new);
+  private final ConcurrentHashMap<MetricName, GaugeCell> perWorkerGauges =
+      new ConcurrentHashMap<>();
+
+  private MetricsMap<MetricName, StringSetCell> stringSets = new MetricsMap<>(StringSetCell::new);
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
+
+  private MetricsMap<MetricName, BoundedTrieCell> boundedTries =
+      new MetricsMap<>(BoundedTrieCell::new);
 
   private final ConcurrentHashMap<MetricName, LockFreeHistogram> perWorkerHistograms =
       new ConcurrentHashMap<>();
@@ -164,8 +174,26 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public Gauge getPerWorkerGauge(MetricName metricName) {
+    if (!enablePerWorkerMetrics) {
+      return MetricsContainer.super.getPerWorkerGauge(metricName);
+    }
+    Gauge val = perWorkerGauges.get(metricName);
+    if (val != null) {
+      return val;
+    }
+
+    return perWorkerGauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
+  }
+
+  @Override
   public StringSet getStringSet(MetricName metricName) {
-    return stringSet.get(metricName);
+    return stringSets.get(metricName);
+  }
+
+  @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return boundedTries.get(metricName);
   }
 
   @Override
@@ -185,9 +213,11 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
+    // Streaming metrics are updated as delta and not cumulative.
     return counterUpdates()
         .append(distributionUpdates())
-        .append(gaugeUpdates().append(stringSetUpdates()));
+        .append(gaugeUpdates())
+        .append(stringSetUpdates());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -230,14 +260,18 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   private FluentIterable<CounterUpdate> stringSetUpdates() {
-    return FluentIterable.from(stringSet.entries())
+    return FluentIterable.from(stringSets.entries())
         .transform(
             new Function<Entry<MetricName, StringSetCell>, CounterUpdate>() {
               @Override
               public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, StringSetCell> entry) {
+                StringSetData value = entry.getValue().getAndReset();
+                if (value.stringSet().isEmpty()) {
+                  return null;
+                }
                 return MetricsToCounterUpdateConverter.fromStringSet(
-                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
+                    MetricKey.create(stepName, entry.getKey()), false, value);
               }
             })
         .filter(Predicates.notNull());
@@ -330,11 +364,10 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @VisibleForTesting
   Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
     ConcurrentHashMap<MetricName, Long> counters = new ConcurrentHashMap<MetricName, Long>();
+    ConcurrentHashMap<MetricName, Long> gauges = new ConcurrentHashMap<MetricName, Long>();
     ConcurrentHashMap<MetricName, LockFreeHistogram.Snapshot> histograms =
         new ConcurrentHashMap<MetricName, LockFreeHistogram.Snapshot>();
     HashSet<MetricName> currentZeroValuedCounters = new HashSet<MetricName>();
-
-    // Extract metrics updates.
     perWorkerCounters.forEach(
         (k, v) -> {
           Long val = v.getAndSet(0);
@@ -344,6 +377,13 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
           }
           counters.put(k, val);
         });
+
+    perWorkerGauges.forEach(
+        (k, v) -> {
+          Long val = v.getCumulative().value();
+          gauges.put(k, val);
+          v.reset();
+        });
     perWorkerHistograms.forEach(
         (k, v) -> {
           v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k, snapshot));
@@ -352,7 +392,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));
 
     return MetricsToPerStepNamespaceMetricsConverter.convert(
-        stepName, counters, histograms, parsedPerWorkerMetricsCache);
+        stepName, counters, gauges, histograms, parsedPerWorkerMetricsCache);
   }
 
   /**

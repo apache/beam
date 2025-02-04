@@ -43,7 +43,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_60_1,
+        library.java.vendored_grpc_1_69_0,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -208,7 +208,7 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.vendored_grpc_1_60_1
+    implementation library.java.vendored_grpc_1_69_0
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14

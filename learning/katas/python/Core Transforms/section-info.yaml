@@ -23,8 +23,10 @@ content:
 - CoGroupByKey
 - Combine
 - Flatten
+- FlattenWith
 - Partition
 - Side Input
 - Side Output
 - Branching
 - Composite Transform
+- Tee

@@ -19,11 +19,10 @@
 
 A minimum set of operation substitutions, to adap Beam's PTransform model
 to Dask Bag functions.
-
-TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
 import abc
 import dataclasses
+import logging
 import math
 import typing as t
 from dataclasses import field
@@ -53,6 +52,8 @@ OpSide = t.Optional[t.Sequence[SideInputMap]]
 
 # Value types for PCollections (possibly Windowed Values).
 PCollVal = t.Union[WindowedValue, t.Any]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
@@ -129,8 +130,11 @@ class DaskBagOp(abc.ABC):
   Attributes
     applied: The underlying `AppliedPTransform` which holds the code for the
       target operation.
+    bag_kwargs: (optional) Keyword arguments applied to input bags, usually
+      from the pipeline's `DaskOptions`.
   """
   applied: AppliedPTransform
+  bag_kwargs: t.Dict = dataclasses.field(default_factory=dict)
 
   @property
   def transform(self):
@@ -153,10 +157,28 @@ class Create(DaskBagOp):
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
+
+    npartitions = self.bag_kwargs.get('npartitions')
+    partition_size = self.bag_kwargs.get('partition_size')
+    if npartitions and partition_size:
+      raise ValueError(
+          f'Please specify either `dask_npartitions` or '
+          f'`dask_parition_size` but not both: '
+          f'{npartitions=}, {partition_size=}.')
+    if not npartitions and not partition_size:
+      # partition_size is inversely related to `npartitions`.
+      # Ideal "chunk sizes" in dask are around 10-100 MBs.
+      # Let's hope ~128 items per partition is around this
+      # memory overhead.
+      default_size = 128
+      partition_size = max(default_size, math.ceil(math.sqrt(len(items)) / 10))
+      if partition_size == default_size:
+        _LOGGER.warning(
+            'The new default partition size is %d, it used to be 1 '
+            'in previous DaskRunner versions.' % default_size)
+
     return db.from_sequence(
-        items,
-        partition_size=max(
-            1, math.ceil(math.sqrt(len(items)) / math.sqrt(100))))
+        items, npartitions=npartitions, partition_size=partition_size)
 
 
 def apply_dofn_to_bundle(

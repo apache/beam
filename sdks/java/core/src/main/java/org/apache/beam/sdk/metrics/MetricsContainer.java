@@ -60,6 +60,12 @@ public interface MetricsContainer extends Serializable {
   StringSet getStringSet(MetricName metricName);
 
   /**
+   * Return the {@link BoundedTrie} that should be used for implementing the given {@code
+   * metricName} in this container.
+   */
+  BoundedTrie getBoundedTrie(MetricName metricName);
+
+  /**
    * Return the {@link Histogram} that should be used for implementing the given {@code metricName}
    * in this container.
    */
@@ -73,6 +79,14 @@ public interface MetricsContainer extends Serializable {
   default Histogram getPerWorkerHistogram(
       MetricName metricName, HistogramData.BucketType bucketType) {
     return NoOpHistogram.getInstance();
+  }
+
+  /**
+   * Return the {@link Gauge} that should be used for implementing the given per-worker {@code
+   * metricName} in this container.
+   */
+  default Gauge getPerWorkerGauge(MetricName metricName) {
+    return NoOpGauge.getInstance();
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */

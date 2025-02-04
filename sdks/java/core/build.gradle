@@ -75,12 +75,11 @@ dependencies {
   permitUnusedDeclared library.java.antlr
   permitUsedUndeclared library.java.antlr_runtime
   // Required to load constants from the model, e.g. max timestamp for global window
-  provided library.java.google_api_services_dataflow
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:fn-execution", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
   shadow project(path: ":sdks:java:transform-service:launcher")
-  shadow library.java.vendored_grpc_1_60_1
+  shadow library.java.vendored_grpc_1_69_0
   shadow library.java.vendored_guava_32_1_2_jre
   shadow library.java.byte_buddy
   shadow library.java.commons_compress

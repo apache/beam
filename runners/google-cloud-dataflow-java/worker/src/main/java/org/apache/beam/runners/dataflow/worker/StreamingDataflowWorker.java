@@ -254,7 +254,11 @@ public final class StreamingDataflowWorker {
                   .setBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               windmillStreamFactory,
-              (workItem, watermarks, processingContext, getWorkStreamLatencies) ->
+              (workItem,
+                  serializedWorkItemSize,
+                  watermarks,
+                  processingContext,
+                  getWorkStreamLatencies) ->
                   computationStateCache
                       .get(processingContext.computationId())
                       .ifPresent(
@@ -263,6 +267,7 @@ public final class StreamingDataflowWorker {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
+                                serializedWorkItemSize,
                                 watermarks,
                                 processingContext,
                                 getWorkStreamLatencies);
@@ -788,7 +793,8 @@ public final class StreamingDataflowWorker {
         .setSendKeyedGetDataRequests(
             !options.isEnableStreamingEngine()
                 || DataflowRunner.hasExperiment(
-                    options, "streaming_engine_disable_new_heartbeat_requests"));
+                    options, "streaming_engine_disable_new_heartbeat_requests"))
+        .setRequestBatchedGetWorkResponse(options.getWindmillRequestBatchedGetWorkResponse());
   }
 
   private static JobHeader createJobHeader(DataflowWorkerHarnessOptions options, long clientId) {

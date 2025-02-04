@@ -36,6 +36,13 @@ public class TestFixtures {
       new Schema(
           required(1, "id", Types.LongType.get()), optional(2, "data", Types.StringType.get()));
 
+  public static final Schema NESTED_SCHEMA =
+      new Schema(
+          required(1, "id", Types.LongType.get()),
+          optional(2, "data", Types.StringType.get()),
+          optional(
+              3, "metadata", Types.StructType.of(optional(4, "source", Types.StringType.get()))));
+
   public static final List<Map<String, Object>> FILE1SNAPSHOT1_DATA =
       ImmutableList.of(
           ImmutableMap.of("id", 0L, "data", "clarification"),

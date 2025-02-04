@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -330,6 +331,20 @@ public class JdbcUtilTest {
   }
 
   @Test
+  public void testFqnFromBasicDataSourcePostgreSql() {
+    BasicDataSource source = new BasicDataSource();
+    source.setUrl("jdbc:postgresql:///postgres");
+    source.setUsername("postgres");
+    source.setConnectionProperties(
+        "cloudSqlInstance=example.com:project:some-region:instance-name");
+    JdbcUtil.FQNComponents components = JdbcUtil.FQNComponents.of(source);
+    assertEquals("cloudsql_postgresql", components.getScheme());
+    assertEquals(
+        ImmutableList.of("example.com:project", "some-region", "instance-name", "postgres"),
+        components.getSegments());
+  }
+
+  @Test
   public void testFqnFromHikariDataSourceMySql() {
     HikariConfig config = new HikariConfig();
     config.setJdbcUrl("jdbc:mysql:///db");
@@ -348,20 +363,25 @@ public class JdbcUtilTest {
 
   @Test
   public void testExtractTableFromQuery() {
-    ImmutableList<KV<String, @Nullable String>> readCases =
+    ImmutableList<KV<String, @Nullable KV<String, String>>> readCases =
         ImmutableList.of(
-            KV.of("select * from table_1", "table_1"),
-            KV.of("SELECT a, b FROM [table-2]", "table-2"),
-            KV.of("drop table not-select", ""));
-    for (KV<String, @Nullable String> testCase : readCases) {
+            KV.of("select * from table_1", KV.of(null, "table_1")),
+            KV.of("select * from public.table_1", KV.of("public", "table_1")),
+            KV.of("select * from `select`", KV.of(null, "select")),
+            KV.of("select * from `public`.`select`", KV.of("public", "select")),
+            KV.of("SELECT a, b FROM [table-2]", KV.of(null, "table-2")),
+            KV.of("SELECT a, b FROM [public].[table-2]", KV.of("public", "table-2")),
+            KV.of("drop table not-select", null));
+    for (KV<String, @Nullable KV<String, String>> testCase : readCases) {
       assertEquals(testCase.getValue(), JdbcUtil.extractTableFromReadQuery(testCase.getKey()));
     }
-    ImmutableList<KV<String, @Nullable String>> writeCases =
+    ImmutableList<KV<String, @Nullable KV<String, String>>> writeCases =
         ImmutableList.of(
-            KV.of("insert into table_1 values ...", "table_1"),
-            KV.of("INSERT INTO [table-2] values ...", "table-2"),
-            KV.of("drop table not-select", ""));
-    for (KV<String, @Nullable String> testCase : writeCases) {
+            KV.of("insert into table_1 values ...", KV.of(null, "table_1")),
+            KV.of("INSERT INTO [table-2] values ...", KV.of(null, "table-2")),
+            KV.of("INSERT INTO [foo].[table-2] values ...", KV.of("foo", "table-2")),
+            KV.of("drop table not-select", null));
+    for (KV<String, @Nullable KV<String, String>> testCase : writeCases) {
       assertEquals(testCase.getValue(), JdbcUtil.extractTableFromWriteQuery(testCase.getKey()));
     }
   }

@@ -29,7 +29,6 @@ import threading
 import uuid
 from collections import OrderedDict
 from collections import namedtuple
-from typing import Dict
 
 import grpc
 
@@ -67,7 +66,7 @@ def convert_to_typing_type(type_):
   if isinstance(type_, row_type.RowTypeConstraint):
     return named_tuple_from_schema(named_fields_to_schema(type_._fields))
   else:
-    return native_type_compatibility.convert_to_typing_type(type_)
+    return native_type_compatibility.convert_to_python_type(type_)
 
 
 def _is_optional_or_none(typehint):
@@ -654,8 +653,8 @@ class ExternalTransform(ptransform.PTransform):
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
-    self._inputs: Dict[str, pvalue.PCollection] = {}
-    self._outputs: Dict[str, pvalue.PCollection] = {}
+    self._inputs: dict[str, pvalue.PCollection] = {}
+    self._outputs: dict[str, pvalue.PCollection] = {}
 
   def with_output_types(self, *args, **kwargs):
     return WithTypeHints.with_output_types(self, *args, **kwargs)
