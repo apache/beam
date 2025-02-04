@@ -473,11 +473,15 @@ public class ActiveWorkStateTest {
           for (long cacheToken : Arrays.asList(5L, 6L)) {
             WorkId workId =
                 WorkId.builder().setWorkToken(++workToken).setCacheToken(cacheToken).build();
-            activeWorkState.failWorkForKey(
-                ImmutableList.of(WorkIdWithShardingKey.create(shardingKey, workId)));
+            boolean shouldFail = ThreadLocalRandom.current().nextBoolean();
+            if (shouldFail) {
+              activeWorkState.failWorkForKey(
+                  ImmutableList.of(WorkIdWithShardingKey.create(shardingKey, workId)));
+            }
             LinkedHashMap<WorkId, ExecutableWork> workIdExecutableWorkLinkedHashMap =
                 readOnlyActiveWork.get(shardingKey);
-            assertTrue(workIdExecutableWorkLinkedHashMap.get(workId).work().isFailed());
+            assertEquals(
+                shouldFail, workIdExecutableWorkLinkedHashMap.get(workId).work().isFailed());
           }
         }
       }
