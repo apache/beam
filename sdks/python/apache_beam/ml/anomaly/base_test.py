@@ -20,10 +20,10 @@ from __future__ import annotations
 import logging
 import unittest
 
+from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyDetector
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.base import ThresholdFn
-from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
 from apache_beam.ml.anomaly.specifiable import specifiable
@@ -56,8 +56,9 @@ class TestAnomalyDetector(unittest.TestCase):
     def score_one(self):
       ...
 
-    def __eq__(self, value: "TestAnomalyDetector.Dummy") -> bool:
-      return self._my_arg == value._my_arg
+    def __eq__(self, value) -> bool:
+      return isinstance(value, TestAnomalyDetector.Dummy) and \
+        self._my_arg == value._my_arg
 
   def test_unknown_detector(self):
     self.assertRaises(ValueError, Specifiable.from_spec, Spec(type="unknown"))
@@ -141,9 +142,9 @@ class TestEnsembleAnomalyDetector(unittest.TestCase):
     def score_one(self):
       ...
 
-    def __eq__(
-        self, value: 'TestEnsembleAnomalyDetector.DummyEnsemble') -> bool:
-      return self._my_ensemble_arg == value._my_ensemble_arg
+    def __eq__(self, value) -> bool:
+      return isinstance(value, TestEnsembleAnomalyDetector.DummyEnsemble) and \
+        self._my_ensemble_arg == value._my_ensemble_arg
 
   @specifiable(on_demand_init=False)
   class DummyWeakLearner(AnomalyDetector):
@@ -157,9 +158,9 @@ class TestEnsembleAnomalyDetector(unittest.TestCase):
     def score_one(self):
       ...
 
-    def __eq__(
-        self, value: 'TestEnsembleAnomalyDetector.DummyWeakLearner') -> bool:
-      return self._my_arg == value._my_arg
+    def __eq__(self, value) -> bool:
+      return isinstance(value, TestEnsembleAnomalyDetector.DummyWeakLearner) \
+        and self._my_arg == value._my_arg
 
   def test_model_id_on_known_detector(self):
     a = self.DummyEnsemble()

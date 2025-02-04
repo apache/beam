@@ -17,15 +17,16 @@
 
 import dataclasses
 import logging
-from parameterized import parameterized
+import unittest
 from typing import List
 from typing import Optional
-import unittest
 
+from parameterized import parameterized
+
+from apache_beam.ml.anomaly.specifiable import KNOWN_SPECIFIABLE
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
 from apache_beam.ml.anomaly.specifiable import specifiable
-from apache_beam.ml.anomaly.specifiable import KNOWN_SPECIFIABLE
 
 
 class TestSpecifiable(unittest.TestCase):
@@ -34,7 +35,7 @@ class TestSpecifiable(unittest.TestCase):
       pass
 
     # class is not decorated/registered
-    self.assertRaises(AttributeError, lambda: MyClass().to_spec())  # type: ignore
+    self.assertRaises(AttributeError, lambda: MyClass().to_spec())
 
     self.assertNotIn("MyKey", KNOWN_SPECIFIABLE["*"])
 
@@ -124,8 +125,9 @@ class TestSpecifiable(unittest.TestCase):
         self._product = product
         self._quantity = quantity
 
-      def __eq__(self, value: 'Entry') -> bool:
-        return self._product == value._product and \
+      def __eq__(self, value) -> bool:
+        return isinstance(value, Entry) and \
+          self._product == value._product and \
           self._quantity == value._quantity
 
     @specifiable(
@@ -199,10 +201,10 @@ class TestSpecifiable(unittest.TestCase):
     self.assertRaises(AttributeError, getattr, foo, "my_arg")
     self.assertRaises(AttributeError, lambda: foo.my_arg)
     self.assertRaises(AttributeError, getattr, foo, "unknown_arg")
-    self.assertRaises(AttributeError, lambda: foo.unknown_arg)  # type: ignore
+    self.assertRaises(AttributeError, lambda: foo.unknown_arg)
     self.assertEqual(FooOnDemand.counter, 0)
 
-    foo_2 = FooOnDemand(456, _run_init=True)  # type: ignore
+    foo_2 = FooOnDemand(456, _run_init=True)
     self.assertEqual(FooOnDemand.counter, 1)
     self.assertIn("_init_params", foo_2.__dict__)
     self.assertEqual(foo_2.__dict__["_init_params"], {"arg": 456})
@@ -231,7 +233,7 @@ class TestSpecifiable(unittest.TestCase):
     # __init__ is called when trying to accessing an attribute
     self.assertEqual(foo.my_arg, 3210)
     self.assertEqual(FooJustInTime.counter, 1)
-    self.assertRaises(AttributeError, lambda: foo.unknown_arg)  # type: ignore
+    self.assertRaises(AttributeError, lambda: foo.unknown_arg)
     self.assertEqual(FooJustInTime.counter, 1)
 
   def test_on_demand_and_just_in_time_init(self):
@@ -255,7 +257,7 @@ class TestSpecifiable(unittest.TestCase):
     self.assertEqual(FooOnDemandAndJustInTime.counter, 1)
 
     # __init__ is called
-    foo_2 = FooOnDemandAndJustInTime(789, _run_init=True)  # type: ignore
+    foo_2 = FooOnDemandAndJustInTime(789, _run_init=True)
     self.assertEqual(FooOnDemandAndJustInTime.counter, 2)
     self.assertIn("_init_params", foo_2.__dict__)
     self.assertEqual(foo_2.__dict__["_init_params"], {"arg": 789})
@@ -355,7 +357,7 @@ class Child_Error_1(Parent):
   child_class_var = 2001
 
   def __init__(self, c):
-    self.child_inst_var += 1  # type: ignore
+    self.child_inst_var += 1
     super().__init__(c)
     Child_2.counter += 1
 
@@ -366,7 +368,7 @@ class Child_Error_2(Parent):
   child_class_var = 2001
 
   def __init__(self, c):
-    self.parent_inst_var += 1  # type: ignore
+    self.parent_inst_var += 1
     Child_2.counter += 1
 
 
@@ -413,7 +415,7 @@ class TestNestedSpecifiable(unittest.TestCase):
     self.assertEqual(child_1.child_class_var, 2001)
 
     # error during child initialization
-    self.assertRaises(AttributeError, lambda: child_1.child_inst_var)  # type: ignore
+    self.assertRaises(AttributeError, lambda: child_1.child_inst_var)
     self.assertEqual(Parent.counter, 0)
     self.assertEqual(Child_1.counter, 0)
 
@@ -421,7 +423,7 @@ class TestNestedSpecifiable(unittest.TestCase):
     self.assertEqual(child_2.child_class_var, 2001)
 
     # error during child initialization
-    self.assertRaises(AttributeError, lambda: child_2.parent_inst_var)  # type: ignore
+    self.assertRaises(AttributeError, lambda: child_2.parent_inst_var)
     self.assertEqual(Parent.counter, 0)
     self.assertEqual(Child_2.counter, 0)
 

@@ -24,8 +24,8 @@ from typing import Any
 from typing import ClassVar
 from typing import List
 from typing import Protocol
-from typing import TypeVar
 from typing import Type
+from typing import TypeVar
 from typing import runtime_checkable
 
 from typing_extensions import Self
@@ -46,7 +46,7 @@ def get_subspace(cls):
   subspace = "*"
   for c in cls.mro():
     if c in ACCEPTED_SPECIFIABLE_SUBSPACES:
-      subspace = c.__name__  # type: ignore
+      subspace = c.__name__
       break
   return subspace
 
@@ -205,7 +205,7 @@ def specifiable(
     cls._run_init = run_init
     cls.to_spec = Specifiable.to_spec
     cls._to_spec_helper = staticmethod(Specifiable._to_spec_helper)
-    cls.from_spec = classmethod(Specifiable.from_spec)  # type: ignore
+    cls.from_spec = classmethod(Specifiable.from_spec)
     cls._from_spec_helper = staticmethod(Specifiable._from_spec_helper)
     return cls
 
