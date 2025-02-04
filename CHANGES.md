@@ -64,6 +64,8 @@
 
 * Support gcs-connector 3.x+ in GcsUtil ([#33368](https://github.com/apache/beam/pull/33368))
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Introduced `--groupFilesFileLoad` pipeline option to mitigate side-input related issues in BigQueryIO
+  batch FILE_LOAD on certain runners (including Dataflow Runner V2) (Java) ([#33587](https://github.com/apache/beam/pull/33587)).
 
 ## New Features / Improvements
 
@@ -84,6 +86,7 @@
   * Support the Process Environment for execution in Prism ([#33651](https://github.com/apache/beam/pull/33651))
   * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
      * This improves support for developing Xlang pipelines, when using a compatible cross language service.
+* Partitions are now configurable for the DaskRunner in the Python SDK ([#33805](https://github.com/apache/beam/pull/33805)).
 
 ## Breaking Changes
 
@@ -98,12 +101,13 @@
 ## Bugfixes
 
 * Fix data loss issues when reading gzipped files with TextIO (Python) ([#18390](https://github.com/apache/beam/issues/18390), [#31040](https://github.com/apache/beam/issues/31040)).
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [BigQueryIO] Fixed an issue where Storage Write API sometimes doesn't pick up auto-schema updates ([#33231](https://github.com/apache/beam/pull/33231))
 * Prism
   * Fixed an edge case where Bundle Finalization might not become enabled. ([#33493](https://github.com/apache/beam/issues/33493)).
   * Fixed session window aggregation, which wasn't being performed per-key. ([#33542](https://github.com/apache/beam/issues/33542)).)
 * [Dataflow Streaming Appliance] Fixed commits failing with KeyCommitTooLargeException when a key outputs >180MB of results. [#33588](https://github.com/apache/beam/issues/33588).
+* Fixed a Dataflow template creation issue that ignores template file creation errors (Java) ([#33636](https://github.com/apache/beam/issues/33636))
+
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).

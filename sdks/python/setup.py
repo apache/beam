@@ -541,7 +541,40 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
               # https://github.com/PiotrDabkowski/Js2Py/issues/317
               'js2py>=0.74,<1; python_version<"3.12"',
-          ] + dataframe_dependency
+          ] + dataframe_dependency,
+          # Keep the following dependencies in line with what we test against
+          # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
+          # For more info, see
+          # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
+          'torch': [
+              'torch<=1.13.0,<=2.0.0'
+          ],
+          'tensorflow': [
+              'tensorflow>=2.12rc1,<2.13'
+          ],
+          'transformers': [
+              'transformers>=4.28.0,<4.49.0',
+              'tensorflow==2.12.0',
+              'torch>=1.9.0,<2.1.0'
+          ],
+          'tft': [
+              'tensorflow_transform>=1.14.0,<1.15.0'
+          ],
+          'onnx': [
+              'onnxruntime==1.13.1',
+              'torch==1.13.1',
+              'tensorflow==2.11.0',
+              'tf2onnx==1.13.0',
+              'skl2onnx==1.13',
+              'transformers==4.25.1'
+          ],
+          'xgboost': [
+              'xgboost>=1.6.0,<2.1.3',
+              'datatable==1.0.0'
+          ],
+          'tensorflow-hub': [
+              'tensorflow-hub>=0.14.0,<0.16.0'
+          ]
       },
       zip_safe=False,
       # PyPI package information.

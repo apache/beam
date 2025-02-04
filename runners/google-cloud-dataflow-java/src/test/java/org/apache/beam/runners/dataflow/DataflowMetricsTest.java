@@ -119,6 +119,7 @@ public class DataflowMetricsTest {
     assertThat(ImmutableList.copyOf(result.getCounters()), is(empty()));
     assertThat(ImmutableList.copyOf(result.getDistributions()), is(empty()));
     assertThat(ImmutableList.copyOf(result.getStringSets()), is(empty()));
+    assertThat(ImmutableList.copyOf(result.getBoundedTries()), is(empty()));
   }
 
   @Test

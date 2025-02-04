@@ -123,7 +123,7 @@ public class CallTest {
 
   @Test
   public void givenCallerTimeout_emitsFailurePCollection() {
-    Duration timeout = Duration.standardSeconds(1L);
+    Duration timeout = Duration.standardMinutes(1L);
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
@@ -182,7 +182,7 @@ public class CallTest {
 
   @Test
   public void givenSetupTimeout_throwsError() {
-    Duration timeout = Duration.standardSeconds(1L);
+    Duration timeout = Duration.standardMinutes(1L);
 
     pipeline
         .apply(Create.of(new Request("")))
@@ -231,7 +231,7 @@ public class CallTest {
 
   @Test
   public void givenTeardownTimeout_throwsError() {
-    Duration timeout = Duration.standardSeconds(1L);
+    Duration timeout = Duration.standardMinutes(1L);
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
@@ -358,9 +358,7 @@ public class CallTest {
     private final Duration timeout;
 
     CallerExceedsTimeout(Duration timeout) {
-      // The timeout testing is flaky so we set a sleep time with a minute padding beyond what
-      // should trigger the timeout.
-      this.timeout = timeout.plus(Duration.standardMinutes(1L));
+      this.timeout = timeout.plus(Duration.standardSeconds(1L));
     }
 
     @Override
@@ -399,9 +397,7 @@ public class CallTest {
     private final Duration timeout;
 
     private SetupExceedsTimeout(Duration timeout) {
-      // The timeout testing is flaky so we set a sleep time with a minute padding beyond what
-      // should trigger the timeout.
-      this.timeout = timeout.plus(Duration.standardMinutes(1L));
+      this.timeout = timeout.plus(Duration.standardSeconds(1L));
     }
 
     @Override
@@ -447,9 +443,7 @@ public class CallTest {
     private final Duration timeout;
 
     private TeardownExceedsTimeout(Duration timeout) {
-      // The timeout testing is flaky so we set a sleep time with a minute padding beyond what
-      // should trigger the timeout.
-      this.timeout = timeout.plus(Duration.standardMinutes(1L));
+      this.timeout = timeout.plus(Duration.standardSeconds(1L));
     }
 
     @Override
