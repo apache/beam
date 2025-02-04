@@ -245,9 +245,13 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					panic(err)
 				}
 				mayLP := func(v []byte) []byte {
+					//slog.Warn("teststream bytes", "value", string(v), "bytes", v)
 					return v
 				}
-				if cID != pyld.GetCoderId() {
+				// Hack for Java Strings in test stream, since it doesn't encode them correctly.
+				forceLP := cID == "StringUtf8Coder" || cID != pyld.GetCoderId()
+				if forceLP {
+					// slog.Warn("recoding TestStreamValue", "cID", cID, "newUrn", coders[cID].GetSpec().GetUrn(), "payloadCoder", pyld.GetCoderId(), "oldUrn", coders[pyld.GetCoderId()].GetSpec().GetUrn())
 					// The coder needed length prefixing. For simplicity, add a length prefix to each
 					// encoded element, since we will be sending a length prefixed coder to consume
 					// this anyway. This is simpler than trying to find all the re-written coders after the fact.
@@ -259,6 +263,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 						if _, err := buf.Write(v); err != nil {
 							panic(err)
 						}
+						//slog.Warn("teststream bytes - after LP", "value", string(v), "bytes", buf.Bytes())
 						return buf.Bytes()
 					}
 				}
