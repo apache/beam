@@ -151,15 +151,12 @@ class ColumnSpec:
   """Specification for mapping Chunk fields to SQL columns for insertion.
     
     Defines how to extract and format values from Chunks into database columns,
-    handling the full pipeline from Python value to SQL insertion:
+    handling the full pipeline from Python value to SQL insertion.
 
     The insertion process works as follows:
     - value_fn extracts a value from the Chunk and formats it as needed
     - The value is stored in a NamedTuple field with the specified python_type
     - During SQL insertion, the value is bound to a ? placeholder
-    - If sql_typecast is specified, it's appended to the placeholder for
-      explicit casting (e.g. "?::float[]" for vector arrays, "?::jsonb" for
-      JSON data)
 
     Attributes:
         name: The column name in the database table.
@@ -207,10 +204,10 @@ class ColumnSpec:
         vector: Creates a vector column specification with float[] casting.
         jsonb: Creates a JSONB column specification with jsonb casting.
     """
-  name: str  # Column name in database
-  python_type: Type  # Type for NamedTuple field
+  name: str
+  python_type: Type
   value_fn: Callable[[Chunk], Any]
-  sql_typecast: Optional[str] = None  # e.g. "::float[]" for vectors
+  sql_typecast: Optional[str] = None
 
   @property
   def placeholder(self) -> str:

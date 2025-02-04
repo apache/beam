@@ -25,6 +25,7 @@ from typing import List
 from typing import NamedTuple
 
 import psycopg2
+
 import apache_beam as beam
 from apache_beam.coders import registry
 from apache_beam.coders.row_coder import RowCoder
