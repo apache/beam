@@ -4096,9 +4096,6 @@ public class StreamingDataflowWorkerTest {
       return new Statement() {
         @Override
         public void evaluate() throws Throwable {
-          blocker.set(new CountDownLatch(1));
-          counter.set(new Semaphore(0));
-          callCounter.set(0);
           try {
             base.evaluate();
           } finally {
