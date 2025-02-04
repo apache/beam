@@ -42,7 +42,7 @@ public class BoundedTrieImpl extends AbstractMetric<BoundedTrieData> implements 
   }
 
   @Override
-  public void add(String... values) {
+  public void add(String ... values) {
     add(Arrays.asList(values));
   }
 }
