@@ -167,12 +167,13 @@ public final class ActiveWorkState {
    */
   synchronized void failWorkForKey(ImmutableList<WorkIdWithShardingKey> failedWork) {
     for (WorkIdWithShardingKey failedId : failedWork) {
+      @Nullable
       LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(failedId.shardingKey());
       if (workQueue == null) {
         // Work could complete/fail before heartbeat response arrives
         continue;
       }
-      ExecutableWork executableWork = workQueue.get(failedId.workId());
+      @Nullable ExecutableWork executableWork = workQueue.get(failedId.workId());
       if (executableWork == null) {
         continue;
       }
