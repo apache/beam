@@ -16,8 +16,8 @@
 
 --influx_measurement=go_batch_cogbk_3
 --influx_namespace=flink
---input_options=''{\"num_records\":5000,\"key_size\":10,\"value_size\":90,\"num_hot_keys\":5,\"hot_key_fraction\":1}''
---co_input_options=''{\"num_records\":500,\"key_size\":10,\"value_size\":90,\"num_hot_keys\":5,\"hot_key_fraction\":1}''
+--input_options=''{\"num_records\":1000,\"key_size\":10,\"value_size\":90,\"num_hot_keys\":10,\"hot_key_fraction\":1}''
+--co_input_options=''{\"num_records\":100,\"key_size\":10,\"value_size\":90,\"num_hot_keys\":10,\"hot_key_fraction\":1}''
 --iterations=4
 --parallelism=5
 --endpoint=localhost:8099
