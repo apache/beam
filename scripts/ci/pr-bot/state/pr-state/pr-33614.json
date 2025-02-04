@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "python": "jrmccluskey",
-    "io": "Abacn"
+    "python": "damccorm",
+    "io": "damondouglas"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
