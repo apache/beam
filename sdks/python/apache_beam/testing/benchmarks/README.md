@@ -23,7 +23,7 @@ Writing a Dataflow Cost Benchmark to estimate the financial cost of executing a 
 
 1. A pipeline to execute (ideally one located in the examples directory)
 1. A text file with pipeline options in the `.github/workflows/cost-benchmarks-pipeline-options` [directory](../../../../../.github/workflows/cost-benchmarks-pipeline-options)
-1. A test class inheriting from the `DataflowCostBenchmark` [class](../load_tests/dataflow_cost_benchmark.py)
+1. A python file with a class inheriting from the `DataflowCostBenchmark` [class](../load_tests/dataflow_cost_benchmark.py)
 1. An entry to execute the pipeline as part of the cost benchmarks workflow action
 
 ### Choosing a Pipeline
@@ -44,7 +44,7 @@ The file needs the Apache 2.0 license header at the top of the file, then each f
 * Machine Type
 * Number of Workers
 * Disk Size
-* Autoscaling Algorithm (typically `NONE` for benchmarking purposes)
+* Autoscaling Algorithm (set this to `NONE` for a more consistent benchmark signal)
 * Staging and Temp locations
 * A requirements file path in the repository (if additional dependencies are needed)
 * Benchmark-specific values
@@ -53,7 +53,7 @@ The file needs the Apache 2.0 license header at the top of the file, then each f
     * Metrics Dataset for Output
         * For `RunInference` workloads this will be `beam_run_inference`
     * Metrics Table for Output
-        * This should be named for the benchmark being run
+        * This should be named after the benchmark being run
 
 ### Configuring the Test Class
 With the pipeline itself chosen and the arguments set, we can build out the test class that will execute the pipeline. Navigate to [`sdks/python/apache_beam/testing/benchmarks`](../../testing/benchmarks/) and select an appropriate sub-directory (or create one if necessary.)
