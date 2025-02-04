@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -485,50 +486,76 @@ public class ActiveWorkStateTest {
 
   @Test
   public void testFailWork_batchFail() {
+
+    ImmutableList.Builder<WorkIdWithShardingKey> toFailBuilder1 = ImmutableList.builder();
+    ImmutableList.Builder<WorkIdWithShardingKey> toFailBuilder2 = ImmutableList.builder();
+
     {
       long workToken = 0L;
       for (long shardingKey : Arrays.asList(1L, 2L)) {
         for (String key : Arrays.asList("key1", "key2")) {
           for (long cacheToken : Arrays.asList(5L, 6L)) {
+            ++workToken;
             ShardedKey shardedKey = shardedKey(key, shardingKey);
-            ExecutableWork work = createWork(createWorkItem(++workToken, cacheToken, shardedKey));
+            ExecutableWork work = createWork(createWorkItem(workToken, cacheToken, shardedKey));
             ActivateWorkResult activateWorkResult = activeWorkState.activateWorkForKey(work);
             assertThat(activateWorkResult)
                 .isAnyOf(ActivateWorkResult.EXECUTE, ActivateWorkResult.QUEUED);
+
+            WorkId workId =
+                WorkId.builder().setWorkToken(workToken).setCacheToken(cacheToken).build();
+            WorkIdWithShardingKey workIdWithShardingKey =
+                WorkIdWithShardingKey.create(shardingKey, workId);
+            if (ThreadLocalRandom.current().nextBoolean()) {
+              toFailBuilder1.add(workIdWithShardingKey);
+            } else {
+              toFailBuilder2.add(workIdWithShardingKey);
+            }
           }
         }
       }
     }
+    ImmutableList<WorkIdWithShardingKey> toFail1 = toFailBuilder1.build();
+    ImmutableList<WorkIdWithShardingKey> toFail2 = toFailBuilder2.build();
 
-    ImmutableList.Builder<WorkIdWithShardingKey> toFail = ImmutableList.builder();
-    {
-      long workToken = 0L;
-      for (long shardingKey : Arrays.asList(1L, 2L)) {
-        for (String unusedKey : Arrays.asList("key1", "key2")) {
-          for (long cacheToken : Arrays.asList(5L, 6L)) {
-            WorkId workId =
-                WorkId.builder().setWorkToken(++workToken).setCacheToken(cacheToken).build();
-            toFail.add(WorkIdWithShardingKey.create(shardingKey, workId));
-          }
-        }
-      }
+    activeWorkState.failWorkForKey(toFail1);
+
+    for (WorkIdWithShardingKey workIdWithShardingKey : toFail1) {
+      assertTrue(
+          readOnlyActiveWork
+              .get(workIdWithShardingKey.shardingKey())
+              .get(workIdWithShardingKey.workId())
+              .work()
+              .isFailed());
     }
 
-    activeWorkState.failWorkForKey(toFail.build());
+    for (WorkIdWithShardingKey workIdWithShardingKey : toFail2) {
+      assertFalse(
+          readOnlyActiveWork
+              .get(workIdWithShardingKey.shardingKey())
+              .get(workIdWithShardingKey.workId())
+              .work()
+              .isFailed());
+    }
 
-    {
-      long workToken = 0L;
-      for (long shardingKey : Arrays.asList(1L, 2L)) {
-        for (String unusedKey : Arrays.asList("key1", "key2")) {
-          for (long cacheToken : Arrays.asList(5L, 6L)) {
-            WorkId workId =
-                WorkId.builder().setWorkToken(++workToken).setCacheToken(cacheToken).build();
-            LinkedHashMap<WorkId, ExecutableWork> workIdExecutableWorkLinkedHashMap =
-                readOnlyActiveWork.get(shardingKey);
-            assertTrue(workIdExecutableWorkLinkedHashMap.get(workId).work().isFailed());
-          }
-        }
-      }
+    activeWorkState.failWorkForKey(toFail2);
+
+    for (WorkIdWithShardingKey workIdWithShardingKey : toFail1) {
+      assertTrue(
+          readOnlyActiveWork
+              .get(workIdWithShardingKey.shardingKey())
+              .get(workIdWithShardingKey.workId())
+              .work()
+              .isFailed());
+    }
+
+    for (WorkIdWithShardingKey workIdWithShardingKey : toFail2) {
+      assertTrue(
+          readOnlyActiveWork
+              .get(workIdWithShardingKey.shardingKey())
+              .get(workIdWithShardingKey.workId())
+              .work()
+              .isFailed());
     }
   }
 
