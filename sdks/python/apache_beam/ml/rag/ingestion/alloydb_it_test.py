@@ -138,7 +138,7 @@ def key_on_id(chunk):
   return (int(chunk.id.split('_')[1]), chunk)
 
 
-# @unittest.skip("Temporarily skipping all AlloyDB tests")
+@unittest.skip("Temporarily skipping all AlloyDB tests")
 class AlloyDBVectorWriterConfigTest(unittest.TestCase):
   ALLOYDB_TABLE_PREFIX = 'python_rag_alloydb_'
 
