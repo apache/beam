@@ -202,6 +202,10 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
+  if ("$spark_version" >= "3.5.0") {
+    testImplementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
+    testImplementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
+  }
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
