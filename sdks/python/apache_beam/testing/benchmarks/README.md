@@ -29,8 +29,13 @@ Writing a Dataflow Cost Benchmark to estimate the financial cost of executing a 
 ### Choosing a Pipeline
 Pipelines that are worth benchmarking in terms of performance and cost have a few straightforward requirements.
 
-1. The transforms used in the pipeline should be native to Beam *or* be lightweight and readily available in the given pipeline
-1. The pipeline itself should run on a consistent data set and have consistent internals (such as model versions for `RunInference` workloads.)
+1. The transforms used in the pipeline should be native to Beam *or* be lightweight and contain their source code in the pipeline code. \
+    * The performance impact of non-Beam transforms should be minimized since the aim is to benchmark Beam transforms on Dataflow, not custom user code.
+1. The pipeline itself should run on a consistent data set and have a consistent configuration.
+    * For example, a `RunInference` benchmark should use the same model and version for each run, never pulling the latest release of a model for use.
+    * The same focus on consistency extends to both the hardware and software configurations for the pipeline, from input data and model version all the way
+      to which Google Cloud Platform region the Dataflow pipeline runs in. All of this configuration should be explicit and available in the repository as part
+      of the benchmark's definition.
 1. The pipeline should perform some sort of behavior that would be common enough for a user to create themselves
     * Effectively, we want to read data from a source, do some sort of transformation, then write that data elsewhere. No need to overcomplicate things.
 
