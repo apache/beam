@@ -641,7 +641,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def snakeyaml_version = "2.2"
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
-    def spark3_version = "3.2.2"
+    def spark3_version = "3.5.0"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
