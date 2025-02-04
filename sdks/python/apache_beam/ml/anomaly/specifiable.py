@@ -30,9 +30,25 @@ from typing import runtime_checkable
 
 from typing_extensions import Self
 
-KNOWN_SPECIFIABLE = {}
+ACCEPTED_SPECIFIABLE_SUBSPACES = [
+    "EnsembleAnomalyDetector",
+    "AnomalyDetector",
+    "ThresholdFn",
+    "AggregationFn",
+    "*"
+]
+KNOWN_SPECIFIABLE = {"*": {}}
 
 SpecT = TypeVar('SpecT', bound='Specifiable')
+
+
+def get_subspace(cls):
+  subspace = "*"
+  for c in cls.mro():
+    if c in ACCEPTED_SPECIFIABLE_SUBSPACES:
+      subspace = c.__name__  # type: ignore
+      break
+  return subspace
 
 
 @dataclasses.dataclass(frozen=True)
@@ -61,7 +77,8 @@ class Specifiable(Protocol):
     if spec.type is None:
       raise ValueError(f"Spec type not found in {spec}")
 
-    subclass: Type[Self] = KNOWN_SPECIFIABLE.get(spec.type, None)
+    subspace = get_subspace(cls)
+    subclass: Type[Self] = KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
 
@@ -94,10 +111,14 @@ def register(cls, key, error_if_exists) -> None:
   if key is None:
     key = cls.__name__
 
-  if key in KNOWN_SPECIFIABLE and error_if_exists:
+  subspace = get_subspace(cls)
+  if subspace in KNOWN_SPECIFIABLE and key in KNOWN_SPECIFIABLE[
+      subspace] and error_if_exists:
     raise ValueError(f"{key} is already registered for specifiable")
 
-  KNOWN_SPECIFIABLE[key] = cls
+  if subspace not in KNOWN_SPECIFIABLE:
+    KNOWN_SPECIFIABLE[subspace] = {}
+  KNOWN_SPECIFIABLE[subspace][key] = cls
 
   cls._key = key
 

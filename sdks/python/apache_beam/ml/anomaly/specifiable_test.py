@@ -36,19 +36,19 @@ class TestSpecifiable(unittest.TestCase):
     # class is not decorated/registered
     self.assertRaises(AttributeError, lambda: MyClass().to_spec())  # type: ignore
 
-    self.assertNotIn("MyKey", KNOWN_SPECIFIABLE)
+    self.assertNotIn("MyKey", KNOWN_SPECIFIABLE["*"])
 
     MyClass = specifiable(key="MyKey")(MyClass)
 
-    self.assertIn("MyKey", KNOWN_SPECIFIABLE)
-    self.assertEqual(KNOWN_SPECIFIABLE["MyKey"], MyClass)
+    self.assertIn("MyKey", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["MyKey"], MyClass)
 
     # By default, an error is raised if the key is duplicated
     self.assertRaises(ValueError, specifiable(key="MyKey"), MyClass)
 
     # But it is ok if a different key is used for the same class
     _ = specifiable(key="MyOtherKey")(MyClass)
-    self.assertIn("MyOtherKey", KNOWN_SPECIFIABLE)
+    self.assertIn("MyOtherKey", KNOWN_SPECIFIABLE["*"])
 
     # Or, use a parameter to suppress the error
     specifiable(key="MyKey", error_if_exists=False)(MyClass)
@@ -59,8 +59,8 @@ class TestSpecifiable(unittest.TestCase):
     class MySecondClass():
       pass
 
-    self.assertIn("MySecondClass", KNOWN_SPECIFIABLE)
-    self.assertEqual(KNOWN_SPECIFIABLE["MySecondClass"], MySecondClass)
+    self.assertIn("MySecondClass", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["MySecondClass"], MySecondClass)
     self.assertTrue(isinstance(MySecondClass(), Specifiable))
 
     # use decorator with key parameter
@@ -68,8 +68,8 @@ class TestSpecifiable(unittest.TestCase):
     class MyThirdClass():
       pass
 
-    self.assertIn("MyThirdKey", KNOWN_SPECIFIABLE)
-    self.assertEqual(KNOWN_SPECIFIABLE["MyThirdKey"], MyThirdClass)
+    self.assertIn("MyThirdKey", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["MyThirdKey"], MyThirdClass)
 
   def test_init_params_in_specifiable(self):
     @specifiable
