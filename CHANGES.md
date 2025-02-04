@@ -87,6 +87,10 @@
   * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
      * This improves support for developing Xlang pipelines, when using a compatible cross language service.
 * Partitions are now configurable for the DaskRunner in the Python SDK ([#33805](https://github.com/apache/beam/pull/33805)).
+* [Dataflow Streaming] Enable Windmill GetWork Response Batching by default ([#33847](https://github.com/apache/beam/pull/33847)).
+  * With this change user workers will request batched GetWork responses from backend and backend will send multiple WorkItems in the same response proto.
+  * The feature can be disabled by passing `--windmillRequestBatchedGetWorkResponse=false`
+
 
 ## Breaking Changes
 
