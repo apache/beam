@@ -62,7 +62,7 @@ META_DATA_ALL_NAME = 'Dicom_io_it_test_data.json'
 META_DATA_REFINED_NAME = 'Dicom_io_it_test_refined_data.json'
 NUM_INSTANCE = 18
 RAND_LEN = 15
-SCOPES=['https://www.googleapis.com/auth/cloud-platform']
+SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
 
 
 def random_string_generator(length):
@@ -212,7 +212,8 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     # Check the metadata using client
     credential, _ = default(SCOPES)
     result, status_code = DicomApiHttpClient().qido_search(
-      self.project, REGION, DATA_SET_ID, self.temp_dicom_store, 'instances', credential=credential
+      self.project, REGION, DATA_SET_ID,
+      self.temp_dicom_store, 'instances', credential=credential
     )
 
     self.assertEqual(status_code, 200)
