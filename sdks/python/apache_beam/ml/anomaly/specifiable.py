@@ -42,13 +42,19 @@ KNOWN_SPECIFIABLE = {"*": {}}
 SpecT = TypeVar('SpecT', bound='Specifiable')
 
 
-def get_subspace(cls):
-  subspace = "*"
-  for c in cls.mro():
-    if c in ACCEPTED_SPECIFIABLE_SUBSPACES:
-      subspace = c.__name__
-      break
-  return subspace
+def get_subspace(cls, type=None):
+  if type is None:
+    subspace = "*"
+    for c in cls.mro():
+      if c.__name__ in ACCEPTED_SPECIFIABLE_SUBSPACES:
+        subspace = c.__name__
+        break
+    return subspace
+  else:
+    for subspace in ACCEPTED_SPECIFIABLE_SUBSPACES:
+      if subspace in KNOWN_SPECIFIABLE and type in KNOWN_SPECIFIABLE[subspace]:
+        return subspace
+    raise ValueError(f"subspace for {cls.__name__} not found.")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -77,7 +83,7 @@ class Specifiable(Protocol):
     if spec.type is None:
       raise ValueError(f"Spec type not found in {spec}")
 
-    subspace = get_subspace(cls)
+    subspace = get_subspace(cls, spec.type)
     subclass: Type[Self] = KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
