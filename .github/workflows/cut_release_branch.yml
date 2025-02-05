@@ -100,7 +100,7 @@ jobs:
           if [[ $NEXT_RELEASE =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
             echo "NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}" >> $GITHUB_ENV
           else
-            echo "The input for NEXT_RELEASE does not match a valid format [0-9]+\.[0-9]+"
+            echo "The input for NEXT_RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
             exit 1
           fi
       - name: Check out code
