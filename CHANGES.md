@@ -73,6 +73,7 @@
 * Add BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag (Python) ([#33413](https://github.com/apache/beam/pull/33413)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
 * [GCSIO] Added retry logic to each batch method of the GCS IO (Python) ([#33539](https://github.com/apache/beam/pull/33539))
+* [GCSIO] Enable recursive deletion for GCSFileSystem Paths (Python) ([#33611](https://github.com/apache/beam/pull/33611)).
 * External, Process based Worker Pool support added to the Go SDK container. ([#33572](https://github.com/apache/beam/pull/33572))
   * This is used to enable sidecar containers to run SDK workers for some runners.
   * See https://beam.apache.org/documentation/runtime/sdk-harness-config/ for details.
@@ -87,6 +88,10 @@
   * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
      * This improves support for developing Xlang pipelines, when using a compatible cross language service.
 * Partitions are now configurable for the DaskRunner in the Python SDK ([#33805](https://github.com/apache/beam/pull/33805)).
+* [Dataflow Streaming] Enable Windmill GetWork Response Batching by default ([#33847](https://github.com/apache/beam/pull/33847)).
+  * With this change user workers will request batched GetWork responses from backend and backend will send multiple WorkItems in the same response proto.
+  * The feature can be disabled by passing `--windmillRequestBatchedGetWorkResponse=false`
+
 
 ## Breaking Changes
 
@@ -107,7 +112,8 @@
   * Fixed session window aggregation, which wasn't being performed per-key. ([#33542](https://github.com/apache/beam/issues/33542)).)
 * [Dataflow Streaming Appliance] Fixed commits failing with KeyCommitTooLargeException when a key outputs >180MB of results. [#33588](https://github.com/apache/beam/issues/33588).
 * Fixed a Dataflow template creation issue that ignores template file creation errors (Java) ([#33636](https://github.com/apache/beam/issues/33636))
-
+* Correctly documented Pane Encodings in the portability protocols ([#33840](https://github.com/apache/beam/issues/33840)).
+* Fixed the user mailing list address ([#26013](https://github.com/apache/beam/issues/26013)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
