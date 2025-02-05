@@ -511,6 +511,9 @@ func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 
 		// Here's where we ensure we register new imports.
 		if t, ok := types.Unalias(t).(*types.Named); ok {
+			if pkg := t.Obj().Pkg(); pkg != nil {
+				e.imports[pkg.Path()] = struct{}{}
+			}
 			e.extractType(t.Obj())
 		}
 
