@@ -19,7 +19,10 @@ package org.apache.beam.sdk.metrics;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -34,26 +37,46 @@ public class LineageTest {
     Map<String, String> testCases =
         ImmutableMap.<String, String>builder()
             .put("apache-beam", "apache-beam")
-            .put("`apache-beam`", "`apache-beam`")
+            .put("`apache-beam`", "```apache-beam```")
             .put("apache.beam", "`apache.beam`")
             .put("apache:beam", "`apache:beam`")
             .put("apache beam", "`apache beam`")
-            .put("`apache beam`", "`apache beam`")
+            .put("apache`beam", "`apache``beam`")
+            .put("apache` beam", "`apache`` beam`")
+            .put("`apache-beam", "```apache-beam`")
+            .put("apache-beam`", "`apache-beam```")
+            .put("`apache beam`", "```apache beam```")
             .put("apache\tbeam", "`apache\tbeam`")
             .put("apache\nbeam", "`apache\nbeam`")
             .build();
     testCases.forEach(
-        (key, value) ->
-            assertEquals("apache:" + value, Lineage.getFqName("apache", ImmutableList.of(key))));
+        (key, value) -> {
+          Iterator<String> fqnPartsIterator =
+              Lineage.getFQNParts("apache", null, ImmutableList.of(key), null);
+          String fqnPartsString = getFqnPartsString(fqnPartsIterator);
+          assertEquals("apache:" + value, fqnPartsString);
+        });
     testCases.forEach(
-        (key, value) ->
-            assertEquals(
-                "apache:beam:" + value,
-                Lineage.getFqName("apache", "beam", ImmutableList.of(key))));
+        (key, value) -> {
+          Iterator<String> fqnPartsIterator =
+              Lineage.getFQNParts("apache", "beam", ImmutableList.of(key), null);
+          String fqnPartsString = getFqnPartsString(fqnPartsIterator);
+          assertEquals("apache:beam:" + value, fqnPartsString);
+        });
     testCases.forEach(
-        (key, value) ->
-            assertEquals(
-                "apache:beam:" + value + "." + value,
-                Lineage.getFqName("apache", "beam", ImmutableList.of(key, key))));
+        (key, value) -> {
+          Iterator<String> fqnPartsIterator =
+              Lineage.getFQNParts("apache", "beam", ImmutableList.of(key, key), null);
+          String fqnPartsString = getFqnPartsString(fqnPartsIterator);
+          assertEquals("apache:beam:" + value + "." + value, fqnPartsString);
+        });
+  }
+
+  private static String getFqnPartsString(Iterator<String> fqnPartsIterator) {
+    return StreamSupport.stream(
+            java.util.Spliterators.spliteratorUnknownSize(
+                fqnPartsIterator, java.util.Spliterator.ORDERED),
+            false)
+        .collect(Collectors.joining(""));
   }
 }
