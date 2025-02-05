@@ -74,7 +74,7 @@ jobs:
           echo "==============================================================="
       - name: Update release version for dataflow runner
         run: |
-          sed -i -e "s/'beam-master-.*'/'${RELEASE}'/g" \
+          sed -i -e "s/'beam-master-.*'/'${RELEASE}.0'/g" \
           runners/google-cloud-dataflow-java/build.gradle
           echo "===============Update release branch as following=============="
           git diff
