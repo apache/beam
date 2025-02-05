@@ -28,7 +28,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.StringList;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -122,7 +122,7 @@ public class MetricsToCounterUpdateConverter {
       MetricKey key, boolean isCumulative, BoundedTrieData boundedTrieData) {
     // BoundedTrie uses SET kind metric aggregation which tracks unique strings as a trie.
     CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
-    BoundedTrie counterUpdateTrie = getBoundedTrie(boundedTrieData);
+    BoundedTrie counterUpdateTrie = getBoundedTrie(boundedTrieData.toProto());
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
@@ -130,26 +130,25 @@ public class MetricsToCounterUpdateConverter {
         .setBoundedTrie(counterUpdateTrie);
   }
 
-  @VisibleForTesting
-  static BoundedTrie getBoundedTrie(BoundedTrieData boundedTrieData) {
-    BoundedTrie counterUpdateTrie = new BoundedTrie();
-    MetricsApi.BoundedTrie trie = boundedTrieData.toProto();
-    counterUpdateTrie.setBound(trie.getBound());
-    counterUpdateTrie.setSingleton(
-        trie.getSingletonList().isEmpty() ? null : trie.getSingletonList());
-    counterUpdateTrie.setRoot(getBoundedTrieNode(trie.getRoot()));
-    return counterUpdateTrie;
-  }
-
   /**
-   * Converts from org.apache.beam.model.pipeline.v1.BoundedTrieNode to
-   * com.google.api.services.dataflow.model.BoundedTrieNode. This is because even though Dataflow
+   * Converts from org.apache.beam.model.pipeline.v1.BoundedTrie to
+   * com.google.api.services.dataflow.model.BoundedTrie. This is because even though Dataflow
    * CounterUpdate uses org.apache.beam.model.pipeline.v1.BoundedTrieNode in it's definition when
    * the google-api client is generated the package is renamed.
    *
-   * @param node org.apache.beam.model.pipeline.v1.BoundedTrieNode to be converted
-   * @return converted org.apache.beam.model.pipeline.v1.BoundedTrieNode.
+   * @param trie org.apache.beam.model.pipeline.v1.BoundedTrie to be converted
+   * @return converted com.google.api.services.dataflow.model.BoundedTrie.
    */
+  @VisibleForTesting
+  static BoundedTrie getBoundedTrie(MetricsApi.BoundedTrie trie) {
+    BoundedTrie counterUpdateTrie = new BoundedTrie();
+    counterUpdateTrie.setBound(trie.getBound());
+    counterUpdateTrie.setSingleton(
+        trie.getSingletonList().isEmpty() ? null : trie.getSingletonList());
+    counterUpdateTrie.setRoot(trie.hasRoot() ? getBoundedTrieNode(trie.getRoot()) : null);
+    return counterUpdateTrie;
+  }
+
   private static BoundedTrieNode getBoundedTrieNode(MetricsApi.BoundedTrieNode node) {
     BoundedTrieNode boundedTrieNode = new BoundedTrieNode();
     boundedTrieNode.setTruncated(node.getTruncated());

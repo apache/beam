@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;

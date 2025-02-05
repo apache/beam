@@ -96,7 +96,8 @@ public class MetricsToCounterUpdateConverterTest {
     boundedTrieData.add(ImmutableList.of("ef", "gh"));
     boundedTrieData.add(ImmutableList.of("ef", "xy"));
 
-    BoundedTrie actualTrie = MetricsToCounterUpdateConverter.getBoundedTrie(boundedTrieData);
+    BoundedTrie actualTrie =
+        MetricsToCounterUpdateConverter.getBoundedTrie(boundedTrieData.toProto());
 
     BoundedTrie expectedTrie = new BoundedTrie();
     expectedTrie.setBound(100);
@@ -116,12 +117,13 @@ public class MetricsToCounterUpdateConverterTest {
   public void testGetBoundedTrieNodeSingleton() {
     BoundedTrieData boundedTrieData = new BoundedTrieData();
     boundedTrieData.add(ImmutableList.of("ab"));
-    BoundedTrie actualTrie = MetricsToCounterUpdateConverter.getBoundedTrie(boundedTrieData);
+    BoundedTrie actualTrie =
+        MetricsToCounterUpdateConverter.getBoundedTrie(boundedTrieData.toProto());
 
     BoundedTrie expectedTrie = new BoundedTrie();
     expectedTrie.setBound(100);
     expectedTrie.setSingleton(ImmutableList.of("ab"));
-    expectedTrie.setRoot(getEmptyNode());
+    expectedTrie.setRoot(null);
 
     assertEquals(expectedTrie, actualTrie);
   }

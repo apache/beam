@@ -79,9 +79,9 @@ public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData>
   // For delta we take the current value then reset the cell to empty so the next call only see
   // delta/updates from last call.
   public synchronized BoundedTrieData getAndReset() {
-    // since we are resetting no need to deep a copy just change the reference
+    // since we are resetting no need to do a deep copy, just change the reference
     BoundedTrieData shallowCopy = this.value;
-    this.value = new BoundedTrieData(); // create now object should not call reset on existing
+    this.value = new BoundedTrieData(); // create new object, should not call reset on existing
     return shallowCopy;
   }
 

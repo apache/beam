@@ -180,6 +180,9 @@ public class BoundedTrieData implements Serializable {
    */
   public synchronized void add(Iterable<String> segments) {
     List<String> segmentsParts = ImmutableList.copyOf(segments);
+    if (segmentsParts.isEmpty()) {
+      return;
+    }
     if (this.singleton == null && this.root == null) {
       // empty case
       this.singleton = segmentsParts;
@@ -342,7 +345,7 @@ public class BoundedTrieData implements Serializable {
      * @param truncated Whether this node is truncated.
      * @param size The size of the subtree rooted at this node.
      */
-    BoundedTrieNode(Map<String, BoundedTrieNode> children, boolean truncated, int size) {
+    BoundedTrieNode(@Nonnull Map<String, BoundedTrieNode> children, boolean truncated, int size) {
       this.children = children;
       this.size = size;
       this.truncated = truncated;

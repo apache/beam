@@ -226,7 +226,7 @@ public class BatchModeExecutionContextTest {
                             .setOriginalStepName("originalName"))
                     .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
             .setCumulative(false)
-            .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(trieData));
+            .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(trieData.toProto()));
 
     assertThat(executionContext.extractMetricUpdates(false), containsInAnyOrder(expected));
   }
