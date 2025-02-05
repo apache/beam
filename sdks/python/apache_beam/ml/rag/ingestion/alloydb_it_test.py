@@ -374,7 +374,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
       # Extract timestamp from custom_id
       timestamp = row.custom_id.split('timestamp_')[1]
       # Extract index from timestamp
-      i = int(timestamp.split('T')[1][:2])
+      i = int(timestamp.split('T wrong')[1][:2])
 
       # Parse embedding vector
       embedding_list = [
