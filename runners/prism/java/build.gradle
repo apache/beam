@@ -98,9 +98,9 @@ def sickbayTests = [
     // https://github.com/apache/beam/issues/31438
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
 
-    // Prism doesn't support multiple TestStreams. 
+    // Prism doesn't support multiple TestStreams.
      'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
-     
+
     // GroupIntoBatchesTest tests that fail:
     // Teststream has bad KV encodings due to using an outer context.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
