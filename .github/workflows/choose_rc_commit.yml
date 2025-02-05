@@ -27,6 +27,9 @@ on:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
         required: true
+      RELEASE_BRANCH:
+        description: Current release branch (e.g. release-2.XX)
+        required: true
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: true
@@ -57,7 +60,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: release-${{ github.event.inputs.RELEASE }}
+          ref: release-${{ github.event.inputs.RELEASE_BRANCH }}
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
