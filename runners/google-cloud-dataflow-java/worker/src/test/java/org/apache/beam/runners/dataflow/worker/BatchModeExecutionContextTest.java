@@ -32,7 +32,6 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.StringList;
 import java.util.Arrays;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -214,7 +213,6 @@ public class BatchModeExecutionContextTest {
     BoundedTrieData trieData = new BoundedTrieData();
     trieData.add(ImmutableList.of("ab"));
     trieData.add(ImmutableList.of("cd"));
-    MetricsApi.BoundedTrie expectedTrie = trieData.toProto();
 
     final CounterUpdate expected =
         new CounterUpdate()
@@ -228,7 +226,7 @@ public class BatchModeExecutionContextTest {
                             .setOriginalStepName("originalName"))
                     .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
             .setCumulative(false)
-            .set("bounded_trie", expectedTrie);
+            .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(trieData));
 
     assertThat(executionContext.extractMetricUpdates(false), containsInAnyOrder(expected));
   }

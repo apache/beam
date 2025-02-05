@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 
+import com.google.api.services.dataflow.model.BoundedTrie;
+import com.google.api.services.dataflow.model.BoundedTrieNode;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
@@ -26,7 +28,11 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.StringList;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.StringSetData;
@@ -113,13 +119,43 @@ public class MetricsToCounterUpdateConverter {
   }
 
   public static CounterUpdate fromBoundedTrie(MetricKey key, BoundedTrieData boundedTrieData) {
-    // BoundedTrie uses SET kind metric aggregation which tracks unique strings.
+    // BoundedTrie uses SET kind metric aggregation which tracks unique strings as a trie.
     CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
-    // TODO (rosinha): Once the CounterUpdate API is updated in dataflow client update this.
+    BoundedTrie counterUpdateTrie = getBoundedTrie(boundedTrieData);
+
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
         .setCumulative(false)
-        .set("bounded_trie", boundedTrieData.toProto());
+        .setBoundedTrie(counterUpdateTrie);
+  }
+
+  @VisibleForTesting
+  static BoundedTrie getBoundedTrie(BoundedTrieData boundedTrieData) {
+    BoundedTrie counterUpdateTrie = new BoundedTrie();
+    MetricsApi.BoundedTrie trie = boundedTrieData.toProto();
+    counterUpdateTrie.setBound(trie.getBound());
+    counterUpdateTrie.setSingleton(
+        trie.getSingletonList().isEmpty() ? null : trie.getSingletonList());
+    counterUpdateTrie.setRoot(getBoundedTrieNode(trie.getRoot()));
+    return counterUpdateTrie;
+  }
+
+  /**
+   * Converts from org.apache.beam.model.pipeline.v1.BoundedTrieNode to
+   * com.google.api.services.dataflow.model.BoundedTrieNode. This is because even though Dataflow
+   * CounterUpdate uses org.apache.beam.model.pipeline.v1.BoundedTrieNode in it's definition when
+   * the google-api client is generated the package is renamed.
+   *
+   * @param node org.apache.beam.model.pipeline.v1.BoundedTrieNode to be converted
+   * @return converted org.apache.beam.model.pipeline.v1.BoundedTrieNode.
+   */
+  private static BoundedTrieNode getBoundedTrieNode(MetricsApi.BoundedTrieNode node) {
+    BoundedTrieNode boundedTrieNode = new BoundedTrieNode();
+    boundedTrieNode.setTruncated(node.getTruncated());
+    Map<String, BoundedTrieNode> children = new HashMap<>();
+    node.getChildrenMap().forEach((key, value) -> children.put(key, getBoundedTrieNode(value)));
+    boundedTrieNode.setChildren(children);
+    return boundedTrieNode;
   }
 
   public static CounterUpdate fromDistribution(

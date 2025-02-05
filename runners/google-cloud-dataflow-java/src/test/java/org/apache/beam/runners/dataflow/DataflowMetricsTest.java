@@ -41,6 +41,7 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
@@ -199,9 +200,9 @@ public class DataflowMetricsTest {
   }
 
   private MetricUpdate makeBoundedTrieMetricUpdate(
-      String name, String namespace, String step, BoundedTrieData data, boolean tentative) {
+      String name, String namespace, String step, BoundedTrie data, boolean tentative) {
     MetricUpdate update = new MetricUpdate();
-    update.set(DataflowMetrics.BOUNDED_TRIE, data.toProto());
+    update.setTrie(data);
     return setStructuredName(update, name, namespace, step, tentative);
   }
 
@@ -318,14 +319,14 @@ public class DataflowMetricsTest {
             "counterName",
             "counterNamespace",
             "s2",
-            new BoundedTrieData(ImmutableList.of("ab", "cd")),
+            new BoundedTrieData(ImmutableList.of("ab", "cd")).toProto(),
             false);
     MetricUpdate mu1Tentative =
         makeBoundedTrieMetricUpdate(
             "counterName",
             "counterNamespace",
             "s2",
-            new BoundedTrieData(ImmutableList.of("ab", "cd")),
+            new BoundedTrieData(ImmutableList.of("ab", "cd")).toProto(),
             true);
     jobMetrics.setMetrics(ImmutableList.of(mu1, mu1Tentative));
     DataflowClient dataflowClient = mock(DataflowClient.class);

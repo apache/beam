@@ -180,14 +180,16 @@ public class BoundedTrieData implements Serializable {
    */
   public synchronized void add(Iterable<String> segments) {
     List<String> segmentsParts = ImmutableList.copyOf(segments);
-    if (this.root == null) {
-      if (this.singleton == null || !this.singleton.equals(segmentsParts)) {
+    if (this.singleton == null && this.root == null) {
+      // empty case
+      this.singleton = segmentsParts;
+    } else if (this.singleton != null && this.singleton.equals(segmentsParts)) {
+      // skip
+    } else {
+      if (this.root == null) {
         this.root = this.asTrie();
         this.singleton = null;
       }
-    }
-
-    if (this.root != null) {
       this.root.add(segmentsParts);
       if (this.root.getSize() > this.bound) {
         this.root.trim();

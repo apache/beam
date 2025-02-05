@@ -354,7 +354,7 @@ public class StreamingStepMetricsContainerTest {
                             .setOriginalStepName("s1"))
                     .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
             .setCumulative(false)
-            .set("bounded_trie", expectedName1.toProto());
+            .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1));
 
     Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
@@ -381,14 +381,15 @@ public class StreamingStepMetricsContainerTest {
                             .setOriginalStepName("s2"))
                     .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
             .setCumulative(false)
-            .set("bounded_trie", expectedName2.toProto());
+            .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(expectedName2));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update, name2Update));
 
     c1.getBoundedTrie(name1).add("op");
+
     expectedName1.add(ImmutableList.of("op"));
-    name1Update.set("bounded_trie", expectedName1.toProto());
+    name1Update.setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update, name2Update));

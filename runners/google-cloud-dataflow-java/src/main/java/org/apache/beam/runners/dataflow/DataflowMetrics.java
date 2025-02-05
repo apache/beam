@@ -59,9 +59,6 @@ import org.slf4j.LoggerFactory;
 class DataflowMetrics extends MetricResults {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
-  // TODO (rosinha): Remove this once bounded_trie is available in metrics proto Dataflow
-  //  java client.
-  public static final String BOUNDED_TRIE = "bounded_trie";
   /**
    * Client for the Dataflow service. This can be used to query the service for information about
    * the job.
@@ -177,9 +174,7 @@ class DataflowMetrics extends MetricResults {
         // stringset metric
         StringSetResult value = getStringSetValue(committed);
         stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
-      } else if (committed.get(BOUNDED_TRIE) != null && attempted.get(BOUNDED_TRIE) != null) {
-        // TODO (rosinha): This is dummy code. Once Dataflow MetricUpdate
-        //  google client api is updated. Update this.
+      } else if (committed.getTrie() != null && attempted.getTrie() != null) {
         BoundedTrieResult value = getBoundedTrieValue(committed);
         boundedTrieResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else {
@@ -210,10 +205,10 @@ class DataflowMetrics extends MetricResults {
     }
 
     private BoundedTrieResult getBoundedTrieValue(MetricUpdate metricUpdate) {
-      if (metricUpdate.get(BOUNDED_TRIE) == null) {
+      if (metricUpdate.getTrie() == null) {
         return BoundedTrieResult.empty();
       }
-      BoundedTrie bTrie = (BoundedTrie) metricUpdate.get(BOUNDED_TRIE);
+      BoundedTrie bTrie = (BoundedTrie) metricUpdate.getTrie();
       BoundedTrieData trieData = BoundedTrieData.fromProto(bTrie);
       return BoundedTrieResult.create(trieData.extractResult().getResult());
     }
