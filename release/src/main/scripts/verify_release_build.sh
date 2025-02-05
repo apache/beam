@@ -131,10 +131,6 @@ echo "After PR created, you need to comment phrases listed in description in the
 
 if [[ ! -z `which hub` ]]; then
   git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
-  # The version change is needed for Dataflow python batch tests.
-  # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
-  # Note that dataflow worker containers should be built after RC has been built.
-  bash "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
   # add a file that will trigger all relevant GHA workflows. Need to be .json extension to be excluded from RAT check
   echo "{}" > release/trigger_all_tests.json
   git add release/trigger_all_tests.json
