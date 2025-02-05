@@ -228,7 +228,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		// Both Closing behaviors are identical without additional trigger firings.
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY, pipepb.ClosingBehavior_EMIT_ALWAYS)
-		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
+		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING, pipepb.AccumulationMode_ACCUMULATING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
@@ -239,20 +239,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Tests actually using the set behavior will fail.
 			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW,
 				pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE)
-			// Non default triggers should fail.
-			if ws.GetTrigger().GetDefault() == nil {
-				dt := &pipepb.Trigger{
-					Trigger: &pipepb.Trigger_Default_{},
-				}
-				// Allow Never and Always triggers to unblock iteration on Java and Python SDKs.
-				// Without multiple firings, these will be very similar to the default trigger.
-				nt := &pipepb.Trigger{
-					Trigger: &pipepb.Trigger_Never_{},
-				}
-				at := &pipepb.Trigger{
-					Trigger: &pipepb.Trigger_Always_{},
-				}
-				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String(), at.String())
+
+			if hasUnsupportedTriggers(ws.GetTrigger()) {
+				check("WindowingStrategy.Trigger", ws.GetTrigger().String())
 			}
 		}
 	}
@@ -270,6 +259,39 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			Url: s.Endpoint(),
 		},
 	}, nil
+}
+
+func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
+	unsupported := false
+	switch at := tpb.GetTrigger().(type) {
+	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+		return true
+	case *pipepb.Trigger_AfterAll_:
+		for _, st := range at.AfterAll.GetSubtriggers() {
+			unsupported = unsupported || hasUnsupportedTriggers(st)
+		}
+		return unsupported
+	case *pipepb.Trigger_AfterAny_:
+		for _, st := range at.AfterAny.GetSubtriggers() {
+			unsupported = unsupported || hasUnsupportedTriggers(st)
+		}
+		return unsupported
+	case *pipepb.Trigger_AfterEach_:
+		for _, st := range at.AfterEach.GetSubtriggers() {
+			unsupported = unsupported || hasUnsupportedTriggers(st)
+		}
+		return unsupported
+	case *pipepb.Trigger_AfterEndOfWindow_:
+		return hasUnsupportedTriggers(at.AfterEndOfWindow.GetEarlyFirings()) ||
+			hasUnsupportedTriggers(at.AfterEndOfWindow.GetLateFirings())
+	case *pipepb.Trigger_OrFinally_:
+		return hasUnsupportedTriggers(at.OrFinally.GetMain()) ||
+			hasUnsupportedTriggers(at.OrFinally.GetFinally())
+	case *pipepb.Trigger_Repeat_:
+		return hasUnsupportedTriggers(at.Repeat.GetSubtrigger())
+	default:
+		return false
+	}
 }
 
 func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJobResponse, error) {
