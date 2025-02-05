@@ -53,11 +53,11 @@ jobs:
     steps:
       - name: Validate Release Version
         run: |
-          if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+) ]]; then
             echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
             echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
           else
-            echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
+            echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+"
             exit 1
           fi
       - name: Check out code
@@ -97,10 +97,10 @@ jobs:
     steps:
       - name: Validate Next Version
         run: |
-          if [[ $NEXT_RELEASE =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          if [[ $NEXT_RELEASE =~ ([0-9]+\.[0-9]+) ]]; then
             echo "NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}" >> $GITHUB_ENV
           else
-            echo "The input for NEXT_RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
+            echo "The input for NEXT_RELEASE does not match a valid format [0-9]+\.[0-9]+"
             exit 1
           fi
       - name: Check out code
@@ -116,7 +116,7 @@ jobs:
           sed -i -e "s/master: {}/master: {}\n    release-${RELEASE}: {}/g" .asf.yaml
       - name: Update master branch
         run: |
-          bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}"
+          bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}.0"
           echo "==============Update master branch as following================"
           git diff
           echo "==============================================================="
