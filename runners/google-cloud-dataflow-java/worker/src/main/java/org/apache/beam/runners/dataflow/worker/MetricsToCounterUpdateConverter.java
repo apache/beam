@@ -28,7 +28,6 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.StringList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +37,7 @@ import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Convertor from Metrics to {@link CounterUpdate} protos. */
 @SuppressWarnings({

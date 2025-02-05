@@ -225,7 +225,7 @@ public class BatchModeExecutionContextTest {
                             .setName("some-bounded-trie")
                             .setOriginalStepName("originalName"))
                     .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
-            .setCumulative(false)
+            .setCumulative(true) // batch counters are cumulative
             .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(trieData.toProto()));
 
     assertThat(executionContext.extractMetricUpdates(false), containsInAnyOrder(expected));
