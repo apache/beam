@@ -23,7 +23,6 @@ import time
 import unittest
 from typing import List
 from typing import NamedTuple
-
 import psycopg2
 
 import apache_beam as beam
@@ -33,6 +32,7 @@ from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBConnectionConfig
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBVectorWriterConfig
 from apache_beam.ml.rag.ingestion.alloydb import ColumnSpec
+from apache_beam.ml.rag.ingestion.alloydb import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.alloydb import ConflictResolution
 from apache_beam.ml.rag.ingestion.alloydb import chunk_embedding_fn
 from apache_beam.ml.rag.types import Chunk
@@ -316,20 +316,21 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
     """Test custom specifications for ID, embedding, and content."""
     num_records = 20
 
-    # Custom ID spec using timestamp
-    id_spec = ColumnSpec.text(
-        name="custom_id",
-        value_fn=lambda chunk:
-        f"timestamp_{chunk.metadata.get('timestamp', '')}")
-
-    embedding_spec = ColumnSpec.vector(
-        name="embedding_vec", value_fn=chunk_embedding_fn)
-
-    # Custom content spec that includes length
-    content_spec = ColumnSpec.text(
-        name="content_col",
-        value_fn=lambda chunk: f"{len(chunk.content.text)}:{chunk.content.text}"
-    )
+    specs = (
+        ColumnSpecsBuilder().add_custom_column_spec(
+            ColumnSpec.text(
+                column_name="custom_id",
+                value_fn=lambda chunk:
+                f"timestamp_{chunk.metadata.get('timestamp', '')}")
+        ).add_custom_column_spec(
+            ColumnSpec.vector(
+                column_name="embedding_vec",
+                value_fn=chunk_embedding_fn)).add_custom_column_spec(
+                    ColumnSpec.text(
+                        column_name="content_col",
+                        value_fn=lambda chunk:
+                        f"{len(chunk.content.text)}:{chunk.content.text}")).
+        with_metadata_spec().build())
 
     connection_config = AlloyDBConnectionConfig(
         jdbc_url=self.jdbc_url, username=self.username, password=self.password)
@@ -337,9 +338,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
     writer_config = AlloyDBVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.custom_table_name,
-        id_spec=id_spec,
-        embedding_spec=embedding_spec,
-        content_spec=content_spec)
+        column_specs=specs)
 
     # Generate test chunks
     test_chunks = [
@@ -408,18 +407,105 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
       chunks = rows | "To Chunks" >> beam.Map(custom_row_to_chunk)
       assert_that(chunks, equal_to(test_chunks), label='chunks_check')
 
+  def test_defaults_with_args_specs(self):
+    """Test custom specifications for ID, embedding, and content."""
+    num_records = 20
+
+    specs = (
+        ColumnSpecsBuilder().with_id_spec(
+            column_name="custom_id",
+            python_type=int,
+            convert_fn=lambda x: int(x),
+            sql_typecast="::text").with_content_spec(
+                column_name="content_col",
+                convert_fn=lambda x: f"{len(x)}:{x}",
+            ).with_embedding_spec(
+                column_name="embedding_vec").with_metadata_spec().build())
+
+    connection_config = AlloyDBConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
+
+    writer_config = AlloyDBVectorWriterConfig(
+        connection_config=connection_config,
+        table_name=self.custom_table_name,
+        column_specs=specs)
+
+    # Generate test chunks
+    test_chunks = [
+        Chunk(
+            id=str(i),
+            content=Content(text=f"content_{i}"),
+            embedding=Embedding(dense_embedding=[float(i), float(i + 1)]),
+            metadata={"timestamp": f"2024-02-02T{i:02d}:00:00"})
+        for i in range(num_records)
+    ]
+
+    # Write pipeline
+    self.write_test_pipeline.not_use_test_runner_api = True
+    with self.write_test_pipeline as p:
+      _ = (
+          p | beam.Create(test_chunks) | writer_config.create_write_transform())
+
+    # Read and verify
+    read_query = f"""
+          SELECT 
+              CAST(custom_id AS VARCHAR(255)),
+              CAST(embedding_vec AS text),
+              CAST(content_col AS VARCHAR(255)),
+              CAST(metadata AS text)
+          FROM {self.custom_table_name}
+          ORDER BY custom_id
+      """
+
+    # Convert BeamRow back to Chunk
+    def custom_row_to_chunk(row):
+      # Parse embedding vector
+      embedding_list = [
+          float(x) for x in row.embedding_vec.strip('[]').split(',')
+      ]
+
+      # Extract content from length-prefixed format
+      content = row.content_col.split(':', 1)[1]
+
+      return Chunk(
+          id=row.custom_id,
+          content=Content(text=content),
+          embedding=Embedding(dense_embedding=embedding_list),
+          metadata=json.loads(row.metadata))
+
+    self.read_test_pipeline.not_use_test_runner_api = True
+    with self.read_test_pipeline as p:
+      rows = (
+          p
+          | ReadFromJdbc(
+              table_name=self.custom_table_name,
+              driver_class_name="org.postgresql.Driver",
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              query=read_query))
+
+      # Verify count
+      count_result = rows | "Count All" >> beam.combiners.Count.Globally()
+      assert_that(count_result, equal_to([num_records]), label='count_check')
+
+      chunks = rows | "To Chunks" >> beam.Map(custom_row_to_chunk)
+      assert_that(chunks, equal_to(test_chunks), label='chunks_check')
+
   def test_default_id_embedding_specs(self):
     """Test with only default id and embedding specs, others set to None."""
     num_records = 20
     connection_config = AlloyDBConnectionConfig(
         jdbc_url=self.jdbc_url, username=self.username, password=self.password)
+    specs = (
+        ColumnSpecsBuilder().with_id_spec()  # Use default id spec
+        .with_embedding_spec()  # Use default embedding spec
+        .build())
+
     writer_config = AlloyDBVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.default_table_name,
-        content_spec=None,  # Will not write content
-        metadata_spec=None  # Will not write metadata
-        # id_spec and embedding_spec not set, will use defaults
-    )
+        column_specs=specs)
 
     # Generate test chunks
     test_chunks = ChunkTestUtils.get_expected_values(0, num_records)
@@ -465,18 +551,16 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
     """Test metadata specification and conflict resolution."""
     num_records = 20
 
-    # Metadata spec to extract source field
-    metadata_spec = {
-        "source": ColumnSpec(
-            "source",
-            str,
-            lambda chunk: chunk.metadata.get("source", "unknown")),
-        "timestamp": ColumnSpec(
-            "timestamp",
-            str,
-            lambda chunk: chunk.metadata.get("timestamp", ""),
-            "::timestamp")
-    }
+    specs = (
+        ColumnSpecsBuilder().with_id_spec().with_embedding_spec().
+        with_content_spec().add_metadata_field(
+            field="source",
+            column_name="source",
+            python_type=str,
+            sql_typecast=None  # Plain text field
+        ).add_metadata_field(
+            field="timestamp", python_type=str,
+            sql_typecast="::timestamp").build())
 
     # Conflict resolution on source+timestamp
     conflict_resolution = ConflictResolution(
@@ -488,7 +572,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
     writer_config = AlloyDBVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.metadata_conflicts_table,
-        metadata_spec=metadata_spec,
+        column_specs=specs,
         conflict_resolution=conflict_resolution)
 
     # Generate initial test chunks
