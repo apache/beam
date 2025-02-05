@@ -405,7 +405,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 			}
 			// This must be a structural DoFn! We should generate a closure wrapper for it.
 			t := recv.Type()
-			p, ok = types.Unalias(t).(*types.Pointer)
+			p, ok := types.Unalias(t).(*types.Pointer)
 			for ok {
 				t = p.Elem()
 				p, ok = types.Unalias(t).(*types.Pointer)
