@@ -73,6 +73,7 @@
 * Add BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag (Python) ([#33413](https://github.com/apache/beam/pull/33413)).
 * Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
 * [GCSIO] Added retry logic to each batch method of the GCS IO (Python) ([#33539](https://github.com/apache/beam/pull/33539))
+* [GCSIO] Enable recursive deletion for GCSFileSystem Paths (Python) ([#33611](https://github.com/apache/beam/pull/33611)).
 * External, Process based Worker Pool support added to the Go SDK container. ([#33572](https://github.com/apache/beam/pull/33572))
   * This is used to enable sidecar containers to run SDK workers for some runners.
   * See https://beam.apache.org/documentation/runtime/sdk-harness-config/ for details.
