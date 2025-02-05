@@ -23,6 +23,7 @@ import time
 import unittest
 from typing import List
 from typing import NamedTuple
+
 import psycopg2
 
 import apache_beam as beam
