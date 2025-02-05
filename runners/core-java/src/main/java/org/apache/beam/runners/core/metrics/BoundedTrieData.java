@@ -273,6 +273,11 @@ public class BoundedTrieData implements Serializable {
     }
   }
 
+  /** @return true if this {@link BoundedTrieData} is empty else false. */
+  public boolean isEmpty() {
+    return (root == null || root.children.isEmpty()) && (singleton == null || singleton.isEmpty());
+  }
+
   @Override
   public final boolean equals(@Nullable Object other) {
     if (this == other) {

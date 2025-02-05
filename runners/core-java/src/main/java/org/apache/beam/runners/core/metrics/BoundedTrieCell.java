@@ -74,6 +74,17 @@ public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData>
     return value.getCumulative();
   }
 
+  // Used by Streaming metric container to extract deltas since streaming metrics are
+  // reported as deltas rather than cumulative as in batch.
+  // For delta we take the current value then reset the cell to empty so the next call only see
+  // delta/updates from last call.
+  public synchronized BoundedTrieData getAndReset() {
+    // since we are resetting no need to deep a copy just change the reference
+    BoundedTrieData shallowCopy = this.value;
+    this.value = new BoundedTrieData(); // create now object should not call reset on existing
+    return shallowCopy;
+  }
+
   @Override
   public MetricName getName() {
     return name;

@@ -524,7 +524,7 @@ public class BatchModeExecutionContext
                       .transform(
                           update ->
                               MetricsToCounterUpdateConverter.fromBoundedTrie(
-                                  update.getKey(), update.getUpdate())));
+                                  update.getKey(), true, update.getUpdate())));
             });
   }
 

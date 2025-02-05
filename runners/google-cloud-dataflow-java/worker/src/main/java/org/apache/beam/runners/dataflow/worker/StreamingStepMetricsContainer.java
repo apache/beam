@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.BoundedTrieCell;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
@@ -285,8 +286,12 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
               @Override
               public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, BoundedTrieCell> entry) {
+                BoundedTrieData value = entry.getValue().getAndReset();
+                if (value.isEmpty()) {
+                  return null;
+                }
                 return MetricsToCounterUpdateConverter.fromBoundedTrie(
-                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
+                    MetricKey.create(stepName, entry.getKey()), false, value);
               }
             })
         .filter(Predicates.notNull());

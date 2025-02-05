@@ -118,14 +118,15 @@ public class MetricsToCounterUpdateConverter {
         .setStringList(stringList);
   }
 
-  public static CounterUpdate fromBoundedTrie(MetricKey key, BoundedTrieData boundedTrieData) {
+  public static CounterUpdate fromBoundedTrie(
+      MetricKey key, boolean isCumulative, BoundedTrieData boundedTrieData) {
     // BoundedTrie uses SET kind metric aggregation which tracks unique strings as a trie.
     CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
     BoundedTrie counterUpdateTrie = getBoundedTrie(boundedTrieData);
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
-        .setCumulative(false)
+        .setCumulative(isCumulative)
         .setBoundedTrie(counterUpdateTrie);
   }
 

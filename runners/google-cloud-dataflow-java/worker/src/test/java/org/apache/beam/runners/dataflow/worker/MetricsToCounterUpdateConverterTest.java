@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.BoundedTrie;
 import com.google.api.services.dataflow.model.BoundedTrieNode;
@@ -73,14 +75,14 @@ public class MetricsToCounterUpdateConverterTest {
     boundedTrieData.add(ImmutableList.of("cd"));
 
     CounterUpdate counterUpdate =
-        MetricsToCounterUpdateConverter.fromBoundedTrie(key, boundedTrieData);
+        MetricsToCounterUpdateConverter.fromBoundedTrie(key, true, boundedTrieData);
 
     assertEquals(
         Kind.SET.toString(), counterUpdate.getStructuredNameAndMetadata().getMetadata().getKind());
-    assertFalse(counterUpdate.getCumulative());
+    assertTrue(counterUpdate.getCumulative());
     BoundedTrie trie = counterUpdate.getBoundedTrie();
     assertEquals(100, (int) trie.getBound());
-    assertEquals(Collections.emptyList(), trie.getSingleton());
+    assertNull(trie.getSingleton());
 
     BoundedTrieNode root = getMiddleNode(ImmutableList.of("ab", "cd"));
     assertEquals(root, trie.getRoot());

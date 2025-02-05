@@ -384,15 +384,17 @@ public class StreamingStepMetricsContainerTest {
             .setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(expectedName2));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
-    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
+    assertThat(updates, containsInAnyOrder(name2Update));
 
+    // test delta
     c1.getBoundedTrie(name1).add("op");
 
+    expectedName1.clear();
     expectedName1.add(ImmutableList.of("op"));
     name1Update.setBoundedTrie(MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
-    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
+    assertThat(updates, containsInAnyOrder(name1Update));
   }
 
   @Test
