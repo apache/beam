@@ -18,6 +18,7 @@
 import hashlib
 import json
 import logging
+import os
 import secrets
 import time
 import unittest
@@ -140,19 +141,16 @@ def key_on_id(chunk):
   return (int(chunk.id.split('_')[1]), chunk)
 
 
-@unittest.skip("Temporarily skipping all AlloyDB tests")
 class AlloyDBVectorWriterConfigTest(unittest.TestCase):
   ALLOYDB_TABLE_PREFIX = 'python_rag_alloydb_'
 
   @classmethod
   def setUpClass(cls):
-    # TODO(claudevdm) Pass database args to test
-    # cls.host =
-    # cls.private_host =
-    # cls.port = os.environ.get('ALLOYDB_PORT', '5432')
-    # cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
-    # cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
-    # cls.password = os.environ.get('ALLOYDB_USERNAME')
+    cls.host = os.environ.get('ALLOYDB_HOST', '10.0.0.2')
+    cls.port = os.environ.get('ALLOYDB_PORT', '5432')
+    cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
+    cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
+    cls.password = os.environ.get('ALLOYDB_PASSWORD')
 
     # Create unique table name suffix
     cls.table_suffix = '%d%s' % (int(time.time()), secrets.token_hex(3))
