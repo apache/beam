@@ -512,7 +512,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   queryConfig, MAX_RPC_RETRIES),
               Sleeper.DEFAULT,
               createDefaultBackoff(),
-              ALWAYS_RETRY)
+              DONT_RETRY_NOT_FOUND_OR_FORBIDDEN)
           .getStatistics();
     }
 
@@ -691,7 +691,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 updatedRef.getTableId(), MAX_RPC_RETRIES),
             sleeper,
             backoff,
-            DONT_RETRY_NOT_FOUND);
+            DONT_RETRY_NOT_FOUND_OR_FORBIDDEN);
       } catch (IOException e) {
         if (errorExtractor.itemNotFound(e)) {
           return null;
@@ -835,7 +835,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   tableRef.getTableId(), MAX_RPC_RETRIES),
               sleeper,
               backoff,
-              DONT_RETRY_NOT_FOUND);
+              DONT_RETRY_NOT_FOUND_OR_FORBIDDEN);
       return response.getRows() == null || response.getRows().isEmpty();
     }
 
@@ -855,7 +855,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               "Unable to get dataset: %s, aborting after %d retries.", datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           createDefaultBackoff(),
-          DONT_RETRY_NOT_FOUND);
+          DONT_RETRY_NOT_FOUND_OR_FORBIDDEN);
     }
 
     /**
@@ -1570,10 +1570,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  static final SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND =
+  static final SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND_OR_FORBIDDEN =
       input -> {
         ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-        return !errorExtractor.itemNotFound(input);
+        return !errorExtractor.itemNotFound(input) && !errorExtractor.accessDenied(input);
       };
 
   static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY = input -> true;
