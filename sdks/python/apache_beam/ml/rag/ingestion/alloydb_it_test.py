@@ -141,9 +141,6 @@ def key_on_id(chunk):
   return (int(chunk.id.split('_')[1]), chunk)
 
 
-@unittest.skipUnless(
-    os.environ.get('ALLOYDB_PASSWORD'),
-    "ALLOYDB_PASSWORD environment var is not provided")
 class AlloyDBVectorWriterConfigTest(unittest.TestCase):
   ALLOYDB_TABLE_PREFIX = 'python_rag_alloydb_'
 
@@ -153,6 +150,8 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
     cls.port = os.environ.get('ALLOYDB_PORT', '5432')
     cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
     cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
+    if not os.environ.get('ALLOYDB_PASSWORD'):
+      raise ValueError("ALLOYDB_PASSWORD is not set.")
     cls.password = os.environ.get('ALLOYDB_PASSWORD')
 
     # Create unique table name suffix
