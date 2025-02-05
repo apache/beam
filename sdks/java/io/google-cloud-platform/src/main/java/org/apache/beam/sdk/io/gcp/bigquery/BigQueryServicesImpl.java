@@ -505,13 +505,22 @@ public class BigQueryServicesImpl implements BigQueryServices {
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(new JobConfiguration().setQuery(queryConfig).setDryRun(true));
+      // Use a custom backoff to avoid blocking job submission on being able to do a dry run.
+      int maxAttempts = 5;
+      BackOff backoff =
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(5)
+                  .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
+                  .withMaxBackoff(Duration.standardMinutes(1))
+                  .backoff());
       return executeWithRetries(
               client.jobs().insert(projectId, job).setPrettyPrint(false),
               String.format(
                   "Unable to dry run query: %s, aborting after %d retries.",
                   queryConfig, MAX_RPC_RETRIES),
               Sleeper.DEFAULT,
-              createDefaultBackoff(),
+              backoff,
               ALWAYS_RETRY)
           .getStatistics();
     }
