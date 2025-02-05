@@ -39,7 +39,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
