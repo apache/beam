@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Contribute to Apache Beam</title><link>/contribute/</link><description>Recent content in Contribute to Apache Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/contribute/index.xml" rel="self" type="application/rss+xml"/><item><title>Contribute: Attributes of a Beam community member</title><link>/contribute/attributes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/attributes/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Contribute to Apache Beam</title><link>/contribute/</link><description>Recent content in Contribute to Apache Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/contribute/index.xml" rel="self" type="application/rss+xml"/><item><title>Contribute: Attributes of a Beam committer</title><link>/contribute/attributes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/attributes/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10,7 +10,36 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="attributes-of-a-beam-community-member">Attributes of a Beam community member&lt;/h1>
+&lt;h1 id="attributes-of-a-beam-committer">Attributes of a Beam committer&lt;/h1>
+&lt;p>These are the Beam PMC&amp;rsquo;s expectations for all current and potential committers,
+and encouraged for all community members.&lt;/p>
+&lt;figure>&lt;img src="/images/community/messages-icon.svg"/>
+&lt;/figure>
+&lt;h2 id="knows-upholds-and-reinforces-the-apache-software-foundation-code-of-conduct">Knows, upholds, and reinforces the Apache Software Foundation code of conduct&lt;/h2>
+&lt;p>In particular, a Beam committer strives to:&lt;/p>
+&lt;ul>
+&lt;li>Be open&lt;/li>
+&lt;li>Be empathetic&lt;/li>
+&lt;li>Be welcoming&lt;/li>
+&lt;li>Be friendly&lt;/li>
+&lt;li>Be patient&lt;/li>
+&lt;li>Be collaborative&lt;/li>
+&lt;li>Be inquisitive&lt;/li>
+&lt;li>Be careful in the words that they choose&lt;/li>
+&lt;/ul>
+&lt;p>&lt;a href="https://www.apache.org/foundation/policies/conduct">See the entire Code of Conduct&lt;/a>&lt;/p>
+&lt;figure>&lt;img src="/images/community/diamond-icon.svg"/>
+&lt;/figure>
+&lt;h2 id="knows-upholds-and-reinforces-the-responsibilities-of-an-apache-software-foundation-committer">Knows, upholds, and reinforces the responsibilities of an Apache Software Foundation committer&lt;/h2>
+&lt;ul>
+&lt;li>They help create a product that will outlive the interest of any particular volunteer (including themselves)&lt;/li>
+&lt;li>They grow and maintain the health of the Apache community&lt;/li>
+&lt;li>They help out with surrounding work, such as the website &amp;amp; documentation&lt;/li>
+&lt;li>They help users&lt;/li>
+&lt;li>They can be trusted to decide when code is ready for release, or when to ask someone else to make the judgment&lt;/li>
+&lt;li>They can be trusted to decide when to merge code (if a code contributor) or when to ask someone else to make the judgment&lt;/li>
+&lt;/ul>
+&lt;p>[To learn more see the ASF documentation.]((&lt;a href="https://www.apache.org/dev/committers.html#committer-responsibilities">https://www.apache.org/dev/committers.html#committer-responsibilities&lt;/a>)&lt;/p>
 &lt;figure>&lt;img src="/images/community/beam-logo-icon.svg"/>
 &lt;/figure>
 &lt;h2 id="knows-upholds-and-reinforces-the-beam-communitys-practices">Knows, upholds, and reinforces the Beam community’s practices&lt;/h2>
@@ -26,34 +55,7 @@ limitations under the License.
 &lt;li>They earnestly try to make Beam better with code review&lt;/li>
 &lt;li>They accept and integrate feedback on their code&lt;/li>
 &lt;li>They know, follow, and enforce Beam’s practices while reviewing/merging code - style, documentation, testing, backward compatibility, etc.&lt;/li>
-&lt;/ul>
-&lt;figure>&lt;img src="/images/community/messages-icon.svg"/>
-&lt;/figure>
-&lt;h2 id="knows-upholds-and-reinforces-the-apache-software-foundation-code-of-conduct">Knows, upholds, and reinforces the Apache Software Foundation code of conduct&lt;/h2>
-&lt;p>In particular, we manifestly strive to:&lt;/p>
-&lt;ul>
-&lt;li>Be open&lt;/li>
-&lt;li>Be empathetic&lt;/li>
-&lt;li>Be welcoming&lt;/li>
-&lt;li>Be friendly&lt;/li>
-&lt;li>Be patient&lt;/li>
-&lt;li>Be collaborative&lt;/li>
-&lt;li>Be inquisitive&lt;/li>
-&lt;li>Be careful in the words that they choose&lt;/li>
-&lt;/ul>
-&lt;p>&lt;a href="https://httpd.apache.org/docs/">To learn more see the ASF documentation.&lt;/a>&lt;/p>
-&lt;figure>&lt;img src="/images/community/diamond-icon.svg"/>
-&lt;/figure>
-&lt;h2 id="knows-upholds-and-reinforces-the-responsibilities-of-an-apache-software-foundation-committer">Knows, upholds, and reinforces the responsibilities of an Apache Software Foundation committer&lt;/h2>
-&lt;ul>
-&lt;li>They help create a product that will outlive the interest of any particular volunteer (including themselves)&lt;/li>
-&lt;li>They grow and maintain the health of the Apache community&lt;/li>
-&lt;li>They help out with surrounding work, such as the website &amp;amp; documentation&lt;/li>
-&lt;li>They help users&lt;/li>
-&lt;li>They can be trusted to decide when code is ready for release, or when to ask someone else to make the judgment&lt;/li>
-&lt;li>They can be trusted to decide when to merge code (if a code contributor) or when to ask someone else to make the judgment&lt;/li>
-&lt;/ul>
-&lt;p>&lt;a href="https://httpd.apache.org/docs/">To learn more see the ASF documentation.&lt;/a>&lt;/p></description></item><item><title>Contribute: Beam Code Contribution Guide</title><link>/contribute/get-started-contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/get-started-contributing/</guid><description>
+&lt;/ul></description></item><item><title>Contribute: Beam Code Contribution Guide</title><link>/contribute/get-started-contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/get-started-contributing/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -198,7 +200,7 @@ under the License.
 &lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;h3 id="what-are-the-traits-of-an-apache-beam-committer">What are the traits of an Apache Beam committer?&lt;/h3>
+&lt;h3 id="what-are-the-expectations-of-an-apache-beam-committer">What are the expectations of an Apache Beam committer?&lt;/h3>
 &lt;div class="row_of_traits">
 &lt;div class="traits-item">
 &lt;div class="traits-item-icon">
@@ -335,8 +337,9 @@ under the License.
 &lt;h3 id="process">Process&lt;/h3>
 &lt;p>The &lt;a href="https://www.apache.org/foundation/how-it-works.html#pmc-members">PMC&lt;/a>
 makes someone a committer via nomination, discussion, and then majority vote.
-We use data from as many sources as possible to inform our reasoning. Here are
-some examples:&lt;/p>
+We use data from as many sources as possible to inform our reasoning and
+evaluate potential committers against the expectations above. Here are some
+examples:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://lists.apache.org/list.html?dev@beam.apache.org">dev@ archives&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">user@ archives&lt;/a>&lt;/li>
