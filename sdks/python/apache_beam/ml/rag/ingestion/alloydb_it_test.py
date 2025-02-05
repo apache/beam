@@ -18,6 +18,7 @@
 import hashlib
 import json
 import logging
+import os
 import secrets
 import time
 import unittest
@@ -25,6 +26,7 @@ from typing import List
 from typing import NamedTuple
 
 import psycopg2
+import pytest
 
 import apache_beam as beam
 from apache_beam.coders import registry
@@ -67,6 +69,7 @@ MetadataConflictRow = NamedTuple('MetadataConflictRow', [
 ])
 registry.register_coder(MetadataConflictRow, RowCoder)
 
+_LOGGER = logging.getLogger(__name__)
 VECTOR_SIZE = 768
 
 
@@ -140,19 +143,26 @@ def key_on_id(chunk):
   return (int(chunk.id.split('_')[1]), chunk)
 
 
-@unittest.skip("Temporarily skipping all AlloyDB tests")
+@pytest.mark.uses_gcp_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('ALLOYDB_PASSWORD'),
+    "ALLOYDB_PASSWORD environment var is not provided")
 class AlloyDBVectorWriterConfigTest(unittest.TestCase):
   ALLOYDB_TABLE_PREFIX = 'python_rag_alloydb_'
 
   @classmethod
   def setUpClass(cls):
-    # TODO(claudevdm) Pass database args to test
-    # cls.host =
-    # cls.private_host =
-    # cls.port = os.environ.get('ALLOYDB_PORT', '5432')
-    # cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
-    # cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
-    # cls.password = os.environ.get('ALLOYDB_USERNAME')
+    cls.host = os.environ.get('ALLOYDB_HOST', '10.119.0.22')
+    cls.port = os.environ.get('ALLOYDB_PORT', '5432')
+    cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
+    cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
+    if not os.environ.get('ALLOYDB_PASSWORD'):
+      raise ValueError('ALLOYDB_PASSWORD env not set')
+    cls.password = os.environ.get('ALLOYDB_PASSWORD')
 
     # Create unique table name suffix
     cls.table_suffix = '%d%s' % (int(time.time()), secrets.token_hex(3))
