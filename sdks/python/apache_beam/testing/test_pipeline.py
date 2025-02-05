@@ -97,7 +97,8 @@ class TestPipeline(Pipeline):
         included when construction the pipeline options object.
       display_data (Dict[str, Any]): a dictionary of static data associated
         with this pipeline that can be displayed when it runs.
-      timeout (float optional): The time in seconds to wait for the pipeline to finish
+      timeout (float optional): The time in milliseconds to wait for the pipeline to finish
+        before raising a timeout exception. If None, will wait indefinitely.
 
     Raises:
       ValueError: if either the runner or options argument is not
@@ -119,9 +120,9 @@ class TestPipeline(Pipeline):
         test_runner_api=(
             False if self.not_use_test_runner_api else test_runner_api))
     if self.blocking:
-      state = result.wait_until_finish(timeout=self.timeout)
+      state = result.wait_until_finish(duration=self.timeout)
       assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
-          "Pipeline execution failed."
+          "Pipeline execution failed."  
 
     return result
 
