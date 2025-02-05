@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -32,12 +36,13 @@ public class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Lineage SOURCES = new Lineage(Type.SOURCE);
   private static final Lineage SINKS = new Lineage(Type.SINK);
-  private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.]");
+  // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
+  private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
-  private final StringSet metric;
+  private final BoundedTrie metric;
 
   private Lineage(Type type) {
-    this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
+    this.metric = Metrics.boundedTrie(LINEAGE_NAMESPACE, type.toString());
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
@@ -53,108 +58,160 @@ public class Lineage {
   /**
    * Wrap segment to valid segment name.
    *
-   * <p>Specifically, If there are reserved chars (colon, whitespace, dot), escape with backtick. If
-   * the segment is already wrapped, return the original.
-   *
-   * <p>This helper method is for internal and testing usage only.
+   * <p> It escapes reserved characters
+   * <ul>
+   *   <li>Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.</li>
+   *   <li>Only segments containing reserved characters must be escaped.</li>
+   *   <li>Segments cannot be escaped partially (i.e. “bigquery:com`.`google.test”).</li>
+   *   <li>Segments must be escaped using backticks (a.k.a. graves).</li>
+   *   <li>Backticks must be escaped using backtick (i.e. bigquery:`test``test`) and the segment itself must be escaped as well.</li>
+   * </ul>
+   * </p>
    */
   @Internal
   public static String wrapSegment(String value) {
-    if (value.startsWith("`") && value.endsWith("`")) {
-      return value;
-    }
+    // if (value.startsWith("`") && value.endsWith("`")) {
+    //   return value;
+    // }
+    value = value.replace("`", "``"); // Escape backticks
+    // the escaped backticks will not throw this off since escaping will
+    // happen if it contains ` in first place.
     if (RESERVED_CHARS.matcher(value).find()) {
       return String.format("`%s`", value);
     }
     return value;
   }
 
-  /**
-   * Assemble fully qualified name (<a
-   * href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">FQN</a>). Format:
-   *
-   * <ul>
-   *   <li>{@code system:segment1.segment2}
-   *   <li>{@code system:subtype:segment1.segment2}
-   *   <li>{@code system:`segment1.with.dots:clons`.segment2}
-   * </ul>
-   *
-   * <p>This helper method is for internal and testing usage only.
-   */
-  @Internal
-  public static String getFqName(
-      String system, @Nullable String subtype, Iterable<String> segments) {
-    StringBuilder builder = new StringBuilder(system);
-    if (!Strings.isNullOrEmpty(subtype)) {
-      builder.append(":").append(subtype);
+  @VisibleForTesting
+  static Iterator<String> getFQNParts(
+      String system,
+      @Nullable String subtype,
+      List<String> segments,
+      @Nullable String lastSegmentSep) {
+
+    List<String> parts = new ArrayList<>();
+    parts.add(system + ":");
+    if (subtype != null) {
+      parts.add(subtype + ":");
     }
-    int idx = 0;
-    for (String segment : segments) {
-      if (idx == 0) {
-        builder.append(":");
-      } else {
-        builder.append(".");
+    if (segments != null && segments.size() > 0) {
+      for (int i = 0; i < segments.size() - 1; i++) {
+        parts.add(wrapSegment(segments.get(i)) + ".");
       }
-      builder.append(wrapSegment(segment));
-      ++idx;
+      if (lastSegmentSep != null) {
+        List<String> subSegments =
+            Splitter.onPattern(lastSegmentSep).splitToList(segments.get(segments.size() - 1));
+        for (int i = 0; i < subSegments.size() - 1; i++) {
+          parts.add(subSegments.get(i) + lastSegmentSep);
+        }
+        parts.add(wrapSegment(subSegments.get(subSegments.size() - 1)));
+      } else {
+        parts.add(wrapSegment(segments.get(segments.size() - 1)));
+      }
     }
-    return builder.toString();
+    return parts.iterator();
+  }
+
+  // /**
+  //  * Assemble fully qualified name (<a
+  //  * href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">FQN</a>). Format:
+  //  *
+  //  * <ul>
+  //  *   <li>{@code system:segment1.segment2}
+  //  *   <li>{@code system:subtype:segment1.segment2}
+  //  *   <li>{@code system:`segment1.with.dots:clons`.segment2}
+  //  * </ul>
+  //  *
+  //  * <p>This helper method is for internal and testing usage only.
+  //  */
+  // @Internal
+  // public static String getFqName(
+  //     String system, @Nullable String subtype, Iterable<String> segments) {
+  //   StringBuilder builder = new StringBuilder(system);
+  //   if (!Strings.isNullOrEmpty(subtype)) {
+  //     builder.append(":").append(subtype);
+  //   }
+  //   int idx = 0;
+  //   for (String segment : segments) {
+  //     if (idx == 0) {
+  //       builder.append(":");
+  //     } else {
+  //       builder.append(".");
+  //     }
+  //     builder.append(wrapSegment(segment));
+  //     ++idx;
+  //   }
+  //   return builder.toString();
+  // }
+
+  /**
+   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
+   * #getFQNParts}.
+   */
+  public void add(
+      String system,
+      @Nullable String subtype,
+      Iterable<String> segments,
+      @Nullable String lastSegmentSep) {
+    List<String> result = new ArrayList<String>();
+    segments.forEach(result::add);
+
+    add(getFQNParts(system, subtype, result, lastSegmentSep));
   }
 
   /**
-   * Assemble the FQN of given system, and segments.
+   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
+   * #getFQNParts}.
+   */
+  public void add(String system, Iterable<String> segments, @Nullable String lastSegmentSep) {
+    add(system, null, segments, lastSegmentSep);
+  }
+
+  /**
+   * Adds the given fqn as lineage.
    *
-   * <p>This helper method is for internal and testing usage only.
+   * @param rollupSegments: should be an iterable of strings whose concatenation is a valid <a
+   *     href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">Dataplex FQN</a>.
+   *     <p>In particular, this means they will often have trailing delimiters.
    */
-  @Internal
-  public static String getFqName(String system, Iterable<String> segments) {
-    return getFqName(system, null, segments);
+  public void add(Iterator<String> rollupSegments) {
+    List<String> segments = new ArrayList<>();
+    rollupSegments.forEachRemaining(segments::add);
+    this.metric.add(segments);
   }
-
-  /**
-   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link #getFqName}.
-   */
-  public void add(String system, @Nullable String subtype, Iterable<String> segments) {
-    add(getFqName(system, subtype, segments));
-  }
-
-  /**
-   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link #getFqName}.
-   */
-  public void add(String system, Iterable<String> segments) {
-    add(system, null, segments);
-  }
-
-  /**
-   * Adds the given details as Lineage. For asset level lineage the resource location should be
-   * specified as Dataplex FQN https://cloud.google.com/data-catalog/docs/fully-qualified-names
-   */
-  public void add(String details) {
-    metric.add(details);
-  }
-
   /** Query {@link StringSet} metrics from {@link MetricResults}. */
-  public static Set<String> query(MetricResults results, Type type) {
+  public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
     MetricsFilter filter =
         MetricsFilter.builder()
             .addNameFilter(MetricNameFilter.named(LINEAGE_NAMESPACE, type.toString()))
             .build();
     Set<String> result = new HashSet<>();
-    for (MetricResult<StringSetResult> metrics : results.queryMetrics(filter).getStringSets()) {
+    truncatedMarker = truncatedMarker == null ? "*" : truncatedMarker;
+    for (MetricResult<BoundedTrieResult> metrics : results.queryMetrics(filter).getBoundedTries()) {
       try {
-        result.addAll(metrics.getCommitted().getStringSet());
+        for (List<String> fqn : metrics.getCommitted().getResult()) {
+          String end = Boolean.parseBoolean(fqn.get(fqn.size() - 1)) ? truncatedMarker : "";
+          result.add(String.join("", fqn.subList(0, fqn.size() - 1)) + end);
+        }
       } catch (UnsupportedOperationException unused) {
         // MetricsResult.getCommitted throws this exception when runner support missing, just skip.
       }
-      result.addAll(metrics.getAttempted().getStringSet());
+      for (List<String> fqn : metrics.getAttempted().getResult()) {
+        String end = Boolean.parseBoolean(fqn.get(fqn.size() - 1)) ? truncatedMarker : "";
+        result.add(String.join("", fqn.subList(0, fqn.size() - 1)) + end);
+      }
     }
     return result;
   }
 
+  public static Set<String> query(MetricResults results, Type type) {
+    return query(results, type, "*");
+  }
+
   /** Lineage metrics resource types. */
   public enum Type {
-    SOURCE("sources"),
-    SINK("sinks");
+    SOURCE("sources_v2"),
+    SINK("sinks_v2");
 
     private final String name;
 
