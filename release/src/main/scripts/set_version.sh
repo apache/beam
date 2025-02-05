@@ -69,6 +69,11 @@ if [[ -z $TARGET_VERSION ]] ; then
   exit 1
 fi
 
+if ! [[ ${RELEASE} =~ ([0-9]+\.[0-9]+\.[0-9]+) ]];
+  then  echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
+  exit 1
+fi
+
 if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   # Fixing a release version
   sed -i -e "s/version=.*/version=$TARGET_VERSION/" gradle.properties
