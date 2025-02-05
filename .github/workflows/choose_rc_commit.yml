@@ -57,7 +57,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: release-${{ github.event.inputs.RELEASE }}
+          ref: release-$(cut -d '.' -f 1,2 <<< ${{ github.event.inputs.RELEASE }})
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
