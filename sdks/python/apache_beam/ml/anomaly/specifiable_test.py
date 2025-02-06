@@ -30,69 +30,83 @@ from apache_beam.ml.anomaly.specifiable import specifiable
 
 
 class TestSpecifiable(unittest.TestCase):
-  def test_register_specifiable(self):
-    class MyClass():
+  def test_decorator_in_function_form(self):
+    class A():
       pass
 
-    # class is not decorated/registered
-    self.assertRaises(AttributeError, lambda: MyClass().to_spec())
+    # class is not decorated and thus not registered
+    self.assertNotIn("A", KNOWN_SPECIFIABLE["*"])
 
-    self.assertNotIn("MyKey", KNOWN_SPECIFIABLE["*"])
+    # apply the decorator function to an existing class
+    A = specifiable(A)
+    self.assertEqual(A.spec_type, "A")
+    self.assertTrue(isinstance(A(), Specifiable))
+    self.assertIn("A", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["A"], A)
 
-    MyClass = specifiable(key="MyKey")(MyClass)
+    # an error is raised if the specified spec_type already exists.
+    self.assertRaises(ValueError, specifiable, A)
 
-    self.assertIn("MyKey", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["MyKey"], MyClass)
+    # apply the decorator function to an existing class with a different
+    # spec_type
+    A = specifiable(spec_type="A_DUP")(A)
+    self.assertEqual(A.spec_type, "A_DUP")
+    self.assertTrue(isinstance(A(), Specifiable))
+    self.assertIn("A_DUP", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["A_DUP"], A)
 
-    # By default, an error is raised if the key is duplicated
-    self.assertRaises(ValueError, specifiable(key="MyKey"), MyClass)
+    # an error is raised if the specified spec_type already exists.
+    self.assertRaises(ValueError, specifiable(spec_type="A_DUP"), A)
 
-    # But it is ok if a different key is used for the same class
-    _ = specifiable(key="MyOtherKey")(MyClass)
-    self.assertIn("MyOtherKey", KNOWN_SPECIFIABLE["*"])
+    # but the error can be suppressed by setting error_if_exists=False.
+    try:
+      specifiable(spec_type="A_DUP", error_if_exists=False)(A)
+    except ValueError:
+      self.fail("The ValueError should be suppressed but instead it is raised.")
 
-    # Or, use a parameter to suppress the error
-    specifiable(key="MyKey", error_if_exists=False)(MyClass)
-
-  def test_decorator_key(self):
-    # use decorator without parameter
+  def test_decorator_in_syntactic_sugar_form(self):
+    # call decorator without parameters
     @specifiable
-    class MySecondClass():
+    class B():
       pass
 
-    self.assertIn("MySecondClass", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["MySecondClass"], MySecondClass)
-    self.assertTrue(isinstance(MySecondClass(), Specifiable))
+    self.assertTrue(isinstance(B(), Specifiable))
+    self.assertIn("B", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["B"], B)
 
-    # use decorator with key parameter
-    @specifiable(key="MyThirdKey")
-    class MyThirdClass():
+    # call decorator with parameters
+    @specifiable(spec_type="C_TYPE")
+    class C():
       pass
 
-    self.assertIn("MyThirdKey", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["MyThirdKey"], MyThirdClass)
+    self.assertTrue(isinstance(C(), Specifiable))
+    self.assertIn("C_TYPE", KNOWN_SPECIFIABLE["*"])
+    self.assertEqual(KNOWN_SPECIFIABLE["*"]["C_TYPE"], C)
 
   def test_init_params_in_specifiable(self):
     @specifiable
-    class MyClassWithInitParams():
+    class ParentWithInitParams():
       def __init__(self, arg_1, arg_2=2, arg_3="3", **kwargs):
         pass
 
-    a = MyClassWithInitParams(10, arg_3="30", arg_4=40)
-    assert isinstance(a, Specifiable)
-    self.assertEqual(a._init_params, {'arg_1': 10, 'arg_3': '30', 'arg_4': 40})
+    parent = ParentWithInitParams(10, arg_3="30", arg_4=40)
+    assert isinstance(parent, Specifiable)
+    self.assertEqual(
+        parent.init_kwargs, {
+            'arg_1': 10, 'arg_3': '30', 'arg_4': 40
+        })
 
-    # inheritance of specifiable
+    # inheritance of a Specifiable subclass
     @specifiable
-    class MyDerivedClassWithInitParams(MyClassWithInitParams):
+    class ChildWithInitParams(ParentWithInitParams):
       def __init__(self, new_arg_1, new_arg_2=200, new_arg_3="300", **kwargs):
         super().__init__(**kwargs)
 
-    b = MyDerivedClassWithInitParams(
+    child = ChildWithInitParams(
         1000, arg_1=11, arg_2=20, new_arg_2=2000, arg_4=4000)
-    assert isinstance(b, Specifiable)
+    assert isinstance(child, Specifiable)
     self.assertEqual(
-        b._init_params,
+        child.init_kwargs,
         {
             'new_arg_1': 1000,
             'arg_1': 11,
@@ -101,25 +115,44 @@ class TestSpecifiable(unittest.TestCase):
             'arg_4': 4000
         })
 
-    # composite of specifiable
+    # composite of Specifiable subclasses
     @specifiable
-    class MyCompositeClassWithInitParams():
-      def __init__(self, my_class: Optional[MyClassWithInitParams] = None):
+    class CompositeWithInitParams():
+      def __init__(
+          self,
+          my_parent: Optional[ParentWithInitParams] = None,
+          my_child: Optional[ChildWithInitParams] = None):
         pass
 
-    c = MyCompositeClassWithInitParams(a)
-    assert isinstance(c, Specifiable)
-    self.assertEqual(c._init_params, {'my_class': a})
+    composite = CompositeWithInitParams(parent, child)
+    assert isinstance(composite, Specifiable)
+    self.assertEqual(
+        composite.init_kwargs, {
+            'my_parent': parent, 'my_child': child
+        })
 
-  def test_from_and_to_specifiable(self):
-    @specifiable(on_demand_init=False, just_in_time_init=False)
+  def test_from_spec_on_unknown_spec_type(self):
+    self.assertRaises(ValueError, Specifiable.from_spec, Spec(type="unknown"))
+
+  # To test from_spec and to_spec with/without just_in_time_init.
+  @parameterized.expand([(False, False), (True, False), (False, True),
+                         (True, True)])
+  def test_from_spec_and_to_spec(self, on_demand_init, just_in_time_init):
+    @specifiable(
+        spec_type=f"product_{just_in_time_init}",
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
     @dataclasses.dataclass
     class Product():
       name: str
       price: float
 
     @specifiable(
-        key="shopping_entry", on_demand_init=False, just_in_time_init=False)
+        spec_type=f"shopping_entry_{just_in_time_init}",
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
     class Entry():
       def __init__(self, product: Product, quantity: int = 1):
         self._product = product
@@ -131,7 +164,10 @@ class TestSpecifiable(unittest.TestCase):
           self._quantity == value._quantity
 
     @specifiable(
-        key="shopping_cart", on_demand_init=False, just_in_time_init=False)
+        spec_type=f"shopping_cart_{just_in_time_init}",
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
     @dataclasses.dataclass
     class ShoppingCart():
       user_id: str
@@ -140,39 +176,38 @@ class TestSpecifiable(unittest.TestCase):
     orange = Product("orange", 1.0)
 
     expected_orange_spec = Spec(
-        "Product", config={
+        f"product_{just_in_time_init}", config={
             'name': 'orange', 'price': 1.0
         })
     assert isinstance(orange, Specifiable)
     self.assertEqual(orange.to_spec(), expected_orange_spec)
-    self.assertEqual(Specifiable.from_spec(expected_orange_spec), orange)
 
     entry_1 = Entry(product=orange)
 
     expected_entry_spec_1 = Spec(
-        "shopping_entry", config={
+        f"shopping_entry_{just_in_time_init}",
+        config={
             'product': expected_orange_spec,
         })
 
     assert isinstance(entry_1, Specifiable)
     self.assertEqual(entry_1.to_spec(), expected_entry_spec_1)
-    self.assertEqual(Specifiable.from_spec(expected_entry_spec_1), entry_1)
 
     banana = Product("banana", 0.5)
     expected_banana_spec = Spec(
-        "Product", config={
+        f"product_{just_in_time_init}", config={
             'name': 'banana', 'price': 0.5
         })
     entry_2 = Entry(product=banana, quantity=5)
     expected_entry_spec_2 = Spec(
-        "shopping_entry",
+        f"shopping_entry_{just_in_time_init}",
         config={
             'product': expected_banana_spec, 'quantity': 5
         })
 
     shopping_cart = ShoppingCart(user_id="test", entries=[entry_1, entry_2])
     expected_shopping_cart_spec = Spec(
-        "shopping_cart",
+        f"shopping_cart_{just_in_time_init}",
         config={
             "user_id": "test",
             "entries": [expected_entry_spec_1, expected_entry_spec_2]
@@ -180,9 +215,20 @@ class TestSpecifiable(unittest.TestCase):
 
     assert isinstance(shopping_cart, Specifiable)
     self.assertEqual(shopping_cart.to_spec(), expected_shopping_cart_spec)
+    if on_demand_init and not just_in_time_init:
+      orange.run_original_init()
+      banana.run_original_init()
+      entry_1.run_original_init()
+      entry_2.run_original_init()
+      shopping_cart.run_original_init()
+
+    self.assertEqual(Specifiable.from_spec(expected_orange_spec), orange)
+    self.assertEqual(Specifiable.from_spec(expected_entry_spec_1), entry_1)
     self.assertEqual(
         Specifiable.from_spec(expected_shopping_cart_spec), shopping_cart)
 
+
+class TestInitCallCount(unittest.TestCase):
   def test_on_demand_init(self):
     @specifiable(on_demand_init=True, just_in_time_init=False)
     class FooOnDemand():
@@ -190,12 +236,12 @@ class TestSpecifiable(unittest.TestCase):
 
       def __init__(self, arg):
         self.my_arg = arg * 10
-        FooOnDemand.counter += 1
+        FooOnDemand.counter += 1  # increment it when __init__ is called
 
     foo = FooOnDemand(123)
     self.assertEqual(FooOnDemand.counter, 0)
-    self.assertIn("_init_params", foo.__dict__)
-    self.assertEqual(foo.__dict__["_init_params"], {"arg": 123})
+    self.assertIn("init_kwargs", foo.__dict__)
+    self.assertEqual(foo.__dict__["init_kwargs"], {"arg": 123})
 
     self.assertNotIn("my_arg", foo.__dict__)
     self.assertRaises(AttributeError, getattr, foo, "my_arg")
@@ -204,10 +250,11 @@ class TestSpecifiable(unittest.TestCase):
     self.assertRaises(AttributeError, lambda: foo.unknown_arg)
     self.assertEqual(FooOnDemand.counter, 0)
 
+    # __init__ is called when _run_init=True is used
     foo_2 = FooOnDemand(456, _run_init=True)
     self.assertEqual(FooOnDemand.counter, 1)
-    self.assertIn("_init_params", foo_2.__dict__)
-    self.assertEqual(foo_2.__dict__["_init_params"], {"arg": 456})
+    self.assertIn("init_kwargs", foo_2.__dict__)
+    self.assertEqual(foo_2.__dict__["init_kwargs"], {"arg": 456})
 
     self.assertIn("my_arg", foo_2.__dict__)
     self.assertEqual(foo_2.my_arg, 4560)
@@ -220,17 +267,18 @@ class TestSpecifiable(unittest.TestCase):
 
       def __init__(self, arg):
         self.my_arg = arg * 10
-        FooJustInTime.counter += 1
+        FooJustInTime.counter += 1  # increment it when __init__ is called
 
     foo = FooJustInTime(321)
     self.assertEqual(FooJustInTime.counter, 0)
-    self.assertIn("_init_params", foo.__dict__)
-    self.assertEqual(foo.__dict__["_init_params"], {"arg": 321})
+    self.assertIn("init_kwargs", foo.__dict__)
+    self.assertEqual(foo.__dict__["init_kwargs"], {"arg": 321})
 
-    self.assertNotIn("my_arg", foo.__dict__)  # __init__ hasn't been called
+    # __init__ hasn't been called yet
+    self.assertNotIn("my_arg", foo.__dict__)
     self.assertEqual(FooJustInTime.counter, 0)
 
-    # __init__ is called when trying to accessing an attribute
+    # __init__ is called when trying to access a class attribute
     self.assertEqual(foo.my_arg, 3210)
     self.assertEqual(FooJustInTime.counter, 1)
     self.assertRaises(AttributeError, lambda: foo.unknown_arg)
@@ -247,23 +295,23 @@ class TestSpecifiable(unittest.TestCase):
 
     foo = FooOnDemandAndJustInTime(987)
     self.assertEqual(FooOnDemandAndJustInTime.counter, 0)
-    self.assertIn("_init_params", foo.__dict__)
-    self.assertEqual(foo.__dict__["_init_params"], {"arg": 987})
+    self.assertIn("init_kwargs", foo.__dict__)
+    self.assertEqual(foo.__dict__["init_kwargs"], {"arg": 987})
     self.assertNotIn("my_arg", foo.__dict__)
 
     self.assertEqual(FooOnDemandAndJustInTime.counter, 0)
-    # __init__ is called
+    # __init__ is called when trying to access a class attribute
     self.assertEqual(foo.my_arg, 9870)
     self.assertEqual(FooOnDemandAndJustInTime.counter, 1)
 
-    # __init__ is called
+    # __init__ is called when _run_init=True is used
     foo_2 = FooOnDemandAndJustInTime(789, _run_init=True)
     self.assertEqual(FooOnDemandAndJustInTime.counter, 2)
-    self.assertIn("_init_params", foo_2.__dict__)
-    self.assertEqual(foo_2.__dict__["_init_params"], {"arg": 789})
+    self.assertIn("init_kwargs", foo_2.__dict__)
+    self.assertEqual(foo_2.__dict__["init_kwargs"], {"arg": 789})
 
     self.assertEqual(FooOnDemandAndJustInTime.counter, 2)
-    # __init__ is NOT called
+    # __init__ is NOT called after it is initialized
     self.assertEqual(foo_2.my_arg, 7890)
     self.assertEqual(FooOnDemandAndJustInTime.counter, 2)
 
@@ -276,7 +324,7 @@ class TestSpecifiable(unittest.TestCase):
       type(self).counter += 1
 
   def test_on_pickle(self):
-    FooForPickle = TestSpecifiable.FooForPickle
+    FooForPickle = TestInitCallCount.FooForPickle
 
     import dill
     FooForPickle.counter = 0
@@ -357,6 +405,7 @@ class Child_Error_1(Parent):
   child_class_var = 2001
 
   def __init__(self, c):
+    # read an instance var in child that doesn't exist
     self.child_inst_var += 1
     super().__init__(c)
     Child_2.counter += 1
@@ -368,6 +417,7 @@ class Child_Error_2(Parent):
   child_class_var = 2001
 
   def __init__(self, c):
+    # read an instance var in parent without calling parent's __init__.
     self.parent_inst_var += 1
     Child_2.counter += 1
 

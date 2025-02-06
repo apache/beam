@@ -15,6 +15,10 @@
 # limitations under the License.
 #
 
+"""
+A module that provides utilities to turn a class into a Specifiable subclass.
+"""
+
 from __future__ import annotations
 
 import dataclasses
@@ -30,6 +34,8 @@ from typing import runtime_checkable
 
 from typing_extensions import Self
 
+__all__ = ["KNOWN_SPECIFIABLE", "Spec", "Specifiable", "specifiable"]
+
 ACCEPTED_SPECIFIABLE_SUBSPACES = [
     "EnsembleAnomalyDetector",
     "AnomalyDetector",
@@ -37,60 +43,110 @@ ACCEPTED_SPECIFIABLE_SUBSPACES = [
     "AggregationFn",
     "*"
 ]
+
+#: A nested dictionary for efficient lookup of Specifiable subclasses.
+#: Structure: KNOWN_SPECIFIABLE[subspace][spec_type], where "subspace" is one of
+#: the accepted subspaces that the class belongs to and "spec_type" is the class
+#: name by default. Users can also specify a different value for "spec_type"
+#: when applying the `specifiable` decorator to an existing class.
 KNOWN_SPECIFIABLE = {"*": {}}
 
 SpecT = TypeVar('SpecT', bound='Specifiable')
 
 
-def get_subspace(cls, type=None):
-  if type is None:
-    subspace = "*"
-    for c in cls.mro():
-      if c.__name__ in ACCEPTED_SPECIFIABLE_SUBSPACES:
-        subspace = c.__name__
-        break
-    return subspace
-  else:
-    for subspace in ACCEPTED_SPECIFIABLE_SUBSPACES:
-      if subspace in KNOWN_SPECIFIABLE and type in KNOWN_SPECIFIABLE[subspace]:
-        return subspace
+def _class_to_subspace(cls: Type, default="*") -> str:
+  """
+  Search the class hierarchy to find the subspace: the closest ancestor class in
+  the class's method resolution order (MRO) whose name is found in the accepted
+  subspace list. This is usually called when registering a new Specifiable
+  class.
+  """
+  for c in cls.mro():
+    #
+    if c.__name__ in ACCEPTED_SPECIFIABLE_SUBSPACES:
+      return c.__name__
+
+  if default is None:
     raise ValueError(f"subspace for {cls.__name__} not found.")
+
+  return default
+
+
+def _spec_type_to_subspace(type: str, default="*") -> str:
+  """
+  Look for the subspace for a spec type. This is usually called to retrieve
+  the subspace of a registered Specifiable class.
+  """
+  for subspace in ACCEPTED_SPECIFIABLE_SUBSPACES:
+    if type in KNOWN_SPECIFIABLE.get(subspace, {}):
+      return subspace
+
+  if default is None:
+    raise ValueError(f"subspace for {type} not found.")
+
+  return default
 
 
 @dataclasses.dataclass(frozen=True)
 class Spec():
+  """
+  Dataclass for storing specifications of specifiable objects.
+  Objects can be initialized using the data in their corresponding spec.
+  The `type` field indicates the concrete Specifiable class, while
+  """
+  #: A string indicating the concrete Specifiable class
   type: str
+  #: A dictionary of keyword arguments for the `__init__` method of the class.
   config: dict[str, Any] = dataclasses.field(default_factory=dict)
 
 
 @runtime_checkable
 class Specifiable(Protocol):
-  _key: ClassVar[str]
-  _init_params: dict[str, Any]
+  """Protocol that a Specifiable subclass needs to implement.
+
+  Attributes:
+    spec_type: The value of the `type` field in the object's Spec for this
+      class.
+    init_kwargs: The raw keyword arguments passed to `__init__` during object
+      initialization.
+  """
+  spec_type: ClassVar[str]
+  init_kwargs: dict[str, Any]
+  # a boolean to tell whether the original __init__ is called
+  _initialized: bool
+  # a boolean used by new_getattr to tell whether it is in an __init__ call
+  _in_init: bool
 
   @staticmethod
-  def _from_spec_helper(v):
+  def _from_spec_helper(v, _run_init):
     if isinstance(v, Spec):
-      return Specifiable.from_spec(v)
+      return Specifiable.from_spec(v, _run_init)
 
     if isinstance(v, List):
-      return [Specifiable._from_spec_helper(e) for e in v]
+      return [Specifiable._from_spec_helper(e, _run_init) for e in v]
 
     return v
 
   @classmethod
-  def from_spec(cls, spec: Spec) -> Self:
+  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Self:
+    """Generate a Specifiable subclass object based on a spec."""
     if spec.type is None:
       raise ValueError(f"Spec type not found in {spec}")
 
-    subspace = get_subspace(cls, spec.type)
+    subspace = _spec_type_to_subspace(spec.type)
     subclass: Type[Self] = KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
 
-    args = {k: Specifiable._from_spec_helper(v) for k, v in spec.config.items()}
+    kwargs = {
+        k: Specifiable._from_spec_helper(v, _run_init)
+        for k,
+        v in spec.config.items()
+    }
 
-    return subclass(**args)
+    if _run_init:
+      kwargs["_run_init"] = True
+    return subclass(**kwargs)
 
   @staticmethod
   def _to_spec_helper(v):
@@ -103,121 +159,164 @@ class Specifiable(Protocol):
     return v
 
   def to_spec(self) -> Spec:
-    if getattr(type(self), '_key', None) is None:
+    """
+    Generate a spec from a Specifiable subclass object.
+    """
+    if getattr(type(self), 'spec_type', None) is None:
       raise ValueError(
           f"'{type(self).__name__}' not registered as Specifiable. "
           f"Decorate ({type(self).__name__}) with @specifiable")
 
-    args = {k: self._to_spec_helper(v) for k, v in self._init_params.items()}
+    args = {k: self._to_spec_helper(v) for k, v in self.init_kwargs.items()}
 
-    return Spec(type=self.__class__._key, config=args)
+    return Spec(type=self.__class__.spec_type, config=args)
 
 
-def register(cls, key, error_if_exists) -> None:
-  if key is None:
-    key = cls.__name__
+# Register a Specifiable subclass in KNOWN_SPECIFIABLE
+def _register(cls, spec_type=None, error_if_exists=True) -> None:
+  if spec_type is None:
+    # By default, spec type is the class name. Users can override this with
+    # other unique identifier.
+    spec_type = cls.__name__
 
-  subspace = get_subspace(cls)
-  if subspace in KNOWN_SPECIFIABLE and key in KNOWN_SPECIFIABLE[
-      subspace] and error_if_exists:
-    raise ValueError(f"{key} is already registered for specifiable")
-
-  if subspace not in KNOWN_SPECIFIABLE:
+  subspace = _class_to_subspace(cls)
+  if subspace in KNOWN_SPECIFIABLE:
+    if spec_type in KNOWN_SPECIFIABLE[subspace] and error_if_exists:
+      raise ValueError(f"{spec_type} is already registered for specifiable")
+  else:
     KNOWN_SPECIFIABLE[subspace] = {}
-  KNOWN_SPECIFIABLE[subspace][key] = cls
+  KNOWN_SPECIFIABLE[subspace][spec_type] = cls
 
-  cls._key = key
+  cls.spec_type = spec_type
 
 
-def track_init_params(inst, init_method, *args, **kwargs):
+# Keep a copy of arguments that are used to call __init__ method, when the
+# object is initialized.
+def _get_init_kwargs(inst, init_method, *args, **kwargs):
   params = dict(
       zip(inspect.signature(init_method).parameters.keys(), (None, ) + args))
   del params['self']
   params.update(**kwargs)
-  inst._init_params = params
+  return params
 
 
 def specifiable(
     my_cls=None,
     /,
     *,
-    key=None,
+    spec_type=None,
     error_if_exists=True,
     on_demand_init=True,
     just_in_time_init=True):
+  """A decorator that turns a class into a Specifiable subclass by implementing
+  the Specifiable protocol.
 
-  # register a specifiable, track init params for each instance, lazy init
+  To use the decorator, simply place `@specifiable` before the class definition.
+  For finer control, the decorator accepts arguments
+  (e.g., `@specifiable(arg1=..., arg2=...)`).
+
+  Args:
+    spec_type: The value of the `type` field in the Spec of a Specifiable
+      subclass. If not provided, the class name is used.
+    error_if_exists: If True, raise an exception if `spec_type` is already
+      registered.
+    on_demand_init: If True, allow on-demand object initialization. The original
+      `__init__` method will be called when `_run_init=True` is passed to the
+      object's initialization function.
+    just_in_time_init: If True, allow just-in-time object initialization. The
+      original `__init__` method will be called when an attribute is first
+      accessed.
+  """
   def _wrapper(cls):
-    register(cls, key, error_if_exists)
-
-    original_init = cls.__init__
-    class_name = cls.__name__
-
-    def new_init(self, *args, **kwargs):
+    def new_init(self: Specifiable, *args, **kwargs):
       self._initialized = False
-      #self._nested_getattr = False
+      self._in_init = False
 
-      if kwargs.get("_run_init", False):
-        run_init = True
-        del kwargs['_run_init']
-      else:
-        run_init = False
+      run_init_request = False
+      if "_run_init" in kwargs:
+        run_init_request = kwargs["_run_init"]
+        del kwargs["_run_init"]
 
-      if '_init_params' not in self.__dict__:
-        track_init_params(self, original_init, *args, **kwargs)
+      if 'init_kwargs' not in self.__dict__:
+        # If it is a child specifiable (i.e.g init_kwargs not set), we determine
+        # whether to skip the original __init__ call based on options:
+        # on_demand_init, just_in_time_init and _run_init.
+        # Otherwise (i.e. init_kwargs is set), we always call the original
+        # __init__ method for ancestor specifiable.
+        self.init_kwargs = _get_init_kwargs(
+            self, original_init, *args, **kwargs)
+        logging.debug("Record init params in %s.new_init", class_name)
 
-        # If it is not a nested specifiable, we choose whether to skip original
-        # init call based on options. Otherwise, we always call original init
-        # for inner (parent/grandparent/etc) specifiable.
-        if (on_demand_init and not run_init) or \
+        if (on_demand_init and not run_init_request) or \
             (not on_demand_init and just_in_time_init):
+          logging.debug("Skip original %s.__init__", class_name)
           return
 
-      logging.debug("call original %s.__init__ in new_init", class_name)
+      logging.debug("Call original %s.__init__ in new_init", class_name)
+
       original_init(self, *args, **kwargs)
       self._initialized = True
 
-    def run_init(self):
-      original_init(self, **self._init_params)
+    def run_original_init(self):
+      self._in_init = True
+      original_init(self, **self.init_kwargs)
+      self._in_init = False
+      self._initialized = True
 
+    # __getattr__ is only called when an attribute is not found in the object
     def new_getattr(self, name):
-      if name == '_nested_getattr' or \
-          ('_nested_getattr' in self.__dict__ and self._nested_getattr):
-        #self._nested_getattr = False
-        delattr(self, "_nested_getattr")
+      logging.debug(
+          "Trying to access %s.%s, but it is not found.", class_name, name)
+
+      # Fix the infinite loop issue when pickling a Specifiable
+      if name in ["_in_init", "__getstate__"] and name not in self.__dict__:
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'")
 
-      # set it before original init, in case getattr is called in original init
-      self._nested_getattr = True
+      # If the attribute is not found during or after initialization, then
+      # it is a missing attribute.
+      if self._in_init or self._initialized:
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'")
 
-      if not self._initialized and name != "__getstate__":
-        logging.debug("call original %s.__init__ in new_getattr", class_name)
-        original_init(self, **self._init_params)
-        self._initialized = True
+      # Here, we know the object is not initialized, then we will call original
+      # init method.
+      logging.debug("Call original %s.__init__ in new_getattr", class_name)
+      run_original_init(self)
 
-      try:
-        logging.debug("call original %s.getattr in new_getattr", class_name)
-        ret = getattr(self, name)
-      finally:
-        # self._nested_getattr = False
-        delattr(self, "_nested_getattr")
-      return ret
+      # __getattribute__ is call for every attribute regardless whether it is
+      # present in the object. In this case, we don't cause an infinite loop
+      # if the attribute does not exist.
+      logging.debug(
+          "Call original %s.__getattribute__(%s) in new_getattr",
+          class_name,
+          name)
+      return self.__getattribute__(name)
 
+    # start of the function body of _wrapper
+    _register(cls, spec_type, error_if_exists)
+
+    class_name = cls.__name__
+    original_init = cls.__init__
+    cls.__init__ = new_init
     if just_in_time_init:
       cls.__getattr__ = new_getattr
 
-    cls.__init__ = new_init
-    cls._run_init = run_init
+    cls.run_original_init = run_original_init
     cls.to_spec = Specifiable.to_spec
     cls._to_spec_helper = staticmethod(Specifiable._to_spec_helper)
     cls.from_spec = classmethod(Specifiable.from_spec)
     cls._from_spec_helper = staticmethod(Specifiable._from_spec_helper)
     return cls
+    # end of the function body of _wrapper
 
+  # When this decorator is called with arguments, i.e..
+  # "@specifiable(arg1=...,arg2=...)", it is equivalent to assigning
+  # specifiable(arg1=..., arg2=...) to a variable, say decor_func, and then
+  # calling "@decor_func".
   if my_cls is None:
-    # support @specifiable(...)
     return _wrapper
 
-  # support @specifiable without arguments
+  # When this decorator is called without an argument, i.e. "@specifiable",
+  # we return the augmented class.
   return _wrapper(my_cls)

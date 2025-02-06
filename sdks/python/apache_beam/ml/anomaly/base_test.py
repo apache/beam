@@ -20,6 +20,8 @@ from __future__ import annotations
 import logging
 import unittest
 
+from parameterized import parameterized
+
 from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyDetector
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
@@ -30,69 +32,85 @@ from apache_beam.ml.anomaly.specifiable import specifiable
 
 
 class TestAnomalyDetector(unittest.TestCase):
-  @specifiable(on_demand_init=False)
-  class DummyThreshold(ThresholdFn):
-    def __init__(self, my_threshold_arg=None):
-      ...
+  @parameterized.expand([(False, False), (True, False), (False, True),
+                         (True, True)])
+  def test_model_id_and_spec(self, on_demand_init, just_in_time_init):
+    @specifiable(
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
+    class DummyThreshold(ThresholdFn):
+      def __init__(self, my_threshold_arg=None):
+        ...
 
-    def is_stateful(self):
-      return False
+      def is_stateful(self):
+        return False
 
-    def threshold(self):
-      ...
+      def threshold(self):
+        ...
 
-    def apply(self, x):
-      ...
+      def apply(self, x):
+        ...
 
-  @specifiable(on_demand_init=False)
-  class Dummy(AnomalyDetector):
-    def __init__(self, my_arg=None, **kwargs):
-      self._my_arg = my_arg
-      super().__init__(**kwargs)
+    @specifiable(
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
+    class Dummy(AnomalyDetector):
+      def __init__(self, my_arg=None, **kwargs):
+        self._my_arg = my_arg
+        super().__init__(**kwargs)
 
-    def learn_one(self):
-      ...
+      def learn_one(self):
+        ...
 
-    def score_one(self):
-      ...
+      def score_one(self):
+        ...
 
-    def __eq__(self, value) -> bool:
-      return isinstance(value, TestAnomalyDetector.Dummy) and \
-        self._my_arg == value._my_arg
+      def __eq__(self, value) -> bool:
+        return isinstance(value, Dummy) and \
+          self._my_arg == value._my_arg
 
-  def test_unknown_detector(self):
-    self.assertRaises(ValueError, Specifiable.from_spec, Spec(type="unknown"))
-
-  def test_model_id_on_known_detector(self):
-    a = self.Dummy(
+    a = Dummy(
         my_arg="abc",
         target="ABC",
-        threshold_criterion=(t1 := self.DummyThreshold(2)))
+        threshold_criterion=(t1 := DummyThreshold(2)))
 
-    self.assertEqual(a._model_id, "Dummy")
-    self.assertEqual(a._target, "ABC")
-    self.assertEqual(a._my_arg, "abc")
+    # The class attributes can only be accessed when
+    # (1) on_demand_init == False, just_in_time_init == False
+    #     In this case, the true __init__ is called immediately during object
+    #     initialization
+    # (2) just_in_time_init == True
+    #     In this case, regardless what on_demand_init is, the true __init__
+    #     is called when we first access any class attribute (delay init).
+    if just_in_time_init or not on_demand_init:
+      self.assertEqual(a._model_id, "Dummy")
+      self.assertEqual(a._target, "ABC")
+      self.assertEqual(a._my_arg, "abc")
 
     assert isinstance(a, Specifiable)
     self.assertEqual(
-        a._init_params, {
+        a.init_kwargs, {
             "my_arg": "abc",
             "target": "ABC",
             "threshold_criterion": t1,
         })
 
-    b = self.Dummy(
+    b = Dummy(
         my_arg="efg",
         model_id="my_dummy",
         target="EFG",
-        threshold_criterion=(t2 := self.DummyThreshold(2)))
-    self.assertEqual(b._model_id, "my_dummy")
-    self.assertEqual(b._target, "EFG")
-    self.assertEqual(b._my_arg, "efg")
+        threshold_criterion=(t2 := DummyThreshold(3)))
+
+    # See the comment above for more details.
+    if just_in_time_init or not on_demand_init:
+      self.assertEqual(b._model_id, "my_dummy")
+      self.assertEqual(b._target, "EFG")
+      self.assertEqual(b._my_arg, "efg")
 
     assert isinstance(b, Specifiable)
     self.assertEqual(
-        b._init_params,
+        b.init_kwargs,
         {
             "model_id": "my_dummy",
             "my_arg": "efg",
@@ -100,88 +118,97 @@ class TestAnomalyDetector(unittest.TestCase):
             "threshold_criterion": t2,
         })
 
-  def test_from_and_to_specifiable(self):
-    obj = self.Dummy(
-        my_arg="hij",
-        model_id="my_dummy",
-        target="HIJ",
-        threshold_criterion=self.DummyThreshold(4))
-
-    assert isinstance(obj, Specifiable)
-    spec = obj.to_spec()
+    spec = b.to_spec()
     expected_spec = Spec(
         type="Dummy",
         config={
-            "my_arg": "hij",
+            "my_arg": "efg",
             "model_id": "my_dummy",
-            "target": "HIJ",
+            "target": "EFG",
             "threshold_criterion": Spec(
-                type="DummyThreshold", config={"my_threshold_arg": 4}),
+                type="DummyThreshold", config={"my_threshold_arg": 3}),
         })
     self.assertEqual(spec, expected_spec)
 
-    new_obj = Specifiable.from_spec(spec)
-    self.assertEqual(obj, new_obj)
+    b_dup = Specifiable.from_spec(spec)
+    # We need to manually call the original __init__ function in one scenario.
+    # See the comment above for more details.
+    if on_demand_init and not just_in_time_init:
+      b.run_original_init()
+
+    self.assertEqual(b, b_dup)
 
 
 class TestEnsembleAnomalyDetector(unittest.TestCase):
-  @specifiable(on_demand_init=False)
-  class DummyAggregation(AggregationFn):
-    def apply(self, x):
-      ...
+  @parameterized.expand([(False, False), (True, False), (False, True),
+                         (True, True)])
+  def test_model_id_and_spec(self, on_demand_init, just_in_time_init):
+    @specifiable(
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
+    class DummyAggregation(AggregationFn):
+      def apply(self, x):
+        ...
 
-  @specifiable(on_demand_init=False)
-  class DummyEnsemble(EnsembleAnomalyDetector):
-    def __init__(self, my_ensemble_arg=None, **kwargs):
-      super().__init__(**kwargs)
-      self._my_ensemble_arg = my_ensemble_arg
+    @specifiable(
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
+    class DummyEnsemble(EnsembleAnomalyDetector):
+      def __init__(self, my_ensemble_arg=None, **kwargs):
+        super().__init__(**kwargs)
+        self._my_ensemble_arg = my_ensemble_arg
 
-    def learn_one(self):
-      ...
+      def learn_one(self):
+        ...
 
-    def score_one(self):
-      ...
+      def score_one(self):
+        ...
 
-    def __eq__(self, value) -> bool:
-      return isinstance(value, TestEnsembleAnomalyDetector.DummyEnsemble) and \
-        self._my_ensemble_arg == value._my_ensemble_arg
+      def __eq__(self, value) -> bool:
+        return isinstance(value, DummyEnsemble) and \
+          self._my_ensemble_arg == value._my_ensemble_arg
 
-  @specifiable(on_demand_init=False)
-  class DummyWeakLearner(AnomalyDetector):
-    def __init__(self, my_arg=None, **kwargs):
-      super().__init__(**kwargs)
-      self._my_arg = my_arg
+    @specifiable(
+        on_demand_init=on_demand_init,
+        just_in_time_init=just_in_time_init,
+        error_if_exists=False)
+    class DummyWeakLearner(AnomalyDetector):
+      def __init__(self, my_arg=None, **kwargs):
+        super().__init__(**kwargs)
+        self._my_arg = my_arg
 
-    def learn_one(self):
-      ...
+      def learn_one(self):
+        ...
 
-    def score_one(self):
-      ...
+      def score_one(self):
+        ...
 
-    def __eq__(self, value) -> bool:
-      return isinstance(value, TestEnsembleAnomalyDetector.DummyWeakLearner) \
-        and self._my_arg == value._my_arg
+      def __eq__(self, value) -> bool:
+        return isinstance(value, DummyWeakLearner) \
+          and self._my_arg == value._my_arg
 
-  def test_model_id_on_known_detector(self):
-    a = self.DummyEnsemble()
-    self.assertEqual(a._model_id, "DummyEnsemble")
+    # See the comment in TestAnomalyDetector for more details.
+    if just_in_time_init or not on_demand_init:
+      a = DummyEnsemble()
+      self.assertEqual(a._model_id, "DummyEnsemble")
 
-    b = self.DummyEnsemble(model_id="my_dummy_ensemble")
-    self.assertEqual(b._model_id, "my_dummy_ensemble")
+      b = DummyEnsemble(model_id="my_dummy_ensemble")
+      self.assertEqual(b._model_id, "my_dummy_ensemble")
 
-    c = EnsembleAnomalyDetector()
-    self.assertEqual(c._model_id, "custom")
+      c = EnsembleAnomalyDetector()
+      self.assertEqual(c._model_id, "custom")
 
-    d = EnsembleAnomalyDetector(model_id="my_dummy_ensemble_2")
-    self.assertEqual(d._model_id, "my_dummy_ensemble_2")
+      d = EnsembleAnomalyDetector(model_id="my_dummy_ensemble_2")
+      self.assertEqual(d._model_id, "my_dummy_ensemble_2")
 
-  def test_from_and_to_specifiable(self):
-    d1 = self.DummyWeakLearner(my_arg=1)
-    d2 = self.DummyWeakLearner(my_arg=2)
-    ensemble = self.DummyEnsemble(
+    d1 = DummyWeakLearner(my_arg=1)
+    d2 = DummyWeakLearner(my_arg=2)
+    ensemble = DummyEnsemble(
         my_ensemble_arg=123,
         learners=[d1, d2],
-        aggregation_strategy=self.DummyAggregation())
+        aggregation_strategy=DummyAggregation())
 
     expected_spec = Spec(
         type="DummyEnsemble",
@@ -201,8 +228,13 @@ class TestEnsembleAnomalyDetector(unittest.TestCase):
     spec = ensemble.to_spec()
     self.assertEqual(spec, expected_spec)
 
-    new_ensemble = Specifiable.from_spec(spec)
-    self.assertEqual(ensemble, new_ensemble)
+    ensemble_dup = Specifiable.from_spec(spec)
+
+    # See the comment in TestAnomalyDetector for more details.
+    if on_demand_init and not just_in_time_init:
+      ensemble.run_original_init()
+
+    self.assertEqual(ensemble, ensemble_dup)
 
 
 if __name__ == '__main__':
