@@ -68,6 +68,7 @@ MetadataConflictRow = NamedTuple('MetadataConflictRow', [
 ])
 registry.register_coder(MetadataConflictRow, RowCoder)
 
+_LOGGER = logging.getLogger(__name__)
 VECTOR_SIZE = 768
 
 
@@ -146,12 +147,12 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    cls.host = os.environ.get('ALLOYDB_HOST', '10.0.0.2')
+    cls.host = os.environ.get('ALLOYDB_HOST', '10.119.0.22')
     cls.port = os.environ.get('ALLOYDB_PORT', '5432')
     cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
     cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
     if not os.environ.get('ALLOYDB_PASSWORD'):
-      raise ValueError("ALLOYDB_PASSWORD is not set.")
+      raise ValueError('ALLOYDB_PASSWORD env not set')
     cls.password = os.environ.get('ALLOYDB_PASSWORD')
 
     # Create unique table name suffix
@@ -373,7 +374,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
       # Extract timestamp from custom_id
       timestamp = row.custom_id.split('timestamp_')[1]
       # Extract index from timestamp
-      i = int(timestamp.split('T wrong')[1][:2])
+      i = int(timestamp.split('T')[1][:2])
 
       # Parse embedding vector
       embedding_list = [
@@ -488,7 +489,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
       # Verify count
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
-      assert_that(count_result, equal_to([num_records]), label='count_check')
+      assert_that(count_result, equal_to([10]), label='count_check')
 
       chunks = rows | "To Chunks" >> beam.Map(custom_row_to_chunk)
       assert_that(chunks, equal_to(test_chunks), label='chunks_check')
