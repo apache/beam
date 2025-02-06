@@ -883,11 +883,30 @@ public class BoundedTrieNodeTest {
   }
 
   @Test
+  public void testIsEmpty() {
+    BoundedTrieData trie = new BoundedTrieData();
+    assertTrue(trie.isEmpty());
+
+    trie.add(Collections.emptyList());
+    assertTrue(trie.isEmpty());
+
+    trie.add(ImmutableList.of("a", "b"));
+    assertFalse(trie.isEmpty());
+
+    trie.add(ImmutableList.of("c", "d"));
+    assertFalse(trie.isEmpty());
+
+    trie.clear();
+    assertTrue(trie.isEmpty());
+  }
+
+  @Test
   public void testBoundedTrieDataContains() {
     BoundedTrieData trie = new BoundedTrieData();
     trie.add(ImmutableList.of("a", "b"));
     assertTrue(trie.contains(ImmutableList.of("a", "b")));
-    assertTrue(trie.contains(ImmutableList.of("a")));
+    // path ab is not same as path a
+    assertFalse(trie.contains(ImmutableList.of("a")));
     assertFalse(trie.contains(ImmutableList.of("a", "c")));
   }
 
@@ -1001,17 +1020,10 @@ public class BoundedTrieNodeTest {
   }
 
   @Test
-  public void testAddEmptyPath() {
-    BoundedTrieData trie = new BoundedTrieData();
-    trie.add(Collections.emptyList());
-    assertEquals(1, trie.size());
-    assertTrue(trie.extractResult().getResult().contains(ImmutableList.of("false")));
-  }
-
-  @Test
   public void testContainsEmptyPath() {
     BoundedTrieData trie = new BoundedTrieData();
     trie.add(Collections.emptyList());
-    assertTrue(trie.contains(Collections.emptyList()));
+    assertFalse(trie.contains(Collections.emptyList()));
+    assertTrue(trie.isEmpty());
   }
 }
