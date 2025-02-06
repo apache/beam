@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.PerSerializationStatic;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -481,12 +482,31 @@ public class Read {
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
     private final Coder<CheckpointT> checkpointCoder;
-    private @Nullable Cache<Object, UnboundedReader<OutputT>> cachedReaders;
+    private final PerSerializationStatic<Cache<Object, UnboundedReader<OutputT>>> cachedReaders;
     private @Nullable Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
     @VisibleForTesting
     UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
       this.checkpointCoder = checkpointCoder;
+      cachedReaders =
+          new PerSerializationStatic<>(
+              () ->
+                  CacheBuilder.newBuilder()
+                      .expireAfterWrite(1, TimeUnit.MINUTES)
+                      .maximumSize(100)
+                      .removalListener(
+                          (RemovalListener<Object, UnboundedReader<OutputT>>)
+                              removalNotification -> {
+                                if (removalNotification.wasEvicted()) {
+                                  try {
+                                    Preconditions.checkNotNull(removalNotification.getValue())
+                                        .close();
+                                  } catch (IOException e) {
+                                    LOG.warn("Failed to close UnboundedReader.", e);
+                                  }
+                                }
+                              })
+                      .build());
     }
 
     @GetInitialRestriction
@@ -498,22 +518,6 @@ public class Read {
     @Setup
     public void setUp() throws Exception {
       restrictionCoder = restrictionCoder();
-      cachedReaders =
-          CacheBuilder.newBuilder()
-              .expireAfterWrite(1, TimeUnit.MINUTES)
-              .maximumSize(100)
-              .removalListener(
-                  (RemovalListener<Object, UnboundedReader<OutputT>>)
-                      removalNotification -> {
-                        if (removalNotification.wasEvicted()) {
-                          try {
-                            Preconditions.checkNotNull(removalNotification.getValue()).close();
-                          } catch (IOException e) {
-                            LOG.warn("Failed to close UnboundedReader.", e);
-                          }
-                        }
-                      })
-              .build();
     }
 
     @SplitRestriction
@@ -556,7 +560,8 @@ public class Read {
             PipelineOptions pipelineOptions) {
       Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder =
           checkStateNotNull(this.restrictionCoder);
-      Cache<Object, UnboundedReader<OutputT>> cachedReaders = checkStateNotNull(this.cachedReaders);
+      Cache<Object, UnboundedReader<OutputT>> cachedReaders =
+          checkStateNotNull(this.cachedReaders.get());
       return new UnboundedSourceAsSDFRestrictionTracker<>(
           restriction, pipelineOptions, cachedReaders, restrictionCoder);
     }
