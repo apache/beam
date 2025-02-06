@@ -176,6 +176,10 @@ dependencies {
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
+  if ("$spark_version" >= "3.5.0") {
+    implementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
+    implementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
+  }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
   compileOnly "org.scala-lang:scala-library:2.12.15"
@@ -202,6 +206,10 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
+  if ("$spark_version" >= "3.5.0") {
+    testImplementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
+    testImplementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
+  }
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
