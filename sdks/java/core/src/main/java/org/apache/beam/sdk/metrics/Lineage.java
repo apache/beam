@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -53,33 +53,6 @@ public class Lineage {
   /** {@link Lineage} representing sinks. */
   public static Lineage getSinks() {
     return SINKS;
-  }
-
-  /**
-   * Wrap segment to valid segment name.
-   *
-   * <p> It escapes reserved characters
-   * <ul>
-   *   <li>Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.</li>
-   *   <li>Only segments containing reserved characters must be escaped.</li>
-   *   <li>Segments cannot be escaped partially (i.e. “bigquery:com`.`google.test”).</li>
-   *   <li>Segments must be escaped using backticks (a.k.a. graves).</li>
-   *   <li>Backticks must be escaped using backtick (i.e. bigquery:`test``test`) and the segment itself must be escaped as well.</li>
-   * </ul>
-   * </p>
-   */
-  @Internal
-  public static String wrapSegment(String value) {
-    // if (value.startsWith("`") && value.endsWith("`")) {
-    //   return value;
-    // }
-    value = value.replace("`", "``"); // Escape backticks
-    // the escaped backticks will not throw this off since escaping will
-    // happen if it contains ` in first place.
-    if (RESERVED_CHARS.matcher(value).find()) {
-      return String.format("`%s`", value);
-    }
-    return value;
   }
 
   @VisibleForTesting
@@ -112,38 +85,6 @@ public class Lineage {
     return parts.iterator();
   }
 
-  // /**
-  //  * Assemble fully qualified name (<a
-  //  * href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">FQN</a>). Format:
-  //  *
-  //  * <ul>
-  //  *   <li>{@code system:segment1.segment2}
-  //  *   <li>{@code system:subtype:segment1.segment2}
-  //  *   <li>{@code system:`segment1.with.dots:clons`.segment2}
-  //  * </ul>
-  //  *
-  //  * <p>This helper method is for internal and testing usage only.
-  //  */
-  // @Internal
-  // public static String getFqName(
-  //     String system, @Nullable String subtype, Iterable<String> segments) {
-  //   StringBuilder builder = new StringBuilder(system);
-  //   if (!Strings.isNullOrEmpty(subtype)) {
-  //     builder.append(":").append(subtype);
-  //   }
-  //   int idx = 0;
-  //   for (String segment : segments) {
-  //     if (idx == 0) {
-  //       builder.append(":");
-  //     } else {
-  //       builder.append(".");
-  //     }
-  //     builder.append(wrapSegment(segment));
-  //     ++idx;
-  //   }
-  //   return builder.toString();
-  // }
-
   /**
    * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
    * #getFQNParts}.
@@ -168,10 +109,19 @@ public class Lineage {
   }
 
   /**
+   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
+   * #getFQNParts}.
+   */
+  public void add(String system, Iterable<String> segments) {
+    add(system, segments, null);
+  }
+
+  /**
    * Adds the given fqn as lineage.
    *
-   * @param rollupSegments: should be an iterable of strings whose concatenation is a valid <a
-   *     href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">Dataplex FQN</a>.
+   * @param rollupSegments should be an iterable of strings whose concatenation is a valid <a
+   *     href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">Dataplex FQN </a>
+   *     which is already escaped.
    *     <p>In particular, this means they will often have trailing delimiters.
    */
   public void add(Iterator<String> rollupSegments) {
@@ -179,7 +129,16 @@ public class Lineage {
     rollupSegments.forEachRemaining(segments::add);
     this.metric.add(segments);
   }
-  /** Query {@link StringSet} metrics from {@link MetricResults}. */
+
+  /**
+   * Query {@link BoundedTrie} metrics from {@link MetricResults}.
+   *
+   * @param results FQNs from the result.
+   * @param type sources or sinks.
+   * @param truncatedMarker the marker to use to represent truncated FQNs.
+   * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing
+   *     truncatedMarker.
+   */
   public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
     MetricsFilter filter =
         MetricsFilter.builder()
@@ -204,6 +163,13 @@ public class Lineage {
     return result;
   }
 
+  /**
+   * Query {@link BoundedTrie} metrics from {@link MetricResults}.
+   *
+   * @param results FQNs from the result
+   * @param type sources or sinks
+   * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing '*'.
+   */
   public static Set<String> query(MetricResults results, Type type) {
     return query(results, type, "*");
   }
@@ -223,5 +189,30 @@ public class Lineage {
     public String toString() {
       return name;
     }
+  }
+
+  /**
+   * Wrap segment to valid segment name.
+   *
+   * <p>It escapes reserved characters
+   *
+   * <ul>
+   *   <li>Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
+   *   <li>Only segments containing reserved characters must be escaped.
+   *   <li>Segments cannot be escaped partially (i.e. “bigquery:com`.`google.test”).
+   *   <li>Segments must be escaped using backticks (a.k.a. graves).
+   *   <li>Backticks must be escaped using backtick (i.e. bigquery:`test``test`) and the segment
+   *       itself must be escaped as well.
+   * </ul>
+   */
+  @Internal
+  public static String wrapSegment(String value) {
+    value = value.replace("`", "``"); // Escape backticks
+    // the escaped backticks will not throw this off since escaping will
+    // happen if it contains ` in first place.
+    if (RESERVED_CHARS.matcher(value).find()) {
+      return String.format("`%s`", value);
+    }
+    return value;
   }
 }
