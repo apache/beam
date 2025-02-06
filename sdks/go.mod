@@ -55,7 +55,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.2
 	golang.org/x/net v0.34.0
 	golang.org/x/oauth2 v0.26.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.11.0
 	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.21.0
 	google.golang.org/api v0.219.0
