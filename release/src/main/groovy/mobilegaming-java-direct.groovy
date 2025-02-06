@@ -87,18 +87,13 @@ def startTime = System.currentTimeMillis()
 def isSuccess = false
 String query_result = ""
 while((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXECUTION_TIMEOUT_IN_MINUTES) {
-  try {
-    tables = t.run "bq query --use_legacy_sql=false SELECT table_name FROM ${t.bqDataset()}.INFORMATION_SCHEMA.TABLES"
-    if(tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")) {
-      query_result = t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}.${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-      if(t.seeAnyOf(mobileGamingCommands.COLORS, query_result)){
-        isSuccess = true
-        break
-      }
+  tables = t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
+  if(tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")){
+    query_result = t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
+    if(t.seeAnyOf(mobileGamingCommands.COLORS, query_result)){
+      isSuccess = true
+      break
     }
-  } catch (Exception e) {
-    println "Warning: Exception while checking tables: ${e.message}"
-    println "Retrying..."
   }
   println "Waiting for pipeline to produce more results..."
   sleep(60000) // wait for 1 min
