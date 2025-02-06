@@ -61,7 +61,7 @@ async function generateReport() {
     const octokit = new Octokit();
 
     let shouldSend = false;
-    let report = `This is your daily summary of Beam's current high priority issues that may need attention.
+    let report = `This is your summary of Beam's current high priority issues that may need attention.
 
     See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
 
