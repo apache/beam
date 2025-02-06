@@ -312,7 +312,7 @@ task runPerformanceTest {
       workingDir "${project.rootDir}/sdks/python"
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
-              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=1800"
+              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=3600"
     }
   }
 }

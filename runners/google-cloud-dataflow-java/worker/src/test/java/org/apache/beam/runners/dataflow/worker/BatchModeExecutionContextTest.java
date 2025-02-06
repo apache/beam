@@ -187,7 +187,7 @@ public class BatchModeExecutionContextTest {
                             .setName("some-stringset")
                             .setOriginalStepName("originalName"))
                     .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
-            .setCumulative(false)
+            .setCumulative(true)
             .setStringList(new StringList().setElements(Arrays.asList("ab", "cd")));
 
     assertThat(executionContext.extractMetricUpdates(false), containsInAnyOrder(expected));

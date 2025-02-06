@@ -101,6 +101,7 @@ public class KafkaIOTranslation {
             .addBooleanField("redistribute")
             .addBooleanField("allows_duplicates")
             .addNullableInt32Field("redistribute_num_keys")
+            .addNullableBooleanField("offset_deduplication")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
@@ -221,6 +222,9 @@ public class KafkaIOTranslation {
       fieldValues.put("redistribute", transform.isRedistributed());
       fieldValues.put("redistribute_num_keys", transform.getRedistributeNumKeys());
       fieldValues.put("allows_duplicates", transform.isAllowDuplicates());
+      if (transform.getOffsetDeduplication() != null) {
+        fieldValues.put("offset_deduplication", transform.getOffsetDeduplication());
+      }
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
@@ -347,6 +351,12 @@ public class KafkaIOTranslation {
             if (allowDuplicates != null && allowDuplicates) {
               transform = transform.withAllowDuplicates(allowDuplicates);
             }
+          }
+        }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.63.0") >= 0) {
+          @Nullable Boolean offsetDeduplication = configRow.getValue("offset_deduplication");
+          if (offsetDeduplication != null) {
+            transform = transform.withOffsetDeduplication(offsetDeduplication);
           }
         }
         Duration maxReadTime = configRow.getValue("max_read_time");

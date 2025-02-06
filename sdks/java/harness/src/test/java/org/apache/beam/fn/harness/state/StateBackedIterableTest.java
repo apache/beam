@@ -269,7 +269,9 @@ public class StateBackedIterableTest {
               .sum();
       observer.advance();
       // 5 comes from size and hasNext (see IterableLikeCoder)
-      assertEquals(iterateBytes + 5, observer.total);
+      // observer receives scaled, StringUtf8Coder is not cheap so sampling may produce value that
+      // is off
+      assertEquals((float) iterateBytes + 5, (float) observer.total, 3);
     }
   }
 

@@ -98,7 +98,8 @@ public class MetricsToCounterUpdateConverter {
         .setIntegerGauge(integerGaugeProto);
   }
 
-  public static CounterUpdate fromStringSet(MetricKey key, StringSetData stringSetData) {
+  public static CounterUpdate fromStringSet(
+      MetricKey key, boolean isCumulative, StringSetData stringSetData) {
     CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
 
     StringList stringList = new StringList();
@@ -106,7 +107,7 @@ public class MetricsToCounterUpdateConverter {
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
-        .setCumulative(false)
+        .setCumulative(isCumulative)
         .setStringList(stringList);
   }
 

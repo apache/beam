@@ -219,6 +219,9 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       // Processing time with TestStream is unreliable without being able to control
       // SDK side time portably. Ignore these tests.
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+
+      // Not yet supported in Prism.
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics'
     }
     filter {
       for (String test : sickbayTests) {
