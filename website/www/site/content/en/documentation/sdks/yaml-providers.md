@@ -30,10 +30,26 @@ vend catalogues of schema transforms.
 
 ## Java
 
-For example, you could build a jar that vends a
+Exposing transform in Java that can be used in a YAML pipeline consists of
+four main steps:
+
+1. Defining the transformation itself as a
+   [PTransform](https://beam.apache.org/documentation/programming-guide/#composite-transforms)
+   that consumes and produces zero or more [schema'd PCollections](https://beam.apache.org/documentation/programming-guide/#creating-schemas).
+2. Exposing this transform via a
+   [SchemaTransformProvider](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/transforms/SchemaTransformProvider.html)
+   which provides an identifier used to refer to this transform later as well
+   as metadata like a human-readable description and its configuration parameters.
+3. Building a Jar that contains these classes and vends them via the
+   [Service Loader](https://github.com/Polber/beam-yaml-xlang/blob/95abf0864e313232a89f3c9e57b950d0fb478979/src/main/java/org/example/ToUpperCaseTransformProvider.java#L30)
+   infrastructure.
+4. Writing a [provider specification](https://beam.apache.org/documentation/sdks/yaml/#providers)
+   that tells Beam YAML where to find this jar and what it contains.
+
+If the transform is already exposed as a
 [cross language transform](https://beam.apache.org/documentation/sdks/python-multi-language-pipelines/)
 or [schema transform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/transforms/SchemaTransformProvider.html)
-and then use it in a transform as follows
+then steps 1-3 have been done for you.  One then uses this transform as follows:
 
 ```
 pipeline:
@@ -56,13 +72,14 @@ pipeline:
 providers:
   - type: javaJar
     config:
-       jar: /path/or/url/to/myExpansionService.jar
+      jar: /path/or/url/to/myExpansionService.jar
     transforms:
-       MyCustomTransform: "urn:registered:in:expansion:service"
+      MyCustomTransform: "urn:registered:in:expansion:service"
 ```
 
-A full example of how to build a java provider can be found
-[here](https://github.com/apache/beam-starter-java-provider).
+We provide a
+[full cloneable example of how to build a java provider](https://github.com/apache/beam-starter-java-provider)
+that can be used to get started.
 
 ## Python
 
@@ -72,12 +89,26 @@ Arbitrary Python transforms can be provided as well, using the syntax
 providers:
   - type: pythonPackage
     config:
-       packages:
-           - my_pypi_package>=version
-           - /path/to/local/package.zip
+      packages:
+        - my_pypi_package>=version
+        - /path/to/local/package.zip
     transforms:
-       MyCustomTransform: "pkg.module.PTransformClassOrCallable"
+      MyCustomTransform: "pkg.module.PTransformClassOrCallable"
 ```
+
+which can then be used as
+
+```
+- type: MyCustomTransform
+  config:
+    num: 3
+    arg: whatever
+```
+
+This will cause the dependencies to be installed before the transform is
+imported (via its given fully qualified name) and instantiated
+with the config values passed as keyword arguments (e.g. in this case
+`pkg.module.PTransformClassOrCallable(num=3, arg="whatever")`).
 
 We offer a [python provider starter project](https://github.com/apache/beam-starter-python-provider)
 that serves as a complete example for how to do this.
