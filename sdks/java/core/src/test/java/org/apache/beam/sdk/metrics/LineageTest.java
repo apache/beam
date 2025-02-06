@@ -33,7 +33,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class LineageTest {
   @Test
-  public void testGetFqName() {
+  public void testWrapSegment() {
     Map<String, String> testCases =
         ImmutableMap.<String, String>builder()
             .put("apache-beam", "apache-beam")
@@ -70,6 +70,21 @@ public class LineageTest {
           String fqnPartsString = getFqnPartsString(fqnPartsIterator);
           assertEquals("apache:beam:" + value + "." + value, fqnPartsString);
         });
+  }
+
+  @Test
+  public void getFQNParts() {
+    Iterator<String> simpleFQN =
+        Lineage.getFQNParts("system", null, ImmutableList.of("project", "dataset", "table"), null);
+    assertEquals("system:project.dataset.table", getFqnPartsString(simpleFQN));
+
+    Iterator<String> subTypeFQN =
+        Lineage.getFQNParts("system", "topic", ImmutableList.of("project", "topicid"), null);
+    assertEquals("system:topic:project.topicid", getFqnPartsString(subTypeFQN));
+
+    Iterator<String> pathFQN =
+        Lineage.getFQNParts("system", null, ImmutableList.of("bucket", "dir1/dir2/file"), "/");
+    assertEquals("system:bucket.dir1/dir2/file", getFqnPartsString(pathFQN));
   }
 
   private static String getFqnPartsString(Iterator<String> fqnPartsIterator) {
