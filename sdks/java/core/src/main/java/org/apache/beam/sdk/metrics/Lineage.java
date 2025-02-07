@@ -73,13 +73,14 @@ public class Lineage {
       }
       if (lastSegmentSep != null) {
         List<String> subSegments =
-            Splitter.onPattern(lastSegmentSep).splitToList(segments.get(segments.size() - 1));
+            Splitter.onPattern(lastSegmentSep)
+                .splitToList(wrapSegment(segments.get(segments.size() - 1)));
         for (int i = 0; i < subSegments.size() - 1; i++) {
           parts.add(subSegments.get(i) + lastSegmentSep);
         }
-        parts.add(wrapSegment(subSegments.get(subSegments.size() - 1)));
+        parts.add(subSegments.get(subSegments.size() - 1));
       } else {
-        parts.add(wrapSegment(segments.get(segments.size() - 1)));
+        parts.add(segments.get(segments.size() - 1));
       }
     }
     return parts.iterator();

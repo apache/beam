@@ -85,6 +85,10 @@ public class LineageTest {
     Iterator<String> pathFQN =
         Lineage.getFQNParts("system", null, ImmutableList.of("bucket", "dir1/dir2/file"), "/");
     assertEquals("system:bucket.dir1/dir2/file", getFqnPartsString(pathFQN));
+
+    Iterator<String> pathFQNReserved =
+        Lineage.getFQNParts("system", null, ImmutableList.of("bucket", "dir1/dir.2/file"), "/");
+    assertEquals("system:bucket.`dir1/dir.2/file`", getFqnPartsString(pathFQNReserved));
   }
 
   private static String getFqnPartsString(Iterator<String> fqnPartsIterator) {
