@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "java": "kennknowles",
-    "io": "Abacn"
+    "java": "damondouglas",
+    "io": "johnjcasey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
