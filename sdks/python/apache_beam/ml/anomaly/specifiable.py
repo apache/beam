@@ -34,25 +34,24 @@ from typing import runtime_checkable
 
 from typing_extensions import Self
 
-__all__ = ["KNOWN_SPECIFIABLE", "Spec", "Specifiable", "specifiable"]
+__all__ = ["Spec", "Specifiable", "specifiable"]
 
-ACCEPTED_SUBSPACES = [
+_FALLBACK_SUBSPACE = "*"
+
+_ACCEPTED_SUBSPACES = [
     "EnsembleAnomalyDetector",
     "AnomalyDetector",
     "ThresholdFn",
     "AggregationFn",
+    _FALLBACK_SUBSPACE,
 ]
 
-# By default, the fallback subspace is not in the accepted subspace list.
-# We only use this fallback subspace in tests.
-FALLBACK_SUBSPACE = "my test subspace"
-
 #: A nested dictionary for efficient lookup of Specifiable subclasses.
-#: Structure: `KNOWN_SPECIFIABLE[subspace][spec_type]`, where `subspace` is one
+#: Structure: `_KNOWN_SPECIFIABLE[subspace][spec_type]`, where `subspace` is one
 #: of the accepted subspaces that the class belongs to and `spec_type` is the
 #: class name by default. Users can also specify a different value for
 #: `spec_type` when applying the `specifiable` decorator to an existing class.
-KNOWN_SPECIFIABLE = {}
+_KNOWN_SPECIFIABLE = {}
 
 SpecT = TypeVar('SpecT', bound='Specifiable')
 
@@ -65,13 +64,10 @@ def _class_to_subspace(cls: Type) -> str:
   class.
   """
   for c in cls.mro():
-    if c.__name__ in ACCEPTED_SUBSPACES:
+    if c.__name__ in _ACCEPTED_SUBSPACES:
       return c.__name__
 
-  if FALLBACK_SUBSPACE in ACCEPTED_SUBSPACES:
-    return FALLBACK_SUBSPACE
-
-  raise ValueError(f"subspace for {cls.__name__} not found.")
+  return _FALLBACK_SUBSPACE
 
 
 def _spec_type_to_subspace(type: str) -> str:
@@ -79,8 +75,8 @@ def _spec_type_to_subspace(type: str) -> str:
   Look for the subspace for a spec type. This is usually called to retrieve
   the subspace of a registered specifiable class.
   """
-  for subspace in ACCEPTED_SUBSPACES:
-    if type in KNOWN_SPECIFIABLE.get(subspace, {}):
+  for subspace in _ACCEPTED_SUBSPACES:
+    if type in _KNOWN_SPECIFIABLE.get(subspace, {}):
       return subspace
 
   raise ValueError(f"subspace for {str} not found.")
@@ -91,7 +87,6 @@ class Spec():
   """
   Dataclass for storing specifications of specifiable objects.
   Objects can be initialized using the data in their corresponding spec.
-  The `type` field indicates the concrete `Specifiable` class, while
   """
   #: A string indicating the concrete `Specifiable` class
   type: str
@@ -111,6 +106,7 @@ class Specifiable(Protocol):
   """
   spec_type: ClassVar[str]
   init_kwargs: dict[str, Any]
+
   # a boolean to tell whether the original `__init__` method is called
   _initialized: bool
   # a boolean used by new_getattr to tell whether it is in the `__init__` method
@@ -134,7 +130,7 @@ class Specifiable(Protocol):
       raise ValueError(f"Spec type not found in {spec}")
 
     subspace = _spec_type_to_subspace(spec.type)
-    subclass: Type[Self] = KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
+    subclass: Type[Self] = _KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
 
@@ -180,12 +176,17 @@ def _register(cls, spec_type=None, error_if_exists=True) -> None:
     spec_type = cls.__name__
 
   subspace = _class_to_subspace(cls)
-  if subspace in KNOWN_SPECIFIABLE:
-    if spec_type in KNOWN_SPECIFIABLE[subspace] and error_if_exists:
-      raise ValueError(f"{spec_type} is already registered for specifiable")
+  if subspace in _KNOWN_SPECIFIABLE:
+    if spec_type in _KNOWN_SPECIFIABLE[subspace] and error_if_exists:
+      raise ValueError(
+          f"{spec_type} is already registered for "
+          f"specifiable class {_KNOWN_SPECIFIABLE[subspace]}. "
+          "Please specify a different spec_type by "
+          "@specifiable(spec_type=...) or ignore the error by "
+          "@specifiable(error_if_exists=False).")
   else:
-    KNOWN_SPECIFIABLE[subspace] = {}
-  KNOWN_SPECIFIABLE[subspace][spec_type] = cls
+    _KNOWN_SPECIFIABLE[subspace] = {}
+  _KNOWN_SPECIFIABLE[subspace][spec_type] = cls
 
   cls.spec_type = spec_type
 
@@ -226,7 +227,9 @@ def specifiable(
 
   Args:
     spec_type: The value of the `type` field in the Spec of a `Specifiable`
-      subclass. If not provided, the class name is used.
+      subclass. If not provided, the class name is used. This argument is useful
+      when registering multiple classes with the same base name; in such cases,
+      one can specify `spec_type` to different values to resolve conflict.
     error_if_exists: If True, raise an exception if `spec_type` is already
       registered.
     on_demand_init: If True, allow on-demand object initialization. The original
