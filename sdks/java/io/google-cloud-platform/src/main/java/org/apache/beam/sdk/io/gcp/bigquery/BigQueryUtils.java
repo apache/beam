@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -714,6 +715,9 @@ public class BigQueryUtils {
       if (fieldType.getNullable()) {
         return null;
       } else {
+        if (fieldType.getTypeName().isCollectionType()) {
+          return Collections.emptyList();
+        }
         throw new IllegalArgumentException(
             "Received null value for non-nullable field \"" + field.getName() + "\"");
       }
