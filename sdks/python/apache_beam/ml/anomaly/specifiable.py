@@ -45,10 +45,10 @@ ACCEPTED_SPECIFIABLE_SUBSPACES = [
 ]
 
 #: A nested dictionary for efficient lookup of Specifiable subclasses.
-#: Structure: KNOWN_SPECIFIABLE[subspace][spec_type], where "subspace" is one of
-#: the accepted subspaces that the class belongs to and "spec_type" is the class
-#: name by default. Users can also specify a different value for "spec_type"
-#: when applying the `specifiable` decorator to an existing class.
+#: Structure: `KNOWN_SPECIFIABLE[subspace][spec_type]`, where `subspace` is one
+#: of the accepted subspaces that the class belongs to and `spec_type` is the
+#: class name by default. Users can also specify a different value for
+#: `spec_type` when applying the `specifiable` decorator to an existing class.
 KNOWN_SPECIFIABLE = {"*": {}}
 
 SpecT = TypeVar('SpecT', bound='Specifiable')
@@ -58,7 +58,7 @@ def _class_to_subspace(cls: Type, default="*") -> str:
   """
   Search the class hierarchy to find the subspace: the closest ancestor class in
   the class's method resolution order (MRO) whose name is found in the accepted
-  subspace list. This is usually called when registering a new Specifiable
+  subspace list. This is usually called when registering a new specifiable
   class.
   """
   for c in cls.mro():
@@ -75,7 +75,7 @@ def _class_to_subspace(cls: Type, default="*") -> str:
 def _spec_type_to_subspace(type: str, default="*") -> str:
   """
   Look for the subspace for a spec type. This is usually called to retrieve
-  the subspace of a registered Specifiable class.
+  the subspace of a registered specifiable class.
   """
   for subspace in ACCEPTED_SPECIFIABLE_SUBSPACES:
     if type in KNOWN_SPECIFIABLE.get(subspace, {}):
@@ -92,9 +92,9 @@ class Spec():
   """
   Dataclass for storing specifications of specifiable objects.
   Objects can be initialized using the data in their corresponding spec.
-  The `type` field indicates the concrete Specifiable class, while
+  The `type` field indicates the concrete `Specifiable` class, while
   """
-  #: A string indicating the concrete Specifiable class
+  #: A string indicating the concrete `Specifiable` class
   type: str
   #: A dictionary of keyword arguments for the `__init__` method of the class.
   config: dict[str, Any] = dataclasses.field(default_factory=dict)
@@ -102,19 +102,20 @@ class Spec():
 
 @runtime_checkable
 class Specifiable(Protocol):
-  """Protocol that a Specifiable subclass needs to implement.
+  """Protocol that a specifiable class needs to implement.
 
   Attributes:
-    spec_type: The value of the `type` field in the object's Spec for this
+    spec_type: The value of the `type` field in the object's spec for this
       class.
-    init_kwargs: The raw keyword arguments passed to `__init__` during object
-      initialization.
+    init_kwargs: The raw keyword arguments passed to `__init__` method during
+      object initialization.
   """
   spec_type: ClassVar[str]
   init_kwargs: dict[str, Any]
-  # a boolean to tell whether the original __init__ is called
+  # a boolean to tell whether the original `__init__` method is called
   _initialized: bool
-  # a boolean used by new_getattr to tell whether it is in an __init__ call
+  # a boolean used by new_getattr to tell whether it is in the `__init__` method
+  # call
   _in_init: bool
 
   @staticmethod
@@ -129,7 +130,7 @@ class Specifiable(Protocol):
 
   @classmethod
   def from_spec(cls, spec: Spec, _run_init: bool = True) -> Self:
-    """Generate a Specifiable subclass object based on a spec."""
+    """Generate a `Specifiable` subclass object based on a spec."""
     if spec.type is None:
       raise ValueError(f"Spec type not found in {spec}")
 
@@ -160,7 +161,7 @@ class Specifiable(Protocol):
 
   def to_spec(self) -> Spec:
     """
-    Generate a spec from a Specifiable subclass object.
+    Generate a spec from a `Specifiable` subclass object.
     """
     if getattr(type(self), 'spec_type', None) is None:
       raise ValueError(
@@ -172,7 +173,7 @@ class Specifiable(Protocol):
     return Spec(type=self.__class__.spec_type, config=args)
 
 
-# Register a Specifiable subclass in KNOWN_SPECIFIABLE
+# Register a `Specifiable` subclass in `KNOWN_SPECIFIABLE`
 def _register(cls, spec_type=None, error_if_exists=True) -> None:
   if spec_type is None:
     # By default, spec type is the class name. Users can override this with
@@ -190,7 +191,7 @@ def _register(cls, spec_type=None, error_if_exists=True) -> None:
   cls.spec_type = spec_type
 
 
-# Keep a copy of arguments that are used to call __init__ method, when the
+# Keep a copy of arguments that are used to call the `__init__` method when the
 # object is initialized.
 def _get_init_kwargs(inst, init_method, *args, **kwargs):
   params = dict(
@@ -208,15 +209,24 @@ def specifiable(
     error_if_exists=True,
     on_demand_init=True,
     just_in_time_init=True):
-  """A decorator that turns a class into a Specifiable subclass by implementing
-  the Specifiable protocol.
+  """A decorator that turns a class into a `Specifiable` subclass by
+  implementing the `Specifiable` protocol.
 
-  To use the decorator, simply place `@specifiable` before the class definition.
-  For finer control, the decorator accepts arguments
-  (e.g., `@specifiable(arg1=..., arg2=...)`).
+  To use the decorator, simply place `@specifiable` before the class
+  definition.::
+
+    @specifiable
+    class Foo():
+      ...
+
+  For finer control, the decorator can accept arguments.::
+
+    @specifiable(spec_type="My Class", on_demand_init=False)
+    class Bar():
+      ...
 
   Args:
-    spec_type: The value of the `type` field in the Spec of a Specifiable
+    spec_type: The value of the `type` field in the Spec of a `Specifiable`
       subclass. If not provided, the class name is used.
     error_if_exists: If True, raise an exception if `spec_type` is already
       registered.
@@ -224,8 +234,8 @@ def specifiable(
       `__init__` method will be called when `_run_init=True` is passed to the
       object's initialization function.
     just_in_time_init: If True, allow just-in-time object initialization. The
-      original `__init__` method will be called when an attribute is first
-      accessed.
+      original `__init__` method will be called when the first time an attribute
+      is accessed.
   """
   def _wrapper(cls):
     def new_init(self: Specifiable, *args, **kwargs):

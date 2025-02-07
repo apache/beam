@@ -196,7 +196,7 @@ class EnsembleAnomalyDetector(AnomalyDetector):
   def learn_one(self, x: beam.Row) -> None:
     """Inherited from `AnomalyDetector.learn_one`.
 
-    This method is never called during ensemble detector training.  The training
+    This method is never called during ensemble detector training. The training
     process is done on each sub-detector independently and in parallel.
     """
     raise NotImplementedError
