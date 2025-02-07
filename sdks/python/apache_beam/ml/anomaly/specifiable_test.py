@@ -23,10 +23,15 @@ from typing import Optional
 
 from parameterized import parameterized
 
+from apache_beam.ml.anomaly.specifiable import ACCEPTED_SUBSPACES
+from apache_beam.ml.anomaly.specifiable import FALLBACK_SUBSPACE
 from apache_beam.ml.anomaly.specifiable import KNOWN_SPECIFIABLE
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
 from apache_beam.ml.anomaly.specifiable import specifiable
+
+# The fallback subspace is only accepted during testing.
+ACCEPTED_SUBSPACES.append(FALLBACK_SUBSPACE)
 
 
 class TestSpecifiable(unittest.TestCase):
@@ -35,14 +40,14 @@ class TestSpecifiable(unittest.TestCase):
       pass
 
     # class is not decorated and thus not registered
-    self.assertNotIn("A", KNOWN_SPECIFIABLE["*"])
+    self.assertNotIn("A", KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE])
 
     # apply the decorator function to an existing class
     A = specifiable(A)
     self.assertEqual(A.spec_type, "A")
     self.assertTrue(isinstance(A(), Specifiable))
-    self.assertIn("A", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["A"], A)
+    self.assertIn("A", KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE])
+    self.assertEqual(KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE]["A"], A)
 
     # an error is raised if the specified spec_type already exists.
     self.assertRaises(ValueError, specifiable, A)
@@ -52,8 +57,8 @@ class TestSpecifiable(unittest.TestCase):
     A = specifiable(spec_type="A_DUP")(A)
     self.assertEqual(A.spec_type, "A_DUP")
     self.assertTrue(isinstance(A(), Specifiable))
-    self.assertIn("A_DUP", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["A_DUP"], A)
+    self.assertIn("A_DUP", KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE])
+    self.assertEqual(KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE]["A_DUP"], A)
 
     # an error is raised if the specified spec_type already exists.
     self.assertRaises(ValueError, specifiable(spec_type="A_DUP"), A)
@@ -71,8 +76,8 @@ class TestSpecifiable(unittest.TestCase):
       pass
 
     self.assertTrue(isinstance(B(), Specifiable))
-    self.assertIn("B", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["B"], B)
+    self.assertIn("B", KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE])
+    self.assertEqual(KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE]["B"], B)
 
     # call decorator with parameters
     @specifiable(spec_type="C_TYPE")
@@ -80,8 +85,8 @@ class TestSpecifiable(unittest.TestCase):
       pass
 
     self.assertTrue(isinstance(C(), Specifiable))
-    self.assertIn("C_TYPE", KNOWN_SPECIFIABLE["*"])
-    self.assertEqual(KNOWN_SPECIFIABLE["*"]["C_TYPE"], C)
+    self.assertIn("C_TYPE", KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE])
+    self.assertEqual(KNOWN_SPECIFIABLE[FALLBACK_SUBSPACE]["C_TYPE"], C)
 
   def test_init_params_in_specifiable(self):
     @specifiable

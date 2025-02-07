@@ -36,25 +36,28 @@ from typing_extensions import Self
 
 __all__ = ["KNOWN_SPECIFIABLE", "Spec", "Specifiable", "specifiable"]
 
-ACCEPTED_SPECIFIABLE_SUBSPACES = [
+ACCEPTED_SUBSPACES = [
     "EnsembleAnomalyDetector",
     "AnomalyDetector",
     "ThresholdFn",
     "AggregationFn",
-    "*"
 ]
+
+# By default, the fallback subspace is not in the accepted subspace list.
+# We only use this fallback subspace in tests.
+FALLBACK_SUBSPACE = "my test subspace"
 
 #: A nested dictionary for efficient lookup of Specifiable subclasses.
 #: Structure: `KNOWN_SPECIFIABLE[subspace][spec_type]`, where `subspace` is one
 #: of the accepted subspaces that the class belongs to and `spec_type` is the
 #: class name by default. Users can also specify a different value for
 #: `spec_type` when applying the `specifiable` decorator to an existing class.
-KNOWN_SPECIFIABLE = {"*": {}}
+KNOWN_SPECIFIABLE = {}
 
 SpecT = TypeVar('SpecT', bound='Specifiable')
 
 
-def _class_to_subspace(cls: Type, default="*") -> str:
+def _class_to_subspace(cls: Type) -> str:
   """
   Search the class hierarchy to find the subspace: the closest ancestor class in
   the class's method resolution order (MRO) whose name is found in the accepted
@@ -62,29 +65,25 @@ def _class_to_subspace(cls: Type, default="*") -> str:
   class.
   """
   for c in cls.mro():
-    #
-    if c.__name__ in ACCEPTED_SPECIFIABLE_SUBSPACES:
+    if c.__name__ in ACCEPTED_SUBSPACES:
       return c.__name__
 
-  if default is None:
-    raise ValueError(f"subspace for {cls.__name__} not found.")
+  if FALLBACK_SUBSPACE in ACCEPTED_SUBSPACES:
+    return FALLBACK_SUBSPACE
 
-  return default
+  raise ValueError(f"subspace for {cls.__name__} not found.")
 
 
-def _spec_type_to_subspace(type: str, default="*") -> str:
+def _spec_type_to_subspace(type: str) -> str:
   """
   Look for the subspace for a spec type. This is usually called to retrieve
   the subspace of a registered specifiable class.
   """
-  for subspace in ACCEPTED_SPECIFIABLE_SUBSPACES:
+  for subspace in ACCEPTED_SUBSPACES:
     if type in KNOWN_SPECIFIABLE.get(subspace, {}):
       return subspace
 
-  if default is None:
-    raise ValueError(f"subspace for {type} not found.")
-
-  return default
+  raise ValueError(f"subspace for {str} not found.")
 
 
 @dataclasses.dataclass(frozen=True)
