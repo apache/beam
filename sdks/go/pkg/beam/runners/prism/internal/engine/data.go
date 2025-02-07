@@ -30,10 +30,27 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// StateData is a "union" between Bag state and MultiMap state to increase common code.
+// StateData is a "union" between Bag, MultiMap, and Trigger state to increase
+// common code.
+//
+// Trigger state is never explicitly set by users, but occurs on demand when
+// a trigger requires state.
 type StateData struct {
 	Bag      [][]byte
 	Multimap map[string][][]byte
+
+	Trigger map[Trigger]triggerState
+}
+
+func (s *StateData) getTriggerState(key Trigger) triggerState {
+	if s.Trigger == nil {
+		s.Trigger = map[Trigger]triggerState{}
+	}
+	return s.Trigger[key]
+}
+
+func (s *StateData) setTriggerState(key Trigger, val triggerState) {
+	s.Trigger[key] = val
 }
 
 // TimerKey is for use as a key for timers.

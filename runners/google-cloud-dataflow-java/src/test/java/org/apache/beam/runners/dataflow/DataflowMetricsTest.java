@@ -41,11 +41,14 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -196,6 +199,13 @@ public class DataflowMetricsTest {
     return setStructuredName(update, name, namespace, step, tentative);
   }
 
+  private MetricUpdate makeBoundedTrieMetricUpdate(
+      String name, String namespace, String step, BoundedTrie data, boolean tentative) {
+    MetricUpdate update = new MetricUpdate();
+    update.setTrie(data);
+    return setStructuredName(update, name, namespace, step, tentative);
+  }
+
   @Test
   public void testSingleCounterUpdates() throws IOException {
     AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
@@ -284,6 +294,64 @@ public class DataflowMetricsTest {
                 "counterName",
                 "myStepName",
                 StringSetResult.create(ImmutableSet.of("ab", "cd")))));
+  }
+
+  @Test
+  public void testSingleBoundedTrieUpdates() throws IOException {
+    AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
+    when(myStep.getFullName()).thenReturn("myStepName");
+    BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames = HashBiMap.create();
+    transformStepNames.put(myStep, "s2");
+
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
+    when(job.getState()).thenReturn(State.RUNNING);
+    when(job.getJobId()).thenReturn(JOB_ID);
+    when(job.getTransformStepNames()).thenReturn(transformStepNames);
+
+    // The parser relies on the fact that one tentative and one committed metric update exist in
+    // the job metrics results.
+    MetricUpdate mu1 =
+        makeBoundedTrieMetricUpdate(
+            "counterName",
+            "counterNamespace",
+            "s2",
+            new BoundedTrieData(ImmutableList.of("ab", "cd")).toProto(),
+            false);
+    MetricUpdate mu1Tentative =
+        makeBoundedTrieMetricUpdate(
+            "counterName",
+            "counterNamespace",
+            "s2",
+            new BoundedTrieData(ImmutableList.of("ab", "cd")).toProto(),
+            true);
+    jobMetrics.setMetrics(ImmutableList.of(mu1, mu1Tentative));
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
+    assertThat(
+        result.getBoundedTries(),
+        containsInAnyOrder(
+            attemptedMetricsResult(
+                "counterNamespace",
+                "counterName",
+                "myStepName",
+                BoundedTrieResult.create(
+                    ImmutableSet.of(ImmutableList.of("ab", "cd", String.valueOf(false)))))));
+    assertThat(
+        result.getBoundedTries(),
+        containsInAnyOrder(
+            committedMetricsResult(
+                "counterNamespace",
+                "counterName",
+                "myStepName",
+                BoundedTrieResult.create(
+                    ImmutableSet.of(ImmutableList.of("ab", "cd", String.valueOf(false)))))));
   }
 
   @Test

@@ -244,16 +244,37 @@ class GcsIO(object):
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
-  def delete(self, path):
+  def delete(self, path, recursive=False):
     """Deletes the object at the given GCS path.
+
+    If the path is a directory (prefix), it deletes all blobs under that prefix
+    when recursive=True.
 
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
+      recursive (bool, optional): If True, deletes all objects under the prefix
+          when the path is a directory (default: False).
     """
     bucket_name, blob_name = parse_gcs_path(path)
     bucket = self.client.bucket(bucket_name)
+    if recursive:
+      # List and delete all blobs under the prefix.
+      blobs = bucket.list_blobs(prefix=blob_name)
+      for blob in blobs:
+        self._delete_blob(bucket, blob.name)
+    else:
+      # Delete only the specific blob.
+      self._delete_blob(bucket, blob_name)
+
+  def _delete_blob(self, bucket, blob_name):
+    """Helper method to delete a single blob from GCS.
+
+    Args:
+      bucket: The GCS bucket object.
+      blob_name: The name of the blob to delete under the bucket.
+    """
     if self._use_blob_generation:
-      # blob can be None if not found
+      # Fetch blob generation if required.
       blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
       generation = getattr(blob, "generation", None)
     else:

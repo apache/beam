@@ -245,7 +245,7 @@ jobs:
 
   stage_docker:
     if:  ${{ fromJson(github.event.inputs.STAGE).docker_artifacts == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

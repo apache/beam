@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.BoundedTrieCell;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
@@ -217,7 +218,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     return counterUpdates()
         .append(distributionUpdates())
         .append(gaugeUpdates())
-        .append(stringSetUpdates());
+        .append(stringSetUpdates())
+        .append(boundedTrieUpdates());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -271,6 +273,24 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                   return null;
                 }
                 return MetricsToCounterUpdateConverter.fromStringSet(
+                    MetricKey.create(stepName, entry.getKey()), false, value);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> boundedTrieUpdates() {
+    return FluentIterable.from(boundedTries.entries())
+        .transform(
+            new Function<Entry<MetricName, BoundedTrieCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, BoundedTrieCell> entry) {
+                BoundedTrieData value = entry.getValue().getAndReset();
+                if (value.isEmpty()) {
+                  return null;
+                }
+                return MetricsToCounterUpdateConverter.fromBoundedTrie(
                     MetricKey.create(stepName, entry.getKey()), false, value);
               }
             })

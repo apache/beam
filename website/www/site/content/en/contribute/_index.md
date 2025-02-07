@@ -50,7 +50,7 @@ Here’s a list of things you can do to get started contributing:
     <td>Participate and share ideas</td>
     <td class="list-text-size-md">
       <ul>
-        <li>Subscribe to our <a href="/community/contact-us/">mailing lists</a> (<a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> and <a href="mailto:dev@beam.apache.org">user@beam.apache.org</a>).</li>
+        <li>Subscribe to our <a href="/community/contact-us/">mailing lists</a> (<a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> and <a href="mailto:user@beam.apache.org">user@beam.apache.org</a>).</li>
         <li>Stay in the loop of our <a href="https://github.com/apache/beam/issues">Issues product backlog</a>, participate in discussions to brainstorm solutions, and help the community solve their mailing list questions.</li>
       </ul>
     </td>
