@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -41,7 +40,7 @@ interface BigQuerySourceDef extends Serializable {
   <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
       Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      BigQueryReaderFactory<T> readerFactory,
       boolean useAvroLogicalTypes);
 
   /**
