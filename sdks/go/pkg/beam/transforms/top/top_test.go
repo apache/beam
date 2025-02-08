@@ -17,7 +17,6 @@ package top
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -25,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestMain(m *testing.M) {
@@ -64,7 +64,7 @@ func TestCombineFn3String(t *testing.T) {
 		a := load(fn, test.Elms...)
 
 		actual := output(fn, a)
-		if !reflect.DeepEqual(actual, test.Expected) {
+		if !cmp.Equal(actual, test.Expected) {
 			t.Errorf("CombineFn(3; %v) = %v, want %v", test.Elms, actual, test.Expected)
 		}
 	}
@@ -89,7 +89,7 @@ func TestCombineFn3RevString(t *testing.T) {
 		a := load(fn, test.Elms...)
 
 		actual := output(fn, a)
-		if !reflect.DeepEqual(actual, test.Expected) {
+		if !cmp.Equal(actual, test.Expected) {
 			t.Errorf("CombineFn(3; %v) = %v, want %v", test.Elms, actual, test.Expected)
 		}
 	}
@@ -119,7 +119,7 @@ func TestCombineFnMerge(t *testing.T) {
 			}
 			a := merge(t, fn, list...)
 			actual := outputUnmarshal(t, fn, a)
-			if !reflect.DeepEqual(actual, test.Expected) {
+			if !cmp.Equal(actual, test.Expected) {
 				t.Errorf("CombineFn(3; %v) = %v, want %v", test.Elms, actual, test.Expected)
 			}
 		})

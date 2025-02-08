@@ -16,11 +16,12 @@
 package validators
 
 import (
-	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"os"
-	"reflect"
 	"testing"
+
+	playground "beam.apache.org/playground/backend/internal/api/v1"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestMain setups and teardown all necessary functionality for tests
@@ -140,13 +141,13 @@ func TestGetValidators(t *testing.T) {
 				t.Errorf("GetValidators() err = %v, wantErr %v", err, tt.wantErr)
 			}
 			if got != nil {
-				if !reflect.DeepEqual(len(*got), len(*tt.want)) {
+				if !cmp.Equal(len(*got), len(*tt.want)) {
 					t.Errorf("GetValidators() len = %v, want %v", len(*got), len(*tt.want))
 				}
 				for i := range *got {
 					gotVal := (*got)[i]
 					wantVal := (*tt.want)[i]
-					if !reflect.DeepEqual(gotVal.Args, wantVal.Args) {
+					if !cmp.Equal(gotVal.Args, wantVal.Args) {
 						t.Errorf("GetValidators() %d = %v, want %v", i, gotVal.Args, wantVal.Args)
 					}
 				}

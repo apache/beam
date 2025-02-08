@@ -19,12 +19,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -96,7 +96,7 @@ func TestRedisCache_GetValue(t *testing.T) {
 				t.Errorf("GetValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("GetValue() got = %v, want %v", got, tt.want)
 			}
 			mock.ClearExpect()
@@ -367,7 +367,7 @@ func TestCache_GetCatalog(t *testing.T) {
 				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("GetCatalog() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -541,7 +541,7 @@ func TestCache_GetSdkCatalog(t *testing.T) {
 				t.Errorf("GetSdkCatalog() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, sdks) {
+			if !cmp.Equal(got, sdks) {
 				t.Errorf("GetSdkCatalog() got = %v, want %v", got, sdks)
 			}
 		})
@@ -662,7 +662,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("unmarshalBySubKey() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("unmarshalBySubKey() got = %v, want %v", got, tt.want)
 			}
 		})

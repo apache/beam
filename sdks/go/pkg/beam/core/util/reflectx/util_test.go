@@ -17,8 +17,9 @@ package reflectx
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type foo struct {
@@ -64,7 +65,7 @@ func TestMergeMaps(t *testing.T) {
 		orig := fmt.Sprintf("%v", test.a) // print before mutation
 
 		UpdateMap(test.a, test.b)
-		if !reflect.DeepEqual(test.a, test.exp) {
+		if !cmp.Equal(test.a, test.exp) {
 			t.Errorf("UpdateMap(%v,%v) = %v, want %v", orig, test.b, test.a, test.exp)
 		}
 	}
@@ -83,7 +84,7 @@ func TestShallowClone(t *testing.T) {
 	}
 	for _, test := range tests {
 		actual := ShallowClone(test)
-		if !reflect.DeepEqual(actual, test) {
+		if !cmp.Equal(actual, test) {
 			t.Errorf("ShallowClone(%v) = %v, want id", test, actual)
 		}
 	}
@@ -93,14 +94,14 @@ func TestShallowCloneNil(t *testing.T) {
 	var a []string
 
 	ac := ShallowClone(a)
-	if !reflect.DeepEqual(ac, a) {
+	if !cmp.Equal(ac, a) {
 		t.Errorf("ShallowClone(%v) = %v, want id", a, ac)
 	}
 
 	var b map[string]string
 
 	bc := ShallowClone(b)
-	if !reflect.DeepEqual(bc, b) {
+	if !cmp.Equal(bc, b) {
 		t.Errorf("ShallowClone(%v) = %v, want id", b, bc)
 	}
 }

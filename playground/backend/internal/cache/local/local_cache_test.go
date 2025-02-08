@@ -18,10 +18,10 @@ package local
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 
@@ -137,7 +137,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 				t.Errorf("GetValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("GetValue() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -358,7 +358,7 @@ func TestCache_SetCatalog(t *testing.T) {
 			if err := lc.SetCatalog(tt.args.ctx, tt.args.catalog); (err != nil) != tt.wantErr {
 				t.Errorf("SetCatalog() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(lc.catalog, tt.args.catalog) {
+			if !cmp.Equal(lc.catalog, tt.args.catalog) {
 				t.Errorf("SetCatalog() got = %v, want %v", lc.catalog, tt.args.catalog)
 			}
 		})
@@ -446,7 +446,7 @@ func TestCache_GetCatalog(t *testing.T) {
 				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("GetCatalog() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -482,7 +482,7 @@ func TestCache_SetSdkCatalog(t *testing.T) {
 				t.Errorf("SetSdkCatalog() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(sdks, testable.sdkCatalog) {
+			if !cmp.Equal(sdks, testable.sdkCatalog) {
 				t.Error("SetSdkCatalog() unexpected result")
 			}
 		})
@@ -514,7 +514,7 @@ func TestCache_GetSdkCatalog(t *testing.T) {
 				t.Errorf("GetSdkCatalog() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(sdks, actualResult) {
+			if !cmp.Equal(sdks, actualResult) {
 				t.Error("GetSdkCatalog() unexpected result")
 			}
 		})
@@ -698,7 +698,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.args.ctx); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
+			if got := New(tt.args.ctx); !cmp.Equal(fmt.Sprint(got), fmt.Sprint(tt.want)) {
 				t.Errorf("New() = %v, want %v", got, tt.want)
 			}
 		})

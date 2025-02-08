@@ -3,13 +3,13 @@ package preparers
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"sync"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/validators"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -179,7 +179,7 @@ func TestGetPreparers(t *testing.T) {
 				t.Errorf("GetPreparers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(len(*got), len(*tt.want)) {
+			if !cmp.Equal(len(*got), len(*tt.want)) {
 				t.Errorf("GetPreparers() got = %v, want %v", len(*got), len(*tt.want))
 			}
 		})

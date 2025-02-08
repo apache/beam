@@ -15,7 +15,6 @@
 package main
 
 import (
-	"beam.apache.org/playground/backend/internal/db/schema"
 	"context"
 	"fmt"
 	"io/fs"
@@ -23,10 +22,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"beam.apache.org/playground/backend/internal/db/schema"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +34,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+
+	"github.com/google/go-cmp/cmp"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -363,7 +365,7 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 			if got == nil && tt.wantStatus != nil {
 				t.Errorf("PlaygroundController_CheckStatus() return = %v, want response with status %v", got, tt.wantStatus)
 			}
-			if got != nil && !reflect.DeepEqual(got.Status, *tt.wantStatus) {
+			if got != nil && !cmp.Equal(got.Status, *tt.wantStatus) {
 				t.Errorf("PlaygroundController_CheckStatus() return status = %v, want status %v", got.Status, tt.wantStatus)
 			}
 		})

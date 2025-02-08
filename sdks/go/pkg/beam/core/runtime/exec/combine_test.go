@@ -31,6 +31,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/google/go-cmp/cmp"
 )
 
 var intInput = []any{int(1), int(2), int(3), int(4), int(5), int(6)}
@@ -73,7 +74,7 @@ func TestCombine(t *testing.T) {
 			constructAndExecutePlan(t, []Unit{n, combine, out})
 
 			expected := makeKV(42, test.Expected)
-			if !equalList(out.Elements, expected) {
+			if !cmp.Equal(out.Elements, expected) {
 				t.Errorf("combine(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 			}
 		})
@@ -99,7 +100,7 @@ func TestLiftedCombine(t *testing.T) {
 
 				constructAndExecutePlan(t, []Unit{n, precombine, gbk, merge, extract, out})
 				expected := makeKV(key, test.Expected)
-				if !equalList(out.Elements, expected) {
+				if !cmp.Equal(out.Elements, expected) {
 					t.Errorf("liftedCombineChain(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 				}
 			})
@@ -341,7 +342,7 @@ func TestConvertToAccumulators(t *testing.T) {
 			constructAndExecutePlan(t, []Unit{n, convertToAccumulators, out})
 
 			expected := makeKVValues(testKey, test.Expected...)
-			if !equalList(out.Elements, expected) {
+			if !cmp.Equal(out.Elements, expected) {
 				t.Errorf("convertToAccumulators(%s) = %#v, want %#v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 			}
 		})

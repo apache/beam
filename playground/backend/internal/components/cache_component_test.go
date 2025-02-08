@@ -18,7 +18,6 @@ package components
 import (
 	"context"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
+	"github.com/google/go-cmp/cmp"
 )
 
 var datastoreDb *db.EmulatedDatastore
@@ -94,7 +94,7 @@ func TestCacheComponent_GetSdkCatalogFromCacheOrDatastore(t *testing.T) {
 				t.Error("GetSdkCatalogFromCacheOrDatastore() unexpected error")
 				return
 			}
-			if !reflect.DeepEqual(sdks, result) {
+			if !cmp.Equal(sdks, result) {
 				t.Error("GetSdkCatalogFromCacheOrDatastore() unexpected result")
 			}
 		})
@@ -152,7 +152,7 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 			}
 			switch tt.storeType {
 			case "CACHE":
-				if !reflect.DeepEqual(result, catalog) {
+				if !cmp.Equal(result, catalog) {
 					t.Error("GetCatalogFromCacheOrDatastore() unexpected result")
 				}
 				tt.clean()
@@ -207,7 +207,7 @@ func TestCacheComponent_GetDefaultPrecompiledObjectFromCacheOrDatastore(t *testi
 				t.Error("GetDefaultPrecompiledObjectFromCacheOrDatastore() unexpected error")
 				return
 			}
-			if !reflect.DeepEqual(pcObj, result) {
+			if !cmp.Equal(pcObj, result) {
 				t.Error("GetDefaultPrecompiledObjectFromCacheOrDatastore() unexpected result")
 			}
 		})

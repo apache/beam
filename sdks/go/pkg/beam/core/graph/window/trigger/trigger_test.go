@@ -15,7 +15,6 @@
 package trigger
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -62,7 +61,7 @@ func TestRepeatTrigger(t *testing.T) {
 func TestRepeatTrigger_SubTrigger(t1 *testing.T) {
 	subTr := AfterCount(2)
 	t := &RepeatTrigger{subtrigger: subTr}
-	if got, want := t.SubTrigger(), subTr; !reflect.DeepEqual(got, want) {
+	if got, want := t.SubTrigger(), subTr; !cmp.Equal(got, want) {
 		t1.Errorf("SubTrigger() = %v, want %v", got, want)
 	}
 }
@@ -83,7 +82,7 @@ func TestAfterEndOfWindowTrigger(t *testing.T) {
 func TestAfterAll(t *testing.T) {
 	args := []Trigger{AfterCount(int32(10)), AfterProcessingTime()}
 	want := &AfterAllTrigger{subtriggers: args}
-	if got := AfterAll(args); !reflect.DeepEqual(got, want) {
+	if got := AfterAll(args); !cmp.Equal(got, want) {
 		t.Errorf("AfterAll() = %v, want %v", got, want)
 	}
 }
@@ -92,7 +91,7 @@ func TestAfterAllTrigger_SubTriggers(t1 *testing.T) {
 	args := []Trigger{AfterCount(int32(10)), AfterProcessingTime()}
 	t := &AfterAllTrigger{subtriggers: args}
 
-	if got, want := t.SubTriggers(), args; !reflect.DeepEqual(got, want) {
+	if got, want := t.SubTriggers(), args; !cmp.Equal(got, want) {
 		t1.Errorf("SubTriggers() = %v, want %v", got, want)
 	}
 }
@@ -101,7 +100,7 @@ func TestAfterAny(t *testing.T) {
 	args := []Trigger{AfterCount(int32(10)), AfterProcessingTime()}
 	want := &AfterAnyTrigger{subtriggers: args}
 
-	if got := AfterAny(args); !reflect.DeepEqual(got, want) {
+	if got := AfterAny(args); !cmp.Equal(got, want) {
 		t.Errorf("AfterAny() = %v, want %v", got, want)
 	}
 }
@@ -110,7 +109,7 @@ func TestAfterAnyTrigger_SubTriggers(t1 *testing.T) {
 	args := []Trigger{AfterCount(int32(10)), AfterProcessingTime()}
 
 	t := &AfterAnyTrigger{subtriggers: args}
-	if got, want := t.SubTriggers(), args; !reflect.DeepEqual(got, want) {
+	if got, want := t.SubTriggers(), args; !cmp.Equal(got, want) {
 		t1.Errorf("SubTriggers() = %v, want %v", got, want)
 	}
 }
@@ -119,7 +118,7 @@ func TestAfterEach(t *testing.T) {
 	args := []Trigger{AfterCount(int32(10)), AfterProcessingTime()}
 	want := &AfterEachTrigger{subtriggers: args}
 
-	if got := AfterEach(args); !reflect.DeepEqual(got, want) {
+	if got := AfterEach(args); !cmp.Equal(got, want) {
 		t.Errorf("AfterEach() = %v, want %v", got, want)
 	}
 }
@@ -128,7 +127,7 @@ func TestAfterEachTrigger_Subtriggers(t1 *testing.T) {
 	args := []Trigger{AfterCount(int32(10)), AfterProcessingTime()}
 
 	t := &AfterAnyTrigger{subtriggers: args}
-	if got, want := t.SubTriggers(), args; !reflect.DeepEqual(got, want) {
+	if got, want := t.SubTriggers(), args; !cmp.Equal(got, want) {
 		t1.Errorf("SubTriggers() = %v, want %v", got, want)
 	}
 }
@@ -139,7 +138,7 @@ func TestAfterEndOfWindowTrigger_Early(t1 *testing.T) {
 		earlyFiring: early,
 		lateFiring:  Always(),
 	}
-	if got, want := t.Early(), early; !reflect.DeepEqual(got, want) {
+	if got, want := t.Early(), early; !cmp.Equal(got, want) {
 		t1.Errorf("Early() = %v, want %v", got, want)
 	}
 }
@@ -154,7 +153,7 @@ func TestAfterEndOfWindowTrigger_EarlyFiring(t1 *testing.T) {
 		earlyFiring: early,
 		lateFiring:  Always(),
 	}
-	if got := t.EarlyFiring(early); !reflect.DeepEqual(got, want) {
+	if got := t.EarlyFiring(early); !cmp.Equal(got, want) {
 		t1.Errorf("EarlyFiring() = %v, want %v", got, want)
 	}
 }
@@ -166,7 +165,7 @@ func TestAfterEndOfWindowTrigger_Late(t1 *testing.T) {
 		lateFiring:  late,
 	}
 
-	if got, want := t.Late(), late; !reflect.DeepEqual(got, want) {
+	if got, want := t.Late(), late; !cmp.Equal(got, want) {
 		t1.Errorf("Late() = %v, want %v", got, want)
 	}
 }
@@ -182,7 +181,7 @@ func TestAfterEndOfWindowTrigger_LateFiring(t1 *testing.T) {
 		lateFiring:  late,
 	}
 
-	if got := t.LateFiring(late); !reflect.DeepEqual(got, want) {
+	if got := t.LateFiring(late); !cmp.Equal(got, want) {
 		t1.Errorf("LateFiring() = %v, want %v", got, want)
 	}
 }
@@ -193,7 +192,7 @@ func TestAfterProcessingTimeTrigger_AlignedTo(t1 *testing.T) {
 	want := &AfterProcessingTimeTrigger{
 		timestampTransforms: []TimestampTransform{AlignToTransform{Period: period, Offset: offset}},
 	}
-	if got := t.AlignedTo(time.Millisecond, time.Time{}); !reflect.DeepEqual(got, want) {
+	if got := t.AlignedTo(time.Millisecond, time.Time{}); !cmp.Equal(got, want) {
 		t1.Errorf("AlignedTo() = %v, want %v", got, want)
 	}
 }
@@ -205,7 +204,7 @@ func TestAfterProcessingTimeTrigger_PlusDelay(t1 *testing.T) {
 		timestampTransforms: []TimestampTransform{DelayTransform{Delay: int64(1)}},
 	}
 
-	if got := t.PlusDelay(time.Millisecond); !reflect.DeepEqual(got, want) {
+	if got := t.PlusDelay(time.Millisecond); !cmp.Equal(got, want) {
 		t1.Errorf("PlusDelay() = %v, want %v", got, want)
 	}
 }
@@ -216,34 +215,34 @@ func TestAfterProcessingTimeTrigger_TimestampTransforms(t1 *testing.T) {
 	t := &AfterProcessingTimeTrigger{
 		timestampTransforms: tt,
 	}
-	if got, want := t.TimestampTransforms(), tt; !reflect.DeepEqual(got, want) {
+	if got, want := t.TimestampTransforms(), tt; !cmp.Equal(got, want) {
 		t1.Errorf("TimestampTransforms() = %v, want %v", got, want)
 	}
 }
 
 func TestAfterSynchronizedProcessingTime(t *testing.T) {
 	want := &AfterSynchronizedProcessingTimeTrigger{}
-	if got := AfterSynchronizedProcessingTime(); !reflect.DeepEqual(got, want) {
+	if got := AfterSynchronizedProcessingTime(); !cmp.Equal(got, want) {
 		t.Errorf("AfterSynchronizedProcessingTime() = %v, want %v", got, want)
 	}
 }
 
 func TestAlways(t *testing.T) {
 	want := &AlwaysTrigger{}
-	if got := Always(); !reflect.DeepEqual(got, want) {
+	if got := Always(); !cmp.Equal(got, want) {
 		t.Errorf("Always() = %v, want %v", got, want)
 	}
 }
 func TestDefault(t *testing.T) {
 	want := &DefaultTrigger{}
-	if got := Default(); !reflect.DeepEqual(got, want) {
+	if got := Default(); !cmp.Equal(got, want) {
 		t.Errorf("Default() = %v, want %v", got, want)
 	}
 }
 
 func TestNever(t *testing.T) {
 	want := &NeverTrigger{}
-	if got := Never(); !reflect.DeepEqual(got, want) {
+	if got := Never(); !cmp.Equal(got, want) {
 		t.Errorf("Never() = %v, want %v", got, want)
 	}
 }
@@ -255,7 +254,7 @@ func TestOrFinally(t *testing.T) {
 		main:    main,
 		finally: finally,
 	}
-	if got := OrFinally(main, finally); !reflect.DeepEqual(got, want) {
+	if got := OrFinally(main, finally); !cmp.Equal(got, want) {
 		t.Errorf("OrFinally() = %v, want %v", got, want)
 	}
 }
@@ -268,7 +267,7 @@ func TestOrFinallyTrigger_Finally(t1 *testing.T) {
 		finally: finally,
 	}
 
-	if got, want := t.Finally(), finally; !reflect.DeepEqual(got, want) {
+	if got, want := t.Finally(), finally; !cmp.Equal(got, want) {
 		t1.Errorf("Finally() = %v, want %v", got, want)
 	}
 }
@@ -281,7 +280,7 @@ func TestOrFinallyTrigger_Main(t1 *testing.T) {
 		finally: finally,
 	}
 
-	if got, want := t.Main(), main; !reflect.DeepEqual(got, want) {
+	if got, want := t.Main(), main; !cmp.Equal(got, want) {
 		t1.Errorf("Main() = %v, want %v", got, want)
 	}
 }

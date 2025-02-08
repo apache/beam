@@ -17,12 +17,12 @@ package jobopts
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGetEndpoint(t *testing.T) {
@@ -135,7 +135,7 @@ func TestGetSdkImageOverrides(t *testing.T) {
 	sdkOverrides.Set(".*beam_go_sdk.*, apache/beam_go_sdk:testing")
 	SdkHarnessContainerImageOverrides = sdkOverrides
 	want := map[string]string{".*beam_go_sdk.*": "apache/beam_go_sdk:testing"}
-	if got := GetSdkImageOverrides(); reflect.DeepEqual(got, want) {
+	if got := GetSdkImageOverrides(); cmp.Equal(got, want) {
 		t.Errorf("GetSdkImageOverrides() = %v, want %v", got, want)
 	}
 }
@@ -161,11 +161,11 @@ func TestGetPipelineResourceHints(t *testing.T) {
 
 func TestGetExperiements(t *testing.T) {
 	*Experiments = ""
-	if got, want := GetExperiments(), []string(nil); !reflect.DeepEqual(got, want) {
+	if got, want := GetExperiments(), []string(nil); !cmp.Equal(got, want) {
 		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
 	}
 	*Experiments = "better,faster,stronger"
-	if got, want := GetExperiments(), []string{"better", "faster", "stronger"}; !reflect.DeepEqual(got, want) {
+	if got, want := GetExperiments(), []string{"better", "faster", "stronger"}; !cmp.Equal(got, want) {
 		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
 	}
 }

@@ -16,8 +16,9 @@
 package xlangx
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type testPayload struct {
@@ -42,7 +43,7 @@ func TestDecodeStructPayload(t *testing.T) {
 	if !ok {
 		t.Fatalf("decoded type = %T, want testPayload", decoded)
 	}
-	if !reflect.DeepEqual(got, payload) {
+	if !cmp.Equal(got, payload) {
 		t.Errorf("decoded payload = %v, want %v", got, payload)
 	}
 }

@@ -17,11 +17,12 @@ package exec
 
 import (
 	"fmt"
-	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -62,7 +63,7 @@ func TestUnmarshalKeyedValues(t *testing.T) {
 
 	for _, test := range tests {
 		actual := unmarshalKeyedValues(test.in)
-		if !reflect.DeepEqual(actual, test.exp) {
+		if !cmp.Equal(actual, test.exp) {
 			t.Errorf("unmarshalKeyedValues(%v) = %v, want %v", test.in, actual, test.exp)
 		}
 	}
@@ -463,9 +464,9 @@ func TestUnmarshalPlan(t *testing.T) {
 			plan, err := UnmarshalPlan(test.inputDesc, nil)
 			if err != nil && test.outputError == nil {
 				t.Errorf("there is an error where should not be. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
-			} else if err != nil && !reflect.DeepEqual(err, test.outputError) {
+			} else if err != nil && !cmp.Equal(err, test.outputError) {
 				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
-			} else if !reflect.DeepEqual(plan, test.outputPlan) {
+			} else if !cmp.Equal(plan, test.outputPlan) {
 				t.Errorf("the output builder is not right. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			}
 		})
@@ -508,7 +509,7 @@ func TestNewBuilder(t *testing.T) {
 				t.Errorf("There is an error where should not be. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			} else if err != nil && err != test.outputError {
 				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
-			} else if !reflect.DeepEqual(b, test.outputBuilder) {
+			} else if !cmp.Equal(b, test.outputBuilder) {
 				t.Errorf("The output builder is not right. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			}
 		})

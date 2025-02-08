@@ -17,9 +17,10 @@ package environment
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestNetworkEnvs_Address(t *testing.T) {
@@ -219,7 +220,7 @@ func TestApplicationEnvs_CacheEnvs(t *testing.T) {
 				cacheEnvs:              tt.fields.cacheEnvs,
 				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
 			}
-			if got := ae.CacheEnvs(); !reflect.DeepEqual(got, tt.want) {
+			if got := ae.CacheEnvs(); !cmp.Equal(got, tt.want) {
 				t.Errorf("CacheEnvs() = %v, want %v", got, tt.want)
 			}
 		})

@@ -20,11 +20,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -151,7 +151,7 @@ func TestNewEnvironment(t *testing.T) {
 					},
 					defaultPipelineExecuteTimeout,
 					defaultCacheRequestTimeout,
-				)); !reflect.DeepEqual(got, tt.want) {
+				)); !cmp.Equal(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
 		})
@@ -202,7 +202,7 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 				t.Errorf("ConfigureBeamEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("ConfigureBeamEnvs() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -243,7 +243,7 @@ func Test_getNetworkEnvsFromOsEnvs(t *testing.T) {
 				t.Errorf("getNetworkEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("getNetworkEnvsFromOsEnvs() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -401,7 +401,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 				return
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("getApplicationEnvsFromOsEnvs() got = %v, want %v", got, tt.want)
 			}
 			os.Clearenv()
@@ -435,7 +435,7 @@ func Test_createExecutorConfig(t *testing.T) {
 				t.Errorf("createExecutorConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("createExecutorConfig() got = %v\n, want %v\n", got, tt.want)
 			}
 		})
@@ -472,7 +472,7 @@ func Test_getConfigFromJson(t *testing.T) {
 				t.Errorf("getConfigFromJson() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("getConfigFromJson() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -578,7 +578,7 @@ func TestConfigureBeamEnvs(t *testing.T) {
 				t.Errorf("ConfigureBeamEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("ConfigureBeamEnvs() got = %v, want %v", got, tt.want)
 			}
 		})

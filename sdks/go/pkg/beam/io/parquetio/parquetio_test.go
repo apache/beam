@@ -25,6 +25,7 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/google/go-cmp/cmp"
 	"github.com/xitongsys/parquet-go-source/local"
 	"github.com/xitongsys/parquet-go/reader"
 )
@@ -120,7 +121,7 @@ func TestWrite(t *testing.T) {
 	if len(students) != len(studentList) {
 		t.Fatalf("length mismatch. got %d, expect %d", len(students), len(studentList))
 	}
-	if !reflect.DeepEqual(students, studentList) {
+	if !cmp.Equal(students, studentList) {
 		t.Fatalf("students differs from studentList. got %+v, expected %+v", students, studentList)
 	}
 }

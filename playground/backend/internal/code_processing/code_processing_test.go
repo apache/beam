@@ -19,16 +19,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/go-redis/redismock/v8"
 	"github.com/google/uuid"
@@ -315,7 +315,7 @@ func Test_Process(t *testing.T) {
 			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
-			if !reflect.DeepEqual(status, tt.expectedStatus) {
+			if !cmp.Equal(status, tt.expectedStatus) {
 				t.Errorf("processCode() set status: %s, but expectes: %s", status, tt.expectedStatus)
 			}
 
@@ -323,12 +323,12 @@ func Test_Process(t *testing.T) {
 			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
 				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.Paths.AbsoluteSourceFilePath)
 			}
-			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
+			if !cmp.Equal(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)
 			}
 
 			runOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.RunOutput)
-			if !reflect.DeepEqual(runOutput, tt.expectedRunOutput) {
+			if !cmp.Equal(runOutput, tt.expectedRunOutput) {
 				t.Errorf("processCode() set runOutput: %s, but expectes: %s", runOutput, tt.expectedRunOutput)
 			}
 
@@ -336,7 +336,7 @@ func Test_Process(t *testing.T) {
 			if tt.expectedRunError != nil && strings.Contains(tt.expectedRunError.(string), "%s") {
 				tt.expectedRunError = fmt.Sprintf(tt.expectedRunError.(string), tt.args.pipelineId)
 			}
-			if !reflect.DeepEqual(runError, tt.expectedRunError) {
+			if !cmp.Equal(runError, tt.expectedRunError) {
 				t.Errorf("processCode() set runError: %s, but expectes: %s", runError, tt.expectedRunError)
 			}
 		})
@@ -924,7 +924,7 @@ func Test_validateStep(t *testing.T) {
 			_ = lc.CreateSourceCodeFiles(sources)
 			err = validateStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.validationResults)
 			got := syncMapLen(tt.args.validationResults)
-			if err != nil && !reflect.DeepEqual(got, tt.want) {
+			if err != nil && !cmp.Equal(got, tt.want) {
 				t.Errorf("validateStep() = %d, want %d", got, tt.want)
 			}
 		})

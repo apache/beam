@@ -18,6 +18,8 @@ package exec
 import (
 	"context"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestMultiplex verifies that the Multiplex node works correctly.
@@ -43,13 +45,13 @@ func TestMultiplex(t *testing.T) {
 	}
 
 	expected := makeValues(1, 2, 3)
-	if !equalList(a.Elements, expected) {
+	if !cmp.Equal(a.Elements, expected) {
 		t.Errorf("multiplex returned %v for a, want %v", extractValues(a.Elements...), extractValues(expected...))
 	}
-	if !equalList(b.Elements, expected) {
+	if !cmp.Equal(b.Elements, expected) {
 		t.Errorf("multiplex returned %v for b, want %v", extractValues(b.Elements...), extractValues(expected...))
 	}
-	if !equalList(c.Elements, expected) {
+	if !cmp.Equal(c.Elements, expected) {
 		t.Errorf("multiplex returned %v for c, want %v", extractValues(c.Elements...), extractValues(expected...))
 	}
 }

@@ -19,10 +19,10 @@ package main
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestBuildOptionsEmpty(t *testing.T) {
@@ -68,13 +68,13 @@ func TestBuildOptions(t *testing.T) {
 	wantProperties := map[string]string{
 		"priority": "high",
 	}
-	if !reflect.DeepEqual(javaOptions.JavaArguments, wantJavaArguments) {
+	if !cmp.Equal(javaOptions.JavaArguments, wantJavaArguments) {
 		t.Errorf("BuildOptions(%v).JavaArguments = %v, want %v", metaOptions, javaOptions.JavaArguments, wantJavaArguments)
 	}
-	if !reflect.DeepEqual(javaOptions.Classpath, wantClasspath) {
+	if !cmp.Equal(javaOptions.Classpath, wantClasspath) {
 		t.Errorf("BuildOptions(%v).Classpath = %v, want %v", metaOptions, javaOptions.Classpath, wantClasspath)
 	}
-	if !reflect.DeepEqual(javaOptions.Properties, wantProperties) {
+	if !cmp.Equal(javaOptions.Properties, wantProperties) {
 		t.Errorf("BuildOptions(%v).JavaProperties = %v, want %v", metaOptions, javaOptions.Properties, wantProperties)
 	}
 }

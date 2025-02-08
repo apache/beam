@@ -18,6 +18,8 @@ package exec
 import (
 	"context"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestFlatten verifies that the Flatten node works correctly.
@@ -43,7 +45,7 @@ func TestFlatten(t *testing.T) {
 	}
 
 	expected := makeValues(1, 2, 3, 4, 5, 6)
-	if !equalList(out.Elements, expected) {
+	if !cmp.Equal(out.Elements, expected) {
 		t.Errorf("flatten returned %v, want %v", extractValues(out.Elements...), extractValues(expected...))
 	}
 }

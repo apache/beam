@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/google/go-cmp/cmp"
 )
 
 type foo struct {
@@ -350,11 +351,11 @@ func TestNew(t *testing.T) {
 			}
 
 			param := projectParamKind(u)
-			if !reflect.DeepEqual(param, test.Param) {
+			if !cmp.Equal(param, test.Param) {
 				t.Errorf("New(%v).Param = %v, want %v", test.Fn, param, test.Param)
 			}
 			ret := projectReturnKind(u)
-			if !reflect.DeepEqual(ret, test.Ret) {
+			if !cmp.Equal(ret, test.Ret) {
 				t.Errorf("New(%v).Ret = %v, want %v", test.Fn, ret, test.Ret)
 			}
 		})

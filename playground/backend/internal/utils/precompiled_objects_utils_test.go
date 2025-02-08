@@ -16,10 +16,10 @@
 package utils
 
 import (
-	"reflect"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestFilterPrecompiledObjects(t *testing.T) {
@@ -155,7 +155,7 @@ func TestFilterPrecompiledObjects(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := FilterCatalog(tt.args.catalog, tt.args.sdk, tt.args.categoryName); !reflect.DeepEqual(got, tt.want) {
+			if got := FilterCatalog(tt.args.catalog, tt.args.sdk, tt.args.categoryName); !cmp.Equal(got, tt.want) {
 				t.Errorf("FilterCatalog() = %v, want %v", got, tt.want)
 			}
 		})

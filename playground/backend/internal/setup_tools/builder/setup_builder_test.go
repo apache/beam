@@ -21,11 +21,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -266,11 +266,11 @@ func TestValidator(t *testing.T) {
 				t.Errorf("Validator() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err != nil && !reflect.DeepEqual(got, tt.want) {
+			if err != nil && !cmp.Equal(got, tt.want) {
 				t.Errorf("Validator() got = %v, want %v", got, tt.want)
 				return
 			}
-			if err == nil && !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+			if err == nil && !cmp.Equal(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 				t.Errorf("Validator() got = %v\n, want %v", got.Build(), tt.want.Build())
 			}
 		})
@@ -371,11 +371,11 @@ func TestPreparer(t *testing.T) {
 				t.Errorf("Preparer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err != nil && !reflect.DeepEqual(got, tt.want) {
+			if err != nil && !cmp.Equal(got, tt.want) {
 				t.Errorf("Preparer() got = %v, want %v", got, tt.want)
 				return
 			}
-			if err == nil && !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+			if err == nil && !cmp.Equal(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 				t.Errorf("Preparer() got = %v, want %v", got.Build(), tt.want.Build())
 			}
 		})
@@ -456,7 +456,7 @@ func TestCompiler(t *testing.T) {
 			if err != nil {
 				t.Errorf("Compiler() error = %v", err)
 			}
-			if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+			if !cmp.Equal(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 				t.Errorf("Compiler() = %v, want %v", got.Build(), tt.want.Build())
 			}
 		})
@@ -573,7 +573,7 @@ func TestRunnerBuilder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, _ := Runner(context.Background(), tt.args.paths, tt.args.pipelineOptions, tt.args.sdkEnv)
 			if tt.want != nil {
-				if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				if !cmp.Equal(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 					t.Errorf("Runner() got = %v, want %v", got.Build(), tt.want.Build())
 				}
 			} else {
@@ -660,7 +660,7 @@ func TestTestRunner(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, _ := TestRunner(context.Background(), tt.args.paths, tt.args.sdkEnv)
 			if tt.want != nil {
-				if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				if !cmp.Equal(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 					t.Errorf("TestRunner() got = %v, want %v", got.Build(), tt.want.Build())
 				}
 			} else {
@@ -695,7 +695,7 @@ func Test_replaceLogPlaceholder(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := replaceLogPlaceholder(tt.args.paths, tt.args.executorConfig); !reflect.DeepEqual(got, tt.want) {
+			if got := replaceLogPlaceholder(tt.args.paths, tt.args.executorConfig); !cmp.Equal(got, tt.want) {
 				t.Errorf("replaceLogPlaceholder() = %v, want %v", got, tt.want)
 			}
 		})

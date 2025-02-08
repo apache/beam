@@ -19,10 +19,10 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"reflect"
 	"testing"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -267,7 +267,7 @@ func TestHints_Payloads(t *testing.T) {
 			"beam:resources:accelerator:v1":   []byte("type:jeans;count1;"),
 			"beam:resources:cpu_count:v1":     []byte("4"),
 		}
-		if !reflect.DeepEqual(got, want) {
+		if !cmp.Equal(got, want) {
 			t.Errorf("hs.Payloads() = %v, want %v", got, want)
 		}
 	}
@@ -276,7 +276,7 @@ func TestHints_Payloads(t *testing.T) {
 		var emptyHints Hints
 		got := emptyHints.Payloads()
 		want := map[string][]byte{}
-		if !reflect.DeepEqual(got, want) {
+		if !cmp.Equal(got, want) {
 			t.Errorf("emptyHints.Payloads() = %v, want %v", got, want)
 		}
 	}

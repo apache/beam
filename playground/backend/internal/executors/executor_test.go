@@ -18,13 +18,13 @@ package executors
 import (
 	"context"
 	"os/exec"
-	"reflect"
 	"sync"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
+	"github.com/google/go-cmp/cmp"
 )
 
 const pipelineOptions = "--output t.txt"
@@ -73,7 +73,7 @@ func TestExecutor_Compile(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				validators:  tt.fields.validators,
 			}
-			if got := ex.Compile(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.Compile(context.Background()); !cmp.Equal(got.String(), tt.want.String()) {
 				t.Errorf("WithCompiler() = %v, want %v", got, tt.want)
 			}
 		})
@@ -157,7 +157,7 @@ func TestExecutor_Run(t *testing.T) {
 				validators:  tt.fields.validators,
 				preparers:   tt.fields.preparers,
 			}
-			if got := ex.Run(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.Run(context.Background()); !cmp.Equal(got.String(), tt.want.String()) {
 				t.Errorf("WithRunner() = %v, want %v", got, tt.want)
 			}
 		})
@@ -217,7 +217,7 @@ func TestExecutor_RunTest(t *testing.T) {
 				validators:  tt.fields.validators,
 				preparers:   tt.fields.preparers,
 			}
-			if got := ex.RunTest(tt.args.ctx); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.RunTest(tt.args.ctx); !cmp.Equal(got.String(), tt.want.String()) {
 				t.Errorf("RunTest() = %v, want %v", got, tt.want)
 			}
 		})
