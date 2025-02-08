@@ -123,7 +123,7 @@ public class TestStreamTranslation {
                   .setTimestamp(element.getTimestamp().getMillis())
                   .setEncodedElement(
                       ByteString.copyFrom(
-                          CoderUtils.encodeToByteArray(coder, element.getValue()))));
+                          CoderUtils.encodeToByteArray(coder, element.getValue(), Coder.Context.NESTED))));
         }
         return RunnerApi.TestStreamPayload.Event.newBuilder().setElementEvent(builder).build();
       default:
@@ -149,7 +149,7 @@ public class TestStreamTranslation {
             protoEvent.getElementEvent().getElementsList()) {
           decodedElements.add(
               TimestampedValue.of(
-                  CoderUtils.decodeFromByteArray(coder, element.getEncodedElement().toByteArray()),
+                  CoderUtils.decodeFromByteArray(coder, element.getEncodedElement().toByteArray(), Coder.Context.NESTED),
                   new Instant(element.getTimestamp())));
         }
         return TestStream.ElementEvent.add(decodedElements);
