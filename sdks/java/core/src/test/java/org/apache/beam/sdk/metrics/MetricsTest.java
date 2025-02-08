@@ -671,6 +671,10 @@ public class MetricsTest implements Serializable {
   private static void assertBoundedTrieMetrics(MetricQueryResults metrics, boolean isCommitted) {
     // TODO(https://github.com/apache/beam/issues/32001) use containsInAnyOrder once portableMetrics
     //   duplicate metrics issue fixed
+    System.err.println("BOUNDED_TRIE");
+    System.err.println(metrics.getBoundedTries());
+    System.err.println("ALL METRICS");
+    System.err.println(metrics);
     assertThat(
         metrics.getBoundedTries(),
         hasItem(
