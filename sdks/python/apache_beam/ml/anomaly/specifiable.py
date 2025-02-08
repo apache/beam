@@ -97,15 +97,11 @@ class Spec():
 
 @runtime_checkable
 class Specifiable(Protocol):
-  """Protocol that a specifiable class needs to implement.
-
-  Attributes:
-    spec_type: The value of the `type` field in the object's spec for this
-      class.
-    init_kwargs: The raw keyword arguments passed to `__init__` method during
-      object initialization.
-  """
+  """Protocol that a specifiable class needs to implement."""
+  #: The value of the `type` field in the object's spec for this class.
   spec_type: ClassVar[str]
+  #: The raw keyword arguments passed to `__init__` method during object
+  #: initialization.
   init_kwargs: dict[str, Any]
 
   # a boolean to tell whether the original `__init__` method is called
@@ -156,9 +152,7 @@ class Specifiable(Protocol):
     return v
 
   def to_spec(self) -> Spec:
-    """
-    Generate a spec from a `Specifiable` subclass object.
-    """
+    """Generate a spec from a `Specifiable` subclass object."""
     if getattr(type(self), 'spec_type', None) is None:
       raise ValueError(
           f"'{type(self).__name__}' not registered as Specifiable. "
@@ -167,6 +161,10 @@ class Specifiable(Protocol):
     args = {k: self._to_spec_helper(v) for k, v in self.init_kwargs.items()}
 
     return Spec(type=self.__class__.spec_type, config=args)
+
+  def run_original_init(self) -> None:
+    """Invoke the original __init__ method with original keyword arguments"""
+    pass
 
 
 # Register a `Specifiable` subclass in `KNOWN_SPECIFIABLE`
@@ -209,13 +207,13 @@ def specifiable(
   implementing the `Specifiable` protocol.
 
   To use the decorator, simply place `@specifiable` before the class
-  definition.::
+  definition::
 
     @specifiable
     class Foo():
       ...
 
-  For finer control, the decorator can accept arguments.::
+  For finer control, the decorator can accept arguments::
 
     @specifiable(spec_type="My Class", on_demand_init=False)
     class Bar():
