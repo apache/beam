@@ -31,6 +31,10 @@ from apache_beam.ml.anomaly.specifiable import specifiable
 
 
 class TestSpecifiable(unittest.TestCase):
+  def setUp(self) -> None:
+    # Remove all registered specifiable classes and reset.
+    _KNOWN_SPECIFIABLE.clear()
+
   def test_decorator_in_function_form(self):
     class A():
       pass
@@ -58,12 +62,6 @@ class TestSpecifiable(unittest.TestCase):
 
     # an error is raised if the specified spec_type already exists.
     self.assertRaises(ValueError, specifiable(spec_type="A_DUP"), A)
-
-    # but the error can be suppressed by setting error_if_exists=False.
-    try:
-      specifiable(spec_type="A_DUP", error_if_exists=False)(A)
-    except ValueError:
-      self.fail("The ValueError should be suppressed but instead it is raised.")
 
   def test_decorator_in_syntactic_sugar_form(self):
     # call decorator without parameters
@@ -140,20 +138,14 @@ class TestSpecifiable(unittest.TestCase):
                          (True, True)])
   def test_from_spec_and_to_spec(self, on_demand_init, just_in_time_init):
     @specifiable(
-        spec_type=f"product_{just_in_time_init}",
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     @dataclasses.dataclass
     class Product():
       name: str
       price: float
 
     @specifiable(
-        spec_type=f"shopping_entry_{just_in_time_init}",
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     class Entry():
       def __init__(self, product: Product, quantity: int = 1):
         self._product = product
@@ -165,10 +157,7 @@ class TestSpecifiable(unittest.TestCase):
           self._quantity == value._quantity
 
     @specifiable(
-        spec_type=f"shopping_cart_{just_in_time_init}",
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     @dataclasses.dataclass
     class ShoppingCart():
       user_id: str
@@ -177,7 +166,7 @@ class TestSpecifiable(unittest.TestCase):
     orange = Product("orange", 1.0)
 
     expected_orange_spec = Spec(
-        f"product_{just_in_time_init}", config={
+        "Product", config={
             'name': 'orange', 'price': 1.0
         })
     assert isinstance(orange, Specifiable)
@@ -186,8 +175,7 @@ class TestSpecifiable(unittest.TestCase):
     entry_1 = Entry(product=orange)
 
     expected_entry_spec_1 = Spec(
-        f"shopping_entry_{just_in_time_init}",
-        config={
+        "Entry", config={
             'product': expected_orange_spec,
         })
 
@@ -196,19 +184,18 @@ class TestSpecifiable(unittest.TestCase):
 
     banana = Product("banana", 0.5)
     expected_banana_spec = Spec(
-        f"product_{just_in_time_init}", config={
+        "Product", config={
             'name': 'banana', 'price': 0.5
         })
     entry_2 = Entry(product=banana, quantity=5)
     expected_entry_spec_2 = Spec(
-        f"shopping_entry_{just_in_time_init}",
-        config={
+        "Entry", config={
             'product': expected_banana_spec, 'quantity': 5
         })
 
     shopping_cart = ShoppingCart(user_id="test", entries=[entry_1, entry_2])
     expected_shopping_cart_spec = Spec(
-        f"shopping_cart_{just_in_time_init}",
+        "ShoppingCart",
         config={
             "user_id": "test",
             "entries": [expected_entry_spec_1, expected_entry_spec_2]

@@ -26,19 +26,22 @@ from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyDetector
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.base import ThresholdFn
+from apache_beam.ml.anomaly.specifiable import _KNOWN_SPECIFIABLE
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
 from apache_beam.ml.anomaly.specifiable import specifiable
 
 
 class TestAnomalyDetector(unittest.TestCase):
+  def setUp(self) -> None:
+    # Remove all registered specifiable classes and reset.
+    _KNOWN_SPECIFIABLE.clear()
+
   @parameterized.expand([(False, False), (True, False), (False, True),
                          (True, True)])
   def test_model_id_and_spec(self, on_demand_init, just_in_time_init):
     @specifiable(
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     class DummyThreshold(ThresholdFn):
       def __init__(self, my_threshold_arg=None):
         ...
@@ -53,9 +56,7 @@ class TestAnomalyDetector(unittest.TestCase):
         ...
 
     @specifiable(
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     class Dummy(AnomalyDetector):
       def __init__(self, my_arg=None, **kwargs):
         self._my_arg = my_arg
@@ -140,21 +141,21 @@ class TestAnomalyDetector(unittest.TestCase):
 
 
 class TestEnsembleAnomalyDetector(unittest.TestCase):
+  def setUp(self) -> None:
+    # Remove all registered specifiable classes and reset.
+    _KNOWN_SPECIFIABLE.clear()
+
   @parameterized.expand([(False, False), (True, False), (False, True),
                          (True, True)])
   def test_model_id_and_spec(self, on_demand_init, just_in_time_init):
     @specifiable(
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     class DummyAggregation(AggregationFn):
       def apply(self, x):
         ...
 
     @specifiable(
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     class DummyEnsemble(EnsembleAnomalyDetector):
       def __init__(self, my_ensemble_arg=None, **kwargs):
         super().__init__(**kwargs)
@@ -171,9 +172,7 @@ class TestEnsembleAnomalyDetector(unittest.TestCase):
           self._my_ensemble_arg == value._my_ensemble_arg
 
     @specifiable(
-        on_demand_init=on_demand_init,
-        just_in_time_init=just_in_time_init,
-        error_if_exists=False)
+        on_demand_init=on_demand_init, just_in_time_init=just_in_time_init)
     class DummyWeakLearner(AnomalyDetector):
       def __init__(self, my_arg=None, **kwargs):
         super().__init__(**kwargs)

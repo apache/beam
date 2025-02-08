@@ -21,6 +21,7 @@ A module that provides utilities to turn a class into a Specifiable subclass.
 
 from __future__ import annotations
 
+import collections
 import dataclasses
 import inspect
 import logging
@@ -51,7 +52,7 @@ _ACCEPTED_SUBSPACES = [
 #: of the accepted subspaces that the class belongs to and `spec_type` is the
 #: class name by default. Users can also specify a different value for
 #: `spec_type` when applying the `specifiable` decorator to an existing class.
-_KNOWN_SPECIFIABLE = {}
+_KNOWN_SPECIFIABLE = collections.defaultdict(dict)
 
 SpecT = TypeVar('SpecT', bound='Specifiable')
 
@@ -70,13 +71,13 @@ def _class_to_subspace(cls: Type) -> str:
   return _FALLBACK_SUBSPACE
 
 
-def _spec_type_to_subspace(type: str) -> str:
+def _spec_type_to_subspace(spec_type: str) -> str:
   """
   Look for the subspace for a spec type. This is usually called to retrieve
   the subspace of a registered specifiable class.
   """
   for subspace in _ACCEPTED_SUBSPACES:
-    if type in _KNOWN_SPECIFIABLE.get(subspace, {}):
+    if spec_type in _KNOWN_SPECIFIABLE[subspace]:
       return subspace
 
   raise ValueError(f"subspace for {str} not found.")
@@ -169,24 +170,20 @@ class Specifiable(Protocol):
 
 
 # Register a `Specifiable` subclass in `KNOWN_SPECIFIABLE`
-def _register(cls, spec_type=None, error_if_exists=True) -> None:
+def _register(cls, spec_type=None) -> None:
   if spec_type is None:
     # By default, spec type is the class name. Users can override this with
     # other unique identifier.
     spec_type = cls.__name__
 
   subspace = _class_to_subspace(cls)
-  if subspace in _KNOWN_SPECIFIABLE:
-    if spec_type in _KNOWN_SPECIFIABLE[subspace] and error_if_exists:
-      raise ValueError(
-          f"{spec_type} is already registered for "
-          f"specifiable class {_KNOWN_SPECIFIABLE[subspace]}. "
-          "Please specify a different spec_type by "
-          "@specifiable(spec_type=...) or ignore the error by "
-          "@specifiable(error_if_exists=False).")
+  if spec_type in _KNOWN_SPECIFIABLE[subspace]:
+    raise ValueError(
+        f"{spec_type} is already registered for "
+        f"specifiable class {_KNOWN_SPECIFIABLE[subspace][spec_type]}. "
+        "Please specify a different spec_type by @specifiable(spec_type=...).")
   else:
-    _KNOWN_SPECIFIABLE[subspace] = {}
-  _KNOWN_SPECIFIABLE[subspace][spec_type] = cls
+    _KNOWN_SPECIFIABLE[subspace][spec_type] = cls
 
   cls.spec_type = spec_type
 
@@ -206,7 +203,6 @@ def specifiable(
     /,
     *,
     spec_type=None,
-    error_if_exists=True,
     on_demand_init=True,
     just_in_time_init=True):
   """A decorator that turns a class into a `Specifiable` subclass by
@@ -230,8 +226,6 @@ def specifiable(
       subclass. If not provided, the class name is used. This argument is useful
       when registering multiple classes with the same base name; in such cases,
       one can specify `spec_type` to different values to resolve conflict.
-    error_if_exists: If True, raise an exception if `spec_type` is already
-      registered.
     on_demand_init: If True, allow on-demand object initialization. The original
       `__init__` method will be called when `_run_init=True` is passed to the
       object's initialization function.
@@ -306,7 +300,7 @@ def specifiable(
       return self.__getattribute__(name)
 
     # start of the function body of _wrapper
-    _register(cls, spec_type, error_if_exists)
+    _register(cls, spec_type)
 
     class_name = cls.__name__
     original_init = cls.__init__
