@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/google/go-cmp/cmp"
 )
 
 func makeInput(vs ...any) []MainInput {
@@ -140,50 +141,6 @@ func extractKeyedValues(vs ...FullValue) []any {
 	return ret
 }
 
-func equalList(a, b []FullValue) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if !equal(v, b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func equal(a, b FullValue) bool {
-	if a.Timestamp != b.Timestamp {
-		return false
-	}
-	if (a.Elm == nil) != (b.Elm == nil) {
-		return false
-	}
-	if (a.Elm2 == nil) != (b.Elm2 == nil) {
-		return false
-	}
-
-	if a.Elm != nil {
-		if !reflect.DeepEqual(a.Elm, b.Elm) {
-			return false
-		}
-	}
-	if a.Elm2 != nil {
-		if !reflect.DeepEqual(a.Elm2, b.Elm2) {
-			return false
-		}
-	}
-	if len(a.Windows) != len(b.Windows) {
-		return false
-	}
-	for i, w := range a.Windows {
-		if !w.Equals(b.Windows[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 // Conversion tests.
 func TestConvert(t *testing.T) {
 	tests := []struct {
@@ -231,13 +188,13 @@ func TestConvert(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			if got := Convert(test.v, test.to); !reflect.DeepEqual(got, test.want) {
+			if got := Convert(test.v, test.to); !cmp.Equal(got, test.want) {
 				t.Errorf("Convert(%v,%v) = %v,  want %v", test.v, test.to, got, test.want)
 			}
 		})
 		t.Run("Fn_"+test.name, func(t *testing.T) {
 			fn := ConvertFn(reflect.TypeOf(test.v), test.to)
-			if got := fn(test.v); !reflect.DeepEqual(got, test.want) {
+			if got := fn(test.v); !cmp.Equal(got, test.want) {
 				t.Errorf("ConvertFn(%T, %v)(%v) = %v,  want %v", test.v, test.to, test.v, got, test.want)
 			}
 		})
@@ -274,7 +231,7 @@ func TestDecodeStream(t *testing.T) {
 		for i := int64(0); i < size; i++ {
 			wants = append(wants, i)
 		}
-		if got, want := vals, makeValuesNoWindowOrTime(wants...); !equalList(got, want) {
+		if got, want := vals, makeValuesNoWindowOrTime(wants...); !cmp.Equal(got, want) {
 			t.Errorf("unable to ReadAll from decodeStream got %v, want %v", got, want)
 		}
 	})
@@ -300,7 +257,7 @@ func TestDecodeStream(t *testing.T) {
 		for i := int64(0); i < shortSize; i++ {
 			wants = append(wants, i)
 		}
-		if got, want := vals, makeValuesNoWindowOrTime(wants...); !equalList(got, want) {
+		if got, want := vals, makeValuesNoWindowOrTime(wants...); !cmp.Equal(got, want) {
 			t.Errorf("unable to short read from decodeStream got %v, want %v", got, want)
 		}
 
@@ -359,7 +316,7 @@ func TestDecodeMultiChunkStream(t *testing.T) {
 		for i := int64(0); i < size; i++ {
 			wants = append(wants, i)
 		}
-		if got, want := vals, makeValuesNoWindowOrTime(wants...); !equalList(got, want) {
+		if got, want := vals, makeValuesNoWindowOrTime(wants...); !cmp.Equal(got, want) {
 			t.Errorf("unable to ReadAll from decodeStream got %v, want %v", got, want)
 		}
 	})
@@ -385,7 +342,7 @@ func TestDecodeMultiChunkStream(t *testing.T) {
 		for i := int64(0); i < shortSize; i++ {
 			wants = append(wants, i)
 		}
-		if got, want := vals, makeValuesNoWindowOrTime(wants...); !equalList(got, want) {
+		if got, want := vals, makeValuesNoWindowOrTime(wants...); !cmp.Equal(got, want) {
 			t.Errorf("unable to short read from decodeStream got %v, want %v", got, want)
 		}
 
