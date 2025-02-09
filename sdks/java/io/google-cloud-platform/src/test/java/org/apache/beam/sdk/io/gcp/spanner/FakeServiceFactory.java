@@ -33,7 +33,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.concurrent.GuardedBy;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
 /**
  * A serialization friendly type service factory that maintains a mock {@link Spanner} and {@link
@@ -73,10 +73,11 @@ class FakeServiceFactory implements ServiceFactory<Spanner, SpannerOptions>, Ser
       mockAdminClients.add(mock(InstanceAdminClient.class, withSettings().serializable()));
       mockInstances.add(mock(Instance.class, withSettings().serializable()));
     }
-    when(mockAdminClient().getInstance(Matchers.any(String.class))).thenReturn(mockInstance());
-    when(mockSpanner().getDatabaseClient(Matchers.any(DatabaseId.class)))
+    when(mockAdminClient().getInstance(ArgumentMatchers.any(String.class)))
+        .thenReturn(mockInstance());
+    when(mockSpanner().getDatabaseClient(ArgumentMatchers.any(DatabaseId.class)))
         .thenReturn(mockDatabaseClient());
-    when(mockSpanner().getBatchClient(Matchers.any(DatabaseId.class)))
+    when(mockSpanner().getBatchClient(ArgumentMatchers.any(DatabaseId.class)))
         .thenReturn(mockBatchClient());
     when(mockSpanner().getInstanceAdminClient()).thenReturn(mockAdminClient());
   }

@@ -62,7 +62,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -94,7 +94,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
 
   @Test
   public void testInvokeProcessElement() throws Exception {
-    when(sideInputFetcher.storeIfBlocked(Matchers.<WindowedValue<Integer>>any()))
+    when(sideInputFetcher.storeIfBlocked(ArgumentMatchers.<WindowedValue<Integer>>any()))
         .thenReturn(false, true, false)
         .thenThrow(new RuntimeException("Does not expect more calls"));
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));

@@ -79,7 +79,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -248,7 +248,7 @@ public class PartialGroupByKeyParDoFnsTest {
             ImmutableList.of(
                 WindowedValue.valueInGlobalWindow(KV.of("hi", 4)),
                 WindowedValue.valueInGlobalWindow(KV.of("there", 5))));
-    when(mockSideInputFetcher.storeIfBlocked(Matchers.<WindowedValue<KV<String, Integer>>>any()))
+    when(mockSideInputFetcher.storeIfBlocked(ArgumentMatchers.<WindowedValue<KV<String, Integer>>>any()))
         .thenReturn(false, false, false, true);
 
     pgbkParDoFn.startBundle(receiver);
@@ -360,7 +360,7 @@ public class PartialGroupByKeyParDoFnsTest {
 
     when(mockSideInputReader.isEmpty()).thenReturn(false);
     when(mockStreamingStepContext.stateInternals()).thenReturn((StateInternals) mockStateInternals);
-    when(mockStateInternals.state(Matchers.<StateNamespace>any(), Matchers.<StateTag>any()))
+    when(mockStateInternals.state(ArgumentMatchers.<StateNamespace>any(), ArgumentMatchers.<StateTag>any()))
         .thenReturn(mockState);
     when(mockState.read()).thenReturn(Maps.newHashMap());
 
@@ -394,7 +394,7 @@ public class PartialGroupByKeyParDoFnsTest {
               return null;
             })
         .when(mockCoder)
-        .registerByteSizeObserver(Matchers.eq("apple"), Matchers.<ElementByteSizeObserver>any());
+        .registerByteSizeObserver(ArgumentMatchers.eq("apple"), ArgumentMatchers.<ElementByteSizeObserver>any());
     CoderSizeEstimator<String> estimator = new CoderSizeEstimator(mockCoder);
     assertEquals(5, estimator.estimateSize("apple"));
   }
@@ -410,7 +410,7 @@ public class PartialGroupByKeyParDoFnsTest {
               return null;
             })
         .when(mockCoder)
-        .registerByteSizeObserver(Matchers.eq("apple"), Matchers.<ElementByteSizeObserver>any());
+        .registerByteSizeObserver(ArgumentMatchers.eq("apple"), ArgumentMatchers.<ElementByteSizeObserver>any());
 
     // Encode the input to the output stream
     doAnswer(
@@ -422,7 +422,7 @@ public class PartialGroupByKeyParDoFnsTest {
               return null;
             })
         .when(mockCoder)
-        .encode(Matchers.eq("apple"), Matchers.<OutputStream>any());
+        .encode(ArgumentMatchers.eq("apple"), ArgumentMatchers.<OutputStream>any());
     CoderSizeEstimator<String> estimator = new CoderSizeEstimator(mockCoder);
     // Observer never updates size, so if result is 5, must have delegated to actual encoding
     assertEquals(5L, estimator.estimateSize("apple"));

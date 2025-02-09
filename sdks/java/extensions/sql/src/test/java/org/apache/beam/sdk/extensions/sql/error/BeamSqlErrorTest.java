@@ -39,7 +39,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 public class BeamSqlErrorTest {
@@ -113,7 +113,7 @@ public class BeamSqlErrorTest {
         "SELECT id,country_code,CalculatePrice(sum(CastUdf(amount)),currency) as sum_amount FROM PCOLLECTION group by id,country_code,currency";
 
     PTransform mock = spy(PTransform.class);
-    when(mock.expand(Matchers.any()))
+    when(mock.expand(ArgumentMatchers.any()))
         .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0, PCollection.class));
 
     ArgumentCaptor<PCollection> captor = ArgumentCaptor.forClass(PCollection.class);
