@@ -45,6 +45,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * encode/decode it. This class is an identical version that can be used as a PCollection element
  * type.
  *
+ * <p>NOTE: If you add any new fields here, you need to also update the {@link #equals} and {@link
+ * #hashCode()} methods.
+ *
  * <p>Use {@link #from(DataFile, String)} to create a {@link SerializableDataFile} and {@link
  * #createDataFile(Map)} to reconstruct the original {@link DataFile}.
  */
@@ -254,41 +257,22 @@ abstract class SerializableDataFile {
 
   @Override
   public final int hashCode() {
-    int hashCode = 1;
-    hashCode *= 1000003;
-    hashCode ^= getPath().hashCode();
-    hashCode *= 1000003;
-    hashCode ^= getFileFormat().hashCode();
-    hashCode *= 1000003;
-    hashCode ^= (int) ((getRecordCount() >>> 32) ^ getRecordCount());
-    hashCode *= 1000003;
-    hashCode ^= (int) ((getFileSizeInBytes() >>> 32) ^ getFileSizeInBytes());
-    hashCode *= 1000003;
-    hashCode ^= getPartitionPath().hashCode();
-    hashCode *= 1000003;
-    hashCode ^= getPartitionSpecId();
-    hashCode *= 1000003;
-    @Nullable ByteBuffer keyMetadata = getKeyMetadata();
-    hashCode ^= (keyMetadata == null) ? 0 : keyMetadata.hashCode();
-    hashCode *= 1000003;
-    @Nullable List<Long> splitOffsets = getSplitOffsets();
-    hashCode ^= (splitOffsets == null) ? 0 : splitOffsets.hashCode();
-    hashCode *= 1000003;
-    @Nullable Map<Integer, Long> columnSizes = getColumnSizes();
-    hashCode ^= (columnSizes == null) ? 0 : columnSizes.hashCode();
-    hashCode *= 1000003;
-    @Nullable Map<Integer, Long> valueCounts = getValueCounts();
-    hashCode ^= (valueCounts == null) ? 0 : valueCounts.hashCode();
-    hashCode *= 1000003;
-    @Nullable Map<Integer, Long> nullValueCounts = getNullValueCounts();
-    hashCode ^= (nullValueCounts == null) ? 0 : nullValueCounts.hashCode();
-    hashCode *= 1000003;
-    @Nullable Map<Integer, Long> nanValueCounts = getNanValueCounts();
-    hashCode ^= (nanValueCounts == null) ? 0 : nanValueCounts.hashCode();
-    hashCode *= 1000003;
-    hashCode ^= computeMapByteHashCode(getLowerBounds());
-    hashCode *= 1000003;
-    hashCode ^= computeMapByteHashCode(getUpperBounds());
+    int hashCode =
+        Objects.hash(
+            getPath(),
+            getFileFormat(),
+            getRecordCount(),
+            getFileSizeInBytes(),
+            getPartitionPath(),
+            getPartitionSpecId(),
+            getKeyMetadata(),
+            getSplitOffsets(),
+            getColumnSizes(),
+            getValueCounts(),
+            getNullValueCounts(),
+            getNanValueCounts());
+    hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
+    hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
     return hashCode;
   }
 
