@@ -32,6 +32,7 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Optional
 from typing import TypeVar
 from typing import Union
 
@@ -71,11 +72,13 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
+from apache_beam.typehints.native_type_compatibility import TypedWindowedValue
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
@@ -951,6 +954,10 @@ class ReshufflePerKey(PTransform):
             window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values
         ]
+
+      ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+          tuple[K, V]).with_output_types(
+              tuple[K, tuple[V, Optional[Timestamp]]])
     else:
 
       # typing: All conditional function variants must have identical signatures
@@ -964,7 +971,8 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-    ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+      ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+          tuple[K, V]).with_output_types(tuple[K, TypedWindowedValue[V]])
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
@@ -1016,7 +1024,8 @@ class Reshuffle(PTransform):
         pcoll | 'AddRandomKeys' >>
         Map(lambda t: (random.randrange(0, self.num_buckets), t)
             ).with_input_types(T).with_output_types(tuple[int, T])
-        | ReshufflePerKey()
+        | ReshufflePerKey().with_input_types(tuple[int, T]).with_output_types(
+            tuple[int, T])
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             tuple[int, T]).with_output_types(T))
 
