@@ -74,7 +74,7 @@ Before you begin, check out the Wiki pages. There are many useful tips about [Gi
 #### Configuration Options
 You have two options for configuring your development environment:
 - Local:
-  - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
+  - Manually installing the [prerequisites](#prerequisites).
   - Using the automated script for Linux and macOS.
 - Container-based: using a [Docker](https://www.docker.com/) image.
 
