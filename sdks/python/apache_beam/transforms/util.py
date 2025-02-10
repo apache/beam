@@ -41,6 +41,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
@@ -104,6 +105,8 @@ __all__ = [
 K = TypeVar('K')
 V = TypeVar('V')
 T = TypeVar('T')
+
+RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
 
 
 class CoGroupByKey(PTransform):
@@ -925,6 +928,25 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
+def is_compat_version_prior_to_breaking_change(
+    update_compatibility_version, breaking_change_version):
+  # This function is used in a branch statement to determine whether we should
+  # keep the old behavior prior to a breaking change or use the new behavior.
+  # - If update_compatibility_version < breaking_change_version, we will return
+  #   True and keep the old behavior.
+  # - If update_compatibility_version is None or >= breaking_change_version, we
+  #   will return False and use the behavior from the breaking change.
+  if update_compatibility_version is None:
+    return False
+
+  compat_version = tuple(map(int, update_compatibility_version.split('.')[0:3]))
+  change_version = tuple(map(int, breaking_change_version.split('.')[0:3]))
+  for i in range(min(len(compat_version), len(change_version))):
+    if compat_version[i] < change_version[i]:
+      return True
+  return False
+
+
 @typehints.with_input_types(tuple[K, V])
 @typehints.with_output_types(tuple[K, V])
 class ReshufflePerKey(PTransform):
@@ -934,6 +956,8 @@ class ReshufflePerKey(PTransform):
   transforms.
   """
   def expand(self, pcoll):
+    compat_version = pcoll.pipeline.options.view_as(
+        pipeline_options.StreamingOptions).update_compatibility_version
     windowing_saved = pcoll.windowing
     if windowing_saved.is_default():
       # In this (common) case we can use a trivial trigger driver
@@ -955,9 +979,13 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      ungrouped = pcoll | Map(reify_timestamps).with_input_types(
-          tuple[K, V]).with_output_types(
-              tuple[K, tuple[V, Optional[Timestamp]]])
+      if is_compat_version_prior_to_breaking_change(
+          compat_version, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+        ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+      else:
+        ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+            tuple[K, V]).with_output_types(
+                tuple[K, tuple[V, Optional[Timestamp]]])
     else:
 
       # typing: All conditional function variants must have identical signatures
@@ -971,8 +999,12 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      ungrouped = pcoll | Map(reify_timestamps).with_input_types(
-          tuple[K, V]).with_output_types(tuple[K, TypedWindowedValue[V]])
+      if is_compat_version_prior_to_breaking_change(
+          compat_version, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+        ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+      else:
+        ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+            tuple[K, V]).with_output_types(tuple[K, TypedWindowedValue[V]])
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
@@ -1020,12 +1052,19 @@ class Reshuffle(PTransform):
 
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
+    compat_version = pcoll.pipeline.options.view_as(
+        pipeline_options.StreamingOptions).update_compatibility_version
+    if is_compat_version_prior_to_breaking_change(
+        compat_version, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      reshuffle_step = ReshufflePerKey()
+    else:
+      reshuffle_step = ReshufflePerKey().with_input_types(
+          tuple[int, T]).with_output_types(tuple[int, T])
     return (
         pcoll | 'AddRandomKeys' >>
         Map(lambda t: (random.randrange(0, self.num_buckets), t)
             ).with_input_types(T).with_output_types(tuple[int, T])
-        | ReshufflePerKey().with_input_types(tuple[int, T]).with_output_types(
-            tuple[int, T])
+        | reshuffle_step
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             tuple[int, T]).with_output_types(T))
 

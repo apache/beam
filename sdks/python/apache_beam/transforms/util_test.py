@@ -1036,10 +1036,10 @@ class ReshuffleTest(unittest.TestCase):
     def is_deterministic(self):
       return True
 
-  def test_reshuffle_unpicklable_in_global_window(self):
-    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
-
-    with TestPipeline() as pipeline:
+  def reshuffle_unpicklable_in_global_window_helper(
+      self, update_compatibility_version=None):
+    with TestPipeline(options=PipelineOptions(
+        update_compatibility_version=update_compatibility_version)) as pipeline:
       data = [_Unpicklable(i) for i in range(5)]
       expected_data = [0, 10, 20, 30, 40]
       result = (
@@ -1050,10 +1050,21 @@ class ReshuffleTest(unittest.TestCase):
           | beam.Map(lambda u: u.value * 10))
       assert_that(result, equal_to(expected_data))
 
-  def test_reshuffle_unpicklable_in_non_global_window(self):
+  def test_reshuffle_unpicklable_in_global_window(self):
     beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
 
-    with TestPipeline() as pipeline:
+    self.reshuffle_unpicklable_in_global_window_helper()
+    # An exception is raised when running reshuffle on unpicklable objects
+    # prior to 2.64.0
+    self.assertRaises(
+        RuntimeError,
+        self.reshuffle_unpicklable_in_global_window_helper,
+        "2.63.0")
+
+  def reshuffle_unpicklable_in_non_global_window_helper(
+      self, update_compatibility_version=None):
+    with TestPipeline(options=PipelineOptions(
+        update_compatibility_version=update_compatibility_version)) as pipeline:
       data = [_Unpicklable(i) for i in range(5)]
       expected_data = [0, 0, 0, 10, 10, 10, 20, 20, 20, 30, 30, 30, 40, 40, 40]
       result = (
@@ -1063,6 +1074,17 @@ class ReshuffleTest(unittest.TestCase):
           | beam.Reshuffle()
           | beam.Map(lambda u: u.value * 10))
       assert_that(result, equal_to(expected_data))
+
+  def test_reshuffle_unpicklable_in_non_global_window(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+
+    self.reshuffle_unpicklable_in_non_global_window_helper()
+    # An exception is raised when running reshuffle on unpicklable objects
+    # prior to 2.64.0
+    self.assertRaises(
+        RuntimeError,
+        self.reshuffle_unpicklable_in_non_global_window_helper,
+        "2.63.0")
 
 
 class WithKeysTest(unittest.TestCase):
