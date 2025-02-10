@@ -17,10 +17,11 @@ package exec
 
 import (
 	"context"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestDataSampler verifies that the DataSampler works correctly.
@@ -140,7 +141,7 @@ func verifySampledElements(samples, want map[string][]*DataSample) bool {
 		sort.SliceStable(expected, func(i, j int) bool {
 			return string(expected[i].Element) < string(expected[j].Element)
 		})
-		if !reflect.DeepEqual(samples, expected) {
+		if !cmp.Equal(samples, expected) {
 			return false
 		}
 	}

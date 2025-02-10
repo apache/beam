@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestReadValueState(t *testing.T) {
@@ -197,7 +198,7 @@ func TestNewUserStateAdapter(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			adapter := NewUserStateAdapter(test.sid, test.c, test.stateIDToCoder, test.stateIDToKeyCoder, test.stateIDToCombineFn)
-			if !reflect.DeepEqual(adapter, test.adapter) {
+			if !cmp.Equal(adapter, test.adapter) {
 				t.Errorf("NewUserStateAdapter(%v, %v, %v, %v, %v)=%v, want %v", test.sid, test.c, test.stateIDToCoder, test.stateIDToKeyCoder, test.stateIDToCombineFn, adapter, test.adapter)
 			}
 		})

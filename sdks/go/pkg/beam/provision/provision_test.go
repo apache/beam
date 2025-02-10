@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"reflect"
 	"sync"
 	"testing"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
 )
 
@@ -55,7 +55,7 @@ func TestConversions(t *testing.T) {
 		if err := ProtoToOptions(enc, &ret); err != nil {
 			t.Errorf("Failed to unmarshal %v from %v: %v", test, enc, err)
 		}
-		if !reflect.DeepEqual(test, ret) {
+		if !cmp.Equal(test, ret) {
 			t.Errorf("Unmarshal(Marshal(%v)) = %v, want %v", test, ret, test)
 		}
 	}

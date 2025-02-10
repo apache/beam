@@ -98,11 +98,11 @@ func TestParDo_IterableSideInputsAndEmitters(t *testing.T) {
 	}
 
 	expected := makeValues(10, 20, 30)
-	if !equalList(out.Elements, expected) {
+	if !cmp.Equal(out.Elements, expected) {
 		t.Errorf("pardo(sumFn) = %v, want %v", extractValues(out.Elements...), extractValues(expected...))
 	}
 	expectedSum := makeValues(45, 45, 45)
-	if !equalList(sum.Elements, expectedSum) {
+	if !cmp.Equal(sum.Elements, expectedSum) {
 		t.Errorf("pardo(sumFn) side input = %v, want %v", extractValues(sum.Elements...), extractValues(expectedSum...))
 	}
 }
@@ -145,7 +145,7 @@ func TestParDo_ShortGBK(t *testing.T) {
 	}
 
 	expected := makeValues(52)
-	if !equalList(short.Elements, expected) {
+	if !cmp.Equal(short.Elements, expected) {
 		t.Errorf("pardo(sumFn) = %v, want %v", extractValues(short.Elements...), extractValues(expected...))
 	}
 }
@@ -213,7 +213,7 @@ func TestParDo_WindowObservation(t *testing.T) {
 		}
 
 		expected := makeWindowedValues(test.ws, test.out1, test.out2)
-		if !equalList(out.Elements, expected) {
+		if !cmp.Equal(out.Elements, expected) {
 			t.Errorf("pardo(windowObserverFn) = %v, want %v", extractValues(out.Elements...), extractValues(expected...))
 		}
 	}
@@ -270,7 +270,7 @@ func TestProcessSingleWindow_withOutputs(t *testing.T) {
 				t.Fatalf("down failed: %v", err)
 			}
 
-			if !equalList(out.Elements, makeValues(test.expectedOutput...)) {
+			if !cmp.Equal(out.Elements, makeValues(test.expectedOutput...)) {
 				t.Errorf("got elements %v, want %v", extractValues(out.Elements...), test.expectedOutput)
 			}
 		})

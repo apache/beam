@@ -18,7 +18,6 @@ package dataflowlib
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
@@ -160,7 +159,7 @@ func TestValidateWorkerSettings(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(test.expected, test.opts) {
+			if !cmp.Equal(test.expected, test.opts) {
 				t.Fatalf("expected job options: %v, got job options: %v", test.expected, test.opts)
 			}
 		})

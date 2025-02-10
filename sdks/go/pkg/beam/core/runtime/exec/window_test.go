@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestAssignWindow tests that each window fn assigns the
@@ -212,7 +213,7 @@ func TestMapWindows(t *testing.T) {
 			if err := p.Down(ctx); err != nil {
 				t.Fatalf("down failed: %s", err)
 			}
-			if !equalList(out.Elements, expected) {
+			if !cmp.Equal(out.Elements, expected) {
 				t.Errorf("map_windows returned %v, want %v", extractValues(out.Elements...), extractValues(expected...))
 			}
 		})

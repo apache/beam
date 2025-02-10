@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -400,7 +401,7 @@ func TestNewLifeCycle(t *testing.T) {
 				t.Errorf("NewLifeCycle() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
+			if !tt.wantErr && !cmp.Equal(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("NewLifeCycle() got folderGlobs = %v, want folderGlobs %v", got.folderGlobs, tt.want.folderGlobs)
 			}
 			if !tt.wantErr && !checkPathsEqual(got.Paths, tt.want.Paths) {
@@ -411,12 +412,15 @@ func TestNewLifeCycle(t *testing.T) {
 }
 
 func checkPathsEqual(paths1, paths2 LifeCyclePaths) bool {
-	return paths1.SourceFileName == paths2.SourceFileName &&
-		paths1.AbsoluteSourceFileFolderPath == paths2.AbsoluteSourceFileFolderPath &&
-		paths1.AbsoluteSourceFilePath == paths2.AbsoluteSourceFilePath &&
-		paths1.ExecutableFileName == paths2.ExecutableFileName &&
-		paths1.AbsoluteExecutableFileFolderPath == paths2.AbsoluteExecutableFileFolderPath &&
-		paths1.AbsoluteExecutableFilePath == paths2.AbsoluteExecutableFilePath &&
-		paths1.AbsoluteBaseFolderPath == paths2.AbsoluteBaseFolderPath &&
-		paths1.AbsoluteLogFilePath == paths2.AbsoluteLogFilePath
+	opts := cmp.Options{
+		cmp.FilterPath(func(p cmp.Path) bool {
+			return p.Last().Type().Kind() == reflect.Func
+		}, cmp.Ignore()),
+		cmp.FilterPath(func(p cmp.Path) bool {
+			return p.Last().String() == ".AbsoluteGraphFilePath" ||
+				p.Last().String() == ".ProjectDir"
+		}, cmp.Ignore()),
+	}
+
+	return cmp.Equal(paths1, paths2, opts)
 }

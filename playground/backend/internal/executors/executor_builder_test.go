@@ -16,8 +16,9 @@
 package executors
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 var handlers []handler
@@ -46,7 +47,7 @@ func TestNewExecutorBuilder(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewExecutorBuilder(); !reflect.DeepEqual(got, tt.want) {
+			if got := NewExecutorBuilder(); !cmp.Equal(got, tt.want) {
 				t.Errorf("NewExecutorBuilder() = %v, want %v", got, tt.want)
 			}
 		})
@@ -78,7 +79,7 @@ func TestExecutorBuilder_WithCompiler(t *testing.T) {
 			b := &ExecutorBuilder{
 				actions: tt.fields.actions,
 			}
-			if got := b.WithCompiler(); !reflect.DeepEqual(got, tt.want) {
+			if got := b.WithCompiler(); !cmp.Equal(got, tt.want) {
 				t.Errorf("WithCompiler() = %v, want %v", got, tt.want)
 			}
 		})
@@ -110,7 +111,7 @@ func TestExecutorBuilder_WithRunner(t *testing.T) {
 			b := &ExecutorBuilder{
 				actions: tt.fields.actions,
 			}
-			if got := b.WithRunner(); !reflect.DeepEqual(got, tt.want) {
+			if got := b.WithRunner(); !cmp.Equal(got, tt.want) {
 				t.Errorf("WithRunner() = %v, want %v", got, tt.want)
 			}
 		})
@@ -142,7 +143,7 @@ func TestExecutorBuilder_WithValidator(t *testing.T) {
 			b := &ExecutorBuilder{
 				actions: tt.fields.actions,
 			}
-			if got := b.WithValidator(); !reflect.DeepEqual(got, tt.want) {
+			if got := b.WithValidator(); !cmp.Equal(got, tt.want) {
 				t.Errorf("WithValidator() = %v, want %v", got, tt.want)
 			}
 		})
@@ -174,7 +175,7 @@ func TestExecutorBuilder_WithPreparer(t *testing.T) {
 			b := &ExecutorBuilder{
 				actions: tt.fields.actions,
 			}
-			if got := b.WithPreparer(); !reflect.DeepEqual(got, tt.want) {
+			if got := b.WithPreparer(); !cmp.Equal(got, tt.want) {
 				t.Errorf("WithPreparer() = %v, want %v", got, tt.want)
 			}
 		})
@@ -206,7 +207,7 @@ func TestExecutorBuilder_WithTestRunner(t *testing.T) {
 			b := &ExecutorBuilder{
 				actions: tt.fields.actions,
 			}
-			if got := b.WithTestRunner(); !reflect.DeepEqual(got, tt.want) {
+			if got := b.WithTestRunner(); !cmp.Equal(got, tt.want) {
 				t.Errorf("WithTestRunner() = %v, want %v", got, tt.want)
 			}
 		})
@@ -241,7 +242,7 @@ func TestExecutorBuilder_Build(t *testing.T) {
 			b := &ExecutorBuilder{
 				actions: tt.fields.actions,
 			}
-			if got := b.Build(); !reflect.DeepEqual(got, tt.want) {
+			if got := b.Build(); !cmp.Equal(got, tt.want) {
 				t.Errorf("Build() = %v, want %v", got, tt.want)
 			}
 		})

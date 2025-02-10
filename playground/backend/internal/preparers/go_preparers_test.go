@@ -17,8 +17,9 @@ package preparers
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // getPreparedArgs returns array of received arguments
@@ -51,7 +52,7 @@ func TestGetGoPreparers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
 			GetGoPreparers(builder, true)
-			if got := builder.Build().GetPreparers(); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
+			if got := builder.Build().GetPreparers(); !cmp.Equal(fmt.Sprint(got), fmt.Sprint(tt.want)) {
 				t.Errorf("GetGoPreparers() = %v, want %v", got, tt.want)
 			}
 		})

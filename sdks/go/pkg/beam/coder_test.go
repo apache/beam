@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestJSONCoder(t *testing.T) {
@@ -62,7 +63,7 @@ func TestJSONCoder(t *testing.T) {
 			t.Fatalf("Failed to decode: %v", err)
 		}
 
-		if !reflect.DeepEqual(decoded, test) {
+		if !cmp.Equal(decoded, test) {
 			t.Errorf("Corrupt coding: %v, want %v", decoded, test)
 		}
 	}
@@ -113,7 +114,7 @@ func TestSchemaCoder(t *testing.T) {
 				t.Fatalf("Failed to decode: %v", err)
 			}
 
-			if !reflect.DeepEqual(decoded, test) {
+			if !cmp.Equal(decoded, test) {
 				t.Errorf("Corrupt coding: %v, want %v", decoded, test)
 			}
 		})
@@ -176,7 +177,7 @@ func TestCoders(t *testing.T) {
 				t.Fatalf("Failed to decode: %q, %v", results[0], err)
 			}
 
-			if !reflect.DeepEqual(decoded, test) {
+			if !cmp.Equal(decoded, test) {
 				t.Errorf("Corrupt coding: %v, want %v", decoded, test)
 			}
 		})

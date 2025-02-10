@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestPCollection verifies that the PCollection node works correctly.
@@ -49,7 +50,7 @@ func TestPCollection(t *testing.T) {
 	}
 
 	expected := makeValues(inputs...)
-	if !equalList(a.Elements, expected) {
+	if !cmp.Equal(a.Elements, expected) {
 		t.Errorf("multiplex returned %v for a, want %v", extractValues(a.Elements...), extractValues(expected...))
 	}
 	snap := pcol.snapshot()

@@ -35,6 +35,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -221,12 +222,12 @@ func TestDataSource_Iterators(t *testing.T) {
 				for _, i := range capture.CapturedInputs {
 					iVals = append(iVals, i.Key)
 
-					if got, want := i.Values, expectedValues; !equalList(got, want) {
+					if got, want := i.Values, expectedValues; !cmp.Equal(got, want) {
 						t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
 					}
 				}
 
-				if got, want := iVals, expectedKeys; !equalList(got, want) {
+				if got, want := iVals, expectedKeys; !cmp.Equal(got, want) {
 					t.Errorf("DataSource => %#v, want %#v", extractValues(got...), extractValues(want...))
 				}
 
@@ -1130,7 +1131,7 @@ func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected
 	if got, want := source.Progress(), quickTestSnapshot(source, int64(len(expected))); !compareProgressReportSnapshots(want, got) {
 		t.Fatalf("progress snapshot didn't match: got %v, want %v", got, want)
 	}
-	if !equalList(out.Elements, expected) {
+	if !cmp.Equal(out.Elements, expected) {
 		t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
 	}
 }

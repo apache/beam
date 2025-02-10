@@ -21,6 +21,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func Test_queryRecordMapperProvider(t *testing.T) {
@@ -72,7 +74,7 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 		DateOfBirth: *dob,
 		NameTest:    *name,
 		Random:      *random,
-	}); !reflect.DeepEqual(aUser, want) {
+	}); !cmp.Equal(aUser, want) {
 		t.Errorf("got %v, want %v", aUser, want)
 	}
 }

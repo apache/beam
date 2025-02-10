@@ -15,9 +15,10 @@
 package metrics
 
 import (
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestStore(t *testing.T) {
@@ -56,7 +57,7 @@ func TestStore(t *testing.T) {
 		{transform: "pid", namespace: "ns", name: "distribution"}: &distribution{count: 1, sum: 2, min: 3, max: 4},
 		{transform: "pid", namespace: "ns", name: "gauge"}:        &gauge{v: 1, t: now},
 	}
-	if !reflect.DeepEqual(m, expected) {
+	if !cmp.Equal(m, expected) {
 		t.Errorf("e.ExtractFrom(store) = %v, want %v", m, expected)
 	}
 }

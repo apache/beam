@@ -18,13 +18,14 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 )
 
 const (
@@ -127,7 +128,7 @@ func TestInitVars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1, got2, got3, got4 := InitVars()
 			variables := append([]interface{}{}, got, got1, got2, got3, got4)
-			if !reflect.DeepEqual(variables, tt.want) {
+			if !cmp.Equal(variables, tt.want) {
 				t.Errorf("InitVars() variables = %v, want %v", variables, tt.want)
 			}
 		})

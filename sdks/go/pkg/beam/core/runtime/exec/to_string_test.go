@@ -18,6 +18,8 @@ package exec
 import (
 	"context"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 var toStringTestCases = []struct {
@@ -50,7 +52,7 @@ func TestToString(t *testing.T) {
 		}
 
 		expected := makeKVValues("key", testCase.Expected...)
-		if !equalList(out.Elements, expected) {
+		if !cmp.Equal(out.Elements, expected) {
 			t.Errorf("tostring returned %v, want %v", extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 		}
 	}

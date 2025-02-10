@@ -16,11 +16,12 @@
 package fs_tool
 
 import (
-	"beam.apache.org/playground/backend/internal/utils"
-	"github.com/google/uuid"
 	"path/filepath"
-	"reflect"
 	"testing"
+
+	"beam.apache.org/playground/backend/internal/utils"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 )
 
 func Test_newPythonLifeCycle(t *testing.T) {
@@ -64,7 +65,7 @@ func Test_newPythonLifeCycle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newPythonLifeCycle(tt.args.pipelineId, tt.args.pipelinesFolder)
-			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
+			if !cmp.Equal(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newPythonLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
 			if !checkPathsEqual(got.Paths, tt.want.Paths) {
