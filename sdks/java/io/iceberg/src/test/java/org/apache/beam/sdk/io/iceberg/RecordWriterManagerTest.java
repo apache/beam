@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -27,9 +28,12 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -451,10 +455,27 @@ public class RecordWriterManagerTest {
             .addFloatField("float")
             .addDoubleField("double")
             .addStringField("str")
+            .addLogicalTypeField("date", SqlTypes.DATE)
+            .addLogicalTypeField("time", SqlTypes.TIME)
+            .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+            .addDateTimeField("datetime_tz")
             .build();
-
+    String timestamp = "2025-01-21T13:18:20.053";
+    LocalDateTime localDateTime = LocalDateTime.parse(timestamp);
     Row row =
-        Row.withSchema(primitiveTypeSchema).addValues(true, 1, 1L, 1.23f, 4.56, "str").build();
+        Row.withSchema(primitiveTypeSchema)
+            .addValues(
+                true,
+                1,
+                1L,
+                1.23f,
+                4.56,
+                "str",
+                localDateTime.toLocalDate(),
+                localDateTime.toLocalTime(),
+                localDateTime,
+                DateTime.parse(timestamp))
+            .build();
     org.apache.iceberg.Schema icebergSchema =
         IcebergUtils.beamSchemaToIcebergSchema(primitiveTypeSchema);
     PartitionSpec spec =
@@ -465,6 +486,10 @@ public class RecordWriterManagerTest {
             .identity("float")
             .identity("double")
             .identity("str")
+            .identity("date")
+            .identity("time")
+            .identity("datetime")
+            .identity("datetime_tz")
             .build();
     WindowedValue<IcebergDestination> dest =
         getWindowedDestination("identity_partitioning", icebergSchema, spec);
@@ -479,8 +504,12 @@ public class RecordWriterManagerTest {
     assertEquals(1, dataFile.getRecordCount());
     // build this string: bool=true/int=1/long=1/float=1.0/double=1.0/str=str
     List<String> expectedPartitions = new ArrayList<>();
+    List<String> dateTypes = Arrays.asList("date", "time", "datetime", "datetime_tz");
     for (Schema.Field field : primitiveTypeSchema.getFields()) {
-      Object val = row.getValue(field.getName());
+      Object val = checkStateNotNull(row.getValue(field.getName()));
+      if (dateTypes.contains(field.getName())) {
+        val = URLEncoder.encode(val.toString(), StandardCharsets.UTF_8.toString());
+      }
       expectedPartitions.add(field.getName() + "=" + val);
     }
     String expectedPartitionPath = String.join("/", expectedPartitions);

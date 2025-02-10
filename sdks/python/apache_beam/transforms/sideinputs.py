@@ -27,10 +27,9 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 # pytype: skip-file
 
 import re
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Dict
 
 from apache_beam.transforms import window
 
@@ -82,7 +81,7 @@ class SideInputMap(object):
     self._view_class = view_class
     self._view_options = view_options
     self._iterable = iterable
-    self._cache: Dict[window.BoundedWindow, Any] = {}
+    self._cache: dict[window.BoundedWindow, Any] = {}
 
   def __getitem__(self, window: window.BoundedWindow) -> Any:
     if window not in self._cache:

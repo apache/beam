@@ -214,8 +214,33 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
               .setData(value)
               .setMetadata(metadata);
       keyedOutput.addMessages(builder.build());
+
+      long offsetSize = 0;
+      if (context.offsetBasedDeduplicationSupported()) {
+        if (id.size() > 0) {
+          throw new RuntimeException(
+              "Unexpected record ID via ValueWithRecordIdCoder while offset-based deduplication enabled.");
+        }
+        byte[] rawId = context.getCurrentRecordId();
+        if (rawId.length == 0) {
+          throw new RuntimeException(
+              "Unexpected empty record ID while offset-based deduplication enabled.");
+        }
+        id = ByteString.copyFrom(rawId);
+
+        byte[] rawOffset = context.getCurrentRecordOffset();
+        if (rawOffset.length == 0) {
+          throw new RuntimeException(
+              "Unexpected empty record offset while offset-based deduplication enabled.");
+        }
+        ByteString offset = ByteString.copyFrom(rawOffset);
+        offsetSize = offset.size();
+        keyedOutput.addMessageOffsets(offset);
+      }
+
       keyedOutput.addMessagesIds(id);
-      return (long) key.size() + value.size() + metadata.size() + id.size();
+
+      return (long) key.size() + value.size() + metadata.size() + id.size() + offsetSize;
     }
 
     @Override

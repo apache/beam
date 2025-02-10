@@ -21,9 +21,8 @@ For internal use, no backward compatibility guarantees.
 """
 
 import json
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import Optional
 
 import jsonschema
@@ -49,7 +48,7 @@ BEAM_ATOMIC_TYPES_TO_JSON = {
 
 
 def json_schema_to_beam_schema(
-    json_schema: Dict[str, Any]) -> schema_pb2.Schema:
+    json_schema: dict[str, Any]) -> schema_pb2.Schema:
   """Returns a Beam schema equivalent for the given Json schema."""
   def maybe_nullable(beam_type, nullable):
     if nullable:
@@ -75,7 +74,7 @@ def json_schema_to_beam_schema(
       ])
 
 
-def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
+def json_type_to_beam_type(json_type: dict[str, Any]) -> schema_pb2.FieldType:
   """Returns a Beam schema type for the given Json (schema) type."""
   if not isinstance(json_type, dict) or 'type' not in json_type:
     raise ValueError(f'Malformed type {json_type}.')
@@ -107,7 +106,7 @@ def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
 
 
 def beam_schema_to_json_schema(
-    beam_schema: schema_pb2.Schema) -> Dict[str, Any]:
+    beam_schema: schema_pb2.Schema) -> dict[str, Any]:
   return {
       'type': 'object',
       'properties': {
@@ -118,7 +117,7 @@ def beam_schema_to_json_schema(
   }
 
 
-def beam_type_to_json_type(beam_type: schema_pb2.FieldType) -> Dict[str, Any]:
+def beam_type_to_json_type(beam_type: schema_pb2.FieldType) -> dict[str, Any]:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     if beam_type.atomic_type in BEAM_ATOMIC_TYPES_TO_JSON:
@@ -198,7 +197,7 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
 
 def json_parser(
     beam_schema: schema_pb2.Schema,
-    json_schema: Optional[Dict[str,
+    json_schema: Optional[dict[str,
                                Any]] = None) -> Callable[[bytes], beam.Row]:
   """Returns a callable converting Json strings to Beam rows of the given type.
 
@@ -307,7 +306,7 @@ def _validate_compatible(weak_schema, strong_schema):
 
 
 def row_validator(beam_schema: schema_pb2.Schema,
-                  json_schema: Dict[str, Any]) -> Callable[[Any], Any]:
+                  json_schema: dict[str, Any]) -> Callable[[Any], Any]:
   """Returns a callable that will fail on elements not respecting json_schema.
   """
   if not json_schema:

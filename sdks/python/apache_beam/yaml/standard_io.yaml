@@ -129,6 +129,8 @@
     'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
     'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
     'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
+    'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
+    'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
 
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java

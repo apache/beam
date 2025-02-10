@@ -147,4 +147,5 @@ var (
 	EnvProcess  = envUrn(pipepb.StandardEnvironments_PROCESS)
 	EnvExternal = envUrn(pipepb.StandardEnvironments_EXTERNAL)
 	EnvDefault  = envUrn(pipepb.StandardEnvironments_DEFAULT)
+	EnvAnyOf    = envUrn(pipepb.StandardEnvironments_ANYOF)
 )

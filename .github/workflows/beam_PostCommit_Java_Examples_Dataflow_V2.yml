@@ -46,7 +46,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -78,6 +78,15 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
+            max-workers: 12
+      - name: Setup Java 17 environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 17
+      - name: run PostCommit Java Distroless Examples Dataflow V2 script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+            gradle-command: :runners:google-cloud-dataflow-java:examplesJavaDistrolessRunnerV2PreCommit
             max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4

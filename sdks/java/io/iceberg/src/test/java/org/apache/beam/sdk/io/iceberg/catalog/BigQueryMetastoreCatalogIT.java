@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg.catalog;
 
-import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
@@ -50,7 +49,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   }
 
   @Override
-  public void catalogCleanup() throws IOException {
+  public void catalogCleanup() {
     for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
       // only delete tables that were created in this test run
       if (tableIdentifier.name().contains(String.valueOf(SALT))) {
@@ -70,6 +69,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
                 .put("gcp_location", "us-central1")
                 .put("warehouse", warehouse)
                 .put("catalog-impl", BQMS_CATALOG)
+                .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
                 .build())
         .build();
   }

@@ -37,7 +37,7 @@ permissions:
   statuses: read
 
 env:
-    DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+    DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   beam_Release_NightlySnapshot:
