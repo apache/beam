@@ -80,6 +80,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ul>
         <li>Comment “.take-issue” on the <a href="https://github.com/apache/beam/issues">issue you'd like to work on</a>. This will cause the issue to be assigned to you.</li>
+        <li>Comment ".free-issue" on the <a href="https://github.com/apache/beam/issues">issue you'd like to not work on</a>. This will cause the issue to be unassigned from you.</li>
         <li>If appropriate, make your change and open a <a href=https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork>Pull Request</a>.</li>
         <li>Comment “.close-issue” to close the issue once all work has been completed.</li>
         <li>You can find good first issues using the <a href=https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22>"good first issue" label</a>.</li>
