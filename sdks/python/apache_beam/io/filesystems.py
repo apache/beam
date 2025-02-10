@@ -391,21 +391,27 @@ class FileSystems(object):
     return filesystem.CHUNK_SIZE
 
   @staticmethod
-  def report_source_lineage(path):
+  def report_source_lineage(path, level=None):
     """
-    Report source :class:`~apache_beam.metrics.metric.Lineage`.
+    Report source :class:`~apache_beam.metrics.metric.LineageLevel`.
 
     Args:
       path: string path to be reported.
+      level: the level of file path. default to
+        :class:`~apache_beam.io.filesystem.FileSystem.LineageLevel`.FILE.
     """
-    FileSystems.get_filesystem(path).report_lineage(path, Lineage.sources())
+    filesystem = FileSystems.get_filesystem(path)
+    filesystem.report_lineage(path, Lineage.sources(), level=level)
 
   @staticmethod
-  def report_sink_lineage(path):
+  def report_sink_lineage(path, level=None):
     """
     Report sink :class:`~apache_beam.metrics.metric.Lineage`.
 
     Args:
       path: string path to be reported.
+      level: the level of file path. default to
+        :class:`~apache_beam.io.filesystem.FileSystem.Lineage`.FILE.
     """
-    FileSystems.get_filesystem(path).report_lineage(path, Lineage.sinks())
+    filesystem = FileSystems.get_filesystem(path)
+    filesystem.report_lineage(path, Lineage.sinks(), level=level)

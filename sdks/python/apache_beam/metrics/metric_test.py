@@ -271,19 +271,14 @@ class LineageTest(unittest.TestCase):
 
   def test_add(self):
     lineage = Lineage(Lineage.SOURCE)
-    added = set()
+    stringset = set()
     # override
-    lineage.metric = added
+    lineage.metric = stringset
     lineage.add("s", "1", "2")
     lineage.add("s:3.4")
     lineage.add("s", "5", "6.7")
     lineage.add("s", "1", "2", subtype="t")
-    lineage.add("sys", "seg1", "seg2", "seg3/part2/part3", last_segment_sep='/')
-    self.assertSetEqual(
-        added,
-        {('s:', '1.', '2'), ('s:3.4:', ), ('s:', '5.', '6.7'),
-         ('s:', 't:', '1.', '2'),
-         ('sys:', 'seg1.', 'seg2.', 'seg3/', 'part2/', 'part3')})
+    self.assertSetEqual(stringset, {"s:1.2", "s:3.4", "s:t:1.2", "s:5.`6.7`"})
 
 
 if __name__ == '__main__':

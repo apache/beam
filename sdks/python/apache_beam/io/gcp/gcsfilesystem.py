@@ -26,7 +26,6 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 # pytype: skip-file
 
-import traceback
 from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
@@ -368,13 +367,14 @@ class GCSFileSystem(FileSystem):
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
 
-  def report_lineage(self, path, lineage):
+  def report_lineage(self, path, lineage, level=None):
     try:
       components = gcsio.parse_gcs_path(path, object_optional=True)
     except ValueError:
       # report lineage is fail-safe
-      traceback.print_exc()
       return
-    if components and not components[-1]:
+    if level == FileSystem.LineageLevel.TOP_LEVEL \
+      or(len(components) > 1 and components[-1] == ''):
+      # bucket only
       components = components[:-1]
-    lineage.add('gcs', *components, last_segment_sep='/')
+    lineage.add('gcs', *components)
