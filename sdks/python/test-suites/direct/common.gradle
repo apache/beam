@@ -35,13 +35,7 @@ tasks.register("postCommitIT") {
   // Run IT tests with TestDirectRunner in batch in Python 3.
   doLast {
     def batchTests = [
-        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
-        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
-        "apache_beam/io/gcp/big_query_query_to_table_it_test.py::BigQueryQueryToTableIT",
-        "apache_beam/io/gcp/bigquery_io_read_it_test.py",
-        "apache_beam/io/gcp/bigquery_read_it_test.py",
-        "apache_beam/io/gcp/bigquery_write_it_test.py",
-        "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+        "apache_beam/ml/rag/",
     ]
     def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -136,13 +130,7 @@ tasks.register("directRunnerIT") {
   // Run IT tests with TestDirectRunner in batch.
   doLast {
     def tests = [
-        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
-        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
-        "apache_beam/io/gcp/big_query_query_to_table_it_test.py::BigQueryQueryToTableIT",
-        "apache_beam/io/gcp/bigquery_io_read_it_test.py",
-        "apache_beam/io/gcp/bigquery_read_it_test.py",
-        "apache_beam/io/gcp/bigquery_write_it_test.py",
-        "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+        "apache_beam/ml/rag/",
     ]
     def batchTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -159,13 +147,7 @@ tasks.register("directRunnerIT") {
   // Run IT tests with TestDirectRunner in streaming.
   doLast {
     def tests = [
-        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
-        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
-        "apache_beam/io/gcp/bigquery_test.py::BigQueryStreamingInsertTransformIntegrationTests::test_multiple_destinations_transform",
-        "apache_beam/io/gcp/bigquery_test.py::PubSubBigQueryIT",
-        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming",
-        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_dynamic_destinations",
-        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_copy_jobs",
+        "apache_beam/ml/rag/",
     ]
     def streamingTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",

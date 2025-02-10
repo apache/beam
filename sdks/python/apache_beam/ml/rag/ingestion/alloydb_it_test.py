@@ -18,6 +18,7 @@
 import hashlib
 import json
 import logging
+import os
 import secrets
 import time
 import unittest
@@ -67,6 +68,7 @@ MetadataConflictRow = NamedTuple('MetadataConflictRow', [
 ])
 registry.register_coder(MetadataConflictRow, RowCoder)
 
+_LOGGER = logging.getLogger(__name__)
 VECTOR_SIZE = 768
 
 
@@ -140,19 +142,18 @@ def key_on_id(chunk):
   return (int(chunk.id.split('_')[1]), chunk)
 
 
-@unittest.skip("Temporarily skipping all AlloyDB tests")
 class AlloyDBVectorWriterConfigTest(unittest.TestCase):
   ALLOYDB_TABLE_PREFIX = 'python_rag_alloydb_'
 
   @classmethod
   def setUpClass(cls):
-    # TODO(claudevdm) Pass database args to test
-    # cls.host =
-    # cls.private_host =
-    # cls.port = os.environ.get('ALLOYDB_PORT', '5432')
-    # cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
-    # cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
-    # cls.password = os.environ.get('ALLOYDB_USERNAME')
+    cls.host = os.environ.get('ALLOYDB_HOST', '10.119.0.22')
+    cls.port = os.environ.get('ALLOYDB_PORT', '5432')
+    cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
+    cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
+    if not os.environ.get('ALLOYDB_PASSWORD'):
+      raise ValueError('ALLOYDB_PASSWORD env not set')
+    cls.password = os.environ.get('ALLOYDB_PASSWORD')
 
     # Create unique table name suffix
     cls.table_suffix = '%d%s' % (int(time.time()), secrets.token_hex(3))
@@ -488,7 +489,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
       # Verify count
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
-      assert_that(count_result, equal_to([num_records]), label='count_check')
+      assert_that(count_result, equal_to([10]), label='count_check')
 
       chunks = rows | "To Chunks" >> beam.Map(custom_row_to_chunk)
       assert_that(chunks, equal_to(test_chunks), label='chunks_check')
