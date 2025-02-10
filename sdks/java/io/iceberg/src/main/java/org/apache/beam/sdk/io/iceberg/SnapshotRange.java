@@ -37,6 +37,9 @@ abstract class SnapshotRange implements Serializable {
 
   abstract String getTableIdentifierString();
 
+  /**
+   * Snapshot to start reading from (exclusive). If null, starts reading from the oldest snapshot.
+   */
   abstract @Nullable Long getFromSnapshotExclusive();
 
   abstract long getToSnapshot();

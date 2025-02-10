@@ -80,7 +80,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, duration))
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
-        .setCoder(KvCoder.of(ReadTaskDescriptor.CODER, ReadTask.CODER))
+        .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(
             "Apply User Trigger",
             Window.<KV<ReadTaskDescriptor, ReadTask>>into(new GlobalWindows())
@@ -95,7 +95,8 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
                 .withShardedKey())
         .setCoder(
             KvCoder.of(
-                ShardedKey.Coder.of(ReadTaskDescriptor.CODER), IterableCoder.of(ReadTask.CODER)))
+                ShardedKey.Coder.of(ReadTaskDescriptor.getCoder()),
+                IterableCoder.of(ReadTask.getCoder())))
         .apply(
             "Read Rows From Grouped Tasks",
             ParDo.of(new ReadFromGroupedTasks(scanConfig.getCatalogConfig())));
@@ -122,7 +123,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
                     .build()))
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
-        .setCoder(KvCoder.of(ReadTaskDescriptor.CODER, ReadTask.CODER))
+        .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(Redistribute.arbitrarily())
         .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig.getCatalogConfig())));
   }

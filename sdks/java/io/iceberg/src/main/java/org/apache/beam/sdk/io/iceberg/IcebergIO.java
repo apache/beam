@@ -116,7 +116,7 @@ import org.joda.time.Duration;
  *   <tr>
  *     <td> {@code to_snapshot} </td>
  *     <td> {@code long} </td>
- *     <td> For the source; Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
+ *     <td> For the source; reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
  *     up to the current snapshot (inclusive). If unset and source is unbounded, it will continue polling for new snapshots forever.
  *     </td>
  *   </tr>

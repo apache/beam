@@ -18,24 +18,28 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /** Describes the table and snapshot a {@link ReadTask} belongs to. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class ReadTaskDescriptor {
-  static final Coder<ReadTaskDescriptor> CODER;
+  private static @MonotonicNonNull SchemaCoder<ReadTaskDescriptor> CODER;
 
-  static {
-    try {
-      CODER = SchemaRegistry.createDefault().getSchemaCoder(ReadTaskDescriptor.class);
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException(e);
+  static SchemaCoder<ReadTaskDescriptor> getCoder() {
+    if (CODER == null) {
+      try {
+        CODER = SchemaRegistry.createDefault().getSchemaCoder(ReadTaskDescriptor.class);
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
+    return CODER;
   }
 
   static Builder builder() {

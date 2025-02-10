@@ -21,9 +21,7 @@ plugins {
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg.bqms',
-        shadowClosure: {
-            relocate "com.google.auth", getJavaRelocatedPath("bqms.com.google.auth")
-        },
+        shadowClosure: {},
         exportJavadoc: false,
         publish: false, // it's an intermediate jar for io-expansion-service
         validateShadowJar: false
