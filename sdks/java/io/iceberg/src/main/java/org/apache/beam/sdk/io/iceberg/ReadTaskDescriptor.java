@@ -29,17 +29,17 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class ReadTaskDescriptor {
-  private static @MonotonicNonNull SchemaCoder<ReadTaskDescriptor> CODER;
+  private static @MonotonicNonNull SchemaCoder<ReadTaskDescriptor> coder;
 
   static SchemaCoder<ReadTaskDescriptor> getCoder() {
-    if (CODER == null) {
+    if (coder == null) {
       try {
-        CODER = SchemaRegistry.createDefault().getSchemaCoder(ReadTaskDescriptor.class);
+        coder = SchemaRegistry.createDefault().getSchemaCoder(ReadTaskDescriptor.class);
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }
     }
-    return CODER;
+    return coder;
   }
 
   static Builder builder() {
