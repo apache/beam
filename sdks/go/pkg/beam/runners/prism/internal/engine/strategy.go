@@ -46,6 +46,7 @@ import (
 // stage's input PCollection.
 type WinStrat struct {
 	AllowedLateness time.Duration // Used to extend duration
+	Accumulating    bool          // If true, elements remain pending until the last firing.
 
 	Trigger Trigger // Evaluated during execution.
 }

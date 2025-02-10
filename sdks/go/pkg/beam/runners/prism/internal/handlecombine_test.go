@@ -103,13 +103,7 @@ func TestHandleCombine(t *testing.T) {
 				Pcollections: basePCollectionMap,
 				Coders:       baseCoderMap,
 			},
-			want: prepareResult{
-				SubbedComps: &pipepb.Components{
-					Transforms: map[string]*pipepb.PTransform{
-						undertest: combineTransform,
-					},
-				},
-			},
+			want: prepareResult{},
 		}, {
 			name:   "lifted",
 			lifted: true,
