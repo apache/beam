@@ -282,6 +282,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */
   private List<Row> populateTable(Table table) throws IOException {
+    return populateTable(table, null);
+  }
+
+  /** Populates the Iceberg table with rows, but overrides one field. */
+  private List<Row> populateTable(Table table, @Nullable String charOverride) throws IOException {
     double recordsPerShardFraction = numRecords().doubleValue() / NUM_SHARDS;
     long maxRecordsPerShard = Math.round(Math.ceil(recordsPerShardFraction));
 
@@ -307,6 +312,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           ++recordNum, ++totalRecords) {
 
         Row expectedBeamRow = ROW_FUNC.apply((long) recordNum);
+        if (charOverride != null) {
+          expectedBeamRow =
+              Row.fromRow(expectedBeamRow).withFieldValue("char", charOverride).build();
+        }
         Record icebergRecord = RECORD_FUNC.apply(expectedBeamRow);
 
         writer.write(icebergRecord);
@@ -377,6 +386,44 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     List<Row> expectedRows = populateTable(table);
 
     Map<String, Object> config = managedIcebergConfig(tableId());
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testUnboundedRead() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows = populateTable(table);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("triggering_frequency_seconds", 30);
+    config.put("to_snapshot", table.currentSnapshot().snapshotId());
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadSnapshotRange() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    populateTable(table, "a");
+    long from = table.currentSnapshot().snapshotId();
+    List<Row> expectedRows = populateTable(table, "b");
+    long to = table.currentSnapshot().snapshotId();
+    populateTable(table, "c");
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("from_snapshot_exclusive", from);
+    config.put("to_snapshot", to);
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
