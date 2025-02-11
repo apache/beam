@@ -16,6 +16,10 @@
 name: PreCommit Flink Container
 
 on:
+  pull_request_target:
+    # TODO(https://github.com/apache/beam/pull/33956) re-enable when two issues resolved.
+    paths:
+      - '.github/trigger_files/beam_PreCommit_Flink_Container.json'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all`
