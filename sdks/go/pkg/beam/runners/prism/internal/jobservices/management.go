@@ -169,7 +169,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 
 			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
 			if pardo.GetRestrictionCoderId() != "" && isStateful {
-				check("Splittable+Stateful DoFn", "See https://github.com/apache/beam/issues/32139 for information.", "")
+				check("Splittable+Stateful DoFn", "See https://github.com/apache/beam/issues/32139 for information.")
 			}
 
 			// Validate whether the triggers on side inputs for are required for
@@ -219,7 +219,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 					}
 				}
 
-				check("Unbounded GlobalWindow Triggered SideInput, are not currently supported by Prism. Sideinputs are only ready at end of window+allowed lateness. - See https://github.com/apache/beam/issues/31438 for information.", prototext.Format(ws), "")
+				check("Unbounded GlobalWindow Triggered SideInput, are not currently supported by Prism. Sideinputs are only ready at end of window+allowed lateness. See https://github.com/apache/beam/issues/31438 for information.", prototext.Format(ws))
 			}
 
 		case urns.TransformTestStream:
@@ -265,6 +265,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING, pipepb.AccumulationMode_ACCUMULATING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
+		} else if hasStatefulTriggers(ws.GetTrigger()) {
+			// Technically for any merging windows, but per the above, we only support session windows presently.
+			check("WindowingStrategy: Using stateful triggers with merging windows isn't currently supported in prism. See https://github.com/apache/beam/issues/31438 for information.", prototext.Format(ws))
 		}
 		check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
 
@@ -321,6 +324,42 @@ func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
 			hasUnsupportedTriggers(at.OrFinally.GetFinally())
 	case *pipepb.Trigger_Repeat_:
 		return hasUnsupportedTriggers(at.Repeat.GetSubtrigger())
+	default:
+		return false
+	}
+}
+
+// hasStatefulTriggers checks if the triggers use state that might not function
+// properly without proper merge handling.
+func hasStatefulTriggers(tpb *pipepb.Trigger) bool {
+	stateful := false
+	switch at := tpb.GetTrigger().(type) {
+	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_, *pipepb.Trigger_ElementCount_:
+		// These triggers have state that needs care when used with merging windows.
+		return true
+	case *pipepb.Trigger_AfterAll_:
+		for _, st := range at.AfterAll.GetSubtriggers() {
+			stateful = stateful || hasStatefulTriggers(st)
+		}
+		return stateful
+	case *pipepb.Trigger_AfterAny_:
+		for _, st := range at.AfterAny.GetSubtriggers() {
+			stateful = stateful || hasStatefulTriggers(st)
+		}
+		return stateful
+	case *pipepb.Trigger_AfterEach_:
+		for _, st := range at.AfterEach.GetSubtriggers() {
+			stateful = stateful || hasStatefulTriggers(st)
+		}
+		return stateful
+	case *pipepb.Trigger_AfterEndOfWindow_:
+		return hasStatefulTriggers(at.AfterEndOfWindow.GetEarlyFirings()) ||
+			hasStatefulTriggers(at.AfterEndOfWindow.GetLateFirings())
+	case *pipepb.Trigger_OrFinally_:
+		return hasStatefulTriggers(at.OrFinally.GetMain()) ||
+			hasStatefulTriggers(at.OrFinally.GetFinally())
+	case *pipepb.Trigger_Repeat_:
+		return hasStatefulTriggers(at.Repeat.GetSubtrigger())
 	default:
 		return false
 	}
