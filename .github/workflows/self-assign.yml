@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Assign or close an issue
+name: Assign, unassign, or close an issue
 on: 
   issue_comment:
     types: [created]
@@ -21,7 +21,7 @@ jobs:
   assign:
     permissions:
       issues: write
-    name: Take or close an issue
+    name: Take, free, or close an issue
     if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest
     steps:
