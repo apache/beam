@@ -96,7 +96,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
           # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
           # point to active images. These images should only be deleted when all of their dependencies can be safely
           # deleted.
-          MANIFEST=$(docker manifest inspect ${image_name}@"${current}" || echo "")
+          MANIFEST=$(docker buildx imagetools inspect ${image_name}@"${current} --raw" || echo "")
           if [ -z "$MANIFEST" ]; then
             # Sometimes "no such manifest" seen. Skip current if command hit error
             FAILED_IMAGES+=" $current"
