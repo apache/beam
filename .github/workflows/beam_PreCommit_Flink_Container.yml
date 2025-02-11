@@ -17,10 +17,24 @@ name: PreCommit Flink Container
 
 on:
   pull_request_target:
-    # TODO(https://github.com/apache/beam/pull/33956) re-enable when two issues resolved.
     paths:
+      - 'model/**'
+      - 'sdks/python/**'
+      - 'release/**'
+      - 'sdks/java/io/kafka/**'
+      - 'runners/core-construction-java/**'
+      - 'runners/core-java/**'
+      - 'runners/extensions-java/**'
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'runners/reference/**'
       - '.github/trigger_files/beam_PreCommit_Flink_Container.json'
       - 'release/trigger_all_tests.json'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all`
