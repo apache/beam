@@ -811,9 +811,6 @@ class BoundedTrieData(object):
     else:
       return False
 
-  def flattened(self):
-    return self.as_trie().flattened()
-
   def to_proto(self) -> metrics_pb2.BoundedTrie:
     return metrics_pb2.BoundedTrie(
         bound=self._bound,
@@ -825,9 +822,7 @@ class BoundedTrieData(object):
     return BoundedTrieData(
         bound=proto.bound,
         singleton=tuple(proto.singleton) if proto.singleton else None,
-        root=(
-            _BoundedTrieNode.from_proto(proto.root)
-            if proto.HasField('root') else None))
+        root=_BoundedTrieNode.from_proto(proto.root) if proto.root else None)
 
   def as_trie(self):
     if self._root is not None:

@@ -272,8 +272,7 @@ class S3FileSystemTest(unittest.TestCase):
   def _verify_lineage(self, uri, expected_segments):
     lineage_mock = mock.MagicMock()
     self.fs.report_lineage(uri, lineage_mock)
-    lineage_mock.add.assert_called_once_with(
-        "s3", *expected_segments, last_segment_sep='/')
+    lineage_mock.add.assert_called_once_with("s3", *expected_segments)
 
 
 if __name__ == '__main__':
