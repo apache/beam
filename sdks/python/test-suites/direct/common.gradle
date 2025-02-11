@@ -453,8 +453,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--capture=no",  // print stdout instantly
         "--timeout=4500", // timeout of whole command execution
         "--color=yes", // console color
-        "--log-cli-level=INFO", //log level info
-        "apache_beam/ml/rag/ingestion/alloydb_it_test.py"
+        "--log-cli-level=INFO" //log level info
       ],
       additionalDeps: taskMetadata.additionalDeps,
       additionalEnvs: taskMetadata.additionalEnvs

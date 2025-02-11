@@ -176,6 +176,11 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
         password=cls.password)
     cls.conn.autocommit = True
 
+  def skip_if_dataflow_runner(self):
+    if self._runner and "dataflowrunner" in self._runner.lower():
+      self.skipTest(
+          "Skipping some tests on Dataflow Runner to avoid bloat and timeouts")
+
   def setUp(self):
     self.write_test_pipeline = TestPipeline(is_integration_test=True)
     self.read_test_pipeline = TestPipeline(is_integration_test=True)
@@ -325,6 +330,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_custom_specs(self):
     """Test custom specifications for ID, embedding, and content."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     specs = (
@@ -420,6 +426,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_defaults_with_args_specs(self):
     """Test custom specifications for ID, embedding, and content."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     specs = (
@@ -505,6 +512,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_default_id_embedding_specs(self):
     """Test with only default id and embedding specs, others set to None."""
+    self.skip_if_dataflow_runner()
     num_records = 20
     connection_config = AlloyDBConnectionConfig(
         jdbc_url=self.jdbc_url, username=self.username, password=self.password)
@@ -560,6 +568,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_metadata_spec_and_conflicts(self):
     """Test metadata specification and conflict resolution."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     specs = (
@@ -677,6 +686,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_conflict_resolution_update(self):
     """Test conflict resolution with UPDATE action."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     connection_config = AlloyDBConnectionConfig(
@@ -765,6 +775,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_conflict_resolution_default_ignore(self):
     """Test conflict resolution with default."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     connection_config = AlloyDBConnectionConfig(
