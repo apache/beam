@@ -219,7 +219,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 					}
 				}
 
-				check("Unbounded GlobalWindow Triggered SideInput", prototext.Format(ws), "See https://github.com/apache/beam/issues/31438 for information.")
+				check("Unbounded GlobalWindow Triggered SideInput, are not currently supported by Prism. Sideinputs are only ready at end of window+allowed lateness. - See https://github.com/apache/beam/issues/31438 for information.", prototext.Format(ws), "")
 			}
 
 		case urns.TransformTestStream:

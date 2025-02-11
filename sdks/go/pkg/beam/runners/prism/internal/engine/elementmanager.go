@@ -1314,6 +1314,7 @@ func computeNextTriggeredPane(pane typex.PaneInfo, endOfWindowReached bool) type
 		pane.IsFirst = true
 	} else {
 		pane.Index++
+		pane.IsFirst = false
 	}
 	if endOfWindowReached {
 		pane.Timing = typex.PaneLate
@@ -1350,12 +1351,13 @@ func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
 		pane.IsFirst = true
 	} else {
 		pane.Index++
+		pane.IsFirst = false
 	}
 	return pane
 }
 
 // buildTriggeredBundle must be called with the stage.mu lock held.
-// When in discaring mode, returns 0.
+// When in discarding mode, returns 0.
 // When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
 func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
 	var toProcess []element
