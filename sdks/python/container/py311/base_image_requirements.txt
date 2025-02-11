@@ -35,7 +35,7 @@ click==8.1.8
 cloudpickle==2.2.1
 cramjam==2.9.1
 crcmod==1.7
-cryptography==44.0.0
+cryptography==44.0.1
 Cython==3.0.11
 Deprecated==1.2.18
 deprecation==2.1.0
