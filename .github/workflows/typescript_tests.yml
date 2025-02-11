@@ -28,15 +28,15 @@ on:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests'
         default: false
-  schedule:
-    - cron: '10 2 * * *'
-  push:
-    branches: ['master', 'release-*', 'javascript']
-    tags: ['v*']
-  pull_request:
-    branches: ['master', 'release-*', 'javascript']
-    tags: ['v*']
-    paths: ['sdks/typescript/**']
+#  schedule:
+#    - cron: '10 2 * * *'
+#  push:
+#    branches: ['master', 'release-*', 'javascript']
+#    tags: ['v*']
+#  pull_request:
+#    branches: ['master', 'release-*', 'javascript']
+#    tags: ['v*']
+#    paths: ['sdks/typescript/**']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -49,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
+        os: [[self-hosted, ubuntu-20.04], macos-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
