@@ -53,6 +53,7 @@ class PubSubMessageMatcher(BaseMatcher):
       self,
       project,
       sub_name,
+      credentials=None,
       expected_msg=None,
       expected_msg_len=None,
       timeout=DEFAULT_TIMEOUT,
@@ -66,6 +67,8 @@ class PubSubMessageMatcher(BaseMatcher):
     Args:
       project: A name string of project.
       sub_name: A name string of subscription which is attached to output.
+      credentials: google.oauth2.service_account.Credentials object incase ADC
+        needs to be overriden.
       expected_msg: A string list that contains expected message data pulled
         from the subscription. See also: with_attributes.
       expected_msg_len: Number of expected messages pulled from the
@@ -100,6 +103,7 @@ class PubSubMessageMatcher(BaseMatcher):
 
     self.project = project
     self.sub_name = sub_name
+    self.credentials = credentials
     self.expected_msg = expected_msg
     self.expected_msg_len = expected_msg_len or len(self.expected_msg)
     self.timeout = timeout
@@ -124,8 +128,10 @@ class PubSubMessageMatcher(BaseMatcher):
     """Wait for messages from given subscription."""
     total_messages = []
     total_messages_all_details = []
-
-    sub_client = pubsub.SubscriberClient()
+    if self.credentials:
+      sub_client = pubsub.SubscriberClient(credentials=self.credentials)
+    else:
+      sub_client = pubsub.SubscriberClient()
     start_time = time.time()
     while time.time() - start_time <= timeout:
       response = sub_client.pull(
