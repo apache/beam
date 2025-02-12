@@ -75,6 +75,8 @@ For more information on changes in 2.63.0, check out the [detailed release notes
 * Fixed a Dataflow template creation issue that ignores template file creation errors (Java) ([#33636](https://github.com/apache/beam/issues/33636))
 * Correctly documented Pane Encodings in the portability protocols ([#33840](https://github.com/apache/beam/issues/33840)).
 * Fixed the user mailing list address ([#26013](https://github.com/apache/beam/issues/26013)).
+* [Dataflow Streaming] Fixed an issue where Dataflow Streaming workers were reporting lineage metrics as cumulative rather than delta. ([#33691](https://github.com/apache/beam/pull/33691))
+
 ## List of Contributors
 
 According to git shortlog, the following people contributed to the 2.62.0 release. Thank you to all contributors!
