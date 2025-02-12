@@ -78,7 +78,7 @@
 
 ## Bugfixes
 
-* (Python) Fixed occassional stuckness of Beam jobs that affected users of Python 3.11 ([#33966](https://github.com/apache/beam/issues/33966)).
+* (Python) Fixed occasional pipeline stuckness that was affecting Python 3.11 users ([#33966](https://github.com/apache/beam/issues/33966)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
