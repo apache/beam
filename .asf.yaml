@@ -39,6 +39,7 @@ github:
     - Amar3tto
     - mrshakirov
     - akashorabek
+    - derrickaw
 
   enabled_merge_buttons:
     squash: true
