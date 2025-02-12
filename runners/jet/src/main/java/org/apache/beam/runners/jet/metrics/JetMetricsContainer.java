@@ -112,8 +112,8 @@ public class JetMetricsContainer implements MetricsContainer {
   }
 
   private <UpdateT, CellT extends AbstractMetric<UpdateT>>
-  ImmutableList<MetricUpdates.MetricUpdate<UpdateT>> extractUpdates(
-      Map<MetricName, CellT> cells) {
+      ImmutableList<MetricUpdates.MetricUpdate<UpdateT>> extractUpdates(
+          Map<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdates.MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (CellT cell : cells.values()) {
       UpdateT value = cell.getValue();
