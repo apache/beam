@@ -77,18 +77,10 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-      - name: GCloud Docker credential helper
-        run: |
-          gcloud auth configure-docker us.gcr.io
       - name: run PostCommit XVR GoUsingJava Dataflow script
-        env:
-          USER: github-actions
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
-          arguments: |
-            -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
