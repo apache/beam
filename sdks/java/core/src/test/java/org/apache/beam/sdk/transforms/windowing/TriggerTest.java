@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,7 +66,8 @@ public class TriggerTest {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
+    public Instant getWatermarkThatGuaranteesFiring(
+        BoundedWindow window, Duration allowedLateness) {
       return null;
     }
 
@@ -87,7 +89,8 @@ public class TriggerTest {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
+    public Instant getWatermarkThatGuaranteesFiring(
+        BoundedWindow window, Duration allowedLateness) {
       return null;
     }
 

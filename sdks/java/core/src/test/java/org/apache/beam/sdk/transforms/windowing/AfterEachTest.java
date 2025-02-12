@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,12 +37,12 @@ public class AfterEachTest {
     assertEquals(
         new Instant(9),
         AfterEach.inOrder(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(4))
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
 
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterEach.inOrder(AfterPane.elementCountAtLeast(2), AfterWatermark.pastEndOfWindow())
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
   }
 
   @Test

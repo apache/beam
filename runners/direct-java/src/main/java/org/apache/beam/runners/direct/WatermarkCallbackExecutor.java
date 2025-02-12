@@ -155,7 +155,10 @@ class WatermarkCallbackExecutor {
     public static <W extends BoundedWindow> WatermarkCallback onGuaranteedFiring(
         BoundedWindow window, WindowingStrategy<?, W> strategy, Runnable callback) {
       @SuppressWarnings("unchecked")
-      Instant firingAfter = strategy.getTrigger().getWatermarkThatGuaranteesFiring((W) window);
+      Instant firingAfter =
+          strategy
+              .getTrigger()
+              .getWatermarkThatGuaranteesFiring((W) window, strategy.getAllowedLateness());
       return new WatermarkCallback(firingAfter, callback);
     }
 

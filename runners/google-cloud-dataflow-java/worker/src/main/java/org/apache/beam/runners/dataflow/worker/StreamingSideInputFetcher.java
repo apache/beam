@@ -320,7 +320,10 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
                 .build())
         .setExistenceWatermarkDeadline(
             WindmillTimeUtils.harnessToWindmillTimestamp(
-                sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideInputWindow)))
+                sideWindowStrategy
+                    .getTrigger()
+                    .getWatermarkThatGuaranteesFiring(
+                        sideInputWindow, sideWindowStrategy.getAllowedLateness())))
         .build();
   }
 

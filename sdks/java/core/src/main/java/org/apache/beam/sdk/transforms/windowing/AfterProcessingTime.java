@@ -103,7 +103,8 @@ public class AfterProcessingTime extends OnceTrigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+    // TODO:is this correct?????
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.List;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -53,8 +54,16 @@ public final class Never {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
-      return BoundedWindow.TIMESTAMP_MAX_VALUE;
+    public Instant getWatermarkThatGuaranteesFiring(
+        BoundedWindow window, Duration allowedLateness) {
+      if (GlobalWindow.INSTANCE
+          .maxTimestamp()
+          .minus(allowedLateness)
+          .isBefore(window.maxTimestamp())) {
+        return GlobalWindow.INSTANCE.maxTimestamp();
+      } else {
+        return window.maxTimestamp().plus(allowedLateness);
+      }
     }
   }
 }

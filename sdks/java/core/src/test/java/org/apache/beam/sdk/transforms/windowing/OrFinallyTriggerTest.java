@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,28 +37,28 @@ public class OrFinallyTriggerTest {
     assertEquals(
         new Instant(9),
         Repeatedly.forever(AfterWatermark.pastEndOfWindow())
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
     assertEquals(
         new Instant(9),
         Repeatedly.forever(AfterWatermark.pastEndOfWindow())
             .orFinally(AfterPane.elementCountAtLeast(1))
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
     assertEquals(
         new Instant(9),
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
             .orFinally(AfterWatermark.pastEndOfWindow())
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
     assertEquals(
         new Instant(9),
         AfterPane.elementCountAtLeast(100)
             .orFinally(AfterWatermark.pastEndOfWindow())
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
 
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
             .orFinally(AfterPane.elementCountAtLeast(10))
-            .getWatermarkThatGuaranteesFiring(window));
+            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
   }
 
   @Test
