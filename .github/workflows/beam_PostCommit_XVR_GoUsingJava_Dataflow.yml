@@ -78,6 +78,8 @@ jobs:
         with:
           python-version: default
       - name: run PostCommit XVR GoUsingJava Dataflow script
+        env:
+          USER: github-actions
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
