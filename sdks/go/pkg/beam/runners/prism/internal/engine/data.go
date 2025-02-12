@@ -40,6 +40,7 @@ type StateData struct {
 	Multimap map[string][][]byte
 
 	Trigger map[Trigger]triggerState
+	Pane    typex.PaneInfo
 }
 
 func (s *StateData) getTriggerState(key Trigger) triggerState {
