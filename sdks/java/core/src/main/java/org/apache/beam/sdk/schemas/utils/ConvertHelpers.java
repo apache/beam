@@ -22,7 +22,11 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription;
@@ -58,6 +62,21 @@ import org.slf4j.LoggerFactory;
 })
 public class ConvertHelpers {
 
+  private static final AtomicReference<List<SchemaInformationProvider>>
+      SCHEMA_INFORMATION_PROVIDERS = new AtomicReference<>();
+
+  private static List<SchemaInformationProvider> getSchemaInformationProviders() {
+    return SCHEMA_INFORMATION_PROVIDERS.updateAndGet(
+        existing -> {
+          if (existing == null) {
+            ServiceLoader<SchemaInformationProvider> loader =
+                ServiceLoader.load(SchemaInformationProvider.class);
+            return StreamSupport.stream(loader.spliterator(), false).collect(Collectors.toList());
+          }
+          return existing;
+        });
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(ConvertHelpers.class);
 
   /** Return value after converting a schema. */
@@ -81,10 +100,10 @@ public class ConvertHelpers {
   public static <T> ConvertedSchemaInformation<T> getConvertedSchemaInformation(
       Schema inputSchema, TypeDescriptor<T> outputType, SchemaRegistry schemaRegistry) {
 
-    ConvertedSchemaInformation<T> schemaInformation = null;
+    ConvertedSchemaInformation<T> schemaInformation;
     // Try to load schema information from loaded providers
     try {
-      for (SchemaInformationProvider provider : ServiceLoader.load(SchemaInformationProvider.class)) {
+      for (SchemaInformationProvider provider : getSchemaInformationProviders()) {
         schemaInformation = provider.getConvertedSchemaInformation(inputSchema, outputType);
         if (schemaInformation != null) {
           return schemaInformation;
@@ -94,48 +113,45 @@ public class ConvertHelpers {
       LOG.debug("No Schema information found for type {}", outputType, e);
     }
 
-    if (schemaInformation == null) {
-      // Otherwise, try to find a schema for the output type in the schema registry.
-      Schema outputSchema = null;
-      SchemaCoder<T> outputSchemaCoder = null;
-      try {
-        outputSchema = schemaRegistry.getSchema(outputType);
-        outputSchemaCoder =
-            SchemaCoder.of(
-                outputSchema,
-                outputType,
-                schemaRegistry.getToRowFunction(outputType),
-                schemaRegistry.getFromRowFunction(outputType));
-      } catch (NoSuchSchemaException e) {
-        LOG.debug("No schema found for type {}", outputType, e);
-      }
-      FieldType unboxedType = null;
-      // TODO: Properly handle nullable.
-      if (outputSchema == null || !outputSchema.assignableToIgnoreNullable(inputSchema)) {
-        // The schema is not convertible directly. Attempt to unbox it and see if the schema matches
-        // then.
-        Schema checkedSchema = inputSchema;
-        if (inputSchema.getFieldCount() == 1) {
-          unboxedType = inputSchema.getField(0).getType();
-          if (unboxedType.getTypeName().isCompositeType()
-              && !outputSchema.assignableToIgnoreNullable(unboxedType.getRowSchema())) {
-            checkedSchema = unboxedType.getRowSchema();
-          } else {
-            checkedSchema = null;
-          }
-        }
-        if (checkedSchema != null) {
-          throw new RuntimeException(
-              "Cannot convert between types that don't have equivalent schemas."
-                  + " input schema: "
-                  + checkedSchema
-                  + " output schema: "
-                  + outputSchema);
-        }
-      }
-      schemaInformation = new ConvertedSchemaInformation<T>(outputSchemaCoder, unboxedType);
+    // Otherwise, try to find a schema for the output type in the schema registry.
+    Schema outputSchema = null;
+    SchemaCoder<T> outputSchemaCoder = null;
+    try {
+      outputSchema = schemaRegistry.getSchema(outputType);
+      outputSchemaCoder =
+          SchemaCoder.of(
+              outputSchema,
+              outputType,
+              schemaRegistry.getToRowFunction(outputType),
+              schemaRegistry.getFromRowFunction(outputType));
+    } catch (NoSuchSchemaException e) {
+      LOG.debug("No schema found for type {}", outputType, e);
     }
-    return schemaInformation;
+    FieldType unboxedType = null;
+    // TODO: Properly handle nullable.
+    if (outputSchema == null || !outputSchema.assignableToIgnoreNullable(inputSchema)) {
+      // The schema is not convertible directly. Attempt to unbox it and see if the schema matches
+      // then.
+      Schema checkedSchema = inputSchema;
+      if (inputSchema.getFieldCount() == 1) {
+        unboxedType = inputSchema.getField(0).getType();
+        if (unboxedType.getTypeName().isCompositeType()
+            && !outputSchema.assignableToIgnoreNullable(unboxedType.getRowSchema())) {
+          checkedSchema = unboxedType.getRowSchema();
+        } else {
+          checkedSchema = null;
+        }
+      }
+      if (checkedSchema != null) {
+        throw new RuntimeException(
+            "Cannot convert between types that don't have equivalent schemas."
+                + " input schema: "
+                + checkedSchema
+                + " output schema: "
+                + outputSchema);
+      }
+    }
+    return new ConvertedSchemaInformation<>(outputSchemaCoder, unboxedType);
   }
 
   /**
