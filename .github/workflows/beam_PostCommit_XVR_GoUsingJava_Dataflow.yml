@@ -16,7 +16,7 @@
 # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite
 # on cron and add release/trigger_all_tests.json to trigger path once fixed.
 
-name: PostCommit XVR GoUsingJava Dataflow (DISABLED)
+name: PostCommit XVR GoUsingJava Dataflow
 
 on:
   # schedule:
@@ -77,18 +77,25 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      - name: GCloud Docker credential helper
-        run: |
-          gcloud auth configure-docker us.gcr.io
-      - name: run XVR GoUsingJava Dataflow script
+      - name: Java container
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:container:java11:docker
+      - name: Java expansion service
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+      - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
+#          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
+          arguments: |
+            -Ppush-containers
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
