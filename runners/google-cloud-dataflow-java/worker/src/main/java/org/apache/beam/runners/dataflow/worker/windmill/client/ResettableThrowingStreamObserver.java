@@ -122,12 +122,9 @@ final class ResettableThrowingStreamObserver<T> {
       try {
         delegate.onError(cancellationException);
       } catch (IllegalStateException onErrorException) {
-        // If the delegate above was already terminated via onError or onComplete from another
-        // thread.
-        logger.warn(
-            "StreamObserver was already cancelled {} due to error.",
-            onErrorException,
-            cancellationException);
+        // The delegate above was already terminated via onError or onComplete.
+        // Fallthrough since this is possibly due to queued onNext() calls that are being made from
+        // previously blocked threads.
       } catch (RuntimeException onErrorException) {
         logger.warn(
             "Encountered unexpected error {} when cancelling due to error.",
