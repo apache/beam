@@ -155,12 +155,12 @@ func main() {
 	}
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
 
-	if !hasWorkerExperiment {
-		cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
-	} else {
+	if hasWorkerExperiment {
 		// Skip adding system "beam-sdks-java-harness.jar". User-provided jar will
 		// be added to classpath as a normal user jar further below.
 		logger.Printf(ctx, "Opted to use staged java harness. Make sure beam-sdks-java-harness is included or shaded in the staged jars.")
+	} else {
+		cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
 	}
 
 	for _, a := range artifacts {
