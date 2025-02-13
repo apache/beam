@@ -1311,7 +1311,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         mv.visitLocalVariable(
             "res",
             returnType.getDescriptor(),
-            returnType.getGenericSignature(),
+            null,
             wrapStart,
             wrapEnd,
             returnVarIndex);
