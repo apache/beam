@@ -85,8 +85,8 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
       - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
