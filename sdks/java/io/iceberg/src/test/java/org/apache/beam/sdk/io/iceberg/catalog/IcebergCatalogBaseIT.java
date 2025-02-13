@@ -439,6 +439,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     PCollection<Row> output =
         readPipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
     PAssert.that(output).containsInAnyOrder(inputRows);
+    readPipeline.run().waitUntilFinish();
   }
 
   @Test
