@@ -928,14 +928,16 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
-def is_compat_version_prior_to_breaking_change(
-    update_compatibility_version, breaking_change_version):
+def is_compat_version_prior_to(options, breaking_change_version):
   # This function is used in a branch statement to determine whether we should
   # keep the old behavior prior to a breaking change or use the new behavior.
   # - If update_compatibility_version < breaking_change_version, we will return
   #   True and keep the old behavior.
   # - If update_compatibility_version is None or >= breaking_change_version, we
   #   will return False and use the behavior from the breaking change.
+  update_compatibility_version = options.view_as(
+      pipeline_options.StreamingOptions).update_compatibility_version
+
   if update_compatibility_version is None:
     return False
 
@@ -979,11 +981,11 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      if is_compat_version_prior_to_breaking_change(
-          compat_version, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
-        ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+      if is_compat_version_prior_to(pcoll.pipeline.options,
+                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+        pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
-        ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+        pre_gbk_map = Map(reify_timestamps).with_input_types(
             tuple[K, V]).with_output_types(
                 tuple[K, tuple[V, Optional[Timestamp]]])
     else:
@@ -999,12 +1001,14 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      if is_compat_version_prior_to_breaking_change(
-          compat_version, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
-        ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+      if is_compat_version_prior_to(pcoll.pipeline.options,
+                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+        pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
-        ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+        pre_gbk_map = Map(reify_timestamps).with_input_types(
             tuple[K, V]).with_output_types(tuple[K, TypedWindowedValue[V]])
+
+    ungrouped = pcoll | pre_gbk_map
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
@@ -1052,10 +1056,8 @@ class Reshuffle(PTransform):
 
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    compat_version = pcoll.pipeline.options.view_as(
-        pipeline_options.StreamingOptions).update_compatibility_version
-    if is_compat_version_prior_to_breaking_change(
-        compat_version, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+    if is_compat_version_prior_to(pcoll.pipeline.options,
+                                  RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
       reshuffle_step = ReshufflePerKey()
     else:
       reshuffle_step = ReshufflePerKey().with_input_types(
