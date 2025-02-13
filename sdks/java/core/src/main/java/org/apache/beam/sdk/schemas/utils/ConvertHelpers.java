@@ -57,10 +57,6 @@ import org.slf4j.LoggerFactory;
   "rawtypes"
 })
 public class ConvertHelpers {
-  private static class SchemaInformationProviders {
-    private static final ServiceLoader<SchemaInformationProvider> INSTANCE =
-        ServiceLoader.load(SchemaInformationProvider.class);
-  }
 
   private static final Logger LOG = LoggerFactory.getLogger(ConvertHelpers.class);
 
@@ -87,11 +83,15 @@ public class ConvertHelpers {
 
     ConvertedSchemaInformation<T> schemaInformation = null;
     // Try to load schema information from loaded providers
-    for (SchemaInformationProvider provider : SchemaInformationProviders.INSTANCE) {
-      schemaInformation = provider.getConvertedSchemaInformation(inputSchema, outputType);
-      if (schemaInformation != null) {
-        return schemaInformation;
+    try {
+      for (SchemaInformationProvider provider : ServiceLoader.load(SchemaInformationProvider.class)) {
+        schemaInformation = provider.getConvertedSchemaInformation(inputSchema, outputType);
+        if (schemaInformation != null) {
+          return schemaInformation;
+        }
       }
+    } catch (Exception e) {
+      LOG.debug("No Schema information found for type {}", outputType, e);
     }
 
     if (schemaInformation == null) {
@@ -107,7 +107,7 @@ public class ConvertHelpers {
                 schemaRegistry.getToRowFunction(outputType),
                 schemaRegistry.getFromRowFunction(outputType));
       } catch (NoSuchSchemaException e) {
-        LOG.debug("No schema found for type " + outputType, e);
+        LOG.debug("No schema found for type {}", outputType, e);
       }
       FieldType unboxedType = null;
       // TODO: Properly handle nullable.
