@@ -61,8 +61,9 @@ class AnomalyResult():
   """A dataclass for the anomaly detection results"""
   #: The original input data.
   example: beam.Row
-  #: The `AnomalyPrediction` object containing the prediction.
-  prediction: AnomalyPrediction
+  #: The iterable of `AnomalyPrediction` objects containing the predictions.
+  #: Expect length 1 if an aggregation strategy is applied.
+  predictions: Iterable[AnomalyPrediction]
 
 
 class ThresholdFn(abc.ABC):
