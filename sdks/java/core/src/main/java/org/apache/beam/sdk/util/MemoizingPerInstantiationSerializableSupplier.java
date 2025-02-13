@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -37,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * using the same DoFn. This differs from a static variable which would be shared across all
  * instances of the DoFn and a non-static variable which is per instance.
  */
-public class MemoizingPerInstantiationSerializableSupplier<T> implements Serializable, Supplier<T> {
+public class MemoizingPerInstantiationSerializableSupplier<T> implements SerializableSupplier<T> {
   private static final AtomicInteger idGenerator = new AtomicInteger();
   private final int id;
 

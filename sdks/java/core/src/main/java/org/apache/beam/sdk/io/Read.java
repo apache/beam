@@ -483,13 +483,13 @@ public class Read {
     private final Coder<CheckpointT> checkpointCoder;
     private final MemoizingPerInstantiationSerializableSupplier<
             Cache<Object, UnboundedReader<OutputT>>>
-        cachedReaders;
+        readerCacheSupplier;
     private @Nullable Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
     @VisibleForTesting
     UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
       this.checkpointCoder = checkpointCoder;
-      cachedReaders =
+      readerCacheSupplier =
           new MemoizingPerInstantiationSerializableSupplier<>(
               () ->
                   CacheBuilder.newBuilder()
@@ -561,7 +561,7 @@ public class Read {
       Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder =
           checkStateNotNull(this.restrictionCoder);
       Cache<Object, UnboundedReader<OutputT>> cachedReaders =
-          checkStateNotNull(this.cachedReaders.get());
+          checkStateNotNull(this.readerCacheSupplier.get());
       return new UnboundedSourceAsSDFRestrictionTracker<>(
           restriction, pipelineOptions, cachedReaders, restrictionCoder);
     }
