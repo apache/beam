@@ -65,11 +65,11 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
-
+* [Java] Upgrade SLF4J to 2.0.16. Update default Spark version to 3.5.0. ([#33574](https://github.com/apache/beam/pull/33574))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
-
+* [Java] SparkReceiver 2 has been moved to SparkReceiver 3 that supports Spark 3.x. ([#33574](https://github.com/apache/beam/pull/33574))
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations

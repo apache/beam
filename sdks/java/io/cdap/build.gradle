@@ -45,7 +45,11 @@ dependencies {
     implementation library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
     implementation library.java.cdap_hydrator_common
-    implementation library.java.cdap_plugin_hubspot
+    implementation (library.java.cdap_plugin_hubspot) {
+        // Excluding the module for scala 2.11, because Spark 3.x uses scala
+        // 2.12 instead.
+        exclude group: "com.fasterxml.jackson.module", module: "jackson-module-scala_2.11"
+    }
     implementation library.java.cdap_plugin_salesforce
     implementation library.java.cdap_plugin_service_now
     implementation library.java.cdap_plugin_zendesk
@@ -56,11 +60,17 @@ dependencies {
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
-    implementation library.java.spark_streaming
+    implementation (library.java.spark3_streaming) {
+        // Excluding `org.slf4j:jul-to-slf4j` which was introduced as a
+        // transitive dependency in Spark 3.5.0 (particularly from
+        // spark-common-utils_2.12) and would cause stack overflow together with
+        // `org.slf4j:slf4j-jdk14`.
+        exclude group: "org.slf4j", module: "jul-to-slf4j"
+    }
     implementation library.java.tephra
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":sdks:java:io:sparkreceiver:2")
+    implementation project(":sdks:java:io:sparkreceiver:3")
     implementation project(":sdks:java:io:hadoop-format")
     testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
