@@ -73,15 +73,24 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+#      - name: Setup environment
+#        uses: ./.github/actions/setup-environment-action
+#        with:
+#          python-version: default
+      - name: Java container
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          python-version: default
+          gradle-command: :sdks:java:container:java11:docker
+      - name: Java expansion service
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
+          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
