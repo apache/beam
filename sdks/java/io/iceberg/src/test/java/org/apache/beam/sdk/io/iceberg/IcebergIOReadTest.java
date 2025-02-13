@@ -26,7 +26,6 @@ import static org.junit.Assume.assumeTrue;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,16 +33,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogUtil;
@@ -68,11 +69,14 @@ import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -90,6 +94,8 @@ public class IcebergIOReadTest {
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
+  @Rule public TestName testName = new TestName();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Parameters
   public static Iterable<Object[]> data() {
@@ -109,48 +115,79 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testFailWhenBothStartingSnapshotAndTimestampAreSet() {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig()).from(tableId).fromSnapshot(123L).fromTimestamp(123L);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid source configuration: Only one of 'from_timestamp' or 'from_snapshot' can be set");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testFailWhenBothEndingSnapshotAndTimestampAreSet() {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig()).from(tableId).toSnapshot(123L).toTimestamp(123L);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid source configuration: Only one of 'to_timestamp' or 'to_snapshot' can be set");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testFailWhenStartingPointAndStartingStrategyAreSet() {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .fromSnapshot(123L)
+            .withStartingStrategy(StartingStrategy.EARLIEST);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid source configuration: 'from_timestamp' and 'from_snapshot' are not allowed when 'starting_strategy' is set");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testFailWhenPollIntervalIsSetOnBatchRead() {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .withPollInterval(Duration.standardSeconds(5));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid source configuration: 'poll_interval_seconds' can only be set when streaming is true");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    commitData(simpleTable);
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
-    Map<String, String> catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .put("warehouse", warehouse.location)
-            .build();
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
 
-    IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setCatalogName("name")
-            .setCatalogProperties(catalogProps)
-            .build();
-
-    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig).from(tableId);
-
-    List<List<Record>> expectedRecords =
-        Arrays.asList(
-            TestFixtures.FILE1SNAPSHOT1,
-            TestFixtures.FILE2SNAPSHOT1,
-            TestFixtures.FILE3SNAPSHOT1,
-            TestFixtures.FILE1SNAPSHOT2,
-            TestFixtures.FILE2SNAPSHOT2,
-            TestFixtures.FILE3SNAPSHOT2,
-            TestFixtures.FILE1SNAPSHOT3,
-            TestFixtures.FILE2SNAPSHOT3,
-            TestFixtures.FILE3SNAPSHOT3);
     if (useIncrementalScan) {
-      // only read files that were added in the second snapshot,
-      // ignoring the first and third snapshots.
-      expectedRecords = expectedRecords.subList(3, 6);
-
-      Iterator<Snapshot> snapshots = simpleTable.snapshots().iterator();
-      long first = snapshots.next().snapshotId();
-      long second = snapshots.next().snapshotId();
-      read = read.fromSnapshotExclusive(first).toSnapshot(second);
+      read = read.toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
     final List<Row> expectedRows =
         expectedRecords.stream()
@@ -159,10 +196,7 @@ public class IcebergIOReadTest {
             .collect(Collectors.toList());
 
     PCollection<Row> output =
-        testPipeline
-            .apply(read)
-            .apply(ParDo.of(new PrintRow()))
-            .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setRowSchema(schema);
 
     PAssert.that(output)
         .satisfies(
@@ -214,27 +248,12 @@ public class IcebergIOReadTest {
             .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
-    Map<String, String> catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .put("warehouse", warehouse.location)
-            .build();
-
-    IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setCatalogName("name")
-            .setCatalogProperties(catalogProps)
-            .build();
-
-    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig).from(tableId);
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
     if (useIncrementalScan) {
       read = read.toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
     PCollection<Row> output =
-        testPipeline
-            .apply(read)
-            .apply(ParDo.of(new PrintRow()))
-            .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema())));
+        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setRowSchema(schema);
 
     PAssert.that(output)
         .satisfies(
@@ -339,24 +358,12 @@ public class IcebergIOReadTest {
 
     simpleTable.newFastAppend().appendFile(dataFile).commit();
 
-    Map<String, String> catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .put("warehouse", warehouse.location)
-            .build();
-
-    IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setCatalogName("name")
-            .setCatalogProperties(catalogProps)
-            .build();
-
-    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig).from(tableId);
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
     if (useIncrementalScan) {
       read = read.toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
     PCollection<Row> output =
-        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setCoder(RowCoder.of(beamSchema));
+        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setRowSchema(beamSchema);
 
     final Row[] expectedRows =
         recordData.stream()
@@ -375,62 +382,122 @@ public class IcebergIOReadTest {
   }
 
   @Test
-  public void testUnboundedRead() throws IOException {
+  public void testBatchDefaultsToEarliestStartingStrategy() throws IOException {
+    runWithStartingStrategy(null, false);
+  }
+
+  @Test
+  public void testStreamingDefaultsToLatestStartingStrategy() throws IOException {
+    runWithStartingStrategy(null, true);
+  }
+
+  @Test
+  public void testUseLatestStartingStrategyWithBatch() throws IOException {
+    runWithStartingStrategy(StartingStrategy.LATEST, false);
+  }
+
+  @Test
+  public void testUseEarliestStartingStrategyWithStreaming() throws IOException {
+    runWithStartingStrategy(StartingStrategy.EARLIEST, true);
+  }
+
+  @Test
+  public void testStreamingReadBetweenSnapshots() throws IOException {
+    runReadWithBoundary(false, true);
+  }
+
+  @Test
+  public void testBatchReadBetweenSnapshots() throws IOException {
+    runReadWithBoundary(false, false);
+  }
+
+  @Test
+  public void testStreamingReadBetweenTimestamps() throws IOException {
+    runReadWithBoundary(false, true);
+  }
+
+  @Test
+  public void testBatchReadBetweenTimestamps() throws IOException {
+    runReadWithBoundary(false, false);
+  }
+
+  public void runWithStartingStrategy(@Nullable StartingStrategy strategy, boolean streaming)
+      throws IOException {
     assumeTrue(useIncrementalScan);
-    TableIdentifier tableId =
-        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    commitData(simpleTable);
-
-    Map<String, String> catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .put("warehouse", warehouse.location)
-            .build();
-
-    IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setCatalogName("name")
-            .setCatalogProperties(catalogProps)
-            .build();
-
-    List<List<Record>> expectedRecords =
-        Arrays.asList(
-            TestFixtures.FILE1SNAPSHOT1,
-            TestFixtures.FILE2SNAPSHOT1,
-            TestFixtures.FILE3SNAPSHOT1,
-            TestFixtures.FILE1SNAPSHOT2,
-            TestFixtures.FILE2SNAPSHOT2,
-            TestFixtures.FILE3SNAPSHOT2,
-            TestFixtures.FILE1SNAPSHOT3,
-            TestFixtures.FILE2SNAPSHOT3,
-            TestFixtures.FILE3SNAPSHOT3);
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
+    if ((strategy == StartingStrategy.LATEST) || (streaming && strategy == null)) {
+      expectedRecords = expectedRecords.subList(9, 12);
+    }
     final List<Row> expectedRows =
         expectedRecords.stream()
             .flatMap(List::stream)
             .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
+    IcebergIO.ReadRows readRows =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .streaming(streaming)
+            .toSnapshot(simpleTable.currentSnapshot().snapshotId());
+    if (strategy != null) {
+      readRows = readRows.withStartingStrategy(strategy);
+    }
+
+    PCollection<Row> output = testPipeline.apply(readRows);
+
+    PCollection.IsBounded expectedBoundedness =
+        streaming ? PCollection.IsBounded.UNBOUNDED : PCollection.IsBounded.BOUNDED;
+    assertEquals(expectedBoundedness, output.isBounded());
+
+    PAssert.that(output).containsInAnyOrder(expectedRows);
+    testPipeline.run().waitUntilFinish();
+  }
+
+  public void runReadWithBoundary(boolean useSnapshotBoundary, boolean streaming)
+      throws IOException {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    // only read data committed in the second and third snapshots
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable).subList(3, 9);
+
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
+
+    List<Snapshot> snapshots = Lists.newArrayList(simpleTable.snapshots());
+    Snapshot secondSnapshot = snapshots.get(1);
+    Snapshot thirdSnapshot = snapshots.get(2);
+
+    IcebergIO.ReadRows readRows =
+        IcebergIO.readRows(catalogConfig()).from(tableId).streaming(streaming);
+
+    if (useSnapshotBoundary) {
+      readRows =
+          readRows.fromSnapshot(secondSnapshot.snapshotId()).toSnapshot(thirdSnapshot.snapshotId());
+    } else { // use timestamp boundary
+      readRows =
+          readRows
+              .fromTimestamp(secondSnapshot.timestampMillis() - 1)
+              .toTimestamp(thirdSnapshot.timestampMillis() + 1);
+    }
+
     PCollection<Row> output =
-        testPipeline
-            .apply(
-                IcebergIO.readRows(catalogConfig)
-                    .from(tableId)
-                    .withTriggeringFrequency(Duration.standardSeconds(1))
-                    .toSnapshot(simpleTable.currentSnapshot().snapshotId()))
-            .apply(ParDo.of(new PrintRow()))
-            .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+        testPipeline.apply(readRows).apply(ParDo.of(new PrintRow())).setRowSchema(schema);
 
-    assertEquals(PCollection.IsBounded.UNBOUNDED, output.isBounded());
-    PAssert.that(output)
-        .satisfies(
-            (Iterable<Row> rows) -> {
-              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
-              return null;
-            });
+    PCollection.IsBounded expectedBoundedness =
+        streaming ? PCollection.IsBounded.UNBOUNDED : PCollection.IsBounded.BOUNDED;
+    assertEquals(expectedBoundedness, output.isBounded());
 
+    PAssert.that(output).containsInAnyOrder(expectedRows);
     testPipeline.run();
   }
 
@@ -487,47 +554,16 @@ public class IcebergIOReadTest {
     return tempFile;
   }
 
-  private void commitData(Table simpleTable) throws IOException {
-    // first snapshot
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
-        .commit();
+  private IcebergCatalogConfig catalogConfig() {
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
-    // second snapshot
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s2.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT2))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s2.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT2))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s2.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT2))
-        .commit();
-
-    // third snapshot
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s3.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT3))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s3.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT3))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s3.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT3))
-        .commit();
+    return IcebergCatalogConfig.builder()
+        .setCatalogName("name")
+        .setCatalogProperties(catalogProps)
+        .build();
   }
 }

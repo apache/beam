@@ -22,6 +22,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileScanTask;
@@ -40,8 +42,10 @@ import org.apache.iceberg.parquet.ParquetReader;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.PartitionUtil;
+import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class ReadUtils {
   // default is 8MB. keep this low to avoid overwhelming memory
@@ -105,5 +109,45 @@ class ReadUtils {
     } else {
       return Collections.emptyMap();
     }
+  }
+
+  static @Nullable Long getFromSnapshotExclusive(Table table, IcebergScanConfig scanConfig) {
+    @Nullable StartingStrategy startingStrategy = scanConfig.getStartingStrategy();
+    boolean isStreaming = MoreObjects.firstNonNull(scanConfig.getStreaming(), false);
+    if (startingStrategy == null) {
+      startingStrategy = isStreaming ? StartingStrategy.LATEST : StartingStrategy.EARLIEST;
+    }
+
+    // 1. fetch from from_snapshot
+    @Nullable Long fromSnapshot = scanConfig.getFromSnapshotInclusive();
+    // 2. fetch from from_timestamp
+    @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
+    if (fromTimestamp != null) {
+      fromSnapshot = SnapshotUtil.oldestAncestorAfter(table, fromTimestamp).snapshotId();
+    }
+    // 3. get current snapshot if starting_strategy is LATEST
+    if (fromSnapshot == null && startingStrategy.equals(StartingStrategy.LATEST)) {
+      fromSnapshot = table.currentSnapshot().snapshotId();
+    }
+    // incremental append scan can only be configured with an *exclusive* starting snapshot,
+    // so we need to provide this snapshot's parent id.
+    if (fromSnapshot != null) {
+      fromSnapshot = table.snapshot(fromSnapshot).parentId();
+    }
+
+    // 4. if snapshot is still null, the scan will default to the oldest snapshot, i.e. EARLIEST
+    return fromSnapshot;
+  }
+
+  static @Nullable Long getToSnapshot(Table table, IcebergScanConfig scanConfig) {
+    // 1. fetch from to_snapshot
+    @Nullable Long toSnapshot = scanConfig.getToSnapshot();
+    // 2. fetch from to_timestamp
+    @Nullable Long toTimestamp = scanConfig.getToTimestamp();
+    if (toTimestamp != null) {
+      toSnapshot = SnapshotUtil.snapshotIdAsOfTime(table, toTimestamp);
+    }
+
+    return toSnapshot;
   }
 }

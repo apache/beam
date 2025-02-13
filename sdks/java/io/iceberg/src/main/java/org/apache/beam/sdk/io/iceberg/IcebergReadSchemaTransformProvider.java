@@ -22,10 +22,12 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
@@ -37,6 +39,8 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Enums;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -89,16 +93,32 @@ public class IcebergReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      @Nullable String strategyStr = configuration.getStartingStrategy();
+      StartingStrategy strategy = null;
+      if (strategyStr != null) {
+        Optional<StartingStrategy> optional =
+            Enums.getIfPresent(StartingStrategy.class, strategyStr.toUpperCase());
+        if (!optional.isPresent()) {
+          throw new IllegalArgumentException(
+              "Invalid starting strategy. Valid values are: "
+                  + Arrays.toString(StartingStrategy.values()));
+        }
+        strategy = optional.get();
+      }
+
       IcebergIO.ReadRows readRows =
           IcebergIO.readRows(configuration.getIcebergCatalog())
               .from(TableIdentifier.parse(configuration.getTable()))
-              .fromSnapshotExclusive(configuration.getFromSnapshotExclusive())
-              .toSnapshot(configuration.getToSnapshot());
+              .fromSnapshot(configuration.getFromSnapshot())
+              .toSnapshot(configuration.getToSnapshot())
+              .fromTimestamp(configuration.getFromTimestamp())
+              .toTimestamp(configuration.getToTimestamp())
+              .withStartingStrategy(strategy)
+              .streaming(configuration.getStreaming());
 
-      @Nullable Integer triggeringFrequencySeconds = configuration.getTriggeringFrequencySeconds();
-      if (triggeringFrequencySeconds != null) {
-        readRows =
-            readRows.withTriggeringFrequency(Duration.standardSeconds(triggeringFrequencySeconds));
+      @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
+      if (pollIntervalSeconds != null) {
+        readRows = readRows.withPollInterval(Duration.standardSeconds(pollIntervalSeconds));
       }
 
       PCollection<Row> output = input.getPipeline().apply(readRows);
@@ -129,19 +149,33 @@ public class IcebergReadSchemaTransformProvider
     @Nullable
     abstract Map<String, String> getConfigProperties();
 
-    @SchemaFieldDescription(
-        "The frequency at which to poll for new snapshots. An unbounded source is used when this is set.")
-    abstract @Nullable Integer getTriggeringFrequencySeconds();
+    @SchemaFieldDescription("Starts reading from this snapshot ID (inclusive).")
+    abstract @Nullable Long getFromSnapshot();
 
-    @SchemaFieldDescription(
-        "Starts reading from this snapshot ID (exclusive). If unset, the source will "
-            + "start reading from the oldest snapshot (inclusive).")
-    abstract @Nullable Long getFromSnapshotExclusive();
-
-    @SchemaFieldDescription(
-        "Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read up to the current snapshot. "
-            + "The unbounded source will continue polling for new snapshots forever.")
+    @SchemaFieldDescription("Reads up to this snapshot ID (inclusive).")
     abstract @Nullable Long getToSnapshot();
+
+    @SchemaFieldDescription(
+        "Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).")
+    abstract @Nullable Long getFromTimestamp();
+
+    @SchemaFieldDescription(
+        "Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).")
+    abstract @Nullable Long getToTimestamp();
+
+    @SchemaFieldDescription(
+        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
+    abstract @Nullable Integer getPollIntervalSeconds();
+
+    @SchemaFieldDescription(
+        "Enables streaming reads. By default, the streaming source will start reading from the "
+            + "latest snapshot (inclusive) and continue polling forever based on the specified poll_interval_seconds")
+    abstract @Nullable Boolean getStreaming();
+
+    @SchemaFieldDescription(
+        "The source's starting strategy. Valid options are: \"earliest\" or \"latest\". Can be overriden "
+            + "by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.")
+    abstract @Nullable String getStartingStrategy();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -153,11 +187,19 @@ public class IcebergReadSchemaTransformProvider
 
       abstract Builder setConfigProperties(Map<String, String> confProperties);
 
-      abstract Builder setTriggeringFrequencySeconds(Integer snapshot);
-
-      abstract Builder setFromSnapshotExclusive(Long snapshot);
+      abstract Builder setFromSnapshot(Long snapshot);
 
       abstract Builder setToSnapshot(Long snapshot);
+
+      abstract Builder setFromTimestamp(Long timestamp);
+
+      abstract Builder setToTimestamp(Long timestamp);
+
+      abstract Builder setPollIntervalSeconds(Integer pollInterval);
+
+      abstract Builder setStreaming(Boolean streaming);
+
+      abstract Builder setStartingStrategy(String strategy);
 
       abstract Configuration build();
     }

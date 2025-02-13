@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -48,14 +47,12 @@ import org.joda.time.Duration;
  * unbounded implementations) is used to process each task and output Beam rows.
  */
 class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
-  // For the unbounded implementation.
   private static final long MAX_FILES_BATCH_BYTE_SIZE = 1L << 32; // 4 GB
-  private final @Nullable Duration pollInterval;
+  private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
   private final IcebergScanConfig scanConfig;
 
-  IncrementalScanSource(IcebergScanConfig scanConfig, @Nullable Duration pollInterval) {
+  IncrementalScanSource(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
-    this.pollInterval = pollInterval;
   }
 
   @Override
@@ -65,9 +62,9 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
             scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
     PCollection<Row> rows =
-        pollInterval == null
-            ? readBounded(input, table.currentSnapshot())
-            : readUnbounded(input, pollInterval);
+        MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
+            ? readUnbounded(input)
+            : readBounded(input, table);
     return rows.setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
   }
 
@@ -75,9 +72,12 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
    * Watches for new snapshots and creates tasks for each range. Using GiB for autosharding, this
    * groups tasks in batches of up to 4GB, then reads from each batch using an SDF.
    */
-  private PCollection<Row> readUnbounded(PBegin input, Duration duration) {
+  private PCollection<Row> readUnbounded(PBegin input) {
+    @Nullable
+    Duration pollInterval =
+        MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
     return input
-        .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, duration))
+        .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, pollInterval))
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
@@ -86,12 +86,12 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
             Window.<KV<ReadTaskDescriptor, ReadTask>>into(new GlobalWindows())
                 .triggering(
                     Repeatedly.forever(
-                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(duration)))
+                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(pollInterval)))
                 .discardingFiredPanes())
         .apply(
             GroupIntoBatches.<ReadTaskDescriptor, ReadTask>ofByteSize(
                     MAX_FILES_BATCH_BYTE_SIZE, ReadTask::getByteSize)
-                .withMaxBufferingDuration(duration)
+                .withMaxBufferingDuration(pollInterval)
                 .withShardedKey())
         .setCoder(
             KvCoder.of(
@@ -106,19 +106,24 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
    * Scans a single snapshot range and creates read tasks. Tasks are redistributed and processed
    * individually using a regular DoFn.
    */
-  private PCollection<Row> readBounded(PBegin input, @Nullable Snapshot toSnapshot) {
+  private PCollection<Row> readBounded(PBegin input, Table table) {
     checkStateNotNull(
-        toSnapshot,
+        table.currentSnapshot().snapshotId(),
         "Table %s does not have any snapshots to read from.",
         scanConfig.getTableIdentifier());
-    long to = MoreObjects.firstNonNull(scanConfig.getToSnapshot(), toSnapshot.snapshotId());
+
+    @Nullable Long from = ReadUtils.getFromSnapshotExclusive(table, scanConfig);
+    // if no end snapshot is provided, we read up to the current snapshot.
+    long to =
+        MoreObjects.firstNonNull(
+            ReadUtils.getToSnapshot(table, scanConfig), table.currentSnapshot().snapshotId());
     return input
         .apply(
             "Create Single Snapshot Range",
             Create.of(
                 SnapshotRange.builder()
                     .setTableIdentifierString(scanConfig.getTableIdentifier())
-                    .setFromSnapshotExclusive(scanConfig.getFromSnapshotExclusive())
+                    .setFromSnapshotExclusive(from)
                     .setToSnapshot(to)
                     .build()))
         .apply(

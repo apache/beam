@@ -50,7 +50,6 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Map<String, Object> config = Map.of(
  *         "table", table,
- *         "triggering_frequency_seconds", 5,
  *         "catalog_name", name,
  *         "catalog_properties", Map.of(
  *                 "warehouse", warehouse_path,
@@ -58,38 +57,31 @@ import org.joda.time.Duration;
  *         "config_properties", Map.of(
  *                 "hive.metastore.uris", metastore_uri));
  *
+ *
+ * ====== WRITE ======
  * pipeline
  *     .apply(Create.of(BEAM_ROWS))
  *     .apply(Managed.write(ICEBERG).withConfig(config));
  *
  *
- * // ====== READ ======
+ * ====== READ ======
  * pipeline
  *     .apply(Managed.read(ICEBERG).withConfig(config))
  *     .getSinglePCollection()
  *     .apply(ParDo.of(...));
  * }</pre>
  *
- * <h3>Configuration Options</h3>
+ * Look for more detailed examples below.
  *
- * <table border="1" cellspacing="1">
+ * <h2>Configuration Options</h2>
+ *
+ * <table border="1" cellspacing="2">
  *   <tr>
  *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
  *   </tr>
  *   <tr>
  *     <td> {@code table} </td> <td> {@code str} </td> <td> Required. A fully-qualified table identifier. You may also provide a
  *     template to use dynamic destinations (see the `Dynamic Destinations` section below for details). </td>
- *   </tr>
- *   <tr>
- *     <td> {@code triggering_frequency_seconds} </td>
- *     <td> {@code int} </td>
- *     <td>
- *         <p><b>Sink:</b> Required for streaming writes. Roughly every
- *       {@code triggering_frequency_seconds} duration, the sink will write records to data files and produce a table snapshot.
- *       Generally, a higher value will produce fewer, larger data files.
- *       <p><b>Source:</b> Enables streaming reads. Roughly every {@code triggering_frequency_seconds} duration, the source
- *       will scan the table for new snapshots and read new records.
- *     </td>
  *   </tr>
  *   <tr>
  *     <td> {@code catalog_name} </td> <td> {@code str} </td> <td> The name of the catalog. Defaults to {@code apache-beam-<VERSION>}. </td>
@@ -106,32 +98,91 @@ import org.joda.time.Duration;
  *     implementation, but <a href="https://iceberg.apache.org/docs/latest/configuration/#hadoop-configuration">this list</a>
  *     is a good starting point.
  *   </tr>
+ * </table>
+ *
+ * <h3>Sink-only Options</h3>
+ *
+ * <table border="1" cellspacing="1">
  *   <tr>
- *     <td> {@code from_snapshot_exclusive} </td>
+ *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code triggering_frequency_seconds} </td>
+ *     <td> {@code int} </td>
+ *     <td>Required for streaming writes. Roughly every
+ *       {@code triggering_frequency_seconds} duration, the sink will write records to data files and produce a table snapshot.
+ *       Generally, a higher value will produce fewer, larger data files.
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *       <td>{@code drop}</td> <td>{@code list<str>}</td> <td>A list of fields to drop before writing to table(s).</td>
+ *   </tr>
+ *   <tr>
+ *       <td>{@code keep}</td> <td>{@code list<str>}</td> <td>A list of fields to keep, dropping the rest before writing to table(s).</td>
+ *   </tr>
+ *   <tr>
+ *       <td>{@code only}</td> <td>{@code str}</td> <td>A nested record field that should be the only thing written to table(s).</td>
+ *   </tr>
+ * </table>
+ *
+ * <h3>Source-only Options</h3>
+ *
+ * <table border="1" cellspacing="1">
+ *   <tr>
+ *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code from_snapshot} </td>
  *     <td> {@code long} </td>
- *     <td> For the source; starts reading from this snapshot ID (exclusive). If unset, it will start reading from the
- *     oldest snapshot (inclusive).
+ *     <td> Starts reading from this snapshot ID (inclusive).
  *     </td>
  *   </tr>
  *   <tr>
  *     <td> {@code to_snapshot} </td>
  *     <td> {@code long} </td>
- *     <td> For the source; reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
+ *     <td> Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
  *     up to the current snapshot (inclusive). If unset and source is unbounded, it will continue polling for new snapshots forever.
  *     </td>
  *   </tr>
+ *   <tr>
+ *     <td> {@code from_timestamp} </td>
+ *     <td> {@code long} </td>
+ *     <td> Starts reading from the earliest snapshot (inclusive) created after this timestamp (in milliseconds).
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code to_timestamp} </td>
+ *     <td> {@code long} </td>
+ *     <td> Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code streaming} </td>
+ *     <td> {@code boolean} </td>
+ *     <td> Enables streaming reads. By default, the streaming source will start reading from the latest
+ *     snapshot (inclusive) and continue polling forever based on the specified {@code poll_interval_seconds}.
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code poll_interval_seconds} </td>
+ *     <td> {@code int} </td>
+ *     <td>
+ *       The interval at which to scan the table for new snapshots. Defaults to 60 seconds. For streaming reads only.
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code starting_strategy} </td>
+ *     <td> {@code str} </td>
+ *     <td>
+ *       The source's starting strategy. Valid options are:
+ *       <ul>
+ *           <li>{@code earliest}: starts reading from the earliest snapshot</li>
+ *           <li>{@code latest}: starts reading from the latest snapshot</li>
+ *       </ul>
+ *       <p>Defaults to {@code earliest} for batch, and {@code latest} for streaming.
+ *     </td>
+ *   </tr>
  * </table>
- *
- * <p><b>Additional configuration options are provided in the `Pre-filtering Options` section below,
- * for Iceberg writes.</b>
- *
- * <h3>Creating Tables</h3>
- *
- * <p>If an Iceberg table does not exist at the time of writing, this connector will automatically
- * create one with the data's schema.
- *
- * <p>Note that this is a best-effort operation that depends on the {@link Catalog} implementation.
- * Some implementations may not support creating a table using the Iceberg API.
  *
  * <h3>Beam Rows</h3>
  *
@@ -216,6 +267,16 @@ import org.joda.time.Duration;
  * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for
  * Iceberg's {@code timestamp} and {@code DATETIME} types for {@code timestamptz}.
  *
+ * <h2>Writing to Tables</h2>
+ *
+ * <h3>Creating Tables</h3>
+ *
+ * <p>If an Iceberg table does not exist at the time of writing, this connector will automatically
+ * create one with the data's schema.
+ *
+ * <p>Note that this is a best-effort operation that depends on the {@link Catalog} implementation.
+ * Some implementations may not support creating a table using the Iceberg API.
+ *
  * <h3>Dynamic Destinations</h3>
  *
  * <p>Managed Iceberg supports writing to dynamic destinations. To do so, please provide an
@@ -232,23 +293,8 @@ import org.joda.time.Duration;
  * <p>Some use cases may benefit from filtering record fields right before the write operation. For
  * example, you may want to provide meta-data to guide records to the right destination, but not
  * necessarily write that meta-data to your table. Some light-weight filtering options are provided
- * to accommodate such cases, allowing you to control what actually gets written:
- *
- * <table border="1" cellspacing="1">
- *   <tr>
- *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
- *   </tr>
- *   <tr>
- *       <td>{@code drop}</td> <td>{@code list<str>}</td> <td>Drops the specified fields.</td>
- *   </tr>
- *   <tr>
- *       <td>{@code keep}</td> <td>{@code list<str>}</td> <td>Keeps the specified fields and drops the rest.</td>
- *   </tr>
- *   <tr>
- *       <td>{@code only}</td> <td>{@code str}</td> <td>Use this to specify a nested record you intend to write.
- *       That record wll be written and the rest will be dropped.</td>
- *   </tr>
- * </table>
+ * to accommodate such cases, allowing you to control what actually gets written (see <b>{@code
+ * drop}</b>, <b>{@code keep}</b>, <b>{@code only}</b>}).
  *
  * <p>Example write to dynamic destinations (pseudocode):
  *
@@ -287,10 +333,11 @@ import org.joda.time.Duration;
  *
  * <p>When records are written and committed to a table, a snapshot is produced. A batch pipeline
  * will perform a single commit and create a single snapshot per table. A streaming pipeline will
- * produce a snapshot roughly according to the configured {@code triggering_frequency_seconds}.
+ * produce a snapshot roughly according to the configured <b>{@code
+ * triggering_frequency_seconds}</b>.
  *
- * <p>You can access these snapshots and perform downstream processing by fetching the {@code
- * "snapshots"} output PCollection:
+ * <p>You can access these snapshots and perform downstream processing by fetching the <b>{@code
+ * "snapshots"}</b> output PCollection:
  *
  * <pre>{@code
  * pipeline
@@ -329,7 +376,91 @@ import org.joda.time.Duration;
  *   </tr>
  * </table>
  *
- * <p>For internal use only; no backwards compatibility guarantees
+ * <br>
+ * <br>
+ *
+ * <h2>Reading from Tables</h2>
+ *
+ * A simple batch read from an Iceberg table looks like this:
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", table,
+ *         "catalog_name", name,
+ *         "catalog_properties", Map.of(...),
+ *         "config_properties", Map.of(...));
+ *
+ * PCollection<Row> = pipeline
+ *     .apply(Managed.read(ICEBERG).withConfig(config))
+ *     .getSinglePCollection();
+ * }</pre>
+ *
+ * Setting <b>{@code streaming}</b> to {@code true} enables streaming read mode, which continuously
+ * polls the table for new snapshots. The default polling interval is 60 seconds, but this can be
+ * overridden using <b>{@code poll_interval_seconds}</b>:
+ *
+ * <pre>{@code
+ * config.put("streaming", true);
+ * config.put("poll_interval_seconds", 10);
+ * }</pre>
+ *
+ * <h3>Choosing a Starting Point</h3>
+ *
+ * By default, a batch read will start reading from the earliest (oldest) table snapshot. A
+ * streaming read will start reading from the latest (most recent) snapshot. This behavior can be
+ * overridden in a few <b>mutually exclusive</b> ways:
+ *
+ * <ul>
+ *   <li>Manually setting a starting strategy with <b>{@code starting_strategy}</b> to be {@code
+ *       "earliest"} or {@code "latest"}.
+ *   <li>Setting a starting snapshot id with <b>{@code from_snapshot}</b>.
+ *   <li>Setting a starting timestamp (milliseconds) with <b>{@code from_timestamp}</b>.
+ * </ul>
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", table,
+ *         "catalog_name", name,
+ *         "catalog_properties", Map.of(...),
+ *         "config_properties", Map.of(...),
+ *         "streaming", true,
+ *         "from_snapshot", 123456789L);
+ *
+ * PCollection<Row> = pipeline
+ *     .apply(Managed.read(ICEBERG).withConfig(config))
+ *     .getSinglePCollection();
+ * }</pre>
+ *
+ * <h3>Choosing an End Point</h3>
+ *
+ * By default, a batch read will go up until the most recent table snapshot. A streaming read will
+ * continue monitoring the table for new snapshots forever. This can also be overridden with a
+ * couple of <b>mutually exclusive</b> options:
+ *
+ * <ul>
+ *   <li>Setting an ending snapshot id with <b>{@code to_snapshot}</b>.
+ *   <li>Setting an ending timestamp (milliseconds) with <b>{@code to_timestamp}</b>.
+ * </ul>
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", table,
+ *         "catalog_name", name,
+ *         "catalog_properties", Map.of(...),
+ *         "config_properties", Map.of(...),
+ *         "from_snapshot", 123456789L,
+ *         "to_timestamp", 987654321L);
+ *
+ * PCollection<Row> = pipeline
+ *     .apply(Managed.read(ICEBERG).withConfig(config))
+ *     .getSinglePCollection();
+ * }</pre>
+ *
+ * Note: An end point can also be set when performing a streaming read.
  */
 @Internal
 public class IcebergIO {
@@ -419,16 +550,28 @@ public class IcebergIO {
 
   @AutoValue
   public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+    public enum StartingStrategy {
+      EARLIEST,
+      LATEST
+    }
 
     abstract IcebergCatalogConfig getCatalogConfig();
 
     abstract @Nullable TableIdentifier getTableIdentifier();
 
-    abstract @Nullable Long getFromSnapshotExclusive();
+    abstract @Nullable Long getFromSnapshot();
 
     abstract @Nullable Long getToSnapshot();
 
-    abstract @Nullable Duration getTriggeringFrequency();
+    abstract @Nullable Long getFromTimestamp();
+
+    abstract @Nullable Long getToTimestamp();
+
+    abstract @Nullable Duration getPollInterval();
+
+    abstract @Nullable Boolean getStreaming();
+
+    abstract @Nullable StartingStrategy getStartingStrategy();
 
     abstract Builder toBuilder();
 
@@ -438,11 +581,19 @@ public class IcebergIO {
 
       abstract Builder setTableIdentifier(TableIdentifier identifier);
 
-      abstract Builder setFromSnapshotExclusive(@Nullable Long fromSnapshotExclusive);
+      abstract Builder setFromSnapshot(@Nullable Long fromSnapshot);
 
       abstract Builder setToSnapshot(@Nullable Long toSnapshot);
 
-      abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
+      abstract Builder setFromTimestamp(@Nullable Long fromTimestamp);
+
+      abstract Builder setToTimestamp(@Nullable Long toTimestamp);
+
+      abstract Builder setPollInterval(@Nullable Duration triggeringFrequency);
+
+      abstract Builder setStreaming(@Nullable Boolean streaming);
+
+      abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
 
       abstract ReadRows build();
     }
@@ -451,16 +602,32 @@ public class IcebergIO {
       return toBuilder().setTableIdentifier(tableIdentifier).build();
     }
 
-    public ReadRows fromSnapshotExclusive(@Nullable Long fromSnapshotExclusive) {
-      return toBuilder().setFromSnapshotExclusive(fromSnapshotExclusive).build();
+    public ReadRows fromSnapshot(@Nullable Long fromSnapshot) {
+      return toBuilder().setFromSnapshot(fromSnapshot).build();
     }
 
     public ReadRows toSnapshot(@Nullable Long toSnapshot) {
       return toBuilder().setToSnapshot(toSnapshot).build();
     }
 
-    public ReadRows withTriggeringFrequency(Duration triggeringFrequency) {
-      return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
+    public ReadRows fromTimestamp(@Nullable Long fromTimestamp) {
+      return toBuilder().setFromTimestamp(fromTimestamp).build();
+    }
+
+    public ReadRows toTimestamp(@Nullable Long toTimestamp) {
+      return toBuilder().setToTimestamp(toTimestamp).build();
+    }
+
+    public ReadRows withPollInterval(Duration pollInterval) {
+      return toBuilder().setPollInterval(pollInterval).build();
+    }
+
+    public ReadRows streaming(@Nullable Boolean streaming) {
+      return toBuilder().setStreaming(streaming).build();
+    }
+
+    public ReadRows withStartingStrategy(@Nullable StartingStrategy strategy) {
+      return toBuilder().setStartingStrategy(strategy).build();
     }
 
     @Override
@@ -476,14 +643,19 @@ public class IcebergIO {
               .setScanType(IcebergScanConfig.ScanType.TABLE)
               .setTableIdentifier(tableId)
               .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
-              .setFromSnapshotExclusive(getFromSnapshotExclusive())
+              .setFromSnapshotInclusive(getFromSnapshot())
               .setToSnapshot(getToSnapshot())
+              .setFromTimestamp(getFromTimestamp())
+              .setToTimestamp(getToTimestamp())
+              .setStartingStrategy(getStartingStrategy())
+              .setStreaming(getStreaming())
+              .setPollInterval(getPollInterval())
               .build();
-      if (getTriggeringFrequency() != null
-          || scanConfig.getToSnapshot() != null
-          || scanConfig.getFromSnapshotExclusive() != null) {
+      scanConfig.validate();
+
+      if (scanConfig.useIncrementalSource()) {
         return input
-            .apply(new IncrementalScanSource(scanConfig, getTriggeringFrequency()))
+            .apply(new IncrementalScanSource(scanConfig))
             .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
       }
 

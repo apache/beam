@@ -74,7 +74,6 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
 
     SnapshotPollFn(IcebergScanConfig scanConfig) {
       this.scanConfig = scanConfig;
-      this.fromSnapshotId = scanConfig.getFromSnapshotExclusive();
     }
 
     @Override
@@ -82,17 +81,22 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
       // fetch a fresh table to catch updated snapshots
       Table table =
           TableCache.getRefreshed(tableIdentifier, scanConfig.getCatalogConfig().catalog());
+      @Nullable Long userSpecifiedToSnapshot = ReadUtils.getToSnapshot(table, scanConfig);
+      boolean isComplete = userSpecifiedToSnapshot != null;
+      if (fromSnapshotId == null) {
+        fromSnapshotId = ReadUtils.getFromSnapshotExclusive(table, scanConfig);
+      }
       Instant timestamp = Instant.now();
 
       Snapshot currentSnapshot = table.currentSnapshot();
       if (currentSnapshot == null || Objects.equal(currentSnapshot.snapshotId(), fromSnapshotId)) {
         // no new snapshot since last poll. return empty result.
-        return getPollResult(null, timestamp);
+        return getPollResult(null, timestamp, isComplete);
       }
       Long currentSnapshotId = currentSnapshot.snapshotId();
 
       // if no upper bound is specified, we read up to the current snapshot
-      Long toSnapshot = MoreObjects.firstNonNull(scanConfig.getSnapshot(), currentSnapshotId);
+      Long toSnapshot = MoreObjects.firstNonNull(userSpecifiedToSnapshot, currentSnapshotId);
       latestSnapshot.set(toSnapshot);
 
       SnapshotRange range =
@@ -105,18 +109,18 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
       // update lower bound to current snapshot
       fromSnapshotId = currentSnapshotId;
 
-      return getPollResult(range, timestamp);
+      return getPollResult(range, timestamp, isComplete);
     }
 
     /** Returns an appropriate PollResult based on the requested boundedness. */
     private PollResult<SnapshotRange> getPollResult(
-        @Nullable SnapshotRange range, Instant timestamp) {
+        @Nullable SnapshotRange range, Instant timestamp, boolean isComplete) {
       List<TimestampedValue<SnapshotRange>> timestampedValues =
           range == null
               ? Collections.emptyList()
               : Collections.singletonList(TimestampedValue.of(range, timestamp));
 
-      return scanConfig.getToSnapshot() != null
+      return isComplete
           ? PollResult.complete(timestampedValues) // stop at specified snapshot
           : PollResult.incomplete(timestampedValues); // continue forever
     }
