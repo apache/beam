@@ -958,8 +958,6 @@ class ReshufflePerKey(PTransform):
   transforms.
   """
   def expand(self, pcoll):
-    compat_version = pcoll.pipeline.options.view_as(
-        pipeline_options.StreamingOptions).update_compatibility_version
     windowing_saved = pcoll.windowing
     if windowing_saved.is_default():
       # In this (common) case we can use a trivial trigger driver
