@@ -71,7 +71,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
-* [Python] Reshuffle is now more faithful to user-specified typehints and coders. Previously, Reshuffle could incorrectly use FastPrimitivesCoder in some pipelines. This update corrects that behavior. However, it may be a breaking change for pipelines with incorrect typehints for Reshuffle. If you encounter issues after upgrading to this Beam version, you can temporarily specify update_compatibility_version to an older Beam version (e.g. 2.63.0) in your pipeline options as a workaround. The recommended long-term solution is to correct the inaccurate typehints in your pipeline. ([#33932](https://github.com/apache/beam/pull/33932))
+* [Python] Reshuffle now correctly respects user-specified type hints, fixing a previous bug where it might use FastPrimitivesCoder wrongly. This change could break pipelines with incorrect type hints in Reshuffle. If you have issues after upgrading, temporarily set update_compatibility_version to an previous Beam version to use the old behavior. The recommended solution is to fix the type hints in your code. ([#33932](https://github.com/apache/beam/pull/33932))
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
