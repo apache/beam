@@ -20,20 +20,24 @@ package org.apache.beam.sdk.util;
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
- * An object that simplifies having a variable that behaves like a static object but which is scoped
- * to deserialized instances.
+ * A supplier that memoizes within an instantiation across serialization/deserialization.
  *
- * <p>In particular this can be useful for use within a DoFn class to maintain shared state across
- * all instances of the DoFn that are the same step in the graph. This differs from a static
- * variable which would be shared across all instances of the DoFn and a non-static variable which
- * is per instance.
+ * <p>Specifically the wrapped supplier will be called once and the result memoized - per instance
+ * for instances created via new - once per group of instances deserialized from the same serialized
+ * instance.
+ *
+ * <p>A particular use for this is within a DoFn class to maintain shared state across all instances
+ * of the DoFn that correspond to same step in the graph but separate from other steps in the graph
+ * using the same DoFn. This differs from a static variable which would be shared across all
+ * instances of the DoFn and a non-static variable which is per instance.
  */
-public class PerSerializationStatic<T> implements Serializable {
+public class MemoizingPerInstantiationSerializableSupplier<T> implements Serializable, Supplier<T> {
   private static final AtomicInteger idGenerator = new AtomicInteger();
   private final int id;
 
@@ -41,11 +45,12 @@ public class PerSerializationStatic<T> implements Serializable {
   private final SerializableSupplier<@NonNull T> supplier;
   private transient volatile @MonotonicNonNull T value;
 
-  public PerSerializationStatic(SerializableSupplier<@NonNull T> supplier) {
+  public MemoizingPerInstantiationSerializableSupplier(SerializableSupplier<@NonNull T> supplier) {
     id = idGenerator.incrementAndGet();
     this.supplier = supplier;
   }
 
+  @Override
   @SuppressWarnings("unchecked")
   public T get() {
     @Nullable T result = value;

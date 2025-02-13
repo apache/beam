@@ -51,12 +51,11 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.MemoizingPerInstantiationSerializableSupplier;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.PerSerializationStatic;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -482,18 +481,19 @@ public class Read {
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
     private final Coder<CheckpointT> checkpointCoder;
-    private final PerSerializationStatic<Cache<Object, UnboundedReader<OutputT>>> cachedReaders;
+    private final MemoizingPerInstantiationSerializableSupplier<
+            Cache<Object, UnboundedReader<OutputT>>>
+        cachedReaders;
     private @Nullable Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
     @VisibleForTesting
     UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
       this.checkpointCoder = checkpointCoder;
       cachedReaders =
-          new PerSerializationStatic<>(
+          new MemoizingPerInstantiationSerializableSupplier<>(
               () ->
                   CacheBuilder.newBuilder()
                       .expireAfterWrite(1, TimeUnit.MINUTES)
-                      .maximumSize(100)
                       .removalListener(
                           (RemovalListener<Object, UnboundedReader<OutputT>>)
                               removalNotification -> {
@@ -845,10 +845,11 @@ public class Read {
         implements HasProgress {
       private final UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
+      private final Cache<Object, UnboundedReader<OutputT>> cachedReaders;
+      private final Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
+
       private UnboundedSource.@Nullable UnboundedReader<OutputT> currentReader;
       private boolean readerHasBeenStarted;
-      private Cache<Object, UnboundedReader<OutputT>> cachedReaders;
-      private Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
       UnboundedSourceAsSDFRestrictionTracker(
           UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction,

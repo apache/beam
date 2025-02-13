@@ -28,13 +28,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class PerSerializationStaticTest {
+public class MemoizingPerInstantiationSerializableSupplierTest {
 
   @SuppressWarnings("unchecked")
   @Test
   public void testSharedAcrossDeserialize() throws Exception {
-    PerSerializationStatic<AtomicInteger> instance =
-        new PerSerializationStatic<>(AtomicInteger::new);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance =
+        new MemoizingPerInstantiationSerializableSupplier<>(AtomicInteger::new);
     SerializableUtils.ensureSerializable(instance);
 
     AtomicInteger i = instance.get();
@@ -42,13 +42,13 @@ public class PerSerializationStaticTest {
     assertSame(i, instance.get());
 
     byte[] serialized = SerializableUtils.serializeToByteArray(instance);
-    PerSerializationStatic<AtomicInteger> deserialized1 =
-        (PerSerializationStatic<AtomicInteger>)
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> deserialized1 =
+        (MemoizingPerInstantiationSerializableSupplier<AtomicInteger>)
             SerializableUtils.deserializeFromByteArray(serialized, "instance");
     assertSame(i, deserialized1.get());
 
-    PerSerializationStatic<AtomicInteger> deserialized2 =
-        (PerSerializationStatic<AtomicInteger>)
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> deserialized2 =
+        (MemoizingPerInstantiationSerializableSupplier<AtomicInteger>)
             SerializableUtils.deserializeFromByteArray(serialized, "instance");
     assertSame(i, deserialized2.get());
     assertEquals(10, i.get());
@@ -56,71 +56,75 @@ public class PerSerializationStaticTest {
 
   @Test
   public void testDifferentInstancesSeparate() throws Exception {
-    PerSerializationStatic<AtomicInteger> instance =
-        new PerSerializationStatic<>(AtomicInteger::new);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance =
+        new MemoizingPerInstantiationSerializableSupplier<>(AtomicInteger::new);
     SerializableUtils.ensureSerializable(instance);
     AtomicInteger i = instance.get();
     i.set(10);
     assertSame(i, instance.get());
 
-    PerSerializationStatic<AtomicInteger> instance2 =
-        new PerSerializationStatic<>(AtomicInteger::new);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance2 =
+        new MemoizingPerInstantiationSerializableSupplier<>(AtomicInteger::new);
     SerializableUtils.ensureSerializable(instance2);
     AtomicInteger j = instance2.get();
     j.set(20);
     assertSame(j, instance2.get());
     assertNotSame(j, i);
 
-    PerSerializationStatic<AtomicInteger> instance1clone = SerializableUtils.clone(instance);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance1clone =
+        SerializableUtils.clone(instance);
     assertSame(instance1clone.get(), i);
-    PerSerializationStatic<AtomicInteger> instance2clone = SerializableUtils.clone(instance2);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance2clone =
+        SerializableUtils.clone(instance2);
     assertSame(instance2clone.get(), j);
   }
 
   @SuppressWarnings("unchecked")
   @Test
   public void testDifferentInstancesSeparateNoGetBeforeSerialization() throws Exception {
-    PerSerializationStatic<AtomicInteger> instance =
-        new PerSerializationStatic<>(AtomicInteger::new);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance =
+        new MemoizingPerInstantiationSerializableSupplier<>(AtomicInteger::new);
     SerializableUtils.ensureSerializable(instance);
 
-    PerSerializationStatic<AtomicInteger> instance2 =
-        new PerSerializationStatic<>(AtomicInteger::new);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance2 =
+        new MemoizingPerInstantiationSerializableSupplier<>(AtomicInteger::new);
     SerializableUtils.ensureSerializable(instance2);
 
     byte[] serialized = SerializableUtils.serializeToByteArray(instance);
-    PerSerializationStatic<AtomicInteger> deserialized1 =
-        (PerSerializationStatic<AtomicInteger>)
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> deserialized1 =
+        (MemoizingPerInstantiationSerializableSupplier<AtomicInteger>)
             SerializableUtils.deserializeFromByteArray(serialized, "instance");
-    PerSerializationStatic<AtomicInteger> deserialized2 =
-        (PerSerializationStatic<AtomicInteger>)
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> deserialized2 =
+        (MemoizingPerInstantiationSerializableSupplier<AtomicInteger>)
             SerializableUtils.deserializeFromByteArray(serialized, "instance");
     assertSame(deserialized1.get(), deserialized2.get());
 
-    PerSerializationStatic<AtomicInteger> instance2clone = SerializableUtils.clone(instance2);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance2clone =
+        SerializableUtils.clone(instance2);
     assertNotSame(instance2clone.get(), deserialized1.get());
   }
 
   @Test
   public void testDifferentTypes() throws Exception {
-    PerSerializationStatic<AtomicInteger> instance =
-        new PerSerializationStatic<>(AtomicInteger::new);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance =
+        new MemoizingPerInstantiationSerializableSupplier<>(AtomicInteger::new);
     SerializableUtils.ensureSerializable(instance);
     AtomicInteger i = instance.get();
     i.set(10);
     assertSame(i, instance.get());
 
-    PerSerializationStatic<ConcurrentHashMap<Integer, Integer>> instance2 =
-        new PerSerializationStatic<>(ConcurrentHashMap::new);
+    MemoizingPerInstantiationSerializableSupplier<ConcurrentHashMap<Integer, Integer>> instance2 =
+        new MemoizingPerInstantiationSerializableSupplier<>(ConcurrentHashMap::new);
     SerializableUtils.ensureSerializable(instance2);
     ConcurrentHashMap<Integer, Integer> j = instance2.get();
     j.put(1, 100);
     assertSame(j, instance2.get());
 
-    PerSerializationStatic<AtomicInteger> instance1clone = SerializableUtils.clone(instance);
+    MemoizingPerInstantiationSerializableSupplier<AtomicInteger> instance1clone =
+        SerializableUtils.clone(instance);
     assertSame(instance1clone.get(), i);
-    PerSerializationStatic<ConcurrentHashMap<Integer, Integer>> instance2clone =
-        SerializableUtils.clone(instance2);
+    MemoizingPerInstantiationSerializableSupplier<ConcurrentHashMap<Integer, Integer>>
+        instance2clone = SerializableUtils.clone(instance2);
     assertSame(instance2clone.get(), j);
   }
 }
