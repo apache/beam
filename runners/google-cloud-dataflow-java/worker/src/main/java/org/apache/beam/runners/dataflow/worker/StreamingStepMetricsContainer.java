@@ -23,6 +23,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -98,6 +99,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private final Duration maximumPerWorkerCounterStaleness = Duration.ofMinutes(5);
 
   private final Clock clock;
+
+  // TODO(BEAM-33720): Remove once Dataflow legacy runner supports BoundedTries.
+  @VisibleForTesting boolean populateBoundedTrieMetrics;
 
   private StreamingStepMetricsContainer(String stepName) {
     this.stepName = stepName;
@@ -219,7 +223,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         .append(distributionUpdates())
         .append(gaugeUpdates())
         .append(stringSetUpdates())
-        .append(boundedTrieUpdates());
+        .append(populateBoundedTrieMetrics ? boundedTrieUpdates() : Collections.emptyList());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {

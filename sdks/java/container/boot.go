@@ -153,24 +153,19 @@ func main() {
 			cp = append(cp, filepath.Join(jarsDir, jar))
 		}
 	}
-	cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
-
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
+
+	if hasWorkerExperiment {
+		// Skip adding system "beam-sdks-java-harness.jar". User-provided jar will
+		// be added to classpath as a normal user jar further below.
+		logger.Printf(ctx, "Opted to use staged java harness. Make sure beam-sdks-java-harness is included or shaded in the staged jars.")
+	} else {
+		cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
+	}
+
 	for _, a := range artifacts {
 		name, _ := artifact.MustExtractFilePayload(a)
 		if hasWorkerExperiment {
-			if strings.HasPrefix(name, "beam-sdks-java-harness") {
-				// Remove system "beam-sdks-java-harness.jar". User-provided jar will be
-				// added to classpath as a normal user jar further below.
-				for i, cl := range cp {
-					if !strings.HasSuffix(cl, javaHarnessJar) {
-						continue
-					}
-					logger.Printf(ctx, "Using staged java harness: %v", name)
-					cp = append(cp[:i], cp[i+1:]...)
-					break
-				}
-			}
 			if name == "dataflow-worker.jar" {
 				continue
 			}

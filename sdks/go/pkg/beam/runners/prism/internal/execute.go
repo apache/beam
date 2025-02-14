@@ -36,6 +36,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -226,6 +227,8 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				ws := windowingStrategy(comps, tid)
 				em.StageAggregates(stage.ID, engine.WinStrat{
 					AllowedLateness: time.Duration(ws.GetAllowedLateness()) * time.Millisecond,
+					Accumulating:    pipepb.AccumulationMode_ACCUMULATING == ws.GetAccumulationMode(),
+					Trigger:         buildTrigger(ws.GetTrigger()),
 				})
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
@@ -398,4 +401,51 @@ func getOnlyPair[K comparable, V any](in map[K]V) (K, V) {
 func getOnlyValue[K comparable, V any](in map[K]V) V {
 	_, v := getOnlyPair(in)
 	return v
+}
+
+// buildTrigger converts the protocol buffer representation of a trigger
+// to the engine representation.
+func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
+	switch at := tpb.GetTrigger().(type) {
+	case *pipepb.Trigger_AfterAll_:
+		subTriggers := make([]engine.Trigger, 0, len(at.AfterAll.GetSubtriggers()))
+		for _, st := range at.AfterAll.GetSubtriggers() {
+			subTriggers = append(subTriggers, buildTrigger(st))
+		}
+		return &engine.TriggerAfterAll{SubTriggers: subTriggers}
+	case *pipepb.Trigger_AfterAny_:
+		subTriggers := make([]engine.Trigger, 0, len(at.AfterAny.GetSubtriggers()))
+		for _, st := range at.AfterAny.GetSubtriggers() {
+			subTriggers = append(subTriggers, buildTrigger(st))
+		}
+		return &engine.TriggerAfterAny{SubTriggers: subTriggers}
+	case *pipepb.Trigger_AfterEach_:
+		subTriggers := make([]engine.Trigger, 0, len(at.AfterEach.GetSubtriggers()))
+		for _, st := range at.AfterEach.GetSubtriggers() {
+			subTriggers = append(subTriggers, buildTrigger(st))
+		}
+		return &engine.TriggerAfterEach{SubTriggers: subTriggers}
+	case *pipepb.Trigger_AfterEndOfWindow_:
+		return &engine.TriggerAfterEndOfWindow{
+			Early: buildTrigger(at.AfterEndOfWindow.GetEarlyFirings()),
+			Late:  buildTrigger(at.AfterEndOfWindow.GetLateFirings()),
+		}
+	case *pipepb.Trigger_Always_:
+		return &engine.TriggerAlways{}
+	case *pipepb.Trigger_ElementCount_:
+		return &engine.TriggerElementCount{ElementCount: int(at.ElementCount.GetElementCount())}
+	case *pipepb.Trigger_Never_:
+		return &engine.TriggerNever{}
+	case *pipepb.Trigger_OrFinally_:
+		return &engine.TriggerOrFinally{
+			Main:    buildTrigger(at.OrFinally.GetMain()),
+			Finally: buildTrigger(at.OrFinally.GetFinally()),
+		}
+	case *pipepb.Trigger_Repeat_:
+		return &engine.TriggerRepeatedly{Repeated: buildTrigger(at.Repeat.GetSubtrigger())}
+	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+		panic(fmt.Sprintf("unsupported trigger: %v", prototext.Format(tpb)))
+	default:
+		return &engine.TriggerDefault{}
+	}
 }
