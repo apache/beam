@@ -50,6 +50,12 @@ See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
 &lt;li>[Python] If you are using the official Apache Beam Python containers for version 2.62.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project&amp;rsquo;s dependency list. (&lt;a href="https://github.com/apache/beam/issues/33639">#33639&lt;/a>).&lt;/li>
+&lt;li>[Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs &amp;gt;180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+&lt;ul>
+&lt;li>fix will be released with 2.63.0. &lt;a href="https://github.com/apache/beam/issues/33588">#33588&lt;/a>.&lt;/li>
+&lt;li>To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable &lt;a href="https://cloud.google.com/dataflow/docs/streaming-engine#use">Streaming Engine&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.62.0 release. Thank you to all contributors!&lt;/p>
@@ -153,6 +159,12 @@ without breaking the linear/chaining style of pipeline construction.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>[Python] If you are using the official Apache Beam Python containers for version 2.61.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project&amp;rsquo;s dependency list. (&lt;a href="https://github.com/apache/beam/issues/33639">#33639&lt;/a>).&lt;/li>
+&lt;li>[Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs &amp;gt;180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+&lt;ul>
+&lt;li>fix will be released with 2.63.0. &lt;a href="https://github.com/apache/beam/issues/33588">#33588&lt;/a>.&lt;/li>
+&lt;li>To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable &lt;a href="https://cloud.google.com/dataflow/docs/streaming-engine#use">Streaming Engine&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
@@ -227,6 +239,17 @@ when running on 3.8. (&lt;a href="https://github.com/apache/beam/issues/31192">#
 &lt;li>Fixed in 2.61.0.&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>[Managed Iceberg] DataFile metadata is assigned incorrect partition values (&lt;a href="https://github.com/apache/beam/issues/33497">#33497&lt;/a>).
+&lt;ul>
+&lt;li>Fixed in 2.62.0&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>[Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs &amp;gt;180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+&lt;ul>
+&lt;li>fix will be released with 2.63.0. &lt;a href="https://github.com/apache/beam/issues/33588">#33588&lt;/a>.&lt;/li>
+&lt;li>To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable &lt;a href="https://cloud.google.com/dataflow/docs/streaming-engine#use">Streaming Engine&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
@@ -298,6 +321,16 @@ OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingW
 &lt;li>Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.&lt;/li>
 &lt;li>Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.&lt;/li>
 &lt;li>Fixed in 2.61.0.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>[Managed Iceberg] DataFile metadata is assigned incorrect partition values (&lt;a href="https://github.com/apache/beam/issues/33497">#33497&lt;/a>).
+&lt;ul>
+&lt;li>Fixed in 2.62.0&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>[FileBasedIO] StringSet metrics can grow unlimitedly large when pipeline involves read/write large number of files, and degrading functionalities such us metrics monitoring and Dataflow job upgrade.
+&lt;ul>
+&lt;li>Mitigated in 2.60.0 (&lt;a href="https://github.com/apache/beam/issues/32649">#32649&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
