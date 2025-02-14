@@ -55,26 +55,14 @@ dependencies {
 }
 
 tasks.register(
-        "IcebergHiveLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergIOHiveST',
+        "IcebergBQMSLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergIOBigQueryMetastoreST',
         ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
                 + System.properties
 )
 
-//tasks.register(
-//        "IcebergBQMSLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergBigQueryMetastoreLT',
-//        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
-//                + System.properties
-//)
-//
-//tasks.register(
-//        "IcebergHiveLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergHiveLT',
-//        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
-//                + System.properties
-//)
-//
-//tasks.register(
-//        "IcebergBQMSLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergBigQueryMetastoreLT',
-//        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
-//                + System.properties
-//)
+tasks.register(
+        "IcebergBQMSLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergIOBigQueryMetastoreST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+                + System.properties
+)
 
