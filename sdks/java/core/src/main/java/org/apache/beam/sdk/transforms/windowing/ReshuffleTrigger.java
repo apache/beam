@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -44,7 +43,7 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     throw new UnsupportedOperationException(
         "ReshuffleTrigger should not be used outside of Reshuffle");
   }

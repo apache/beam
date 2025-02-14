@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -60,10 +59,10 @@ public class AfterEach extends Trigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire at least once when the first trigger in the sequence
     // fires at least once.
-    return subTriggers.get(0).getWatermarkThatGuaranteesFiring(window, allowedLateness);
+    return subTriggers.get(0).getWatermarkThatGuaranteesFiring(window);
   }
 
   @Override

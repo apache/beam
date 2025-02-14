@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** No-op {@link OnceTrigger} implementation for testing. */
@@ -46,7 +45,7 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return null;
   }
 }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -53,12 +52,10 @@ public class OrFinallyTrigger extends Trigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger fires once either the trigger or the until trigger fires.
-    Instant actualDeadline =
-        subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window, allowedLateness);
-    Instant untilDeadline =
-        subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window, allowedLateness);
+    Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window);
+    Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window);
     return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
   }
 

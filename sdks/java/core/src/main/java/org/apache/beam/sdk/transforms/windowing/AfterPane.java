@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -56,8 +55,7 @@ public class AfterPane extends OnceTrigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
-    // TODO:Is this correct????
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 

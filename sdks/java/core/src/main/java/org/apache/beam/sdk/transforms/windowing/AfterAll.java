@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A composite {@link Trigger} that fires when all of its sub-triggers are ready. */
@@ -47,11 +46,11 @@ public class AfterAll extends OnceTrigger {
 
   @Internal
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire after the latest of its sub-triggers.
     Instant deadline = BoundedWindow.TIMESTAMP_MIN_VALUE;
     for (Trigger subTrigger : subTriggers) {
-      Instant subDeadline = subTrigger.getWatermarkThatGuaranteesFiring(window, allowedLateness);
+      Instant subDeadline = subTrigger.getWatermarkThatGuaranteesFiring(window);
       if (deadline.isBefore(subDeadline)) {
         deadline = subDeadline;
       }

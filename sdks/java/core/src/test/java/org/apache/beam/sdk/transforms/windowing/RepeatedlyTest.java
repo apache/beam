@@ -48,11 +48,11 @@ public class RepeatedlyTest {
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
     Instant arbitraryInstant = new Instant(34957849);
 
-    when(mockTrigger.getWatermarkThatGuaranteesFiring(Mockito.<IntervalWindow>any(), Mockito.any()))
+    when(mockTrigger.getWatermarkThatGuaranteesFiring(Mockito.<IntervalWindow>any()))
         .thenReturn(arbitraryInstant);
 
     assertThat(
-        Repeatedly.forever(mockTrigger).getWatermarkThatGuaranteesFiring(window, Duration.ZERO),
+        Repeatedly.forever(mockTrigger).getWatermarkThatGuaranteesFiring(window),
         equalTo(arbitraryInstant));
   }
 

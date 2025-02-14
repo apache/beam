@@ -27,7 +27,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -133,8 +132,7 @@ public abstract class Trigger implements Serializable {
    * side-input window, which causes the default value to be used instead.
    */
   @Internal
-  public abstract Instant getWatermarkThatGuaranteesFiring(
-      BoundedWindow window, Duration allowedLateness);
+  public abstract Instant getWatermarkThatGuaranteesFiring(BoundedWindow window);
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>

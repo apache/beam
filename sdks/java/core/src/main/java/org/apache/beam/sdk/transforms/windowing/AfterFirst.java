@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -47,11 +46,11 @@ public class AfterFirst extends OnceTrigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire after the earliest of its sub-triggers.
     Instant deadline = BoundedWindow.TIMESTAMP_MAX_VALUE;
     for (Trigger subTrigger : subTriggers) {
-      Instant subDeadline = subTrigger.getWatermarkThatGuaranteesFiring(window, allowedLateness);
+      Instant subDeadline = subTrigger.getWatermarkThatGuaranteesFiring(window);
       if (deadline.isAfter(subDeadline)) {
         deadline = subDeadline;
       }

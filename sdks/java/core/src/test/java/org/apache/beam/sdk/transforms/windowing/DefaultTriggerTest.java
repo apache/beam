@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
 
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,11 +36,10 @@ public class DefaultTriggerTest {
     assertEquals(
         new Instant(9),
         DefaultTrigger.of()
-            .getWatermarkThatGuaranteesFiring(
-                new IntervalWindow(new Instant(0), new Instant(10)), Duration.ZERO));
+            .getWatermarkThatGuaranteesFiring(new IntervalWindow(new Instant(0), new Instant(10))));
     assertEquals(
         GlobalWindow.INSTANCE.maxTimestamp(),
-        DefaultTrigger.of().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE, Duration.ZERO));
+        DefaultTrigger.of().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));
   }
 
   @Test

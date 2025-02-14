@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,7 +36,7 @@ public class AfterAllTest {
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterAll.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(1))
-            .getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
+            .getWatermarkThatGuaranteesFiring(window));
   }
 
   @Test

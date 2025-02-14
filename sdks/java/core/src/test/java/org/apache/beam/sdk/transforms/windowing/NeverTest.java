@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
 
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,8 +31,7 @@ public class NeverTest {
   public void testFireDeadline() throws Exception {
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
     assertEquals(
-        window.maxTimestamp(),
-        Never.ever().getWatermarkThatGuaranteesFiring(window, Duration.ZERO));
+        BoundedWindow.TIMESTAMP_MAX_VALUE, Never.ever().getWatermarkThatGuaranteesFiring(window));
   }
 
   @Test

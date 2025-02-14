@@ -25,7 +25,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -116,8 +115,7 @@ public class AfterWatermark {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(
-        BoundedWindow window, Duration allowedLateness) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       // Even without an early or late trigger, we'll still produce a firing at the watermark.
       return window.maxTimestamp();
     }
@@ -170,8 +168,7 @@ public class AfterWatermark {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(
-        BoundedWindow window, Duration allowedLateness) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return window.maxTimestamp();
     }
 

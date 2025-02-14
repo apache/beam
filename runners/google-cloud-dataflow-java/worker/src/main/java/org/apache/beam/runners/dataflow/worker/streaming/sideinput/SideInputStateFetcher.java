@@ -217,10 +217,7 @@ public class SideInputStateFetcher {
             .setStateFamily(stateFamily)
             .setExistenceWatermarkDeadline(
                 WindmillTimeUtils.harnessToWindmillTimestamp(
-                    sideWindowStrategy
-                        .getTrigger()
-                        .getWatermarkThatGuaranteesFiring(
-                            sideWindow, sideWindowStrategy.getAllowedLateness())))
+                    sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideWindow)))
             .build();
 
     try (Closeable ignored = scopedReadStateSupplier.get()) {

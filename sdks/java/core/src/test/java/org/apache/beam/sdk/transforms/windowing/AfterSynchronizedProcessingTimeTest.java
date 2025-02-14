@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
 
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,7 +35,7 @@ public class AfterSynchronizedProcessingTimeTest {
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         underTest.getWatermarkThatGuaranteesFiring(
-            new IntervalWindow(new Instant(0), new Instant(10)), Duration.ZERO));
+            new IntervalWindow(new Instant(0), new Instant(10))));
   }
 
   @Test

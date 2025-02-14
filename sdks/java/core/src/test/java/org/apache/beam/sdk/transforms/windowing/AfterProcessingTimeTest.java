@@ -36,8 +36,7 @@ public class AfterProcessingTimeTest {
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterProcessingTime.pastFirstElementInPane()
-            .getWatermarkThatGuaranteesFiring(
-                new IntervalWindow(new Instant(0), new Instant(10)), Duration.ZERO));
+            .getWatermarkThatGuaranteesFiring(new IntervalWindow(new Instant(0), new Instant(10))));
   }
 
   @Test

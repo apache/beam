@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -39,7 +38,7 @@ public class DefaultTrigger extends Trigger {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window, Duration allowedLateness) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return window.maxTimestamp();
   }
 
