@@ -1,0 +1,80 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import org.apache.beam.gradle.IoPerformanceTestUtilities
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.it.iceberg',
+        exportJavadoc: false,
+)
+
+description = "Apache Beam :: IT :: Iceberg"
+ext.summary = "Integration test utilities for Iceberg."
+
+dependencies {
+    implementation library.java.testcontainers_base
+    implementation project(path: ":it:testcontainers")
+    implementation library.java.testcontainers_kafka
+    implementation library.java.kafka_clients
+
+
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation project(path: ":it:common")
+    testImplementation project(path: ":it:google-cloud-platform")
+    testImplementation project(path: ":sdks:java:io:synthetic")
+    testImplementation project(path: ":sdks:java:managed")
+
+    testImplementation project(path: ":sdks:java:io:iceberg")
+    testRuntimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+    testRuntimeOnly library.java.hadoop_auth
+    testRuntimeOnly library.java.hadoop_client
+    testRuntimeOnly library.java.bigdataoss_gcs_connector
+
+    testImplementation project(path: ":runners:direct-java")
+    testImplementation project(path: ":runners:google-cloud-dataflow-java")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation library.java.google_api_services_dataflow
+}
+
+tasks.register(
+        "IcebergHiveLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergIOHiveST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+                + System.properties
+)
+
+//tasks.register(
+//        "IcebergBQMSLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergBigQueryMetastoreLT',
+//        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+//                + System.properties
+//)
+//
+//tasks.register(
+//        "IcebergHiveLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergHiveLT',
+//        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+//                + System.properties
+//)
+//
+//tasks.register(
+//        "IcebergBQMSLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'iceberg', 'IcebergBigQueryMetastoreLT',
+//        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+//                + System.properties
+//)
+
