@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@actions/exec": "^1.1.0",
-    "@actions/github": "^5.0.0",
-    "@octokit/rest": "^18.12.0",
+    "@actions/github": "^6.0.0",
+    "@octokit/rest": "^21.1.1",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
