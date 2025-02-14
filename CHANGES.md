@@ -50,7 +50,7 @@
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
@@ -89,7 +89,7 @@
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.63.0] - Unreleased
@@ -160,7 +160,7 @@
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.62.0] - 2025-01-21
@@ -197,7 +197,7 @@
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * [Python] If you are using the official Apache Beam Python containers for version 2.62.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project's dependency list. ([#33639](https://github.com/apache/beam/issues/33639)).
 * [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
   * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
@@ -242,7 +242,7 @@
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
   * Fixed in 2.62.0
 * [Python] If you are using the official Apache Beam Python containers for version 2.61.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project's dependency list. ([#33639](https://github.com/apache/beam/issues/33639)).
@@ -300,7 +300,7 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
@@ -348,7 +348,7 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 ## Known Issues
 
-[comment]: # ( When updating known issues after release, make sure also update website nlog in website/www/site/content/blog.)
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * Prism is under active development and does not yet support all pipelines. See [#29650](https://github.com/apache/beam/issues/29650) for progress.
    * In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
    OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.
