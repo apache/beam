@@ -456,12 +456,23 @@ public class BigQueryUtils {
     return fromTableFieldSchema(tableSchema.getFields(), options);
   }
 
-  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  /** Convert a BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(TableSchema tableSchema) {
     return toGenericAvroSchema(tableSchema, false);
   }
 
-  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  /** Convert an Avro {@link org.apache.avro.Schema} to a BigQuery {@link TableSchema}. */
+  public static TableSchema fromGenericAvroSchema(org.apache.avro.Schema schema) {
+    return fromGenericAvroSchema(schema, false);
+  }
+
+  /** Convert an Avro {@link org.apache.avro.Schema} to a BigQuery {@link TableSchema}. */
+  public static TableSchema fromGenericAvroSchema(
+      org.apache.avro.Schema schema, Boolean useAvroLogicalTypes) {
+    return BigQueryAvroUtils.fromGenericAvroSchema(schema, useAvroLogicalTypes);
+  }
+
+  /** Convert a BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
       TableSchema tableSchema, Boolean useAvroLogicalTypes) {
     return toGenericAvroSchema("root", tableSchema.getFields(), useAvroLogicalTypes);
