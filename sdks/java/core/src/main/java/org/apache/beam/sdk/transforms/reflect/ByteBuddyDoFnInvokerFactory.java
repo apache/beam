@@ -1309,12 +1309,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (returnVarIndex != null) {
         // Drop the return type from the locals
         mv.visitLocalVariable(
-            "res",
-            returnType.getDescriptor(),
-            null,
-            wrapStart,
-            wrapEnd,
-            returnVarIndex);
+            "res", returnType.getDescriptor(), null, wrapStart, wrapEnd, returnVarIndex);
       }
 
       return size;
