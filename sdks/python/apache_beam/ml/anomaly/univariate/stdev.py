@@ -29,8 +29,8 @@ import warnings
 
 import numpy as np
 
-from apache_beam.ml.anomaly.univariate.base import WindowMode
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
+from apache_beam.ml.anomaly.univariate.base import WindowMode
 
 
 class StdevTracker(WindowedTracker):
