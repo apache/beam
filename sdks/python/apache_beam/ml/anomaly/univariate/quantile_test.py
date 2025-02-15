@@ -24,8 +24,8 @@ import warnings
 
 from parameterized import parameterized
 
-from apache_beam.ml.anomaly.univariate.quantile import IncLandmarkQuantileTracker  # pylint: disable=line-too-long
-from apache_beam.ml.anomaly.univariate.quantile import IncSlidingQuantileTracker
+from apache_beam.ml.anomaly.univariate.quantile import BufferedLandmarkQuantileTracker  # pylint: disable=line-too-long
+from apache_beam.ml.anomaly.univariate.quantile import BufferedSlidingQuantileTracker
 from apache_beam.ml.anomaly.univariate.quantile import SimpleSlidingQuantileTracker  # pylint: disable=line-too-long
 
 
@@ -33,7 +33,7 @@ class LandmarkQuantileTest(unittest.TestCase):
   def test_without_nan(self):
     with warnings.catch_warnings(record=False):
       warnings.simplefilter("ignore")
-      t = IncLandmarkQuantileTracker(0.5)
+      t = BufferedLandmarkQuantileTracker(0.5)
 
     self.assertTrue(math.isnan(t.get()))
     t.push(1)
@@ -52,7 +52,7 @@ class LandmarkQuantileTest(unittest.TestCase):
   def test_with_nan(self):
     with warnings.catch_warnings(record=False):
       warnings.simplefilter("ignore")
-      t = IncLandmarkQuantileTracker(0.2)
+      t = BufferedLandmarkQuantileTracker(0.2)
 
     self.assertTrue(math.isnan(t.get()))
     t.push(1)
@@ -78,7 +78,7 @@ class LandmarkQuantileTest(unittest.TestCase):
 
       with warnings.catch_warnings(record=False):
         warnings.simplefilter("ignore")
-        t1 = IncLandmarkQuantileTracker(0.5)
+        t1 = BufferedLandmarkQuantileTracker(0.5)
       t2 = SimpleSlidingQuantileTracker(len(numbers), 0.5)
       for v in numbers:
         t1.push(v)
@@ -92,7 +92,7 @@ class LandmarkQuantileTest(unittest.TestCase):
 class SlidingQuantileTest(unittest.TestCase):
   @parameterized.expand(
       [  #SimpleSlidingQuantileTracker,
-          IncSlidingQuantileTracker
+          BufferedSlidingQuantileTracker
       ])
   def test_without_nan(self, tracker):
     t = tracker(3, 0.5)
@@ -111,7 +111,7 @@ class SlidingQuantileTest(unittest.TestCase):
     self.assertEqual(t.get(), 1.0)
 
   @parameterized.expand(
-      [SimpleSlidingQuantileTracker, IncSlidingQuantileTracker])
+      [SimpleSlidingQuantileTracker, BufferedSlidingQuantileTracker])
   def test_with_nan(self, tracker):
     t = tracker(3, 0.8)
     self.assertTrue(math.isnan(t.get()))
@@ -146,7 +146,7 @@ class SlidingQuantileTest(unittest.TestCase):
       for _ in range(5000):
         numbers.append(random.randint(0, 1000))
 
-      t1 = IncSlidingQuantileTracker(100, 0.1)
+      t1 = BufferedSlidingQuantileTracker(100, 0.1)
       t2 = SimpleSlidingQuantileTracker(100, 0.1)
       for v in numbers:
         t1.push(v)

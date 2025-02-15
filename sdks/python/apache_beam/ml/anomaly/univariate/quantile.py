@@ -15,6 +15,19 @@
 # limitations under the License.
 #
 
+"""Trackers for calculating quantiles in windowed fashion.
+
+This module defines different types of quantile trackers that operate on
+windows of data. It includes:
+
+  * `SimpleSlidingQuantileTracker`: Calculates quantile using numpy in a sliding
+    window.
+  * `BufferedLandmarkQuantileTracker`: Sortedlist based quantile tracker in
+    landmark window mode.
+  * `BufferedSlidingQuantileTracker`: Sortedlist based quantile tracker in
+    sliding window mode.
+"""
+
 import math
 import typing
 import warnings
@@ -25,30 +38,59 @@ from sortedcontainers import SortedList
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 
-__all__ = [
-    "IncLandmarkQuantileTracker",
-    "SimpleSlidingQuantileTracker",
-    "IncSlidingQuantileTracker"
-]
-
 
 class QuantileTracker(WindowedTracker):
+  """Abstract base class for quantile trackers.
+
+  Currently, it does not add any specific functionality but provides a type
+  hierarchy for quantile trackers.
+  """
   pass
 
 
 class SimpleSlidingQuantileTracker(QuantileTracker):
+  """Sliding window quantile tracker using NumPy.
+
+  This tracker uses NumPy's `nanquantile` function to calculate the specified
+  quantile of the values currently in the sliding window. It's a simple,
+  non-incremental approach.
+
+  Args:
+    window_size: The size of the sliding window.
+    q: The quantile to calculate, a float between 0 and 1 (inclusive).
+  """
   def __init__(self, window_size, q):
     super().__init__(window_mode=WindowMode.SLIDING, window_size=window_size)
     assert 0 <= q <= 1, "quantile argument should be between 0 and 1"
     self._q = q
 
   def get(self):
+    """Calculates and returns the specified quantile of the current sliding
+    window.
+
+    Returns:
+      float: The specified quantile of the values in the current sliding window.
+             Returns NaN if the window is empty.
+    """
     with warnings.catch_warnings(record=False):
       warnings.simplefilter("ignore")
       return np.nanquantile(self._queue, self._q)
 
 
-class IncQuantileTracker(WindowedTracker):
+class BufferedQuantileTracker(WindowedTracker):
+  """Abstract base class for buffered quantile trackers.
+
+  Warning:
+    Buffered quantile trackers are NOT truly incremental in the sense that they
+    don't update the quantile in constant time per new data point. They maintain
+    a sorted list of all values in the window.
+
+  Args:
+    window_mode: A `WindowMode` enum specifying whether the window is `LANDMARK`
+      or `SLIDING`.
+    q: The quantile to calculate, a float between 0 and 1 (inclusive).
+    **kwargs: Keyword arguments passed to the parent class constructor.
+  """
   def __init__(self, window_mode, q, **kwargs):
     super().__init__(window_mode, **kwargs)
     assert 0 <= q <= 1, "quantile argument should be between 0 and 1"
@@ -56,6 +98,11 @@ class IncQuantileTracker(WindowedTracker):
     self._sorted_items = SortedList()
 
   def push(self, x):
+    """Pushes a new value, maintains the sorted list, and manages the window.
+
+    Args:
+      x: The new value to be pushed.
+    """
     if not math.isnan(x):
       self._sorted_items.add(x)
 
@@ -67,6 +114,13 @@ class IncQuantileTracker(WindowedTracker):
       super().push(x)
 
   def get(self):
+    """Returns the current quantile value using the sorted list.
+
+    Calculates the quantile using linear interpolation on the sorted values.
+
+    Returns:
+      float: The calculated quantile value. Returns NaN if the window is empty.
+    """
     n = len(self._sorted_items)
     if n < 1:
       return float("nan")
@@ -81,7 +135,17 @@ class IncQuantileTracker(WindowedTracker):
     return lo_value + (hi_value - lo_value) * (pos - lo)
 
 
-class IncLandmarkQuantileTracker(IncQuantileTracker):
+class BufferedLandmarkQuantileTracker(BufferedQuantileTracker):
+  """Landmark quantile tracker using a sorted list for quantile calculation.
+
+  Warning:
+    Landmark quantile trackers have unbounded memory consumption as they store
+    all pushed values in a sorted list. Avoid using in production for
+    long-running streams.
+
+  Args:
+    q: The quantile to calculate, a float between 0 and 1 (inclusive).
+  """
   def __init__(self, q):
     warnings.warn(
         "Quantile trackers should not be used in production due to "
@@ -89,7 +153,19 @@ class IncLandmarkQuantileTracker(IncQuantileTracker):
     super().__init__(window_mode=WindowMode.LANDMARK, q=q)
 
 
-class IncSlidingQuantileTracker(IncQuantileTracker):
+class BufferedSlidingQuantileTracker(BufferedQuantileTracker):
+  """Sliding window quantile tracker using a sorted list for quantile
+  calculation.
+
+  Warning:
+    Maintains a sorted list of values within the sliding window to calculate
+    the specified quantile. Memory consumption is bounded by the window size
+    but can still be significant for large windows.
+
+  Args:
+    window_size: The size of the sliding window.
+    q: The quantile to calculate, a float between 0 and 1 (inclusive).
+  """
   def __init__(self, window_size, q):
     super().__init__(
         window_mode=WindowMode.SLIDING, q=q, window_size=window_size)

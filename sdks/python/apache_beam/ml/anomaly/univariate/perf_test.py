@@ -55,20 +55,24 @@ class PerfTest(unittest.TestCase):
     print()
     print_result(IncLandmarkMeanTracker())
     print_result(IncSlidingMeanTracker(100))
+    # SimpleSlidingMeanTracker (numpy-based batch approach) is an order of
+    # magnitude slower than other methods. To prevent excessively long test
+    # runs, we reduce the number of repetitions.
     print_result(SimpleSlidingMeanTracker(100), number=1)
 
   def test_stdev_perf(self):
     print()
     print_result(IncLandmarkStdevTracker())
     print_result(IncSlidingStdevTracker(100))
-    print_result(SimpleSlidingStdevTracker(100), number=1)
+    # Same as test_mean_perf, we reduce the number of repetitions here.
 
   def test_quantile_perf(self):
     print()
     with warnings.catch_warnings(record=False):
       warnings.simplefilter("ignore")
-      print_result(IncLandmarkQuantileTracker(0.5))
-    print_result(IncSlidingQuantileTracker(100, 0.5))
+      print_result(BufferedLandmarkQuantileTracker(0.5))
+    print_result(BufferedSlidingQuantileTracker(100, 0.5))
+    # Same as test_mean_perf, we reduce the number of repetitions here.
     print_result(SimpleSlidingQuantileTracker(100, 0.5), number=1)
 
 

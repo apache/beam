@@ -89,10 +89,7 @@ class LandmarkMeanTest(unittest.TestCase):
 
 
 class SlidingMeanTest(unittest.TestCase):
-  @parameterized.expand([
-      # SimpleSlidingMeanTracker,
-      IncSlidingMeanTracker
-  ])
+  @parameterized.expand([SimpleSlidingMeanTracker, IncSlidingMeanTracker])
   def test_without_nan(self, tracker):
     t = tracker(3)
     self.assertTrue(math.isnan(t.get()))  # Returns NaN if tracker is empty
