@@ -805,6 +805,134 @@ class DictHintTestCase(TypeHintTestCase):
     self.assertCompatible(collections.Counter[str, int], typing.Dict[str, int])
 
 
+class MappingHintTestCase(TypeHintTestCase):
+  def test_getitem_param_must_be_tuple(self):
+    with self.assertRaises(TypeError) as e:
+      typehints.Mapping[4]
+
+    self.assertEqual(
+        'Parameter to Mapping type-hint must be a tuple of '
+        'types: Mapping[.., ..].',
+        e.exception.args[0])
+
+  def test_getitem_param_must_have_length_2(self):
+    with self.assertRaises(TypeError) as e:
+      typehints.Mapping[float, int, bool]
+
+    self.assertEqual(
+        "Length of parameters to a Mapping type-hint must be "
+        "exactly 2. Passed parameters: ({}, {}, {}), have a "
+        "length of 3.".format(float, int, bool),
+        e.exception.args[0])
+
+  def test_key_type_must_be_valid_composite_param(self):
+    try:
+      typehints.Mapping[list, int]
+    except TypeError:
+      self.fail("built-in composite raised TypeError unexpectedly")
+
+  def test_value_type_must_be_valid_composite_param(self):
+    with self.assertRaises(TypeError):
+      typehints.Mapping[str, 5]
+
+  def test_compatibility(self):
+    hint1 = typehints.Mapping[int, str]
+    hint2 = typehints.Mapping[bool, int]
+    hint3 = typehints.Mapping[int,
+                              typehints.List[typehints.Tuple[str, str, str]]]
+    hint4 = typehints.Mapping[int, int]
+
+    self.assertCompatible(hint1, hint1)
+    self.assertCompatible(hint3, hint3)
+    self.assertNotCompatible(hint3, 4)
+    self.assertNotCompatible(hint2, hint1)  # Key incompatibility.
+    self.assertNotCompatible(hint1, hint4)  # Value incompatibility.
+
+  def test_repr(self):
+    hint3 = typehints.Mapping[int,
+                              typehints.List[typehints.Tuple[str, str, str]]]
+    self.assertEqual(
+        'Mapping[<class \'int\'>, List[Tuple[<class \'str\'>, ' \
+        '<class \'str\'>, <class \'str\'>]]]',
+        repr(hint3))
+
+  def test_type_checks_not_dict(self):
+    hint = typehints.Mapping[int, str]
+    l = [1, 2]
+    with self.assertRaises(TypeError) as e:
+      hint.type_check(l)
+    self.assertEqual(
+        'Mapping type-constraint violated. All passed instances '
+        'must be of type Mapping. [1, 2] is of type list.',
+        e.exception.args[0])
+
+  def test_type_check_invalid_key_type(self):
+    hint = typehints.Mapping[typehints.Tuple[int, int, int],
+                             typehints.List[str]]
+    d = {(1, 2): ['m', '1', '2', '3']}
+    with self.assertRaises((TypeError, TypeError)) as e:
+      hint.type_check(d)
+    self.assertEqual(
+        'Mapping[Tuple[<class \'int\'>, <class \'int\'>, <class \'int\'>], '
+        'List[<class \'str\'>]] hint key-type '
+        'constraint violated. All keys should be of type '
+        'Tuple[<class \'int\'>, <class \'int\'>, <class \'int\'>]. Instead: '
+        'Passed object instance is of the proper type, but differs in '
+        'length from the hinted type. Expected a tuple of '
+        'length 3, received a tuple of length 2.',
+        e.exception.args[0])
+
+  def test_type_check_invalid_value_type(self):
+    hint = typehints.Mapping[str, typehints.Mapping[int, str]]
+    d = {'f': [1, 2, 3]}
+    with self.assertRaises(TypeError) as e:
+      hint.type_check(d)
+    self.assertEqual(
+        "Mapping[<class 'str'>, Mapping[<class 'int'>, <class 'str'>]] hint"
+        ' value-type constraint violated. All values should be of type'
+        " Mapping[<class 'int'>, <class 'str'>]. Instead: Mapping"
+        ' type-constraint violated. All passed instances must be of type'
+        ' Mapping. [1, 2, 3] is of type list.',
+        e.exception.args[0],
+    )
+
+  def test_type_check_valid_simple_type(self):
+    hint = typehints.Mapping[int, str]
+    d = {4: 'f', 9: 'k'}
+    self.assertIsNone(hint.type_check(d))
+
+  def test_type_check_valid_composite_type(self):
+    hint = typehints.Mapping[typehints.Tuple[str, str], typehints.List[int]]
+    d = {('f', 'k'): [1, 2, 3], ('m', 'r'): [4, 6, 9]}
+    self.assertIsNone(hint.type_check(d))
+
+  def test_match_type_variables(self):
+    S = typehints.TypeVariable('S')  # pylint: disable=invalid-name
+    T = typehints.TypeVariable('T')  # pylint: disable=invalid-name
+    hint = typehints.Mapping[S, T]
+    self.assertEqual({
+        S: int, T: str
+    },
+                     hint.match_type_variables(typehints.Mapping[int, str]))
+
+  def test_builtin_and_type_compatibility(self):
+    self.assertCompatible(typing.Mapping, dict)
+    self.assertCompatible(typing.Mapping[str, int], dict[str, int])
+    self.assertCompatible(
+        typing.Mapping[str, typing.List[int]], dict[str, list[int]])
+    self.assertCompatible(typing.Iterable[str], typing.Mapping[str, int])
+    self.assertNotCompatible(typing.Mapping[str, int], typing.Iterable[str])
+    self.assertCompatible(typing.Mapping[str, int], typing.Mapping[str, int])
+
+  def test_collections_compatibility(self):
+    self.assertCompatible(typing.Mapping, collections.defaultdict)
+    self.assertCompatible(typing.Mapping, collections.defaultdict[Any, Any])
+    self.assertCompatible(
+        typing.Mapping[str, int], collections.defaultdict[str, int])
+    self.assertCompatible(
+        typing.Mapping[str, int], collections.OrderedDict[str, int])
+
+
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
     def test_getitem_invalid_composite_type_param(self):
