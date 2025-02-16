@@ -4,7 +4,7 @@
     "go": "lostluck",
     "io": "Abacn"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": true
