@@ -85,6 +85,8 @@ public class FileSystems {
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<>(ImmutableMap.of(DEFAULT_SCHEME, new LocalFileSystem()));
 
+  private static final Object lock = new Object();
+
   /** ******************************** METHODS FOR CLIENT ********************************* */
 
   /** Checks whether the given spec contains a glob wildcard character. */
@@ -586,15 +588,17 @@ public class FileSystems {
         return;
       }
 
-      if (FILESYSTEM_REVISION.compareAndSet(revision, KV.of(id, nextRevision))) {
-        Set<FileSystemRegistrar> registrars =
-            Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-        registrars.addAll(
-            Lists.newArrayList(
-                ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
+      synchronized (lock) {
+        if (FILESYSTEM_REVISION.compareAndSet(revision, KV.of(id, nextRevision))) {
+          Set<FileSystemRegistrar> registrars =
+              Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+          registrars.addAll(
+              Lists.newArrayList(
+                  ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
 
-        SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
-        return;
+          SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
+          return;
+        }
       }
     }
   }
