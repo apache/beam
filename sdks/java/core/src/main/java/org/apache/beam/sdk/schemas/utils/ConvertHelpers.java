@@ -22,11 +22,8 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.ServiceLoader;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
+import javax.annotation.concurrent.GuardedBy;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription;
@@ -62,22 +59,14 @@ import org.slf4j.LoggerFactory;
 })
 public class ConvertHelpers {
 
-  private static final AtomicReference<List<SchemaInformationProvider>>
-      SCHEMA_INFORMATION_PROVIDERS = new AtomicReference<>();
-
-  private static List<SchemaInformationProvider> getSchemaInformationProviders() {
-    return SCHEMA_INFORMATION_PROVIDERS.updateAndGet(
-        existing -> {
-          if (existing == null) {
-            ServiceLoader<SchemaInformationProvider> loader =
-                ServiceLoader.load(SchemaInformationProvider.class);
-            return StreamSupport.stream(loader.spliterator(), false).collect(Collectors.toList());
-          }
-          return existing;
-        });
+  private static class SchemaInformationProviders {
+    @GuardedBy("lock")
+    private static final ServiceLoader<SchemaInformationProvider> INSTANCE =
+        ServiceLoader.load(SchemaInformationProvider.class);
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(ConvertHelpers.class);
+  private static final Object lock = new Object();
 
   /** Return value after converting a schema. */
   public static class ConvertedSchemaInformation<T> implements Serializable {
@@ -100,17 +89,19 @@ public class ConvertHelpers {
   public static <T> ConvertedSchemaInformation<T> getConvertedSchemaInformation(
       Schema inputSchema, TypeDescriptor<T> outputType, SchemaRegistry schemaRegistry) {
 
-    ConvertedSchemaInformation<T> schemaInformation;
     // Try to load schema information from loaded providers
     try {
-      for (SchemaInformationProvider provider : getSchemaInformationProviders()) {
-        schemaInformation = provider.getConvertedSchemaInformation(inputSchema, outputType);
-        if (schemaInformation != null) {
-          return schemaInformation;
+      synchronized (lock) {
+        for (SchemaInformationProvider provider : SchemaInformationProviders.INSTANCE) {
+          ConvertedSchemaInformation<T> schemaInformation =
+              provider.getConvertedSchemaInformation(inputSchema, outputType);
+          if (schemaInformation != null) {
+            return schemaInformation;
+          }
         }
       }
     } catch (Exception e) {
-      LOG.debug("No Schema information found for type {}", outputType, e);
+      LOG.debug("No Schema information from loaded providers found for type {}", outputType, e);
     }
 
     // Otherwise, try to find a schema for the output type in the schema registry.
