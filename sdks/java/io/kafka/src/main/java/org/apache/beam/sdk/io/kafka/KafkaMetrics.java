@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,8 @@ public interface KafkaMetrics {
 
   void updateKafkaMetrics();
 
+  void recordBacklogBytes(String topic, int partitionId, long backlog);
+
   /** No-op implementation of {@code KafkaResults}. */
   class NoOpKafkaMetrics implements KafkaMetrics {
     private NoOpKafkaMetrics() {}
@@ -51,6 +54,9 @@ public interface KafkaMetrics {
 
     @Override
     public void updateKafkaMetrics() {}
+
+    @Override
+    public void recordBacklogBytes(String topic, int partitionId, long backlog) {};
 
     private static NoOpKafkaMetrics singleton = new NoOpKafkaMetrics();
 
@@ -113,6 +119,8 @@ public interface KafkaMetrics {
     }
 
     /**
+     * This is for tracking backlog bytes to be added to the Metric Container at a later time.
+     *
      * @param topicName topicName
      * @param partitionId partitionId
      * @param backlog backlog for the specific partitionID of topicName
@@ -146,12 +154,29 @@ public interface KafkaMetrics {
       }
     }
 
-    private void recordBacklogBytes() {
+    private void recordBacklogBytesInternal() {
       for (Map.Entry<String, Long> backlogs : perTopicPartitionBacklogs().entrySet()) {
         Gauge gauge =
             KafkaSinkMetrics.createBacklogGauge(MetricName.named("KafkaSink", backlogs.getKey()));
         gauge.set(backlogs.getValue());
       }
+    }
+
+    /**
+     * This is for recording backlog bytes on the current thread.
+     *
+     * @param topicName topicName
+     * @param partitionId partitionId for the topic Only included in the metric key if
+     *     'supportsMetricsDeletion' is enabled.
+     * @param backlogBytes backlog for the topic Only included in the metric key if
+     *     'supportsMetricsDeletion' is enabled.
+     */
+    @Override
+    public void recordBacklogBytes(String topicName, int partitionId, long backlogBytes) {
+      Gauge perPartion =
+          Metrics.gauge(
+              "KafkaSink", KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId).getName());
+      perPartion.set(backlogBytes);
     }
 
     /**
@@ -165,7 +190,7 @@ public interface KafkaMetrics {
         LOG.warn("Updating stale Kafka metrics container");
         return;
       }
-      recordBacklogBytes();
+      recordBacklogBytesInternal();
       recordRpcLatencyMetrics();
     }
   }
