@@ -30,11 +30,12 @@ import warnings
 import numpy as np
 
 from apache_beam.ml.anomaly.specifiable import specifiable
+from apache_beam.ml.anomaly.univariate.base import BaseTracker
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 
 
-class StdevTracker(WindowedTracker):
+class StdevTracker(BaseTracker):
   """Abstract base class for standard deviation trackers.
 
   Currently, it does not add any specific functionality but provides a type
@@ -44,7 +45,7 @@ class StdevTracker(WindowedTracker):
 
 
 @specifiable
-class SimpleSlidingStdevTracker(StdevTracker):
+class SimpleSlidingStdevTracker(WindowedTracker, StdevTracker):
   """Sliding window standard deviation tracker using NumPy.
 
   This tracker uses NumPy's `nanvar` function to calculate the variance of the
@@ -68,7 +69,7 @@ class SimpleSlidingStdevTracker(StdevTracker):
       return math.sqrt(np.nanvar(self._queue, ddof=1))
 
 
-class IncStdevTracker(StdevTracker):
+class IncStdevTracker(WindowedTracker, StdevTracker):
   """Abstract base class for incremental standard deviation trackers.
 
   This class implements an online algorithm for calculating standard deviation,

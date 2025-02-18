@@ -31,11 +31,12 @@ import warnings
 import numpy as np
 
 from apache_beam.ml.anomaly.specifiable import specifiable
+from apache_beam.ml.anomaly.univariate.base import BaseTracker
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 
 
-class MeanTracker(WindowedTracker):
+class MeanTracker(BaseTracker):
   """Abstract base class for mean trackers.
 
   Currently, it does not add any specific functionality but provides a type
@@ -45,7 +46,7 @@ class MeanTracker(WindowedTracker):
 
 
 @specifiable
-class SimpleSlidingMeanTracker(MeanTracker):
+class SimpleSlidingMeanTracker(WindowedTracker, MeanTracker):
   """Sliding window mean tracker that calculates mean using NumPy.
 
   This tracker uses NumPy's `nanmean` function to calculate the mean of the
@@ -73,7 +74,7 @@ class SimpleSlidingMeanTracker(MeanTracker):
       return np.nanmean(self._queue)
 
 
-class IncMeanTracker(MeanTracker):
+class IncMeanTracker(WindowedTracker, MeanTracker):
   """Base class for incremental mean trackers.
 
   This class implements incremental calculation of the mean, which is more

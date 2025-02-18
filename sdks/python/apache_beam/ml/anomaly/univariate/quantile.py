@@ -36,21 +36,24 @@ import numpy as np
 from sortedcontainers import SortedList
 
 from apache_beam.ml.anomaly.specifiable import specifiable
+from apache_beam.ml.anomaly.univariate.base import BaseTracker
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 
 
-class QuantileTracker(WindowedTracker):
+class QuantileTracker(BaseTracker):
   """Abstract base class for quantile trackers.
 
   Currently, it does not add any specific functionality but provides a type
   hierarchy for quantile trackers.
   """
-  pass
+  def __init__(self, q):
+    assert 0 <= q <= 1, "quantile argument should be between 0 and 1"
+    self._q = q
 
 
 @specifiable
-class SimpleSlidingQuantileTracker(QuantileTracker):
+class SimpleSlidingQuantileTracker(WindowedTracker, QuantileTracker):
   """Sliding window quantile tracker using NumPy.
 
   This tracker uses NumPy's `nanquantile` function to calculate the specified
@@ -63,8 +66,7 @@ class SimpleSlidingQuantileTracker(QuantileTracker):
   """
   def __init__(self, window_size, q):
     super().__init__(window_mode=WindowMode.SLIDING, window_size=window_size)
-    assert 0 <= q <= 1, "quantile argument should be between 0 and 1"
-    self._q = q
+    QuantileTracker.__init__(self, q)
 
   def get(self):
     """Calculates and returns the specified quantile of the current sliding
@@ -79,7 +81,7 @@ class SimpleSlidingQuantileTracker(QuantileTracker):
       return np.nanquantile(self._queue, self._q)
 
 
-class BufferedQuantileTracker(WindowedTracker):
+class BufferedQuantileTracker(WindowedTracker, QuantileTracker):
   """Abstract base class for buffered quantile trackers.
 
   Warning:
@@ -95,8 +97,7 @@ class BufferedQuantileTracker(WindowedTracker):
   """
   def __init__(self, window_mode, q, **kwargs):
     super().__init__(window_mode, **kwargs)
-    assert 0 <= q <= 1, "quantile argument should be between 0 and 1"
-    self._q = q
+    QuantileTracker.__init__(self, q)
     self._sorted_items = SortedList()
 
   def push(self, x):
