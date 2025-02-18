@@ -45,7 +45,7 @@ docker {
 //  if (pushContainers) {
   push true  // Pushes to a registry
 //  } else if (project.useBuildx()) {
-  output "type=docker"  // Ensures local loading
+//  output "type=docker"  // Ensures local loading
 //  } else {
 //    load true  // Legacy Docker load if Buildx is not in use
 //  }
