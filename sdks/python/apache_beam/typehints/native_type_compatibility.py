@@ -65,6 +65,8 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.Set,
     collections.abc.MutableSet,
     collections.abc.Collection,
+    collections.abc.Sequence,
+    collections.abc.Mapping,
 ]
 
 
@@ -142,6 +144,10 @@ def _match_is_exactly_iterable(user_type):
 
 def _match_is_exactly_collection(user_type):
   return getattr(user_type, '__origin__', None) is collections.abc.Collection
+
+
+def _match_is_exactly_sequence(user_type):
+  return getattr(user_type, '__origin__', None) is collections.abc.Sequence
 
 
 def match_is_named_tuple(user_type):
@@ -405,6 +411,13 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(TypedWindowedValue),
           arity=1,
           beam_type=typehints.WindowedValue),
+      _TypeMapEntry(
+          match=_match_is_exactly_sequence,
+          arity=1,
+          beam_type=typehints.Sequence),
+      _TypeMapEntry(
+          match=_match_is_exactly_mapping, arity=2,
+          beam_type=typehints.Mapping),
   ]
 
   # Find the first matching entry.
@@ -521,8 +534,13 @@ def convert_to_python_type(typ):
     return tuple[tuple(convert_to_python_types(typ.tuple_types))]
   if isinstance(typ, typehints.TupleSequenceConstraint):
     return tuple[convert_to_python_type(typ.inner_type), ...]
+  if isinstance(typ, typehints.ABCSequenceTypeConstraint):
+    return collections.abc.Sequence[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.IteratorTypeConstraint):
     return collections.abc.Iterator[convert_to_python_type(typ.yielded_type)]
+  if isinstance(typ, typehints.MappingTypeConstraint):
+    return collections.abc.Mapping[convert_to_python_type(typ.key_type),
+                                   convert_to_python_type(typ.value_type)]
 
   raise ValueError('Failed to convert Beam type: %s' % typ)
 
