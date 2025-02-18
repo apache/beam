@@ -44,6 +44,7 @@ docker {
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.useBuildx()
   platform(*project.containerPlatforms())
+  buildx.withOption("output=type=image,push=true")
   load project.useBuildx() && !pushContainers
   push true
 }
