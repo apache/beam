@@ -89,7 +89,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           install: true
-#          driver: 'docker'
+          driver: 'docker-container'  # Required for multi-platform builds
       - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
