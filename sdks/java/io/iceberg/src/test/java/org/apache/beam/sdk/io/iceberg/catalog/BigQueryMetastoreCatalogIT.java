@@ -119,9 +119,9 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
 
     // Write with Beam
     Map<String, Object> config = managedIcebergConfig(tableId());
-    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    PCollection<Row> input = writePipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish();
+    writePipeline.run().waitUntilFinish();
 
     // Fetch records using a BigQuery query and validate
     BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());

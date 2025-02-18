@@ -17,21 +17,33 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Enums;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * SchemaTransform implementation for {@link IcebergIO#readRows}. Reads records from Iceberg and
@@ -40,11 +52,11 @@ import org.apache.iceberg.catalog.TableIdentifier;
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergReadSchemaTransformProvider
-    extends TypedSchemaTransformProvider<SchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<Configuration> {
   static final String OUTPUT_TAG = "output";
 
   @Override
-  protected SchemaTransform from(SchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(Configuration configuration) {
     return new IcebergReadSchemaTransform(configuration);
   }
 
@@ -59,9 +71,9 @@ public class IcebergReadSchemaTransformProvider
   }
 
   static class IcebergReadSchemaTransform extends SchemaTransform {
-    private final SchemaTransformConfiguration configuration;
+    private final Configuration configuration;
 
-    IcebergReadSchemaTransform(SchemaTransformConfiguration configuration) {
+    IcebergReadSchemaTransform(Configuration configuration) {
       this.configuration = configuration;
     }
 
@@ -70,7 +82,7 @@ public class IcebergReadSchemaTransformProvider
         // To stay consistent with our SchemaTransform configuration naming conventions,
         // we sort lexicographically and convert field names to snake_case
         return SchemaRegistry.createDefault()
-            .getToRowFunction(SchemaTransformConfiguration.class)
+            .getToRowFunction(Configuration.class)
             .apply(configuration)
             .sorted()
             .toSnakeCase();
@@ -81,14 +93,123 @@ public class IcebergReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> output =
-          input
-              .getPipeline()
-              .apply(
-                  IcebergIO.readRows(configuration.getIcebergCatalog())
-                      .from(TableIdentifier.parse(configuration.getTable())));
+      @Nullable String strategyStr = configuration.getStartingStrategy();
+      StartingStrategy strategy = null;
+      if (strategyStr != null) {
+        Optional<StartingStrategy> optional =
+            Enums.getIfPresent(StartingStrategy.class, strategyStr.toUpperCase());
+        if (!optional.isPresent()) {
+          throw new IllegalArgumentException(
+              "Invalid starting strategy. Valid values are: "
+                  + Arrays.toString(StartingStrategy.values()));
+        }
+        strategy = optional.get();
+      }
+
+      IcebergIO.ReadRows readRows =
+          IcebergIO.readRows(configuration.getIcebergCatalog())
+              .from(TableIdentifier.parse(configuration.getTable()))
+              .fromSnapshot(configuration.getFromSnapshot())
+              .toSnapshot(configuration.getToSnapshot())
+              .fromTimestamp(configuration.getFromTimestamp())
+              .toTimestamp(configuration.getToTimestamp())
+              .withStartingStrategy(strategy)
+              .streaming(configuration.getStreaming());
+
+      @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
+      if (pollIntervalSeconds != null) {
+        readRows = readRows.withPollInterval(Duration.standardSeconds(pollIntervalSeconds));
+      }
+
+      PCollection<Row> output = input.getPipeline().apply(readRows);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
+    }
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class Configuration {
+    static Builder builder() {
+      return new AutoValue_IcebergReadSchemaTransformProvider_Configuration.Builder();
+    }
+
+    @SchemaFieldDescription("Identifier of the Iceberg table.")
+    abstract String getTable();
+
+    @SchemaFieldDescription("Name of the catalog containing the table.")
+    @Nullable
+    abstract String getCatalogName();
+
+    @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
+    @Nullable
+    abstract Map<String, String> getCatalogProperties();
+
+    @SchemaFieldDescription("Properties passed to the Hadoop Configuration.")
+    @Nullable
+    abstract Map<String, String> getConfigProperties();
+
+    @SchemaFieldDescription("Starts reading from this snapshot ID (inclusive).")
+    abstract @Nullable Long getFromSnapshot();
+
+    @SchemaFieldDescription("Reads up to this snapshot ID (inclusive).")
+    abstract @Nullable Long getToSnapshot();
+
+    @SchemaFieldDescription(
+        "Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).")
+    abstract @Nullable Long getFromTimestamp();
+
+    @SchemaFieldDescription(
+        "Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).")
+    abstract @Nullable Long getToTimestamp();
+
+    @SchemaFieldDescription(
+        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
+    abstract @Nullable Integer getPollIntervalSeconds();
+
+    @SchemaFieldDescription(
+        "Enables streaming reads. By default, the streaming source will start reading from the "
+            + "latest snapshot (inclusive) and continue polling forever based on the specified poll_interval_seconds")
+    abstract @Nullable Boolean getStreaming();
+
+    @SchemaFieldDescription(
+        "The source's starting strategy. Valid options are: \"earliest\" or \"latest\". Can be overriden "
+            + "by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.")
+    abstract @Nullable String getStartingStrategy();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setTable(String table);
+
+      abstract Builder setCatalogName(String catalogName);
+
+      abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
+
+      abstract Builder setConfigProperties(Map<String, String> confProperties);
+
+      abstract Builder setFromSnapshot(Long snapshot);
+
+      abstract Builder setToSnapshot(Long snapshot);
+
+      abstract Builder setFromTimestamp(Long timestamp);
+
+      abstract Builder setToTimestamp(Long timestamp);
+
+      abstract Builder setPollIntervalSeconds(Integer pollInterval);
+
+      abstract Builder setStreaming(Boolean streaming);
+
+      abstract Builder setStartingStrategy(String strategy);
+
+      abstract Configuration build();
+    }
+
+    IcebergCatalogConfig getIcebergCatalog() {
+      return IcebergCatalogConfig.builder()
+          .setCatalogName(getCatalogName())
+          .setCatalogProperties(getCatalogProperties())
+          .setConfigProperties(getConfigProperties())
+          .build();
     }
   }
 }

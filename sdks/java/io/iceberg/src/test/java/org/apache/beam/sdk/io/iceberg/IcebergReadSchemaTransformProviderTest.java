@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.OUTPUT_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -34,15 +35,23 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 import org.yaml.snakeyaml.Yaml;
 
+@RunWith(Parameterized.class)
 public class IcebergReadSchemaTransformProviderTest {
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -51,20 +60,39 @@ public class IcebergReadSchemaTransformProviderTest {
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
+  @Parameters
+  public static Iterable<Object[]> data() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
+
+  @Parameter(0)
+  public boolean useIncrementalScan;
+
   @Test
   public void testBuildTransformWithRow() {
     Map<String, String> properties = new HashMap<>();
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", "test_location");
 
-    Row transformConfigRow =
+    Row.FieldValueBuilder configBuilder =
         Row.withSchema(new IcebergReadSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
-            .withFieldValue("catalog_properties", properties)
-            .build();
+            .withFieldValue("catalog_properties", properties);
 
-    new IcebergReadSchemaTransformProvider().from(transformConfigRow);
+    if (useIncrementalScan) {
+      configBuilder =
+          configBuilder
+              .withFieldValue("from_snapshot", 123L)
+              .withFieldValue("to_snapshot", 456L)
+              .withFieldValue("from_timestamp", 123L)
+              .withFieldValue("to_timestamp", 456L)
+              .withFieldValue("starting_strategy", "earliest")
+              .withFieldValue("streaming", true)
+              .withFieldValue("poll_interval_seconds", 789);
+    }
+
+    new IcebergReadSchemaTransformProvider().from(configBuilder.build());
   }
 
   @Test
@@ -75,42 +103,31 @@ public class IcebergReadSchemaTransformProviderTest {
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
-        .commit();
-
-    final List<Row> expectedRows =
-        Stream.of(
-                TestFixtures.FILE1SNAPSHOT1,
-                TestFixtures.FILE2SNAPSHOT1,
-                TestFixtures.FILE3SNAPSHOT1)
-            .flatMap(List::stream)
-            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
-            .collect(Collectors.toList());
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
     Map<String, String> properties = new HashMap<>();
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    SchemaTransformConfiguration readConfig =
-        SchemaTransformConfiguration.builder()
+    Configuration.Builder readConfigBuilder =
+        Configuration.builder()
             .setTable(identifier)
             .setCatalogName("name")
-            .setCatalogProperties(properties)
-            .build();
+            .setCatalogProperties(properties);
+
+    if (useIncrementalScan) {
+      readConfigBuilder =
+          readConfigBuilder.setToSnapshot(simpleTable.currentSnapshot().snapshotId());
+    }
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
 
     PCollection<Row> output =
         PCollectionRowTuple.empty(testPipeline)
-            .apply(new IcebergReadSchemaTransformProvider().from(readConfig))
+            .apply(new IcebergReadSchemaTransformProvider().from(readConfigBuilder.build()))
             .get(OUTPUT_TAG);
 
     PAssert.that(output)
@@ -131,27 +148,7 @@ public class IcebergReadSchemaTransformProviderTest {
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
-        .commit();
-
-    final List<Row> expectedRows =
-        Stream.of(
-                TestFixtures.FILE1SNAPSHOT1,
-                TestFixtures.FILE2SNAPSHOT1,
-                TestFixtures.FILE3SNAPSHOT1)
-            .flatMap(List::stream)
-            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
-            .collect(Collectors.toList());
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
     String yamlConfig =
         String.format(
@@ -161,8 +158,25 @@ public class IcebergReadSchemaTransformProviderTest {
                 + "  type: %s\n"
                 + "  warehouse: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
-    Map<String, Object> configMap = new Yaml().load(yamlConfig);
 
+    if (useIncrementalScan) {
+      // only read files that were added in the second and third snapshots,
+      // ignoring the first and fourth snapshots.
+      expectedRecords = expectedRecords.subList(3, 9);
+
+      List<Snapshot> snapshots = Lists.newArrayList(simpleTable.snapshots());
+      long second = snapshots.get(1).snapshotId();
+      long third = snapshots.get(2).snapshotId();
+
+      yamlConfig += String.format("\n" + "from_snapshot: %s\n" + "to_snapshot: %s", second, third);
+    }
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
+
+    Map<String, Object> configMap = new Yaml().load(yamlConfig);
     PCollection<Row> output =
         testPipeline
             .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))
