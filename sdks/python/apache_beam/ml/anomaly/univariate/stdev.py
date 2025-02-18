@@ -29,6 +29,7 @@ import warnings
 
 import numpy as np
 
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 
@@ -42,6 +43,7 @@ class StdevTracker(WindowedTracker):
   pass
 
 
+@specifiable
 class SimpleSlidingStdevTracker(StdevTracker):
   """Sliding window standard deviation tracker using NumPy.
 
@@ -134,6 +136,7 @@ class IncStdevTracker(StdevTracker):
     return math.sqrt(self._m2 / dof)
 
 
+@specifiable
 class IncLandmarkStdevTracker(IncStdevTracker):
   """Landmark window standard deviation tracker using incremental calculation."""  # pylint: disable=line-too-long
 
@@ -141,6 +144,7 @@ class IncLandmarkStdevTracker(IncStdevTracker):
     super().__init__(window_mode=WindowMode.LANDMARK)
 
 
+@specifiable
 class IncSlidingStdevTracker(IncStdevTracker):
   """Sliding window standard deviation tracker using incremental calculation.
 

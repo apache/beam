@@ -29,7 +29,7 @@ from apache_beam.ml.anomaly.univariate.stdev import *
 
 seed_value_time = int(time.time())
 random.seed(seed_value_time)
-print(f"{'Seed value':30s}{seed_value_time}")
+print(f"{'Seed value':32s}{seed_value_time}")
 
 numbers = []
 for _ in range(50000):
@@ -47,7 +47,7 @@ def print_result(tracker, number=10, repeat=5):
       lambda: run_tracker(tracker, numbers), number=number, repeat=repeat)
   mean = statistics.mean(runtimes)
   sd = statistics.stdev(runtimes)
-  print(f"{tracker.__class__.__name__:30s}{mean:.6f} ± {sd:.6f}")
+  print(f"{tracker.__class__.__name__:32s}{mean:.6f} ± {sd:.6f}")
 
 
 class PerfTest(unittest.TestCase):
@@ -65,6 +65,7 @@ class PerfTest(unittest.TestCase):
     print_result(IncLandmarkStdevTracker())
     print_result(IncSlidingStdevTracker(100))
     # Same as test_mean_perf, we reduce the number of repetitions here.
+    print_result(SimpleSlidingStdevTracker(100), number=1)
 
   def test_quantile_perf(self):
     print()

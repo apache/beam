@@ -35,6 +35,7 @@ import warnings
 import numpy as np
 from sortedcontainers import SortedList
 
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 
@@ -48,6 +49,7 @@ class QuantileTracker(WindowedTracker):
   pass
 
 
+@specifiable
 class SimpleSlidingQuantileTracker(QuantileTracker):
   """Sliding window quantile tracker using NumPy.
 
@@ -135,6 +137,7 @@ class BufferedQuantileTracker(WindowedTracker):
     return lo_value + (hi_value - lo_value) * (pos - lo)
 
 
+@specifiable
 class BufferedLandmarkQuantileTracker(BufferedQuantileTracker):
   """Landmark quantile tracker using a sorted list for quantile calculation.
 
@@ -153,6 +156,7 @@ class BufferedLandmarkQuantileTracker(BufferedQuantileTracker):
     super().__init__(window_mode=WindowMode.LANDMARK, q=q)
 
 
+@specifiable
 class BufferedSlidingQuantileTracker(BufferedQuantileTracker):
   """Sliding window quantile tracker using a sorted list for quantile
   calculation.

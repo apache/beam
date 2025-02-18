@@ -30,6 +30,7 @@ import warnings
 
 import numpy as np
 
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.univariate.base import WindowedTracker
 from apache_beam.ml.anomaly.univariate.base import WindowMode
 
@@ -43,6 +44,7 @@ class MeanTracker(WindowedTracker):
   pass
 
 
+@specifiable
 class SimpleSlidingMeanTracker(MeanTracker):
   """Sliding window mean tracker that calculates mean using NumPy.
 
@@ -125,12 +127,14 @@ class IncMeanTracker(MeanTracker):
     return self._mean
 
 
+@specifiable
 class IncLandmarkMeanTracker(IncMeanTracker):
   """Landmark window mean tracker using incremental calculation."""
   def __init__(self):
     super().__init__(window_mode=WindowMode.LANDMARK)
 
 
+@specifiable
 class IncSlidingMeanTracker(IncMeanTracker):
   """Sliding window mean tracker using incremental calculation.
 
