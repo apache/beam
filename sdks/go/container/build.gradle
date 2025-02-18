@@ -30,6 +30,8 @@ goBuild {
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
+  println "CURRENT PROJECT PUSH: " + project.hasProperty("push-containers")
+  println "ROOT PROJECT PUSH: " + project.rootProject.hasProperty("push-containers")
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "go_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
@@ -43,7 +45,7 @@ docker {
   buildx project.useBuildx()
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers
-  push pushContainers
+  push true
 }
 dockerPrepare.dependsOn tasks.named("goBuild")
 
