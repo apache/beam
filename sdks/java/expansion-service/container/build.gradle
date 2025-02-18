@@ -75,8 +75,9 @@ docker {
     files "./build"
     buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    load project.useBuildx() && !pushContainers
+    output = "type=image,push=true"
     push true
+    load project.useBuildx() && !pushContainers
 }
 
 dockerPrepare.dependsOn goBuild
