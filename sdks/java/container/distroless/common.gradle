@@ -65,5 +65,5 @@ docker {
     buildx project.useBuildx()
     platform(*project.containerPlatforms())
     load project.useBuildx() && !pushContainers
-    push pushContainers
+    push true
 }
