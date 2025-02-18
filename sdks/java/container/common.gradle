@@ -146,10 +146,7 @@ docker {
     ])
     buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    buildx {
-        // Configure output based on pushContainers flag:
-        output = "type=image,push=true"
-    }
+    output = "type=image,push=true"
     push true
     load project.useBuildx() && !pushContainers
 }
