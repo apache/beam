@@ -96,9 +96,7 @@ jobs:
 #          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
-          arguments: |
-            -Ppush-containers
+          gradle-command: -Ppush-containers :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
