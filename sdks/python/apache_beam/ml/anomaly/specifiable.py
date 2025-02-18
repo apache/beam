@@ -42,6 +42,7 @@ _FALLBACK_SUBSPACE = "*"
 _ACCEPTED_SUBSPACES = [
     "EnsembleAnomalyDetector",
     "AnomalyDetector",
+    "BaseTracker",
     "ThresholdFn",
     "AggregationFn",
     _FALLBACK_SUBSPACE,
@@ -80,7 +81,7 @@ def _spec_type_to_subspace(spec_type: str) -> str:
     if spec_type in _KNOWN_SPECIFIABLE[subspace]:
       return subspace
 
-  raise ValueError(f"subspace for {str} not found.")
+  raise ValueError(f"subspace for {spec_type} not found.")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -309,7 +310,7 @@ def specifiable(
     cls.run_original_init = run_original_init
     cls.to_spec = Specifiable.to_spec
     cls._to_spec_helper = staticmethod(Specifiable._to_spec_helper)
-    cls.from_spec = classmethod(Specifiable.from_spec)
+    cls.from_spec = Specifiable.from_spec
     cls._from_spec_helper = staticmethod(Specifiable._from_spec_helper)
     return cls
     # end of the function body of _wrapper
