@@ -146,9 +146,12 @@ docker {
     ])
     buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    buildx.withOption("output=type=image,push=true")
-    load project.useBuildx() && !pushContainers
+    buildx {
+        // Configure output based on pushContainers flag:
+        output = "type=image,push=true"
+    }
     push true
+    load project.useBuildx() && !pushContainers
 }
 
 if (project.rootProject.hasProperty("docker-pull-licenses") ||
