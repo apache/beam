@@ -167,7 +167,7 @@ task loadTest(type: Test) {
 
     include '**/*LT.class'
 
-    maxParallelForks 4
+    maxParallelForks 3
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }

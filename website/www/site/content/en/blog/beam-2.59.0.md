@@ -71,6 +71,10 @@ For more information on changes in 2.59.0, check out the [detailed release notes
   * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
   * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
   * Fixed in 2.61.0.
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
+* [FileBasedIO] StringSet metrics can grow unlimitedly large when pipeline involves read/write large number of files, and degrading functionalities such us metrics monitoring and Dataflow job upgrade.
+  * Mitigated in 2.60.0 ([#32649](https://github.com/apache/beam/issues/32649)).
 
 For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 

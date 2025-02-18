@@ -56,6 +56,7 @@ These steps and instructions on getting started are outlined below as well.
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
    a place for notes. Later, your pull request will be linked to the issue as well.
 2. Comment ".take-issue" on the issue. This will cause the issue to be assigned to you.
+   Comment ".free-issue" on the issue. This will cause the issue to be unassigned from you.
    When you've completed the issue, you can close it by commenting ".close-issue".
    If you are a committer and would like to assign an issue to a non-committer, they must comment
    on the issue first; please tag the user asking them to do so or to comment "\`.take-issue\`".
@@ -73,7 +74,7 @@ Before you begin, check out the Wiki pages. There are many useful tips about [Gi
 #### Configuration Options
 You have two options for configuring your development environment:
 - Local:
-  - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
+  - Manually installing the [prerequisites](#prerequisites).
   - Using the automated script for Linux and macOS.
 - Container-based: using a [Docker](https://www.docker.com/) image.
 

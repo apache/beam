@@ -43,17 +43,18 @@ func TestUnimplemented(t *testing.T) {
 	}{
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
 
-		// Triggers (Need teststream and are unimplemented.)
-		{pipeline: primitives.TriggerAfterAll},
-		{pipeline: primitives.TriggerAfterAny},
-		{pipeline: primitives.TriggerAfterEach},
-		{pipeline: primitives.TriggerAfterEndOfWindow},
-		{pipeline: primitives.TriggerAfterProcessingTime},
-		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
+		// Implemented but the Go SDK doesn't fully handle panes and
+		// their associated valid behaviors for these triggers, leading
+		// to variable results.
+		// See https://github.com/apache/beam/issues/31153.
 		{pipeline: primitives.TriggerElementCount},
 		{pipeline: primitives.TriggerOrFinally},
-		{pipeline: primitives.TriggerRepeat},
 		{pipeline: primitives.TriggerAlways},
+
+		// Currently unimplemented triggers.
+		// https://github.com/apache/beam/issues/31438
+		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
+		{pipeline: primitives.TriggerAfterProcessingTime},
 	}
 
 	for _, test := range tests {
@@ -85,11 +86,13 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.ReshuffleKV},
 		{pipeline: primitives.ParDoProcessElementBundleFinalizer},
 
-		// The following have been "allowed" to unblock further development
-		// But it's not clear these tests truly validate the expected behavior
-		// of the triggers or panes.
 		{pipeline: primitives.TriggerNever},
 		{pipeline: primitives.Panes},
+		{pipeline: primitives.TriggerAfterAll},
+		{pipeline: primitives.TriggerAfterAny},
+		{pipeline: primitives.TriggerAfterEach},
+		{pipeline: primitives.TriggerAfterEndOfWindow},
+		{pipeline: primitives.TriggerRepeat},
 	}
 
 	for _, test := range tests {

@@ -186,7 +186,7 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 	// Update the consuming state.
 	for _, sID := range em.consumers[t.pcollection] {
 		ss := em.stages[sID]
-		added := ss.AddPending(pending)
+		added := ss.AddPending(em, pending)
 		em.addPending(added)
 		em.changedStages.insert(sID)
 	}
