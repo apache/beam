@@ -101,6 +101,8 @@ jobs:
         with:
           gradle-command: -Ppush-containers :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
           arguments: |
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
             -Ppush-containers
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
