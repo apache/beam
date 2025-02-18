@@ -86,10 +86,10 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           install: true
-          driver: 'docker'
+#          driver: 'docker'
       - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
