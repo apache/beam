@@ -21,12 +21,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
+import org.apache.beam.model.pipeline.v1.MetricsApi.HistogramValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -176,6 +178,20 @@ public class MonitoringInfoEncodings {
     try {
       return DOUBLE_CODER.decode(payload.newInput());
     } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** Encodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  public static ByteString encodeInt64Histogram(HistogramData inputHistogram) {
+    return inputHistogram.toProto().toByteString();
+  }
+
+  /** Decodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  public static HistogramData decodeInt64Histogram(ByteString payload) {
+    try {
+      return new HistogramData(HistogramValue.parseFrom(payload));
+    } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
   }
