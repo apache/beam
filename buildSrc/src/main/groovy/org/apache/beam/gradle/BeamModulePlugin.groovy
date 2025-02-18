@@ -2823,7 +2823,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", config.goScriptOptions, pipelineOpts)
       goTask.configure {
         description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
-//        dependsOn setupTask
+        dependsOn setupTask
         dependsOn config.startJobServer
       }
       // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
