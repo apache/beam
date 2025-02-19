@@ -518,7 +518,6 @@ func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 
 		// Here's where we ensure we register new imports.
 		if at, ok := t.(*types.Alias); ok {
-			e.Printf("extractFromTuple: %v is an alias - RHS %T\n", at, at.Rhs())
 			if pkg := at.Obj().Pkg(); pkg != nil {
 				e.imports[pkg.Path()] = struct{}{}
 			}
