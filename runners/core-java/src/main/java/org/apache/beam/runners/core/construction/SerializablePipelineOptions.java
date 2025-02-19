@@ -43,13 +43,13 @@ public class SerializablePipelineOptions implements Serializable {
   public SerializablePipelineOptions(PipelineOptions options) {
     this.serializedPipelineOptions = serializeToJson(options);
     this.options = options;
-    FileSystems.setDefaultPipelineOptions(options);
+    FileSystems.registerFileSystemsOnce(options);
   }
 
   public SerializablePipelineOptions(String json) {
     this.serializedPipelineOptions = json;
     this.options = deserializeFromJson(json);
-    FileSystems.setDefaultPipelineOptions(options);
+    FileSystems.registerFileSystemsOnce(options);
   }
 
   public PipelineOptions get() {
@@ -59,7 +59,6 @@ public class SerializablePipelineOptions implements Serializable {
   private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
     is.defaultReadObject();
     this.options = deserializeFromJson(serializedPipelineOptions);
-    // TODO https://github.com/apache/beam/issues/18430: remove this call.
     FileSystems.setDefaultPipelineOptions(options);
   }
 
