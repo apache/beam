@@ -26,8 +26,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 /**
  * A supplier that memoizes within an instantiation across serialization/deserialization.
  *
- * <p>Specifically the wrapped supplier will be called once and the result memoized per group consisting
- * of an instance and all instances deserialized from its serialized state.
+ * <p>Specifically the wrapped supplier will be called once and the result memoized per group
+ * consisting of an instance and all instances deserialized from its serialized state.
  *
  * <p>A particular use for this is within a DoFn class to maintain shared state across all instances
  * of the DoFn that correspond to same step in the graph but separate from other steps in the graph

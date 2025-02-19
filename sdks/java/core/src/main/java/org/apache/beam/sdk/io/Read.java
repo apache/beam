@@ -28,6 +28,8 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -68,7 +70,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalCause;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -484,6 +488,9 @@ public class Read {
     private final MemoizingPerInstantiationSerializableSupplier<
             Cache<Object, UnboundedReader<OutputT>>>
         readerCacheSupplier;
+    private static final Executor closeExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("UnboundedReaderCloses-%d").build());
     private @Nullable Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
     @VisibleForTesting
@@ -497,13 +504,16 @@ public class Read {
                       .removalListener(
                           (RemovalListener<Object, UnboundedReader<OutputT>>)
                               removalNotification -> {
-                                if (removalNotification.wasEvicted()) {
-                                  try {
-                                    Preconditions.checkNotNull(removalNotification.getValue())
-                                        .close();
-                                  } catch (IOException e) {
-                                    LOG.warn("Failed to close UnboundedReader.", e);
-                                  }
+                                if (removalNotification.getCause() != RemovalCause.EXPLICIT) {
+                                  closeExecutor.execute(
+                                      () -> {
+                                        try {
+                                          Preconditions.checkNotNull(removalNotification.getValue())
+                                              .close();
+                                        } catch (IOException e) {
+                                          LOG.warn("Failed to close UnboundedReader.", e);
+                                        }
+                                      });
                                 }
                               })
                       .build());
@@ -876,7 +886,8 @@ public class Read {
         checkState(currentReader == null);
         Object cacheKey =
             createCacheKey(initialRestriction.getSource(), initialRestriction.getCheckpoint());
-        UnboundedReader<OutputT> cachedReader = cachedReaders.getIfPresent(cacheKey);
+        // We remove the reader if cached so that it is not possibly claimed by multiple DoFns.
+        UnboundedReader<OutputT> cachedReader = cachedReaders.asMap().remove(cacheKey);
 
         if (cachedReader == null) {
           this.currentReader =
@@ -885,9 +896,7 @@ public class Read {
                   .createReader(pipelineOptions, initialRestriction.getCheckpoint());
         } else {
           // If the reader is from cache, then we know that the reader has been started.
-          // We also remove this cache entry to avoid eviction.
           readerHasBeenStarted = true;
-          cachedReaders.invalidate(cacheKey);
           this.currentReader = cachedReader;
         }
       }
