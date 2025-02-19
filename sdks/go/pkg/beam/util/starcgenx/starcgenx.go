@@ -15,7 +15,7 @@
 
 // Package starcgenx is a Static Analysis Type Assertion shim and Registration Code Generator
 // which provides an extractor to extract types from a package, in order to generate
-// approprate shimsr a package so code can be generated for it.
+// appropriate shims for a package so code can be generated for it.
 //
 // It's written for use by the starcgen tool, but separate to permit
 // alternative "go/importer" Importers for accessing types from imported packages.
@@ -336,6 +336,7 @@ func (e *Extractor) isRequired(ident string, obj types.Object, idsRequired, idsF
 	// or it's receiver type identifier needs to be in the filtered identifiers.
 	if idsRequired[ident] {
 		idsFound[ident] = true
+		e.Printf("isRequired found: %s\n", ident)
 		return true
 	}
 	// Check if this is a function.
@@ -384,6 +385,8 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 		ident = obj.Name()
 	}
 	if !e.isRequired(ident, obj, idsRequired, idsFound) {
+		e.Printf("%s: %q with package %q is not required \n",
+			fset.Position(id.Pos()), id.Name, pkg.Name())
 		return
 	}
 
@@ -391,7 +394,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 	case *types.Var:
 		// Vars are tricky since they could be anything, and anywhere (package scope, parameters, etc)
 		// eg. Flags, or Field Tags, among others.
-		// I'm increasingly convinced that we should simply igonore vars.
+		// I'm increasingly convinced that we should simply ignore vars.
 		// Do nothing for vars.
 	case *types.Func:
 		sig := obj.Type().(*types.Signature)
@@ -453,7 +456,11 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 	// A single level is safe since the code we're analysing imports it,
 	// so we can assume the generated code can access it too.
 	if ot.IsAlias() {
-		if t, ok := types.Unalias(ot.Type()).(*types.Named); ok {
+		if t, ok := ot.Type().(*types.Alias); ok {
+			ot = t.Obj()
+			name = types.TypeString(t, e.qualifier)
+		}
+		if t, ok := ot.Type().(*types.Named); ok {
 			ot = t.Obj()
 			name = types.TypeString(t, e.qualifier)
 		}
@@ -461,7 +468,7 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 	// Only register non-universe types (eg. avoid `error` and similar)
 	if pkg := ot.Pkg(); pkg != nil {
 		path := pkg.Path()
-		e.imports[pkg.Path()] = struct{}{}
+		e.imports[path] = struct{}{}
 
 		// Do not add universal types to be registered.
 		if path == shimx.TypexImport {
@@ -510,9 +517,18 @@ func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 		t := e.extractFromContainer(s.Type())
 
 		// Here's where we ensure we register new imports.
-		if t, ok := types.Unalias(t).(*types.Named); ok {
-			if pkg := t.Obj().Pkg(); pkg != nil {
+		if at, ok := t.(*types.Alias); ok {
+			e.Printf("extractFromTuple: %v is an alias - RHS %T\n", at, at.Rhs())
+			if pkg := at.Obj().Pkg(); pkg != nil {
 				e.imports[pkg.Path()] = struct{}{}
+			}
+		}
+		if t, ok := t.(*types.Named); ok {
+			e.Printf("extractType: adding import path %q for %v\n", pkg.Path(), t)
+			if pkg := t.Obj().Pkg(); pkg != nil { 
+				e.imports[pkg.Path()] = struct{}{}
+			} else {
+				e.Printf("extractType: %v has no package to import\n", t)
 			}
 			e.extractType(t.Obj())
 		}
@@ -683,7 +699,7 @@ func (e *Extractor) makeEmitter(sig *types.Signature) (shimx.Emitter, bool) {
 
 // makeInput checks if the given signature is an iterator or not, and if so,
 // returns a shimx.Input struct for the signature for use by the code
-// generator. The canonical check for an iterater signature is in the
+// generator. The canonical check for an iterator signature is in the
 // funcx.UnfoldIter function which uses the reflect library,
 // and this logic is replicated here.
 func (e *Extractor) makeInput(sig *types.Signature) (shimx.Input, bool) {
@@ -736,7 +752,7 @@ func (e *Extractor) makeInput(sig *types.Signature) (shimx.Input, bool) {
 // deref returns the string identifier for the element type of a pointer var.
 // deref panics if the var type is not a pointer.
 func (e *Extractor) deref(v *types.Var) string {
-	p := types.Unalias(v.Type()).(*types.Pointer)
+	p := v.Type().(*types.Pointer)
 	return types.TypeString(p.Elem(), e.qualifier)
 }
 
@@ -749,7 +765,7 @@ func (e *Extractor) varString(v *types.Var) string {
 // NameType turns a reflect.Type into a string based on it's name.
 // It prefixes Emit or Iter if the function satisfies the constrains of those types.
 func (e *Extractor) NameType(t types.Type) string {
-	switch a := types.Unalias(t).(type) {
+	switch a := t.(type) {
 	case *types.Signature:
 		if emt, ok := e.makeEmitter(a); ok {
 			return "Emit" + emt.Name
