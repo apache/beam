@@ -81,14 +81,18 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:container:java11:docker
+      - name: Java expansion service
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
       - name: Python container
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:container:py39:docker
-      - name: Go container
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:go:container:docker
+#      - name: Go container
+#        uses: ./.github/actions/gradle-command-self-hosted-action
+#        with:
+#          gradle-command: :sdks:go:container:docker
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
