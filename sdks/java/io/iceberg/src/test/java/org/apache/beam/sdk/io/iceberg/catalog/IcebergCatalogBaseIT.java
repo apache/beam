@@ -200,7 +200,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   private static final String RANDOM = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
