@@ -200,7 +200,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   private static final String RANDOM = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
@@ -382,7 +382,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
-    pipeline.run().waitUntilFinish(Duration.standardSeconds(500));
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(240));
   }
 
   @Test
@@ -392,7 +392,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = managedIcebergConfig(tableId());
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish(Duration.standardSeconds(500));
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(240));
 
     Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
     assertTrue(table.schema().sameSchema(ICEBERG_SCHEMA));
@@ -420,7 +420,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = managedIcebergConfig(tableId());
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish(Duration.standardSeconds(500));
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(240));
 
     // Read back and check records are correct
     List<Record> returnedRecords = readRecords(table);
@@ -443,7 +443,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
-    config.put("triggering_frequency_seconds", 4);
+    config.put("triggering_frequency_seconds", 1);
+    config.put("write.batch.size", 10);
 
     // create elements from longs in range [0, 1000)
     PCollection<Row> input =
@@ -457,7 +458,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish(Duration.standardSeconds(500));
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(240));
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -473,7 +474,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
-    config.put("triggering_frequency_seconds", 4);
+    config.put("triggering_frequency_seconds", 1);
+    config.put("write.batch.size", 10);
 
     // over a span of 10 seconds, create elements from longs in range [0, 1000)
     PCollection<Row> input =
@@ -490,7 +492,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish(Duration.standardSeconds(500));
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(240));
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -558,7 +560,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // Write with Beam
     PCollection<Row> input;
     if (streaming) {
-      writeConfig.put("triggering_frequency_seconds", 5);
+      writeConfig.put("triggering_frequency_seconds", 1);
+      writeConfig.put("write.batch.size", 10);
       input =
           pipeline
               .apply(getStreamingSource())
@@ -570,7 +573,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
 
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
-    pipeline.run().waitUntilFinish(Duration.standardSeconds(500));
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(240));
 
     Table table0 = catalog.loadTable(tableIdentifier0);
     Table table1 = catalog.loadTable(tableIdentifier1);
