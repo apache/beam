@@ -138,6 +138,8 @@ public class StorageApiSinkSchemaUpdateIT {
   private static final int SCHEMA_PROPAGATION_CHECK_INTERVAL_MS = 5000;
   // wait for streams to recognize schema
   private static final int STREAM_RECOGNITION_DELAY_MS = 15000;
+  // trigger for updating the schema when the row counter reaches this value
+  private static final int SCHEMA_UPDATE_TRIGGER = 1;
 
   private final Random randomGenerator = new Random();
 
@@ -224,10 +226,9 @@ public class StorageApiSinkSchemaUpdateIT {
     public void processElement(ProcessContext c, @StateId(ROW_COUNTER) ValueState<Integer> counter)
         throws Exception {
       int current = firstNonNull(counter.read(), 0);
-      // We update schema early on to leave a healthy amount of time for StreamWriter to recognize
-      // it.
-      // We also update halfway through so that some writers are created *after* the schema update
-      if (current == 1) {
+      // We update schema early on to leave a healthy amount of time for the StreamWriter to recognize it,
+      // ensuring that subsequent writers are created with the updated schema.
+      if (current == SCHEMA_UPDATE_TRIGGER) {
         for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
           bqClient.updateTableSchema(
               projectId,
