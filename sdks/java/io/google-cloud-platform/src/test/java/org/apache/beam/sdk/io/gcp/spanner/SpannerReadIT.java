@@ -285,6 +285,12 @@ public class SpannerReadIT {
     public Transaction apply(Transaction tx) {
       BatchClient batchClient = SpannerAccessor.getOrCreate(spannerConfig).getBatchClient();
       batchClient.batchReadOnlyTransaction(tx.transactionId()).cleanup();
+      try {
+        // Wait for cleanup to propagate.
+        Thread.sleep(5000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
       return tx;
     }
   }

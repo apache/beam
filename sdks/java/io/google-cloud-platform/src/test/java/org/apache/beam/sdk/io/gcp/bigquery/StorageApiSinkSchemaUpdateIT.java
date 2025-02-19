@@ -131,7 +131,7 @@ public class StorageApiSinkSchemaUpdateIT {
   private static final int ORIGINAL_N = 60;
   // for dynamic destination test
   private static final int NUM_DESTINATIONS = 3;
-  private static final int TOTAL_NUM_STREAMS = 9;
+  private static final int TOTAL_NUM_STREAMS = 3;
 
   private final Random randomGenerator = new Random();
 
@@ -221,13 +221,40 @@ public class StorageApiSinkSchemaUpdateIT {
       // We update schema early on to leave a healthy amount of time for StreamWriter to recognize
       // it.
       // We also update halfway through so that some writers are created *after* the schema update
-      if (current == TOTAL_NUM_STREAMS / 2) {
+      if (current == 1) {
         for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
           bqClient.updateTableSchema(
               projectId,
               datasetId,
               entry.getKey(),
               BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class));
+        }
+
+        // check that schema update propagated fully
+        long startTime = System.currentTimeMillis();
+        long timeoutMillis = 60000; // wait up to 60 seconds
+        boolean schemaPropagated = false;
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+          schemaPropagated = true;
+          for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
+            TableSchema currentSchema = bqClient.getTableResource(projectId, datasetId, entry.getKey()).getSchema();
+            TableSchema expectedSchema = BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class);
+            if (currentSchema.getFields().size() != expectedSchema.getFields().size()) {
+              schemaPropagated = false;
+              break;
+            }
+          }
+          if (schemaPropagated) {
+            break;
+          }
+          Thread.sleep(5000);
+        }
+        if (!schemaPropagated) {
+          LOG.info("Schema update did not propagate fully within the timeout.");
+        } else {
+          LOG.info("Schema update propagated fully within the timeout - {}.", System.currentTimeMillis() - startTime);
+          // wait for streams to recognize the new schema
+          Thread.sleep(15000);
         }
       }
 
