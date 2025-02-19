@@ -23,8 +23,8 @@ from apache_beam.ml.anomaly import thresholds
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.specifiable import Spec
-from apache_beam.ml.anomaly.univariate.quantile import SimpleSlidingQuantileTracker  # pylint: disable=line-too-long
 from apache_beam.ml.anomaly.univariate.quantile import BufferedSlidingQuantileTracker  # pylint: disable=line-too-long
+from apache_beam.ml.anomaly.univariate.quantile import SimpleSlidingQuantileTracker  # pylint: disable=line-too-long
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -67,7 +67,7 @@ class TestFixedThreshold(unittest.TestCase):
           | beam.ParDo(
               thresholds.StatelessThresholdDoFn(
                   thresholds.FixedThreshold(2, normal_label=0,
-                                            outlier_label=1).to_spec())))  # type: ignore
+                                            outlier_label=1).to_spec())))
 
       assert_that(result, equal_to(expected))
 
@@ -118,7 +118,7 @@ class TestFixedThreshold(unittest.TestCase):
           | beam.ParDo(
               thresholds.StatelessThresholdDoFn(
                   thresholds.FixedThreshold(2, normal_label=0,
-                                            outlier_label=1).to_spec())))  # type: ignore
+                                            outlier_label=1).to_spec())))
 
       assert_that(result, equal_to(expected))
 
@@ -187,7 +187,7 @@ class TestQuantileThreshold(unittest.TestCase):
               thresholds.StatefulThresholdDoFn(
                   thresholds.QuantileThreshold(
                       quantile=0.5, normal_label=0,
-                      outlier_label=1).to_spec())))  # type: ignore
+                      outlier_label=1).to_spec())))
 
       assert_that(result, equal_to(expected))
 

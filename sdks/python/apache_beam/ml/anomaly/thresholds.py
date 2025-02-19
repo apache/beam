@@ -19,23 +19,23 @@ from __future__ import annotations
 
 import dataclasses
 from typing import Any
-from typing import cast
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
 from typing import Union
+from typing import cast
 
 import apache_beam as beam
 from apache_beam.coders import DillCoder
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import ThresholdFn
 from apache_beam.ml.anomaly.specifiable import Spec
-from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.specifiable import Specifiable
-from apache_beam.ml.anomaly.univariate.quantile import QuantileTracker
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.univariate.quantile import BufferedSlidingQuantileTracker  # pylint: disable=line-too-long
-from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+from apache_beam.ml.anomaly.univariate.quantile import QuantileTracker
 from apache_beam.transforms.userstate import ReadModifyWriteRuntimeState
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 
 class BaseThresholdDoFn(beam.DoFn):

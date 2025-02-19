@@ -21,8 +21,8 @@ import statistics
 from typing import Callable
 from typing import Iterable
 
-from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AggregationFn
+from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.specifiable import specifiable
 
 

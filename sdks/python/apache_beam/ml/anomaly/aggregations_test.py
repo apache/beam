@@ -18,8 +18,8 @@
 import logging
 import unittest
 
-from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly import aggregations
+from apache_beam.ml.anomaly.base import AnomalyPrediction
 
 
 class MajorityVoteTest(unittest.TestCase):
