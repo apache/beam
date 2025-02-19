@@ -624,6 +624,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
     def kafka_version = "2.4.1"
+    def kafka_client_version = "3.7.0"
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
@@ -830,7 +831,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jupiter_engine                              : "org.junit.jupiter:junit-jupiter-engine:$jupiter_version",
         jupiter_params                              : "org.junit.jupiter:junit-jupiter-params:$jupiter_version",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
-        kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
+        kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_client_version",
         log4j                                       : "log4j:log4j:1.2.17",
         log4j_over_slf4j                            : "org.slf4j:log4j-over-slf4j:$slf4j_version",
         log4j2_api                                  : "org.apache.logging.log4j:log4j-api:$log4j2_version",
