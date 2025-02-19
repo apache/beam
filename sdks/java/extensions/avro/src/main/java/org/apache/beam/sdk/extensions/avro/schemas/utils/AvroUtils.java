@@ -1378,38 +1378,41 @@ public class AvroUtils {
       }
     }
 
-    if (logicalType instanceof LogicalTypes.Date) {
-      return convertDateStrict(
-          checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType),
-          fieldType);
-    } else if (logicalType instanceof LogicalTypes.TimeMillis) {
-      return checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType);
-    } else if (logicalType instanceof LogicalTypes.TimeMicros) {
-      return checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
-    } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
-      return convertDateTimeStrict(
-          checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType),
-          fieldType);
-    } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
-      return checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
-    } else if ("local-timestamp-millis".equals(logicalType.getName())) {
-      return checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
-    } else if ("local-timestamp-micros".equals(logicalType.getName())) {
-      return checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
-    } else if (logicalType instanceof LogicalTypes.Decimal) {
-      if (rawType instanceof GenericFixed) {
-        // Decimal can be backed by ByteBuffer or GenericFixed. in case of GenericFixed, we convert
-        // it to ByteBuffer here
-        rawType = ByteBuffer.wrap(((GenericFixed) rawType).bytes());
-      }
-      ByteBuffer byteBuffer =
-          checkRawType(ByteBuffer.class, value, logicalType, rawType, conversion, convertedType);
-      Conversion<BigDecimal> decimalConversion = new Conversions.DecimalConversion();
-      BigDecimal bigDecimal =
-          decimalConversion.fromBytes(byteBuffer.duplicate(), type.type, logicalType);
-      return convertDecimal(bigDecimal, fieldType);
-    } else if (LogicalTypes.uuid().equals(logicalType)) {
-      return UUID.fromString(rawType.toString()).toString();
+    // switch on string name because some LogicalType classes are not available in all versions of
+    // Avro
+    switch (logicalType.getName()) {
+      case "date":
+        return convertDateStrict(
+            checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType),
+            fieldType);
+      case "time-millis":
+        return checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType);
+      case "time-micros":
+      case "timestamp-micros":
+      case "local-timestamp-millis":
+      case "local-timestamp-micros":
+        return checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
+      case "timestamp-millis":
+        return convertDateTimeStrict(
+            checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType),
+            fieldType);
+      case "decimal":
+        {
+          if (rawType instanceof GenericFixed) {
+            // Decimal can be backed by ByteBuffer or GenericFixed. in case of GenericFixed, we
+            // convert it to ByteBuffer here
+            rawType = ByteBuffer.wrap(((GenericFixed) rawType).bytes());
+          }
+          ByteBuffer byteBuffer =
+              checkRawType(
+                  ByteBuffer.class, value, logicalType, rawType, conversion, convertedType);
+          Conversion<BigDecimal> decimalConversion = new Conversions.DecimalConversion();
+          BigDecimal bigDecimal =
+              decimalConversion.fromBytes(byteBuffer.duplicate(), type.type, logicalType);
+          return convertDecimal(bigDecimal, fieldType);
+        }
+      case "uuid":
+        return UUID.fromString(rawType.toString()).toString();
     }
     return null;
   }
