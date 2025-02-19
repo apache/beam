@@ -318,8 +318,8 @@ public class EvaluationContext {
   }
 
   /**
-   * Check if given {@link PCollection} is a leaf or not. {@link PCollection} is a leaf when there is
-   * no other {@link PTransform} consuming it / depending on it.
+   * Check if given {@link PCollection} is a leaf or not. {@link PCollection} is a leaf when there
+   * is no other {@link PTransform} consuming it / depending on it.
    *
    * @param pCollection to be checked if it is a leaf
    * @return true if pCollection is leaf; otherwise false
