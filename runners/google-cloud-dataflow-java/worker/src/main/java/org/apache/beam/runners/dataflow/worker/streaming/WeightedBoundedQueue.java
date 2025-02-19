@@ -17,25 +17,29 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Queue bounded by a {@link WeightedSemaphore}. */
-public final class WeightedBoundedQueue<V> {
+public final class WeightedBoundedQueue<V extends @NonNull Object> {
 
-  private final LinkedBlockingQueue<V> queue;
+  private final ConcurrentLinkedQueue<V> queue;
   private final WeightedSemaphore<V> weightedSemaphore;
 
   private WeightedBoundedQueue(
-      LinkedBlockingQueue<V> linkedBlockingQueue, WeightedSemaphore<V> weightedSemaphore) {
-    this.queue = linkedBlockingQueue;
+      ConcurrentLinkedQueue<V> queue, WeightedSemaphore<V> weightedSemaphore) {
+    this.queue = queue;
     this.weightedSemaphore = weightedSemaphore;
   }
 
-  public static <V> WeightedBoundedQueue<V> create(WeightedSemaphore<V> weightedSemaphore) {
-    return new WeightedBoundedQueue<>(new LinkedBlockingQueue<>(), weightedSemaphore);
+  public static <V extends @NonNull Object> WeightedBoundedQueue<V> create(
+      WeightedSemaphore<V> weightedSemaphore) {
+    return new WeightedBoundedQueue<>(new ConcurrentLinkedQueue<>(), weightedSemaphore);
   }
 
   /**
@@ -60,14 +64,29 @@ public final class WeightedBoundedQueue<V> {
    * Retrieves and removes the head of this queue, waiting up to the specified wait time if
    * necessary for an element to become available.
    *
-   * @param timeout how long to wait before giving up, in units of {@code unit}
-   * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
+   * @param timeout how long to wait before giving up
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
    * @throws InterruptedException if interrupted while waiting
    */
-  public @Nullable V poll(long timeout, TimeUnit unit) throws InterruptedException {
-    @Nullable V result = queue.poll(timeout, unit);
+  public @Nullable V poll(Duration timeout) throws InterruptedException {
+    @Nullable V result;
+    Instant deadline = Instant.now().plus(timeout);
+    int spin = 0;
+    while (true) {
+      if (++spin > 1000) {
+        Thread.sleep(1);
+        result = queue.poll();
+        if (result != null || Instant.now().isAfter(deadline)) {
+          break;
+        }
+        spin = 0;
+      }
+      result = queue.poll();
+      if (result != null) {
+        break;
+      }
+    }
     if (result != null) {
       weightedSemaphore.release(result);
     }
@@ -76,7 +95,7 @@ public final class WeightedBoundedQueue<V> {
 
   /** Returns and removes the next value, or blocks until one is available. */
   public V take() throws InterruptedException {
-    V result = queue.take();
+    V result = Preconditions.checkNotNull(poll(Duration.ofDays(1000)));
     weightedSemaphore.release(result);
     return result;
   }
