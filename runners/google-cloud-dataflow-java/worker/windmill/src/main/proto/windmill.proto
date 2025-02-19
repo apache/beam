@@ -933,7 +933,7 @@ message WorkerMetadataResponse {
     DIRECTPATH = 3;
   }
 
-  optional EndpointType endpoint_type = 6;
+  optional EndpointType endpoint_type = 6 [default = CLOUDPATH];
 
   reserved 4;
 }
