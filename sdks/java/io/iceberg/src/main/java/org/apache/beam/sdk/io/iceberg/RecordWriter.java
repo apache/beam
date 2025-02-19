@@ -70,6 +70,7 @@ class RecordWriter {
     OutputFile outputFile;
     try (FileIO io = table.io()) {
       outputFile = io.newOutputFile(absoluteFilename);
+      outputFile = table.encryption().encrypt(outputFile);
     }
 
     switch (fileFormat) {
