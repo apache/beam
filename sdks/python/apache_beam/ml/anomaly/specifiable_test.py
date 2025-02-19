@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import copy
 import dataclasses
 import logging
 import unittest
@@ -32,8 +33,11 @@ from apache_beam.ml.anomaly.specifiable import specifiable
 
 class TestSpecifiable(unittest.TestCase):
   def setUp(self) -> None:
-    # Remove all registered specifiable classes and reset.
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
     _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
 
   def test_decorator_in_function_form(self):
     class A():
@@ -217,6 +221,13 @@ class TestSpecifiable(unittest.TestCase):
 
 
 class TestInitCallCount(unittest.TestCase):
+  def setUp(self) -> None:
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
+    _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
+
   def test_on_demand_init(self):
     @specifiable(on_demand_init=True, just_in_time_init=False)
     class FooOnDemand():
@@ -411,6 +422,13 @@ class Child_Error_2(Parent):
 
 
 class TestNestedSpecifiable(unittest.TestCase):
+  def setUp(self) -> None:
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
+    _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
+
   @parameterized.expand([[Child_1, 0], [Child_2, 0], [Child_1, 1], [Child_2, 1],
                          [Child_1, 2], [Child_2, 2]])
   def test_nested_specifiable(self, Child, mode):

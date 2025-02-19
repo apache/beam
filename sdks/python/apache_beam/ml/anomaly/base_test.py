@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import unittest
 
@@ -34,8 +35,11 @@ from apache_beam.ml.anomaly.specifiable import specifiable
 
 class TestAnomalyDetector(unittest.TestCase):
   def setUp(self) -> None:
-    # Remove all registered specifiable classes and reset.
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
     _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
 
   @parameterized.expand([(False, False), (True, False), (False, True),
                          (True, True)])
@@ -142,8 +146,11 @@ class TestAnomalyDetector(unittest.TestCase):
 
 class TestEnsembleAnomalyDetector(unittest.TestCase):
   def setUp(self) -> None:
-    # Remove all registered specifiable classes and reset.
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
     _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
 
   @parameterized.expand([(False, False), (True, False), (False, True),
                          (True, True)])
