@@ -257,7 +257,7 @@ public class StorageApiSinkSchemaUpdateIT {
           Thread.sleep(SCHEMA_PROPAGATION_CHECK_INTERVAL_MS);
         }
         if (!schemaPropagated) {
-          LOG.info("Schema update did not propagate fully within the timeout.");
+          LOG.warn("Schema update did not propagate fully within the timeout.");
         } else {
           LOG.info("Schema update propagated fully within the timeout - {}.", System.currentTimeMillis() - startTime);
           // wait for streams to recognize the new schema
