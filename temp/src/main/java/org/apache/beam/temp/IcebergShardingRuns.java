@@ -60,11 +60,11 @@ public class IcebergShardingRuns {
 
     // ======== experiment with these numbers ===========
     int numShards = 1;
-    long numRecords = 5_000_000L;
     long payloadSize = 1 << 10; // 1KB
     int numIcebergPartitions = 0;
     // ==================================================
 
+    long numRecords = 5_000_000L;
     int initialSplits = 20;
     long recordsPerSecond = 1_000;
     long mbps = Math.round((double) payloadSize * recordsPerSecond / (1 << 20));
