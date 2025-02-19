@@ -633,6 +633,15 @@ message HistogramValue {
   // Number of values recorded in this histogram.
   optional int64 count = 1;
 
+  // Describes the bucket boundaries used in the histogram.
+  optional BucketOptions bucket_options = 2;
+
+  // The number of values in each bucket of the histogram, as described in
+  // `bucket_options`. `bucket_counts` should contain N values, where N is the
+  // number of buckets specified in `bucket_options`. If `bucket_counts` has
+  // fewer than N values, the remaining values are assumed to be 0.
+  repeated int64 bucket_counts = 3;
+
   // `BucketOptions` describes the bucket boundaries used in the histogram.
   message BucketOptions {
     // Linear buckets with the following boundaries for indices in 0 to n-1.
@@ -673,33 +682,6 @@ message HistogramValue {
       Base2Exponent exponential = 2;
     }
   }
-
-  // Describes the bucket boundaries used in the histogram.
-  optional BucketOptions bucket_options = 2;
-
-  // The number of values in each bucket of the histogram, as described in
-  // `bucket_options`. `bucket_counts` should contain N values, where N is the
-  // number of buckets specified in `bucket_options`. If `bucket_counts` has
-  // fewer than N values, the remaining values are assumed to be 0.
-  repeated int64 bucket_counts = 3;
-
-  // Statistics for the underflow and overflow bucket.
-  message OutlierStats {
-    // Number of values that are smaller than the lower bound of the smallest
-    // bucket.
-    optional int64 underflow_count = 1;
-    // Mean of values in the undeflow bucket.
-    optional double underflow_mean = 2;
-    // Number of values that are larger than the upper bound of the largest
-    // bucket.
-    optional int64 overflow_count = 3;
-    // Mean of values in the overflow bucket.
-    optional double overflow_mean = 4;
-  }
-
-  // Statistics on the values recorded in the histogram that fall out of the
-  // bucket boundaries.
-  optional OutlierStats outlier_stats = 4;
 }
 
 // General monitored state information which contains structured information
