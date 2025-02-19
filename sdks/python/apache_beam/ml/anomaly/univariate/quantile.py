@@ -116,6 +116,21 @@ class BufferedQuantileTracker(WindowedTracker, QuantileTracker):
 
       super().push(x)
 
+  @staticmethod
+  def _get_helper(sorted_items, q):
+    n = len(sorted_items)
+    if n < 1:
+      return float("nan")
+
+    pos = q * (n - 1)
+    lo = math.floor(pos)
+    lo_value = typing.cast(float, sorted_items[lo])
+
+    # Use linear interpolation to yield the requested quantile
+    hi = min(lo + 1, n - 1)
+    hi_value: float = typing.cast(float, sorted_items[hi])
+    return lo_value + (hi_value - lo_value) * (pos - lo)
+
   def get(self):
     """Returns the current quantile value using the sorted list.
 
@@ -124,18 +139,41 @@ class BufferedQuantileTracker(WindowedTracker, QuantileTracker):
     Returns:
       float: The calculated quantile value. Returns NaN if the window is empty.
     """
-    n = len(self._sorted_items)
-    if n < 1:
-      return float("nan")
+    return self._get_helper(self._sorted_items, self._q)
 
-    pos = self._q * (n - 1)
-    lo = math.floor(pos)
-    lo_value = typing.cast(float, self._sorted_items[lo])
 
-    # Use linear interpolation to yield the requested quantile
-    hi = min(lo + 1, n - 1)
-    hi_value: float = typing.cast(float, self._sorted_items[hi])
-    return lo_value + (hi_value - lo_value) * (pos - lo)
+@specifiable
+class SecondaryBufferedQuantileTracker(WindowedTracker, QuantileTracker):
+  """A secondary quantile tracker that shares its data with a master tracker.
+
+  This tracker acts as a read-only view of the master tracker's data, providing
+  quantile calculations without maintaining its own independent buffer. It
+  relies on the master's sorted items for quantile estimations.
+
+  Args:
+    master: The BufferedQuantileTracker instance to share data with.
+    q: A list of quantiles to track.
+  """
+  def __init__(self, master: QuantileTracker, q):
+    assert isinstance(master, BufferedQuantileTracker), \
+        "Cannot create secondary tracker from non-BufferedQuantileTracker"
+    self._master = master
+    super().__init__(self._master._window_mode)
+    QuantileTracker.__init__(self, q)
+    self._sorted_items = self._master._sorted_items
+
+  def push(self, x):
+    """Does nothing, as this is a secondary tracker.
+    """
+    pass
+
+  def get(self):
+    """Returns the calculated quantiles based on the master tracker's buffer.
+
+    Returns:
+        A list of calculated quantiles.
+    """
+    return self._master._get_helper(self._master._sorted_items, self._q)
 
 
 @specifiable
