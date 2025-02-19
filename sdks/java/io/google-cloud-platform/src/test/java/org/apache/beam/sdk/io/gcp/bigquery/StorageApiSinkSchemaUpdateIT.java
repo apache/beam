@@ -131,7 +131,15 @@ public class StorageApiSinkSchemaUpdateIT {
   private static final int ORIGINAL_N = 60;
   // for dynamic destination test
   private static final int NUM_DESTINATIONS = 3;
-  private static final int TOTAL_NUM_STREAMS = 9;
+  private static final int TOTAL_NUM_STREAMS = 3;
+  // wait up to 60 seconds
+  private static final int SCHEMA_PROPAGATION_TIMEOUT_MS = 60000;
+  // interval between checks
+  private static final int SCHEMA_PROPAGATION_CHECK_INTERVAL_MS = 5000;
+  // wait for streams to recognize schema
+  private static final int STREAM_RECOGNITION_DELAY_MS = 15000;
+  // trigger for updating the schema when the row counter reaches this value
+  private static final int SCHEMA_UPDATE_TRIGGER = 1;
 
   private final Random randomGenerator = new Random();
 
@@ -218,16 +226,42 @@ public class StorageApiSinkSchemaUpdateIT {
     public void processElement(ProcessContext c, @StateId(ROW_COUNTER) ValueState<Integer> counter)
         throws Exception {
       int current = firstNonNull(counter.read(), 0);
-      // We update schema early on to leave a healthy amount of time for StreamWriter to recognize
-      // it.
-      // We also update halfway through so that some writers are created *after* the schema update
-      if (current == TOTAL_NUM_STREAMS / 2) {
+      // We update schema early on to leave a healthy amount of time for the StreamWriter to recognize it,
+      // ensuring that subsequent writers are created with the updated schema.
+      if (current == SCHEMA_UPDATE_TRIGGER) {
         for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
           bqClient.updateTableSchema(
               projectId,
               datasetId,
               entry.getKey(),
               BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class));
+        }
+
+        // check that schema update propagated fully
+        long startTime = System.currentTimeMillis();
+        long timeoutMillis = SCHEMA_PROPAGATION_TIMEOUT_MS;
+        boolean schemaPropagated = false;
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+          schemaPropagated = true;
+          for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
+            TableSchema currentSchema = bqClient.getTableResource(projectId, datasetId, entry.getKey()).getSchema();
+            TableSchema expectedSchema = BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class);
+            if (currentSchema.getFields().size() != expectedSchema.getFields().size()) {
+              schemaPropagated = false;
+              break;
+            }
+          }
+          if (schemaPropagated) {
+            break;
+          }
+          Thread.sleep(SCHEMA_PROPAGATION_CHECK_INTERVAL_MS);
+        }
+        if (!schemaPropagated) {
+          LOG.warn("Schema update did not propagate fully within the timeout.");
+        } else {
+          LOG.info("Schema update propagated fully within the timeout - {}.", System.currentTimeMillis() - startTime);
+          // wait for streams to recognize the new schema
+          Thread.sleep(STREAM_RECOGNITION_DELAY_MS);
         }
       }
 

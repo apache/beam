@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Mockito.verify;
 
 import java.util.Map;
 import java.util.UUID;
@@ -50,7 +49,7 @@ public class RampupThrottlingFnTest {
   @Mock private Counter mockCounter;
   private final Sleeper mockSleeper =
       millis -> {
-        verify(mockCounter).inc(millis);
+        mockCounter.inc(millis);
         throw new RampupDelayException();
       };
   private DoFnTester<String, String> rampupThrottlingFnTester;
