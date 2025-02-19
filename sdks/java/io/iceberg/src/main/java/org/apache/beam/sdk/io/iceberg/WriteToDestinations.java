@@ -19,15 +19,20 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import java.nio.ByteBuffer;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -82,8 +87,12 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private PCollection<FileWriteResult> writeTriggered(PCollection<KV<String, Row>> input) {
     checkArgumentNotNull(
         triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
+    int numShards =
+        Integer.parseInt(
+            checkArgumentNotNull(
+                checkArgumentNotNull(catalogConfig.getCatalogProperties()).get("num_shards")));
 
-    // Group records into batches to avoid writing thousands of small files
+    // Group records into batches to avoid writing thousands of small fileites
     PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
         input
             .apply("WindowIntoGlobal", Window.into(new GlobalWindows()))
@@ -91,10 +100,35 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             // respecting our thresholds for number of records and bytes per batch.
             // Each output batch will be written to a file.
             .apply(
-                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                "AddShard",
+                ParDo.of(
+                    new DoFn<KV<String, Row>, KV<ShardedKey<String>, Row>>() {
+                      int shardNumber;
+
+                      @Setup
+                      public void setup() {
+                        shardNumber = ThreadLocalRandom.current().nextInt(numShards);
+                      }
+
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, Row> element,
+                          OutputReceiver<KV<ShardedKey<String>, Row>> o) {
+                        String destination = element.getKey();
+                        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+                        buffer.putInt(++shardNumber % numShards);
+                        o.output(
+                            KV.of(ShardedKey.of(destination, buffer.array()), element.getValue()));
+                      }
+                    }))
+            .setCoder(
+                KvCoder.of(
+                    org.apache.beam.sdk.util.ShardedKey.Coder.of(StringUtf8Coder.of()),
+                    SchemaCoder.of(dynamicDestinations.getDataSchema())))
+            .apply(
+                GroupIntoBatches.<ShardedKey<String>, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
                     .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
-                    .withShardedKey())
+                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency)))
             .setCoder(
                 KvCoder.of(
                     org.apache.beam.sdk.util.ShardedKey.Coder.of(StringUtf8Coder.of()),

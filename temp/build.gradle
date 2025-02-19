@@ -1,0 +1,32 @@
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.temp',
+        exportJavadoc: false,
+)
+
+def iceberg_version = "1.6.1"
+
+dependencies {
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(path: ':sdks:java:io:synthetic')
+    implementation project(path: ':sdks:java:io:iceberg')
+    implementation project(path: ':sdks:java:io:iceberg:bqms')
+    implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
+    implementation project(path: ':sdks:java:extensions:google-cloud-platform-core')
+    implementation project(path: ':runners:google-cloud-dataflow-java')
+    implementation project(path: ':sdks:java:managed')
+    implementation project(":sdks:java:io:google-cloud-platform")
+    implementation project(path: ":runners:direct-java", configuration: "shadow")
+    implementation library.java.hadoop_common
+    implementation library.java.vendored_guava_32_1_2_jre
+}
+
+tasks.create(name:"execute", type:JavaExec) {
+    main = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args project.hasProperty("exec.args") ? project.getProperty("exec.args").split() : []
+}

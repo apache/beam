@@ -64,8 +64,9 @@ message ManagedTransforms {
   enum Urns {
     ICEBERG_READ = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:iceberg_read:v1"];
+    // modifying this so that Dataflow service doesn't override the transform
     ICEBERG_WRITE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-      "beam:schematransform:org.apache.beam:iceberg_write:v1"];
+      "beam:schematransform:org.apache.beam:iceberg_write:v2"];
     KAFKA_READ = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:kafka_read:v1"];
     KAFKA_WRITE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
