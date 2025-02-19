@@ -1329,6 +1329,10 @@ def is_consistent_with(sub, base):
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object
+  elif is_typing_generic(base):
+    # Cannot check unsupported parameterized generic which will cause issubclass
+    # to fail with an exception.
+    return False
   return issubclass(sub, base)
 
 

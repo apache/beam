@@ -1354,6 +1354,7 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertFalse(is_consistent_with(object, str))
     self.assertTrue(is_consistent_with(str, Union[str, int]))
     self.assertFalse(is_consistent_with(Union[str, int], str))
+    self.assertFalse(is_consistent_with(str, NonBuiltInGeneric[str]))
 
   def test_positional_arg_hints(self):
     self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
