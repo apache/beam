@@ -59,7 +59,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run XVR_GoUsingJava_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 240
+    timeout-minutes: 300
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -81,14 +81,14 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:container:java11:docker
-      - name: Java expansion service
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
       - name: Python container
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:container:py39:docker
+      - name: Go container
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:container:docker
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -97,16 +97,20 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
+      - name: Generate TAG unique variable based on timestamp
+        id: set_tag
+        run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
       - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
-#          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
+          MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: -Ppush-containers :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
           arguments: |
             -Pcontainer-architecture-list=arm64,amd64 \
             -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
+            -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
             -Ppush-containers
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
