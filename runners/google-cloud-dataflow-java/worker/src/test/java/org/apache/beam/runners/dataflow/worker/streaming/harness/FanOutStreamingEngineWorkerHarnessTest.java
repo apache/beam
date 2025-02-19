@@ -325,8 +325,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             noOpProcessWorkItemFn());
 
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
+    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
-
     verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
   }
 

@@ -18,6 +18,7 @@
 import hashlib
 import json
 import logging
+import os
 import secrets
 import time
 import unittest
@@ -25,6 +26,7 @@ from typing import List
 from typing import NamedTuple
 
 import psycopg2
+import pytest
 
 import apache_beam as beam
 from apache_beam.coders import registry
@@ -67,6 +69,7 @@ MetadataConflictRow = NamedTuple('MetadataConflictRow', [
 ])
 registry.register_coder(MetadataConflictRow, RowCoder)
 
+_LOGGER = logging.getLogger(__name__)
 VECTOR_SIZE = 768
 
 
@@ -140,19 +143,26 @@ def key_on_id(chunk):
   return (int(chunk.id.split('_')[1]), chunk)
 
 
-@unittest.skip("Temporarily skipping all AlloyDB tests")
+@pytest.mark.uses_gcp_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('ALLOYDB_PASSWORD'),
+    "ALLOYDB_PASSWORD environment var is not provided")
 class AlloyDBVectorWriterConfigTest(unittest.TestCase):
   ALLOYDB_TABLE_PREFIX = 'python_rag_alloydb_'
 
   @classmethod
   def setUpClass(cls):
-    # TODO(claudevdm) Pass database args to test
-    # cls.host =
-    # cls.private_host =
-    # cls.port = os.environ.get('ALLOYDB_PORT', '5432')
-    # cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
-    # cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
-    # cls.password = os.environ.get('ALLOYDB_USERNAME')
+    cls.host = os.environ.get('ALLOYDB_HOST', '10.119.0.22')
+    cls.port = os.environ.get('ALLOYDB_PORT', '5432')
+    cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
+    cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
+    if not os.environ.get('ALLOYDB_PASSWORD'):
+      raise ValueError('ALLOYDB_PASSWORD env not set')
+    cls.password = os.environ.get('ALLOYDB_PASSWORD')
 
     # Create unique table name suffix
     cls.table_suffix = '%d%s' % (int(time.time()), secrets.token_hex(3))
@@ -165,6 +175,11 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
         user=cls.username,
         password=cls.password)
     cls.conn.autocommit = True
+
+  def skip_if_dataflow_runner(self):
+    if self._runner and "dataflowrunner" in self._runner.lower():
+      self.skipTest(
+          "Skipping some tests on Dataflow Runner to avoid bloat and timeouts")
 
   def setUp(self):
     self.write_test_pipeline = TestPipeline(is_integration_test=True)
@@ -315,6 +330,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_custom_specs(self):
     """Test custom specifications for ID, embedding, and content."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     specs = (
@@ -410,6 +426,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_defaults_with_args_specs(self):
     """Test custom specifications for ID, embedding, and content."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     specs = (
@@ -495,6 +512,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_default_id_embedding_specs(self):
     """Test with only default id and embedding specs, others set to None."""
+    self.skip_if_dataflow_runner()
     num_records = 20
     connection_config = AlloyDBConnectionConfig(
         jdbc_url=self.jdbc_url, username=self.username, password=self.password)
@@ -550,6 +568,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_metadata_spec_and_conflicts(self):
     """Test metadata specification and conflict resolution."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     specs = (
@@ -667,6 +686,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_conflict_resolution_update(self):
     """Test conflict resolution with UPDATE action."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     connection_config = AlloyDBConnectionConfig(
@@ -755,6 +775,7 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
 
   def test_conflict_resolution_default_ignore(self):
     """Test conflict resolution with default."""
+    self.skip_if_dataflow_runner()
     num_records = 20
 
     connection_config = AlloyDBConnectionConfig(

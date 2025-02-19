@@ -89,8 +89,11 @@ public class JetMetricsContainer implements MetricsContainer {
 
   @SuppressWarnings("FutureReturnValueIgnored")
   public void flush(boolean async) {
-    if (counters.isEmpty() && distributions.isEmpty() && gauges.isEmpty() &&
-        stringSets.isEmpty() && boundedTries.isEmpty()) {
+    if (counters.isEmpty()
+        && distributions.isEmpty()
+        && gauges.isEmpty()
+        && stringSets.isEmpty()
+        && boundedTries.isEmpty()) {
       return;
     }
 
@@ -102,7 +105,8 @@ public class JetMetricsContainer implements MetricsContainer {
         extractUpdates(this.stringSets);
     ImmutableList<MetricUpdates.MetricUpdate<BoundedTrieData>> boundedTries =
         extractUpdates(this.boundedTries);
-    MetricUpdates updates = new MetricUpdatesImpl(counters, distributions, gauges, stringSets, boundedTries);
+    MetricUpdates updates =
+        new MetricUpdatesImpl(counters, distributions, gauges, stringSets, boundedTries);
 
     if (async) {
       accumulator.setAsync(metricsKey, updates);
