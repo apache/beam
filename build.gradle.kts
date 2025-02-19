@@ -44,6 +44,7 @@ tasks.rat {
 
     "**/package-list",
     "**/test.avsc",
+    "**/logical-types.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",

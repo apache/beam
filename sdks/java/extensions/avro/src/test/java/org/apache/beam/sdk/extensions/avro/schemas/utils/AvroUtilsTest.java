@@ -27,8 +27,11 @@ import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.JDBCType;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -41,6 +44,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
 import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUserFactory;
+import org.apache.beam.sdk.extensions.avro.schemas.logicaltypes.LogicalTypesExample;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -60,6 +64,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeFieldType;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.joda.time.Instant;
@@ -113,6 +118,111 @@ public class AvroUtilsTest {
     for (GenericRecord record : records) {
       AvroUtils.toBeamRowStrict(record, schema);
     }
+  }
+
+  @Test
+  public void supportsAllLogicalTypes() {
+    if (VERSION_AVRO.equals("1.8.2") || VERSION_AVRO.equals("1.9.2")) {
+      // Skip this test for Avro 1.8.2 and 1.9.2 as they do not support all logical types
+      // and do not register all conversions to the GenericRecord.MODEL$. In user code,
+      // those older versions can still be used; if conversions are needed, a GenericData with the
+      // appropriate conversions can be passed to AvroUtils.toBeamRowStrict
+      return;
+    }
+
+    BigDecimal bigDecimalPrecision5Scale2 = new BigDecimal("123.45");
+    BigDecimal bigDecimalPrecision10Scale4 = new BigDecimal("12345.6789");
+    BigDecimal bigDecimalPrecision20Scale6 = new BigDecimal("1234567.123456");
+    UUID uuid = java.util.UUID.fromString("aa5961a8-a14a-4e8c-91a9-e5d3f35389e8");
+
+    long timestampMicros = 1739543415001000L;
+    long timeMicros = 52215000500L;
+
+    DateTime dateTime = new DateTime(2025, 2, 17, 0, 0, 0, DateTimeZone.UTC);
+
+    GenericRecord specificRecord =
+        getSpecificRecordWithLogicalTypes(
+            dateTime,
+            timeMicros,
+            timestampMicros,
+            bigDecimalPrecision5Scale2,
+            bigDecimalPrecision10Scale4,
+            bigDecimalPrecision20Scale6,
+            uuid);
+
+    Row expected =
+        getRowWithLogicalTypes(
+            dateTime,
+            timeMicros,
+            timestampMicros,
+            bigDecimalPrecision5Scale2,
+            bigDecimalPrecision10Scale4,
+            bigDecimalPrecision20Scale6,
+            uuid);
+
+    Row actual = AvroUtils.toBeamRowStrict(specificRecord, null, null);
+
+    assertEquals(expected, actual);
+  }
+
+  private static Row getRowWithLogicalTypes(
+      DateTime dateTime,
+      long timeMicros,
+      long timestampMicros,
+      BigDecimal bigDecimalPrecision5Scale2,
+      BigDecimal bigDecimalPrecision10Scale4,
+      BigDecimal bigDecimalPrecision20Scale6,
+      UUID uuid) {
+    return Row.withSchema(AvroUtils.toBeamSchema(LogicalTypesExample.getClassSchema()))
+        .withFieldValue("dateField", dateTime)
+        .withFieldValue("timeMillisField", (int) (timeMicros / 1000))
+        .withFieldValue("timeMicrosField", timeMicros)
+        .withFieldValue("timestampMillisField", jodaInstant(timestampMicros))
+        .withFieldValue("timestampMicrosField", timestampMicros)
+        .withFieldValue("localTimestampMillisField", timestampMicros / 1000)
+        .withFieldValue("localTimestampMicrosField", timestampMicros)
+        .withFieldValue("decimalSmall", bigDecimalPrecision5Scale2)
+        .withFieldValue("decimalMedium", bigDecimalPrecision10Scale4)
+        .withFieldValue("decimalLarge", bigDecimalPrecision20Scale6)
+        .withFieldValue("fixedDecimalSmall", bigDecimalPrecision5Scale2)
+        .withFieldValue("fixedDecimalMedium", bigDecimalPrecision10Scale4)
+        .withFieldValue("fixedDecimalLarge", bigDecimalPrecision20Scale6)
+        .withFieldValue("uuidField", uuid.toString())
+        .build();
+  }
+
+  private static LogicalTypesExample getSpecificRecordWithLogicalTypes(
+      org.joda.time.DateTime dateTime,
+      long timeMicros,
+      long timestampMicros,
+      BigDecimal bigDecimalPrecision5Scale2,
+      BigDecimal bigDecimalPrecision10Scale4,
+      BigDecimal bigDecimalPrecision20Scale6,
+      UUID uuid) {
+
+    java.time.LocalDate localDate =
+        java.time.LocalDate.of(
+            dateTime.get(DateTimeFieldType.year()),
+            dateTime.get(DateTimeFieldType.monthOfYear()),
+            dateTime.get(DateTimeFieldType.dayOfMonth()));
+    LogicalTypesExample r = new LogicalTypesExample();
+
+    r.put("dateField", localDate);
+    r.put("timeMillisField", javaLocalTime(timeMicros, ChronoUnit.MILLIS));
+    r.put("timeMicrosField", javaLocalTime(timeMicros, ChronoUnit.MICROS));
+    r.put("timestampMillisField", javaInstant(timestampMicros, ChronoUnit.MILLIS));
+    r.put("timestampMicrosField", javaInstant(timestampMicros, ChronoUnit.MICROS));
+    r.put("localTimestampMillisField", javaLocalDateTimeAtUtc(timestampMicros, ChronoUnit.MILLIS));
+    r.put("localTimestampMicrosField", javaLocalDateTimeAtUtc(timestampMicros, ChronoUnit.MICROS));
+    r.put("decimalSmall", bigDecimalPrecision5Scale2);
+    r.put("decimalMedium", bigDecimalPrecision10Scale4);
+    r.put("decimalLarge", bigDecimalPrecision20Scale6);
+    r.put("fixedDecimalSmall", bigDecimalPrecision5Scale2);
+    r.put("fixedDecimalMedium", bigDecimalPrecision10Scale4);
+    r.put("fixedDecimalLarge", bigDecimalPrecision20Scale6);
+    r.put("uuidField", uuid.toString());
+
+    return r;
   }
 
   @Property(trials = 1000)
@@ -354,6 +464,24 @@ public class AvroUtilsTest {
                 new Utf8("k2"),
                 getSubGenericRecord("map")))
         .build();
+  }
+
+  private static java.time.Instant javaInstant(long micros, TemporalUnit temporalUnit) {
+    return java.time.Instant.ofEpochSecond(micros / 1000000, micros * 1000 % 1000000000)
+        .truncatedTo(temporalUnit);
+  }
+
+  private static java.time.LocalDateTime javaLocalDateTimeAtUtc(
+      long micros, TemporalUnit temporalUnit) {
+    return javaInstant(micros, temporalUnit).atOffset(java.time.ZoneOffset.UTC).toLocalDateTime();
+  }
+
+  private static org.joda.time.Instant jodaInstant(long micros) {
+    return org.joda.time.Instant.ofEpochMilli(micros / 1000);
+  }
+
+  private static java.time.LocalTime javaLocalTime(long micros, TemporalUnit temporalUnit) {
+    return java.time.LocalTime.ofNanoOfDay(micros * 1000).truncatedTo(temporalUnit);
   }
 
   @Test
