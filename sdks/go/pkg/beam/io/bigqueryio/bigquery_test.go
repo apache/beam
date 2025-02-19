@@ -16,8 +16,12 @@
 package bigqueryio
 
 import (
+	"errors"
 	"reflect"
 	"testing"
+
+	"cloud.google.com/go/bigquery"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 )
 
 func TestNewQualifiedTableName(t *testing.T) {
@@ -75,4 +79,71 @@ func Test_constructSelectStatementPanic(t *testing.T) {
 
 		constructSelectStatement(typ, tagKey, table)
 	})
+}
+
+func Test_mustInferSchema(t *testing.T) {
+	type TestSchema struct {
+		Name   bigquery.NullString   `bigquery:"name"`
+		Active bigquery.NullBool     `bigquery:"active"`
+		Score  bigquery.NullFloat64  `bigquery:"score"`
+		Time   bigquery.NullDateTime `bigquery:"time"`
+	}
+
+	tests := []struct {
+		name    string
+		input   interface{}
+		wantErr bool
+		verify  func(reflect.Type) error
+	}{
+		{
+			name:    "NewType_ShouldRegisterSuccessfully",
+			input:   TestSchema{},
+			wantErr: false,
+			verify: func(t reflect.Type) error {
+				// Verify successful type registration in runtime registry.
+				if key, ok := runtime.TypeKey(t); ok {
+					if _, registered := runtime.LookupType(key); !registered {
+						return errors.New("Type was not properly registered")
+					}
+				}
+				return nil
+			},
+		},
+		{
+			name:    "AlreadyRegisteredType_ShouldNotPanic",
+			input:   TestSchema{},
+			wantErr: false,
+			verify: func(t reflect.Type) error {
+				// Verify re-registration of existing type is handled correctly.
+				mustInferSchema(t)
+				return nil
+			},
+		},
+		{
+			name:    "AnonymousStruct_ShouldPanic",
+			input:   struct{}{},
+			wantErr: true,
+			verify:  func(t reflect.Type) error { return nil },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if (r != nil) != tt.wantErr {
+					t.Errorf("mustInferSchema() panic = %v, wantErr %v", r, tt.wantErr)
+				}
+			}()
+
+			typ := reflect.TypeOf(tt.input)
+			mustInferSchema(typ)
+			if tt.wantErr {
+				t.Fatal("Expected panic did not occur")
+			}
+			if err := tt.verify(typ); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }

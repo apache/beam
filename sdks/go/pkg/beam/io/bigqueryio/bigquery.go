@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/structx"
@@ -190,11 +191,25 @@ func mustInferSchema(t reflect.Type) bigquery.Schema {
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("schema type must be struct: %v", t))
 	}
+
+	registerTypeIfNeeded(t)
+
 	schema, err := bigquery.InferSchema(reflect.Zero(t).Interface())
 	if err != nil {
 		panic(errors.Wrapf(err, "invalid schema type: %v", t))
 	}
 	return schema
+}
+
+func registerTypeIfNeeded(t reflect.Type) {
+	t = reflectx.SkipPtr(t)
+	key, ok := runtime.TypeKey(t)
+	if !ok {
+		panic(fmt.Sprintf("type %v must be a named type (not anonymous) for registration", t))
+	}
+	if _, registered := runtime.LookupType(key); !registered {
+		runtime.RegisterType(t)
+	}
 }
 
 func mustParseTable(table string) QualifiedTableName {
