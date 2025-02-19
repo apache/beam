@@ -132,6 +132,12 @@ public class StorageApiSinkSchemaUpdateIT {
   // for dynamic destination test
   private static final int NUM_DESTINATIONS = 3;
   private static final int TOTAL_NUM_STREAMS = 3;
+  // wait up to 60 seconds
+  private static final int SCHEMA_PROPAGATION_TIMEOUT_MS = 60000;
+  // interval between checks
+  private static final int SCHEMA_PROPAGATION_CHECK_INTERVAL_MS = 5000;
+  // wait for streams to recognize schema
+  private static final int STREAM_RECOGNITION_DELAY_MS = 15000;
 
   private final Random randomGenerator = new Random();
 
@@ -232,7 +238,7 @@ public class StorageApiSinkSchemaUpdateIT {
 
         // check that schema update propagated fully
         long startTime = System.currentTimeMillis();
-        long timeoutMillis = 60000; // wait up to 60 seconds
+        long timeoutMillis = SCHEMA_PROPAGATION_TIMEOUT_MS;
         boolean schemaPropagated = false;
         while (System.currentTimeMillis() - startTime < timeoutMillis) {
           schemaPropagated = true;
@@ -247,14 +253,14 @@ public class StorageApiSinkSchemaUpdateIT {
           if (schemaPropagated) {
             break;
           }
-          Thread.sleep(5000);
+          Thread.sleep(SCHEMA_PROPAGATION_CHECK_INTERVAL_MS);
         }
         if (!schemaPropagated) {
           LOG.info("Schema update did not propagate fully within the timeout.");
         } else {
           LOG.info("Schema update propagated fully within the timeout - {}.", System.currentTimeMillis() - startTime);
           // wait for streams to recognize the new schema
-          Thread.sleep(15000);
+          Thread.sleep(STREAM_RECOGNITION_DELAY_MS);
         }
       }
 
