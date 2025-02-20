@@ -47,13 +47,6 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
     return "test_db_" + testName.getMethodName();
   }
 
-  private long salt = System.nanoTime();
-
-  @Before
-  public void setUp() {
-    salt = System.nanoTime(); // New SALT for each test
-  }
-
   @Override
   public String tableId() {
     return String.format("%s.%s_%d", testDb(), "test_table", salt);

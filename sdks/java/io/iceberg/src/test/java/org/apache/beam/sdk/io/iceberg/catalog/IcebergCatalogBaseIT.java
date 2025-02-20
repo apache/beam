@@ -122,6 +122,9 @@ import org.slf4j.LoggerFactory;
  * #numRecords()}.
  */
 public abstract class IcebergCatalogBaseIT implements Serializable {
+
+  protected long salt = System.nanoTime();
+
   public abstract Catalog createCatalog();
 
   public abstract Map<String, Object> managedIcebergConfig(String tableId);
@@ -148,6 +151,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Before
   public void setUp() throws Exception {
+    salt = System.nanoTime();
     warehouse =
         String.format(
             "%s/%s/%s",
