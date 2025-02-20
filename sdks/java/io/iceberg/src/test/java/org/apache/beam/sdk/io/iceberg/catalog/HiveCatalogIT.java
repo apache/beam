@@ -31,6 +31,7 @@ import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 
 /**
@@ -46,9 +47,16 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
     return "test_db_" + testName.getMethodName();
   }
 
+  private long salt = System.nanoTime();
+
+  @Before
+  public void setUp() {
+    salt = System.nanoTime(); // New SALT for each test
+  }
+
   @Override
   public String tableId() {
-    return String.format("%s.%s", testDb(), "test_table");
+    return String.format("%s.%s_%d", testDb(), "test_table", salt);
   }
 
   @BeforeClass
@@ -87,7 +95,9 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
     if (hiveMetastoreExtension != null) {
       List<String> tables = hiveMetastoreExtension.metastoreClient().getAllTables(testDb());
       for (String table : tables) {
-        hiveMetastoreExtension.metastoreClient().dropTable(testDb(), table, true, false);
+        if (table.contains(String.valueOf(salt))) {
+          hiveMetastoreExtension.metastoreClient().dropTable(testDb(), table, true, false);
+        }
       }
       hiveMetastoreExtension.metastoreClient().dropDatabase(testDb());
     }
