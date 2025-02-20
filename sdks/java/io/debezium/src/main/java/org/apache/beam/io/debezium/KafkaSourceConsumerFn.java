@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.coders.Coder;
@@ -359,6 +360,24 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords) {
       this(offset, history, fetchedRecords, null, -1L);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof OffsetHolder)) {
+        return false;
+      }
+      OffsetHolder otherOffset = (OffsetHolder) other;
+      return Objects.equals(offset, otherOffset.offset)
+          && Objects.equals(history, otherOffset.history)
+          && Objects.equals(fetchedRecords, otherOffset.fetchedRecords)
+          && Objects.equals(maxRecords, otherOffset.maxRecords)
+          && Objects.equals(milisToRun, otherOffset.milisToRun);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(offset, history, fetchedRecords, maxRecords, milisToRun);
     }
   }
 
