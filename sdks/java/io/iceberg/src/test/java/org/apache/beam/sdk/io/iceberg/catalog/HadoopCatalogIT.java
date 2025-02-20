@@ -27,8 +27,22 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.junit.Before;
 
 public class HadoopCatalogIT extends IcebergCatalogBaseIT {
+
+  private long salt = System.nanoTime();
+
+  @Before
+  public void setUp() {
+    salt = System.nanoTime(); // New SALT for each test
+  }
+
+  @Override
+  public String tableId() {
+    return testName.getMethodName() + ".test_table_" + salt;
+  }
+
   @Override
   public Integer numRecords() {
     return 100;
@@ -52,7 +66,9 @@ public class HadoopCatalogIT extends IcebergCatalogBaseIT {
     HadoopCatalog hadoopCatalog = (HadoopCatalog) catalog;
     List<TableIdentifier> tables = hadoopCatalog.listTables(Namespace.of(testName.getMethodName()));
     for (TableIdentifier identifier : tables) {
-      hadoopCatalog.dropTable(identifier);
+      if (identifier.name().contains(String.valueOf(salt))) {
+        hadoopCatalog.dropTable(identifier);
+      }
     }
     hadoopCatalog.close();
   }
