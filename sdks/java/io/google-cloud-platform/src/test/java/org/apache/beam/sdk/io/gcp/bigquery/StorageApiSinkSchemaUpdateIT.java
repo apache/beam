@@ -131,7 +131,7 @@ public class StorageApiSinkSchemaUpdateIT {
   private static final int ORIGINAL_N = 60;
   // for dynamic destination test
   private static final int NUM_DESTINATIONS = 3;
-  private static final int TOTAL_NUM_STREAMS = 3;
+  private static final int TOTAL_NUM_STREAMS = 6;
   // wait up to 60 seconds
   private static final int SCHEMA_PROPAGATION_TIMEOUT_MS = 60000;
   // interval between checks
@@ -139,7 +139,9 @@ public class StorageApiSinkSchemaUpdateIT {
   // wait for streams to recognize schema
   private static final int STREAM_RECOGNITION_DELAY_MS = 15000;
   // trigger for updating the schema when the row counter reaches this value
-  private static final int SCHEMA_UPDATE_TRIGGER = 1;
+  private static final int SCHEMA_UPDATE_TRIGGER = 2;
+  // Long wait (in seconds) for Storage API streams to recognize the new schema.
+  private static final int LONG_WAIT_SECONDS = 5;
 
   private final Random randomGenerator = new Random();
 
@@ -397,28 +399,28 @@ public class StorageApiSinkSchemaUpdateIT {
             .withMethod(method)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND);
-    if (method == Write.Method.STORAGE_WRITE_API) {
-      write = write.withTriggeringFrequency(Duration.standardSeconds(1));
-    }
     if (useInputSchema) {
       write = write.withSchema(inputSchema);
     }
     if (useIgnoreUnknownValues) {
       write = write.ignoreUnknownValues();
     }
-
-    // set up and build pipeline
-    Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
     boolean waitLonger = changeTableSchema && (useAutoSchemaUpdate || !useInputSchema);
-    Duration interval = waitLonger ? Duration.standardSeconds(1) : Duration.millis(1);
+    if (method == Write.Method.STORAGE_WRITE_API) {
+      write = write.withTriggeringFrequency(Duration.standardSeconds(waitLonger ? LONG_WAIT_SECONDS : 1));
+    }
+
+    // set up and build pipeline
+    Instant start = new Instant(0);
+    Duration interval = waitLonger ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
     Duration stop =
-        waitLonger ? Duration.standardSeconds(TOTAL_N - 1) : Duration.millis(TOTAL_N - 1);
+        waitLonger ? Duration.standardSeconds((TOTAL_N - 1) * LONG_WAIT_SECONDS) : Duration.millis(TOTAL_N - 1);
     Function<Instant, Long> getIdFromInstant =
         waitLonger
             ? (Function<Instant, Long> & Serializable)
-                (Instant instant) -> instant.getMillis() / 1000
+                (Instant instant) -> instant.getMillis() / (1000 * LONG_WAIT_SECONDS)
             : (Function<Instant, Long> & Serializable) (Instant instant) -> instant.getMillis();
 
     // Generates rows with original schema up for row IDs under ORIGINAL_N
@@ -664,7 +666,7 @@ public class StorageApiSinkSchemaUpdateIT {
       write =
           write
               .withMethod(Write.Method.STORAGE_WRITE_API)
-              .withTriggeringFrequency(Duration.standardSeconds(1));
+              .withTriggeringFrequency(Duration.standardSeconds(changeTableSchema ? LONG_WAIT_SECONDS : 1));
     }
 
     int numRows = TOTAL_N;
@@ -672,13 +674,13 @@ public class StorageApiSinkSchemaUpdateIT {
     Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
-    Duration interval = changeTableSchema ? Duration.standardSeconds(1) : Duration.millis(1);
+    Duration interval = changeTableSchema ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
     Duration stop =
-        changeTableSchema ? Duration.standardSeconds(numRows - 1) : Duration.millis(numRows - 1);
+        changeTableSchema ? Duration.standardSeconds((numRows - 1) * LONG_WAIT_SECONDS) : Duration.millis(numRows - 1);
     Function<Instant, Long> getIdFromInstant =
         changeTableSchema
             ? (Function<Instant, Long> & Serializable)
-                (Instant instant) -> instant.getMillis() / 1000
+                (Instant instant) -> instant.getMillis() / (1000 * LONG_WAIT_SECONDS)
             : (Function<Instant, Long> & Serializable) Instant::getMillis;
 
     // Generates rows with original schema up for row IDs under ORIGINAL_N
