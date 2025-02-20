@@ -188,12 +188,30 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                 .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
                 .collect(Collectors.toList());
         gcsUtil.remove(filesToDelete);
+        waitForGcsCleanup(gcsUtil, path, 5, 5000);
       }
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS files.", e);
     }
-    LOG.info("Cleanup completed. Waiting for consistency...");
-    Thread.sleep(10000);
+  }
+
+  private void waitForGcsCleanup(GcsUtil gcsUtil, GcsPath path, int maxRetries, int delayMs) throws IOException {
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      List<StorageObject> objects = gcsUtil
+              .listObjects(path.getBucket(), getClass().getSimpleName() + "/" + path.getFileName().toString(), null)
+              .getItems();
+
+      if (objects == null || objects.isEmpty()) {
+        LOG.info("GCS cleanup complete.");
+        return;
+      }
+
+      LOG.warn("GCS cleanup not yet complete, retrying in {}ms...", delayMs);
+      try {
+        Thread.sleep(delayMs);
+      } catch (InterruptedException ignored) {}
+    }
+    LOG.error("GCS cleanup did not complete within the expected time.");
   }
 
   protected static String warehouse;
