@@ -31,13 +31,6 @@ import org.junit.Before;
 
 public class HadoopCatalogIT extends IcebergCatalogBaseIT {
 
-  private long salt = System.nanoTime();
-
-  @Before
-  public void setUp() {
-    salt = System.nanoTime(); // New SALT for each test
-  }
-
   @Override
   public String tableId() {
     return testName.getMethodName() + ".test_table_" + salt;
