@@ -192,6 +192,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS files.", e);
     }
+    LOG.info("Cleanup completed. Waiting for consistency...");
+    Thread.sleep(10000);
   }
 
   protected static String warehouse;
