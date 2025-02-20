@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -33,6 +34,7 @@ import (
 	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
@@ -156,7 +158,11 @@ type queryFn struct {
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
-	client, err := bigquery.NewClient(ctx, f.Project)
+	var opts []option.ClientOption
+	if emulator := os.Getenv("BIGQUERY_EMULATOR_HOST"); emulator != "" {
+		opts = append(opts, option.WithEndpoint(emulator), option.WithoutAuthentication())
+	}
+	client, err := bigquery.NewClient(ctx, f.Project, opts...)
 	if err != nil {
 		return err
 	}
@@ -293,7 +299,11 @@ func getInsertSize(v any, schema bigquery.Schema) (int, error) {
 }
 
 func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
-	client, err := bigquery.NewClient(ctx, f.Project)
+	var opts []option.ClientOption
+	if emulator := os.Getenv("BIGQUERY_EMULATOR_HOST"); emulator != "" {
+		opts = append(opts, option.WithEndpoint(emulator), option.WithoutAuthentication())
+	}
+	client, err := bigquery.NewClient(ctx, f.Project, opts...)
 	if err != nil {
 		return err
 	}
