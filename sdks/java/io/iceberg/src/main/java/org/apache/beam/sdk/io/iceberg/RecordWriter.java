@@ -70,12 +70,8 @@ class RecordWriter {
     OutputFile outputFile;
     try (FileIO io = table.io()) {
       OutputFile tmpFile = io.newOutputFile(absoluteFilename);
-      if (table.encryption() != null) {
-        outputFile = table.encryption().encrypt(tmpFile);
-      }else {
-        outputFile = tmpFile;
-      }
-  }
+      outputFile = (OutputFile) table.encryption().encrypt(tmpFile);
+    }
 
     switch (fileFormat) {
       case AVRO:
