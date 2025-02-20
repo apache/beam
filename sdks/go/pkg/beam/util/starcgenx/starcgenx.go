@@ -521,6 +521,7 @@ func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 			if pkg := at.Obj().Pkg(); pkg != nil {
 				e.imports[pkg.Path()] = struct{}{}
 			}
+			e.extractType(at.Obj())
 		}
 		if t, ok := t.(*types.Named); ok {
 			if pkg := t.Obj().Pkg(); pkg != nil {
