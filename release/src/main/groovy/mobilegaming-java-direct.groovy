@@ -81,12 +81,12 @@ def teamSchema = [
 
 String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
 
-if (tables.contains(userTable)) {
-  t.run("bq rm -f -t ${dataset}.${userTable}")
-}
-if (tables.contains(teamTable)) {
-  t.run("bq rm -f -t ${dataset}.${teamTable}")
-}
+//if (tables.contains(userTable)) {
+//  t.run("bq rm -f -t ${dataset}.${userTable}")
+//}
+//if (tables.contains(teamTable)) {
+//  t.run("bq rm -f -t ${dataset}.${teamTable}")
+//}
 
 // It will take a couple of seconds to clean up tables.
 // This loop makes sure tables are completely deleted before running the pipeline
