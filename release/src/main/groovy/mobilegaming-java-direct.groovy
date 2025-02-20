@@ -137,7 +137,7 @@ while ((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXE
     println "Retrying..."
   }
   println "Waiting for pipeline to produce more results..."
-  sleep(600000) // wait for 10 min
+  sleep(60000) // wait for 1 min
 }
 InjectorThread.stop()
 LeaderBoardThread.stop()
