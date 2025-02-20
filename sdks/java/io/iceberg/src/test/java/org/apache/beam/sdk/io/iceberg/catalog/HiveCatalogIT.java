@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg.catalog;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.iceberg.catalog.hiveutils.HiveMetastoreExtension;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -54,7 +55,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
 
   @BeforeClass
   public static void setUpClass() throws MetaException {
-    String warehouse = warehouse(HiveCatalogIT.class);
+    String warehouse = warehouse(HiveCatalogIT.class, UUID.randomUUID().toString());
     hiveMetastoreExtension = new HiveMetastoreExtension(warehouse);
   }
 
