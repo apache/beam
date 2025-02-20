@@ -38,7 +38,6 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -342,33 +341,42 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     org.apache.iceberg.Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
     List<Record> writtenRecords = new ArrayList<>();
-    CloseableIterable<CombinedScanTask> tasks = tableScan.planTasks();
-    for (CombinedScanTask task : tasks) {
-      InputFilesDecryptor decryptor;
-      try (FileIO io = table.io()) {
-        decryptor = new InputFilesDecryptor(task, io, table.encryption());
-      }
-      for (FileScanTask fileTask : task.files()) {
-        Map<Integer, ?> idToConstants =
-            constantsMap(fileTask, IdentityPartitionConverters::convertConstant, tableSchema);
-        InputFile inputFile = decryptor.getInputFile(fileTask);
-        CloseableIterable<Record> iterable =
-            Parquet.read(inputFile)
-                .split(fileTask.start(), fileTask.length())
-                .project(tableSchema)
-                .createReaderFunc(
-                    fileSchema ->
-                        GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
-                .filter(fileTask.residual())
-                .build();
 
-        for (Record rec : iterable) {
-          writtenRecords.add(rec);
+    try (CloseableIterable<CombinedScanTask> tasks = tableScan.planTasks();
+        FileIO io = table.io()) {
+
+      for (CombinedScanTask task : tasks) {
+        InputFilesDecryptor decryptor = new InputFilesDecryptor(task, io, table.encryption());
+
+        for (FileScanTask fileTask : task.files()) {
+          long startTime = System.currentTimeMillis();
+          LOG.info("Reading file: {}", fileTask.file().path());
+
+          Map<Integer, ?> idToConstants =
+              constantsMap(fileTask, IdentityPartitionConverters::convertConstant, tableSchema);
+          InputFile inputFile = decryptor.getInputFile(fileTask);
+
+          try (CloseableIterable<Record> iterable =
+              Parquet.read(inputFile)
+                  .split(fileTask.start(), fileTask.length())
+                  .project(tableSchema)
+                  .createReaderFunc(
+                      fileSchema ->
+                          GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
+                  .filter(fileTask.residual())
+                  .build()) {
+
+            for (Record rec : iterable) {
+              writtenRecords.add(rec);
+            }
+          }
+          LOG.info(
+              "Finished reading file: {} in {} ms",
+              fileTask.file().path(),
+              System.currentTimeMillis() - startTime);
         }
-        iterable.close();
       }
     }
-    tasks.close();
     return writtenRecords;
   }
 
