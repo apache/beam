@@ -141,10 +141,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return testName.getMethodName() + ".test_table";
   }
 
-  public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass) {
+  public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass, String random) {
     return String.format(
         "%s/%s/%s",
-        TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), RANDOM);
+        TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), random);
   }
 
   public String catalogName = "test_catalog_" + System.nanoTime();
@@ -152,13 +152,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   @Before
   public void setUp() throws Exception {
     salt = System.nanoTime();
+    random = UUID.randomUUID().toString();
     warehouse =
         String.format(
             "%s/%s/%s",
             TestPipeline.testingPipelineOptions().getTempLocation(),
             getClass().getSimpleName(),
-            RANDOM);
-    warehouse = warehouse(getClass());
+            random);
+    warehouse = warehouse(getClass(), random);
     catalogSetup();
     catalog = createCatalog();
   }
@@ -194,6 +195,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         gcsUtil.remove(filesToDelete);
         waitForGcsCleanup(gcsUtil, path, 5, 5000);
       }
+      Thread.sleep(10000);
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS files.", e);
     }
@@ -222,7 +224,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public Catalog catalog;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-  private static final String RANDOM = UUID.randomUUID().toString();
+  protected String random = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
