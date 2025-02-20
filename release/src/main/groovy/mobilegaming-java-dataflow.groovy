@@ -66,16 +66,47 @@ class LeaderBoardRunner {
   def run(runner, TestScripts t, MobileGamingCommands mobileGamingCommands, boolean useStreamingEngine) {
     t.intent("Running: LeaderBoard example on DataflowRunner" +
             (useStreamingEngine ? " with Streaming Engine" : ""))
-    t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_user")
-    t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_team")
+
+    def dataset = t.bqDataset()
+    def userTable = "leaderboard_DataflowRunner_user"
+    def teamTable = "leaderboard_DataflowRunner_team"
+    def userSchema = [
+            "user:STRING",
+            "total_score:INTEGER",
+            "processing_time:STRING"
+    ].join(",")
+    def teamSchema = [
+            "team:STRING",
+            "total_score:INTEGER",
+            "window_start:STRING",
+            "processing_time:STRING",
+            "timing:STRING"
+    ].join(",")
+
+    // Remove existing tables if they exist
+    t.run("bq rm -f -t ${dataset}.${userTable}")
+    t.run("bq rm -f -t ${dataset}.${teamTable}")
+
     // It will take couple seconds to clean up tables.
     // This loop makes sure tables are completely deleted before running the pipeline
-    String tables = ""
-    while ({
+    String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    while (tables.contains(userTable) || tables.contains(teamTable)) {
       sleep(3000)
-      tables = t.run("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
-      tables.contains("leaderboard_${}_user") || tables.contains("leaderboard_${runner}_team")
-    }());
+      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    }
+
+    t.intent("Creating table: ${userTable}")
+    t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+    t.intent("Creating table: ${teamTable}")
+    t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+
+    // Verify that the tables have been created successfully
+    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    while (!tables.contains(userTable) || !tables.contains(teamTable)) {
+      sleep(3000)
+      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    }
+    println "Tables ${userTable} and ${teamTable} created successfully."
 
     def InjectorThread = Thread.start() {
       t.run(mobileGamingCommands.createInjectorCommand())
@@ -99,11 +130,9 @@ class LeaderBoardRunner {
     String query_result = ""
     while ((System.currentTimeMillis() - startTime) / 60000 < mobileGamingCommands.EXECUTION_TIMEOUT_IN_MINUTES) {
       try {
-        tables = t.run "bq query --use_legacy_sql=false SELECT table_name FROM ${t.bqDataset()}.INFORMATION_SCHEMA.TABLES"
-        if (tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")) {
-          query_result = t.run """bq query --batch "SELECT user FROM [${
-            t.bqDataset()
-          }.leaderboard_${runner}_user] LIMIT 10\""""
+        tables = t.run "bq query --use_legacy_sql=false SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES"
+        if (tables.contains(userTable) && tables.contains(teamTable)) {
+          query_result = t.run """bq query --batch "SELECT user FROM [${dataset}.${userTable}] LIMIT 10\""""
           if (t.seeAnyOf(mobileGamingCommands.COLORS, query_result)) {
             isSuccess = true
             break

@@ -16,40 +16,40 @@
 name: PreCommit Java Amazon-Web-Services2 IO Direct
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - "sdks/java/io/amazon-web-services2/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
-      - ".github/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml"
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - "sdks/java/io/amazon-web-services2/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.json'
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '0 1/6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - "sdks/java/io/amazon-web-services2/**"
+#      - "sdks/java/io/common/**"
+#      - "sdks/java/core/src/main/**"
+#      - "build.gradle"
+#      - "buildSrc/**"
+#      - "gradle/**"
+#      - "gradle.properties"
+#      - "gradlew"
+#      - "gradle.bat"
+#      - "settings.gradle.kts"
+#      - ".github/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml"
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths:
+#      - "sdks/java/io/amazon-web-services2/**"
+#      - "sdks/java/io/common/**"
+#      - "sdks/java/core/src/main/**"
+#      - 'release/trigger_all_tests.json'
+#      - '.github/trigger_files/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.json'
+#      - "build.gradle"
+#      - "buildSrc/**"
+#      - "gradle/**"
+#      - "gradle.properties"
+#      - "gradlew"
+#      - "gradle.bat"
+#      - "settings.gradle.kts"
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#    - cron: '0 1/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

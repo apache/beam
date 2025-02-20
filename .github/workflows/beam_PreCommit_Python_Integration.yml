@@ -15,15 +15,15 @@
 
 name: PreCommit Python Integration
 on:
-  pull_request_target:
-    branches: [ "master", "release-*" ]
-    paths: ["model/**", "sdks/python/**", "release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Integration.json']
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_Python_Integration.yml"]
+#  pull_request_target:
+#    branches: [ "master", "release-*" ]
+#    paths: ["model/**", "sdks/python/**", "release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Integration.json']
+#  issue_comment:
+#    types: [created]
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_Python_Integration.yml"]
   schedule:
     - cron: '45 2/6 * * *'
   workflow_dispatch:
