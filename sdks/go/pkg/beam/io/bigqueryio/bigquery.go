@@ -207,6 +207,14 @@ func registerTypeIfNeeded(t reflect.Type) {
 	if !ok {
 		panic(fmt.Sprintf("type %v must be a named type (not anonymous) for registration", t))
 	}
+
+	// Check if Beam has already been initialized.
+	if beam.Initialized() {
+		panic(fmt.Sprintf("Type %v must be registered before beam.Init() is called. "+
+			"Use beam.RegisterType(%v) in your main setup.", t, t))
+	}
+
+	// Register the type if not already registered.
 	if _, registered := runtime.LookupType(key); !registered {
 		runtime.RegisterType(t)
 	}
