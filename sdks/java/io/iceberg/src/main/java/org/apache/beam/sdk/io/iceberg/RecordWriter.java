@@ -109,9 +109,12 @@ class RecordWriter {
   }
 
   public void write(Record record) {
+    if (!(record instanceof GenericRecord)) {
+        throw new ClassCastException("Expected record of type GenericRecord but found " + record.getClass().getName());
+    }
     icebergDataWriter.write(record);
   }
-
+  
   public void close() throws IOException {
     try {
       icebergDataWriter.close();
