@@ -181,6 +181,9 @@ public abstract class SpannerSchema implements Serializable {
           if (spannerType.startsWith("STRING")) {
             return Type.string();
           }
+          if ("UUID".equals(spannerType)) {
+            return Type.string();
+          }
           if (spannerType.startsWith("BYTES")) {
             return Type.bytes();
           }
@@ -259,6 +262,9 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("JSONB")) {
             return Type.pgJsonb();
+          }
+          if ("UUID".equals(spannerType)) {
+            return Type.string();
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         default:
