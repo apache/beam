@@ -203,11 +203,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
         while (System.currentTimeMillis() - startTime < waitTimeMillis) {
           try {
-            Thread.sleep(1_000); // Sleep in small intervals (1 sec)
+            Thread.sleep(1_000);
           } catch (InterruptedException e) {
             LOG.warn("Cleanup wait interrupted, continuing...", e);
-            Thread.currentThread().interrupt(); // Restore the interrupt flag
-            return; // Exit early if interrupted
+            Thread.currentThread().interrupt();
           }
         }
       }
