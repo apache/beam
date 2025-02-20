@@ -149,7 +149,7 @@ class LeaderBoardRunner {
         println "Retrying..."
       }
       println "Waiting for pipeline to produce more results..."
-      sleep(60000) // wait for 1 min
+      sleep(600000) // wait for 10 min
     }
     InjectorThread.stop()
     LeaderBoardThread.stop()
