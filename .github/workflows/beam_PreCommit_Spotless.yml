@@ -15,32 +15,32 @@
 name: PreCommit Spotless
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'buildSrc/**'
-      - 'sdks/java/**'
-      - 'runners/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - '.test-infra/jenkins/'
-      - '.github/workflows/beam_PreCommit_Spotless.yml'
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'buildSrc/**'
-      - 'sdks/java/**'
-      - 'runners/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - '.test-infra/jenkins/'
-      - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Spotless.json'
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '0 3/6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'buildSrc/**'
+#      - 'sdks/java/**'
+#      - 'runners/**'
+#      - 'examples/java/**'
+#      - 'examples/kotlin/**'
+#      - '.test-infra/jenkins/'
+#      - '.github/workflows/beam_PreCommit_Spotless.yml'
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'buildSrc/**'
+#      - 'sdks/java/**'
+#      - 'runners/**'
+#      - 'examples/java/**'
+#      - 'examples/kotlin/**'
+#      - '.test-infra/jenkins/'
+#      - 'release/trigger_all_tests.json'
+#      - '.github/trigger_files/beam_PreCommit_Spotless.json'
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#    - cron: '0 3/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
