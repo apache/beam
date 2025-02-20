@@ -27,7 +27,6 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.junit.Before;
 
 public class HadoopCatalogIT extends IcebergCatalogBaseIT {
 
