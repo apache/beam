@@ -16,8 +16,10 @@
 #
 
 import argparse
+import glob
 import io
 import itertools
+import os
 import re
 
 import docstring_parser
@@ -313,6 +315,62 @@ def create_index(include, exclude, options):
     return json_config_schemas, markdown_out.getvalue()
 
 
+def create_examples_markdown():
+  markdown_out = io.StringIO()
+  base = os.path.join(os.path.dirname(__file__), 'examples')
+  section = last_section = ''
+  for path in sorted(glob.glob(os.path.join(base, '**', '*.yaml'),
+                               recursive=True),
+                     key=lambda path: (path.count(os.sep), path)):
+    short_path = path[len(base):].replace('transforms', '').strip(os.sep)
+
+    def to_title(path):
+      base, _ = os.path.splitext(path)
+      nice = base.replace('_', ' ').replace(os.sep, ' ').title()
+      # These acronyms should be upper, not title.
+      nice = re.sub(r'\bMl\b', 'ML', nice)
+      nice = re.sub(r'\bIo\b', 'IO', nice)
+      return nice
+
+    def clean_yaml(content):
+      content = re.sub(
+          '# Licensed to the Apache Software Foundation.*'
+          '# limitations under the License.',
+          '',
+          content,
+          flags=re.MULTILINE | re.DOTALL)
+      content = re.sub('# coding=.*', '', content)
+      return content
+
+    def split_header(yaml):
+      lines = yaml.split('\n')
+      ix = 0  # make lint happy
+      for ix, line in enumerate(lines):
+        if not line.strip():
+          continue
+        if not line.startswith('#'):
+          break
+      return (
+          '\n'.join([line[1:].strip() for line in lines[:ix]]),
+          '\n'.join(lines[ix:]))
+
+    if os.sep in short_path:
+      section = to_title(short_path.split(os.sep)[0])
+      if section != last_section:
+        markdown_out.write(f'# {section}\n\n')
+        last_section = section
+    title = to_title(short_path)[len(section):]
+    markdown_out.write(f'## {title}\n\n')
+    with open(path) as fin:
+      content = fin.read()
+    header, body = split_header(clean_yaml(content))
+    markdown_out.write(header)
+    markdown_out.write('\n\n    :::yaml\n\n')
+    markdown_out.write('    ' + body.replace('\n', '\n    '))
+    markdown_out.write('\n')
+  return markdown_out.getvalue()
+
+
 def markdown_to_html(title, markdown_content):
   import markdown
   import markdown.extensions.toc
@@ -492,6 +550,7 @@ def markdown_to_html(title, markdown_content):
 
 def main():
   parser = argparse.ArgumentParser()
+  parser.add_argument('--examples_file')
   parser.add_argument('--markdown_file')
   parser.add_argument('--html_file')
   parser.add_argument('--schema_file')
@@ -518,6 +577,11 @@ def main():
     with open(options.html_file, 'w') as html_out:
       html_out.write(
           markdown_to_html('Beam YAML Transform Index', markdown_content))
+
+  if options.examples_file:
+    with open(options.examples_file, 'w') as html_out:
+      html_out.write(
+          markdown_to_html('Beam YAML Examples', create_examples_markdown()))
 
 
 if __name__ == '__main__':
