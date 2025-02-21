@@ -258,19 +258,7 @@ def transform_docs(transform_base, transforms, providers, extra_docs=''):
   ])
 
 
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--markdown_file')
-  parser.add_argument('--html_file')
-  parser.add_argument('--schema_file')
-  parser.add_argument('--include', default='.*')
-  parser.add_argument('--exclude', default='')
-  options = parser.parse_args()
-  include = re.compile(options.include).match
-  exclude = (
-      re.compile(options.exclude).match
-      if options.exclude else lambda x: x in SKIP)
-
+def create_index(include, exclude, options):
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
     markdown_out = io.StringIO()
@@ -322,29 +310,22 @@ def main():
                       }
                   }
               })
+    return json_config_schemas, markdown_out.getvalue()
 
-    if options.schema_file:
-      with open(options.schema_file, 'w') as fout:
-        yaml.dump(json_config_schemas, fout, sort_keys=False)
 
-    if options.markdown_file:
-      with open(options.markdown_file, 'w') as fout:
-        fout.write(markdown_out.getvalue())
+def markdown_to_html(title, markdown_content):
+  import markdown
+  import markdown.extensions.toc
+  import pygments.formatters
 
-    if options.html_file:
-      import markdown
-      import markdown.extensions.toc
-      import pygments.formatters
-
-      title = 'Beam YAML Transform Index'
-      md = markdown.Markdown(
-          extensions=[
-              markdown.extensions.toc.TocExtension(toc_depth=2),
-              'codehilite',
-          ])
-      pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
-          '.codehilite')
-      extra_style = '''
+  md = markdown.Markdown(
+      extensions=[
+          markdown.extensions.toc.TocExtension(toc_depth=2),
+          'codehilite',
+      ])
+  pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
+      '.codehilite')
+  extra_style = '''
           * {
             box-sizing: border-box;
           }
@@ -476,10 +457,8 @@ def main():
           }
           '''
 
-      html = md.convert(markdown_out.getvalue())
-      with open(options.html_file, 'w') as html_out:
-        html_out.write(
-            f'''
+  html = md.convert(markdown_content)
+  return f'''
             <html>
               <head>
                 <title>{title}</title>
@@ -492,7 +471,7 @@ def main():
                 <div class="grid-for-nav">
                   <nav class="nav-side">
                     <div class="nav-header">
-                      <a href=#>Beam YAML Transform Index</a>
+                      <a href=#>{title}</a>
                       <div class="version">
                         {beam_version}
                       </div>
@@ -508,7 +487,37 @@ def main():
                 </div>
               </body>
             </html>
-            ''')
+            '''
+
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--markdown_file')
+  parser.add_argument('--html_file')
+  parser.add_argument('--schema_file')
+  parser.add_argument('--include', default='.*')
+  parser.add_argument('--exclude', default='')
+  options = parser.parse_args()
+  include = re.compile(options.include).match
+  exclude = (
+      re.compile(options.exclude).match
+      if options.exclude else lambda x: x in SKIP)
+
+  json_config_schemas, markdown_content = create_index(
+      include, exclude, options)
+
+  if options.schema_file:
+    with open(options.schema_file, 'w') as fout:
+      yaml.dump(json_config_schemas, fout, sort_keys=False)
+
+  if options.markdown_file:
+    with open(options.markdown_file, 'w') as fout:
+      fout.write(markdown_content)
+
+  if options.html_file:
+    with open(options.html_file, 'w') as html_out:
+      html_out.write(
+          markdown_to_html('Beam YAML Transform Index', markdown_content))
 
 
 if __name__ == '__main__':
