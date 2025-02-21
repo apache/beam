@@ -521,6 +521,36 @@ class YamlMappingTest(unittest.TestCase):
                       True, True, 'UNKNOWN', 0, 0)),
           ]))
 
+  def test_extract_windowing_info_iterable(self):
+    T = typing.TypeVar('T')
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = (
+          p
+          | beam.Create(
+              [beam.Row(value=1), beam.Row(value=2), beam.Row(value=11)])
+          | beam.Map(
+              lambda x: beam.transforms.window.TimestampedValue(
+                  x, timestamp=x.value)).with_input_types(T).with_output_types(
+                      T))
+      result = elements | YamlTransform(
+          '''
+          type: ExtractWindowingInfo
+          config:
+              fields: [timestamp, window_type]
+          ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  value=1, timestamp=Timestamp(1), window_type='GlobalWindow'),
+              beam.Row(
+                  value=2, timestamp=Timestamp(2), window_type='GlobalWindow'),
+              beam.Row(
+                  value=11, timestamp=Timestamp(11),
+                  window_type='GlobalWindow'),
+          ]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

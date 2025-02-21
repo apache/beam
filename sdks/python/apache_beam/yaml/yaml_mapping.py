@@ -903,11 +903,23 @@ def _ExtractWindowingInfo(pcoll, fields: Optional[Mapping[str, str]] = None):
     * `pane_info`: A schema'd representation of the current pane info, including
         its index, whether it was the last firing, etc.
 
+  As a convenience, a list rather than a mapping of fields may be provide,
+  in which case the fields will be named according to the requested values.
+
   Args:
     fields: A mapping of new field names to various windowing parameters,
       as documente above.  If omitted, defaults to
       `[timestamp, window_start, window_end]`.
   """
+  if fields is None:
+    fields = ['timestamp', 'window_start', 'window_end']
+  if not isinstance(fields, Mapping):
+    if isinstance(fields, Iterable) and not isinstance(fields, str):
+      fields = {fld: fld for fld in fields}
+    else:
+      raise TypeError(
+          'Fields must be a mapping or iterable of strings, got {fields}')
+
   existing_fields = named_fields_from_element_type(pcoll.element_type)
   new_fields = []
   for field, value in fields.items():
