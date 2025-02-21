@@ -549,6 +549,7 @@ abstract class ReadFromKafkaDoFn<K, V>
             }
           }
         }
+
         backlogBytes.set(
             (long)
                 (BigDecimal.valueOf(
