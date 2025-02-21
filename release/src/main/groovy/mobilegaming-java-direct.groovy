@@ -96,10 +96,14 @@ while (tables.contains(userTable) || tables.contains(teamTable)) {
   tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
 }
 
-t.intent("Creating table: ${userTable}")
-t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
-t.intent("Creating table: ${teamTable}")
-t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+if (!tables.contains(userTable)) {
+  t.intent("Creating table: ${userTable}")
+  t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+}
+if (!tables.contains(teamTable)) {
+  t.intent("Creating table: ${teamTable}")
+  t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+}
 
 // Verify that the tables have been created
 tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
