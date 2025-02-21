@@ -210,7 +210,7 @@ public class JdbcIOIT {
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
             JdbcIO.<TestRow>write()
-                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource).withMaxConnections(4))
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
                 .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 
@@ -281,7 +281,7 @@ public class JdbcIOIT {
           .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
           .apply(
               JdbcIO.<TestRow>write()
-                  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource).withMaxConnections(4))
                   .withStatement(String.format("insert into %s values(?, ?)", firstTableName))
                   .withAutoSharding()
                   .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
@@ -421,7 +421,7 @@ public class JdbcIOIT {
    */
   private static JdbcIO.Write<KV<Integer, String>> getJdbcWriteWithReturning(String tableName) {
     return JdbcIO.<KV<Integer, String>>write()
-        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource).withMaxConnections(4))
         .withStatement(String.format("insert into %s values(?, ?) returning *", tableName))
         .withPreparedStatementSetter(
             (element, statement) -> {
