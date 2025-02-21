@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -94,7 +95,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
+import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,57 +170,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   @After
   public void cleanUp() throws Exception {
     try {
-      synchronized (this) {
-        catalogCleanup();
-      }
+      catalogCleanup();
     } catch (Exception e) {
       LOG.warn("Catalog cleanup failed.", e);
     }
 
     try {
-      synchronized (this) {
-        GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
-        GcsPath path = GcsPath.fromUri(warehouse);
+      GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
+      GcsPath path = GcsPath.fromUri(warehouse);
 
-        @Nullable
-        List<StorageObject> objects =
-                gcsUtil
-                        .listObjects(
-                                path.getBucket(),
-                                getClass().getSimpleName() + "/" + path.getFileName().toString(),
-                                null)
-                        .getItems();
-
-        // sometimes a catalog's cleanup will take care of all the files.
-        // If any files are left though, manually delete them with GCS utils
-        if (objects != null) {
-          List<String> filesToDelete =
-                  objects.stream()
-                          .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
-                          .collect(Collectors.toList());
-          gcsUtil.remove(filesToDelete);
-          waitForGcsCleanup(gcsUtil, path, 5, 5000);
-        }
-        long startTime = System.currentTimeMillis();
-        long waitTimeMillis = 10_000; // 10 seconds
-
-        while (System.currentTimeMillis() - startTime < waitTimeMillis) {
-          try {
-            Thread.sleep(1_000);
-          } catch (InterruptedException e) {
-            LOG.warn("Cleanup wait interrupted, continuing...", e);
-            Thread.currentThread().interrupt();
-          }
-        }
-      }
-    } catch (Exception e) {
-      LOG.warn("Failed to clean up GCS files.", e);
-    }
-  }
-
-  private void waitForGcsCleanup(GcsUtil gcsUtil, GcsPath path, int maxRetries, int delayMs)
-      throws IOException {
-    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      @Nullable
       List<StorageObject> objects =
           gcsUtil
               .listObjects(
@@ -226,18 +188,27 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                   null)
               .getItems();
 
-      if (objects == null || objects.isEmpty()) {
-        LOG.info("GCS cleanup complete.");
-        return;
+      // sometimes a catalog's cleanup will take care of all the files.
+      // If any files are left though, manually delete them with GCS utils
+      if (objects != null) {
+        List<String> filesToDelete =
+            objects.stream()
+                .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
+                .collect(Collectors.toList());
+        gcsUtil.remove(filesToDelete);
       }
-
-      LOG.warn("GCS cleanup not yet complete, retrying in {}ms...", delayMs);
-      try {
-        Thread.sleep(delayMs);
-      } catch (InterruptedException ignored) {
-      }
+    } catch (Exception e) {
+      LOG.warn("Failed to clean up GCS files.", e);
     }
-    LOG.error("GCS cleanup did not complete within the expected time.");
+
+    LOG.info("Start sleep");
+    try {
+      TimeUnit.SECONDS.sleep(10);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt(); // Restore interrupt status
+      LOG.error("Sleep interrupted!");
+    }
+    LOG.info("End sleep");
   }
 
   protected static String warehouse;
@@ -247,6 +218,19 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   protected String random = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
+  @Rule public TestWatcher watcher = new TestWatcher() {
+    @Override
+    protected void finished(Description description) {
+      LOG.info("Start TestWatcher sleep");
+      try {
+        TimeUnit.SECONDS.sleep(10);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt(); // Restore interrupt status
+        LOG.error("Test WATCHER Sleep interrupted!");
+      }
+      LOG.info("End TestWatcher sleep");
+    }
+  };
   @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
