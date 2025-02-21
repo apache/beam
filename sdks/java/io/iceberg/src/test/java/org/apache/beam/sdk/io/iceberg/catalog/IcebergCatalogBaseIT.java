@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -202,12 +203,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
 
     LOG.info("Start sleep");
-    try {
-      TimeUnit.SECONDS.sleep(10);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt(); // Restore interrupt status
-      LOG.error("Sleep interrupted!");
-    }
+    assertFalse(waiter.await(10, TimeUnit.SECONDS));
     LOG.info("End sleep");
   }
 
@@ -218,19 +214,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   protected String random = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
-  @Rule public TestWatcher watcher = new TestWatcher() {
-    @Override
-    protected void finished(Description description) {
-      LOG.info("Start TestWatcher sleep");
-      try {
-        TimeUnit.SECONDS.sleep(10);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt(); // Restore interrupt status
-        LOG.error("Test WATCHER Sleep interrupted!");
-      }
-      LOG.info("End TestWatcher sleep");
-    }
-  };
   @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
@@ -310,6 +293,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
   protected final List<Row> inputRows =
       LongStream.range(0, numRecords()).boxed().map(ROW_FUNC::apply).collect(Collectors.toList());
+  private final CountDownLatch waiter = new CountDownLatch(1);
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */
   private List<Row> populateTable(Table table) throws IOException {
