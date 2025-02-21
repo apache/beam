@@ -28,8 +28,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.Lists;
-import com.lyft.streamingplatform.LyftKafkaConsumerBuilder;
 import com.lyft.streamingplatform.LyftKafkaProducerBuilder;
+import com.lyft.streamingplatform.LyftKafkaSourceBuilder;
+import com.lyft.streamingplatform.StartingOffsetStrategy;
 import com.lyft.streamingplatform.analytics.Event;
 import com.lyft.streamingplatform.analytics.EventField;
 import com.lyft.streamingplatform.eventssource.KinesisAndS3EventSource;
@@ -49,7 +50,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +74,8 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
@@ -83,14 +85,13 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.JobManagerWatermarkTracker;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.util.Collector;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -161,8 +162,8 @@ public class LyftFlinkStreamingPortableTranslations {
     final String userName = (String) params.get("username");
     final String password = (String) params.get("password");
 
-    LyftKafkaConsumerBuilder<WindowedValue<byte[]>> consumerBuilder =
-        new LyftKafkaConsumerBuilder<>();
+    LyftKafkaSourceBuilder<WindowedValue<byte[]>> consumerBuilder =
+        new LyftKafkaSourceBuilder<>();
 
     consumerBuilder.withUsername(userName);
     consumerBuilder.withPassword(password);
@@ -171,46 +172,41 @@ public class LyftFlinkStreamingPortableTranslations {
     properties.putAll(consumerProps);
     consumerBuilder.withKafkaProperties(properties);
 
-    FlinkKafkaConsumer<WindowedValue<byte[]>> kafkaSource =
+    if (params.getOrDefault("start_from_timestamp_millis", null) != null) {
+      consumerBuilder.withStartingOffsets(
+          Long.parseLong(params.get("start_from_timestamp_millis").toString()));
+    } else {
+      consumerBuilder.withStartingOffsets(StartingOffsetStrategy.LATEST);
+    }
+
+    KafkaSource<WindowedValue<byte[]>> kafkaSource =
         consumerBuilder.build(topics,
             new ByteArrayWindowedValueSchema(context.getPipelineOptions()));
 
-    if (params.getOrDefault("start_from_timestamp_millis", null) != null) {
-      kafkaSource.setStartFromTimestamp(
-          Long.parseLong(params.get("start_from_timestamp_millis").toString()));
-    } else {
-      kafkaSource.setStartFromLatest();
-    }
-
     Number maxOutOfOrdernessMillis = 1000;
-    Number idlenessTimeoutMillis = null;
+    Number idlenessTimeoutMillis = 30000;
 
     if (params.containsKey("max_out_of_orderness_millis")
         && params.get("max_out_of_orderness_millis") != null) {
       maxOutOfOrdernessMillis = (Number) params.get("max_out_of_orderness_millis");
     }
 
-    if (params.containsKey("idleness_timeout_millis")) {
+    if (params.containsKey("idleness_timeout_millis")
+        && params.get("idleness_timeout_millis") != null) {
       idlenessTimeoutMillis = (Number) params.get("idleness_timeout_millis");
     }
 
-    if (idlenessTimeoutMillis != null) {
-      WatermarkStrategy<WindowedValue<byte[]>> watermarkStrategy =
-          WatermarkStrategy.<WindowedValue<byte[]>>forBoundedOutOfOrderness(
-              Duration.ofMillis(maxOutOfOrdernessMillis.longValue()))
-          .withIdleness(Duration.ofMillis(idlenessTimeoutMillis.longValue()));
-      kafkaSource.assignTimestampsAndWatermarks(watermarkStrategy);
-    } else {
-      kafkaSource.assignTimestampsAndWatermarks(
-          new WindowedTimestampExtractor<>(
-              Time.milliseconds(maxOutOfOrdernessMillis.longValue())));
-    }
+    // Define the watermark strategy
+    WatermarkStrategy<WindowedValue<byte[]>> watermarkStrategy =
+        WatermarkStrategy.<WindowedValue<byte[]>>forBoundedOutOfOrderness(
+            Duration.ofMillis(maxOutOfOrdernessMillis.longValue()))
+        .withIdleness(Duration.ofMillis(idlenessTimeoutMillis.longValue()));
 
     context.addDataStream(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         context
             .getExecutionEnvironment()
-            .addSource(kafkaSource, FlinkKafkaConsumer.class.getSimpleName() + "-" +
+            .fromSource(kafkaSource, watermarkStrategy, KafkaSource.class.getSimpleName() + "-" +
                 String.join(",", topics)));
   }
 
@@ -219,9 +215,7 @@ public class LyftFlinkStreamingPortableTranslations {
    * operators.
    */
   private static class ByteArrayWindowedValueSchema
-      implements KeyedDeserializationSchema<WindowedValue<byte[]>> {
-    private static final long serialVersionUID = -1L;
-
+      implements KafkaRecordDeserializationSchema<WindowedValue<byte[]>> {
     private final TypeInformation<WindowedValue<byte[]>> ti;
 
     public ByteArrayWindowedValueSchema(FlinkPipelineOptions pipelineOptions) {
@@ -237,21 +231,10 @@ public class LyftFlinkStreamingPortableTranslations {
     }
 
     @Override
-    public WindowedValue<byte[]> deserialize(
-        byte[] messageKey, byte[] message, String topic, int partition, long offset) {
-      throw new UnsupportedOperationException();
+    public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<WindowedValue<byte[]>> collector) throws IOException {
+      collector.collect(WindowedValue.timestampedValueInGlobalWindow(record.value(), new Instant(record.timestamp())));
     }
 
-    @Override
-    public WindowedValue<byte[]> deserialize(ConsumerRecord<byte[], byte[]> record) {
-      return WindowedValue.timestampedValueInGlobalWindow(
-          record.value(), new Instant(record.timestamp()));
-    }
-
-    @Override
-    public boolean isEndOfStream(WindowedValue<byte[]> nextElement) {
-      return false;
-    }
   }
 
   // TODO: translation assumes byte[] values, does not support keys and headers

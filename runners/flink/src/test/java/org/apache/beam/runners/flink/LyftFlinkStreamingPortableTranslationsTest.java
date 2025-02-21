@@ -55,12 +55,13 @@ import org.apache.beam.runners.flink.LyftFlinkStreamingPortableTranslations.Lyft
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.junit.Assert;
 import org.junit.Before;
@@ -214,11 +215,12 @@ public class LyftFlinkStreamingPortableTranslationsTest {
         .translateKafkaInput(id, pipeline, streamingContext);
 
     // assert
-    ArgumentCaptor<FlinkKafkaConsumer> kafkaSourceCaptor =
-        ArgumentCaptor.forClass(FlinkKafkaConsumer.class);
+    ArgumentCaptor<KafkaSource> kafkaSourceCaptor =
+        ArgumentCaptor.forClass(KafkaSource.class);
+    ArgumentCaptor<WatermarkStrategy> kafkaWatermarkStrategyCaptor = ArgumentCaptor.forClass(WatermarkStrategy.class);
     ArgumentCaptor<String> kafkaSourceNameCaptor = ArgumentCaptor.forClass(String.class);
     verify(streamingEnvironment)
-        .addSource(kafkaSourceCaptor.capture(), kafkaSourceNameCaptor.capture());
+        .fromSource(kafkaSourceCaptor.capture(), kafkaWatermarkStrategyCaptor.capture(), kafkaSourceNameCaptor.capture());
     Assert.assertEquals(
         WindowedValue.class, kafkaSourceCaptor.getValue().getProducedType().getTypeClass());
     Assert.assertTrue(kafkaSourceNameCaptor.getValue().contains(topicName));
