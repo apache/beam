@@ -248,8 +248,7 @@ public class PartialGroupByKeyParDoFnsTest {
             ImmutableList.of(
                 WindowedValue.valueInGlobalWindow(KV.of("hi", 4)),
                 WindowedValue.valueInGlobalWindow(KV.of("there", 5))));
-    when(mockSideInputFetcher.storeIfBlocked(
-            ArgumentMatchers.<WindowedValue<KV<String, Integer>>>any()))
+    when(mockSideInputFetcher.storeIfBlocked(ArgumentMatchers.<WindowedValue<KV<String, Integer>>>any()))
         .thenReturn(false, false, false, true);
 
     pgbkParDoFn.startBundle(receiver);
@@ -361,8 +360,7 @@ public class PartialGroupByKeyParDoFnsTest {
 
     when(mockSideInputReader.isEmpty()).thenReturn(false);
     when(mockStreamingStepContext.stateInternals()).thenReturn((StateInternals) mockStateInternals);
-    when(mockStateInternals.state(
-            ArgumentMatchers.<StateNamespace>any(), ArgumentMatchers.<StateTag>any()))
+    when(mockStateInternals.state(ArgumentMatchers.<StateNamespace>any(), ArgumentMatchers.<StateTag>any()))
         .thenReturn(mockState);
     when(mockState.read()).thenReturn(Maps.newHashMap());
 
@@ -396,8 +394,7 @@ public class PartialGroupByKeyParDoFnsTest {
               return null;
             })
         .when(mockCoder)
-        .registerByteSizeObserver(
-            ArgumentMatchers.eq("apple"), ArgumentMatchers.<ElementByteSizeObserver>any());
+        .registerByteSizeObserver(ArgumentMatchers.eq("apple"), ArgumentMatchers.<ElementByteSizeObserver>any());
     CoderSizeEstimator<String> estimator = new CoderSizeEstimator(mockCoder);
     assertEquals(5, estimator.estimateSize("apple"));
   }
@@ -413,8 +410,7 @@ public class PartialGroupByKeyParDoFnsTest {
               return null;
             })
         .when(mockCoder)
-        .registerByteSizeObserver(
-            ArgumentMatchers.eq("apple"), ArgumentMatchers.<ElementByteSizeObserver>any());
+        .registerByteSizeObserver(ArgumentMatchers.eq("apple"), ArgumentMatchers.<ElementByteSizeObserver>any());
 
     // Encode the input to the output stream
     doAnswer(
