@@ -16,12 +16,11 @@
 package bigqueryio
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func TestNewQualifiedTableName(t *testing.T) {
@@ -93,28 +92,25 @@ func Test_mustInferSchema(t *testing.T) {
 		name    string
 		input   interface{}
 		wantErr bool
+		prep    func(reflect.Type) error
 		verify  func(reflect.Type) error
 	}{
 		{
-			name:    "NewType_ShouldRegisterSuccessfully",
+			name:    "NotRegisteredType_ShouldPanic",
 			input:   TestSchema{},
-			wantErr: false,
-			verify: func(t reflect.Type) error {
-				// Verify successful type registration in runtime registry.
-				if key, ok := runtime.TypeKey(t); ok {
-					if _, registered := runtime.LookupType(key); !registered {
-						return errors.New("Type was not properly registered")
-					}
-				}
-				return nil
-			},
+			wantErr: true,
+			prep:    func(t reflect.Type) error { return nil },
+			verify:  func(t reflect.Type) error { return nil },
 		},
 		{
 			name:    "AlreadyRegisteredType_ShouldNotPanic",
 			input:   TestSchema{},
 			wantErr: false,
+			prep: func(t reflect.Type) error {
+				beam.RegisterType(t)
+				return nil
+			},
 			verify: func(t reflect.Type) error {
-				// Verify re-registration of existing type is handled correctly.
 				mustInferSchema(t)
 				return nil
 			},
@@ -123,6 +119,7 @@ func Test_mustInferSchema(t *testing.T) {
 			name:    "AnonymousStruct_ShouldPanic",
 			input:   struct{}{},
 			wantErr: true,
+			prep:    func(t reflect.Type) error { return nil },
 			verify:  func(t reflect.Type) error { return nil },
 		},
 	}
@@ -137,6 +134,10 @@ func Test_mustInferSchema(t *testing.T) {
 			}()
 
 			typ := reflect.TypeOf(tt.input)
+			if err := tt.prep(typ); err != nil {
+				t.Fatalf("failed to prep test environment, got err: %v", err)
+			}
+
 			mustInferSchema(typ)
 			if tt.wantErr {
 				t.Fatal("Expected panic did not occur")

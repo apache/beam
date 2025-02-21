@@ -192,7 +192,7 @@ func mustInferSchema(t reflect.Type) bigquery.Schema {
 		panic(fmt.Sprintf("schema type must be struct: %v", t))
 	}
 
-	registerTypeIfNeeded(t)
+	checkTypeRegistered(t)
 
 	schema, err := bigquery.InferSchema(reflect.Zero(t).Interface())
 	if err != nil {
@@ -201,22 +201,16 @@ func mustInferSchema(t reflect.Type) bigquery.Schema {
 	return schema
 }
 
-func registerTypeIfNeeded(t reflect.Type) {
+func checkTypeRegistered(t reflect.Type) {
 	t = reflectx.SkipPtr(t)
 	key, ok := runtime.TypeKey(t)
 	if !ok {
 		panic(fmt.Sprintf("type %v must be a named type (not anonymous) for registration", t))
 	}
 
-	// Check if Beam has already been initialized.
-	if beam.Initialized() {
-		panic(fmt.Sprintf("Type %v must be registered before beam.Init() is called. "+
-			"Use beam.RegisterType(%v) in your main setup.", t, t))
-	}
-
-	// Register the type if not already registered.
 	if _, registered := runtime.LookupType(key); !registered {
-		runtime.RegisterType(t)
+		panic(fmt.Sprintf("type %v is not registered. Ensure that beam.RegisterType(%v) "+
+			"is called before beam.Init().", t, t))
 	}
 }
 
