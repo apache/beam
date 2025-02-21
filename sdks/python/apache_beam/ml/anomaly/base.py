@@ -53,7 +53,7 @@ class AnomalyPrediction():
   info: str = ""
   #: If enabled, a list of `AnomalyPrediction` objects used to derive the
   #: aggregated prediction.
-  agg_history: Optional[Iterable[AnomalyPrediction]] = None
+  source_predictions: Optional[Iterable[AnomalyPrediction]] = None
 
 
 @dataclass(frozen=True)
@@ -74,10 +74,17 @@ class ThresholdFn(abc.ABC):
     normal_label: The integer label used to identify normal data. Defaults to 0.
     outlier_label: The integer label used to identify outlier data. Defaults to
       1.
+    missing_label: The integer label used when a score is missing because the
+      model is not ready to score.
   """
-  def __init__(self, normal_label: int = 0, outlier_label: int = 1):
+  def __init__(
+      self,
+      normal_label: int = 0,
+      outlier_label: int = 1,
+      missing_label: int = -2):
     self._normal_label = normal_label
     self._outlier_label = outlier_label
+    self._missing_label = missing_label
 
   @property
   @abc.abstractmethod

@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from typing import Any
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
 from typing import Union
-from typing import cast
 
 import apache_beam as beam
 from apache_beam.coders import DillCoder
@@ -92,8 +92,7 @@ class StatelessThresholdDoFn(BaseThresholdDoFn):
   """
   def __init__(self, threshold_fn_spec: Spec):
     threshold_fn_spec.config["_run_init"] = True
-    self._threshold_fn = cast(
-        ThresholdFn, Specifiable.from_spec(threshold_fn_spec))
+    self._threshold_fn = Specifiable.from_spec(threshold_fn_spec)
     assert not self._threshold_fn.is_stateful, \
       "This DoFn can only take stateless function as threshold_fn"
 
@@ -139,8 +138,7 @@ class StatefulThresholdDoFn(BaseThresholdDoFn):
 
   def __init__(self, threshold_fn_spec: Spec):
     threshold_fn_spec.config["_run_init"] = True
-    threshold_fn: ThresholdFn = cast(
-        ThresholdFn, Specifiable.from_spec(threshold_fn_spec))
+    threshold_fn: ThresholdFn = Specifiable.from_spec(threshold_fn_spec)
     assert threshold_fn.is_stateful, \
       "This DoFn can only take stateful function as threshold_fn"
     self._threshold_fn_spec = threshold_fn_spec
@@ -223,7 +221,7 @@ class FixedThreshold(ThresholdFn):
     """
     return self._cutoff
 
-  def apply(self, score: Optional[float]) -> int:
+  def apply(self, score: Optional[float]) -> Optional[int]:
     """Applies the fixed threshold to an anomaly score.
 
     Classifies the given anomaly score as normal or outlier based on the
@@ -233,11 +231,23 @@ class FixedThreshold(ThresholdFn):
       score (Optional[float]): The input anomaly score.
 
     Returns:
-      int: The anomaly label (normal or outlier). Returns the normal label
-        if the score is None or less than the threshold, otherwise returns
-        the outlier label.
+      Optional[int]: The anomaly label:
+        - `normal_label` if the score is less than the threshold.
+        - `outlier_label` if the score is at or above the threshold.
+        - `missing_label` if the score is `NaN` (detector not ready).
+        - `None` if the score is `None` (detector ready, but unable to produce
+          score).
     """
-    if score is None or score < self.threshold:
+    # score error: detector is ready but is unable to produce the score due to
+    # errors such as ill-formatted input.
+    if score is None:
+      return None
+
+    # score missing: detector is not yet ready
+    if math.isnan(score):
+      return self._missing_label
+
+    if score < self.threshold:
       return self._normal_label
 
     return self._outlier_label
@@ -297,7 +307,7 @@ class QuantileThreshold(ThresholdFn):
     """
     return self._tracker.get()
 
-  def apply(self, score: Optional[float]) -> int:
+  def apply(self, score: Optional[float]) -> Optional[int]:
     """Applies the quantile-based threshold to an anomaly score.
 
     Updates the quantile tracker with the given score and classifies the score
@@ -307,13 +317,27 @@ class QuantileThreshold(ThresholdFn):
       score (Optional[float]): The input anomaly score.
 
     Returns:
-      int: The anomaly label (normal or outlier). Returns the normal label if
-        the score is None or less than the dynamic quantile threshold, otherwise
-        returns the outlier label.
+      Optional[int]: The anomaly label:
+        - `normal_label` if the score is less than the threshold.
+        - `outlier_label` if the score is at or above the threshold.
+        - `missing_label` if the score is `NaN` (detector not ready).
+        - `None` if the score is `None` (detector ready, but unable to produce
+          score).
     """
-    self._tracker.push(score)
+    # score error: detector is ready but is unable to produce the score due to
+    # errors such as ill-formatted input.
+    if score is None:
+      # store NaN instead of None in quantile tracker to simplify tracker logic.
+      # After all, it is only a place holder and will not be used in calculation
+      self._tracker.push(float("NaN"))
+      return None
 
-    if score is None or score < self.threshold:
+    self._tracker.push(score)
+    # score missing: detector is not yet ready
+    if math.isnan(score):
+      return self._missing_label
+
+    if score < self.threshold:
       return self._normal_label
 
     return self._outlier_label

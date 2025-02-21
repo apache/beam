@@ -16,10 +16,31 @@
 #
 
 import logging
+import math
 import unittest
 
 from apache_beam.ml.anomaly import aggregations
 from apache_beam.ml.anomaly.base import AnomalyPrediction
+
+
+class LabelAggTestWithMissingOrError(unittest.TestCase):
+  def test_default(self):
+    normal = AnomalyPrediction(label=0)
+    outlier = AnomalyPrediction(label=1)
+    missing = AnomalyPrediction(label=-2)
+    error = AnomalyPrediction(label=None)
+
+    vote = aggregations.MajorityVote().apply
+
+    # missing and error labels are ignored if there is any normal/outlier
+    self.assertEqual(vote([normal, missing, error]), normal)
+    self.assertEqual(vote([outlier, missing, error]), outlier)
+
+    # if there is any missing among errors, return missing
+    self.assertEqual(vote([error, missing, error]), missing)
+
+    # return error only when all are errors
+    self.assertEqual(vote([error, error, error]), error)
 
 
 class MajorityVoteTest(unittest.TestCase):
@@ -85,6 +106,25 @@ class AnyVoteTest(unittest.TestCase):
     self.assertEqual(vote([outlier, normal, normal]), outlier)
     self.assertEqual(vote([outlier, normal, outlier]), outlier)
     self.assertEqual(vote([outlier, outlier, outlier]), outlier)
+
+
+class ScoreAggTestWithMissingOrError(unittest.TestCase):
+  def test_default(self):
+    normal = AnomalyPrediction(score=1.0)
+    missing = AnomalyPrediction(score=float("NaN"))
+    error = AnomalyPrediction(score=None)
+
+    avg = aggregations.AverageScore().apply
+
+    # missing and error scores are ignored if there is any normal/outlier
+    self.assertEqual(avg([normal, missing, error]), normal)
+
+    # if there is any missing among errors, return missing.
+    # note that NaN != NaN, so we cannot use `assertEqual` here.
+    self.assertTrue(avg([error, missing, error]).score)
+
+    # return error only when all are errors
+    self.assertEqual(avg([error, error, error]), error)
 
 
 class AverageScoreTest(unittest.TestCase):

@@ -29,13 +29,22 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+R = beam.Row(x=10, y=20)
+
 
 class TestFixedThreshold(unittest.TestCase):
-  def test_threshold(self):
+  def test_apply_only(self):
+    threshold_fn = thresholds.FixedThreshold(2)
+    self.assertEqual(threshold_fn.apply(1.0), 0)
+    self.assertEqual(threshold_fn.apply(2.0), 1)
+    self.assertEqual(threshold_fn.apply(None), None)
+    self.assertEqual(threshold_fn.apply(float('NaN')), -2)
+
+  def test_dofn_on_single_prediction(self):
     input = [
-        (1, (2, AnomalyResult(beam.Row(x=10), [AnomalyPrediction(score=1)]))),
-        (1, (3, AnomalyResult(beam.Row(x=20), [AnomalyPrediction(score=2)]))),
-        (1, (4, AnomalyResult(beam.Row(x=20), [AnomalyPrediction(score=3)]))),
+        (1, (2, AnomalyResult(R, [AnomalyPrediction(score=1)]))),
+        (1, (3, AnomalyResult(R, [AnomalyPrediction(score=2)]))),
+        (1, (4, AnomalyResult(R, [AnomalyPrediction(score=3)]))),
     ]
     expected = [
         (
@@ -43,22 +52,19 @@ class TestFixedThreshold(unittest.TestCase):
             (
                 2,
                 AnomalyResult(
-                    beam.Row(x=10),
-                    [AnomalyPrediction(score=1, label=0, threshold=2)]))),
+                    R, [AnomalyPrediction(score=1, label=0, threshold=2)]))),
         (
             1,
             (
                 3,
                 AnomalyResult(
-                    beam.Row(x=20),
-                    [AnomalyPrediction(score=2, label=1, threshold=2)]))),
+                    R, [AnomalyPrediction(score=2, label=1, threshold=2)]))),
         (
             1,
             (
                 4,
                 AnomalyResult(
-                    beam.Row(x=20),
-                    [AnomalyPrediction(score=3, label=1, threshold=2)]))),
+                    R, [AnomalyPrediction(score=3, label=1, threshold=2)]))),
     ]
     with TestPipeline() as p:
       result = (
@@ -68,24 +74,23 @@ class TestFixedThreshold(unittest.TestCase):
               thresholds.StatelessThresholdDoFn(
                   thresholds.FixedThreshold(2, normal_label=0,
                                             outlier_label=1).to_spec())))
-
       assert_that(result, equal_to(expected))
 
-  def test_multiple_predictions(self):
+  def test_dofn_on_multiple_predictions(self):
     input = [
         (
             1,
             (
                 2,
                 AnomalyResult(
-                    beam.Row(x=10),
+                    R,
                     [AnomalyPrediction(score=1), AnomalyPrediction(score=4)]))),
         (
             1,
             (
                 3,
                 AnomalyResult(
-                    beam.Row(x=20),
+                    R,
                     [AnomalyPrediction(score=2), AnomalyPrediction(score=0.5)
                      ]))),
     ]
@@ -95,7 +100,7 @@ class TestFixedThreshold(unittest.TestCase):
             (
                 2,
                 AnomalyResult(
-                    beam.Row(x=10),
+                    R,
                     [
                         AnomalyPrediction(score=1, label=0, threshold=2),
                         AnomalyPrediction(score=4, label=1, threshold=2)
@@ -105,7 +110,7 @@ class TestFixedThreshold(unittest.TestCase):
             (
                 3,
                 AnomalyResult(
-                    beam.Row(x=20),
+                    R,
                     [
                         AnomalyPrediction(score=2, label=1, threshold=2),
                         AnomalyPrediction(score=0.5, label=0, threshold=2)
@@ -124,15 +129,23 @@ class TestFixedThreshold(unittest.TestCase):
 
 
 class TestQuantileThreshold(unittest.TestCase):
-  def test_threshold(self):
+  def test_apply_only(self):
+    threshold_fn = thresholds.QuantileThreshold(0.9)
+    self.assertEqual(threshold_fn.apply(1.0), 1)
+    self.assertEqual(threshold_fn.apply(2.0), 1)
+    self.assertEqual(threshold_fn.apply(1.2), 0)
+    self.assertEqual(threshold_fn.apply(None), None)
+    self.assertEqual(threshold_fn.apply(float('NaN')), -2)
+
+  def test_dofn_on_single_prediction(self):
     # use the input data with two keys to test stateful threshold function
     input = [
-        (1, (2, AnomalyResult(beam.Row(x=10), [AnomalyPrediction(score=1)]))),
-        (1, (3, AnomalyResult(beam.Row(x=20), [AnomalyPrediction(score=2)]))),
-        (1, (4, AnomalyResult(beam.Row(x=30), [AnomalyPrediction(score=3)]))),
-        (2, (2, AnomalyResult(beam.Row(x=40), [AnomalyPrediction(score=10)]))),
-        (2, (3, AnomalyResult(beam.Row(x=50), [AnomalyPrediction(score=20)]))),
-        (2, (4, AnomalyResult(beam.Row(x=60), [AnomalyPrediction(score=30)]))),
+        (1, (2, AnomalyResult(R, [AnomalyPrediction(score=1)]))),
+        (1, (3, AnomalyResult(R, [AnomalyPrediction(score=2)]))),
+        (1, (4, AnomalyResult(R, [AnomalyPrediction(score=3)]))),
+        (2, (2, AnomalyResult(R, [AnomalyPrediction(score=10)]))),
+        (2, (3, AnomalyResult(R, [AnomalyPrediction(score=20)]))),
+        (2, (4, AnomalyResult(R, [AnomalyPrediction(score=30)]))),
     ]
     expected = [
         (
@@ -140,43 +153,37 @@ class TestQuantileThreshold(unittest.TestCase):
             (
                 2,
                 AnomalyResult(
-                    beam.Row(x=10),
-                    [AnomalyPrediction(score=1, label=1, threshold=1)]))),
+                    R, [AnomalyPrediction(score=1, label=1, threshold=1)]))),
         (
             1,
             (
                 3,
                 AnomalyResult(
-                    beam.Row(x=20),
-                    [AnomalyPrediction(score=2, label=1, threshold=1.5)]))),
+                    R, [AnomalyPrediction(score=2, label=1, threshold=1.5)]))),
         (
             2,
             (
                 2,
                 AnomalyResult(
-                    beam.Row(x=40),
-                    [AnomalyPrediction(score=10, label=1, threshold=10)]))),
+                    R, [AnomalyPrediction(score=10, label=1, threshold=10)]))),
         (
             2,
             (
                 3,
                 AnomalyResult(
-                    beam.Row(x=50),
-                    [AnomalyPrediction(score=20, label=1, threshold=15)]))),
+                    R, [AnomalyPrediction(score=20, label=1, threshold=15)]))),
         (
             1,
             (
                 4,
                 AnomalyResult(
-                    beam.Row(x=30),
-                    [AnomalyPrediction(score=3, label=1, threshold=2)]))),
+                    R, [AnomalyPrediction(score=3, label=1, threshold=2)]))),
         (
             2,
             (
                 4,
                 AnomalyResult(
-                    beam.Row(x=60),
-                    [AnomalyPrediction(score=30, label=1, threshold=20)]))),
+                    R, [AnomalyPrediction(score=30, label=1, threshold=20)]))),
     ]
     with TestPipeline() as p:
       result = (

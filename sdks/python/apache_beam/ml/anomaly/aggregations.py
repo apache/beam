@@ -20,13 +20,35 @@ import math
 import statistics
 from typing import Callable
 from typing import Iterable
+from typing import Optional
 
 from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.specifiable import specifiable
 
 
-class LabelAggregation(AggregationFn):
+class _AggModelIdMixin:
+  def __init__(self, agg_model_id: Optional[str] = None):
+    self._agg_model_id = agg_model_id
+
+  def _set_agg_model_id_if_unset(self, agg_model_id: str) -> None:
+    if self._agg_model_id is None:
+      self._agg_model_id = agg_model_id
+
+  def apply(self, result_dict):
+    result_dict["model_id"] = self._agg_model_id
+
+
+class _SourcePredictionMixin:
+  def __init__(self, include_source_predictions):
+    self._include_source_predictions = include_source_predictions
+
+  def apply(self, result_dict, source_predictions):
+    if self._include_source_predictions:
+      result_dict["source_predictions"] = list(source_predictions)
+
+
+class LabelAggregation(AggregationFn, _AggModelIdMixin, _SourcePredictionMixin):
   """Aggregates anomaly predictions based on their labels.
 
   This is an abstract base class for `AggregationFn`s that combine multiple
@@ -36,16 +58,22 @@ class LabelAggregation(AggregationFn):
   Args:
     agg_func (Callable[[Iterable[int]], int]): A function that aggregates
       a collection of anomaly labels (integers) into a single label.
-    include_history (bool): If True, include the input predictions in the
-      `agg_history` of the output. Defaults to False.
+    agg_model_id (Optional[str]): The model id used in aggregated predictions.
+      Defaults to None.
+    include_source_predictions (bool): If True, include the input predictions in
+      the `source_predictions` of the output. Defaults to False.
   """
   def __init__(
       self,
       agg_func: Callable[[Iterable[int]], int],
-      include_history: bool = False):
+      agg_model_id: Optional[str] = None,
+      include_source_predictions: bool = False,
+      missing_label: int = -2,
+  ):
     self._agg = agg_func
-    self._include_history = include_history
-    self._agg_model_id = None
+    self._missing_label = missing_label
+    _AggModelIdMixin.__init__(self, agg_model_id)
+    _SourcePredictionMixin.__init__(self, include_source_predictions)
 
   def apply(
       self, predictions: Iterable[AnomalyPrediction]) -> AnomalyPrediction:
@@ -57,25 +85,38 @@ class LabelAggregation(AggregationFn):
 
     Returns:
       AnomalyPrediction: A single `AnomalyPrediction` object with the
-        aggregated label.
+        aggregated label. The aggregated label is determined as follows:
+
+        - If there are any non-missing and non-error labels, the `agg_func` is
+          applied to aggregate them.
+        - If all labels are error labels (`None`), the aggregated label is also
+          `None`.
+        - If there are a mix of missing and error labels, the aggregated label
+          is the `missing_label`.
     """
+    result_dict = {}
+    _AggModelIdMixin.apply(self, result_dict)
+    _SourcePredictionMixin.apply(self, result_dict, predictions)
+
     labels = [
-        prediction.label for prediction in predictions
-        if prediction.label is not None
+        prediction.label for prediction in predictions if
+        prediction.label is not None and prediction.label != self._missing_label
     ]
 
-    if len(labels) == 0:
-      return AnomalyPrediction(model_id=self._agg_model_id)
+    if len(labels) > 0:
+      # apply aggregation_fn if there is any non-None and non-missing label
+      result_dict["label"] = self._agg(labels)
+    elif all(map(lambda x: x.label is None, predictions)):
+      # all are error labels (None) -- all scores are error
+      result_dict["label"] = None
+    else:
+      # some missing labels with some error labels (None)
+      result_dict["label"] = self._missing_label
 
-    label = self._agg(labels)
-
-    history = list(predictions) if self._include_history else None
-
-    return AnomalyPrediction(
-        model_id=self._agg_model_id, label=label, agg_history=history)
+    return AnomalyPrediction(**result_dict)
 
 
-class ScoreAggregation(AggregationFn):
+class ScoreAggregation(AggregationFn, _AggModelIdMixin, _SourcePredictionMixin):
   """Aggregates anomaly predictions based on their scores.
 
   This is an abstract base class for `AggregationFn`s that combine multiple
@@ -85,16 +126,19 @@ class ScoreAggregation(AggregationFn):
   Args:
     agg_func (Callable[[Iterable[float]], float]): A function that aggregates
       a collection of anomaly scores (floats) into a single score.
-    include_history (bool): If True, include the input predictions in the
-      `agg_history` of the output. Defaults to False.
+    agg_model_id (Optional[str]): The model id used in aggregated predictions.
+      Defaults to None.
+    include_source_predictions (bool): If True, include the input predictions in
+      the `source_predictions` of the output. Defaults to False.
   """
   def __init__(
       self,
       agg_func: Callable[[Iterable[float]], float],
-      include_history: bool = False):
+      agg_model_id: Optional[str] = None,
+      include_source_predictions: bool = False):
     self._agg = agg_func
-    self._include_history = include_history
-    self._agg_model_id = None
+    _AggModelIdMixin.__init__(self, agg_model_id)
+    _SourcePredictionMixin.__init__(self, include_source_predictions)
 
   def apply(
       self, predictions: Iterable[AnomalyPrediction]) -> AnomalyPrediction:
@@ -106,21 +150,35 @@ class ScoreAggregation(AggregationFn):
 
     Returns:
       AnomalyPrediction: A single `AnomalyPrediction` object with the
-        aggregated score.
+        aggregated score. The aggregated score is determined as follows:
+
+        - If there are any non-missing and non-error scores, the `agg_func` is
+          applied to aggregate them.
+        - If all scores are error scores (`None`), the aggregated score is also
+          `None`.
+        - If there are a mix of missing (`NaN`) and error scores (`None`), the
+          aggregated score is `NaN`.
     """
+    result_dict = {}
+    _AggModelIdMixin.apply(self, result_dict)
+    _SourcePredictionMixin.apply(self, result_dict, predictions)
+
     scores = [
         prediction.score for prediction in predictions
         if prediction.score is not None and not math.isnan(prediction.score)
     ]
-    if len(scores) == 0:
-      return AnomalyPrediction(model_id=self._agg_model_id)
 
-    score = self._agg(scores)
+    if len(scores) > 0:
+      # apply aggregation_fn if there is any non-None and non-NaN score
+      result_dict["score"] = self._agg(scores)
+    elif all(map(lambda x: x.score is None, predictions)):
+      # all are error scores (None)
+      result_dict["score"] = None
+    else:
+      # some missing scores (NaN) with some error scores (None)
+      result_dict["score"] = float("NaN")
 
-    history = list(predictions) if self._include_history else None
-
-    return AnomalyPrediction(
-        model_id=self._agg_model_id, score=score, agg_history=history)
+    return AnomalyPrediction(**result_dict)
 
 
 @specifiable
