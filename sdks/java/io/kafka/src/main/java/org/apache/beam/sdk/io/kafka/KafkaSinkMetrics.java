@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.metrics.DelegatingGauge;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -114,6 +115,7 @@ public class KafkaSinkMetrics {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
     nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
     nameBuilder.addLabel(TOPIC_LABEL, topic);
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     return nameBuilder.build(METRICS_NAMESPACE);
   }
 

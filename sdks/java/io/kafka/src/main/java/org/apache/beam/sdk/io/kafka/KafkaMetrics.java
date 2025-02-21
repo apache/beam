@@ -173,10 +173,9 @@ public interface KafkaMetrics {
      */
     @Override
     public void recordBacklogBytes(String topicName, int partitionId, long backlogBytes) {
-      Gauge perPartion =
-          Metrics.gauge(
-              "KafkaSink", KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId).getName());
-      perPartion.set(backlogBytes);
+      Gauge perPartition =
+          Metrics.gauge(KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId));
+      perPartition.set(backlogBytes);
     }
 
     /**
