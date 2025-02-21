@@ -18,6 +18,7 @@
 import collections
 import math
 import statistics
+from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Optional
@@ -35,7 +36,7 @@ class _AggModelIdMixin:
     if self._agg_model_id is None:
       self._agg_model_id = agg_model_id
 
-  def apply(self, result_dict):
+  def add_model_id(self, result_dict):
     result_dict["model_id"] = self._agg_model_id
 
 
@@ -43,7 +44,7 @@ class _SourcePredictionMixin:
   def __init__(self, include_source_predictions):
     self._include_source_predictions = include_source_predictions
 
-  def apply(self, result_dict, source_predictions):
+  def add_source_predictions(self, result_dict, source_predictions):
     if self._include_source_predictions:
       result_dict["source_predictions"] = list(source_predictions)
 
@@ -94,9 +95,10 @@ class LabelAggregation(AggregationFn, _AggModelIdMixin, _SourcePredictionMixin):
         - If there are a mix of missing and error labels, the aggregated label
           is the `missing_label`.
     """
-    result_dict = {}
-    _AggModelIdMixin.apply(self, result_dict)
-    _SourcePredictionMixin.apply(self, result_dict, predictions)
+    result_dict: dict[str, Any] = {}
+    _AggModelIdMixin.add_model_id(self, result_dict)
+    _SourcePredictionMixin.add_source_predictions(
+        self, result_dict, predictions)
 
     labels = [
         prediction.label for prediction in predictions if
@@ -159,9 +161,10 @@ class ScoreAggregation(AggregationFn, _AggModelIdMixin, _SourcePredictionMixin):
         - If there are a mix of missing (`NaN`) and error scores (`None`), the
           aggregated score is `NaN`.
     """
-    result_dict = {}
-    _AggModelIdMixin.apply(self, result_dict)
-    _SourcePredictionMixin.apply(self, result_dict, predictions)
+    result_dict: dict[str, Any] = {}
+    _AggModelIdMixin.add_model_id(self, result_dict)
+    _SourcePredictionMixin.add_source_predictions(
+        self, result_dict, predictions)
 
     scores = [
         prediction.score for prediction in predictions

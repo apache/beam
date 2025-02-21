@@ -99,7 +99,7 @@ class ThresholdFn(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def apply(self, score: Optional[float]) -> int:
+  def apply(self, score: Optional[float]) -> Optional[int]:
     """Applies the threshold function to a given score to classify it as
     normal or outlier.
 

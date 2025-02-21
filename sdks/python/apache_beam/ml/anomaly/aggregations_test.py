@@ -16,7 +16,6 @@
 #
 
 import logging
-import math
 import unittest
 
 from apache_beam.ml.anomaly import aggregations

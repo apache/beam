@@ -52,7 +52,7 @@ class BaseThresholdDoFn(beam.DoFn):
   """
   def __init__(self, threshold_fn_spec: Spec):
     self._threshold_fn_spec = threshold_fn_spec
-    self._threshold_fn: ThresholdFn
+    self._threshold_fn = None
 
   def _apply_threshold_to_predictions(
       self, result: AnomalyResult) -> AnomalyResult:
@@ -92,7 +92,7 @@ class StatelessThresholdDoFn(BaseThresholdDoFn):
   """
   def __init__(self, threshold_fn_spec: Spec):
     threshold_fn_spec.config["_run_init"] = True
-    self._threshold_fn = Specifiable.from_spec(threshold_fn_spec)
+    self._threshold_fn: Any = Specifiable.from_spec(threshold_fn_spec)
     assert not self._threshold_fn.is_stateful, \
       "This DoFn can only take stateless function as threshold_fn"
 
@@ -138,7 +138,7 @@ class StatefulThresholdDoFn(BaseThresholdDoFn):
 
   def __init__(self, threshold_fn_spec: Spec):
     threshold_fn_spec.config["_run_init"] = True
-    threshold_fn: ThresholdFn = Specifiable.from_spec(threshold_fn_spec)
+    threshold_fn: Any = Specifiable.from_spec(threshold_fn_spec)
     assert threshold_fn.is_stateful, \
       "This DoFn can only take stateful function as threshold_fn"
     self._threshold_fn_spec = threshold_fn_spec
