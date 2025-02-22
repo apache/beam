@@ -150,6 +150,13 @@ class Provider(abc.ABC):
     else:
       return 0
 
+  @functools.cache
+  def with_extra_dependencies(self, dependencies: Iterable[str]):
+    return self._with_extra_dependencies(dependencies)
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    raise ValueError('This provider does not support additional dependencies.')
+
 
 def as_provider(name, provider_or_constructor):
   if isinstance(provider_or_constructor, Provider):
@@ -610,6 +617,18 @@ class InlineProvider(Provider):
       return self._transform_factories[typ]._yaml_requires_inputs
     else:
       return super().requires_inputs(typ, args)
+
+  def _with_extra_dependencies(self, dependencies):
+    external_provider = ExternalPythonProvider(  #
+        {
+          typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.'
+          + typ.replace('-', '_')
+          for typ in self._transform_factories.keys()
+        },
+        '__inline__',
+        dependencies)
+    external_provider.to_json = self.to_json
+    return external_provider
 
 
 class MetaInlineProvider(InlineProvider):
@@ -1381,6 +1400,7 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
   return result
 
 
+@functools.cache
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
@@ -1407,3 +1427,20 @@ def _file_digest(fileobj, digest):
       hasher.update(data)
       data = fileobj.read(1 << 20)
     return hasher
+
+
+class _InlineProviderNamespace:
+  """Gives fully qualified names to inline providers from standard_providers().
+
+  This is needed to upgrade InlineProvider to ExternalPythonProvider.
+  """
+  def __getattr__(self, name):
+    typ = name.replace('_', '-')
+    for provider in standard_providers()[typ]:
+      if isinstance(provider, InlineProvider):
+        return provider._transform_factories[typ]
+    else:
+      raise ValueError(f"No inline provider found for {name}")
+
+
+standard_inline_providers = _InlineProviderNamespace()
