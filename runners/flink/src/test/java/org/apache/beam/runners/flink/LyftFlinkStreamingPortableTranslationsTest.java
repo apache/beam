@@ -62,6 +62,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.junit.Assert;
 import org.junit.Before;
@@ -213,6 +214,25 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     // run
     new LyftFlinkStreamingPortableTranslations()
         .translateKafkaInput(id, pipeline, streamingContext);
+
+    // assert
+    ArgumentCaptor<FlinkKafkaConsumer> kafkaSourceCaptor =
+        ArgumentCaptor.forClass(FlinkKafkaConsumer.class);
+    ArgumentCaptor<String> kafkaSourceNameCaptor = ArgumentCaptor.forClass(String.class);
+    verify(streamingEnvironment)
+        .addSource(kafkaSourceCaptor.capture(), kafkaSourceNameCaptor.capture());
+    Assert.assertEquals(
+        WindowedValue.class, kafkaSourceCaptor.getValue().getProducedType().getTypeClass());
+    Assert.assertTrue(kafkaSourceNameCaptor.getValue().contains(topicName));
+  }
+
+  private void runAndAssertKafkaInputV2(String id, String topicName, byte[] payload) {
+
+    RunnerApi.Pipeline pipeline = createPipeline(id, payload);
+
+    // run
+    new LyftFlinkStreamingPortableTranslations()
+        .translateKafkaInputV2(id, pipeline, streamingContext);
 
     // assert
     ArgumentCaptor<KafkaSource> kafkaSourceCaptor =

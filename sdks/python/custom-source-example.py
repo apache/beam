@@ -3,6 +3,7 @@ import sys
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io.lyft.kafka import FlinkKafkaInput
+from apache_beam.io.lyft.kafka import FlinkKafkaInputV2
 from apache_beam.io.lyft.kinesis import FlinkKinesisInput
 from apache_beam.options.pipeline_options import PipelineOptions
 

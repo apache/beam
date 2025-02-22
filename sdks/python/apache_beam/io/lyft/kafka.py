@@ -8,7 +8,7 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.core import Windowing
 
 
-class FlinkKafkaInput(PTransform):
+class FlinkKafkaInputBase(PTransform):
   """Custom transform that wraps a Flink Kafka consumer - only works with the
   portable Flink runner."""
 
@@ -31,36 +31,6 @@ class FlinkKafkaInput(PTransform):
 
   def infer_output_type(self, unused_input_type):
     return bytes
-
-  def to_runner_api_parameter(self, _unused_context):
-    assert isinstance(self, FlinkKafkaInput), \
-      "expected instance of FlinkKafkaInput, but got %s" % self.__class__
-    assert len(self.topics) > 0, "topics not set"
-    assert len(self.consumer_properties) > 0, "consumer properties not set"
-
-    return ("lyft:flinkKafkaInput", json.dumps({
-      'topics': self.topics,
-      'max_out_of_orderness_millis': self.max_out_of_orderness_millis,
-      'start_from_timestamp_millis': self.start_from_timestamp_millis,
-      'idleness_timeout_millis': self.idleness_timeout_millis,
-      'properties': self.consumer_properties,
-      'username': self.username,
-      'password': self.password}))
-
-  @staticmethod
-  @PTransform.register_urn("lyft:flinkKafkaInput", None)
-  def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
-    logging.info("kafka spec: %s", spec_parameter)
-    instance = FlinkKafkaInput()
-    payload = json.loads(spec_parameter)
-    instance.topics = payload['topics']
-    instance.max_out_of_orderness_millis = payload['max_out_of_orderness_millis']
-    instance.start_from_timestamp_millis = payload['start_from_timestamp_millis']
-    instance.idleness_timeout_millis = payload['idleness_timeout_millis']
-    instance.consumer_properties = payload['properties']
-    instance.username = payload['username']
-    instance.password = payload['password']
-    return instance
 
   def with_topic(self, topic):
     self.topics.append(topic)
@@ -117,6 +87,70 @@ class FlinkKafkaInput(PTransform):
     """
     self.password = password
     return self
+
+  def _get_runner_parameters(self):
+    return (self.urn, json.dumps({
+      'topics': self.topics,
+      'max_out_of_orderness_millis': self.max_out_of_orderness_millis,
+      'start_from_timestamp_millis': self.start_from_timestamp_millis,
+      'idleness_timeout_millis': self.idleness_timeout_millis,
+      'properties': self.consumer_properties,
+      'username': self.username,
+      'password': self.password})
+    )
+
+  def _populate_from_payload(self, payload):
+    self.topics = payload['topics']
+    self.max_out_of_orderness_millis = payload['max_out_of_orderness_millis']
+    self.start_from_timestamp_millis = payload['start_from_timestamp_millis']
+    self.idleness_timeout_millis = payload['idleness_timeout_millis']
+    self.consumer_properties = payload['properties']
+    self.username = payload['username']
+    self.password = payload['password']
+
+class FlinkKafkaInput(FlinkKafkaInputBase):
+  def __init__(self):
+    self.urn = "lyft:flinkKafkaInput"
+    super().__init__()
+
+  def to_runner_api_parameter(self, _unused_context):
+    assert isinstance(self, FlinkKafkaInput), \
+      "expected instance of FlinkKafkaInput, but got %s" % self.__class__
+    assert len(self.topics) > 0, "topics not set"
+    assert len(self.consumer_properties) > 0, "consumer properties not set"
+    return self._get_runner_parameters()
+
+  @staticmethod
+  @PTransform.register_urn("lyft:flinkKafkaInput", None)
+  def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
+    logging.info("kafka spec: %s", spec_parameter)
+    instance = FlinkKafkaInput()
+    payload = json.loads(spec_parameter)
+    instance._populate_from_payload(payload)
+    return instance
+
+
+class FlinkKafkaInputV2(FlinkKafkaInputBase):
+  def __init__(self):
+    self.urn = "lyft:flinkKafkaInputV2"
+    super().__init__()
+
+  def to_runner_api_parameter(self, _unused_context):
+    assert isinstance(self, FlinkKafkaInputV2), \
+      "expected instance of FlinkKafkaInputV2, but got %s" % self.__class__
+    assert len(self.topics) > 0, "topics not set"
+    assert len(self.consumer_properties) > 0, "consumer properties not set"
+    return self._get_runner_parameters()
+
+  @staticmethod
+  @PTransform.register_urn("lyft:flinkKafkaInputV2", None)
+  def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
+    logging.info("kafka spec: %s", spec_parameter)
+    instance = FlinkKafkaInputV2()
+    payload = json.loads(spec_parameter)
+    instance._populate_from_payload(payload)
+    return instance
+
 
 @beam.typehints.with_input_types(bytes)
 class FlinkKafkaSink(PTransform):
