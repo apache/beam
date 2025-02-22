@@ -228,7 +228,6 @@ dependencies {
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
-    shadowTest library.java.powermock
 }
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {

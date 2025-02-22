@@ -38,7 +38,6 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -57,7 +56,6 @@ import org.hamcrest.text.MatchesPattern;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link KafkaIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
@@ -369,9 +367,8 @@ public class KafkaIOExternalTest {
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
-    DoFn<?, ?> kafkaWriter = ParDoTranslation.getDoFn(parDoPayload);
-    assertThat(kafkaWriter, Matchers.instanceOf(KafkaWriter.class));
-    KafkaIO.WriteRecords<?, ?> spec = Whitebox.getInternalState(kafkaWriter, "spec");
+    KafkaWriter<?, ?> kafkaWriter = (KafkaWriter<?, ?>) ParDoTranslation.getDoFn(parDoPayload);
+    KafkaIO.WriteRecords<?, ?> spec = kafkaWriter.getSpec();
 
     assertThat(spec.getProducerConfig(), Matchers.is(producerConfig));
     assertThat(spec.getTopic(), Matchers.is(topic));
