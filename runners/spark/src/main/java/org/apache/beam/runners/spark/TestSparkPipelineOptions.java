@@ -35,8 +35,7 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
   void setForceStreaming(boolean forceStreaming);
 
   @Description("A hard-coded expected number of assertions for this test pipeline.")
-  @Nullable
-  Integer getExpectedAssertions();
+  @Nullable Integer getExpectedAssertions();
 
   void setExpectedAssertions(Integer expectedAssertions);
 
@@ -47,6 +46,12 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
   Long getStopPipelineWatermark();
 
   void setStopPipelineWatermark(Long stopPipelineWatermark);
+
+  @Description("Whether to delete the checkpoint directory after the pipeline execution.")
+  @Default.Boolean(true)
+  boolean isDeleteCheckpointDir();
+
+  void setDeleteCheckpointDir(boolean deleteCheckpointDir);
 
   /**
    * A factory to provide the default watermark to stop a pipeline that reads from an unbounded
