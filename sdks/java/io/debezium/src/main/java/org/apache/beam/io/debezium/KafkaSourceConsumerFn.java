@@ -375,7 +375,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       }
       OffsetHolder otherOffset = (OffsetHolder) other;
       if (history == null) {
-        if (otherOffset.history != null) return false;
+        return otherOffset.history == null;
       } else {
         if (otherOffset.history == null) return false;
         if (history.size() != otherOffset.history.size()) {
