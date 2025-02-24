@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.storage.model.StorageObject;
@@ -35,8 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -92,7 +89,12 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.*;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
@@ -152,14 +154,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   @Before
   public void setUp() throws Exception {
     salt = System.nanoTime();
-    random = UUID.randomUUID().toString();
-    warehouse =
-        String.format(
-            "%s/%s/%s",
-            TestPipeline.testingPipelineOptions().getTempLocation(),
-            getClass().getSimpleName(),
-            random);
-    warehouse = warehouse(getClass(), random);
     catalogSetup();
     catalog = createCatalog();
   }
@@ -171,10 +165,12 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     } catch (Exception e) {
       LOG.warn("Catalog cleanup failed.", e);
     }
+  }
 
-    LOG.info("Start sleep");
-    assertFalse(waiter.await(10, TimeUnit.SECONDS));
-    LOG.info("End sleep");
+  @BeforeClass
+  public static void createWarehouse() {
+    random = UUID.randomUUID().toString();
+    warehouse = warehouse(IcebergCatalogBaseIT.class, random);
   }
 
   @AfterClass
@@ -210,10 +206,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public Catalog catalog;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-  protected String random = UUID.randomUUID().toString();
+  protected static String random = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
-//  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
@@ -292,7 +288,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
   protected final List<Row> inputRows =
       LongStream.range(0, numRecords()).boxed().map(ROW_FUNC::apply).collect(Collectors.toList());
-  private final CountDownLatch waiter = new CountDownLatch(1);
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */
   private List<Row> populateTable(Table table) throws IOException {
