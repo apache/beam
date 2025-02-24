@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.kudu;
 
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.COL_ID;
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.GenerateUpsert;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;

@@ -35,10 +35,14 @@ github:
     projects: true
 
   # Give some users issue triage permissions
+  # Cannot have >10 at any given time per https://github.com/apache/infrastructure-asfyaml?tab=readme-ov-file#triage
   collaborators:
     - Amar3tto
     - mrshakirov
     - akashorabek
+    - derrickaw
+    - claudevdm
+    - shunping
 
   enabled_merge_buttons:
     squash: true
@@ -47,6 +51,7 @@ github:
 
   protected_branches:
     master: {}
+    release-2.63.0-postrelease: {}
     release-2.63: {}
     release-2.62.0: {}
     release-2.61.0: {}

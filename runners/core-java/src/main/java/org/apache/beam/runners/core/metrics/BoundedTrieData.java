@@ -180,14 +180,19 @@ public class BoundedTrieData implements Serializable {
    */
   public synchronized void add(Iterable<String> segments) {
     List<String> segmentsParts = ImmutableList.copyOf(segments);
-    if (this.root == null) {
-      if (this.singleton == null || !this.singleton.equals(segmentsParts)) {
+    if (segmentsParts.isEmpty()) {
+      return;
+    }
+    if (this.singleton == null && this.root == null) {
+      // empty case
+      this.singleton = segmentsParts;
+    } else if (this.singleton != null && this.singleton.equals(segmentsParts)) {
+      // skip
+    } else {
+      if (this.root == null) {
         this.root = this.asTrie();
         this.singleton = null;
       }
-    }
-
-    if (this.root != null) {
       this.root.add(segmentsParts);
       if (this.root.getSize() > this.bound) {
         this.root.trim();
@@ -271,6 +276,11 @@ public class BoundedTrieData implements Serializable {
     }
   }
 
+  /** @return true if this {@link BoundedTrieData} is empty else false. */
+  public boolean isEmpty() {
+    return (root == null || root.children.isEmpty()) && (singleton == null || singleton.isEmpty());
+  }
+
   @Override
   public final boolean equals(@Nullable Object other) {
     if (this == other) {
@@ -335,7 +345,7 @@ public class BoundedTrieData implements Serializable {
      * @param truncated Whether this node is truncated.
      * @param size The size of the subtree rooted at this node.
      */
-    BoundedTrieNode(Map<String, BoundedTrieNode> children, boolean truncated, int size) {
+    BoundedTrieNode(@Nonnull Map<String, BoundedTrieNode> children, boolean truncated, int size) {
       this.children = children;
       this.size = size;
       this.truncated = truncated;

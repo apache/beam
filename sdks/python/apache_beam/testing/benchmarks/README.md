@@ -112,7 +112,8 @@ Navigate to [`.github/workflows/beam_Python_CostBenchmarks_Dataflow.yml`](../../
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 30
         with:
-	@@ -88,4 +92,14 @@ jobs:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.wordcount.wordcount \
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \

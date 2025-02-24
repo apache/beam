@@ -67,6 +67,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
@@ -340,7 +341,8 @@ class BatchLoads<DestinationT, ElementT>
                               AfterProcessingTime.pastFirstElementInPane()
                                   .plusDelayOf(triggeringFrequency),
                               AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT))))
-                  .discardingFiredPanes());
+                  .discardingFiredPanes()
+                  .withTimestampCombiner(TimestampCombiner.EARLIEST));
       results = writeStaticallyShardedFiles(inputInGlobalWindow, tempFilePrefixView);
     } else {
       // In the case of dynamic sharding, however, we use a default trigger since the transform
@@ -364,7 +366,8 @@ class BatchLoads<DestinationT, ElementT>
                     Repeatedly.forever(
                         AfterProcessingTime.pastFirstElementInPane()
                             .plusDelayOf(triggeringFrequency)))
-                .discardingFiredPanes());
+                .discardingFiredPanes()
+                .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> multiPartitionsTag =
         new TupleTag<>("multiPartitionsTag");

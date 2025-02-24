@@ -23,6 +23,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.BoundedTrieCell;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
@@ -97,6 +99,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private final Duration maximumPerWorkerCounterStaleness = Duration.ofMinutes(5);
 
   private final Clock clock;
+
+  // TODO(BEAM-33720): Remove once Dataflow legacy runner supports BoundedTries.
+  @VisibleForTesting boolean populateBoundedTrieMetrics;
 
   private StreamingStepMetricsContainer(String stepName) {
     this.stepName = stepName;
@@ -217,7 +222,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     return counterUpdates()
         .append(distributionUpdates())
         .append(gaugeUpdates())
-        .append(stringSetUpdates());
+        .append(stringSetUpdates())
+        .append(populateBoundedTrieMetrics ? boundedTrieUpdates() : Collections.emptyList());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -271,6 +277,24 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                   return null;
                 }
                 return MetricsToCounterUpdateConverter.fromStringSet(
+                    MetricKey.create(stepName, entry.getKey()), false, value);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> boundedTrieUpdates() {
+    return FluentIterable.from(boundedTries.entries())
+        .transform(
+            new Function<Entry<MetricName, BoundedTrieCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, BoundedTrieCell> entry) {
+                BoundedTrieData value = entry.getValue().getAndReset();
+                if (value.isEmpty()) {
+                  return null;
+                }
+                return MetricsToCounterUpdateConverter.fromBoundedTrie(
                     MetricKey.create(stepName, entry.getKey()), false, value);
               }
             })
