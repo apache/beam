@@ -477,8 +477,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish(Duration.standardMinutes(4));
-    result.cancel();
+    result.waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -512,8 +511,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish(Duration.standardMinutes(4));
-    result.cancel();
+    result.waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -594,8 +592,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish(Duration.standardMinutes(4));
-    result.cancel();
+    result.waitUntilFinish();
 
     Table table0 = catalog.loadTable(tableIdentifier0);
     Table table1 = catalog.loadTable(tableIdentifier1);
