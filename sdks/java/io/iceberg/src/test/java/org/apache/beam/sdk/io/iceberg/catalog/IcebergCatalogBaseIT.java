@@ -154,6 +154,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   @Before
   public void setUp() throws Exception {
     salt = System.nanoTime();
+    catalogName = "test_catalog_" + System.nanoTime();
     catalogSetup();
     catalog = createCatalog();
   }
