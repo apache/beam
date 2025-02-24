@@ -25,6 +25,7 @@ import org.apache.beam.sdk.io.iceberg.catalog.hiveutils.HiveMetastoreExtension;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.iceberg.CatalogProperties;
@@ -43,33 +44,30 @@ import org.junit.BeforeClass;
 public class HiveCatalogIT extends IcebergCatalogBaseIT {
   private static HiveMetastoreExtension hiveMetastoreExtension;
 
-  private String testDb() {
-    return "test_db_" + testName.getMethodName();
+  private static String testDb() {
+    return "test_db";
   }
 
   @Override
   public String tableId() {
-    return String.format("%s.%s_%d", testDb(), "test_table", salt);
+    return String.format("%s.%s%s_%d", testDb(), "test_table_", testName.getMethodName(), salt);
   }
 
   @BeforeClass
-  public static void setUpClass() throws MetaException {
+  public static void setUpClass() throws Exception {
     String warehouse = warehouse(HiveCatalogIT.class, UUID.randomUUID().toString());
     hiveMetastoreExtension = new HiveMetastoreExtension(warehouse);
+    String dbPath = hiveMetastoreExtension.metastore().getDatabasePath(testDb());
+    Database db = new Database(testDb(), "description", dbPath, Maps.newHashMap());
+    hiveMetastoreExtension.metastoreClient().createDatabase(db);
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
     if (hiveMetastoreExtension != null) {
+      hiveMetastoreExtension.metastoreClient().dropDatabase(testDb());
       hiveMetastoreExtension.cleanup();
     }
-  }
-
-  @Override
-  public void catalogSetup() throws Exception {
-    String dbPath = hiveMetastoreExtension.metastore().getDatabasePath(testDb());
-    Database db = new Database(testDb(), "description", dbPath, Maps.newHashMap());
-    hiveMetastoreExtension.metastoreClient().createDatabase(db);
   }
 
   @Override
@@ -92,7 +90,6 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
           hiveMetastoreExtension.metastoreClient().dropTable(testDb(), table, true, false);
         }
       }
-      hiveMetastoreExtension.metastoreClient().dropDatabase(testDb());
     }
   }
 
