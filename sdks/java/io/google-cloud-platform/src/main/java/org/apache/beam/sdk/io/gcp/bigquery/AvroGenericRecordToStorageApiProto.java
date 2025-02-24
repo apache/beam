@@ -177,20 +177,19 @@ public class AvroGenericRecordToStorageApiProto {
     if (value instanceof org.joda.time.LocalTime) {
       return CivilTimeEncoder.encodePacked64TimeMicros((org.joda.time.LocalTime) value);
     } else if (value instanceof java.time.LocalTime) {
-      return CivilTimeEncoder.encodePacked64TimeMicros(
-          org.joda.time.LocalTime.fromMillisOfDay(
-              TimeUnit.NANOSECONDS.toMillis(((java.time.LocalTime) value).toNanoOfDay())));
+      return CivilTimeEncoder.encodePacked64TimeMicros((java.time.LocalTime) value);
     } else {
       if (micros) {
         Preconditions.checkArgument(
             value instanceof Long, "Expecting a value as Long type (time).");
         return CivilTimeEncoder.encodePacked64TimeMicros(
-            org.joda.time.LocalTime.fromMillisOfDay(TimeUnit.MICROSECONDS.toMillis((long) value)));
+            java.time.LocalTime.ofNanoOfDay((TimeUnit.MICROSECONDS.toNanos((long) value))));
       } else {
         Preconditions.checkArgument(
             value instanceof Integer, "Expecting a value as Integer type (time).");
         return CivilTimeEncoder.encodePacked64TimeMicros(
-            org.joda.time.LocalTime.fromMillisOfDay(((Integer) value).longValue()));
+            java.time.LocalTime.ofNanoOfDay(
+                (TimeUnit.MILLISECONDS).toNanos(((Integer) value).longValue())));
       }
     }
   }
