@@ -114,17 +114,18 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
-    catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
+    String tableId = tableId();
+    catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
 
     // Write with Beam
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Fetch records using a BigQuery query and validate
     BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());
-    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId());
+    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId);
     List<TableRow> rows = bqClient.queryUnflattened(query, OPTIONS.getProject(), true, true);
     List<Row> beamRows =
         rows.stream()
@@ -134,7 +135,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
 
     String queryByPartition =
-        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
+        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId);
     rows = bqClient.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool", "datetime"));
     beamRows =
