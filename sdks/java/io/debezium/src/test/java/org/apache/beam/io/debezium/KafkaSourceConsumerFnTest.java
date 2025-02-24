@@ -33,7 +33,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -120,12 +119,12 @@ public class KafkaSourceConsumerFnTest implements Serializable {
     map.put("a", 1);
     map.put("b", 2);
     ArrayList<byte[]> list = new ArrayList<>();
-    list.add("abc".getBytes(Charsets.US_ASCII));
+    list.add("abc".getBytes(StandardCharsets.US_ASCII));
     list.add(new byte[0]);
     tester.addEqualityGroup(
         new OffsetHolder(
             ImmutableMap.of("a", 1, "b", 2),
-            ImmutableList.of("abc".getBytes(Charsets.US_ASCII), new byte[0]),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII), new byte[0]),
             1,
             null,
             -1L),
@@ -135,21 +134,25 @@ public class KafkaSourceConsumerFnTest implements Serializable {
     tester.addEqualityGroup(new OffsetHolder(null, null, null, null, null));
     tester.addEqualityGroup(
         new OffsetHolder(
-            ImmutableMap.of("a", 1), ImmutableList.of("abc".getBytes(Charsets.US_ASCII)), 1));
-    tester.addEqualityGroup(
-        new OffsetHolder(
-            ImmutableMap.of("a", 1), ImmutableList.of("abc".getBytes(Charsets.US_ASCII)), 2));
+            ImmutableMap.of("a", 1),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
+            1));
     tester.addEqualityGroup(
         new OffsetHolder(
             ImmutableMap.of("a", 1),
-            ImmutableList.of("abc".getBytes(Charsets.US_ASCII)),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
+            2));
+    tester.addEqualityGroup(
+        new OffsetHolder(
+            ImmutableMap.of("a", 1),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
             1,
             2,
             null));
     tester.addEqualityGroup(
         new OffsetHolder(
             ImmutableMap.of("a", 1),
-            ImmutableList.of("abc".getBytes(Charsets.US_ASCII)),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
             1,
             3,
             null));
