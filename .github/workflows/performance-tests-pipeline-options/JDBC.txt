@@ -16,6 +16,7 @@
 
 --tempRoot=gs://temp-storage-for-perf-tests
 --runner=DataflowRunner
+--machineType=n4-standard-32
 --numberOfRecords=5000000
 --bigQueryDataset=beam_performance
 --bigQueryTable=jdbcioit_results
