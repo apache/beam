@@ -21,7 +21,8 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
@@ -91,14 +92,9 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
-import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
-import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,6 +172,13 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       LOG.warn("Catalog cleanup failed.", e);
     }
 
+    LOG.info("Start sleep");
+    assertFalse(waiter.await(10, TimeUnit.SECONDS));
+    LOG.info("End sleep");
+  }
+
+  @AfterClass
+  public static void cleanUpGCS() {
     try {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
@@ -185,7 +188,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           gcsUtil
               .listObjects(
                   path.getBucket(),
-                  getClass().getSimpleName() + "/" + path.getFileName().toString(),
+                  IcebergCatalogBaseIT.class.getSimpleName() + "/" + path.getFileName().toString(),
                   null)
               .getItems();
 
@@ -201,10 +204,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS files.", e);
     }
-
-    LOG.info("Start sleep");
-    assertFalse(waiter.await(10, TimeUnit.SECONDS));
-    LOG.info("End sleep");
   }
 
   protected static String warehouse;
