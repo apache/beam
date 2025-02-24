@@ -27,4 +27,3 @@
 --postgresPort=5432
 --autoscalingAlgorithm=NONE
 --numWorkers=5
---machineType=n4-standard-32
