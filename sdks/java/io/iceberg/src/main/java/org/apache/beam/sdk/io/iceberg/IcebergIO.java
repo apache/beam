@@ -310,6 +310,13 @@ import org.joda.time.Duration;
  *   </tr>
  * </table>
  *
+ * <h3>Runner specific features</h3>
+ *
+ * Google Cloud Dataflow supports additional management features for {@code Managed} including
+ * automatically upgrading transforms to the latest supported version. For more details and
+ * examples, please see <a href="https://cloud.google.com/dataflow/docs/guides/managed-io">Dataflow
+ * managed I/O</a>.
+ *
  * <p>For internal use only; no backwards compatibility guarantees
  */
 @Internal
