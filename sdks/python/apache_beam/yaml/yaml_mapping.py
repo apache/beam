@@ -886,7 +886,7 @@ assert set(_WINDOWING_INFO_TYPES.keys()) == set(
 
 
 @beam.ptransform.ptransform_fn
-def _ExtractWindowingInfo(pcoll, fields: Optional[Mapping[str, str]] = None):
+def _ExtractWindowingInfo(pcoll, fields: Optional[Union[Mapping[str, str], Iterable[str]]] = None):
   """
   Extracts the implicit windowing information from an element and makes it
   explicit as field(s) in the element itself.
@@ -903,12 +903,12 @@ def _ExtractWindowingInfo(pcoll, fields: Optional[Mapping[str, str]] = None):
     * `pane_info`: A schema'd representation of the current pane info, including
         its index, whether it was the last firing, etc.
 
-  As a convenience, a list rather than a mapping of fields may be provide,
+  As a convenience, a list rather than a mapping of fields may be provided,
   in which case the fields will be named according to the requested values.
 
   Args:
     fields: A mapping of new field names to various windowing parameters,
-      as documente above.  If omitted, defaults to
+      as documented above.  If omitted, defaults to
       `[timestamp, window_start, window_end]`.
   """
   if fields is None:
