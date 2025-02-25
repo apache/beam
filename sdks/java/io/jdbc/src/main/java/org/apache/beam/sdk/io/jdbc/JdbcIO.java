@@ -2702,6 +2702,7 @@ public class JdbcIO {
     private Connection getConnection() throws SQLException {
       Connection connection = this.connection;
       DataSource validSource = checkStateNotNull(dataSource);
+      boolean reportLineage = false;
       connectionLock.lock();
       try {
         if (this.connection == null) {
@@ -2709,11 +2710,13 @@ public class JdbcIO {
           connection.setAutoCommit(false);
           preparedStatement =
               connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
+          this.connection = connection;
+          reportLineage = true;
         }
       } finally {
         connectionLock.unlock();
       }
-      if (this.connection == null) {
+      if (reportLineage) {
         this.connection = connection;
 
         KV<@Nullable String, String> tableWithSchema;
