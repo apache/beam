@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
@@ -58,7 +59,7 @@ public final class WindmillChannelFactory {
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
-        // switch is exhaustive will never happen.
+      // switch is exhaustive will never happen.
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
         return remoteDirectChannel(
             windmillServiceAddress.authenticatedGcpServiceAddress(),
@@ -76,6 +77,7 @@ public final class WindmillChannelFactory {
     return withDefaultChannelOptions(
             NettyChannelBuilder.forAddress(
                     authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
+                    // Ports are required for direct channels.
                     authenticatedGcpServiceAddress.gcpServiceAddress().getPort(),
                     new AltsChannelCredentials.Builder().build())
                 .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
@@ -86,7 +88,11 @@ public final class WindmillChannelFactory {
   public static ManagedChannel remoteChannel(
       HostAndPort endpoint, int windmillServiceRpcChannelTimeoutSec) {
     return withDefaultChannelOptions(
-            NettyChannelBuilder.forAddress(endpoint.getHost(), endpoint.getPort()),
+            NettyChannelBuilder.forAddress(
+                endpoint.getHost(),
+                endpoint.hasPort()
+                    ? endpoint.getPort()
+                    : WindmillEndpoints.DEFAULT_WINDMILL_SERVICE_PORT),
             windmillServiceRpcChannelTimeoutSec)
         .negotiationType(NegotiationType.TLS)
         .sslContext(dataflowGrpcSslContext(endpoint))
@@ -126,7 +132,7 @@ public final class WindmillChannelFactory {
       super(
           String.format(
               "Exception thrown when trying to create channel to endpoint={host:%s; port:%d}",
-              endpoint.getHost(), endpoint.getPort()),
+              endpoint.getHost(), endpoint.hasPort() ? endpoint.getPort() : -1),
           sourceException);
     }
   }
