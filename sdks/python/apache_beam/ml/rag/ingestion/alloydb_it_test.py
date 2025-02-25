@@ -854,6 +854,117 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
           | "Remove Keys 2" >> beam.Map(lambda xs: [x[1] for x in xs]))
       assert_that(chunks, equal_to([test_chunks]), label='updated_chunks_check')
 
+  def test_conflict_resolution_default_update_fields(self):
+    """Test conflict resolution with default update fields (all non-conflict 
+    fields)."""
+    self.skip_if_dataflow_runner()
+    num_records = 20
+
+    connection_config = AlloyDBConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
+
+    # Create a conflict resolution with only the conflict field specified
+    # No update_fields specified - should default to all non-conflict fields
+    conflict_resolution = ConflictResolution(
+        on_conflict_fields="id", action="UPDATE")
+
+    config = AlloyDBVectorWriterConfig(
+        connection_config=connection_config,
+        table_name=self.default_table_name,
+        conflict_resolution=conflict_resolution)
+
+    # Generate initial test chunks
+    test_chunks = ChunkTestUtils.get_expected_values(0, num_records)
+    self.write_test_pipeline.not_use_test_runner_api = True
+
+    # Insert initial test chunks
+    with self.write_test_pipeline as p:
+      _ = (
+          p
+          | "Create initial chunks" >> beam.Create(test_chunks)
+          | "Write initial chunks" >> config.create_write_transform())
+
+    # Verify initial data was written correctly
+    read_query = f"""
+          SELECT 
+              CAST(id AS VARCHAR(255)),
+              CAST(content AS VARCHAR(255)),
+              CAST(embedding AS text),
+              CAST(metadata AS text)
+          FROM {self.default_table_name}
+            ORDER BY id desc
+          """
+    self.read_test_pipeline.not_use_test_runner_api = True
+    with self.read_test_pipeline as p:
+      rows = (
+          p
+          | ReadFromJdbc(
+              table_name=self.default_table_name,
+              driver_class_name="org.postgresql.Driver",
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              query=read_query))
+
+      chunks = (
+          rows
+          | "To Chunks" >> beam.Map(row_to_chunk)
+          | "Key on Index" >> beam.Map(key_on_id)
+          | "Get First 500" >> beam.transforms.combiners.Top.Of(
+              num_records, key=lambda x: x[0], reverse=True)
+          | "Remove Keys 1" >> beam.Map(lambda xs: [x[1] for x in xs]))
+      assert_that(
+          chunks, equal_to([test_chunks]), label='original_chunks_check')
+
+    # Create updated chunks with same IDs but different content, embedding, and
+    #  metadata
+    updated_chunks = []
+    for i in range(num_records):
+      original_chunk = test_chunks[i]
+      updated_chunk = Chunk(
+          id=original_chunk.id,
+          content=Content(text=f"Updated content {i}"),
+          embedding=Embedding(
+              dense_embedding=[float(i * 2), float(i * 2 + 1)] + [0.0] *
+              (VECTOR_SIZE - 2)),
+          metadata={
+              "updated": "true", "timestamp": "2024-02-25"
+          })
+      updated_chunks.append(updated_chunk)
+
+    # Write updated chunks - should update all non-conflict fields
+    self.write_test_pipeline2.not_use_test_runner_api = True
+    with self.write_test_pipeline2 as p:
+      _ = (
+          p
+          | "Create updated Chunks" >> beam.Create(updated_chunks)
+          | "Write updated Chunks" >> config.create_write_transform())
+
+    # Read and verify that all non-conflict fields were updated
+    self.read_test_pipeline2.not_use_test_runner_api = True
+    with self.read_test_pipeline2 as p:
+      rows = (
+          p
+          | "Read Updated chunks" >> ReadFromJdbc(
+              table_name=self.default_table_name,
+              driver_class_name="org.postgresql.Driver",
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              query=read_query))
+
+      chunks = (
+          rows
+          | "To Chunks 2" >> beam.Map(row_to_chunk)
+          | "Key on Index 2" >> beam.Map(key_on_id)
+          | "Get First 500 2" >> beam.transforms.combiners.Top.Of(
+              num_records, key=lambda x: x[0], reverse=True)
+          | "Remove Keys 2" >> beam.Map(lambda xs: [x[1] for x in xs]))
+
+      # Verify that all non-conflict fields were updated
+      assert_that(
+          chunks, equal_to([updated_chunks]), label='updated_chunks_check')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

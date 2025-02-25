@@ -123,9 +123,7 @@ class ConflictResolution:
 
     conflict_fields = ([self.on_conflict_fields] if isinstance(
         self.on_conflict_fields, str) else self.on_conflict_fields)
-    self.conflict_resolution.update_fields = [
-        col for col in columns if col not in conflict_fields
-    ]
+    self.update_fields = [col for col in columns if col not in conflict_fields]
 
   def get_conflict_clause(self) -> str:
     """Get conflict clause with update fields."""
