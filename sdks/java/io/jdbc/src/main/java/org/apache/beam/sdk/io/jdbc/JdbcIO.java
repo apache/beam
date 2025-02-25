@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -2699,10 +2701,10 @@ public class JdbcIO {
 
     private Connection getConnection() throws SQLException {
       Connection connection = this.connection;
+      DataSource validSource = checkStateNotNull(dataSource);
       connectionLock.lock();
       try {
         if (this.connection == null) {
-          DataSource validSource = checkStateNotNull(dataSource);
           this.connection = validSource.getConnection();
           this.connection.setAutoCommit(false);
           preparedStatement =
