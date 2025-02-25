@@ -1668,7 +1668,7 @@ public class AvroUtils {
     return new org.apache.avro.Schema.Parser().parse(schemaJson);
   }
 
-  private static GenericData getGenericData(SpecificRecordBase record) {
+  static GenericData getGenericData(SpecificRecordBase record) {
     try {
       return record.getSpecificData();
     } catch (NoSuchMethodError e) {
@@ -1691,12 +1691,13 @@ public class AvroUtils {
       Class<?> convertedType) {
     String msg =
         String.format(
-            "Value %s of class %s is not a supported type for logical type %s. "
+            "Value %s of class %s is not a supported type for logical type %s (%s). "
                 + "Underlying avro built-in raw type should be instance of %s. "
                 + "However it is instance of %s and has value %s ."
                 + "Generic data has conversion %s, convertedType %s",
             value,
             value.getClass(),
+            logicalType.getName(),
             logicalType,
             desiredRawType,
             rawType.getClass(),

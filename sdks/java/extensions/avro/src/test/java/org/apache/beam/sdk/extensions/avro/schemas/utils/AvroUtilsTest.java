@@ -36,9 +36,11 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -122,13 +124,6 @@ public class AvroUtilsTest {
 
   @Test
   public void supportsAllLogicalTypes() {
-    if (VERSION_AVRO.equals("1.8.2") || VERSION_AVRO.equals("1.9.2")) {
-      // Skip this test for Avro 1.8.2 and 1.9.2 as they do not support all logical types
-      // and do not register all conversions to the GenericRecord.MODEL$. In user code,
-      // those older versions can still be used; if conversions are needed, a GenericData with the
-      // appropriate conversions can be passed to AvroUtils.toBeamRowStrict
-      return;
-    }
 
     BigDecimal bigDecimalPrecision5Scale2 = new BigDecimal("123.45");
     BigDecimal bigDecimalPrecision10Scale4 = new BigDecimal("12345.6789");
@@ -140,7 +135,7 @@ public class AvroUtilsTest {
 
     DateTime dateTime = new DateTime(2025, 2, 17, 0, 0, 0, DateTimeZone.UTC);
 
-    GenericRecord specificRecord =
+    SpecificRecordBase genericRecord =
         getSpecificRecordWithLogicalTypes(
             dateTime,
             timeMicros,
@@ -160,7 +155,35 @@ public class AvroUtilsTest {
             bigDecimalPrecision20Scale6,
             uuid);
 
-    Row actual = AvroUtils.toBeamRowStrict(specificRecord, null, null);
+    GenericData genericData;
+    switch (VERSION_AVRO) {
+      case "1.8.2":
+        // SpecificRecords generated with 1.8.2 have no registered conversions. Still this is a
+        // supported case, as the user can pass a GenericData with the appropriate conversions to
+        // AvroUtils.toBeamRowStrict.
+        // Basically GenericRecords can contain objects of any type, as long as the user provides
+        // the appropriate conversions.
+        genericData = new GenericData();
+        genericData.addLogicalTypeConversion(new AvroJodaTimeConversions.DateConversion());
+        genericData.addLogicalTypeConversion(new AvroJodaTimeConversions.TimeConversion());
+        genericData.addLogicalTypeConversion(new AvroJodaTimeConversions.TimestampConversion());
+        genericData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        break;
+      case "1.9.2":
+        // SpecificRecords generated with 1.9.2 have some registered conversions, but not all. We
+        // can add the missing ones manually.
+        genericData = AvroUtils.getGenericData(genericRecord);
+        genericData.addLogicalTypeConversion(new AvroJavaTimeConversions.TimeMicrosConversion());
+        genericData.addLogicalTypeConversion(
+            new AvroJavaTimeConversions.TimestampMicrosConversion());
+        break;
+      default:
+        // SpecificRecords generated with 1.10.0+ have all conversions registered. Passing null to
+        // toBeamRowStrict ensures that the GenericData of the record is used as is.
+        genericData = null;
+    }
+
+    Row actual = AvroUtils.toBeamRowStrict(genericRecord, null, genericData);
 
     assertEquals(expected, actual);
   }
@@ -207,13 +230,31 @@ public class AvroUtilsTest {
             dateTime.get(DateTimeFieldType.dayOfMonth()));
     LogicalTypesExample r = new LogicalTypesExample();
 
-    r.put("dateField", localDate);
-    r.put("timeMillisField", javaLocalTime(timeMicros, ChronoUnit.MILLIS));
-    r.put("timeMicrosField", javaLocalTime(timeMicros, ChronoUnit.MICROS));
-    r.put("timestampMillisField", javaInstant(timestampMicros, ChronoUnit.MILLIS));
-    r.put("timestampMicrosField", javaInstant(timestampMicros, ChronoUnit.MICROS));
-    r.put("localTimestampMillisField", javaLocalDateTimeAtUtc(timestampMicros, ChronoUnit.MILLIS));
-    r.put("localTimestampMicrosField", javaLocalDateTimeAtUtc(timestampMicros, ChronoUnit.MICROS));
+    if (VERSION_AVRO.equals("1.8.2")) {
+      // Avro 1.8.2 does not support java.time, must use joda time
+      r.put("dateField", dateTime.toLocalDate());
+      r.put("timeMillisField", jodaLocalTime(timeMicros));
+      r.put("timeMicrosField", timeMicros);
+      r.put("timestampMillisField", jodaInstant(timestampMicros).toDateTime());
+      r.put("timestampMicrosField", timestampMicros);
+    } else {
+      r.put("dateField", localDate);
+      r.put("timeMillisField", javaLocalTime(timeMicros, ChronoUnit.MILLIS));
+      r.put("timeMicrosField", javaLocalTime(timeMicros, ChronoUnit.MICROS));
+      r.put("timestampMillisField", javaInstant(timestampMicros, ChronoUnit.MILLIS));
+      r.put("timestampMicrosField", javaInstant(timestampMicros, ChronoUnit.MICROS));
+    }
+    if (VERSION_AVRO.equals("1.8.2") || VERSION_AVRO.equals("1.9.2")) {
+      // local-timestamp-millis and local-timestamp-micros only in 1.10.0+
+      r.put("localTimestampMillisField", timestampMicros / 1000);
+      r.put("localTimestampMicrosField", timestampMicros);
+    } else {
+      r.put(
+          "localTimestampMillisField", javaLocalDateTimeAtUtc(timestampMicros, ChronoUnit.MILLIS));
+      r.put(
+          "localTimestampMicrosField", javaLocalDateTimeAtUtc(timestampMicros, ChronoUnit.MICROS));
+    }
+
     r.put("decimalSmall", bigDecimalPrecision5Scale2);
     r.put("decimalMedium", bigDecimalPrecision10Scale4);
     r.put("decimalLarge", bigDecimalPrecision20Scale6);
@@ -482,6 +523,10 @@ public class AvroUtilsTest {
 
   private static java.time.LocalTime javaLocalTime(long micros, TemporalUnit temporalUnit) {
     return java.time.LocalTime.ofNanoOfDay(micros * 1000).truncatedTo(temporalUnit);
+  }
+
+  private static org.joda.time.LocalTime jodaLocalTime(long micros) {
+    return org.joda.time.LocalTime.fromMillisOfDay(micros / 1000);
   }
 
   @Test
