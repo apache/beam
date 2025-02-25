@@ -30,6 +30,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Manages vending the backend worker metadata to a single consumer.
+ *
+ * <p>Internally restarts the underlying {@link GetWorkerMetadataStream} to gracefully close the
+ * stream and prevent gRPC {@link
+ * org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status#DEADLINE_EXCEEDED} statuses.
+ */
 @ThreadSafe
 final class BackendWorkerMetadataVendor {
   private static final Logger LOG = LoggerFactory.getLogger(BackendWorkerMetadataVendor.class);
