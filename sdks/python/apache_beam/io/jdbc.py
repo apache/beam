@@ -114,7 +114,8 @@ def default_io_expansion_service(classpath=None):
 
 JdbcConfigSchema = typing.NamedTuple(
     'JdbcConfigSchema',
-    [('location', str), ('config', bytes)],
+    [('location', str), ('config', bytes),
+     ('dataSchema', typing.Optional[bytes])],
 )
 
 Config = typing.NamedTuple(
@@ -305,7 +306,7 @@ class ReadFromJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
-  ):
+      schema=None):
     """
     Initializes a read operation from Jdbc.
 
@@ -343,6 +344,14 @@ class ReadFromJdbc(ExternalTransform):
                       driver.
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
+
+    dataSchema = None
+    if schema is not None:
+      # Convert Python schema to Beam Schema proto
+      schema_proto = typing_to_runner_api(schema).row_type.schema
+      # Serialize the proto to bytes for transmission
+      dataSchema = schema_proto.SerializeToString()
+
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -367,7 +376,8 @@ class ReadFromJdbc(ExternalTransform):
                             max_connections=max_connections,
                             driver_jars=driver_jars,
                             partition_column=partition_column,
-                            partitions=partitions))),
+                            partitions=partitions)),
+                dataSchema=dataSchema),
         ),
         expansion_service or default_io_expansion_service(classpath),
     )
