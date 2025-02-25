@@ -152,10 +152,15 @@ class Provider(abc.ABC):
 
   @functools.cache
   def with_extra_dependencies(self, dependencies: Iterable[str]):
-    return self._with_extra_dependencies(dependencies)
+    result = self._with_extra_dependencies(dependencies)
+    if not hasattr(result, 'to_json'):
+      result.to_json = lambda: {'type': type(result).__name__}
+    return result
 
   def _with_extra_dependencies(self, dependencies: Iterable[str]):
-    raise ValueError('This provider does not support additional dependencies.')
+    raise ValueError(
+        'This provider of type %s does not support additional dependencies.' %
+        type(self).__name__)
 
 
 def as_provider(name, provider_or_constructor):
@@ -404,6 +409,8 @@ class ExternalPythonProvider(ExternalProvider):
             if is_path_or_urn(package) else package for package in packages
         ]))
 
+    self._packages = packages
+
   def available(self):
     return True  # If we're running this script, we have Python installed.
 
@@ -429,6 +436,10 @@ class ExternalPythonProvider(ExternalProvider):
       return 50
     else:
       return super()._affinity(other)
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return ExternalPythonProvider(
+        self._urns, None, set(self._packages) + set(dependencies))
 
 
 @ExternalProvider.register_provider_type('yaml')
@@ -1041,6 +1052,11 @@ class TranslatingProvider(Provider):
       yaml_create_transform: Any) -> beam.PTransform:
     return self._transforms[typ](self._underlying_provider, **config)
 
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return TranslatingProvider(
+        self._transforms,
+        self._underlying_provider._with_extra_dependencies(dependencies))
+
 
 def create_java_builtin_provider():
   """Exposes built-in transforms from Java as well as Python to maximize
@@ -1319,6 +1335,14 @@ class RenamingProvider(Provider):
 
   def cache_artifacts(self):
     self._underlying_provider.cache_artifacts()
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return RenamingProvider(
+        self._transforms,
+        None,
+        self._mappings,
+        self._underlying_provider._with_extra_dependencies(dependencies),
+        self._defaults)
 
 
 def _as_list(func):
