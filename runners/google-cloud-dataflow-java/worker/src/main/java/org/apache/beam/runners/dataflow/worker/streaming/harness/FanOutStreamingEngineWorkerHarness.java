@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.StreamGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
@@ -70,6 +71,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Stream
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -439,7 +441,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             workItemScheduler,
             getDataStream ->
                 StreamGetDataClient.create(
-                    getDataStream, this::getGlobalDataStream, getDataMetricTracker),
+                    WindmillStreamPool.create(1, Duration.standardMinutes(3), () -> getDataStream),
+                    key ->
+                        WindmillStreamPool.create(
+                            1, Duration.standardMinutes(3), () -> getGlobalDataStream(key)),
+                    getDataMetricTracker),
             workCommitterFactory);
     windmillStreamSender.start();
     return windmillStreamSender;

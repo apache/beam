@@ -43,6 +43,7 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
 
   private final Duration streamTimeout;
   private final Supplier<StreamT> streamSupplier;
+  private final boolean reuseStreams;
 
   /** @implNote Size of streams never changes once initialized. */
   private final List<@Nullable StreamData<StreamT>> streams;
@@ -54,17 +55,25 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
       Duration streamTimeout,
       Supplier<StreamT> streamSupplier,
       List<@Nullable StreamData<StreamT>> streams,
-      Map<StreamT, StreamData<StreamT>> holds) {
+      Map<StreamT, StreamData<StreamT>> holds,
+      boolean reuseStreams) {
     this.streams = streams;
     this.streamTimeout = streamTimeout;
     this.streamSupplier = streamSupplier;
     this.holds = holds;
+    this.reuseStreams = reuseStreams;
   }
 
   public static <StreamT extends WindmillStream> WindmillStreamPool<StreamT> create(
       int numStreams, Duration streamTimeout, Supplier<StreamT> streamSupplier) {
     return new WindmillStreamPool<>(
-        streamTimeout, streamSupplier, newStreamList(numStreams), new HashMap<>());
+        streamTimeout, streamSupplier, newStreamList(numStreams), new HashMap<>(), false);
+  }
+
+  public static <StreamT extends WindmillStream> WindmillStreamPool<StreamT> withReuseableStreams(
+      int numStreams, Duration streamTimeout, Supplier<StreamT> streamSupplier) {
+    return new WindmillStreamPool<>(
+        streamTimeout, streamSupplier, newStreamList(numStreams), new HashMap<>(), true);
   }
 
   @VisibleForTesting
@@ -73,7 +82,7 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
       Supplier<StreamT> streamSupplier,
       List<@Nullable StreamData<StreamT>> streamPool,
       Map<StreamT, StreamData<StreamT>> holds) {
-    return new WindmillStreamPool<>(streamTimeout, streamSupplier, streamPool, holds);
+    return new WindmillStreamPool<>(streamTimeout, streamSupplier, streamPool, holds, false);
   }
 
   /**
@@ -128,7 +137,11 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
       return resultStream;
     } finally {
       if (closeThisStream != null) {
-        closeThisStream.halfClose();
+        if (reuseStreams) {
+          closeThisStream.restart();
+        } else {
+          closeThisStream.halfClose();
+        }
       }
     }
   }
@@ -165,7 +178,7 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
       }
     }
 
-    if (closeStream) {
+    if (closeStream && !reuseStreams) {
       stream.halfClose();
     }
   }

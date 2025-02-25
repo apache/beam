@@ -311,7 +311,7 @@ public final class StreamingDataflowWorker {
                 Math.max(1, options.getWindmillGetDataStreamCount()),
                 GET_DATA_STREAM_TIMEOUT,
                 windmillServer::getDataStream);
-        getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
+        getDataClient = StreamPoolGetDataClient.create(getDataMetricTracker, getDataStreamPool);
         heartbeatSender =
             createStreamingEngineHeartbeatSender(
                 options, windmillServer, getDataStreamPool, configFetcher.getGlobalConfigHandle());

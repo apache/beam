@@ -43,8 +43,11 @@ public interface WindmillStream {
   /** An identifier for the backend worker where the stream is sending/receiving RPCs. */
   String backendWorkerToken();
 
-  /** Indicates that no more requests will be sent. */
+  /** Indicates that no more requests will be sent on this {@link WindmillStream} instance. */
   void halfClose();
+
+  /** Restart the underlying stream. */
+  void restart();
 
   /** Waits for the server to close its end of the connection, with timeout. */
   boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
