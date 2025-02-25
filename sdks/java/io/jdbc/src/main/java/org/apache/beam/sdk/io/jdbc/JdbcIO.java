@@ -2717,8 +2717,6 @@ public class JdbcIO {
         connectionLock.unlock();
       }
       if (reportLineage) {
-        this.connection = connection;
-
         KV<@Nullable String, String> tableWithSchema;
         if (Strings.isNullOrEmpty(spec.getTable()) && spec.getStatement() != null) {
           tableWithSchema = JdbcUtil.extractTableFromWriteQuery(spec.getStatement().get());
