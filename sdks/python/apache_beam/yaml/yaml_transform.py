@@ -368,7 +368,7 @@ class Scope(LightweightScope):
         if pcoll in providers_by_input
     ]
     provider = self.best_provider(spec, input_providers)
-    extra_dependencies = extract_extra_dependencies(spec)
+    extra_dependencies, spec = extract_extra_dependencies(spec)
     if extra_dependencies:
       provider = provider.with_extra_dependencies(frozenset(extra_dependencies))
 
@@ -713,9 +713,13 @@ def extract_name(spec):
 
 def extract_extra_dependencies(spec):
   deps = spec.get('config', {}).get('dependencies', [])
+  if not deps:
+    return [], spec
   if not isinstance(deps, list):
     raise TypeErrorError(f'Dependencies must be a list of strings, got {deps}')
-  return deps
+  return deps, dict(
+      spec,
+      config={k: v for k, v in spec['config'].items() if k != 'dependencies'})
 
 
 def push_windowing_to_roots(spec):
