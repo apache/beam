@@ -29,6 +29,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 # pytype: skip-file
 
+import ast
 import logging
 import re
 import time
@@ -125,14 +126,32 @@ def create_storage_client(pipeline_options, use_credentials=True):
     from google.api_core import client_info
     beam_client_info = client_info.ClientInfo(
         user_agent="apache-beam/%s (GPN:Beam)" % beam_version.__version__)
+
+    # Note: Custom audit entries with "job" key will overwrite this default.
+    extra_headers = {
+        "x-goog-custom-audit-job": google_cloud_options.job_name
+        if google_cloud_options.job_name else "UNKNOWN"
+    }
+
+    if google_cloud_options.custom_audit_entries is not None:
+      for entry in google_cloud_options.custom_audit_entries:
+        if entry.startswith('{'):
+          # in the format of {'key': value'}
+          sub_entries = ast.literal_eval(entry)
+          for key, value in sub_entries.items():
+            extra_headers[f"x-goog-custom-audit-{key}"] = value
+        else:
+          # in the format of 'key=value'
+          parts = entry.split('=', 1)
+          key = parts[0]
+          value = parts[1] if len(parts) > 1 else ''
+          extra_headers[f"x-goog-custom-audit-{key}"] = value
+
     return storage.Client(
         credentials=credentials.get_google_auth_credentials(),
         project=google_cloud_options.project,
         client_info=beam_client_info,
-        extra_headers={
-            "x-goog-custom-audit-job": google_cloud_options.job_name
-            if google_cloud_options.job_name else "UNKNOWN"
-        })
+        extra_headers=extra_headers)
   else:
     return storage.Client.create_anonymous_client()
 

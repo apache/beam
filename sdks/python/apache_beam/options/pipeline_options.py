@@ -951,6 +951,16 @@ class GoogleCloudOptions(PipelineOptions):
         action='store_true',
         help='Use blob generation when mutating blobs in GCSIO to '
         'mitigate race conditions at the cost of more HTTP requests.')
+    parser.add_argument(
+        '--custom-audit-entry',
+        '--custom-audit-entries',
+        dest='custom_audit_entries',
+        action='append',
+        default=None,
+        help='Custom information to be attached to audit logs. '
+        'Entries are key value pairs separated by = '
+        '(e.g. --custom-audit-entry key=value) or '
+        '(--custom-audit-entries=\'{ "user": "test", "id": "1234" }\').')
 
   def _create_default_gcs_bucket(self):
     try:
