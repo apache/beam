@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
@@ -28,20 +30,21 @@ import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
 import org.apache.iceberg.ScanTaskParser;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Scans the given {@link SnapshotRange}, and creates multiple {@link ReadTask}s. Each task
- * represents a portion of a data file that was appended within the snapshot range.
+ * Scans the given snapshot and creates multiple {@link ReadTask}s. Each task represents a portion
+ * of a data file that was appended within the snapshot range.
  */
-class CreateReadTasksDoFn extends DoFn<SnapshotRange, KV<ReadTaskDescriptor, ReadTask>> {
+class CreateReadTasksDoFn extends DoFn<SnapshotInfo, KV<ReadTaskDescriptor, ReadTask>> {
   private static final Logger LOG = LoggerFactory.getLogger(CreateReadTasksDoFn.class);
-  private static final Counter numFileScanTasks =
-      Metrics.counter(CreateReadTasksDoFn.class, "numFileScanTasks");
+  private static final Counter totalScanTasks =
+      Metrics.counter(CreateReadTasksDoFn.class, "totalScanTasks");
+
   private final IcebergCatalogConfig catalogConfig;
 
   CreateReadTasksDoFn(IcebergCatalogConfig catalogConfig) {
@@ -50,18 +53,15 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, KV<ReadTaskDescriptor, Rea
 
   @ProcessElement
   public void process(
-      @Element SnapshotRange range, OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
+      @Element SnapshotInfo snapshot, OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException, ExecutionException {
-    Table table = TableCache.get(range.getTableIdentifier(), catalogConfig.catalog());
-    @Nullable Long fromSnapshot = range.getFromSnapshotExclusive();
-    long toSnapshot = range.getToSnapshot();
+    Table table = TableCache.get(snapshot.getTableIdentifier(), catalogConfig.catalog());
+    @Nullable Long fromSnapshot = snapshot.getParentId();
+    long toSnapshot = snapshot.getSnapshotId();
+    System.out.println("xxx snapshot operation: " + snapshot.getOperation());
 
     LOG.info("Planning to scan snapshot range ({}, {}]", fromSnapshot, toSnapshot);
-    IncrementalAppendScan scan =
-        table
-            .newIncrementalAppendScan()
-            .toSnapshot(toSnapshot)
-            .option(TableProperties.SPLIT_SIZE, String.valueOf(TableProperties.SPLIT_SIZE_DEFAULT));
+    IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
     if (fromSnapshot != null) {
       scan = scan.fromSnapshotExclusive(fromSnapshot);
     }
@@ -73,16 +73,18 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, KV<ReadTaskDescriptor, Rea
         for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
           ReadTask task =
               ReadTask.builder()
-                  .setTableIdentifierString(range.getTableIdentifierString())
                   .setFileScanTaskJson(ScanTaskParser.toJson(fileScanTask))
                   .setByteSize(fileScanTask.sizeBytes())
                   .build();
           ReadTaskDescriptor descriptor =
               ReadTaskDescriptor.builder()
-                  .setTableIdentifierString(range.getTableIdentifierString())
+                  .setTableIdentifierString(checkStateNotNull(snapshot.getTableIdentifierString()))
+                  .setSnapshotTimestampMillis(snapshot.getTimestampMillis())
                   .build();
-          out.output(KV.of(descriptor, task));
-          numFileScanTasks.inc();
+
+          out.outputWithTimestamp(
+              KV.of(descriptor, task), Instant.ofEpochMilli(snapshot.getTimestampMillis()));
+          totalScanTasks.inc();
         }
       }
     }

@@ -18,26 +18,21 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.mapping.NameMapping;
-import org.apache.iceberg.mapping.NameMappingParser;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * Unbounded read implementation.
@@ -49,9 +44,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * equals the batch size.
  */
 @DoFn.BoundedPerElement
-class ReadFromGroupedTasks
-    extends DoFn<KV<ShardedKey<ReadTaskDescriptor>, Iterable<ReadTask>>, Row> {
+class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, Row> {
   private final IcebergCatalogConfig catalogConfig;
+  private final Counter scanTasksCompleted =
+      Metrics.counter(ReadFromGroupedTasks.class, "scanTasksCompleted");
 
   ReadFromGroupedTasks(IcebergCatalogConfig catalogConfig) {
     this.catalogConfig = catalogConfig;
@@ -59,17 +55,15 @@ class ReadFromGroupedTasks
 
   @ProcessElement
   public void process(
-      @Element KV<ShardedKey<ReadTaskDescriptor>, Iterable<ReadTask>> element,
+      @Element KV<ReadTaskDescriptor, List<ReadTask>> element,
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<Row> out)
       throws IOException, ExecutionException {
-    String tableIdentifier = element.getKey().getKey().getTableIdentifierString();
-    List<ReadTask> readTasks = Lists.newArrayList(element.getValue());
+    String tableIdentifier = element.getKey().getTableIdentifierString();
+    Instant timestamp = Instant.ofEpochMilli(element.getKey().getSnapshotTimestampMillis());
+    List<ReadTask> readTasks = element.getValue();
     Table table = TableCache.get(tableIdentifier, catalogConfig.catalog());
     Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
-    @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
-    NameMapping mapping =
-        nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
     // SDF can split by the number of read tasks
     for (long taskIndex = tracker.currentRestriction().getFrom();
@@ -79,33 +73,29 @@ class ReadFromGroupedTasks
         return;
       }
       FileScanTask task = readTasks.get((int) taskIndex).getFileScanTask();
-      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, mapping)) {
+      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
         for (Record record : reader) {
           Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
-          out.output(row);
+          out.outputWithTimestamp(row, timestamp);
         }
       }
+      scanTasksCompleted.inc();
     }
   }
 
   @GetInitialRestriction
-  public OffsetRange getInitialRange(
-      @Element KV<ShardedKey<ReadTaskDescriptor>, Iterable<ReadTask>> element) {
-    return new OffsetRange(0, Iterables.size(element.getValue()));
+  public OffsetRange getInitialRange(@Element KV<ReadTaskDescriptor, List<ReadTask>> element) {
+    return new OffsetRange(0, element.getValue().size());
   }
 
   @GetSize
   public double getSize(
-      @Element KV<ShardedKey<ReadTaskDescriptor>, Iterable<ReadTask>> element,
-      @Restriction OffsetRange restriction)
-      throws Exception {
+      @Element KV<ReadTaskDescriptor, List<ReadTask>> element,
+      @Restriction OffsetRange restriction) {
     double size = 0;
-    Iterator<ReadTask> iterator = element.getValue().iterator();
-    for (long i = 0; i < restriction.getTo() && iterator.hasNext(); i++) {
-      ReadTask task = iterator.next();
-      if (i >= restriction.getFrom()) {
-        size += task.getByteSize();
-      }
+    List<ReadTask> tasks = element.getValue();
+    for (ReadTask task : tasks.subList((int) restriction.getFrom(), tasks.size())) {
+      size += task.getByteSize();
     }
     return size;
   }

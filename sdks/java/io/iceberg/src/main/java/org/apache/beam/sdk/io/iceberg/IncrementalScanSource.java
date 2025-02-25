@@ -19,14 +19,17 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.util.List;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -36,6 +39,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -47,6 +51,9 @@ import org.joda.time.Duration;
  * unbounded implementations) is used to process each task and output Beam rows.
  */
 class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
+  // (streaming) We will group files into batches of this size
+  // Downstream, we create one reader per batch
+  // TODO(ahmedabu98): should we make this configurable?
   private static final long MAX_FILES_BATCH_BYTE_SIZE = 1L << 32; // 4 GB
   private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
   private final IcebergScanConfig scanConfig;
@@ -78,15 +85,13 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
     return input
         .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, pollInterval))
+        .setCoder(SnapshotInfo.getCoder())
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(
-            "Apply User Trigger",
             Window.<KV<ReadTaskDescriptor, ReadTask>>into(new GlobalWindows())
-                .triggering(
-                    Repeatedly.forever(
-                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(pollInterval)))
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .discardingFiredPanes())
         .apply(
             GroupIntoBatches.<ReadTaskDescriptor, ReadTask>ofByteSize(
@@ -97,6 +102,17 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
             KvCoder.of(
                 ShardedKey.Coder.of(ReadTaskDescriptor.getCoder()),
                 IterableCoder.of(ReadTask.getCoder())))
+        .apply(
+            MapElements.via(
+                new SimpleFunction<
+                    KV<ShardedKey<ReadTaskDescriptor>, Iterable<ReadTask>>,
+                    KV<ReadTaskDescriptor, List<ReadTask>>>() {
+                  @Override
+                  public KV<ReadTaskDescriptor, List<ReadTask>> apply(
+                      KV<ShardedKey<ReadTaskDescriptor>, Iterable<ReadTask>> input) {
+                    return KV.of(input.getKey().getKey(), Lists.newArrayList(input.getValue()));
+                  }
+                }))
         .apply(
             "Read Rows From Grouped Tasks",
             ParDo.of(new ReadFromGroupedTasks(scanConfig.getCatalogConfig())));
@@ -119,13 +135,9 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
             ReadUtils.getToSnapshot(table, scanConfig), table.currentSnapshot().snapshotId());
     return input
         .apply(
-            "Create Single Snapshot Range",
-            Create.of(
-                SnapshotRange.builder()
-                    .setTableIdentifierString(scanConfig.getTableIdentifier())
-                    .setFromSnapshotExclusive(from)
-                    .setToSnapshot(to)
-                    .build()))
+            "Create Snapshot Ranges",
+            Create.of(ReadUtils.snapshotsBetween(table, scanConfig.getTableIdentifier(), from, to)))
+        .setCoder(SnapshotInfo.getCoder())
         .apply(
             "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))

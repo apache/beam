@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Create;
@@ -46,7 +47,7 @@ import org.joda.time.Instant;
  *
  * <p>A downstream transform will create a list of read tasks for each range.
  */
-class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
+class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotInfo>> {
   private final Duration pollInterval;
   private final IcebergScanConfig scanConfig;
 
@@ -56,18 +57,19 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
   }
 
   @Override
-  public PCollection<SnapshotRange> expand(PBegin input) {
+  public PCollection<SnapshotInfo> expand(PBegin input) {
     return input
         .apply(Create.of(scanConfig.getTableIdentifier()))
         .apply(
             "Watch for Snapshots",
-            Watch.growthOf(new SnapshotPollFn(scanConfig)).withPollInterval(pollInterval))
+            Watch.growthOf(new SnapshotPollFn(scanConfig))
+                .withPollInterval(pollInterval)
+                .withOutputCoder(SnapshotInfo.getCoder()))
         .apply(
-            "Strip key",
-            MapElements.into(TypeDescriptor.of(SnapshotRange.class)).via(KV::getValue));
+            "Strip key", MapElements.into(TypeDescriptor.of(SnapshotInfo.class)).via(KV::getValue));
   }
 
-  private static class SnapshotPollFn extends Watch.Growth.PollFn<String, SnapshotRange> {
+  private static class SnapshotPollFn extends Watch.Growth.PollFn<String, SnapshotInfo> {
     private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
     private final IcebergScanConfig scanConfig;
     private @Nullable Long fromSnapshotId;
@@ -77,7 +79,7 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
     }
 
     @Override
-    public PollResult<SnapshotRange> apply(String tableIdentifier, Context c) {
+    public PollResult<SnapshotInfo> apply(String tableIdentifier, Context c) {
       // fetch a fresh table to catch updated snapshots
       Table table =
           TableCache.getRefreshed(tableIdentifier, scanConfig.getCatalogConfig().catalog());
@@ -86,39 +88,35 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<SnapshotRange>> {
       if (fromSnapshotId == null) {
         fromSnapshotId = ReadUtils.getFromSnapshotExclusive(table, scanConfig);
       }
-      Instant timestamp = Instant.now();
 
       Snapshot currentSnapshot = table.currentSnapshot();
       if (currentSnapshot == null || Objects.equal(currentSnapshot.snapshotId(), fromSnapshotId)) {
-        // no new snapshot since last poll. return empty result.
-        return getPollResult(null, timestamp, isComplete);
+        // no new snapshots since last poll. return empty result.
+        return getPollResult(null, isComplete);
       }
       Long currentSnapshotId = currentSnapshot.snapshotId();
 
-      // if no upper bound is specified, we read up to the current snapshot
-      Long toSnapshot = MoreObjects.firstNonNull(userSpecifiedToSnapshot, currentSnapshotId);
-      latestSnapshot.set(toSnapshot);
+      // if no upper bound is specified, we poll up to the current snapshot
+      long toSnapshotId = MoreObjects.firstNonNull(userSpecifiedToSnapshot, currentSnapshotId);
+      latestSnapshot.set(toSnapshotId);
 
-      SnapshotRange range =
-          SnapshotRange.builder()
-              .setFromSnapshotExclusive(fromSnapshotId)
-              .setToSnapshot(toSnapshot)
-              .setTableIdentifierString(tableIdentifier)
-              .build();
-
-      // update lower bound to current snapshot
-      fromSnapshotId = currentSnapshotId;
-
-      return getPollResult(range, timestamp, isComplete);
+      List<SnapshotInfo> snapshots =
+          ReadUtils.snapshotsBetween(table, tableIdentifier, fromSnapshotId, toSnapshotId);
+      return getPollResult(snapshots, isComplete);
     }
 
     /** Returns an appropriate PollResult based on the requested boundedness. */
-    private PollResult<SnapshotRange> getPollResult(
-        @Nullable SnapshotRange range, Instant timestamp, boolean isComplete) {
-      List<TimestampedValue<SnapshotRange>> timestampedValues =
-          range == null
+    private PollResult<SnapshotInfo> getPollResult(
+        @Nullable List<SnapshotInfo> snapshots, boolean isComplete) {
+      List<TimestampedValue<SnapshotInfo>> timestampedValues =
+          snapshots == null
               ? Collections.emptyList()
-              : Collections.singletonList(TimestampedValue.of(range, timestamp));
+              : snapshots.stream()
+                  .map(
+                      snapshot ->
+                          TimestampedValue.of(
+                              snapshot, Instant.ofEpochMilli(snapshot.getTimestampMillis())))
+                  .collect(Collectors.toList());
 
       return isComplete
           ? PollResult.complete(timestampedValues) // stop at specified snapshot

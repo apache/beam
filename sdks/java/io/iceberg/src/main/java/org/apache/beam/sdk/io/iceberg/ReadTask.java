@@ -50,8 +50,6 @@ abstract class ReadTask {
     return new AutoValue_ReadTask.Builder();
   }
 
-  abstract String getTableIdentifierString();
-
   abstract String getFileScanTaskJson();
 
   abstract long getByteSize();
@@ -66,16 +64,9 @@ abstract class ReadTask {
 
   @AutoValue.Builder
   abstract static class Builder {
-    abstract Builder setTableIdentifierString(String table);
-
     abstract Builder setFileScanTaskJson(String jsonTask);
 
     abstract Builder setByteSize(long size);
-
-    @SchemaIgnore
-    Builder setFileScanTask(FileScanTask task) {
-      return setFileScanTaskJson(ScanTaskParser.toJson(task));
-    }
 
     abstract ReadTask build();
   }

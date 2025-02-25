@@ -82,7 +82,7 @@ class AppendFilesToTables
         .apply(
             "Append metadata updates to tables",
             ParDo.of(new AppendFilesToTablesDoFn(catalogConfig, manifestFilePrefix)))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.CODER));
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.getCoder()));
   }
 
   private static class AppendFilesToTablesDoFn

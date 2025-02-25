@@ -17,18 +17,24 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.iceberg.util.SnapshotUtil.ancestorsOf;
+
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
@@ -38,6 +44,7 @@ import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetReader;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
@@ -47,7 +54,7 @@ import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class ReadUtils {
+public class ReadUtils {
   // default is 8MB. keep this low to avoid overwhelming memory
   private static final int MAX_FILE_BUFFER_SIZE = 1 << 20; // 1MB
   private static final Collection<String> READ_PROPERTIES_TO_REMOVE =
@@ -57,7 +64,7 @@ class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static ParquetReader<Record> createReader(FileScanTask task, Table table, NameMapping mapping) {
+  public static ParquetReader<Record> createReader(FileScanTask task, Table table) {
     String filePath = task.file().path().toString();
     InputFile inputFile;
     try (FileIO io = table.io()) {
@@ -83,6 +90,10 @@ class ReadUtils {
         optionsBuilder
             .withRange(task.start(), task.start() + task.length())
             .withMaxAllocationInBytes(MAX_FILE_BUFFER_SIZE);
+
+    @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
+    NameMapping mapping =
+        nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
     return new ParquetReader<>(
         inputFile,
@@ -149,5 +160,26 @@ class ReadUtils {
     }
 
     return toSnapshot;
+  }
+
+  /**
+   * Returns a list of snapshots in the range (fromSnapshotId, toSnapshotId], ordered
+   * chronologically.
+   */
+  static List<SnapshotInfo> snapshotsBetween(
+      Table table, String tableIdentifier, @Nullable Long fromSnapshotId, long toSnapshotId) {
+    long from = MoreObjects.firstNonNull(fromSnapshotId, -1L);
+    @SuppressWarnings("return")
+    List<SnapshotInfo> snapshotIds =
+        Lists.newArrayList(
+                Lists.newArrayList(
+                    ancestorsOf(
+                        toSnapshotId,
+                        snapshotId -> snapshotId != from ? table.snapshot(snapshotId) : null)))
+            .stream()
+            .map(s -> SnapshotInfo.fromSnapshot(s, tableIdentifier))
+            .collect(Collectors.toList());
+    Collections.reverse(snapshotIds);
+    return snapshotIds;
   }
 }

@@ -19,26 +19,28 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.mapping.NameMapping;
-import org.apache.iceberg.mapping.NameMappingParser;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * Bounded read implementation.
  *
  * <p>For each {@link ReadTask}, reads Iceberg {@link Record}s, and converts to Beam {@link Row}s.
  */
+// @BoundedPerElement
 class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
   private final IcebergCatalogConfig catalogConfig;
+  private final Counter scanTasksCompleted =
+      Metrics.counter(ReadFromTasks.class, "scanTasksCompleted");
 
   ReadFromTasks(IcebergCatalogConfig catalogConfig) {
     this.catalogConfig = catalogConfig;
@@ -48,20 +50,19 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
   public void process(@Element KV<ReadTaskDescriptor, ReadTask> element, OutputReceiver<Row> out)
       throws IOException, ExecutionException {
     String tableIdentifier = element.getKey().getTableIdentifierString();
+    Instant timestamp = Instant.ofEpochMilli(element.getKey().getSnapshotTimestampMillis());
     ReadTask readTask = element.getValue();
     Table table = TableCache.get(tableIdentifier, catalogConfig.catalog());
     Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
-    @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
-    NameMapping mapping =
-        nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
     FileScanTask task = readTask.getFileScanTask();
 
-    try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, mapping)) {
+    try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
       for (Record record : reader) {
         Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
-        out.output(row);
+        out.outputWithTimestamp(row, timestamp);
       }
     }
+    scanTasksCompleted.inc();
   }
 }
