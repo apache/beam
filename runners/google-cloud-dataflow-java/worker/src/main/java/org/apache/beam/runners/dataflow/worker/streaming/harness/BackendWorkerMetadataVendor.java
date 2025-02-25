@@ -116,7 +116,7 @@ final class BackendWorkerMetadataVendor {
       // immediately; otherwise shutdown the stream after some time and create a new one.
       if (!getWorkerMetadataStream.awaitTermination(
           GET_WORKER_METADATA_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-        getWorkerMetadataStream.shutdown();
+        getWorkerMetadataStream.halfClose();
       }
     } catch (InterruptedException e) {
       LOG.debug("WorkerMetadataVendor interrupted unexpectedly.");
