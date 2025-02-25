@@ -304,7 +304,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
-  dependsOn(":sdks:java:io:sparkreceiver:2:build")
+  dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")

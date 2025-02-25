@@ -26,7 +26,10 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
+
+import com.google.cloud.bigquery.storage.v1.Exceptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -120,7 +123,7 @@ public class StorageApiSinkRowUpdateIT {
                 .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
 
-    p.run();
+    runPipelineAndWait(p);
 
     List<TableRow> expected =
         Lists.newArrayList(
@@ -181,7 +184,7 @@ public class StorageApiSinkRowUpdateIT {
                 .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
 
-    p.run();
+    runPipelineAndWait(p);
 
     List<TableRow> expected =
         Lists.newArrayList(
@@ -198,4 +201,23 @@ public class StorageApiSinkRowUpdateIT {
             String.format("SELECT * FROM %s", tableSpec), PROJECT, true, true, bigQueryLocation);
     assertThat(queryResponse, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
   }
+
+  private void runPipelineAndWait(Pipeline p) {
+    PipelineResult result = p.run();
+    try {
+      result.waitUntilFinish();
+    } catch (Pipeline.PipelineExecutionException e) {
+      Throwable root = e.getCause();
+      // Unwrap nested exceptions to find the root cause.
+      while (root != null && root.getCause() != null) {
+        root = root.getCause();
+      }
+      // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been flushed.
+      if (root instanceof Exceptions.StreamWriterClosedException) {
+        return;
+      }
+      throw e;
+    }
+  }
+
 }
