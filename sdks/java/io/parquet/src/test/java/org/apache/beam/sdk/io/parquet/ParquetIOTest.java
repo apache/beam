@@ -39,6 +39,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
+import org.apache.avro.protobuf.ProtobufData;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
@@ -135,6 +136,31 @@ public class ParquetIOTest implements Serializable {
                 .withProjection(REQUESTED_SCHEMA, REQUESTED_ENCODER_SCHEMA));
     PAssert.that(readBack).containsInAnyOrder(requestRecords);
     readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testParquetProtobufReadError() {
+    ProtobufData protoData = new ProtobufData() {};
+    Exception thrown =
+        assertThrows(RuntimeException.class, () -> protoData.getSchema(GenericData.Record.class));
+    assertTrue(
+        "Error message should mention 'getDescriptor'",
+        thrown.getMessage().contains("org.apache.avro.generic.GenericData$Record.getDescriptor"));
+  }
+
+  @Test
+  public void testReadFilesWithProtoReaderFlag() {
+    // Create a ReadFiles transform with the proto-reader enabled.
+    ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA).withProtoReader();
+    assertTrue("Proto reader flag should be enabled", readFiles.getUseProtoReader());
+  }
+
+  @Test
+  public void testReadFilesDisplayDataWithProtoReader() {
+    // Create a ReadFiles transform with proto-reader enabled.
+    ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA).withProtoReader();
+    DisplayData displayData = DisplayData.from(readFiles);
+    assertThat(displayData, hasDisplayItem("useProtoReader", true));
   }
 
   @Test
