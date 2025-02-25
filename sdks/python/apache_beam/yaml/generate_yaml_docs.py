@@ -371,7 +371,7 @@ def create_examples_markdown():
   return markdown_out.getvalue()
 
 
-def markdown_to_html(title, markdown_content):
+def markdown_to_html(title, markdown_content, header=''):
   import markdown
   import markdown.extensions.toc
   import pygments.formatters
@@ -539,6 +539,7 @@ def markdown_to_html(title, markdown_content):
                   <section class="transform-content-wrap">
                     <div class="transform-content">
                       <h1>{title}</h1>
+                      {header}
                       {html.replace('<h2', '<hr><h2')}
                     </div>
                   </section>
@@ -581,7 +582,18 @@ def main():
   if options.examples_file:
     with open(options.examples_file, 'w') as html_out:
       html_out.write(
-          markdown_to_html('Beam YAML Examples', create_examples_markdown()))
+          markdown_to_html(
+              'Beam YAML Examples',
+              create_examples_markdown(),
+              header='''
+                <p>Example pipelines using the
+                <a href="https://beam.apache.org/documentation/sdks/yaml/">
+                Beam YAML API</a>.
+                These examples can also be found on
+                <a href="https://github.com/apache/beam/tree/master/sdks/'''
+              '''python/apache_beam/yaml/examples">github</a>.
+                </p>
+          '''))
 
 
 if __name__ == '__main__':
