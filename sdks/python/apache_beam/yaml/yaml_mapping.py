@@ -24,8 +24,8 @@ from collections.abc import Collection
 from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
-from typing import Optional
 from typing import NamedTuple
+from typing import Optional
 from typing import TypeVar
 from typing import Union
 
@@ -849,7 +849,7 @@ class PaneInfoTuple(NamedTuple):
   is_first: bool
   is_last: bool
   timing: str
-  index: int
+  index: int  # type: ignore[assignment]
   nonspeculative_index: int
 
   @classmethod
@@ -886,7 +886,8 @@ assert set(_WINDOWING_INFO_TYPES.keys()) == set(
 
 
 @beam.ptransform.ptransform_fn
-def _ExtractWindowingInfo(pcoll, fields: Optional[Union[Mapping[str, str], Iterable[str]]] = None):
+def _ExtractWindowingInfo(
+    pcoll, fields: Optional[Union[Mapping[str, str], Iterable[str]]] = None):
   """
   Extracts the implicit windowing information from an element and makes it
   explicit as field(s) in the element itself.
@@ -943,7 +944,8 @@ def _ExtractWindowingInfo(pcoll, fields: Optional[Union[Mapping[str, str], Itera
     return beam.Row(**as_dict)
 
   return pcoll | beam.Map(augment_row).with_output_types(
-      row_type.RowTypeConstraint.from_fields(existing_fields + new_fields))
+      row_type.RowTypeConstraint.from_fields(
+          existing_fields + new_fields))  # type: ignore[operator]
 
 
 def create_mapping_providers():
