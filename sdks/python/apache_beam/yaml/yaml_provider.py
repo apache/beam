@@ -356,10 +356,13 @@ class RemoteProvider(ExternalProvider):
 
 
 class ExternalJavaProvider(ExternalProvider):
-  def __init__(self, urns, jar_provider):
+  def __init__(self, urns, jar_provider, classpath=None):
     super().__init__(
-        urns, lambda: external.JavaJarExpansionService(jar_provider()))
+        urns,
+        lambda: external.JavaJarExpansionService(
+            jar_provider(), classpath=classpath))
     self._jar_provider = jar_provider
+    self._classpath = classpath
 
   def available(self):
     # pylint: disable=subprocess-run-check
@@ -380,6 +383,15 @@ class ExternalJavaProvider(ExternalProvider):
 
   def cache_artifacts(self):
     return [self._jar_provider()]
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    jars = sum((
+        external.JavaJarExpansionService._expand_jars(dep)
+        for dep in dependencies), [])
+    return ExternalJavaProvider(
+        self._urns,
+        jar_provider=self._jar_provider,
+        classpath=(list(self._classpath or []) + list(jars)))
 
 
 @ExternalProvider.register_provider_type('python')
