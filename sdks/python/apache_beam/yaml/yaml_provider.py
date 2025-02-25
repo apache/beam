@@ -19,6 +19,7 @@
 for where to find and how to invoke services that vend implementations of
 various PTransforms."""
 
+import abc
 import collections
 import functools
 import hashlib
@@ -64,15 +65,18 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 
-class Provider:
+class Provider(abc.ABC):
   """Maps transform types names and args to concrete PTransform instances."""
+  @abc.abstractmethod
   def available(self) -> bool:
     """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
   def cache_artifacts(self) -> Optional[Iterable[str]]:
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
   def provided_transforms(self) -> Iterable[str]:
     """Returns a list of transform type names this provider can handle."""
     raise NotImplementedError(type(self))
@@ -93,6 +97,7 @@ class Provider:
     """
     return not typ.startswith('Read')
 
+  @abc.abstractmethod
   def create_transform(
       self,
       typ: str,
