@@ -2705,16 +2705,16 @@ public class JdbcIO {
       connectionLock.lock();
       try {
         if (this.connection == null) {
-          this.connection = validSource.getConnection();
-          this.connection.setAutoCommit(false);
+          connection = validSource.getConnection();
+          connection.setAutoCommit(false);
           preparedStatement =
-              this.connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
+              connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
         }
       } finally {
         connectionLock.unlock();
       }
-      if (connection == null) {
-        connection = this.connection;
+      if (this.connection == null) {
+        this.connection = connection;
 
         KV<@Nullable String, String> tableWithSchema;
         if (Strings.isNullOrEmpty(spec.getTable()) && spec.getStatement() != null) {
