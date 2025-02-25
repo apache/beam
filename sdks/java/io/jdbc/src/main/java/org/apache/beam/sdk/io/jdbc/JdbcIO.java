@@ -2700,12 +2700,13 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      Connection connection = this.connection;
+      Connection connection;
       DataSource validSource = checkStateNotNull(dataSource);
       boolean reportLineage = false;
       connectionLock.lock();
       try {
-        if (this.connection == null) {
+        connection = this.connection;
+        if (connection == null) {
           connection = validSource.getConnection();
           connection.setAutoCommit(false);
           preparedStatement =
