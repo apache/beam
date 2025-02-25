@@ -650,8 +650,8 @@ tasks.register("checkSetup") {
 
 // if not disabled make spotlessApply dependency of compileJava and compileTestJava
 val disableSpotlessCheck: String by project
-val isSpotlessDisabled = project.hasProperty("disableSpotlessCheck") &&
-        disableSpotlessCheck == "true"
+val isSpotlessDisabled = (project.hasProperty("disableSpotlessCheck") &&
+        disableSpotlessCheck == "true") || project.hasProperty("disableSpotlessApply")
 if (!isSpotlessDisabled) {
   subprojects {
     afterEvaluate {
