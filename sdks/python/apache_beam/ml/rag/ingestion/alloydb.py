@@ -706,4 +706,11 @@ class _WriteToAlloyDBVectorDatabase(beam.PTransform):
             jdbc_url=self.config.connection_config.jdbc_url,
             username=self.config.connection_config.username,
             password=self.config.connection_config.password,
-            statement=self.config.query_builder.build_insert()))
+            statement=self.config.query_builder.build_insert(),
+            connection_properties=self.config.connection_config.
+            connection_properties,
+            connection_init_sqls=self.config.connection_config.
+            connection_init_sqls,
+            autosharding=self.config.connection_config.autosharding,
+            max_connections=self.config.connection_config.max_connections,
+            write_batch_size=self.config.connection_config.write_batch_size))
