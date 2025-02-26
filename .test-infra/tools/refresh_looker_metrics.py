@@ -28,7 +28,7 @@ LOOKER_CLIENT_SECRET = os.getenv("LOOKERSDK_CLIENT_SECRET")
 TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
 # List of Look IDs to download
-LOOKS_TO_DOWNLOAD = ["Dcvfh3XFZySrsmPY4Rm8NYyMg5QQRBF6", "nwQxvsnQFdBPTk27pZYxjcGNm2rRfNJk"]
+LOOKS_TO_DOWNLOAD = [116, 22]
 
 
 def get_looker_token():
