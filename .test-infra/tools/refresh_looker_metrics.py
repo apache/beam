@@ -50,10 +50,10 @@ def get_look(id: str) -> models.Look:
     return look
 
 
-def download_look(look: models.Look, result_format: str):
+def download_look(look: models.Look):
     """Download specified look as png/jpg"""
     id = int(look.id)
-    task = sdk.create_look_render_task(id, result_format, 810, 526,)
+    task = sdk.create_look_render_task(id, "png", 810, 526,)
 
     if not (task and task.id):
         raise Exception(
@@ -92,11 +92,11 @@ sdk = looker_sdk.init40()
 
 
 def main():
-    token = get_looker_token()
 
     for look_id in LOOKS_TO_DOWNLOAD:
         if look_id:
-            content = download_look(token, look_id)
+            look = get_look(look_id)
+            content = download_look(look)
             if content:
                 upload_to_gcs(TARGET_BUCKET, f"{look_id}.png", content)
 
