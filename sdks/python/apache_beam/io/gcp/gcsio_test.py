@@ -715,8 +715,8 @@ class TestGCSIO(unittest.TestCase):
 
     options = PipelineOptions([
         "--job_name=test-job-name",
-        "--gcs-custom-audit-entry=user=test-user-id",
-        "--gcs-custom-audit-entries={\"id\": \"1234\", \"status\": \"ok\"}"
+        "--gcs_custom_audit_entry=user=test-user-id",
+        "--gcs_custom_audit_entries={\"id\": \"1234\", \"status\": \"ok\"}"
     ])
 
     gcs = gcsio.GcsIO(pipeline_options=options)

@@ -725,9 +725,9 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_gcs_custom_audit_entries(self):
     options = PipelineOptions([
-        '--gcs-custom-audit-entry=user=test-user',
-        '--gcs-custom-audit-entry=work=test-work',
-        '--gcs-custom-audit-entries={"job":"test-job", "id":"1234"}'
+        '--gcs_custom_audit_entry=user=test-user',
+        '--gcs_custom_audit_entry=work=test-work',
+        '--gcs_custom_audit_entries={"job":"test-job", "id":"1234"}'
     ])
     entries = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
     self.assertDictEqual(
@@ -742,7 +742,7 @@ class PipelineOptionsTest(unittest.TestCase):
   @mock.patch('apache_beam.options.pipeline_options._BeamArgumentParser.error')
   def test_gcs_custom_audit_entries_with_errors(self, mock_error):
     long_key = 'a' * 65
-    options = PipelineOptions([f'--gcs-custom-audit-entry={long_key}=1'])
+    options = PipelineOptions([f'--gcs_custom_audit_entry={long_key}=1'])
     _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
     self.assertRegex(
         mock_error.call_args[0][0],
@@ -751,7 +751,7 @@ class PipelineOptionsTest(unittest.TestCase):
     mock_error.reset_mock()
 
     long_value = 'b' * 1201
-    options = PipelineOptions([f'--gcs-custom-audit-entry=key={long_value}'])
+    options = PipelineOptions([f'--gcs_custom_audit_entry=key={long_value}'])
     _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
     self.assertRegex(
         mock_error.call_args[0][0],
@@ -760,29 +760,29 @@ class PipelineOptionsTest(unittest.TestCase):
     mock_error.reset_mock()
 
     options = PipelineOptions([
-        '--gcs-custom-audit-entry=a=1',
-        '--gcs-custom-audit-entry=b=2',
-        '--gcs-custom-audit-entry=c=3',
-        '--gcs-custom-audit-entry=d=4',
-        '--gcs-custom-audit-entry=job=test-job'
+        '--gcs_custom_audit_entry=a=1',
+        '--gcs_custom_audit_entry=b=2',
+        '--gcs_custom_audit_entry=c=3',
+        '--gcs_custom_audit_entry=d=4',
+        '--gcs_custom_audit_entry=job=test-job'
     ])
     _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
     self.assertRegex(
         mock_error.call_args[0][0],
-        'The maximum allowed number of gcs-custom-audit-entries .*')
+        'The maximum allowed number of GCS custom audit entries .*')
 
     mock_error.reset_mock()
 
     options = PipelineOptions([
-        '--gcs-custom-audit-entry=a=1',
-        '--gcs-custom-audit-entry=b=2',
-        '--gcs-custom-audit-entry=c=3',
-        '--gcs-custom-audit-entry=d=4'
+        '--gcs_custom_audit_entry=a=1',
+        '--gcs_custom_audit_entry=b=2',
+        '--gcs_custom_audit_entry=c=3',
+        '--gcs_custom_audit_entry=d=4'
     ])
     _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
     self.assertRegex(
         mock_error.call_args[0][0],
-        'The maximum allowed number of gcs-custom-audit-entries .*')
+        'The maximum allowed number of GCS custom audit entries .*')
 
   def _check_errors(self, options, validator, expected):
     if has_gcsio:
