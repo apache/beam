@@ -27,6 +27,8 @@ $defs:
       name: { type: string }
       windowing:
         $ref: '#/$defs/windowing'
+      resource_hints:
+        $ref: '#/$defs/resource_hints'
       input:
         oneOf:
           - type: string
@@ -134,6 +136,9 @@ $defs:
 
   windowing: {}  # TODO
 
+  resource_hints:
+    type: object
+
   provider:
     # TODO(robertwb): Consider enumerating the provider types along with
     # the arguments they accept/expect (possibly in a separate schema file).
@@ -190,6 +195,8 @@ properties:
               - { const: chain }
           windowing:
             $ref: '#/$defs/windowing'
+          resource_hints:
+            $ref: '#/$defs/resource_hints'
           transforms: {}
           extra_transforms: {}
           sink: {}
