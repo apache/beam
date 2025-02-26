@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-import requests
 import time
 import looker_sdk
 
@@ -29,18 +28,6 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
 # List of Look IDs to download
 LOOKS_TO_DOWNLOAD = ["116", "22"]
-
-
-def get_looker_token():
-    """Authenticate with Looker API and return an access token."""
-    url = f"{LOOKER_API_URL}/login"
-    payload = {
-        "client_id": LOOKER_CLIENT_ID,
-        "client_secret": LOOKER_CLIENT_SECRET
-    }
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
-    return response.json()["access_token"]
 
 
 def get_look(id: str) -> models.Look:
@@ -62,18 +49,19 @@ def download_look(look: models.Look):
     # poll the render task until it completes
     elapsed = 0.0
     delay = 0.5  # wait .5 seconds
-    while True:
-        poll = sdk.render_task(task.id)
-        if poll.status == "failure":
-            print(poll)
-            raise Exception(f"Render failed for '{look.id}'")
-        elif poll.status == "success":
-            break
+    content = sdk.render_task_results(task.id)
+    while content is None or content == "":
+        content = sdk.render_task_results(task.id)
+        # if poll.status == "failure":
+        #     print(poll)
+        #     raise Exception(f"Render failed for '{look.id}'")
+        # elif poll.status == "success":
+        #     break
         time.sleep(delay)
         elapsed += delay
     print(f"Render task completed in {elapsed} seconds")
 
-    return sdk.render_task_results(task.id)
+    return content
 
 
 def upload_to_gcs(bucket_name, destination_blob_name, content):
