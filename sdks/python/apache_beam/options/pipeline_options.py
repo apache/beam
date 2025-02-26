@@ -591,6 +591,8 @@ class StreamingOptions(PipelineOptions):
     parser.add_argument(
         '--update_compatibility_version',
         default=None,
+        nargs='?',
+        const=None,
         help='Attempt to produce a pipeline compatible with the given prior '
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
