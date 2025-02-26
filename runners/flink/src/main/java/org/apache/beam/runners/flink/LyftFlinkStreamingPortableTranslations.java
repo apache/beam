@@ -271,7 +271,7 @@ public class LyftFlinkStreamingPortableTranslations {
             new ByteArrayWindowedValueSchemaV2(context.getPipelineOptions()));
 
     Number maxOutOfOrdernessMillis = 1000;
-    Number idlenessTimeoutMillis = 30000;
+    Number idlenessTimeoutMillis = null;
 
     if (params.containsKey("max_out_of_orderness_millis")
         && params.get("max_out_of_orderness_millis") != null) {
@@ -283,11 +283,40 @@ public class LyftFlinkStreamingPortableTranslations {
       idlenessTimeoutMillis = (Number) params.get("idleness_timeout_millis");
     }
 
+    boolean useWatermarkAlignment = false;
+    String watermarkGroup = null;
+    Number maxAllowedWatermarkDrift = 5_000;
+    Number watermarkSyncIntervalMillis = 1_000;
+    if (params.getOrDefault("use_watermark_alignment", null) != null) {
+      useWatermarkAlignment = (boolean) params.get("use_watermark_alignment");
+    }
+    if (params.getOrDefault("watermark_group", null) != null) {
+      watermarkGroup = (String) params.get("watermark_group");
+    }
+    if (params.getOrDefault("max_allowed_watermark_drift", null) != null) {
+      maxAllowedWatermarkDrift = (Number) params.get("max_allowed_watermark_drift");
+    }
+    if (params.getOrDefault("watermark_sync_interval_millis", null) != null) {
+      watermarkSyncIntervalMillis = (Number) params.get("watermark_sync_interval_millis");
+    }
+
     // Define the watermark strategy
     WatermarkStrategy<WindowedValue<byte[]>> watermarkStrategy =
         WatermarkStrategy.<WindowedValue<byte[]>>forBoundedOutOfOrderness(
-            Duration.ofMillis(maxOutOfOrdernessMillis.longValue()))
-        .withIdleness(Duration.ofMillis(idlenessTimeoutMillis.longValue()));
+            Duration.ofMillis(maxOutOfOrdernessMillis.longValue()));
+    if (idlenessTimeoutMillis != null) {
+        watermarkStrategy = watermarkStrategy.withIdleness(Duration.ofMillis(idlenessTimeoutMillis.longValue()));
+    } else {
+        watermarkStrategy = watermarkStrategy.withTimestampAssigner((element, recordTimestamp) ->
+              element.getTimestamp() != null ? element.getTimestamp().getMillis() : Long.MIN_VALUE);
+    }
+
+    if (useWatermarkAlignment && watermarkGroup != null) {
+      LOG.info("Using watermark alignment on Kafka consumer");
+      watermarkStrategy = watermarkStrategy.withWatermarkAlignment(
+        watermarkGroup, Duration.ofMillis(maxAllowedWatermarkDrift.longValue()),
+        Duration.ofMillis(watermarkSyncIntervalMillis.longValue()));
+    }
 
     context.addDataStream(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -476,6 +505,11 @@ public class LyftFlinkStreamingPortableTranslations {
             params.get("max_out_of_orderness_millis").numberValue().longValue();
       }
 
+      boolean useGlobalWatermarkTracker = false;
+      if (params.hasNonNull("use_global_watermark_tracker")) {
+        useGlobalWatermarkTracker = params.get("use_global_watermark_tracker").asBoolean();
+      }
+
       switch (encoding) {
         case BYTES_ENCODING:
           source =
@@ -499,7 +533,7 @@ public class LyftFlinkStreamingPortableTranslations {
           stream,
           properties,
           encoding);
-      if (params.hasNonNull("use_global_watermark_tracker") && params.get("use_global_watermark_tracker").asBoolean()) {
+      if (useGlobalWatermarkTracker) {
         LOG.info("Using global watermark tracker on Kinesis consumer");
         source.setWatermarkTracker(GLOBAL_WATERMARK);
       }
