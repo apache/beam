@@ -28,7 +28,7 @@ LOOKER_CLIENT_SECRET = os.getenv("LOOKERSDK_CLIENT_SECRET")
 TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
 # List of Look IDs to download
-LOOKS_TO_DOWNLOAD = [116, 22]
+LOOKS_TO_DOWNLOAD = ["116", "22"]
 
 
 def get_looker_token():
@@ -52,8 +52,7 @@ def get_look(id: str) -> models.Look:
 
 def download_look(look: models.Look):
     """Download specified look as png/jpg"""
-    id = int(look.id)
-    task = sdk.create_look_render_task(id, "png", 810, 526,)
+    task = sdk.create_look_render_task(look.id, "png", 810, 526,)
 
     if not (task and task.id):
         raise Exception(
