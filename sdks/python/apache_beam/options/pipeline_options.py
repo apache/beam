@@ -1014,7 +1014,7 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         help='Custom information to be attached to audit logs. '
         'Entries are key value pairs separated by = '
-        '(e.g. --gcs-custom-audit-entry key=value) or a JSON string git '
+        '(e.g. --gcs-custom-audit-entry key=value) or a JSON string '
         '(e.g. --gcs-custom-audit-entries=\'{ "user": "test", "id": "12" }\').')
 
   def _create_default_gcs_bucket(self):

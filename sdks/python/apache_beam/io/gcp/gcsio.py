@@ -29,7 +29,6 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 # pytype: skip-file
 
-import ast
 import logging
 import re
 import time

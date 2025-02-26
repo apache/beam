@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import argparse
 import json
 import logging
 import os
