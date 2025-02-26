@@ -603,7 +603,9 @@ tasks.register("pushAllSdkDockerImages") {
   }
 
   dependsOn(":sdks:java:container:pushAll")
-  dependsOn(":sdks:python:container:pushAll")
+  if (!project.hasProperty("skip-python-images")) {
+    dependsOn(":sdks:python:container:pushAll")
+  }
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
 

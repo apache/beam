@@ -39,14 +39,6 @@ jobs:
 
   build:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        images_to_publish: [
-          {"gradle_task": ":pushAllRunnersDockerImages", "skip_flags": ""},
-          {"gradle_task": ":pushAllSdkDockerImages", "skip_flags": ""},
-          {"gradle_task": ":pushAllDockerImages", "skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
-        ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -81,10 +73,10 @@ jobs:
           gcloud auth configure-docker ${{ env.docker_registry }}
       - name: Push docker images
         run: |
-          ./gradlew ${{ matrix.images_to_publish.gradle_task }} \
+          ./gradlew :pushAllDockerImages \
           -PisRelease \
           -Pdocker-pull-licenses \
-          -Pprune-images ${{ matrix.images_to_publish.skip_flags }} \
+          -Pprune-images \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
           -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
           --no-daemon \
