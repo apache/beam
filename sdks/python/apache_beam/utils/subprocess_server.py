@@ -259,7 +259,7 @@ class SubprocessServer(object):
 class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
-  MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'
+  MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -364,11 +364,7 @@ class JavaJarServer(SubprocessServer):
           (local_path, os.path.abspath(project_root), gradle_target))
 
     return cls.path_to_maven_jar(
-        artifact_id,
-        cls.BEAM_GROUP_ID,
-        version,
-        maven_repo,
-        appendix=appendix)
+        artifact_id, cls.BEAM_GROUP_ID, version, maven_repo, appendix=appendix)
 
   @classmethod
   def local_jar(cls, url, cache_dir=None):
