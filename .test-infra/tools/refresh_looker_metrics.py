@@ -90,7 +90,7 @@ sdk = looker_sdk.init40()
 def main():
 
     sdk.login(LOOKER_CLIENT_ID, LOOKER_CLIENT_SECRET)
-    print(f"ME role ids: {sdk.me().role_id}")
+    print(f"ME role ids: {sdk.me().role_ids}")
     for look_id in LOOKS_TO_DOWNLOAD:
         if look_id:
             look = get_look(look_id)
