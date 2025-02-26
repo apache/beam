@@ -57,12 +57,12 @@ def download_look(look: models.Look):
             content = sdk.render_task_results(task.id)
         except Exception as e:
             print(f"Error: {e}")
-            if elapsed > 300:
-                print("Failed to render in 5 min")
-                return None
-            print("SLEEPING...")
-            time.sleep(delay)
-            elapsed += delay
+            return None
+        print("SLEEPING...")
+        time.sleep(delay)
+        elapsed += delay
+        if elapsed > 300:
+            print("Failed to render in 5 min")
         # if poll.status == "failure":
         #     print(poll)
         #     raise Exception(f"Render failed for '{look.id}'")
@@ -89,6 +89,8 @@ sdk = looker_sdk.init40()
 
 def main():
 
+    sdk.login(LOOKER_CLIENT_ID, LOOKER_CLIENT_SECRET)
+    print(f"ME role ids: {sdk.me().role_id}")
     for look_id in LOOKS_TO_DOWNLOAD:
         if look_id:
             look = get_look(look_id)
