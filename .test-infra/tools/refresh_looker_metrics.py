@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-import requests
 import time
 import looker_sdk
 
@@ -29,18 +28,6 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
 # List of Look IDs to download
 LOOKS_TO_DOWNLOAD = ["116", "22"]
-
-
-def get_looker_token():
-    """Authenticate with Looker API and return an access token."""
-    url = f"{LOOKER_API_URL}/login"
-    payload = {
-        "client_id": LOOKER_CLIENT_ID,
-        "client_secret": LOOKER_CLIENT_SECRET
-    }
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
-    return response.json()["access_token"]
 
 
 def get_look(id: str) -> models.Look:
