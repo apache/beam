@@ -49,18 +49,19 @@ def download_look(look: models.Look):
     # poll the render task until it completes
     elapsed = 0.0
     delay = 0.5  # wait .5 seconds
-    while True:
-        poll = sdk.render_task(task.id)
-        if poll.status == "failure":
-            print(poll)
-            raise Exception(f"Render failed for '{look.id}'")
-        elif poll.status == "success":
-            break
+    content = sdk.render_task_results(task.id)
+    while content is None or content == "":
+        content = sdk.render_task_results(task.id)
+        # if poll.status == "failure":
+        #     print(poll)
+        #     raise Exception(f"Render failed for '{look.id}'")
+        # elif poll.status == "success":
+        #     break
         time.sleep(delay)
         elapsed += delay
     print(f"Render task completed in {elapsed} seconds")
 
-    return sdk.render_task_results(task.id)
+    return content
 
 
 def upload_to_gcs(bucket_name, destination_blob_name, content):
