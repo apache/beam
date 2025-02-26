@@ -34,6 +34,7 @@ def get_look(id: str) -> models.Look:
     look = next(iter(sdk.search_looks(id=id)), None)
     if not look:
         raise Exception(f"look '{id}' was not found")
+    print(f"Found look with public_slug = {look.public_slug}")
     return look
 
 
@@ -50,10 +51,15 @@ def download_look(look: models.Look):
     elapsed = 0.0
     delay = 20.0
     content = sdk.render_task_results(task.id)
+    print(f"Task ID: {task.id}")
     while content is None or content == "" or not content:
         try:
             content = sdk.render_task_results(task.id)
         except Exception as e:
+            print(f"Error: {e}")
+            if elapsed > 300:
+                print("Failed to render in 5 min")
+                return None
             print("SLEEPING...")
             time.sleep(delay)
             elapsed += delay
@@ -88,7 +94,7 @@ def main():
             look = get_look(look_id)
             content = download_look(look)
             if content:
-                upload_to_gcs(TARGET_BUCKET, f"{look_id}.png", content)
+                upload_to_gcs(TARGET_BUCKET, f"{look.public_slug}.png", content)
             else:
                 print("No content")
 
