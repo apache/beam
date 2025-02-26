@@ -259,6 +259,7 @@ class SubprocessServer(object):
 class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
+  MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -348,6 +349,12 @@ class JavaJarServer(SubprocessServer):
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
+
+    maven_repo = cls.MAVEN_CENTRAL_REPOSITORY
+    if 'rc' in version:
+      # Release candidate
+      version = version.split('rc')[0]
+      maven_repo = cls.MAVEN_STAGING_REPOSITORY
     elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
@@ -355,13 +362,13 @@ class JavaJarServer(SubprocessServer):
               '%s not found. '
               'Please build the server with \n  cd %s; ./gradlew %s') %
           (local_path, os.path.abspath(project_root), gradle_target))
-    else:
-      return cls.path_to_maven_jar(
-          artifact_id,
-          cls.BEAM_GROUP_ID,
-          version,
-          cls.MAVEN_CENTRAL_REPOSITORY,
-          appendix=appendix)
+
+    return cls.path_to_maven_jar(
+        artifact_id,
+        cls.BEAM_GROUP_ID,
+        version,
+        maven_repo,
+        appendix=appendix)
 
   @classmethod
   def local_jar(cls, url, cache_dir=None):
