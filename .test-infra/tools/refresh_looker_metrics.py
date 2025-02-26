@@ -15,7 +15,11 @@
 
 import os
 import requests
+import time
+import looker_sdk
+
 from google.cloud import storage
+from looker_sdk import models40 as models
 
 # Load environment variables
 LOOKER_API_URL = os.getenv("LOOKERSDK_BASE_URL")
@@ -39,17 +43,38 @@ def get_looker_token():
     return response.json()["access_token"]
 
 
-def download_look(token, look_id):
-    """Download Look as PNG."""
-    url = f"{LOOKER_API_URL}/looks/{look_id}/run/png"
-    headers = {"Authorization": f"token {token}"}
-    response = requests.get(url, headers=headers)
+def get_look(id: str) -> models.Look:
+    look = next(iter(sdk.search_looks(id=id)), None)
+    if not look:
+        raise Exception(f"look '{id}' was not found")
+    return look
 
-    if response.status_code == 200:
-        return response.content
-    else:
-        print(f"Failed to download Look {look_id}: {response.text}")
-        return None
+
+def download_look(look: models.Look, result_format: str):
+    """Download specified look as png/jpg"""
+    id = int(look.id)
+    task = sdk.create_look_render_task(id, result_format, 810, 526,)
+
+    if not (task and task.id):
+        raise Exception(
+            f"Could not create a render task for '{look.title}'"
+        )
+
+    # poll the render task until it completes
+    elapsed = 0.0
+    delay = 0.5  # wait .5 seconds
+    while True:
+        poll = sdk.render_task(task.id)
+        if poll.status == "failure":
+            print(poll)
+            raise Exception(f"Render failed for '{look.id}'")
+        elif poll.status == "success":
+            break
+        time.sleep(delay)
+        elapsed += delay
+    print(f"Render task completed in {elapsed} seconds")
+
+    return sdk.render_task_results(task.id)
 
 
 def upload_to_gcs(bucket_name, destination_blob_name, content):
@@ -61,6 +86,9 @@ def upload_to_gcs(bucket_name, destination_blob_name, content):
     # Upload content, overwriting if it exists
     blob.upload_from_string(content, content_type="image/png")
     print(f"Uploaded {destination_blob_name} to {bucket_name}.")
+
+
+sdk = looker_sdk.init40()
 
 
 def main():
