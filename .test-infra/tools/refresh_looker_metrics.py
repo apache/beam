@@ -48,18 +48,19 @@ def download_look(look: models.Look):
 
     # poll the render task until it completes
     elapsed = 0.0
-    delay = 0.5  # wait .5 seconds
+    delay = 1.0
     content = sdk.render_task_results(task.id)
-    while content is None or content == "":
+    while content is None or content == "" or not content:
         content = sdk.render_task_results(task.id)
         # if poll.status == "failure":
         #     print(poll)
         #     raise Exception(f"Render failed for '{look.id}'")
         # elif poll.status == "success":
         #     break
+        print("SLEEPING")
         time.sleep(delay)
         elapsed += delay
-    print(f"Render task completed in {elapsed} seconds")
+    print(f"Render task completed in {elapsed} seconds. {content}")
 
     return content
 
@@ -86,6 +87,8 @@ def main():
             content = download_look(look)
             if content:
                 upload_to_gcs(TARGET_BUCKET, f"{look_id}.png", content)
+            else:
+                print("No content")
 
 
 if __name__ == "__main__":
