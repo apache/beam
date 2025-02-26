@@ -23,9 +23,6 @@ import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.dstream.ConstantInputDStream;
 import org.apache.spark.streaming.dstream.QueueInputDStream;
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Option;
 
 /**
@@ -44,8 +41,6 @@ import scala.Option;
  */
 public class SingleEmitInputDStream<T> extends ConstantInputDStream<T> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SingleEmitInputDStream.class);
-
   private boolean emitted = false;
 
   public SingleEmitInputDStream(StreamingContext ssc, RDD<T> rdd) {
@@ -55,11 +50,9 @@ public class SingleEmitInputDStream<T> extends ConstantInputDStream<T> {
   @Override
   public Option<RDD<T>> compute(Time validTime) {
     if (this.emitted) {
-      LOG.info("{} already emitted.", getClass().getSimpleName());
       return Option.apply(this.emptyRDD());
     } else {
       this.emitted = true;
-      LOG.info("{} emitted at1 {}", getClass().getSimpleName(), Instant.now());
       return super.compute(validTime);
     }
   }
