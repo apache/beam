@@ -150,6 +150,16 @@ class _DictUnionAction(argparse.Action):
 
 
 class _GcsCustomAuditEntriesAction(argparse.Action):
+  """
+  Argparse Action for GCS custom audit entries.
+
+  According to Google Cloud Storage audit logging documentation
+  (https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata), the
+  following limitations apply:
+  - keys must be 64 characters or less,
+  - values 1,200 characters or less, and
+  - a maximum of four custom metadata entries are permitted per request.
+  """
   MAX_KEY_LENGTH = 64
   MAX_VALUE_LENGTH = 1200
   MAX_ENTRIES = 4
