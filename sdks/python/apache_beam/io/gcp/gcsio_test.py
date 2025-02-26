@@ -715,9 +715,8 @@ class TestGCSIO(unittest.TestCase):
 
     options = PipelineOptions([
         "--job_name=test-job-name",
-        "--custom-audit-entry=user=test-user-id",
-        "--custom-audit-entry=work=test-work-id",
-        "--custom-audit-entries={'id': '1234', \"status\": \"ok\"}"
+        "--gcs-custom-audit-entry=user=test-user-id",
+        "--gcs-custom-audit-entries={\"id\": \"1234\", \"status\": \"ok\"}"
     ])
 
     gcs = gcsio.GcsIO(pipeline_options=options)
@@ -741,7 +740,6 @@ class TestGCSIO(unittest.TestCase):
     self.assertIn(beam_user_agent, actual_headers['User-Agent'])
     self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
     self.assertEqual(actual_headers['x-goog-custom-audit-user'], 'test-user-id')
-    self.assertEqual(actual_headers['x-goog-custom-audit-work'], 'test-work-id')
     self.assertEqual(actual_headers['x-goog-custom-audit-id'], '1234')
     self.assertEqual(actual_headers['x-goog-custom-audit-status'], 'ok')
 

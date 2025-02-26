@@ -149,6 +149,61 @@ class _DictUnionAction(argparse.Action):
     getattr(namespace, self.dest).update(values)
 
 
+class _GcsCustomAuditEntriesAction(argparse.Action):
+  MAX_KEY_LENGTH = 64
+  MAX_VALUE_LENGTH = 1200
+  MAX_ENTRIES = 4
+
+  def _exceed_entry_limit(self):
+    if 'x-goog-custom-audit-job' in self._custom_audit_entries:
+      return len(
+          self._custom_audit_entries) > _GcsCustomAuditEntriesAction.MAX_ENTRIES
+    else:
+      return len(self._custom_audit_entries) > (
+          _GcsCustomAuditEntriesAction.MAX_ENTRIES - 1)
+
+  def _add_entry(self, key, value):
+    if len(key) > _GcsCustomAuditEntriesAction.MAX_KEY_LENGTH:
+      raise argparse.ArgumentError(
+          None,
+          "The key '%s' in gcs-custom-audit-entries exceeds the %d-character limit."  # pylint: disable=line-too-long
+          % (key, _GcsCustomAuditEntriesAction.MAX_KEY_LENGTH))
+
+    if len(value) > _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH:
+      raise argparse.ArgumentError(
+          None,
+          "The value '%s' in gcs-custom-audit-entries exceeds the %d-character limit."  # pylint: disable=line-too-long
+          % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
+
+    self._custom_audit_entries[f"x-goog-custom-audit-{key}"] = value
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
+      setattr(namespace, self.dest, {})
+      self._custom_audit_entries = getattr(namespace, self.dest)
+
+    if option_string == '--gcs-custom-audit-entries':
+      # in the format of {"key": "value"}
+      assert (isinstance(values, str))
+      sub_entries = json.loads(values)
+      for key, value in sub_entries.items():
+        self._add_entry(key, value)
+    else:  # option_string == '--gcs-custom-audit-entry'
+      # in the format of 'key=value'
+      assert (isinstance(values, str))
+      parts = values.split('=', 1)
+      key = parts[0]
+      value = parts[1] if len(parts) > 1 else ''
+      self._add_entry(key, value)
+
+    if self._exceed_entry_limit():
+      raise argparse.ArgumentError(
+          None,
+          "The maximum allowed number of gcs-custom-audit-entries (including the default x-goo-custom-audit-job) is %d."  # pylint: disable=line-too-long
+          % _GcsCustomAuditEntriesAction.MAX_ENTRIES)
+
+
 class PipelineOptions(HasDisplayData):
   """This class and subclasses are used as containers for command line options.
 
@@ -952,15 +1007,15 @@ class GoogleCloudOptions(PipelineOptions):
         help='Use blob generation when mutating blobs in GCSIO to '
         'mitigate race conditions at the cost of more HTTP requests.')
     parser.add_argument(
-        '--custom-audit-entry',
-        '--custom-audit-entries',
-        dest='custom_audit_entries',
-        action='append',
+        '--gcs-custom-audit-entry',
+        '--gcs-custom-audit-entries',
+        dest='gcs_custom_audit_entries',
+        action=_GcsCustomAuditEntriesAction,
         default=None,
         help='Custom information to be attached to audit logs. '
         'Entries are key value pairs separated by = '
-        '(e.g. --custom-audit-entry key=value) or '
-        '(--custom-audit-entries=\'{ "user": "test", "id": "1234" }\').')
+        '(e.g. --gcs-custom-audit-entry key=value) or a JSON string git '
+        '(e.g. --gcs-custom-audit-entries=\'{ "user": "test", "id": "12" }\').')
 
   def _create_default_gcs_bucket(self):
     try:

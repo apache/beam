@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import argparse
 import json
 import logging
 import os
@@ -722,6 +723,67 @@ class PipelineOptionsTest(unittest.TestCase):
         " with different dest/option_name from the flag name, please add "
         "the dest and the flag name to the map "
         "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
+
+  def test_gcs_custom_audit_entries(self):
+    options = PipelineOptions([
+        '--gcs-custom-audit-entry=user=test-user',
+        '--gcs-custom-audit-entry=work=test-work',
+        '--gcs-custom-audit-entries={"job":"test-job", "id":"1234"}'
+    ])
+    entries = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertDictEqual(
+        entries,
+        {
+            'x-goog-custom-audit-user': 'test-user',
+            'x-goog-custom-audit-work': 'test-work',
+            'x-goog-custom-audit-job': 'test-job',
+            'x-goog-custom-audit-id': '1234'
+        })
+
+  @mock.patch('apache_beam.options.pipeline_options._BeamArgumentParser.error')
+  def test_gcs_custom_audit_entries_with_errors(self, mock_error):
+    long_key = 'a' * 65
+    options = PipelineOptions([f'--gcs-custom-audit-entry={long_key}=1'])
+    _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertRegex(
+        mock_error.call_args[0][0],
+        'The key .* exceeds the 64-character limit.')
+
+    mock_error.reset_mock()
+
+    long_value = 'b' * 1201
+    options = PipelineOptions([f'--gcs-custom-audit-entry=key={long_value}'])
+    _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertRegex(
+        mock_error.call_args[0][0],
+        'The value .* exceeds the 1200-character limit.')
+
+    mock_error.reset_mock()
+
+    options = PipelineOptions([
+        '--gcs-custom-audit-entry=a=1',
+        '--gcs-custom-audit-entry=b=2',
+        '--gcs-custom-audit-entry=c=3',
+        '--gcs-custom-audit-entry=d=4',
+        '--gcs-custom-audit-entry=job=test-job'
+    ])
+    _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertRegex(
+        mock_error.call_args[0][0],
+        'The maximum allowed number of gcs-custom-audit-entries .*')
+
+    mock_error.reset_mock()
+
+    options = PipelineOptions([
+        '--gcs-custom-audit-entry=a=1',
+        '--gcs-custom-audit-entry=b=2',
+        '--gcs-custom-audit-entry=c=3',
+        '--gcs-custom-audit-entry=d=4'
+    ])
+    _ = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertRegex(
+        mock_error.call_args[0][0],
+        'The maximum allowed number of gcs-custom-audit-entries .*')
 
   def _check_errors(self, options, validator, expected):
     if has_gcsio:
