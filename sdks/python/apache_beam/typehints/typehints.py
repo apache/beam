@@ -1311,7 +1311,7 @@ def normalize(x, none_as_type=False):
 
   if none_as_type and x is None:
     return type(None)
-  # Convert bare builtin types to correct type hints correctly
+  # Convert bare builtin types to correct type hints directly
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
   elif getattr(x, '__module__',
