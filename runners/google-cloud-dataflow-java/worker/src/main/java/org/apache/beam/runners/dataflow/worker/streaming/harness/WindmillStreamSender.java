@@ -20,8 +20,9 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -58,6 +59,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 @ThreadSafe
 final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private static final String STREAM_STARTER_THREAD_NAME = "StartWindmillStreamThread-%d";
+  private static final int STREAM_TIMEOUT_MIN = 3;
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final GetWorkStream getWorkStream;
@@ -65,7 +67,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private final CommitWorkStream commitWorkStream;
   private final WorkCommitter workCommitter;
   private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
-  private final ExecutorService streamStarter;
+  private final ScheduledExecutorService streamStarter;
 
   private WindmillStreamSender(
       WindmillConnection connection,
@@ -99,7 +101,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
             workItemScheduler);
     // 3 threads, 1 for each stream type (GetWork, GetData, CommitWork).
     this.streamStarter =
-        Executors.newFixedThreadPool(
+        Executors.newScheduledThreadPool(
             3, new ThreadFactoryBuilder().setNameFormat(STREAM_STARTER_THREAD_NAME).build());
   }
 
@@ -137,6 +139,14 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
           .join();
       workCommitter.start();
       started.set(true);
+
+      // Restart the streams gracefully on a fixed time.
+      streamStarter.scheduleWithFixedDelay(
+          getDataStream::restart, STREAM_TIMEOUT_MIN, STREAM_TIMEOUT_MIN, TimeUnit.SECONDS);
+      streamStarter.scheduleWithFixedDelay(
+          commitWorkStream::restart, STREAM_TIMEOUT_MIN, STREAM_TIMEOUT_MIN, TimeUnit.SECONDS);
+      streamStarter.scheduleWithFixedDelay(
+          getWorkStream::restart, STREAM_TIMEOUT_MIN, STREAM_TIMEOUT_MIN, TimeUnit.SECONDS);
     }
   }
 

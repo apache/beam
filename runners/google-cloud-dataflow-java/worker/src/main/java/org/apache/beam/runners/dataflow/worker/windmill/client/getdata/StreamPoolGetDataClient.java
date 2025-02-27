@@ -19,12 +19,14 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
 import java.io.PrintWriter;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -36,22 +38,42 @@ import org.apache.beam.sdk.annotations.Internal;
 @ThreadSafe
 public final class StreamPoolGetDataClient implements GetDataClient {
 
-  private final WindmillStreamPool<GetDataStream> getDataStreamPool;
+  private final WindmillStreamPool<GetDataStream> getStateDataStreamPool;
+  private final WindmillStreamPool<GetDataStream> getSideInputDataStreamPool;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
 
-  public StreamPoolGetDataClient(
+  private StreamPoolGetDataClient(
+      ThrottlingGetDataMetricTracker getDataMetricTracker,
+      WindmillStreamPool<GetDataStream> getStateDataStreamPool,
+      WindmillStreamPool<GetDataStream> getSideInputDataStreamPool) {
+    this.getDataMetricTracker = getDataMetricTracker;
+    this.getStateDataStreamPool = getStateDataStreamPool;
+    this.getSideInputDataStreamPool = getSideInputDataStreamPool;
+  }
+
+  public static GetDataClient create(
       ThrottlingGetDataMetricTracker getDataMetricTracker,
       WindmillStreamPool<GetDataStream> getDataStreamPool) {
-    this.getDataMetricTracker = getDataMetricTracker;
-    this.getDataStreamPool = getDataStreamPool;
+    return new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool, getDataStreamPool);
+  }
+
+  public static GetDataClient create(
+      ThrottlingGetDataMetricTracker getDataMetricTracker,
+      WindmillStreamPool<GetDataStream> getStateDataStreamPool,
+      WindmillStreamPool<GetDataStream> getSideInputDataStreamPool) {
+    return new StreamPoolGetDataClient(
+        getDataMetricTracker, getStateDataStreamPool, getSideInputDataStreamPool);
   }
 
   @Override
   public Windmill.KeyedGetDataResponse getStateData(
       String computationId, KeyedGetDataRequest request) {
     try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling();
-        CloseableStream<GetDataStream> closeableStream = getDataStreamPool.getCloseableStream()) {
+        CloseableStream<GetDataStream> closeableStream =
+            getStateDataStreamPool.getCloseableStream()) {
       return closeableStream.stream().requestKeyedData(computationId, request);
+    } catch (WindmillStreamShutdownException e) {
+      throw new WorkItemCancelledException(request.getShardingKey());
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching state for computation="
@@ -65,8 +87,11 @@ public final class StreamPoolGetDataClient implements GetDataClient {
   @Override
   public Windmill.GlobalData getSideInputData(GlobalDataRequest request) {
     try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling();
-        CloseableStream<GetDataStream> closeableStream = getDataStreamPool.getCloseableStream()) {
+        CloseableStream<GetDataStream> closeableStream =
+            getSideInputDataStreamPool.getCloseableStream()) {
       return closeableStream.stream().requestGlobalData(request);
+    } catch (WindmillStreamShutdownException e) {
+      throw new WorkItemCancelledException(e);
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching side input for tag=" + request.getDataId(), e);

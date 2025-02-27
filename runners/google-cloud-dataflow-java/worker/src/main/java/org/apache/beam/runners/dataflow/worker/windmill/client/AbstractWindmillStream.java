@@ -292,10 +292,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void appendSpecificHtml(PrintWriter writer);
 
   @Override
-  public final synchronized void halfClose() {
-    // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
-    debugMetrics.recordHalfClose();
-    clientClosed = true;
+  public final void restart() {
     try {
       requestObserver.onCompleted();
     } catch (ResettableThrowingStreamObserver.StreamClosedException e) {
@@ -305,6 +302,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     } catch (IllegalStateException e) {
       logger.warn("Unexpected error when trying to close stream", e);
     }
+  }
+
+  @Override
+  public final synchronized void halfClose() {
+    // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
+    debugMetrics.recordHalfClose();
+    clientClosed = true;
+    restart();
   }
 
   @Override
@@ -405,7 +410,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       if (status.isOk()) {
         String restartReason =
             "Stream completed successfully but did not complete requested operations, "
-                + "recreating";
+                + "recreating.";
         logger.warn(restartReason);
         debugMetrics.recordRestartReason(restartReason);
       } else {
