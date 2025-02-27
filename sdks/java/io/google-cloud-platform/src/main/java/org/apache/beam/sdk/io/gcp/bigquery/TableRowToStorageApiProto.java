@@ -539,10 +539,10 @@ public class TableRowToStorageApiProto {
 
         if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
             && unknownFields != null) {
-          if (unknownFields.get(key) instanceof Map // could be array
+          if (unknownFields.get(key) instanceof Map
               && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
             unknownFields.remove(key);
-          } else if (unknownFields.get(key) instanceof List) {
+          } else if (unknownFields.get(key) instanceof List) { // repeated
             ((List<?>) unknownFields.get(key))
                 .removeIf(next -> next instanceof Map && ((Map<?, ?>) next).isEmpty());
             if (((List<?>) unknownFields.get(key)).isEmpty()) {
