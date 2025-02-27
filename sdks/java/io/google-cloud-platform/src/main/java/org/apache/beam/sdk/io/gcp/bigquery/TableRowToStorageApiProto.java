@@ -536,11 +536,19 @@ public class TableRowToStorageApiProto {
         // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
         // supplier (in case we encounter unknown nested fields). If the placeholder comes out
         // to be empty, we should clean it up
+
         if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
-            && unknownFields != null
-            && unknownFields.get(key) instanceof Map
-            && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
-          unknownFields.remove(key);
+            && unknownFields != null) {
+          if (unknownFields.get(key) instanceof Map // could be array
+              && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
+            unknownFields.remove(key);
+          } else if (unknownFields.get(key) instanceof List) {
+            ((List<?>) unknownFields.get(key))
+                .removeIf(next -> next instanceof Map && ((Map<?, ?>) next).isEmpty());
+            if (((List<?>) unknownFields.get(key)).isEmpty()) {
+              unknownFields.remove(key);
+            }
+          }
         }
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
