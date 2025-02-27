@@ -83,28 +83,31 @@ class LeaderBoardRunner {
             "timing:STRING"
     ].join(",")
 
-    // Remove existing tables if they exist
     String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
 
-    if (tables.contains(userTable)) {
-      t.run("bq rm -f -t ${dataset}.${userTable}")
-    }
-    if (tables.contains(teamTable)) {
-      t.run("bq rm -f -t ${dataset}.${teamTable}")
-    }
+//    if (tables.contains(userTable)) {
+//      t.run("bq rm -f -t ${dataset}.${userTable}")
+//    }
+//    if (tables.contains(teamTable)) {
+//      t.run("bq rm -f -t ${dataset}.${teamTable}")
+//    }
+//
+//    // It will take couple seconds to clean up tables.
+//    // This loop makes sure tables are completely deleted before running the pipeline
+//    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+//    while (tables.contains(userTable) || tables.contains(teamTable)) {
+//      sleep(3000)
+//      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+//    }
 
-    // It will take couple seconds to clean up tables.
-    // This loop makes sure tables are completely deleted before running the pipeline
-    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-    while (tables.contains(userTable) || tables.contains(teamTable)) {
-      sleep(3000)
-      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    if (!tables.contains(userTable)) {
+      t.intent("Creating table: ${userTable}")
+      t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
     }
-
-    t.intent("Creating table: ${userTable}")
-    t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
-    t.intent("Creating table: ${teamTable}")
-    t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+    if (!tables.contains(teamTable)) {
+      t.intent("Creating table: ${teamTable}")
+      t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+    }
 
     // Verify that the tables have been created successfully
     tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
