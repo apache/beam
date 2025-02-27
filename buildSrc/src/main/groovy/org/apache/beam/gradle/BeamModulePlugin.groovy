@@ -627,6 +627,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
+    def mongodb_version = "5.3.1"
     def netty_version = "4.1.110.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
@@ -839,7 +840,10 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_slf4j_impl                           : "org.apache.logging.log4j:log4j-slf4j-impl:$log4j2_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
         mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
-        mongo_java_driver                           : "org.mongodb:mongodb-driver-legacy:5.3.1",
+        mongodb_driver_legacy                       : "org.mongodb:mongodb-driver-legacy:$mongodb_version",
+        mongodb_driver_sync                         : "org.mongodb:mongodb-driver-sync:$mongodb_version",
+        mongodb_driver_core                         : "org.mongodb:mongodb-driver-core:$mongodb_version",
+        bson                                        : "org.mongodb:bson:$mongodb_version",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
