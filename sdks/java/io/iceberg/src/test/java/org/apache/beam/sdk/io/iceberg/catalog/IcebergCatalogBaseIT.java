@@ -38,7 +38,6 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
@@ -478,7 +477,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
             .apply(getStreamingSource())
             .apply(
                 MapElements.into(TypeDescriptors.rows())
-                    .via(instant -> ROW_FUNC.apply(instant.getMillis() % numRecords)))
+                    .via(instant -> ROW_FUNC.apply((instant.getMillis() / 100) % numRecords)))
             .setRowSchema(BEAM_SCHEMA);
 
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
@@ -510,11 +509,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         pipeline
             .apply(getStreamingSource())
             .apply(
-                Window.<Instant>into(FixedWindows.of(Duration.standardSeconds(1)))
+                Window.<Instant>into(FixedWindows.of(Duration.standardSeconds(100)))
                     .accumulatingFiredPanes())
             .apply(
                 MapElements.into(TypeDescriptors.rows())
-                    .via(instant -> ROW_FUNC.apply(instant.getMillis() % numRecords)))
+                    .via(instant -> ROW_FUNC.apply((instant.getMillis() / 100) % numRecords)))
             .setRowSchema(BEAM_SCHEMA);
 
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
