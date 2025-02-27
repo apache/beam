@@ -28,6 +28,9 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.joda_time
   implementation library.java.mongodb_driver_legacy
+  implementation library.java.mongodb_driver_sync
+  implementation library.java.mongodb_driver_core
+  implementation library.java.bson
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit

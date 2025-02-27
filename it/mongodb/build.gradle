@@ -35,6 +35,9 @@ dependencies {
     implementation library.java.testcontainers_mongodb
     implementation library.java.google_code_gson
     implementation library.java.mongodb_driver_legacy
+    implementation library.java.mongodb_driver_sync
+    implementation library.java.mongodb_driver_core
+    implementation library.java.bson
     implementation library.java.vendored_guava_32_1_2_jre
 
     testImplementation library.java.mockito_core
