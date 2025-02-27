@@ -256,7 +256,7 @@ public final class BigQueryIOST extends IOStressTestBase {
         break;
     }
     if (configuration.writeMethod.equals(STORAGE_WRITE_API_METHOD)) {
-      writeIO = writeIO.withTriggeringFrequency(org.joda.time.Duration.standardMinutes(5));
+      writeIO = writeIO.withTriggeringFrequency(org.joda.time.Duration.standardSeconds(60));
     }
     generateDataAndWrite(writeIO);
   }
@@ -299,7 +299,7 @@ public final class BigQueryIOST extends IOStressTestBase {
 
     String experiments =
         configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)
-            ? GcpOptions.STREAMING_ENGINE_EXPERIMENT + ",streaming_mode_at_least_once"
+            ? "use_runner_v2" + ",streaming_mode_at_least_once"
             : GcpOptions.STREAMING_ENGINE_EXPERIMENT;
 
     PipelineLauncher.LaunchConfig options =
