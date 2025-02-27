@@ -61,7 +61,7 @@ def download_look(look: models.Look):
         elapsed += delay
     print(f"Render task completed in {elapsed} seconds")
 
-    return content
+    return sdk.render_task_results(task.id)
 
 
 def upload_to_gcs(bucket_name, destination_blob_name, content):
