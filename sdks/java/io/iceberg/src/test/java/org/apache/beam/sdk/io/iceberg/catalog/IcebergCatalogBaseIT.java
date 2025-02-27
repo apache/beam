@@ -454,8 +454,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   private PeriodicImpulse getStreamingSource() {
     return PeriodicImpulse.create()
-        .stopAfter(Duration.millis(numRecords() - 1))
-        .withInterval(Duration.millis(1));
+        .stopAfter(Duration.millis(numRecords() * 100))
+        .withInterval(Duration.millis(100));
   }
 
   @Test
