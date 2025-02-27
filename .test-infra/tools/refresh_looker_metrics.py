@@ -68,7 +68,7 @@ def download_look(look: models.Look):
         #     raise Exception(f"Render failed for '{look.id}'")
         # elif poll.status == "success":
         #     break
-    print(f"Render task completed in {elapsed} seconds. {content}")
+    print(f"Render task completed in {elapsed} seconds.")
 
     return content
 
@@ -89,8 +89,6 @@ sdk = looker_sdk.init40()
 
 def main():
 
-    sdk.login(LOOKER_CLIENT_ID, LOOKER_CLIENT_SECRET)
-    print(f"ME role ids: {sdk.me().role_ids}")
     for look_id in LOOKS_TO_DOWNLOAD:
         if look_id:
             look = get_look(look_id)

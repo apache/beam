@@ -61,6 +61,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
@@ -425,7 +426,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWriteToPartitionedTable() throws IOException {
+  public void testWriteToPartitionedTable() throws Exception {
     // For an example row where bool=true, modulo_5=3, str=value_303,
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
@@ -437,8 +438,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     String tableId = tableId();
     Table table =
         catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
-    table.refresh();
     LOG.info("TABLE CREATED: {}", tableId);
+    verifyTableExists(TableIdentifier.parse(tableId));
 
     // Write with Beam
     Map<String, Object> config = managedIcebergConfig(tableId);
@@ -459,15 +460,15 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingWrite() throws IOException {
+  public void testStreamingWrite() throws Exception {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
     String tableId = tableId();
     Table table =
         catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
-    table.refresh();
     LOG.info("TABLE CREATED: {}", tableId);
+    verifyTableExists(TableIdentifier.parse(tableId));
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId));
     config.put("triggering_frequency_seconds", 4);
@@ -493,15 +494,15 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingWriteWithPriorWindowing() throws IOException {
+  public void testStreamingWriteWithPriorWindowing() throws Exception {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
     String tableId = tableId();
     Table table =
         catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
-    table.refresh();
     LOG.info("TABLE CREATED: {}", tableId);
+    verifyTableExists(TableIdentifier.parse(tableId));
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId));
     config.put("triggering_frequency_seconds", 4);
@@ -529,9 +530,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  private void writeToDynamicDestinations(@Nullable String filterOp) throws IOException {
+  private void writeToDynamicDestinations(@Nullable String filterOp) throws Exception {
     writeToDynamicDestinations(filterOp, false, false);
   }
+
+  public abstract void verifyTableExists(TableIdentifier tableIdentifier) throws Exception;
 
   /**
    * @param filterOp if null, just perform a normal dynamic destination write test; otherwise,
@@ -539,7 +542,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
    *     and "only"
    */
   private void writeToDynamicDestinations(
-      @Nullable String filterOp, boolean streaming, boolean partitioning) throws IOException {
+      @Nullable String filterOp, boolean streaming, boolean partitioning) throws Exception {
     int numRecords = numRecords();
     String tableId = tableId();
     String tableIdentifierTemplate = tableId + "_{modulo_5}_{char}";
@@ -581,21 +584,21 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
       PartitionSpec partitionSpec =
           PartitionSpec.builderFor(tableSchema).identity("bool").identity("modulo_5").build();
-      Table table = catalog.createTable(tableIdentifier0, tableSchema, partitionSpec);
-      table.refresh();
-      LOG.info("TABLE CREATED");
-      table = catalog.createTable(tableIdentifier1, tableSchema, partitionSpec);
-      table.refresh();
-      LOG.info("TABLE CREATED");
-      table = catalog.createTable(tableIdentifier2, tableSchema, partitionSpec);
-      table.refresh();
-      LOG.info("TABLE CREATED");
-      table = catalog.createTable(tableIdentifier3, tableSchema, partitionSpec);
-      table.refresh();
-      LOG.info("TABLE CREATED");
-      table = catalog.createTable(tableIdentifier4, tableSchema, partitionSpec);
-      table.refresh();
-      LOG.info("TABLE CREATED");
+      catalog.createTable(tableIdentifier0, tableSchema, partitionSpec);
+      LOG.info("TABLE 0 CREATED");
+      verifyTableExists(tableIdentifier0);
+      catalog.createTable(tableIdentifier1, tableSchema, partitionSpec);
+      LOG.info("TABLE 1 CREATED");
+      verifyTableExists(tableIdentifier1);
+      catalog.createTable(tableIdentifier2, tableSchema, partitionSpec);
+      LOG.info("TABLE 2 CREATED");
+      verifyTableExists(tableIdentifier2);
+      catalog.createTable(tableIdentifier3, tableSchema, partitionSpec);
+      LOG.info("TABLE 3 CREATED");
+      verifyTableExists(tableIdentifier4);
+      catalog.createTable(tableIdentifier4, tableSchema, partitionSpec);
+      LOG.info("TABLE 4 CREATED");
+      verifyTableExists(tableIdentifier4);
     }
 
     // Write with Beam
@@ -652,27 +655,27 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWriteToDynamicDestinations() throws IOException {
+  public void testWriteToDynamicDestinations() throws Exception {
     writeToDynamicDestinations(null);
   }
 
   @Test
-  public void testWriteToDynamicDestinationsAndDropFields() throws IOException {
+  public void testWriteToDynamicDestinationsAndDropFields() throws Exception {
     writeToDynamicDestinations("drop");
   }
 
   @Test
-  public void testWriteToDynamicDestinationsWithOnlyRecord() throws IOException {
+  public void testWriteToDynamicDestinationsWithOnlyRecord() throws Exception {
     writeToDynamicDestinations("only");
   }
 
   @Test
-  public void testStreamToDynamicDestinationsAndKeepFields() throws IOException {
+  public void testStreamToDynamicDestinationsAndKeepFields() throws Exception {
     writeToDynamicDestinations("keep", true, false);
   }
 
   @Test
-  public void testStreamToPartitionedDynamicDestinations() throws IOException {
+  public void testStreamToPartitionedDynamicDestinations() throws Exception {
     writeToDynamicDestinations(null, true, true);
   }
 }
