@@ -144,15 +144,22 @@ public class FnHarness {
   @VisibleForTesting
   public static void main(Function<String, String> environmentVarGetter) throws Exception {
     JvmInitializers.runOnStartup();
-    System.out.format("SDK Fn Harness started%n");
-    System.out.format("Harness ID %s%n", environmentVarGetter.apply(HARNESS_ID));
-    System.out.format(
-        "Logging location %s%n", environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
-    System.out.format(
-        "Control location %s%n", environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
-    System.out.format(
-        "Status location %s%n", environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
+
+    Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
+        getApiServiceDescriptor(environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
+    Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
+        getApiServiceDescriptor(environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
+    Endpoints.ApiServiceDescriptor statusApiServiceDescriptor =
+        environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR) == null
+            ? null
+            : getApiServiceDescriptor(environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
     String id = environmentVarGetter.apply(HARNESS_ID);
+
+    System.out.format("SDK Fn Harness started%n");
+    System.out.format("Harness ID %s%n", id);
+    System.out.format("Logging location %s%n", loggingApiServiceDescriptor);
+    System.out.format("Control location %s%n", controlApiServiceDescriptor);
+    System.out.format("Status location %s%n", statusApiServiceDescriptor);
 
     String pipelineOptionsJson = environmentVarGetter.apply(PIPELINE_OPTIONS);
     // Try looking for a file first. If that exists it should override PIPELINE_OPTIONS to avoid
@@ -179,16 +186,6 @@ public class FnHarness {
 
     PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
 
-    Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
-        getApiServiceDescriptor(environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
-
-    Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
-        getApiServiceDescriptor(environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
-
-    Endpoints.ApiServiceDescriptor statusApiServiceDescriptor =
-        environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR) == null
-            ? null
-            : getApiServiceDescriptor(environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
     String runnerCapabilitesOrNull = environmentVarGetter.apply(RUNNER_CAPABILITIES);
     Set<String> runnerCapabilites =
         runnerCapabilitesOrNull == null
@@ -408,7 +405,7 @@ public class FnHarness {
       // directExecutor() when building the channel.
       BeamFnControlClient control =
           new BeamFnControlClient(
-              controlStub.withExecutor(MoreExecutors.directExecutor()),
+              controlStub.withExecutor(MoreExecutors.directExecutor()).withWaitForReady(),
               outboundObserverFactory,
               executorService,
               handlers);
