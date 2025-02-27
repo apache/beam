@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
@@ -29,7 +30,6 @@ import com.mongodb.MongoClientURI;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
-import com.mongodb.util.JSON;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -380,7 +380,7 @@ public class MongoDbGridFSIO {
 
       private DBCursor createCursor(GridFS gridfs) {
         if (spec.filter() != null) {
-          DBObject query = (DBObject) JSON.parse(spec.filter());
+          DBObject query = BasicDBObject.parse(spec.filter());
           return gridfs.getFileList(query);
         }
         return gridfs.getFileList();

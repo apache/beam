@@ -359,9 +359,7 @@ public class MongoDbIO {
     if (sslEnabled) {
       optionsBuilder.sslEnabled(sslEnabled).sslInvalidHostNameAllowed(sslInvalidHostNameAllowed);
       if (ignoreSSLCertificate) {
-        SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
-        optionsBuilder.sslContext(sslContext);
-        optionsBuilder.socketFactory(sslContext.getSocketFactory());
+        optionsBuilder.sslContext(SSLUtils.ignoreSSLCertificate());
       }
     }
     return optionsBuilder;
