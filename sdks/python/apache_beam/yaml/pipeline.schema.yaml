@@ -58,6 +58,7 @@ $defs:
           input: {}
           output: {}
           windowing: {}
+          resource_hints: {}
           transforms:
             type: array
             items:
@@ -129,6 +130,7 @@ $defs:
             input: {}
             output: {}
             windowing: {}
+            resource_hints: {}
             config: { type: object }
             __line__: {}
             __uuid__: {}

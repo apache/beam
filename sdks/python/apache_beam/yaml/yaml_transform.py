@@ -522,16 +522,21 @@ def expand_composite_transform(spec, scope):
             for (key, value) in spec['output'].items()
         }
 
+  transform = CompositePTransform()
+  if 'resource_hints' in spec:
+    transform = transform.with_resource_hints(
+        **SafeLineLoader.strip_metadata(spec['resource_hints']))
+
   if 'name' not in spec:
     spec['name'] = 'Composite'
   if spec['name'] is None:  # top-level pipeline, don't nest
-    return CompositePTransform.expand(None)
+    return transform.expand(None)
   else:
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
         key: scope.get_pcollection(value)
         for (key, value) in empty_if_explicitly_empty(spec['input']).items()
-    } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
+    } or scope.root) | scope.unique_name(spec, None) >> transform
 
 
 def expand_chain_transform(spec, scope):

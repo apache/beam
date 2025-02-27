@@ -417,7 +417,6 @@ class YamlTransformE2ETest(unittest.TestCase):
 
   def test_resource_hints(self):
     t = LinearTransform(5, b=100)
-    annotations = t.annotations()
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
@@ -438,7 +437,40 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''')
       assert_that(result | beam.Map(lambda x: x.square), equal_to([0, 1, 4, 9]))
     proto = p.to_runner_api()
-    transform, = [t for t in proto.components.transforms.values() if t.unique_name == 'YamlTransform/Chain/WithResourceHints']
+    transform, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'YamlTransform/Chain/WithResourceHints']
+    self.assertEqual(
+        proto.components.environments[transform.environment_id].
+        resource_hints['beam:resources:min_ram_bytes:v1'],
+        b'1000000000',
+        proto)
+
+  def test_composite_resource_hints(self):
+    t = LinearTransform(5, b=100)
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [0, 1, 2, 3]
+            - type: MapToFields
+              name: WithInheritedResourceHints
+              config:
+                language: python
+                fields:
+                  square: element * element
+          resource_hints:
+            min_ram: 1GB
+          ''')
+      assert_that(result | beam.Map(lambda x: x.square), equal_to([0, 1, 4, 9]))
+    proto = p.to_runner_api()
+    transform, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'YamlTransform/Chain/WithInheritedResourceHints']
     self.assertEqual(
         proto.components.environments[transform.environment_id].
         resource_hints['beam:resources:min_ram_bytes:v1'],

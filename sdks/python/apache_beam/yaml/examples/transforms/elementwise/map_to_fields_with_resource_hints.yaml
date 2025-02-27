@@ -34,9 +34,13 @@ pipeline:
         language: python
         fields:
           element: "element.strip('# \\n')"
+      # Transform-specific hint overrides top-level hint.
       resource_hints:
-        min_ram: 1.5GB
+        min_ram: 3GB
     - type: LogForTesting
+  # Top-level resource hint.
+  resource_hints:
+    min_ram: 1GB
 
 # Expected:
 #  Row(element='🍓Strawberry')
