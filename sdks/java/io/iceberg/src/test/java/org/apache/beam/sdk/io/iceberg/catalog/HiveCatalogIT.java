@@ -60,7 +60,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
     // Wait and verify that the table exists
     for (int i = 0; i < 30; i++) { // Retry up to 30 times with 1 sec delay
       List<String> tables = hiveMetastoreExtension.metastoreClient().getAllTables(testDb());
-      if (tables.contains(tableIdentifier.name())) {
+      if (tables.contains(tableIdentifier.name().toLowerCase())) {
         LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
         break;
       }
@@ -106,19 +106,17 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
         hiveMetastoreExtension.hiveConf());
   }
 
-  @Override
-  public void catalogCleanup() throws Exception {
-    if (hiveMetastoreExtension != null) {
-      List<String> tables = hiveMetastoreExtension.metastoreClient().getAllTables(testDb());
-      for (String table : tables) {
-        if (table.contains(String.valueOf(salt))) {
-          hiveMetastoreExtension.metastoreClient().dropTable(testDb(), table, true, false);
-        }
-      }
-    }
-  }
-
-
+//  @Override
+//  public void catalogCleanup() throws Exception {
+//    if (hiveMetastoreExtension != null) {
+//      List<String> tables = hiveMetastoreExtension.metastoreClient().getAllTables(testDb());
+//      for (String table : tables) {
+//        if (table.contains(String.valueOf(salt))) {
+//          hiveMetastoreExtension.metastoreClient().dropTable(testDb(), table, true, false);
+//        }
+//      }
+//    }
+//  }
 
   @Override
   public Map<String, Object> managedIcebergConfig(String tableId) {

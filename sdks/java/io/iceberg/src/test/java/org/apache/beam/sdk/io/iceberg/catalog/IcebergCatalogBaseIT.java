@@ -61,7 +61,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
@@ -485,8 +484,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    pipeline.run().waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -522,8 +520,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    pipeline.run().waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -616,8 +613,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
 
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    pipeline.run().waitUntilFinish();
 
     Table table0 = catalog.loadTable(tableIdentifier0);
     Table table1 = catalog.loadTable(tableIdentifier1);

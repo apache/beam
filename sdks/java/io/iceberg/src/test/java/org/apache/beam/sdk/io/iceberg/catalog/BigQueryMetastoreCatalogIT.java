@@ -99,15 +99,15 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
         new Configuration());
   }
 
-  @Override
-  public void catalogCleanup() {
-    for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
-      // only delete tables that were created in this test run
-      if (tableIdentifier.name().contains(String.valueOf(salt))) {
-        catalog.dropTable(tableIdentifier);
-      }
-    }
-  }
+//  @Override
+//  public void catalogCleanup() {
+//    for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
+//      // only delete tables that were created in this test run
+//      if (tableIdentifier.name().contains(String.valueOf(salt))) {
+//        catalog.dropTable(tableIdentifier);
+//      }
+//    }
+//  }
 
   @Override
   public Map<String, Object> managedIcebergConfig(String tableId) {
