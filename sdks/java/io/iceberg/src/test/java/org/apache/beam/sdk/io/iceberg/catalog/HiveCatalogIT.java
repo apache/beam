@@ -64,7 +64,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
         LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
         break;
       }
-      LOG.warn("Table {} is not visible yet, retrying... (attempt {}/{})", tableIdentifier.name(), i + 1, 10);
+      LOG.warn("Table {} is not visible yet, retrying... (attempt {}/{})", tableIdentifier.name(), i + 1, 20);
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
