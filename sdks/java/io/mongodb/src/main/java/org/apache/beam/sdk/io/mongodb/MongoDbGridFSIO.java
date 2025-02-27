@@ -333,10 +333,10 @@ public class MongoDbGridFSIO {
                         public void processElement(final ProcessContext c) throws IOException {
                           Preconditions.checkStateNotNull(gridfs);
                           ObjectId oid = c.element();
-                          GridFSDBFile file = gridfs.find(oid);
+                          GridFSDBFile file = gridfs.find(Preconditions.checkArgumentNotNull(oid));
                           Parser<T> parser = Preconditions.checkStateNotNull(parser());
                           parser.parse(
-                              file,
+                              Preconditions.checkArgumentNotNull(file),
                               new ParserCallback<T>() {
                                 @Override
                                 public void output(T output, Instant timestamp) {
