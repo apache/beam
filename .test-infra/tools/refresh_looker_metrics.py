@@ -49,26 +49,17 @@ def download_look(look: models.Look):
 
     # poll the render task until it completes
     elapsed = 0.0
-    delay = 20.0
-    content = sdk.render_task_results(task.id)
-    print(f"Task ID: {task.id}")
-    while content is None or content == "" or not content:
-        try:
-            content = sdk.render_task_results(task.id)
-        except Exception as e:
-            print(f"Error: {e}")
-            return None
-        print("SLEEPING...")
+    delay = 20
+    while True:
+        poll = sdk.render_task(task.id)
+        if poll.status == "failure":
+            print(poll)
+            raise Exception(f"Render failed for '{look.title}'")
+        elif poll.status == "success":
+            break
         time.sleep(delay)
         elapsed += delay
-        if elapsed > 300:
-            print("Failed to render in 5 min")
-        # if poll.status == "failure":
-        #     print(poll)
-        #     raise Exception(f"Render failed for '{look.id}'")
-        # elif poll.status == "success":
-        #     break
-    print(f"Render task completed in {elapsed} seconds.")
+    print(f"Render task completed in {elapsed} seconds")
 
     return content
 
