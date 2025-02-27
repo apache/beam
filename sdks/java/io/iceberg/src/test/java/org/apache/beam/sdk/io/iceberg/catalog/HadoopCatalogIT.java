@@ -27,12 +27,35 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HadoopCatalogIT extends IcebergCatalogBaseIT {
+
+  private static final Logger LOG = LoggerFactory.getLogger(HadoopCatalogIT.class);
 
   @Override
   public String tableId() {
     return testName.getMethodName() + ".test_table_" + salt;
+  }
+
+  @Override
+  public void verifyTableExists(TableIdentifier tableIdentifier) {
+    // Wait and verify that the table exists
+    for (int i = 0; i < 10; i++) { // Retry up to 10 times with 1 sec delay
+      HadoopCatalog hadoopCatalog = (HadoopCatalog) catalog;
+      List<TableIdentifier> tables = hadoopCatalog.listTables(Namespace.of(testName.getMethodName()));
+      if (tables.contains(tableIdentifier)) {
+        LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
+        break;
+      }
+      LOG.warn("Table {} is not visible yet, retrying... (attempt {}/{})", tableIdentifier.name(), i + 1, 10);
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   @Override

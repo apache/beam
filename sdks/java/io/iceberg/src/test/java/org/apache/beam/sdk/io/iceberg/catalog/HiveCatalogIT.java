@@ -29,9 +29,12 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Read and write tests using {@link HiveCatalog}.
@@ -40,6 +43,7 @@ import org.junit.BeforeClass;
  * bucket.
  */
 public class HiveCatalogIT extends IcebergCatalogBaseIT {
+  private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogIT.class);
   private static HiveMetastoreExtension hiveMetastoreExtension;
 
   private static String testDb() {
@@ -49,6 +53,24 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
   @Override
   public String tableId() {
     return String.format("%s.%s%s_%d", testDb(), "test_table_", testName.getMethodName(), salt);
+  }
+
+  @Override
+  public void verifyTableExists(TableIdentifier tableIdentifier) throws Exception {
+    // Wait and verify that the table exists
+    for (int i = 0; i < 10; i++) { // Retry up to 10 times with 1 sec delay
+      List<String> tables = hiveMetastoreExtension.metastoreClient().getAllTables(testDb());
+      if (tables.contains(tableIdentifier.name())) {
+        LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
+        break;
+      }
+      LOG.warn("Table {} is not visible yet, retrying... (attempt {}/{})", tableIdentifier.name(), i + 1, 10);
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   @BeforeClass
@@ -90,6 +112,8 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
       }
     }
   }
+
+
 
   @Override
   public Map<String, Object> managedIcebergConfig(String tableId) {

@@ -43,8 +43,12 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryMetastoreCatalogIT.class);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryMetastoreCatalogIT");
   static final String BQMS_CATALOG = "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();;
@@ -62,6 +66,24 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   @Override
   public String tableId() {
     return DATASET + "." + testName.getMethodName() + "_" + salt;
+  }
+
+  @Override
+  public void verifyTableExists(TableIdentifier tableIdentifier) throws Exception {
+    // Wait and verify that the table exists
+    for (int i = 0; i < 10; i++) { // Retry up to 10 times with 1 sec delay
+      List<TableIdentifier> tables = catalog.listTables(Namespace.of(DATASET));
+      if (tables.contains(tableIdentifier)) {
+        LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
+        break;
+      }
+      LOG.warn("Table {} is not visible yet, retrying... (attempt {}/{})", tableIdentifier.name(), i + 1, 10);
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   @Override
