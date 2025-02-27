@@ -3097,3 +3097,83 @@ class ReadAllFromBigQuery(PTransform):
         sources_to_read
         | SDFBoundedSourceReader(data_to_display=self.display_data())
         | _PassThroughThenCleanup(beam.pvalue.AsIter(cleanup_locations)))
+
+
+class BigQueryTableCache:
+  """A cache for BigQuery table definitions to avoid excessive API calls.
+  
+  This cache stores BigQuery table definitions with a time-to-live (TTL) to reduce
+  the number of API calls made to BigQuery's get_table endpoint. Each table
+  definition is cached for the specified TTL duration.
+  """
+
+  def __init__(self, ttl_secs=300):
+    """Initialize the cache.
+    
+    Args:
+      ttl_secs (int): Time-to-live in seconds for cached table definitions.
+                      Defaults to 300 seconds (5 minutes).
+    
+    Raises:
+      ValueError: If ttl_secs is not a positive integer.
+    """
+    if not isinstance(ttl_secs, int) or ttl_secs <= 0:
+      raise ValueError("ttl_secs must be a positive integer")
+    
+    self._cache = {}
+    self._ttl_secs = ttl_secs
+    import threading
+    self._lock = threading.Lock()
+
+  def _validate_table_reference(self, table_reference):
+    """Validate the table reference format.
+    
+    Args:
+      table_reference (str): The table reference to validate
+    
+    Raises:
+      ValueError: If table_reference is not in the correct format
+    """
+    if not isinstance(table_reference, str):
+      raise ValueError("table_reference must be a string")
+    
+    parts = table_reference.split('.')
+    if len(parts) != 3:
+      raise ValueError(
+          "table_reference must be in format 'project.dataset.table'")
+
+  def get_table(self, table_reference, client):
+    """Get a table definition, using cache if available and not expired.
+    
+    Args:
+      table_reference (str): The table reference in the format 'project.dataset.table'
+      client: The BigQuery client to use for fetching table definitions
+    
+    Returns:
+      The table definition from BigQuery or cache
+    
+    Raises:
+      ValueError: If table_reference is invalid
+      Exception: If BigQuery API call fails
+    """
+    import time
+    
+    self._validate_table_reference(table_reference)
+    
+    with self._lock:
+      now = time.time()
+      if table_reference in self._cache:
+        cached_time, cached_table = self._cache[table_reference]
+        if now - cached_time < self._ttl_secs:
+          return cached_table
+
+      # Cache miss or expired, fetch from BigQuery
+      try:
+        table = client.get_table(table_reference)
+        self._cache[table_reference] = (now, table)
+        return table
+      except Exception as e:
+        # Don't cache errors
+        if table_reference in self._cache:
+          del self._cache[table_reference]
+        raise Exception(f"Failed to fetch table {table_reference}: {str(e)}")
