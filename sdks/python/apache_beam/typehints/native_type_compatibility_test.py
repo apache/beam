@@ -245,14 +245,6 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             'collection of tuples',
             collections.abc.Collection[tuple[str, int]],
             typehints.Collection[typehints.Tuple[str, int]]),
-        (
-            'nested sequence',
-            tuple[collections.abc.Sequence[str], int],
-            typehints.Tuple[typehints.Sequence[str], int]),
-        (
-            'sequence of tuples',
-            collections.abc.Sequence[tuple[str, int]],
-            typehints.Sequence[typehints.Tuple[str, int]]),
     ]
 
     for test_case in test_cases:

@@ -83,7 +83,6 @@ __all__ = [
     'Set',
     'FrozenSet',
     'Collection',
-    'Sequence',
     'Iterable',
     'Iterator',
     'Generator',
@@ -1036,7 +1035,6 @@ class CollectionHint(CompositeTypeHint):
           sub,
           (
               CollectionTypeConstraint,
-              ABCSequenceTypeConstraint,
               FrozenSetTypeConstraint,
               SetTypeConstraint,
               ListConstraint))
@@ -1072,43 +1070,6 @@ class CollectionHint(CompositeTypeHint):
 
 
 CollectionTypeConstraint = CollectionHint.CollectionTypeConstraint
-
-
-class SequenceHint(CompositeTypeHint):
-  """A Sequence type-hint.
-
-  Sequence[X] defines a type-hint for a sequence of homogeneous types. 'X' may
-  be either a built-in Python type or another nested TypeConstraint.
-
-  This represents collections.abc.Sequence type, which implements __getitem__,
-  __len__, and __contains__. This is more specific than Iterable but less
-  restrictive than List, providing a good middle ground for sequence-like types.
-  """
-  class ABCSequenceTypeConstraint(SequenceTypeConstraint):
-    def __init__(self, type_param):
-      super().__init__(type_param, abc.Sequence)
-
-    def __repr__(self):
-      return 'Sequence[%s]' % repr(self.inner_type)
-
-    def _consistent_with_check_(self, sub):
-      if isinstance(sub, (ListConstraint, TupleConstraint)):
-        # Lists and Tuples are Sequences
-        if isinstance(sub, TupleConstraint):
-          # For tuples, all elements must be consistent with the sequence type
-          return all(
-              is_consistent_with(elem, self.inner_type)
-              for elem in sub.tuple_types)
-        return is_consistent_with(sub.inner_type, self.inner_type)
-      return super()._consistent_with_check_(sub)
-
-  def __getitem__(self, type_param):
-    validate_composite_type_param(
-        type_param, error_msg_prefix='Parameter to a Sequence hint')
-    return self.ABCSequenceTypeConstraint(type_param)
-
-
-ABCSequenceTypeConstraint = SequenceHint.ABCSequenceTypeConstraint
 
 
 class IterableHint(CompositeTypeHint):
@@ -1291,7 +1252,6 @@ Dict = DictHint()
 Set = SetHint()
 FrozenSet = FrozenSetHint()
 Collection = CollectionHint()
-Sequence = SequenceHint()
 Iterable = IterableHint()
 Iterator = IteratorHint()
 Generator = GeneratorHint()
