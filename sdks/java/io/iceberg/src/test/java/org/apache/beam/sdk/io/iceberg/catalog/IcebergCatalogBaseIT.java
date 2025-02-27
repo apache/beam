@@ -595,7 +595,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       verifyTableExists(tableIdentifier2);
       catalog.createTable(tableIdentifier3, tableSchema, partitionSpec);
       LOG.info("TABLE 3 CREATED");
-      verifyTableExists(tableIdentifier4);
+      verifyTableExists(tableIdentifier3);
       catalog.createTable(tableIdentifier4, tableSchema, partitionSpec);
       LOG.info("TABLE 4 CREATED");
       verifyTableExists(tableIdentifier4);
