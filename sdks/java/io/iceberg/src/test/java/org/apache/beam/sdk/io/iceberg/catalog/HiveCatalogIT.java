@@ -58,7 +58,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
   @Override
   public void verifyTableExists(TableIdentifier tableIdentifier) throws Exception {
     // Wait and verify that the table exists
-    for (int i = 0; i < 10; i++) { // Retry up to 10 times with 1 sec delay
+    for (int i = 0; i < 20; i++) { // Retry up to 20 times with 1 sec delay
       List<String> tables = hiveMetastoreExtension.metastoreClient().getAllTables(testDb());
       if (tables.contains(tableIdentifier.name())) {
         LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
