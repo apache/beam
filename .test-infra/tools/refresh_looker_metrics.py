@@ -26,8 +26,15 @@ LOOKER_CLIENT_ID = os.getenv("LOOKERSDK_CLIENT_ID")
 LOOKER_CLIENT_SECRET = os.getenv("LOOKERSDK_CLIENT_SECRET")
 TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
-# List of Look IDs to download
-LOOKS_TO_DOWNLOAD = ["116", "22"]
+# List of Pairs (Target folder name, Look IDs to download)
+LOOKS_TO_DOWNLOAD = [
+    ("TextIO_Read", ["22", "56", "96", "55", "95"]),
+    ("TextIO_Write", ["23", "64", "110", "63", "109"]),
+    ("BigQueryIO_Read", ["18", "50", "92", "49", "91"]),
+    ("BigQueryIO_Write", ["19", "52", "88", "51", "87"]),
+    ("BigTableIO_Read", ["20", "60", "104", "59", "103"]),
+    ("BigTableIO_Write", ["21", "70", "116", "69", "115"]),
+]
 
 
 def get_look(id: str) -> models.Look:
@@ -79,15 +86,15 @@ sdk = looker_sdk.init40()
 
 
 def main():
-
-    for look_id in LOOKS_TO_DOWNLOAD:
-        if look_id:
-            look = get_look(look_id)
-            content = download_look(look)
-            if content:
-                upload_to_gcs(TARGET_BUCKET, f"{look.public_slug}.png", content)
-            else:
-                print("No content")
+    for folder, look_ids in LOOKS_TO_DOWNLOAD:
+        for look_id in look_ids:
+            if look_id:
+                look = get_look(look_id)
+                content = download_look(look)
+                if content:
+                    upload_to_gcs(TARGET_BUCKET, f"{folder}/{look.public_slug}.png", content)
+                else:
+                    print(f"No content for look {look_id}")
 
 
 if __name__ == "__main__":
