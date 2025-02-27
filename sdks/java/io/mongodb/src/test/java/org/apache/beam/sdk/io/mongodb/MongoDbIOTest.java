@@ -157,7 +157,7 @@ public class MongoDbIOTest {
         "{\"$match\": {\"_id\": {\"$lte\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
         buckets.get(0).toString());
     assertEquals(
-        "{\"$match\": {\"[$and\": [{\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}]]}}",
+        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
         buckets.get(1).toString());
 
     // add more splits and verify the buckets
