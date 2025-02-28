@@ -32,8 +32,8 @@ on:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.61.0' }}"
-  rc: "${{ github.event.inputs.RC || '3' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.63.0' }}"
+  rc: "${{ github.event.inputs.RC || '2' }}"
 
 jobs:
 

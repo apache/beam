@@ -321,7 +321,7 @@ class ApproximateQuantiles(object):
     }
 
   @typehints.with_input_types(
-      typehints.Union[typing.Sequence[T], Tuple[T, float]])
+      typing.Union[T, typing.Sequence[T], Tuple[T, float]])
   @typehints.with_output_types(List[T])
   class Globally(PTransform):
     """
