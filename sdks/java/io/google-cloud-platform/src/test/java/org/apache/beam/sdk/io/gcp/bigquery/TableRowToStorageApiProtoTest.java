@@ -1683,7 +1683,7 @@ public class TableRowToStorageApiProtoTest {
             .setMode("REPEATED")
             .setType("RECORD")
             .setFields(
-                com.google.common.collect.ImmutableList.of(
+                ImmutableList.of(
                     new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
                     new TableFieldSchema().setName("key2").setType("STRING"))));
     TableSchema schema = new TableSchema().setFields(fields);
