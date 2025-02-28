@@ -57,7 +57,9 @@ def download_look(look: models.Look):
     # poll the render task until it completes
     elapsed = 0.0
     delay = 20
-    while True:
+    retries = 0
+    max_retries = 20
+    while retries < max_retries:
         poll = sdk.render_task(task.id)
         if poll.status == "failure":
             print(poll)
@@ -66,6 +68,12 @@ def download_look(look: models.Look):
             break
         time.sleep(delay)
         elapsed += delay
+        retries += 1
+        print(f"Retry {retries}/{max_retries}: Render task still in progress...")
+
+    if retries >= max_retries:
+        raise TimeoutError(f"Render task did not complete within {elapsed} seconds (max retries: {max_retries})")
+
     print(f"Render task completed in {elapsed} seconds")
 
     return sdk.render_task_results(task.id)
@@ -86,15 +94,25 @@ sdk = looker_sdk.init40()
 
 
 def main():
+    failed_looks = []
+
     for folder, look_ids in LOOKS_TO_DOWNLOAD:
         for look_id in look_ids:
-            if look_id:
-                look = get_look(look_id)
-                content = download_look(look)
-                if content:
-                    upload_to_gcs(TARGET_BUCKET, f"{folder}/{look.public_slug}.png", content)
-                else:
-                    print(f"No content for look {look_id}")
+            try:
+                if look_id:
+                    look = get_look(look_id)
+                    content = download_look(look)
+                    if content:
+                        upload_to_gcs(TARGET_BUCKET, f"{folder}/{look.public_slug}.png", content)
+                    else:
+                        print(f"No content for look {look_id}")
+                        failed_looks.append(look_id)
+            except Exception as e:
+                print(f"Error processing look {look_id}: {e}")
+                failed_looks.append(look_id)
+
+    if failed_looks:
+        raise RuntimeError(f"Job failed due to errors in looks: {failed_looks}")
 
 
 if __name__ == "__main__":
