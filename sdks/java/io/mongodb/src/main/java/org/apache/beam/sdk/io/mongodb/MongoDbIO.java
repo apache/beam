@@ -46,7 +46,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -359,9 +358,7 @@ public class MongoDbIO {
     if (sslEnabled) {
       optionsBuilder.sslEnabled(sslEnabled).sslInvalidHostNameAllowed(sslInvalidHostNameAllowed);
       if (ignoreSSLCertificate) {
-        SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
-        optionsBuilder.sslContext(sslContext);
-        optionsBuilder.socketFactory(sslContext.getSocketFactory());
+        optionsBuilder.sslContext(SSLUtils.ignoreSSLCertificate());
       }
     }
     return optionsBuilder;
