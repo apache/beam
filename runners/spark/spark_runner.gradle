@@ -216,6 +216,8 @@ dependencies {
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
+  validatesRunner library.java.log4j2_api
+  validatesRunner library.java.log4j2_core
   hadoopVersions.each { kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
     // Force paranamer 2.8 to avoid issues when using Scala 2.12
