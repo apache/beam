@@ -37,7 +37,8 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class GrpcGetWorkerMetadataStream
+/** Implementation of {@link GetWorkerMetadataStream} that uses streaming gRPC. */
+final class GrpcGetWorkerMetadataStream
     extends AbstractWindmillStream<WorkerMetadataRequest, WorkerMetadataResponse>
     implements GetWorkerMetadataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetWorkerMetadataStream.class);
@@ -77,7 +78,7 @@ public final class GrpcGetWorkerMetadataStream
     this.metadataLock = new Object();
   }
 
-  public static GrpcGetWorkerMetadataStream create(
+  static GrpcGetWorkerMetadataStream create(
       Function<StreamObserver<WorkerMetadataResponse>, StreamObserver<WorkerMetadataRequest>>
           startGetWorkerMetadataRpcFn,
       BackOff backoff,
