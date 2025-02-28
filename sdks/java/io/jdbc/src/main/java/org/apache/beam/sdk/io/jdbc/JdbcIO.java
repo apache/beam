@@ -2792,10 +2792,8 @@ public class JdbcIO {
       BackOff backoff = checkStateNotNull(retryBackOff).backoff();
       RetryStrategy retryStrategy = checkStateNotNull(spec.getRetryStrategy());
       while (true) {
-        LOG.info("Getting prepared statement");
         try (PreparedStatement preparedStatement =
             getConnection().prepareStatement(checkStateNotNull(spec.getStatement()).get())) {
-          LOG.info("Got prepared statement");
           try {
             // add each record in the statement batch
             int recordsInBatch = 0;
