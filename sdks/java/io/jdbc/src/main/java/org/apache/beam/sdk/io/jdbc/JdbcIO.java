@@ -1637,7 +1637,7 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      Connection connection = this.connection;;
+      Connection connection = this.connection;
       if (connection == null) {
         DataSource validSource = checkStateNotNull(this.dataSource);
         connectionLock.lock();
