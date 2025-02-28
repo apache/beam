@@ -21,6 +21,7 @@
 module github.com/apache/beam/sdks/v2
 
 go 1.22.10
+toolchain go1.23.6
 
 require (
 	cloud.google.com/go/bigquery v1.66.2
@@ -54,7 +55,7 @@ require (
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/net v0.35.0
-	golang.org/x/oauth2 v0.26.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.22.0
