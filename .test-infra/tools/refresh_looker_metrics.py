@@ -29,11 +29,11 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 # List of Pairs (Target folder name, Look IDs to download)
 LOOKS_TO_DOWNLOAD = [
     ("TextIO_Read", ["22", "56", "96", "55", "95"]),  # TextIO_Read
-    ("TextIO_Write", ["23", "64", "110", "63", "109"]),  # TextIO_Read
-    ("BigQueryIO_Read", ["18", "50", "92", "49", "91"]),  # TextIO_Read
-    ("BigQueryIO_Write", ["19", "52", "88", "51", "87"]),  # BigQueryIO_Write
-    ("BigTableIO_Read", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
-    ("BigTableIO_Write", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
+    # ("TextIO_Write", ["23", "64", "110", "63", "109"]),  # TextIO_Read
+    # ("BigQueryIO_Read", ["18", "50", "92", "49", "91"]),  # TextIO_Read
+    # ("BigQueryIO_Write", ["19", "52", "88", "51", "87"]),  # BigQueryIO_Write
+    # ("BigTableIO_Read", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
+    # ("BigTableIO_Write", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
 ]
 
 
