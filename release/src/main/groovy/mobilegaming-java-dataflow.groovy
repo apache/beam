@@ -85,21 +85,6 @@ class LeaderBoardRunner {
 
     String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
 
-//    if (tables.contains(userTable)) {
-//      t.run("bq rm -f -t ${dataset}.${userTable}")
-//    }
-//    if (tables.contains(teamTable)) {
-//      t.run("bq rm -f -t ${dataset}.${teamTable}")
-//    }
-//
-//    // It will take couple seconds to clean up tables.
-//    // This loop makes sure tables are completely deleted before running the pipeline
-//    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-//    while (tables.contains(userTable) || tables.contains(teamTable)) {
-//      sleep(3000)
-//      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-//    }
-
     if (!tables.contains(userTable)) {
       t.intent("Creating table: ${userTable}")
       t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
@@ -170,6 +155,22 @@ fi
               (useStreamingEngine ? " with Streaming Engine" : ""))
     }
     t.success("LeaderBoard successfully run on DataflowRunner." + (useStreamingEngine ? " with Streaming Engine" : ""))
+
+    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    if (tables.contains(userTable)) {
+      t.run("bq rm -f -t ${dataset}.${userTable}")
+    }
+    if (tables.contains(teamTable)) {
+      t.run("bq rm -f -t ${dataset}.${teamTable}")
+    }
+
+    // It will take couple seconds to clean up tables.
+    // This loop makes sure tables are completely deleted before running the pipeline
+    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    while (tables.contains(userTable) || tables.contains(teamTable)) {
+      sleep(3000)
+      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    }
   }
 }
 
