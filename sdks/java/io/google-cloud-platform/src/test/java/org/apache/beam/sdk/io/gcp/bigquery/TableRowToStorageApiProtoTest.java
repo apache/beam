@@ -40,6 +40,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -1669,6 +1670,44 @@ public class TableRowToStorageApiProtoTest {
         (TableRow) unknownRepeatedStruct.get(0).get("nested_struct");
     assertEquals(1, unknownDoublyNestedStruct.size());
     assertEquals("foobar_doubly_nested", unknownDoublyNestedStruct.get("unknown_doubly_nested"));
+  }
+
+  @Test
+  public void testIgnoreUnknownRepeatedNestedField2() throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                com.google.common.collect.ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema schema = new TableSchema().setFields(fields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell().set("key1", "valueB").set("key2", "valueD")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+    assertEquals(2, msg.getAllFields().size());
+
+    System.out.println(unknown);
+    assertTrue(unknown.isEmpty());
   }
 
   @Test
