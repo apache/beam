@@ -1638,10 +1638,9 @@ public class JdbcIO {
 
     private Connection getConnection() throws SQLException {
       Connection connection = this.connection;;
-      DataSource validSource = checkStateNotNull(this.dataSource);
-      boolean reportLineage = false;
       connectionLock.lock();
       if (connection == null) {
+        DataSource validSource = checkStateNotNull(this.dataSource);
         try {
           connection = validSource.getConnection();
           this.connection = connection;
@@ -2707,12 +2706,12 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      Connection connection = this.connection;;
-      DataSource validSource = checkStateNotNull(dataSource);
+      Connection connection = this.connection;
       if (connection == null) {
+        DataSource validSource = checkStateNotNull(dataSource);
         connectionLock.lock();
         try {
-            connection = validSource.getConnection();
+          connection = validSource.getConnection();
         } finally {
           connectionLock.unlock();
         }
