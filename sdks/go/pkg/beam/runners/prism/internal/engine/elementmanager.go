@@ -267,7 +267,6 @@ func (em *ElementManager) StageAggregates(ID string, strat WinStrat) {
 	ss.kind = &aggregateStageKind{}
 	ss.strat = strat
 	ss.inprogressKeys = set[string]{}
-	ss.pendingByKeys = map[string]*dataAndTimers{}
 }
 
 // StageStateful marks the given stage as stateful, which means elements are
@@ -277,7 +276,6 @@ func (em *ElementManager) StageStateful(ID string, stateTypeLen map[LinkID]func(
 	ss.kind = &statefulStageKind{}
 	ss.stateTypeLen = stateTypeLen
 	ss.inprogressKeys = set[string]{}
-	ss.pendingByKeys = map[string]*dataAndTimers{}
 }
 
 // StageOnWindowExpiration marks the given stage as stateful, which means elements are
@@ -1271,6 +1269,9 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 	}
 	newPending = origPending
 
+	if ss.pendingByKeys == nil {
+		ss.pendingByKeys = map[string]*dataAndTimers{}
+	}
 	count := 0
 	for _, e := range newPending {
 		count++
@@ -1320,6 +1321,9 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 }
 
 func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
+	if ss.pendingByKeys == nil {
+		ss.pendingByKeys = map[string]*dataAndTimers{}
+	}
 	count := 0
 	for _, e := range newPending {
 		count++
