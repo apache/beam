@@ -250,7 +250,8 @@ class WriteToJdbc(ExternalTransform):
                             max_connections=max_connections,
                             driver_jars=driver_jars,
                             partitions=None,
-                            partition_column=None))),
+                            partition_column=None)),
+                dataSchema=None),
         ),
         expansion_service or default_io_expansion_service(classpath),
     )
@@ -342,6 +343,10 @@ class ReadFromJdbc(ExternalTransform):
                       package (e.g. "org.postgresql:postgresql:42.3.1").
                       By default, this argument includes a Postgres SQL JDBC
                       driver.
+    :param schema: Optional custom schema for the returned rows. If provided,
+                   this should be a NamedTuple type that defines the structure
+                   of the output PCollection elements. This bypasses automatic
+                   schema inference during pipeline construction.
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
 

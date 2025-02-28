@@ -181,11 +181,9 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
               readRows = readRows.withDisableAutoCommit(disableAutoCommit);
             }
 
-            // If a schema was provided, use it
             if (dataSchema != null) {
               readRows = readRows.withSchema(dataSchema);
             }
-
             return input.apply(readRows);
           }
         }

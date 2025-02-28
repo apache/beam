@@ -839,7 +839,7 @@ public class JdbcIO {
               getDataSourceProviderFn(),
               "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      // Use the provided schema if it's not null, otherwise infer it
+      // Don't infer schema if explicitly provided.
       Schema schema;
       if (getSchema() != null) {
         schema = getSchema();
