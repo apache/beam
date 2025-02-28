@@ -1637,22 +1637,18 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      Connection connection;
+      Connection connection = this.connection;;
       DataSource validSource = checkStateNotNull(this.dataSource);
       boolean reportLineage = false;
       connectionLock.lock();
-      try {
-        connection = this.connection;
-        if (connection == null) {
+      if (connection == null) {
+        try {
           connection = validSource.getConnection();
           this.connection = connection;
-          reportLineage = true;
+        } finally {
+          connectionLock.unlock();
         }
-      } finally {
-        connectionLock.unlock();
-      }
 
-      if (reportLineage) {
         // report Lineage if not haven't done so
         KV<@Nullable String, String> schemaWithTable =
             JdbcUtil.extractTableFromReadQuery(query.get());
@@ -2711,24 +2707,21 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      Connection connection;
+      Connection connection = this.connection;;
       DataSource validSource = checkStateNotNull(dataSource);
-      boolean reportLineage = false;
-      connectionLock.lock();
-      try {
-        connection = this.connection;
-        if (connection == null) {
-          connection = validSource.getConnection();
-          connection.setAutoCommit(false);
-          preparedStatement =
-              connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
-          this.connection = connection;
-          reportLineage = true;
+      if (connection == null) {
+        connectionLock.lock();
+        try {
+            connection = validSource.getConnection();
+        } finally {
+          connectionLock.unlock();
         }
-      } finally {
-        connectionLock.unlock();
-      }
-      if (reportLineage) {
+
+        connection.setAutoCommit(false);
+        preparedStatement =
+            connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
+        this.connection = connection;
+
         KV<@Nullable String, String> tableWithSchema;
         if (Strings.isNullOrEmpty(spec.getTable()) && spec.getStatement() != null) {
           tableWithSchema = JdbcUtil.extractTableFromWriteQuery(spec.getStatement().get());
