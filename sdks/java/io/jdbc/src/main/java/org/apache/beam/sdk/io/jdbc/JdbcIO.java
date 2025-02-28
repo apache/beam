@@ -42,9 +42,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -54,9 +54,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
+import org.apache.beam.sdk.io.jdbc.Write.DataSourceProviderFromDataSourceConfiguration;
+import org.apache.beam.sdk.io.jdbc.Write.WriteVoid;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -1611,6 +1614,7 @@ public class JdbcIO {
     private final int fetchSize;
     private final boolean disableAutoCommit;
 
+    private Lock connectionLock = new ReentrantLock();
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
     private @Nullable KV<@Nullable String, String> reportedLineage;
@@ -1636,12 +1640,22 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      Connection connection = this.connection;
-      if (connection == null) {
-        DataSource validSource = checkStateNotNull(this.dataSource);
-        connection = checkStateNotNull(validSource).getConnection();
-        this.connection = connection;
+      Connection connection;
+      DataSource validSource = checkStateNotNull(this.dataSource);
+      boolean reportLineage = false;
+      connectionLock.lock();
+      try {
+        connection = this.connection;
+        if (connection == null) {
+          connection = validSource.getConnection();
+          this.connection = connection;
+          reportLineage = true;
+        }
+      } finally {
+        connectionLock.unlock();
+      }
 
+      if (reportLineage) {
         // report Lineage if not haven't done so
         KV<@Nullable String, String> schemaWithTable =
             JdbcUtil.extractTableFromReadQuery(query.get());
