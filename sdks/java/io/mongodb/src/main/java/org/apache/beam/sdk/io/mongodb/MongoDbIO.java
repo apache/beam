@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -140,6 +141,11 @@ import org.slf4j.LoggerFactory;
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
+
+  public static final String ERROR_MSG_QUERY_FN =
+      " class is not supported. "
+          + "Please provide one of the predefined classes in the MongoDbIO package "
+          + "such as FindQuery or AggregationQuery.";
 
   /** Read data from MongoDB. */
   public static Read read() {
@@ -312,7 +318,10 @@ public class MongoDbIO {
       return builder().setBucketAuto(bucketAuto).build();
     }
 
-    /** Sets a queryFn. */
+    /**
+     * Sets a queryFn. The provided queryFn must be one of the predefined classes in the MongoDbIO
+     * package such as FindQuery or AggregationQuery.
+     */
     public Read withQueryFn(
         SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
       return builder().setQueryFn(queryBuilderFn).build();
@@ -465,8 +474,8 @@ public class MongoDbIO {
     }
 
     @Override
-    public List<BoundedSource<Document>> split(
-        long desiredBundleSizeBytes, PipelineOptions options) {
+    public List<BoundedSource<Document>> split(long desiredBundleSizeBytes, PipelineOptions options)
+        throws UserCodeException {
       String uri = Preconditions.checkStateNotNull(spec.uri());
       String database = Preconditions.checkStateNotNull(spec.database());
       String collection = Preconditions.checkStateNotNull(spec.collection());
@@ -536,7 +545,7 @@ public class MongoDbIO {
             LOG.debug("using filters: " + allFilters.toJson());
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithFilter)));
           }
-        } else {
+        } else if (spec.queryFn().getClass() == AutoValue_AggregationQuery.class) {
           SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn =
               spec.queryFn();
           AggregationQuery aggregationQuery = (AggregationQuery) queryFn;
@@ -551,6 +560,10 @@ public class MongoDbIO {
                 aggregationQuery.toBuilder().setBucket(shardFilter).build();
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithBucket)));
           }
+        } else {
+          throw UserCodeException.wrap(
+              new Exception(
+                  String.format("[%s]" + ERROR_MSG_QUERY_FN, spec.queryFn().getClass().getName())));
         }
         return sources;
       }

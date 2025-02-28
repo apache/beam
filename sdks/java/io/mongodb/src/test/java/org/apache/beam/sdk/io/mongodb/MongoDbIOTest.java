@@ -37,6 +37,7 @@ import de.flapdoodle.embed.process.runtime.Network;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -57,6 +58,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -82,6 +84,8 @@ public class MongoDbIOTest {
   private static int port;
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
+
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -420,6 +424,25 @@ public class MongoDbIOTest {
     Document out = database.getCollection(collectionName).find(new Document("_id", 1)).first();
     assertEquals("Updated", out.get("scientist"));
     assertEquals("India", out.get("country"));
+  }
+
+  @Test
+  public void testUnknownQueryFnClass() throws PipelineExecutionException {
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME)
+                .withQueryFn(
+                    FindQueryTest.create().withFilters(Filters.eq("scientist", "Einstein"))));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage(
+        "[org.apache.beam.sdk.io.mongodb.AutoValue_FindQueryTest]" + MongoDbIO.ERROR_MSG_QUERY_FN);
+    pipeline.run();
   }
 
   private static List<Document> createDocuments(final int n, boolean addId) {
