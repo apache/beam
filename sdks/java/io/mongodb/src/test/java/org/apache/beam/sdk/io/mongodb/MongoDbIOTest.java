@@ -428,21 +428,16 @@ public class MongoDbIOTest {
 
   @Test
   public void testUnknownQueryFnClass() throws PipelineExecutionException {
-    PCollection<Document> output =
-        pipeline.apply(
-            MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE_NAME)
-                .withCollection(COLLECTION_NAME)
-                .withQueryFn(
-                    FindQueryTest.create().withFilters(Filters.eq("scientist", "Einstein"))));
-
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
-
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "[org.apache.beam.sdk.io.mongodb.AutoValue_FindQueryTest]" + MongoDbIO.ERROR_MSG_QUERY_FN);
-    pipeline.run();
+
+    pipeline.apply(
+        MongoDbIO.read()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase(DATABASE_NAME)
+            .withCollection(COLLECTION_NAME)
+            .withQueryFn(FindQueryTest.create().withFilters(Filters.eq("scientist", "Einstein"))));
   }
 
   private static List<Document> createDocuments(final int n, boolean addId) {

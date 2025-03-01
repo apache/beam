@@ -39,6 +39,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -320,10 +321,14 @@ public class MongoDbIO {
 
     /**
      * Sets a queryFn. The provided queryFn must be one of the predefined classes in the MongoDbIO
-     * package such as FindQuery or AggregationQuery.
+     * package such as {@link FindQuery#FindQuery} or {@link AggregationQuery#AggregationQuery}.
      */
     public Read withQueryFn(
         SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
+      checkArgument(
+          Arrays.asList(AutoValue_FindQuery.class, AutoValue_AggregationQuery.class)
+              .contains(queryBuilderFn.getClass()),
+          String.format("[%s]" + ERROR_MSG_QUERY_FN, queryBuilderFn.getClass().getName()));
       return builder().setQueryFn(queryBuilderFn).build();
     }
 
@@ -545,7 +550,7 @@ public class MongoDbIO {
             LOG.debug("using filters: " + allFilters.toJson());
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithFilter)));
           }
-        } else if (spec.queryFn().getClass() == AutoValue_AggregationQuery.class) {
+        } else {
           SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn =
               spec.queryFn();
           AggregationQuery aggregationQuery = (AggregationQuery) queryFn;
@@ -560,11 +565,8 @@ public class MongoDbIO {
                 aggregationQuery.toBuilder().setBucket(shardFilter).build();
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithBucket)));
           }
-        } else {
-          throw UserCodeException.wrap(
-              new Exception(
-                  String.format("[%s]" + ERROR_MSG_QUERY_FN, spec.queryFn().getClass().getName())));
         }
+
         return sources;
       }
     }
