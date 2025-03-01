@@ -130,9 +130,10 @@ public class Transport {
     ImmutableMap.Builder<String, String> builder =
         new ImmutableMap.Builder<String, String>().put("x-goog-custom-audit-job", jobName);
 
-    Map<String, String> custom_audit_entries = options.getGcsCustomAuditEntries();
-    if (custom_audit_entries != null && custom_audit_entries.size() > 0)
-      builder.putAll(custom_audit_entries);
+    Map<String, String> customAuditEntries = options.getGcsCustomAuditEntries();
+    if (customAuditEntries != null && customAuditEntries.size() > 0) {
+      builder.putAll(customAuditEntries);
+    }
 
     // Note: Custom audit entries with "job" key will overwrite the default above
     retryHttpRequestInitializer.setHttpHeaders(builder.buildKeepingLast());
