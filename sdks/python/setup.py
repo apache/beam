@@ -391,7 +391,7 @@ if __name__ == '__main__':
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
-      ] + pyarrow_dependency,
+      ] + pyarrow_dependency + REQUIRED_PACKAGES,
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
@@ -597,3 +597,14 @@ if __name__ == '__main__':
           'mypy': mypy,
       },
   )
+
+REQUIRED_PACKAGES = [
+    # Other dependencies...
+    'google-cloud-bigquery>=3.11.4,<4.0.0',
+    'google-api-core>=2.11.1,<3.0.0',
+]
+
+REQUIRED_TEST_PACKAGES = [
+    # Other test dependencies...
+    'mock>=2.0.0,<3.0.0',
+]

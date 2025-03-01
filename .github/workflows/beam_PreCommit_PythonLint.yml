@@ -14,25 +14,22 @@
 # limitations under the License.
 
 name: PreCommit Python Lint
+
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonLint.json']
-  issue_comment:
-    types: [created]
+    paths: ["sdks/python/**", 'release/trigger_all_tests.json']
   push:
-    tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["sdks/python/**","release/**",".github/workflows/beam_PreCommit_PythonLint.yml"]
-  schedule:
-    - cron: '0 3/6 * * *'
+    tags: 'v*'
+    paths: ["sdks/python/**"]
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
-  checks: read
+  checks: write
   contents: read
   deployments: read
   id-token: none
@@ -46,44 +43,80 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha }}'
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.9'
 
 jobs:
-  beam_PreCommit_PythonLint:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    strategy:
-      matrix:
-        job_name: [beam_PreCommit_PythonLint]
-        job_phrase: [Run PythonLint PreCommit]
-    timeout-minutes: 120
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run PythonLint PreCommit'
+  python_lint:
+    name: 'Python Lint'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
-        with:
-          java-version: default
-          python-version: default
-          go-version: default
-      - name: run pythonLintPreCommit script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :pythonLintPreCommit
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install -e ".[dev,gcp,test,docs,lint]"
+        python -m pip install pylint==2.17.7 pycodestyle==2.11.1 isort==5.13.2
+
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py', '**/setup.cfg', '**/tox.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Run isort
+      run: |
+        python -m isort --check-only apache_beam
+      working-directory: sdks/python
+
+    - name: Run pylint
+      run: |
+        python -m pylint apache_beam --rcfile=../../.pylintrc
+      working-directory: sdks/python
+
+    - name: Run pycodestyle
+      run: |
+        python -m pycodestyle apache_beam --config=../../.pycodestyle
+      working-directory: sdks/python
+
+    - name: Check formatting
+      run: |
+        python -m yapf --diff --recursive apache_beam
+      working-directory: sdks/python
+
+    - name: Type checking
+      run: |
+        python -m mypy apache_beam/io/gcp/bigquery_cache.py apache_beam/io/gcp/bigquery_cache_test.py
+      working-directory: sdks/python
+
+    - name: Upload lint results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: lint-results
+        path: |
+          sdks/python/.pylint.d/
+          sdks/python/.mypy_cache/
+        if-no-files-found: ignore

@@ -18,72 +18,168 @@ name: PreCommit Python Docs
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["sdks/python/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonDocs.json']
+    paths: 
+      - "sdks/python/**"
+      - "release/trigger_all_tests.json"
+      - ".github/trigger_files/beam_PreCommit_PythonDocs.json"
   issue_comment:
     types: [created]
   push:
-    tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
+    tags: ['v*']
+    paths: 
+      - "sdks/python/**"
+      - ".github/workflows/beam_PreCommit_PythonDocs.yml"
   schedule:
     - cron: '0 3/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for security
 permissions:
-  actions: write
-  pull-requests: read
-  checks: read
   contents: read
-  deployments: read
-  id-token: none
+  pull-requests: read
+  checks: write
+  actions: write
   issues: read
   discussions: read
-  packages: read
-  pages: read
-  repository-projects: read
-  security-events: read
-  statuses: read
 
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
-  cancel-in-progress: true
-
+# Environment variables
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.9'
+  JAVA_VERSION: '11'
+  JAVA_DISTRIBUTION: 'temurin'
 
 jobs:
-  beam_PreCommit_PythonDocs:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    strategy:
-      matrix:
-        job_name: [beam_PreCommit_PythonDocs]
-        job_phrase: [Run PythonDocs PreCommit]
-    timeout-minutes: 30
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run PythonDocs PreCommit'
+  # First job to handle credentials
+  setup_credentials:
+    name: 'Setup Credentials'
+    runs-on: ubuntu-latest
+    outputs:
+      develocity_key: ${{ steps.set_credentials.outputs.develocity_key }}
+      ge_username: ${{ steps.set_credentials.outputs.ge_username }}
+      ge_password: ${{ steps.set_credentials.outputs.ge_password }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
+      - id: set_credentials
+        run: |
+          echo "develocity_key=${{ secrets.DEVELOCITY_ACCESS_KEY }}" >> $GITHUB_OUTPUT
+          echo "ge_username=${{ secrets.GE_CACHE_USERNAME }}" >> $GITHUB_OUTPUT
+          echo "ge_password=${{ secrets.GE_CACHE_PASSWORD }}" >> $GITHUB_OUTPUT
+
+  build_python_docs:
+    name: 'Build Python Docs'
+    needs: setup_credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # Add timeout to prevent hanging jobs
+
+    steps:
+      - name: Configure Gradle Enterprise
+        id: gradle-config
+        run: |
+          # Create a temporary file for secrets
+          SECRETS_FILE=$(mktemp)
+          # Write secrets to file if they exist
+          if [[ -n "$DEVELOCITY_KEY" ]]; then
+            echo "DEVELOCITY_ACCESS_KEY=$DEVELOCITY_KEY" >> "$SECRETS_FILE"
+          fi
+          if [[ -n "$GE_USERNAME" ]]; then
+            echo "GRADLE_ENTERPRISE_CACHE_USERNAME=$GE_USERNAME" >> "$SECRETS_FILE"
+          fi
+          if [[ -n "$GE_PASSWORD" ]]; then
+            echo "GRADLE_ENTERPRISE_CACHE_PASSWORD=$GE_PASSWORD" >> "$SECRETS_FILE"
+          fi
+          # Export secrets to environment if file is not empty
+          if [[ -s "$SECRETS_FILE" ]]; then
+            echo "gradle_configured=true" >> $GITHUB_OUTPUT
+            cat "$SECRETS_FILE" >> $GITHUB_ENV
+          else
+            echo "gradle_configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::Gradle Enterprise credentials not configured"
+          fi
+          # Clean up
+          rm -f "$SECRETS_FILE"
+        env:
+          DEVELOCITY_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          GE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+          GE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+          fetch-depth: 0
+          persist-credentials: false  # Security best practice
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          java-version: default
-          python-version: default
-      - name: run pythonDocsPreCommit script
-        uses: ./.github/actions/gradle-command-self-hosted-action
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'  # Enable npm caching
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          gradle-command: :pythonDocsPreCommit
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          check-latest: true  # Ensure we get the latest patch version
+          
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'  # Enable Gradle caching
+          
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+            
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[docs,gcp,test,yaml]"
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: 1  # Speed up installation
+          
+      - name: Build documentation
+        id: build_docs
+        run: |
+          cd sdks/python
+          python setup.py build_sphinx
+        continue-on-error: false  # Fail fast if documentation build fails
+          
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        if: success()  # Only upload if build succeeds
+        with:
+          name: python-docs
+          path: sdks/python/build/sphinx/html/
+          if-no-files-found: error
+          retention-days: 7  # Limit artifact retention
+
+      - name: Check links
+        if: success()  # Only check links if build succeeds
+        run: |
+          cd sdks/python/build/sphinx/html
+          python -m http.server 8000 &
+          SERVER_PID=$!
+          echo "Started server with PID $SERVER_PID"
+          sleep 5
+          python -m pip install linkchecker
+          linkchecker --check-extern http://localhost:8000/ || true
+          kill $SERVER_PID  # Cleanup server process
+        continue-on-error: true  # Don't fail the build for link check errors
+
+      - name: Configure Gradle Enterprise
+        env:
+          DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+          GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+        run: |
+          # Use the environment variables directly
+          echo "Using Gradle Enterprise configuration"

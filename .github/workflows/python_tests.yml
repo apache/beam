@@ -24,17 +24,28 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
     paths: ['sdks/python/**', 'model/**']
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+  actions: write
+
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}'
   cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+  GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
 
 jobs:
 
@@ -50,10 +61,10 @@ jobs:
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
         env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: ${{ secrets.GCP_REGION }}
-          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
+          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ env.GCP_REGION }}
+          GCP_SA_EMAIL: ${{ env.GCP_SA_EMAIL }}
+          GCP_TESTING_BUCKET: ${{ env.GCP_TESTING_BUCKET }}
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
 
   build_python_sdk_source:
