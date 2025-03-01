@@ -68,42 +68,42 @@ class RecordWriter {
               table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
     OutputFile outputFile;
+    org.apache.iceberg.encryption.EncryptionKeyMetadata keyMetadata;
     try (FileIO io = table.io()) {
       OutputFile tmpFile = io.newOutputFile(absoluteFilename);
       org.apache.iceberg.encryption.EncryptedOutputFile encryptedOutputFile =
           table.encryption().encrypt(tmpFile);
       outputFile = encryptedOutputFile.encryptingOutputFile();
-      org.apache.iceberg.encryption.EncryptionKeyMetadata keyMetadata =
-          encryptedOutputFile.keyMetadata();
+      keyMetadata = encryptedOutputFile.keyMetadata();
+    }
 
-      switch (fileFormat) {
-        case AVRO:
-          icebergDataWriter =
-              Avro.writeData(outputFile)
-                  .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
-                  .schema(table.schema())
-                  .withSpec(table.spec())
-                  .withPartition(partitionKey)
-                  .withKeyMetadata(keyMetadata)
-                  .overwrite()
-                  .build();
-          break;
-        case PARQUET:
-          icebergDataWriter =
-              Parquet.writeData(outputFile)
-                  .createWriterFunc(GenericParquetWriter::buildWriter)
-                  .schema(table.schema())
-                  .withSpec(table.spec())
-                  .withPartition(partitionKey)
-                  .withKeyMetadata(keyMetadata)
-                  .overwrite()
-                  .build();
-          break;
-        case ORC:
-          throw new UnsupportedOperationException("ORC file format not currently supported.");
-        default:
-          throw new RuntimeException("Unknown File Format: " + fileFormat);
-      }
+    switch (fileFormat) {
+      case AVRO:
+        icebergDataWriter =
+            Avro.writeData(outputFile)
+                .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
+                .schema(table.schema())
+                .withSpec(table.spec())
+                .withPartition(partitionKey)
+                .withKeyMetadata(keyMetadata)
+                .overwrite()
+                .build();
+        break;
+      case PARQUET:
+        icebergDataWriter =
+            Parquet.writeData(outputFile)
+                .createWriterFunc(GenericParquetWriter::buildWriter)
+                .schema(table.schema())
+                .withSpec(table.spec())
+                .withPartition(partitionKey)
+                .withKeyMetadata(keyMetadata)
+                .overwrite()
+                .build();
+        break;
+      case ORC:
+        throw new UnsupportedOperationException("ORC file format not currently supported.");
+      default:
+        throw new RuntimeException("Unknown File Format: " + fileFormat);
     }
     activeIcebergWriters.inc();
     LOG.info(
