@@ -70,12 +70,12 @@ class RecordWriter {
     OutputFile outputFile;
     try (FileIO io = table.io()) {
       OutputFile tmpFile = io.newOutputFile(absoluteFilename);
-      org.apache.iceberg.encryption.EncryptedOutputFile encryptedOutputFile = 
+      org.apache.iceberg.encryption.EncryptedOutputFile encryptedOutputFile =
           table.encryption().encrypt(tmpFile);
       outputFile = encryptedOutputFile.encryptingOutputFile();
-      org.apache.iceberg.encryption.EncryptionKeyMetadata keyMetadata = 
+      org.apache.iceberg.encryption.EncryptionKeyMetadata keyMetadata =
           encryptedOutputFile.keyMetadata();
-      
+
       switch (fileFormat) {
         case AVRO:
           icebergDataWriter =
@@ -115,10 +115,10 @@ class RecordWriter {
   }
 
   public void write(Record record) {
-    
+
     icebergDataWriter.write(record);
   }
-  
+
   public void close() throws IOException {
     try {
       icebergDataWriter.close();
