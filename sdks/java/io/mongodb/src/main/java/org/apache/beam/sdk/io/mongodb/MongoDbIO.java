@@ -479,8 +479,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public List<BoundedSource<Document>> split(long desiredBundleSizeBytes, PipelineOptions options)
-        throws UserCodeException {
+    public List<BoundedSource<Document>> split(long desiredBundleSizeBytes, PipelineOptions options) {
       String uri = Preconditions.checkStateNotNull(spec.uri());
       String database = Preconditions.checkStateNotNull(spec.database());
       String collection = Preconditions.checkStateNotNull(spec.collection());
@@ -566,7 +565,6 @@ public class MongoDbIO {
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithBucket)));
           }
         }
-
         return sources;
       }
     }
