@@ -898,6 +898,12 @@ class SequenceHintTestCase(TypeHintTestCase):
         'an instance of int.',
         e.exception.args[0])
 
+  def test_normalize(self):
+    expected_beam_type = typehints.Sequence[int]
+    converted_beam_type = typehints.normalize(
+        collections.abc.Sequence[int], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
+
 
 class IterableHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_composite_type_param(self):
@@ -982,6 +988,12 @@ class IterableHintTestCase(TypeHintTestCase):
     hint = typehints.Iterable[typehints.List[int]]
     l = ([[1, 2], [3, 4, 5]])
     self.assertIsNone(hint.type_check(l))
+
+  def test_normalize(self):
+    expected_beam_type = typehints.Iterable[str]
+    converted_beam_type = typehints.normalize(
+        collections.abc.Iterable[str], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
 
 
 class TestGeneratorWrapper(TypeHintTestCase):
