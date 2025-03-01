@@ -427,7 +427,7 @@ public class MongoDbIOTest {
   }
 
   @Test
-  public void testUnknownQueryFnClass() throws PipelineExecutionException {
+  public void testUnknownQueryFnClass() throws IllegalArgumentException {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "[org.apache.beam.sdk.io.mongodb.AutoValue_FindQueryTest]" + MongoDbIO.ERROR_MSG_QUERY_FN);
