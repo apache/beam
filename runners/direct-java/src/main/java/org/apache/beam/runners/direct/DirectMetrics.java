@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -318,7 +319,8 @@ class DirectMetrics extends MetricResults {
         distributionResults.build(),
         gaugeResults.build(),
         stringSetResult.build(),
-        boundedTrieResult.build());
+        boundedTrieResult.build(),
+        Collections.emptyList());
   }
 
   private <ResultT> void maybeExtractResult(

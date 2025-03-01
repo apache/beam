@@ -32,10 +32,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.HistogramCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -51,9 +51,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQuerySinkMetricsTest {
 
-  public static class TestHistogram implements Histogram {
+  public static class TestHistogramCell extends HistogramCell {
     public List<Double> values = Lists.newArrayList();
     private MetricName metricName = MetricName.named("namespace", "name");
+
+    public TestHistogramCell(KV<MetricName, HistogramData.BucketType> kv) {
+      super(kv);
+    }
 
     @Override
     public void update(double value) {
@@ -68,10 +72,9 @@ public class BigQuerySinkMetricsTest {
 
   public static class TestMetricsContainer extends MetricsContainerImpl {
 
-    // public TestHistogram testHistogram = new TestHistogram();
-    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>
+    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>
         perWorkerHistograms =
-            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>();
+            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>();
     public ConcurrentHashMap<MetricName, CounterCell> perWorkerCounters =
         new ConcurrentHashMap<MetricName, CounterCell>();
 
@@ -80,11 +83,11 @@ public class BigQuerySinkMetricsTest {
     }
 
     @Override
-    public Histogram getPerWorkerHistogram(
+    public TestHistogramCell getPerWorkerHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
-      perWorkerHistograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogram());
+      perWorkerHistograms.computeIfAbsent(
+          KV.of(metricName, bucketType), kv -> new TestHistogramCell(kv));
       return perWorkerHistograms.get(KV.of(metricName, bucketType));
-      //      return testHistogram;
     }
 
     @Override
@@ -95,7 +98,6 @@ public class BigQuerySinkMetricsTest {
 
     @Override
     public void reset() {
-      // testHistogram.values.clear();
       perWorkerHistograms.clear();
       perWorkerCounters.clear();
     }
