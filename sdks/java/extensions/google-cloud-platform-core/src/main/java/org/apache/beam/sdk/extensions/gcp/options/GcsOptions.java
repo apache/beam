@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.gcp.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
@@ -182,6 +183,12 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsWriteCounterPrefix(String gcsReadCounterPrefix);
 
+  @Description("Get key-value pairs to be stored as custom information in GCS audit logs")
+  GcsCustomAuditEntries getGcsCustomAuditEntries();
+
+  @Description("Set key-value pairs to be stored as custom information in GCS audit logs")
+  void setGcsCustomAuditEntries(GcsCustomAuditEntries entries);
+
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
    * ExecutorService} is compatible with AppEngine.
@@ -206,6 +213,60 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
           .fromFactoryMethod("fromOptions")
           .withArg(PipelineOptions.class, options)
           .build();
+    }
+  }
+
+  /**
+   * Creates a {@link GcsCustomAuditEntries} that key-value pairs to be stored as custom information
+   * in GCS audit logs. According to Google Cloud Storage audit logging documentation
+   * (https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata), the following
+   * limitations apply: - keys must be 64 characters or less, - values 1,200 characters or less, and
+   * - a maximum of four custom metadata entries are permitted per request.
+   */
+  class GcsCustomAuditEntries extends HashMap<String, String> {
+    private static final int MAX_KEY_LENGTH = 64;
+    private static final int MAX_VALUE_LENGTH = 1200;
+    private static final int MAX_ENTRIES = 4;
+
+    private static final String CUSTOM_AUDIT_ENTRY_TMPL = "x-goog-custom-audit-%s";
+
+    private static final String CUSTOM_AUDIT_JOB_ENTRY_KEY =
+        String.format(CUSTOM_AUDIT_ENTRY_TMPL, "job");
+
+    boolean exceedsEntryLimit() {
+      if (this.containsKey(CUSTOM_AUDIT_JOB_ENTRY_KEY)) {
+        return this.size() > MAX_ENTRIES;
+      }
+
+      return this.size() > MAX_ENTRIES - 1;
+    }
+
+    @Override
+    public @Nullable String put(String key, String value) {
+      if (key.length() > MAX_KEY_LENGTH) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The key '%s' in GCS custom audit entries exceeds the %d-character limit.",
+                key, MAX_KEY_LENGTH));
+      }
+
+      if (value.length() > MAX_VALUE_LENGTH) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The value '%s' in GCS custom audit entries exceeds the %d-character limit.",
+                value, MAX_VALUE_LENGTH));
+      }
+
+      String oldValue = super.put(String.format(CUSTOM_AUDIT_ENTRY_TMPL, key), value);
+
+      if (exceedsEntryLimit()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The maximum allowed number of GCS custom audit entries (including the default x-goo-custom-audit-job) is %d.",
+                MAX_ENTRIES));
+      }
+
+      return oldValue;
     }
   }
 }
