@@ -167,7 +167,8 @@ def annotate(label, since, current, extra_message, custom_message=None):
       fnc.__new__ = staticmethod(wrapped_new)
       if label == 'deprecated':
         fnc.__doc__ = _add_deprecation_notice_to_docstring(
-            fnc.__doc__, warning_message.message.replace('%name%', fnc.__name__))
+            fnc.__doc__,
+            warning_message.message.replace('%name%', fnc.__name__))
       return fnc
     else:
 
@@ -179,7 +180,8 @@ def annotate(label, since, current, extra_message, custom_message=None):
 
       if label == 'deprecated':
         inner.__doc__ = _add_deprecation_notice_to_docstring(
-            fnc.__doc__, warning_message.message.replace('%name%', fnc.__name__))
+            fnc.__doc__,
+            warning_message.message.replace('%name%', fnc.__name__))
       return inner
 
   return _annotate
