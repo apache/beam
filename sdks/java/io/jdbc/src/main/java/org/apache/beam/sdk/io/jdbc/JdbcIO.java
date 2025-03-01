@@ -43,6 +43,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1609,6 +1611,7 @@ public class JdbcIO {
     private final int fetchSize;
     private final boolean disableAutoCommit;
 
+    private Lock connectionLock = new ReentrantLock();
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
     private @Nullable KV<@Nullable String, String> reportedLineage;
@@ -1637,8 +1640,13 @@ public class JdbcIO {
       Connection connection = this.connection;
       if (connection == null) {
         DataSource validSource = checkStateNotNull(this.dataSource);
-        connection = checkStateNotNull(validSource).getConnection();
-        this.connection = connection;
+        connectionLock.lock();
+        try {
+          connection = validSource.getConnection();
+          this.connection = connection;
+        } finally {
+          connectionLock.unlock();
+        }
 
         // report Lineage if not haven't done so
         KV<@Nullable String, String> schemaWithTable =
@@ -2663,6 +2671,7 @@ public class JdbcIO {
         Metrics.distribution(WriteFn.class, "milliseconds_per_batch");
 
     private final WriteFnSpec<T, V> spec;
+    private Lock connectionLock = new ReentrantLock();
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
     private @Nullable PreparedStatement preparedStatement;
@@ -2700,7 +2709,13 @@ public class JdbcIO {
       Connection connection = this.connection;
       if (connection == null) {
         DataSource validSource = checkStateNotNull(dataSource);
-        connection = validSource.getConnection();
+        connectionLock.lock();
+        try {
+          connection = validSource.getConnection();
+        } finally {
+          connectionLock.unlock();
+        }
+
         connection.setAutoCommit(false);
         preparedStatement =
             connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
