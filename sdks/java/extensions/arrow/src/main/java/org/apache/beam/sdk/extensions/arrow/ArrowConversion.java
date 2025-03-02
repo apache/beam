@@ -252,6 +252,16 @@ public class ArrowConversion {
       InputStream inputStream,
       RootAllocator allocator)
       throws IOException {
+    return rowsFromSerializedRecordBatch(
+        arrowSchema, ArrowSchemaTranslator.toBeamSchema(arrowSchema), inputStream, allocator);
+  }
+
+  public static RecordBatchRowIterator rowsFromSerializedRecordBatch(
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+      Schema schema,
+      InputStream inputStream,
+      RootAllocator allocator)
+      throws IOException {
     VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, allocator);
     VectorLoader vectorLoader = new VectorLoader(vectorRoot);
     vectorRoot.clear();
@@ -261,7 +271,7 @@ public class ArrowConversion {
         vectorLoader.load(arrowMessage);
       }
     }
-    return rowsFromRecordBatch(ArrowSchemaTranslator.toBeamSchema(arrowSchema), vectorRoot);
+    return rowsFromRecordBatch(schema, vectorRoot);
   }
 
   public static org.apache.arrow.vector.types.pojo.Schema arrowSchemaFromInput(InputStream input)
