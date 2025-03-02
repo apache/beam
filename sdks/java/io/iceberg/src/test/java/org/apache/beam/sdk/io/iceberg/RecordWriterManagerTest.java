@@ -805,7 +805,7 @@ public class RecordWriterManagerTest {
         appendFiles.appendFile(dataFile.createDataFile(tableToCommit.specs()));
       }
       appendFiles.commit();
-            tableToCommit.refresh();
+      tableToCommit.refresh();
     }
 
     // Verify the correct table (where data was written)
