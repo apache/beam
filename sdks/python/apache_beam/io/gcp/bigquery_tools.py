@@ -367,6 +367,8 @@ class BigQueryWrapper(object):
         'latency_histogram_ms',
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
+    # Cache for tables to reduce BigQuery API calls
+    self._table_cache = {}
 
     if temp_dataset_id is not None and temp_table_ref is not None:
       raise ValueError(
@@ -786,10 +788,57 @@ class BigQueryWrapper(object):
     Raises:
       HttpError: if lookup failed.
     """
+    cache_key = f"{project_id}:{dataset_id}.{table_id}"
+    if cache_key in self._table_cache:
+      _LOGGER.debug("Cache hit for table: %s", cache_key)
+      return self._table_cache[cache_key]
+
+    _LOGGER.debug("Cache miss for table: %s", cache_key)
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
     response = self.client.tables.Get(request)
+    
+    # Store the response in cache
+    self._table_cache[cache_key] = response
     return response
+
+  def clear_table_cache(self, project_id=None, dataset_id=None, table_id=None):
+    """Clear the cache for tables.
+
+    If no parameters are specified, the entire cache is cleared.
+    If project_id is specified, all tables under that project are cleared.
+    If project_id and dataset_id are specified, all tables under that dataset are cleared.
+    If all parameters are specified, only that specific table is cleared.
+
+    Args:
+      project_id: (optional) project ID to clear tables for
+      dataset_id: (optional) dataset ID to clear tables for (requires project_id)
+      table_id: (optional) table ID to clear (requires project_id and dataset_id)
+    """
+    if project_id is None:
+      _LOGGER.debug("Clearing entire table cache")
+      self._table_cache.clear()
+      return
+
+    if dataset_id is None:
+      prefix = f"{project_id}:"
+      _LOGGER.debug("Clearing table cache for project: %s", project_id)
+      keys_to_remove = [k for k in self._table_cache if k.startswith(prefix)]
+      for k in keys_to_remove:
+        self._table_cache.pop(k)
+      return
+
+    if table_id is None:
+      prefix = f"{project_id}:{dataset_id}."
+      _LOGGER.debug("Clearing table cache for dataset: %s:%s", project_id, dataset_id)
+      keys_to_remove = [k for k in self._table_cache if k.startswith(prefix)]
+      for k in keys_to_remove:
+        self._table_cache.pop(k)
+      return
+
+    cache_key = f"{project_id}:{dataset_id}.{table_id}"
+    _LOGGER.debug("Clearing table cache for table: %s", cache_key)
+    self._table_cache.pop(cache_key, None)
 
   def _create_table(
       self,

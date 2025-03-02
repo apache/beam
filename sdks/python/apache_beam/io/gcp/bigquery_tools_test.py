@@ -417,6 +417,119 @@ class TestBigQueryWrapper(unittest.TestCase):
         'The maximum number of retries has been reached',
         str(context.exception))
 
+  def test_table_cache_get_table(self):
+    client = mock.Mock()
+    table_data = mock.Mock()
+    client.tables.Get.return_value = table_data
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # First call should hit the API
+    result1 = wrapper.get_table('project', 'dataset', 'table')
+    self.assertEqual(result1, table_data)
+    self.assertEqual(client.tables.Get.call_count, 1)
+    
+    # Second call for the same table should use the cache
+    result2 = wrapper.get_table('project', 'dataset', 'table')
+    self.assertEqual(result2, table_data)
+    # API call count should still be 1 as we used the cache
+    self.assertEqual(client.tables.Get.call_count, 1)
+    
+    # Call for a different table should hit the API again
+    wrapper.get_table('project', 'dataset', 'table2')
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+  def test_table_cache_clear_specific_table(self):
+    client = mock.Mock()
+    table_data = mock.Mock()
+    client.tables.Get.return_value = table_data
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Add two tables to the cache
+    wrapper.get_table('project', 'dataset', 'table1')
+    wrapper.get_table('project', 'dataset', 'table2')
+    self.assertEqual(client.tables.Get.call_count, 2)
+    
+    # Clear one specific table
+    wrapper.clear_table_cache('project', 'dataset', 'table1')
+    
+    # Getting table1 should hit the API
+    wrapper.get_table('project', 'dataset', 'table1')
+    self.assertEqual(client.tables.Get.call_count, 3)
+    
+    # Getting table2 should use the cache
+    wrapper.get_table('project', 'dataset', 'table2')
+    self.assertEqual(client.tables.Get.call_count, 3)
+
+  def test_table_cache_clear_dataset(self):
+    client = mock.Mock()
+    table_data = mock.Mock()
+    client.tables.Get.return_value = table_data
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Add tables from two different datasets
+    wrapper.get_table('project', 'dataset1', 'table1')
+    wrapper.get_table('project', 'dataset1', 'table2')
+    wrapper.get_table('project', 'dataset2', 'table1')
+    self.assertEqual(client.tables.Get.call_count, 3)
+    
+    # Clear all tables in dataset1
+    wrapper.clear_table_cache('project', 'dataset1')
+    
+    # Tables from dataset1 should require API calls
+    wrapper.get_table('project', 'dataset1', 'table1')
+    wrapper.get_table('project', 'dataset1', 'table2')
+    self.assertEqual(client.tables.Get.call_count, 5)
+    
+    # Table from dataset2 should use cache
+    wrapper.get_table('project', 'dataset2', 'table1')
+    self.assertEqual(client.tables.Get.call_count, 5)
+
+  def test_table_cache_clear_project(self):
+    client = mock.Mock()
+    table_data = mock.Mock()
+    client.tables.Get.return_value = table_data
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Add tables from two different projects
+    wrapper.get_table('project1', 'dataset', 'table')
+    wrapper.get_table('project2', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 2)
+    
+    # Clear all tables in project1
+    wrapper.clear_table_cache('project1')
+    
+    # Table from project1 should require API call
+    wrapper.get_table('project1', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 3)
+    
+    # Table from project2 should use cache
+    wrapper.get_table('project2', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 3)
+
+  def test_table_cache_clear_all(self):
+    client = mock.Mock()
+    table_data = mock.Mock()
+    client.tables.Get.return_value = table_data
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Add multiple tables to the cache
+    wrapper.get_table('project1', 'dataset', 'table')
+    wrapper.get_table('project2', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 2)
+    
+    # Clear all tables
+    wrapper.clear_table_cache()
+    
+    # All tables should require API calls now
+    wrapper.get_table('project1', 'dataset', 'table')
+    wrapper.get_table('project2', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 4)
+
   def test_get_query_location(self):
     client = mock.Mock()
     query = """
