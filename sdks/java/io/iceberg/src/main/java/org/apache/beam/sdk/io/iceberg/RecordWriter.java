@@ -68,8 +68,13 @@ class RecordWriter {
               table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
     OutputFile outputFile;
+    org.apache.iceberg.encryption.EncryptionKeyMetadata keyMetadata;
     try (FileIO io = table.io()) {
-      outputFile = io.newOutputFile(absoluteFilename);
+      OutputFile tmpFile = io.newOutputFile(absoluteFilename);
+      org.apache.iceberg.encryption.EncryptedOutputFile encryptedOutputFile =
+          table.encryption().encrypt(tmpFile);
+      outputFile = encryptedOutputFile.encryptingOutputFile();
+      keyMetadata = encryptedOutputFile.keyMetadata();
     }
 
     switch (fileFormat) {
@@ -80,6 +85,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
         break;
@@ -90,6 +96,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
         break;
@@ -108,6 +115,7 @@ class RecordWriter {
   }
 
   public void write(Record record) {
+
     icebergDataWriter.write(record);
   }
 
