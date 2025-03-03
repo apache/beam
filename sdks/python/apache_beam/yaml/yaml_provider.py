@@ -136,7 +136,7 @@ class Provider(abc.ABC):
     else:
       return 0
 
-  @functools.cache
+  @functools.cache  # pylint: disable=method-cache-max-size-none
   def with_extra_dependencies(self, dependencies: Iterable[str]):
     result = self._with_extra_dependencies(dependencies)
     if not hasattr(result, 'to_json'):
@@ -423,7 +423,7 @@ class ExternalPythonProvider(ExternalProvider):
 
   def _with_extra_dependencies(self, dependencies: Iterable[str]):
     return ExternalPythonProvider(
-        self._urns, None, set(self._packages) + set(dependencies))
+        self._urns, None, set(self._packages).union(set(dependencies)))
 
 
 @ExternalProvider.register_provider_type('yaml')
@@ -614,11 +614,11 @@ class InlineProvider(Provider):
       return super().requires_inputs(typ, args)
 
   def _with_extra_dependencies(self, dependencies):
-    external_provider = ExternalPythonProvider(  #
+    external_provider = ExternalPythonProvider(  # disable yapf
         {
-          typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.'
-          + typ.replace('-', '_')
-          for typ in self._transform_factories.keys()
+            typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.' +
+            typ.replace('-', '_')
+            for typ in self._transform_factories.keys()
         },
         '__inline__',
         dependencies)
@@ -1448,8 +1448,7 @@ class _InlineProviderNamespace:
     for provider in standard_providers()[typ]:
       if isinstance(provider, InlineProvider):
         return provider._transform_factories[typ]
-    else:
-      raise ValueError(f"No inline provider found for {name}")
+    raise ValueError(f"No inline provider found for {name}")
 
 
 standard_inline_providers = _InlineProviderNamespace()
