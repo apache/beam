@@ -228,9 +228,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             collections.abc.Iterable[tuple[str, int]],
             typehints.Iterable[typehints.Tuple[str, int]]),
         (
-            'mapping not caught',
+            'mapping',
             collections.abc.Mapping[str, int],
-            collections.abc.Mapping[str, int]),
+            typehints.Mapping[str, int]),
         ('set', collections.abc.Set[int], typehints.Set[int]),
         ('mutable set', collections.abc.MutableSet[int], typehints.Set[int]),
         (
