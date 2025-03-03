@@ -54,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -544,8 +545,10 @@ public class TableRowToStorageApiProto {
             unknownFields.remove(key);
           } else if (unknownFields.get(key) instanceof List) { // repeated
             ((List<?>) unknownFields.get(key))
-                .removeIf(next -> next instanceof Map && ((Map<?, ?>) next).isEmpty());
-            if (((List<?>) unknownFields.get(key)).isEmpty()) {
+                .replaceAll(
+                    next -> next instanceof Map && ((Map<?, ?>) next).isEmpty() ? null : next);
+            if (((List<?>) unknownFields.get(key)).isEmpty()
+                || ((List<?>) unknownFields.get(key)).stream().allMatch(Objects::isNull)) {
               unknownFields.remove(key);
             }
           }

@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -1673,7 +1675,7 @@ public class TableRowToStorageApiProtoTest {
   }
 
   @Test
-  public void testIgnoreUnknownRepeatedNestedField2() throws Exception {
+  public void testIgnoreUnknownRepeatedNestedFieldWithNoUnknowns() throws Exception {
 
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
@@ -1705,9 +1707,50 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.messageFromTableRow(
             schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
     assertEquals(2, msg.getAllFields().size());
-
-    System.out.println(unknown);
     assertTrue(unknown.isEmpty());
+  }
+
+  @Test
+  public void testIgnoreUnknownRepeatedNestedFieldWithUknownInRepeatedField() throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema schema = new TableSchema().setFields(fields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("unknown", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+    assertEquals(2, msg.getAllFields().size());
+    assertFalse(unknown.isEmpty());
+    assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
+    assertNull(((List<?>) unknown.get("repeated1")).get(0));
+    assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
   }
 
   @Test
