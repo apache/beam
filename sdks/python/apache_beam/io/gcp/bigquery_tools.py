@@ -46,6 +46,7 @@ from typing import Union
 import fastavro
 import numpy as np
 import regex
+import threading
 
 import apache_beam
 from apache_beam import coders
@@ -351,6 +352,9 @@ class BigQueryWrapper(object):
   TEMP_DATASET = 'beam_temp_dataset_'
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
+  
+  # Default TTL for cached table definitions in seconds
+  DEFAULT_TABLE_DEFINITION_TTL = 3600  # 1 hour
 
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
@@ -384,9 +388,27 @@ class BigQueryWrapper(object):
     else:
       self.temp_table_ref = None
       self._temporary_table_suffix = uuid.uuid4().hex
-      self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
-
+      self.temp_dataset_id = temp_dataset_id
+      
+    # Initialize table definition cache
+    self._table_cache = {}
+    self._table_cache_lock = threading.RLock()
+    self._table_definition_ttl = self.DEFAULT_TABLE_DEFINITION_TTL
     self.created_temp_dataset = False
+
+  def set_table_definition_ttl(self, ttl_seconds):
+    """Sets the TTL for cached table definitions.
+    
+    Args:
+      ttl_seconds: Time-to-live in seconds for cached table definitions.
+                  Set to 0 to disable caching.
+    """
+    # If we're enabling caching (changing from TTL=0 to TTL>0), clear the cache
+    if self._table_definition_ttl <= 0 and ttl_seconds > 0:
+      with self._table_cache_lock:
+        self._table_cache.clear()
+    
+    self._table_definition_ttl = ttl_seconds
 
   @property
   def unique_row_id(self):
@@ -419,60 +441,59 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def get_query_location(self, project_id, query, use_legacy_sql):
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
+  def get_table(self, project_id, dataset_id, table_id):
+    """Lookup a table's metadata object.
+
+    Args:
+      client: bigquery.BigqueryV2 instance
+      project_id: table lookup parameter
+      dataset_id: table lookup parameter
+      table_id: table lookup parameter
+
+    Returns:
+      bigquery.Table instance
+    Raises:
+      HttpError: if lookup failed.
     """
-    Get the location of tables referenced in a query.
-
-    This method returns the location of the first available referenced
-    table for user in the query and depends on the BigQuery service to
-    provide error handling for queries that reference tables in multiple
-    locations.
+    # Skip caching if TTL is set to 0
+    if self._table_definition_ttl <= 0:
+      return self._fetch_table(project_id, dataset_id, table_id)
+    
+    cache_key = f"{project_id}:{dataset_id}.{table_id}"
+    
+    with self._table_cache_lock:
+      cached_entry = self._table_cache.get(cache_key)
+      
+      # If entry exists in cache and is not expired, return it
+      if cached_entry and time.time() - cached_entry['timestamp'] < self._table_definition_ttl:
+        return cached_entry['table']
+      
+      # Otherwise fetch the table and cache it
+      table = self._fetch_table(project_id, dataset_id, table_id)
+      self._table_cache[cache_key] = {
+          'table': table,
+          'timestamp': time.time()
+      }
+      return table
+      
+  def _fetch_table(self, project_id, dataset_id, table_id):
+    """Actual implementation of fetching a table from BigQuery API.
+    
+    This is separated from get_table to make caching logic cleaner.
+    
+    Args:
+      project_id: table lookup parameter
+      dataset_id: table lookup parameter
+      table_id: table lookup parameter
+      
+    Returns:
+      bigquery.Table instance
     """
-    reference = bigquery.JobReference(
-        jobId=uuid.uuid4().hex, projectId=project_id)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                dryRun=True,
-                query=bigquery.JobConfigurationQuery(
-                    query=query,
-                    useLegacySql=use_legacy_sql,
-                )),
-            jobReference=reference))
-
-    response = self.client.jobs.Insert(request)
-
-    if response.statistics is None:
-      # This behavior is only expected in tests
-      _LOGGER.warning(
-          "Unable to get location, missing response.statistics. Query: %s",
-          query)
-      return None
-
-    referenced_tables = response.statistics.query.referencedTables
-    if referenced_tables:  # Guards against both non-empty and non-None
-      for table in referenced_tables:
-        try:
-          location = self.get_table_location(
-              table.projectId, table.datasetId, table.tableId)
-        except HttpForbiddenError:
-          # Permission access for table (i.e. from authorized_view),
-          # try next one
-          continue
-        _LOGGER.info(
-            "Using location %r from table %r referenced by query %s",
-            location,
-            table,
-            query)
-        return location
-
-    _LOGGER.debug(
-        "Query %s does not reference any tables or "
-        "you don't have permission to inspect them.",
-        query)
-    return None
+    request = bigquery.BigqueryTablesGetRequest(
+        projectId=project_id, datasetId=dataset_id, tableId=table_id)
+    response = self.client.tables.Get(request)
+    return response
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -768,28 +789,6 @@ class BigQueryWrapper(object):
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
     return not errors, errors
-
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
-  def get_table(self, project_id, dataset_id, table_id):
-    """Lookup a table's metadata object.
-
-    Args:
-      client: bigquery.BigqueryV2 instance
-      project_id: table lookup parameter
-      dataset_id: table lookup parameter
-      table_id: table lookup parameter
-
-    Returns:
-      bigquery.Table instance
-    Raises:
-      HttpError: if lookup failed.
-    """
-    request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    response = self.client.tables.Get(request)
-    return response
 
   def _create_table(
       self,
@@ -1385,6 +1384,63 @@ class BigQueryWrapper(object):
             "user-agent": "apache-beam-%s" % apache_beam.__version__
         })
 
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_query_location(self, project_id, query, use_legacy_sql):
+    """
+    Get the location of tables referenced in a query.
+
+    This method returns the location of the first available referenced
+    table for user in the query and depends on the BigQuery service to
+    provide error handling for queries that reference tables in multiple
+    locations.
+    """
+    reference = bigquery.JobReference(
+        jobId=uuid.uuid4().hex, projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                dryRun=True,
+                query=bigquery.JobConfigurationQuery(
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                )),
+            jobReference=reference))
+
+    response = self.client.jobs.Insert(request)
+
+    if response.statistics is None:
+      # This behavior is only expected in tests
+      _LOGGER.warning(
+          "Unable to get location, missing response.statistics. Query: %s",
+          query)
+      return None
+
+    referenced_tables = response.statistics.query.referencedTables
+    if referenced_tables:  # Guards against both non-empty and non-None
+      for table in referenced_tables:
+        try:
+          location = self.get_table_location(
+              table.projectId, table.datasetId, table.tableId)
+        except HttpForbiddenError:
+          # Permission access for table (i.e. from authorized_view),
+          # try next one
+          continue
+        _LOGGER.info(
+            "Using location %r from table %r referenced by query %s",
+            location,
+            table,
+            query)
+        return location
+
+    _LOGGER.debug(
+        "Query %s does not reference any tables or "
+        "you don't have permission to inspect them.",
+        query)
+    return None
+
 
 class RowAsDictJsonCoder(coders.Coder):
   """A coder for a table row (represented as a dict) to/from a JSON string.
@@ -1763,7 +1819,7 @@ bigquery_v2_messages.TableSchema):
     schema = get_bq_tableschema(schema)
   typehints = []
   for field in schema.fields:
-    name, field_type, mode = field.name, field.type.upper(), field.mode.upper()
+    name, field_type, mode = field.name, field_type.upper(), field.mode.upper()
 
     if field_type in ["STRUCT", "RECORD"]:
       # Structs can be represented as Beam Rows.
@@ -1845,7 +1901,7 @@ bigquery.bigquery_v2_messages.TableFieldSchema):
       if sorted(
           (left.type, right.type)) not in (["BOOL", "BOOLEAN"], ["FLOAT",
                                                                  "FLOAT64"],
-                                           ["INT64", "INTEGER"], ["RECORD",
+                                                   ["INT64", "INTEGER"], ["RECORD",
                                                                   "STRUCT"]):
         return False
 
