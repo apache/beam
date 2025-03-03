@@ -33,6 +33,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -125,7 +126,17 @@ public class Transport {
 
     // Set custom audit info in request headers
     String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
-    retryHttpRequestInitializer.setHttpHeaders(ImmutableMap.of("x-goog-custom-audit-job", jobName));
+
+    ImmutableMap.Builder<String, String> builder =
+        new ImmutableMap.Builder<String, String>().put("x-goog-custom-audit-job", jobName);
+
+    Map<String, String> customAuditEntries = options.getGcsCustomAuditEntries();
+    if (customAuditEntries != null && customAuditEntries.size() > 0) {
+      builder.putAll(customAuditEntries);
+    }
+
+    // Note: Custom audit entries with "job" key will overwrite the default above
+    retryHttpRequestInitializer.setHttpHeaders(builder.buildKeepingLast());
 
     @Nullable Integer readTimeout = options.getGcsHttpRequestReadTimeout();
     if (readTimeout != null) {
