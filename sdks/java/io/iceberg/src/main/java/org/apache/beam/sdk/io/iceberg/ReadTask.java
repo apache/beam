@@ -27,6 +27,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.ScanTaskParser;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -54,6 +55,10 @@ abstract class ReadTask {
 
   abstract long getByteSize();
 
+  abstract @Nullable String getOperation();
+
+  abstract long getSnapshotTimestampMillis();
+
   @SchemaIgnore
   FileScanTask getFileScanTask() {
     if (cachedFileScanTask == null) {
@@ -67,6 +72,10 @@ abstract class ReadTask {
     abstract Builder setFileScanTaskJson(String jsonTask);
 
     abstract Builder setByteSize(long size);
+
+    abstract Builder setOperation(@Nullable String operation);
+
+    abstract Builder setSnapshotTimestampMillis(long millis);
 
     abstract ReadTask build();
   }

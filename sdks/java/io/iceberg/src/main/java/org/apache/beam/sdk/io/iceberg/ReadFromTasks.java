@@ -29,6 +29,7 @@ import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -38,31 +39,38 @@ import org.joda.time.Instant;
  */
 // @BoundedPerElement
 class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
-  private final IcebergCatalogConfig catalogConfig;
+  private final IcebergScanConfig scanConfig;
   private final Counter scanTasksCompleted =
       Metrics.counter(ReadFromTasks.class, "scanTasksCompleted");
 
-  ReadFromTasks(IcebergCatalogConfig catalogConfig) {
-    this.catalogConfig = catalogConfig;
+  ReadFromTasks(IcebergScanConfig scanConfig) {
+    this.scanConfig = scanConfig;
   }
 
   @ProcessElement
   public void process(@Element KV<ReadTaskDescriptor, ReadTask> element, OutputReceiver<Row> out)
       throws IOException, ExecutionException {
     String tableIdentifier = element.getKey().getTableIdentifierString();
-    Instant timestamp = Instant.ofEpochMilli(element.getKey().getSnapshotTimestampMillis());
     ReadTask readTask = element.getValue();
-    Table table = TableCache.get(tableIdentifier, catalogConfig.catalog());
+    Table table = TableCache.get(tableIdentifier, scanConfig.getCatalogConfig().catalog());
     Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
 
+    Instant outputTimestamp = ReadUtils.getReadTaskTimestamp(readTask, scanConfig);
     FileScanTask task = readTask.getFileScanTask();
 
     try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
       for (Record record : reader) {
         Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
-        out.outputWithTimestamp(row, timestamp);
+        out.outputWithTimestamp(row, outputTimestamp);
       }
     }
     scanTasksCompleted.inc();
+  }
+
+  // infinite skew in case we encounter some files that don't support watermark column statistics,
+  // in which case we output a -inf timestamp.
+  @Override
+  public Duration getAllowedTimestampSkew() {
+    return Duration.millis(Long.MAX_VALUE);
   }
 }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
@@ -43,6 +43,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Enums;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * SchemaTransform implementation for {@link IcebergIO#readRows}. Reads records from Iceberg and
@@ -50,13 +51,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * org.apache.beam.sdk.values.Row}s.
  */
 @AutoService(SchemaTransformProvider.class)
-public class IcebergReadSchemaTransformProvider
+public class IcebergCdcReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<Configuration> {
   static final String OUTPUT_TAG = "output";
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
-    return new IcebergReadSchemaTransform(configuration);
+    return new IcebergCdcReadSchemaTransform(configuration);
   }
 
   @Override
@@ -66,13 +67,13 @@ public class IcebergReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ);
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_READ);
   }
 
-  static class IcebergReadSchemaTransform extends SchemaTransform {
+  static class IcebergCdcReadSchemaTransform extends SchemaTransform {
     private final Configuration configuration;
 
-    IcebergReadSchemaTransform(Configuration configuration) {
+    IcebergCdcReadSchemaTransform(Configuration configuration) {
       this.configuration = configuration;
     }
 
@@ -114,7 +115,13 @@ public class IcebergReadSchemaTransformProvider
               .toTimestamp(configuration.getToTimestamp())
               .withStartingStrategy(strategy)
               .withWatermarkColumn(configuration.getWatermarkColumn())
-              .withWatermarkTimeUnit(configuration.getWatermarkTimeUnit());
+              .withWatermarkTimeUnit(configuration.getWatermarkTimeUnit())
+              .streaming(true);
+
+      @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
+      if (pollIntervalSeconds != null) {
+        readRows = readRows.withPollInterval(Duration.standardSeconds(pollIntervalSeconds));
+      }
 
       PCollection<Row> output = input.getPipeline().apply(readRows);
 
@@ -126,7 +133,7 @@ public class IcebergReadSchemaTransformProvider
   @AutoValue
   public abstract static class Configuration {
     static Builder builder() {
-      return new AutoValue_IcebergReadSchemaTransformProvider_Configuration.Builder();
+      return new AutoValue_IcebergCdcReadSchemaTransformProvider_Configuration.Builder();
     }
 
     @SchemaFieldDescription("Identifier of the Iceberg table.")
@@ -159,18 +166,13 @@ public class IcebergReadSchemaTransformProvider
     abstract @Nullable Long getToTimestamp();
 
     @SchemaFieldDescription(
-        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
-    abstract @Nullable Integer getPollIntervalSeconds();
-
-    @SchemaFieldDescription(
-        "Enables streaming reads. By default, the streaming source will start reading from the "
-            + "latest snapshot (inclusive) and continue polling forever based on the specified poll_interval_seconds")
-    abstract @Nullable Boolean getStreaming();
-
-    @SchemaFieldDescription(
         "The source's starting strategy. Valid options are: \"earliest\" or \"latest\". Can be overriden "
             + "by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.")
     abstract @Nullable String getStartingStrategy();
+
+    @SchemaFieldDescription(
+        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
+    abstract @Nullable Integer getPollIntervalSeconds();
 
     @SchemaFieldDescription(
         "The column used to derive event time for tracking progress. Uses the snapshot's commit timestamp by default.")
@@ -199,11 +201,9 @@ public class IcebergReadSchemaTransformProvider
 
       abstract Builder setToTimestamp(Long timestamp);
 
-      abstract Builder setPollIntervalSeconds(Integer pollInterval);
-
-      abstract Builder setStreaming(Boolean streaming);
-
       abstract Builder setStartingStrategy(String strategy);
+
+      abstract Builder setPollIntervalSeconds(Integer pollInterval);
 
       abstract Builder setWatermarkColumn(String column);
 

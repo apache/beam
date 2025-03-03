@@ -32,6 +32,8 @@ import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -40,17 +42,16 @@ import org.joda.time.Instant;
  * <p>An SDF that takes a batch of {@link ReadTask}s. For each task, reads Iceberg {@link Record}s,
  * and converts to Beam {@link Row}s.
  *
- * <p>The split granularity is set to the incoming batch size, i.e. the number of potential splits
- * equals the batch size.
+ * <p>The SDF checkpoints after reading each task, and can split the batch of read tasks as needed.
  */
 @DoFn.BoundedPerElement
 class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, Row> {
-  private final IcebergCatalogConfig catalogConfig;
+  private final IcebergScanConfig scanConfig;
   private final Counter scanTasksCompleted =
       Metrics.counter(ReadFromGroupedTasks.class, "scanTasksCompleted");
 
-  ReadFromGroupedTasks(IcebergCatalogConfig catalogConfig) {
-    this.catalogConfig = catalogConfig;
+  ReadFromGroupedTasks(IcebergScanConfig scanConfig) {
+    this.scanConfig = scanConfig;
   }
 
   @ProcessElement
@@ -60,10 +61,10 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       OutputReceiver<Row> out)
       throws IOException, ExecutionException {
     String tableIdentifier = element.getKey().getTableIdentifierString();
-    Instant timestamp = Instant.ofEpochMilli(element.getKey().getSnapshotTimestampMillis());
     List<ReadTask> readTasks = element.getValue();
-    Table table = TableCache.get(tableIdentifier, catalogConfig.catalog());
+    Table table = TableCache.get(tableIdentifier, scanConfig.getCatalogConfig().catalog());
     Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
+    Schema outputSchema = ReadUtils.outputCdcSchema(beamSchema);
 
     // SDF can split by the number of read tasks
     for (long taskIndex = tracker.currentRestriction().getFrom();
@@ -72,11 +73,20 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       if (!tracker.tryClaim(taskIndex)) {
         return;
       }
-      FileScanTask task = readTasks.get((int) taskIndex).getFileScanTask();
+
+      ReadTask readTask = readTasks.get((int) taskIndex);
+      @Nullable String operation = readTask.getOperation();
+      FileScanTask task = readTask.getFileScanTask();
+      Instant outputTimestamp = ReadUtils.getReadTaskTimestamp(readTask, scanConfig);
+
       try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
         for (Record record : reader) {
-          Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
-          out.outputWithTimestamp(row, timestamp);
+          Row row =
+              Row.withSchema(outputSchema)
+                  .addValue(IcebergUtils.icebergRecordToBeamRow(beamSchema, record))
+                  .addValue(operation)
+                  .build();
+          out.outputWithTimestamp(row, outputTimestamp);
         }
       }
       scanTasksCompleted.inc();
@@ -98,5 +108,12 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       size += task.getByteSize();
     }
     return size;
+  }
+
+  // infinite skew in case we encounter some files that don't support watermark column statistics,
+  // in which case we output a -inf timestamp.
+  @Override
+  public Duration getAllowedTimestampSkew() {
+    return Duration.millis(Long.MAX_VALUE);
   }
 }

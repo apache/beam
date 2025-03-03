@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.util.List;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -68,16 +70,24 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         TableCache.getRefreshed(
             scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
-    PCollection<Row> rows =
-        MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
-            ? readUnbounded(input)
-            : readBounded(input, table);
-    return rows.setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
+    return MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
+        ? readUnbounded(input).setRowSchema(ReadUtils.outputCdcSchema(table.schema()))
+        : readBounded(input, table)
+            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
   }
 
   /**
-   * Watches for new snapshots and creates tasks for each range. Using GiB for autosharding, this
-   * groups tasks in batches of up to 4GB, then reads from each batch using an SDF.
+   * Watches for new snapshots and creates tasks for each range. Uses GiB (with auto-sharding) to
+   * groups tasks in batches of size {@link ReadUtils#MAX_FILE_BUFFER_SIZE}, then reads from each
+   * batch using an SDF.
+   *
+   * <p>Output schema is:
+   *
+   * <ul>
+   *   <li>"record": the actual data record
+   *   <li>"operation": the snapshot operation associated with this record (e.g. "append",
+   *       "replace", "delete")
+   * </ul>
    */
   private PCollection<Row> readUnbounded(PBegin input) {
     @Nullable
@@ -85,9 +95,8 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
     return input
         .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, pollInterval))
-        .setCoder(SnapshotInfo.getCoder())
-        .apply(
-            "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), ListCoder.of(SnapshotInfo.getCoder())))
+        .apply("Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig)))
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(
             Window.<KV<ReadTaskDescriptor, ReadTask>>into(new GlobalWindows())
@@ -113,9 +122,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
                     return KV.of(input.getKey().getKey(), Lists.newArrayList(input.getValue()));
                   }
                 }))
-        .apply(
-            "Read Rows From Grouped Tasks",
-            ParDo.of(new ReadFromGroupedTasks(scanConfig.getCatalogConfig())));
+        .apply("Read Rows From Grouped Tasks", ParDo.of(new ReadFromGroupedTasks(scanConfig)));
   }
 
   /**
@@ -135,13 +142,15 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
             ReadUtils.getToSnapshot(table, scanConfig), table.currentSnapshot().snapshotId());
     return input
         .apply(
-            "Create Snapshot Ranges",
-            Create.of(ReadUtils.snapshotsBetween(table, scanConfig.getTableIdentifier(), from, to)))
-        .setCoder(SnapshotInfo.getCoder())
-        .apply(
-            "Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig.getCatalogConfig())))
+            "Create Snapshot Range",
+            Create.of(
+                KV.of(
+                    scanConfig.getTableIdentifier(),
+                    ReadUtils.snapshotsBetween(table, scanConfig.getTableIdentifier(), from, to))))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), ListCoder.of(SnapshotInfo.getCoder())))
+        .apply("Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig)))
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(Redistribute.arbitrarily())
-        .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig.getCatalogConfig())));
+        .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig)));
   }
 }

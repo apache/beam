@@ -20,19 +20,21 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.iceberg.CombinedScanTask;
+import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
 import org.apache.iceberg.ScanTaskParser;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,50 +42,78 @@ import org.slf4j.LoggerFactory;
  * Scans the given snapshot and creates multiple {@link ReadTask}s. Each task represents a portion
  * of a data file that was appended within the snapshot range.
  */
-class CreateReadTasksDoFn extends DoFn<SnapshotInfo, KV<ReadTaskDescriptor, ReadTask>> {
+class CreateReadTasksDoFn
+    extends DoFn<KV<String, List<SnapshotInfo>>, KV<ReadTaskDescriptor, ReadTask>> {
   private static final Logger LOG = LoggerFactory.getLogger(CreateReadTasksDoFn.class);
   private static final Counter totalScanTasks =
       Metrics.counter(CreateReadTasksDoFn.class, "totalScanTasks");
+  // TODO(ahmedabu98): should we expose a metric that tracks the latest observed snapshot sequence
+  // number?
 
-  private final IcebergCatalogConfig catalogConfig;
+  private final IcebergScanConfig scanConfig;
+  private final @Nullable String watermarkColumnName;
 
-  CreateReadTasksDoFn(IcebergCatalogConfig catalogConfig) {
-    this.catalogConfig = catalogConfig;
+  CreateReadTasksDoFn(IcebergScanConfig scanConfig) {
+    this.scanConfig = scanConfig;
+    this.watermarkColumnName = scanConfig.getWatermarkColumn();
   }
 
   @ProcessElement
   public void process(
-      @Element SnapshotInfo snapshot, OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
+      @Element KV<String, List<SnapshotInfo>> element,
+      OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException, ExecutionException {
-    Table table = TableCache.get(snapshot.getTableIdentifier(), catalogConfig.catalog());
-    @Nullable Long fromSnapshot = snapshot.getParentId();
-    long toSnapshot = snapshot.getSnapshotId();
-    System.out.println("xxx snapshot operation: " + snapshot.getOperation());
+    Table table = TableCache.get(element.getKey(), scanConfig.getCatalogConfig().catalog());
+    List<SnapshotInfo> snapshots = element.getValue();
 
-    LOG.info("Planning to scan snapshot range ({}, {}]", fromSnapshot, toSnapshot);
-    IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
-    if (fromSnapshot != null) {
-      scan = scan.fromSnapshotExclusive(fromSnapshot);
+    // scan snapshots individually and assign commit timestamp to files
+    for (SnapshotInfo snapshot : snapshots) {
+      @Nullable Long fromSnapshot = snapshot.getParentId();
+      long toSnapshot = snapshot.getSnapshotId();
+
+      if (!DataOperations.APPEND.equals(snapshot.getOperation())) {
+        LOG.info(
+            "Skipping non-append snapshot of operation '{}'. Sequence number: {}, id: {}",
+            snapshot.getOperation(),
+            snapshot.getSequenceNumber(),
+            snapshot.getSnapshotId());
+      }
+
+      LOG.info("Planning to scan snapshot id range ({}, {}]", fromSnapshot, toSnapshot);
+      IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
+      if (fromSnapshot != null) {
+        scan = scan.fromSnapshotExclusive(fromSnapshot);
+      }
+      if (watermarkColumnName != null) {
+        scan = scan.includeColumnStats(Collections.singletonList(watermarkColumnName));
+      }
+
+      createAndOutputReadTasks(scan, snapshot, out);
     }
+  }
 
+  private void createAndOutputReadTasks(
+      IncrementalAppendScan scan,
+      SnapshotInfo snapshot,
+      OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
+      throws IOException {
     try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
       for (CombinedScanTask combinedScanTask : combinedScanTasks) {
         // A single DataFile can be broken up into multiple FileScanTasks
-        // if it is large enough.
         for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
           ReadTask task =
               ReadTask.builder()
                   .setFileScanTaskJson(ScanTaskParser.toJson(fileScanTask))
-                  .setByteSize(fileScanTask.sizeBytes())
+                  .setByteSize(fileScanTask.file().fileSizeInBytes())
+                  .setOperation(snapshot.getOperation())
+                  .setSnapshotTimestampMillis(snapshot.getTimestampMillis())
                   .build();
           ReadTaskDescriptor descriptor =
               ReadTaskDescriptor.builder()
                   .setTableIdentifierString(checkStateNotNull(snapshot.getTableIdentifierString()))
-                  .setSnapshotTimestampMillis(snapshot.getTimestampMillis())
                   .build();
 
-          out.outputWithTimestamp(
-              KV.of(descriptor, task), Instant.ofEpochMilli(snapshot.getTimestampMillis()));
+          out.output(KV.of(descriptor, task));
           totalScanTasks.inc();
         }
       }

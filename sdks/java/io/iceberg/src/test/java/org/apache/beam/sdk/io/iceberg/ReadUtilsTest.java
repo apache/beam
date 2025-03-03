@@ -24,11 +24,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
@@ -82,5 +85,44 @@ public class ReadUtilsTest {
       }
     }
     assertEquals(data.size(), numFiles);
+  }
+
+  @Test
+  public void testSnapshotsBetween() throws IOException {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+
+    Map<String, List<Record>> data =
+        ImmutableMap.<String, List<Record>>builder()
+            .put("files1s1.parquet", TestFixtures.FILE1SNAPSHOT1)
+            .put("file2s2.parquet", TestFixtures.FILE2SNAPSHOT2)
+            .put("file3s3.parquet", TestFixtures.FILE3SNAPSHOT3)
+            .build();
+
+    for (Map.Entry<String, List<Record>> entry : data.entrySet()) {
+      simpleTable
+          .newFastAppend()
+          .appendFile(
+              warehouse.writeRecords(entry.getKey(), simpleTable.schema(), entry.getValue()))
+          .commit();
+    }
+
+    List<Snapshot> originalSnapshots = Lists.newArrayList(simpleTable.snapshots());
+    List<SnapshotInfo> snapshotsBetween =
+        ReadUtils.snapshotsBetween(
+            simpleTable, tableId.toString(), null, simpleTable.currentSnapshot().snapshotId());
+
+    assertEquals("size", originalSnapshots.size(), snapshotsBetween.size());
+    assertEquals(
+        "snapshot id out of order",
+        originalSnapshots.stream().map(Snapshot::snapshotId).collect(Collectors.toList()),
+        snapshotsBetween.stream().map(SnapshotInfo::getSnapshotId).collect(Collectors.toList()));
+    assertEquals(
+        "sequence number out of order",
+        originalSnapshots.stream().map(Snapshot::sequenceNumber).collect(Collectors.toList()),
+        snapshotsBetween.stream()
+            .map(SnapshotInfo::getSequenceNumber)
+            .collect(Collectors.toList()));
   }
 }

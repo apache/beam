@@ -48,13 +48,9 @@ abstract class ReadTaskDescriptor {
 
   abstract String getTableIdentifierString();
 
-  abstract long getSnapshotTimestampMillis();
-
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
-
-    abstract Builder setSnapshotTimestampMillis(long millis);
 
     abstract ReadTaskDescriptor build();
   }

@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.schemas.Schema;
@@ -67,6 +68,13 @@ import org.joda.time.Duration;
  * ====== READ ======
  * pipeline
  *     .apply(Managed.read(ICEBERG).withConfig(config))
+ *     .getSinglePCollection()
+ *     .apply(ParDo.of(...));
+ *
+ *
+ * ====== READ CDC ======
+ * pipeline
+ *     .apply(Managed.read(ICEBERG_CDC).withConfig(config))
  *     .getSinglePCollection()
  *     .apply(ParDo.of(...));
  * }</pre>
@@ -157,20 +165,6 @@ import org.joda.time.Duration;
  *     </td>
  *   </tr>
  *   <tr>
- *     <td> {@code streaming} </td>
- *     <td> {@code boolean} </td>
- *     <td> Enables streaming reads. By default, the streaming source will start reading from the latest
- *     snapshot (inclusive) and continue polling forever based on the specified {@code poll_interval_seconds}.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code poll_interval_seconds} </td>
- *     <td> {@code int} </td>
- *     <td>
- *       The interval at which to scan the table for new snapshots. Defaults to 60 seconds. For streaming reads only.
- *     </td>
- *   </tr>
- *   <tr>
  *     <td> {@code starting_strategy} </td>
  *     <td> {@code str} </td>
  *     <td>
@@ -180,6 +174,43 @@ import org.joda.time.Duration;
  *           <li>{@code latest}: starts reading from the latest snapshot</li>
  *       </ul>
  *       <p>Defaults to {@code earliest} for batch, and {@code latest} for streaming.
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code watermark_column} </td>
+ *     <td> {@code str} </td>
+ *     <td>
+ *       The column used to derive event time to track progress. Must be of type:
+ *       <ul>
+ *           <li>{@code timestamp}</li>
+ *           <li>{@code timestamptz}</li>
+ *           <li>{@code long} (micros)</li>
+ *       </ul>
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code watermark_time_unit} </td>
+ *     <td> {@code str} </td>
+ *     <td>
+ *       Use only when {@code watermark_column} is set to a column of type Long. Specifies the TimeUnit represented by the watermark column.
+ *       Default is {@code "microseconds"}.
+ *
+ *       <p>Check {@link TimeUnit} for possible values.
+ *     </td>
+ *   </tr>
+ * </table>
+ *
+ * <h4>CDC Streaming Source options</h4>
+ *
+ * <table border="1" cellspacing="1">
+ *   <tr>
+ *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code poll_interval_seconds} </td>
+ *     <td> {@code int} </td>
+ *     <td>
+ *       The interval at which to scan the table for new snapshots. Defaults to 60 seconds.
  *     </td>
  *   </tr>
  * </table>
@@ -381,7 +412,7 @@ import org.joda.time.Duration;
  *
  * <h2>Reading from Tables</h2>
  *
- * A simple batch read from an Iceberg table looks like this:
+ * With the following configuration,
  *
  * <pre>{@code
  * Map<String, Object> config = Map.of(
@@ -389,20 +420,46 @@ import org.joda.time.Duration;
  *         "catalog_name", name,
  *         "catalog_properties", Map.of(...),
  *         "config_properties", Map.of(...));
+ * }</pre>
  *
+ * Example of a simple batch read:
+ *
+ * <pre>{@code
  * PCollection<Row> = pipeline
  *     .apply(Managed.read(ICEBERG).withConfig(config))
  *     .getSinglePCollection();
  * }</pre>
  *
- * Setting <b>{@code streaming}</b> to {@code true} enables streaming read mode, which continuously
- * polls the table for new snapshots. The default polling interval is 60 seconds, but this can be
- * overridden using <b>{@code poll_interval_seconds}</b>:
+ * Example of a simple CDC streaming read:
  *
  * <pre>{@code
- * config.put("streaming", true);
+ * PCollection<Row> = pipeline
+ *     .apply(Managed.read(ICEBERG_CDC).withConfig(config))
+ *     .getSinglePCollection()
+ *     .apply(ReadUtils.extractRecords());
+ * }</pre>
+ *
+ * <p>The streaming source continuously polls the table for new <b>append-only</b> snapshots, with a default interval
+ * of 60 seconds. This can be overridden using <b>{@code poll_interval_seconds}</b>.
+ * <p><b>Note</b>: Full CDC is not supported yet.
+ *
+ * <pre>{@code
  * config.put("poll_interval_seconds", 10);
  * }</pre>
+ *
+ * <h3>Output Schema</h3>
+ *
+ * <p>Reading with <b>{@code Managed.read(ICEBERG)}</b> produces a <b>{@code PCollection<Row>}</b>
+ * containing data records that conform to the table schema.
+ *
+ * <p>Reading with <b>{@code Managed.read(ICEBERG_CDC)}</b> produces a <b>{@code
+ * PCollection<Row>}</b> with the following schema:
+ *
+ * <ul>
+ *   <li><b>{@code "record"}</b>: a Row representing the data record
+ *   <li><b>{@code "operation"}</b>: the snapshot operation associated with this record (e.g.
+ *       "append", "replace", "delete")
+ * </ul>
  *
  * <h3>Choosing a Starting Point</h3>
  *
@@ -460,7 +517,25 @@ import org.joda.time.Duration;
  *     .getSinglePCollection();
  * }</pre>
  *
- * Note: An end point can also be set when performing a streaming read.
+ * <b>Note</b>: An end point can also be set when performing a streaming read.
+ *
+ * <h3>Handling Watermarks</h3>
+ *
+ * By default, a snapshot's commit timestamp is assigned to all the records it contains.
+ *
+ * <p>For greater watermark precision, specify a <b>{@code watermark_column}</b>, which allows the
+ * source to extract the lower bound value from each data file and assign it to the corresponding
+ * records. For Long column types, you can also specify the TimeUnit represented by the column:
+ *
+ * <pre>{@code
+ * config.put("watermark_column", "flight_arrival");
+ * config.put("watermark_time_unit", "hours");
+ * }</pre>
+ *
+ * <b>Note</b>: this requires the data files to have been written with metrics enabled. For more
+ * details, refer to the <a
+ * href="https://iceberg.apache.org/docs/latest/configuration/#write-properties:~:text=write.metadata.metrics.default,tuning%3B%20none%2C%20counts%2C%20truncate(length)%2C%20or%20full">write
+ * properties</a>.
  */
 @Internal
 public class IcebergIO {
@@ -567,11 +642,15 @@ public class IcebergIO {
 
     abstract @Nullable Long getToTimestamp();
 
-    abstract @Nullable Duration getPollInterval();
+    abstract @Nullable StartingStrategy getStartingStrategy();
 
     abstract @Nullable Boolean getStreaming();
 
-    abstract @Nullable StartingStrategy getStartingStrategy();
+    abstract @Nullable Duration getPollInterval();
+
+    abstract @Nullable String getWatermarkColumn();
+
+    abstract @Nullable String getWatermarkTimeUnit();
 
     abstract Builder toBuilder();
 
@@ -589,11 +668,15 @@ public class IcebergIO {
 
       abstract Builder setToTimestamp(@Nullable Long toTimestamp);
 
-      abstract Builder setPollInterval(@Nullable Duration triggeringFrequency);
+      abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
 
       abstract Builder setStreaming(@Nullable Boolean streaming);
 
-      abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
+      abstract Builder setPollInterval(@Nullable Duration triggeringFrequency);
+
+      abstract Builder setWatermarkColumn(@Nullable String column);
+
+      abstract Builder setWatermarkTimeUnit(@Nullable String timeUnit);
 
       abstract ReadRows build();
     }
@@ -630,6 +713,14 @@ public class IcebergIO {
       return toBuilder().setStartingStrategy(strategy).build();
     }
 
+    public ReadRows withWatermarkColumn(@Nullable String column) {
+      return toBuilder().setWatermarkColumn(column).build();
+    }
+
+    public ReadRows withWatermarkTimeUnit(@Nullable String timeUnit) {
+      return toBuilder().setWatermarkTimeUnit(timeUnit).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -650,16 +741,17 @@ public class IcebergIO {
               .setStartingStrategy(getStartingStrategy())
               .setStreaming(getStreaming())
               .setPollInterval(getPollInterval())
+              .setWatermarkColumn(getWatermarkColumn())
+              .setWatermarkTimeUnit(getWatermarkTimeUnit())
               .build();
-      scanConfig.validate();
+      scanConfig.validate(table);
 
-      if (scanConfig.useIncrementalSource()) {
-        return input
-            .apply(new IncrementalScanSource(scanConfig))
-            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
-      }
+      PTransform<PBegin, PCollection<Row>> source =
+          scanConfig.useIncrementalSource()
+              ? new IncrementalScanSource(scanConfig)
+              : Read.from(new ScanSource(scanConfig));
 
-      return input.apply(Read.from(new ScanSource(scanConfig)));
+      return input.apply(source);
     }
   }
 }

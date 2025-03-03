@@ -89,7 +89,7 @@ dependencies {
     testImplementation library.java.google_api_services_bigquery
 
     testRuntimeOnly library.java.slf4j_jdk14
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
