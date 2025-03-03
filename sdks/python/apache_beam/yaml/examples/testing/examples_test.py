@@ -29,6 +29,7 @@ from typing import Optional
 from typing import Union
 from unittest import mock
 
+import pytest
 import yaml
 
 import apache_beam as beam
@@ -262,6 +263,10 @@ def create_test_method(
             if transform.transform.label == 'log_for_testing':
               actual += list(transform.outputs.values())
         check_output(expected)(actual)
+
+  if 'java_deps' in pipeline_spec_file:
+    test_yaml_example = pytest.mark.xlang_sql_expansion_service(
+        test_yaml_example)
 
   return test_yaml_example
 
