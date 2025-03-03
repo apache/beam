@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg.catalog;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import com.google.api.client.util.Lists;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.util.Arrays;
@@ -38,15 +37,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.util.SnapshotUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
@@ -109,79 +104,6 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
         .build();
   }
 
-  //  Schema schema = Schema.builder().addInt32Field("id").addStringField("name").build();
-  //  List<Row> rows =
-  //      IntStream.range(0, 10)
-  //          .mapToObj(i -> Row.withSchema(schema).addValues(i, "val_" + i).build())
-  //          .collect(Collectors.toList());
-
-  //  @Override
-  //  public Integer numRecords() {
-  //    return 2;
-  //  }
-
-  @Test
-  @Ignore
-  public void testTemp() throws IOException, InterruptedException {
-    //    Map<String, Object> config = managedIcebergConfig(tableId());
-    //    writePipeline.getOptions().as(DirectOptions.class).setTargetParallelism(1);
-    //    PCollection<Row> input = writePipeline.apply(Create.of(rows)).setRowSchema(schema);
-    //    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    //    writePipeline.run().waitUntilFinish();
-
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
-    populateTable(table);
-    populateTable(table);
-    populateTable(table);
-    populateTable(table);
-    populateTable(table);
-    populateTable(table);
-    populateTable(table);
-    populateTable(table);
-    List<Long> snapshots =
-        Lists.newArrayList(table.snapshots()).stream()
-            .map(Snapshot::snapshotId)
-            .collect(Collectors.toList());
-    System.out.println("xxx snapshots: " + snapshots);
-    // [6011121439735012896, 1895704562814642328, 589404649896567915, 4769353889403890084,
-    // 5320805826111823286, 543163132885668788, 5985342948512626443, 5088987033302496149]
-    // between 1895704562814642328 and 5985342948512626443:
-    // [5985342948512626443, 543163132885668788, 5320805826111823286, 4769353889403890084,
-    // 589404649896567915, 1895704562814642328, 6011121439735012896]
-    List<Long> between =
-        Lists.newArrayList(SnapshotUtil.snapshotIdsBetween(table, -1, snapshots.get(6)));
-    System.out.printf("xxx between %s and %s:\n%s%n", snapshots.get(1), snapshots.get(6), between);
-
-    //    String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
-    //    NameMapping mapping =
-    //            nameMapping != null ? NameMappingParser.fromJson(nameMapping) :
-    // NameMapping.empty();
-
-    //    try (CloseableIterable<ChangelogScanTask> tasks =
-    //        table.newIncrementalChangelogScan().planFiles()) {
-    //      for (ChangelogScanTask task : tasks) {
-    //
-    //        System.out.printf(
-    //            "xxx change log:\n" + "    snapshot: %s\n" + "    change type: %s\n    ordinal:
-    // %s\n",
-    //            task.commitSnapshotId(), task.operation(), task.changeOrdinal());
-    //      }
-    //    }
-    //
-    //    TableScan scan = table.newScan().filter(Expressions.lessThan("id", 5));
-    //    int count = 0;
-    //    try (CloseableIterable<FileScanTask> tasks = scan.planFiles()) {
-    //      for (FileScanTask fileScanTask : tasks) {
-    //        String path = fileScanTask.file().path().toString();
-    //        String name = Paths.get(path.replace("gs://", "")).getFileName().toString();
-    //        System.out.println("xxx file path: " + name);
-    //        count++;
-    //      }
-    //    }
-
-    //    System.out.println("xxx num files: " + count);
-  }
-
   @Test
   public void testWriteToPartitionedAndValidateWithBQQuery()
       throws IOException, InterruptedException {
@@ -222,21 +144,4 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .collect(Collectors.toList());
     assertThat(beamRows, containsInAnyOrder(inputRows.stream().map(rowFilter::filter).toArray()));
   }
-
-  //  private static class PrintElements<T> extends PTransform<PCollection<T>, PCollection<Void>> {
-  //    @Override
-  //    public PCollection<Void> expand(PCollection<T> input) {
-  //      return input.apply(
-  //          MapElements.into(TypeDescriptors.voids())
-  //              .via(
-  //                  r -> {
-  //                    System.out.println("xxx " + r);
-  //                    return null;
-  //                  }));
-  //    }
-  //
-  //    static PrintElements<Row> rows() {
-  //      return new PrintElements<Row>();
-  //    }
-  //  }
 }

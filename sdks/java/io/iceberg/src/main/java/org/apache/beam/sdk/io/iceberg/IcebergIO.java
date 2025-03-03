@@ -439,8 +439,10 @@ import org.joda.time.Duration;
  *     .apply(ReadUtils.extractRecords());
  * }</pre>
  *
- * <p>The streaming source continuously polls the table for new <b>append-only</b> snapshots, with a default interval
- * of 60 seconds. This can be overridden using <b>{@code poll_interval_seconds}</b>.
+ * <p>The streaming source continuously polls the table for new <b>append-only</b> snapshots, with a
+ * default interval of 60 seconds. This can be overridden using <b>{@code
+ * poll_interval_seconds}</b>.
+ *
  * <p><b>Note</b>: Full CDC is not supported yet.
  *
  * <pre>{@code
