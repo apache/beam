@@ -31,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 import warnings
 from collections.abc import Callable
@@ -40,6 +41,7 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
+import clonevirtualenv
 import docstring_parser
 import yaml
 
@@ -150,7 +152,7 @@ class Provider(abc.ABC):
     else:
       return 0
 
-  @functools.cache
+  @functools.cache  # pylint: disable=method-cache-max-size-none
   def with_extra_dependencies(self, dependencies: Iterable[str]):
     result = self._with_extra_dependencies(dependencies)
     if not hasattr(result, 'to_json'):
@@ -451,7 +453,7 @@ class ExternalPythonProvider(ExternalProvider):
 
   def _with_extra_dependencies(self, dependencies: Iterable[str]):
     return ExternalPythonProvider(
-        self._urns, None, set(self._packages) + set(dependencies))
+        self._urns, None, set(self._packages).union(set(dependencies)))
 
 
 @ExternalProvider.register_provider_type('yaml')
@@ -642,11 +644,11 @@ class InlineProvider(Provider):
       return super().requires_inputs(typ, args)
 
   def _with_extra_dependencies(self, dependencies):
-    external_provider = ExternalPythonProvider(  #
+    external_provider = ExternalPythonProvider(  # disable yapf
         {
-          typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.'
-          + typ.replace('-', '_')
-          for typ in self._transform_factories.keys()
+            typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.' +
+            typ.replace('-', '_')
+            for typ in self._transform_factories.keys()
         },
         '__inline__',
         dependencies)
@@ -1120,7 +1122,14 @@ class PypiExpansionService:
   """Expands transforms by fully qualified name in a virtual environment
   with the given dependencies.
   """
-  VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
+  if 'TOX_WORK_DIR' in os.environ:
+    VENV_CACHE = tempfile.mkdtemp(
+        prefix='test-venv-cache-', dir=os.environ['TOX_WORK_DIR'])
+  elif 'RUNNER_WORKDIR' in os.environ:
+    VENV_CACHE = tempfile.mkdtemp(
+        prefix='test-venv-cache-', dir=os.environ['RUNNER_WORKDIR'])
+  else:
+    VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
   def __init__(
       self, packages: Iterable[str], base_python: str = sys.executable):
@@ -1182,10 +1191,7 @@ class PypiExpansionService:
     if not os.path.exists(venv):
       try:
         clonable_venv = cls._create_venv_to_clone(base_python)
-        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-        subprocess.run(
-            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-            check=True)
+        clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         venv_pip = os.path.join(venv, 'bin', 'pip')
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
@@ -1475,8 +1481,7 @@ class _InlineProviderNamespace:
     for provider in standard_providers()[typ]:
       if isinstance(provider, InlineProvider):
         return provider._transform_factories[typ]
-    else:
-      raise ValueError(f"No inline provider found for {name}")
+    raise ValueError(f"No inline provider found for {name}")
 
 
 standard_inline_providers = _InlineProviderNamespace()

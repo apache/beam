@@ -716,7 +716,7 @@ def extract_extra_dependencies(spec):
   if not deps:
     return [], spec
   if not isinstance(deps, list):
-    raise TypeErrorError(f'Dependencies must be a list of strings, got {deps}')
+    raise TypeError(f'Dependencies must be a list of strings, got {deps}')
   return deps, dict(
       spec,
       config={k: v for k, v in spec['config'].items() if k != 'dependencies'})
