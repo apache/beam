@@ -1176,7 +1176,10 @@ public class SnowflakeIO {
       for (Object o : context.element()) {
         if (o instanceof String) {
           String field = (String) o;
-          field = field.replace("'", "''");
+          field = field.replace("\\", "\\\\");
+          if (!this.quotationMark.isEmpty()) {
+            field = field.replace(this.quotationMark, "\\" + this.quotationMark);
+          }
           field = quoteNonEmptyField(field);
 
           csvItems.add(field);
