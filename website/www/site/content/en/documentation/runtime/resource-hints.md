@@ -68,7 +68,7 @@ You can set resource hints programmatically on pipeline transforms using [PTrans
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml" >}}
-You can set resource hints pipeline transforms using a `resource_hint` attribute.
+You can set resource hints pipeline transforms using a `resource_hints` attribute.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -108,6 +108,6 @@ pcoll | beam.ParDo(BigMemFn()).with_resource_hints(
 {{< /highlight >}}
 
 {{< paragraph class="language-yaml" >}}
-Such a `resource_hint` attribute can also be placed on the top-level pipeline
+Such a `resource_hints` attribute can also be placed on the top-level pipeline
 object to apply to the entire pipeline.
 {{< /paragraph >}}
