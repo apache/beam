@@ -620,6 +620,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
         GRPCChannelFactory.insecure_channel(
             self._external_payload.endpoint.url))
+    _LOGGER.info('self.control_address: %s' % self.control_address)
     control_descriptor = endpoints_pb2.ApiServiceDescriptor(
         url=self.control_address)
     response = stub.StartWorker(

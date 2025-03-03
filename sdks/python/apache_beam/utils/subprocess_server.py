@@ -335,21 +335,24 @@ class JavaJarServer(SubprocessServer):
     ])
 
   @classmethod
-  def path_to_beam_jar(
+  def parse_gradle_target(cls, gradle_target, artifact_id=None):
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
+    if not artifact_id:
+      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    return gradle_package, artifact_id
+
+  @classmethod
+  def path_to_dev_beam_jar(
       cls,
       gradle_target,
       appendix=None,
       version=beam_version,
       artifact_id=None):
-    if gradle_target in cls._BEAM_SERVICES.replacements:
-      return cls._BEAM_SERVICES.replacements[gradle_target]
-
-    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
-    if not artifact_id:
-      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    gradle_package, artifact_id = cls.parse_gradle_target(
+        gradle_target, artifact_id)
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
-    local_path = os.path.join(
+    return os.path.join(
         project_root,
         gradle_package.replace(':', os.path.sep),
         'build',
@@ -359,6 +362,22 @@ class JavaJarServer(SubprocessServer):
             version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
+
+  @classmethod
+  def path_to_beam_jar(
+      cls,
+      gradle_target,
+      appendix=None,
+      version=beam_version,
+      artifact_id=None):
+    if gradle_target in cls._BEAM_SERVICES.replacements:
+      return cls._BEAM_SERVICES.replacements[gradle_target]
+
+    _, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
+    project_root = os.path.sep.join(
+        os.path.abspath(__file__).split(os.path.sep)[:-5])
+    local_path = cls.path_to_dev_beam_jar(
+        gradle_target, appendix, version, artifact_id)
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
