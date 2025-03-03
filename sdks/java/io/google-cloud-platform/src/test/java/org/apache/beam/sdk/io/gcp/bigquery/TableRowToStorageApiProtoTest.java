@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -1748,7 +1747,7 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(2, msg.getAllFields().size());
     assertFalse(unknown.isEmpty());
     assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
-    assertNull(((List<?>) unknown.get("repeated1")).get(0));
+    assertNotNull(((List<?>) unknown.get("repeated1")).get(0));
     assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
     assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
   }
