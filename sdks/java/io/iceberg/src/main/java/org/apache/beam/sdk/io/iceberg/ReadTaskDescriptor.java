@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-/** Describes the table and snapshot a {@link ReadTask} belongs to. */
+/** Describes the table a {@link ReadTask} belongs to.*/
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class ReadTaskDescriptor {

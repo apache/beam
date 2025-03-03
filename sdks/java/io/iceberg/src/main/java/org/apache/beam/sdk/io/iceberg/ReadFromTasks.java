@@ -37,7 +37,6 @@ import org.joda.time.Instant;
  *
  * <p>For each {@link ReadTask}, reads Iceberg {@link Record}s, and converts to Beam {@link Row}s.
  */
-// @BoundedPerElement
 class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
   private final IcebergScanConfig scanConfig;
   private final Counter scanTasksCompleted =

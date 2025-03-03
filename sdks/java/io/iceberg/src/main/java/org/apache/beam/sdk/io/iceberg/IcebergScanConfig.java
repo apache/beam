@@ -295,7 +295,7 @@ public abstract class IcebergScanConfig implements Serializable {
             type);
 
         Set<String> validTimeUnits =
-            Arrays.stream(TimeUnit.values()).map(Enum::name).collect(Collectors.toSet());
+            Arrays.stream(TimeUnit.values()).map(TimeUnit::name).collect(Collectors.toSet());
         checkArgument(
             validTimeUnits.contains(watermarkTimeUnit.toUpperCase()),
             error("invalid 'watermark_time_unit': %s. Please choose one of: %s"),
