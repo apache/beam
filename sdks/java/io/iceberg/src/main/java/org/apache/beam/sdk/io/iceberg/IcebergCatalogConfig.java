@@ -51,26 +51,25 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public org.apache.iceberg.catalog.Catalog catalog() {
-    if (cachedCatalog != null) {
-      return cachedCatalog;
+    if (cachedCatalog == null) {
+      String catalogName = getCatalogName();
+      if (catalogName == null) {
+        catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
+      }
+      Map<String, String> catalogProps = getCatalogProperties();
+      if (catalogProps == null) {
+        catalogProps = Maps.newHashMap();
+      }
+      Map<String, String> confProps = getConfigProperties();
+      if (confProps == null) {
+        confProps = Maps.newHashMap();
+      }
+      Configuration config = new Configuration();
+      for (Map.Entry<String, String> prop : confProps.entrySet()) {
+        config.set(prop.getKey(), prop.getValue());
+      }
+      cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
     }
-    String catalogName = getCatalogName();
-    if (catalogName == null) {
-      catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
-    }
-    Map<String, String> catalogProps = getCatalogProperties();
-    if (catalogProps == null) {
-      catalogProps = Maps.newHashMap();
-    }
-    Map<String, String> confProps = getConfigProperties();
-    if (confProps == null) {
-      confProps = Maps.newHashMap();
-    }
-    Configuration config = new Configuration();
-    for (Map.Entry<String, String> prop : confProps.entrySet()) {
-      config.set(prop.getKey(), prop.getValue());
-    }
-    cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
     return cachedCatalog;
   }
 

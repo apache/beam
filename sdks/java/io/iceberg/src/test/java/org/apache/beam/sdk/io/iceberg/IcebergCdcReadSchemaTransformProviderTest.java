@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
-import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.OUTPUT_TAG;
+import static org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
 import java.util.List;
@@ -34,7 +35,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.DataOperations;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
@@ -44,8 +48,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.yaml.snakeyaml.Yaml;
 
-/** Tests for {@link IcebergReadSchemaTransformProvider}. */
-public class IcebergReadSchemaTransformProviderTest {
+/** Tests for {@link IcebergCdcReadSchemaTransformProvider}. */
+public class IcebergCdcReadSchemaTransformProviderTest {
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -69,6 +73,7 @@ public class IcebergReadSchemaTransformProviderTest {
             .withFieldValue("from_timestamp", 123L)
             .withFieldValue("to_timestamp", 456L)
             .withFieldValue("starting_strategy", "earliest")
+            .withFieldValue("poll_interval_seconds", 789)
             .withFieldValue("watermark_column", "abc")
             .withFieldValue("watermark_time_unit", "nanoseconds")
             .build();
@@ -94,7 +99,9 @@ public class IcebergReadSchemaTransformProviderTest {
         Configuration.builder()
             .setTable(identifier)
             .setCatalogName("name")
-            .setCatalogProperties(properties);
+            .setCatalogProperties(properties)
+            .setStartingStrategy("earliest")
+            .setToSnapshot(simpleTable.currentSnapshot().snapshotId());
 
     final List<Row> expectedRows =
         expectedRecords.stream()
@@ -104,15 +111,19 @@ public class IcebergReadSchemaTransformProviderTest {
 
     PCollection<Row> output =
         PCollectionRowTuple.empty(testPipeline)
-            .apply(new IcebergReadSchemaTransformProvider().from(readConfigBuilder.build()))
-            .get(OUTPUT_TAG);
+            .apply(new IcebergCdcReadSchemaTransformProvider().from(readConfigBuilder.build()))
+            .getSinglePCollection();
 
+    assertThat(output.isBounded(), equalTo(UNBOUNDED));
     PAssert.that(output)
         .satisfies(
             (Iterable<Row> rows) -> {
-              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
+              for (Row row : rows) {
+                assertEquals(DataOperations.APPEND, row.getString(ReadUtils.OPERATION));
+              }
               return null;
             });
+    PAssert.that(output.apply(ReadUtils.extractRecords())).containsInAnyOrder(expectedRows);
 
     testPipeline.run();
   }
@@ -125,7 +136,10 @@ public class IcebergReadSchemaTransformProviderTest {
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable).subList(3, 9);
+    List<Snapshot> snapshots = Lists.newArrayList(simpleTable.snapshots());
+    long second = snapshots.get(1).snapshotId();
+    long third = snapshots.get(2).snapshotId();
 
     String yamlConfig =
         String.format(
@@ -133,8 +147,10 @@ public class IcebergReadSchemaTransformProviderTest {
                 + "catalog_name: test-name\n"
                 + "catalog_properties: \n"
                 + "  type: %s\n"
-                + "  warehouse: %s",
-            identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
+                + "  warehouse: %s\n"
+                + "from_snapshot: %s\n"
+                + "to_snapshot: %s",
+            identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location, second, third);
 
     final List<Row> expectedRows =
         expectedRecords.stream()
@@ -145,15 +161,12 @@ public class IcebergReadSchemaTransformProviderTest {
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
     PCollection<Row> output =
         testPipeline
-            .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))
-            .getSinglePCollection();
+            .apply(Managed.read(Managed.ICEBERG_CDC).withConfig(configMap))
+            .getSinglePCollection()
+            .apply(ReadUtils.extractRecords());
 
-    PAssert.that(output)
-        .satisfies(
-            (Iterable<Row> rows) -> {
-              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
-              return null;
-            });
+    assertThat(output.isBounded(), equalTo(UNBOUNDED));
+    PAssert.that(output).containsInAnyOrder(expectedRows);
 
     testPipeline.run();
   }
