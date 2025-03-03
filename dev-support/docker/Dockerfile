@@ -45,12 +45,12 @@ RUN apt -q update \
     && add-apt-repository -y ppa:deadsnakes/ppa \
     && apt -q update
 
-    RUN mkdir /package
-    COPY pkglist /package/pkglist
-    RUN apt-get -q install -y --no-install-recommends \
-        $(grep -v '^#' /package/pkglist | grep -v 'python3.12-distutils' | cat) \
-        python3-distutils \
-        && (apt-get -q install -y python3.12-distutils 2>/dev/null || echo "python3.12-distutils not available, using python3-distutils")
+RUN mkdir /package
+COPY pkglist /package/pkglist
+RUN apt-get -q install -y --no-install-recommends \
+    $(grep -v '^#' /package/pkglist | grep -v 'python3.12-distutils' | cat) \
+    python3-distutils \
+    && (apt-get -q install -y python3.12-distutils 2>/dev/null || echo "python3.12-distutils not available, using python3-distutils")
 
 ###
 # Set the locale ( see https://stackoverflow.com/a/28406007/114196 )
