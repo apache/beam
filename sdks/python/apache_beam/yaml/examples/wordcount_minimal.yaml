@@ -21,10 +21,9 @@
 #`ReadFromText` to a local file.
 #
 # To set up Application Default Credentials,
-# see https://cloud.google.com/docs/authentication/external/set-up-adc for more
-# information
+# see https://cloud.google.com/docs/authentication/external/set-up-adc.
 #
-# This pipeline reads in a text file, counts distinct words found in the text, 
+# This pipeline reads in a text file, counts distinct words found in the text,
 # then logs a row containing each word and its count.
 pipeline:
   type: chain
@@ -70,7 +69,7 @@ pipeline:
 
     # Log out results
     - type: LogForTesting
-  
+
 # Expected:
 #  Row(word='king', count=311)
 #  Row(word='lear', count=253)

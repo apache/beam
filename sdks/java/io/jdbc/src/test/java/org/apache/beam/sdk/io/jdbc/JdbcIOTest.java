@@ -29,8 +29,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -471,6 +471,51 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadRowsWithExplicitSchema() {
+    Schema customSchema =
+        Schema.of(
+            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
+            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT64).withNullable(true));
+
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
+                .withSchema(customSchema));
+
+    assertEquals(customSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("CUSTOMER_NAME", "CUSTOMER_ID"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(customSchema).addValues("Testval1", 1L).build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings({"UnusedVariable"})
+  public void testIncompatibleSchemaThrowsError() {
+    Schema incompatibleSchema =
+        Schema.of(
+            Schema.Field.of("WRONG_TYPE_NAME", Schema.FieldType.INT64),
+            Schema.Field.of("WRONG_TYPE_ID", Schema.FieldType.STRING));
+
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(
+        JdbcIO.readRows()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withQuery(String.format("select name,id from %s limit 10", READ_TABLE_NAME))
+            .withSchema(incompatibleSchema));
+
+    PipelineExecutionException exception =
+        assertThrows(PipelineExecutionException.class, () -> pipeline.run().waitUntilFinish());
+  }
+
+  @Test
   public void testReadWithPartitions() {
     PCollection<TestRow> rows =
         pipeline.apply(
@@ -483,6 +528,32 @@ public class JdbcIOTest implements Serializable {
                 .withLowerBound(0L)
                 .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsWithExplicitSchema() {
+    Schema customSchema =
+        Schema.of(
+            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
+            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT32).withNullable(true));
+
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.<Row>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withTable(String.format("(select name,id from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(5)
+                .withPartitionColumn("id")
+                .withLowerBound(0L)
+                .withUpperBound(1000L)
+                .withRowOutput()
+                .withSchema(customSchema));
+
+    assertEquals(customSchema, rows.getSchema());
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+
     pipeline.run();
   }
 

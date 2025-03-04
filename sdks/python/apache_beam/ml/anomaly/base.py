@@ -53,7 +53,7 @@ class AnomalyPrediction():
   info: str = ""
   #: If enabled, a list of `AnomalyPrediction` objects used to derive the
   #: aggregated prediction.
-  agg_history: Optional[Iterable[AnomalyPrediction]] = None
+  source_predictions: Optional[Iterable[AnomalyPrediction]] = None
 
 
 @dataclass(frozen=True)
@@ -61,8 +61,10 @@ class AnomalyResult():
   """A dataclass for the anomaly detection results"""
   #: The original input data.
   example: beam.Row
-  #: The `AnomalyPrediction` object containing the prediction.
-  prediction: AnomalyPrediction
+  #: The iterable of `AnomalyPrediction` objects containing the predictions.
+  #: Expect length 1 if it is a result for a non-ensemble detector or an
+  #: ensemble detector with an aggregation strategy applied.
+  predictions: Iterable[AnomalyPrediction]
 
 
 class ThresholdFn(abc.ABC):
@@ -72,10 +74,17 @@ class ThresholdFn(abc.ABC):
     normal_label: The integer label used to identify normal data. Defaults to 0.
     outlier_label: The integer label used to identify outlier data. Defaults to
       1.
+    missing_label: The integer label used when a score is missing because the
+      model is not ready to score.
   """
-  def __init__(self, normal_label: int = 0, outlier_label: int = 1):
+  def __init__(
+      self,
+      normal_label: int = 0,
+      outlier_label: int = 1,
+      missing_label: int = -2):
     self._normal_label = normal_label
     self._outlier_label = outlier_label
+    self._missing_label = missing_label
 
   @property
   @abc.abstractmethod
@@ -90,7 +99,7 @@ class ThresholdFn(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def apply(self, score: Optional[float]) -> int:
+  def apply(self, score: Optional[float]) -> Optional[int]:
     """Applies the threshold function to a given score to classify it as
     normal or outlier.
 

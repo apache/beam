@@ -53,8 +53,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250203'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250203'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250226'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250226'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -166,6 +166,7 @@ def legacyPipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
   "--workerHarnessContainerImage=",
+  "--experiments=enable_lineage"
 ]
 
 def runnerV2PipelineOptions = [
@@ -176,6 +177,7 @@ def runnerV2PipelineOptions = [
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--experiments=enable_lineage"
 ]
 
 def commonLegacyExcludeCategories = [
