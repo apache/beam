@@ -103,6 +103,7 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("from_snapshot", 123L)
           .withFieldValue("to_timestamp", 456L)
           .withFieldValue("poll_interval_seconds", 123)
+          .withFieldValue("streaming", true)
           .withFieldValue("watermark_column", "id")
           .withFieldValue("watermark_time_unit", "nanoseconds")
           .build();

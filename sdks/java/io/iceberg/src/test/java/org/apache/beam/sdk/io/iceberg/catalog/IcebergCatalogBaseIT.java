@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg.catalog;
 
+import static org.apache.beam.sdk.managed.Managed.ICEBERG;
+import static org.apache.beam.sdk.managed.Managed.ICEBERG_CDC;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
@@ -405,7 +407,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = managedIcebergConfig(tableId());
 
     PCollection<Row> rows =
-        pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+        pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     pipeline.run().waitUntilFinish();
@@ -418,12 +420,13 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     List<Row> expectedRows = populateTable(table);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("streaming", true);
     config.put("to_snapshot", table.currentSnapshot().snapshotId());
     config.put("watermark_column", "datetime");
 
     PCollection<Row> rows =
         pipeline
-            .apply(Managed.read(Managed.ICEBERG_CDC).withConfig(config))
+            .apply(Managed.read(ICEBERG_CDC).withConfig(config))
             .getSinglePCollection()
             .apply(ReadUtils.extractRecords());
 
@@ -449,9 +452,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = managedIcebergConfig(tableId());
 
     pipeline
-        .apply("read", Managed.read(Managed.ICEBERG).withConfig(config))
+        .apply("read", Managed.read(ICEBERG).withConfig(config))
         .getSinglePCollection()
-        .apply("write", Managed.write(Managed.ICEBERG).withConfig(config));
+        .apply("write", Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
@@ -470,15 +473,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> readConfig = new HashMap<>(config);
     readConfig.put("to_timestamp", System.currentTimeMillis());
     readConfig.put("watermark_column", "datetime_tz");
+    readConfig.put("streaming", true);
 
     Map<String, Object> writeConfig = new HashMap<>(config);
     writeConfig.put("triggering_frequency_seconds", 5);
 
     pipeline
-        .apply("streaming read", Managed.read(Managed.ICEBERG_CDC).withConfig(readConfig))
+        .apply("streaming read", Managed.read(ICEBERG_CDC).withConfig(readConfig))
         .getSinglePCollection()
         .apply(ReadUtils.extractRecords())
-        .apply("streaming write", Managed.write(Managed.ICEBERG).withConfig(writeConfig));
+        .apply("streaming write", Managed.write(ICEBERG).withConfig(writeConfig));
     pipeline.run().waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
@@ -493,7 +497,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // Expect the sink to create the table
     Map<String, Object> config = managedIcebergConfig(tableId());
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
-    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
@@ -521,7 +525,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // Write with Beam
     Map<String, Object> config = managedIcebergConfig(tableId());
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
-    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Read back and check records are correct
@@ -558,7 +562,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     assertThat(input.isBounded(), equalTo(UNBOUNDED));
 
-    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
@@ -591,7 +595,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     assertThat(input.isBounded(), equalTo(UNBOUNDED));
 
-    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     List<Record> returnedRecords = readRecords(table);
@@ -671,7 +675,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       input = pipeline.apply(Create.of(inputRows));
     }
 
-    input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
+    input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(ICEBERG).withConfig(writeConfig));
     pipeline.run().waitUntilFinish();
 
     Table table0 = catalog.loadTable(tableIdentifier0);
@@ -754,15 +758,13 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       config.put("from_timestamp", from.timestampMillis() - 1);
       config.put("to_timestamp", to.timestampMillis() + 1);
     }
-
-    String source = streaming ? Managed.ICEBERG_CDC : Managed.ICEBERG;
+    config.put("streaming", streaming);
 
     PCollection<Row> rows =
-        pipeline.apply(Managed.read(source).withConfig(config)).getSinglePCollection();
-
-    if (streaming) {
-      rows = rows.apply(ReadUtils.extractRecords());
-    }
+        pipeline
+            .apply(Managed.read(ICEBERG_CDC).withConfig(config))
+            .getSinglePCollection()
+            .apply(ReadUtils.extractRecords());
 
     IsBounded expectedBoundedness = streaming ? UNBOUNDED : BOUNDED;
     assertEquals(expectedBoundedness, rows.isBounded());

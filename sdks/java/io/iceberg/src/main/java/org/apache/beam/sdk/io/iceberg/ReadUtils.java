@@ -107,7 +107,7 @@ public class ReadUtils {
     return outputCdcSchema(IcebergUtils.icebergSchemaToBeamSchema(tableSchema));
   }
 
-  public static ParquetReader<Record> createReader(FileScanTask task, Table table) {
+  static ParquetReader<Record> createReader(FileScanTask task, Table table) {
     String filePath = task.file().path().toString();
     InputFile inputFile;
     try (FileIO io = table.io()) {

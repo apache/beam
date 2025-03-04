@@ -22,12 +22,10 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
@@ -39,8 +37,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Enums;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -92,31 +88,12 @@ public class IcebergReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      @Nullable String strategyStr = configuration.getStartingStrategy();
-      StartingStrategy strategy = null;
-      if (strategyStr != null) {
-        Optional<StartingStrategy> optional =
-            Enums.getIfPresent(StartingStrategy.class, strategyStr.toUpperCase());
-        if (!optional.isPresent()) {
-          throw new IllegalArgumentException(
-              "Invalid starting strategy. Valid values are: "
-                  + Arrays.toString(StartingStrategy.values()));
-        }
-        strategy = optional.get();
-      }
-
-      IcebergIO.ReadRows readRows =
-          IcebergIO.readRows(configuration.getIcebergCatalog())
-              .from(TableIdentifier.parse(configuration.getTable()))
-              .fromSnapshot(configuration.getFromSnapshot())
-              .toSnapshot(configuration.getToSnapshot())
-              .fromTimestamp(configuration.getFromTimestamp())
-              .toTimestamp(configuration.getToTimestamp())
-              .withStartingStrategy(strategy)
-              .withWatermarkColumn(configuration.getWatermarkColumn())
-              .withWatermarkTimeUnit(configuration.getWatermarkTimeUnit());
-
-      PCollection<Row> output = input.getPipeline().apply(readRows);
+      PCollection<Row> output =
+          input
+              .getPipeline()
+              .apply(
+                  IcebergIO.readRows(configuration.getIcebergCatalog())
+                      .from(TableIdentifier.parse(configuration.getTable())));
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
@@ -144,43 +121,6 @@ public class IcebergReadSchemaTransformProvider
     @Nullable
     abstract Map<String, String> getConfigProperties();
 
-    @SchemaFieldDescription("Starts reading from this snapshot ID (inclusive).")
-    abstract @Nullable Long getFromSnapshot();
-
-    @SchemaFieldDescription("Reads up to this snapshot ID (inclusive).")
-    abstract @Nullable Long getToSnapshot();
-
-    @SchemaFieldDescription(
-        "Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).")
-    abstract @Nullable Long getFromTimestamp();
-
-    @SchemaFieldDescription(
-        "Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).")
-    abstract @Nullable Long getToTimestamp();
-
-    @SchemaFieldDescription(
-        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
-    abstract @Nullable Integer getPollIntervalSeconds();
-
-    @SchemaFieldDescription(
-        "Enables streaming reads. By default, the streaming source will start reading from the "
-            + "latest snapshot (inclusive) and continue polling forever based on the specified poll_interval_seconds")
-    abstract @Nullable Boolean getStreaming();
-
-    @SchemaFieldDescription(
-        "The source's starting strategy. Valid options are: \"earliest\" or \"latest\". Can be overriden "
-            + "by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.")
-    abstract @Nullable String getStartingStrategy();
-
-    @SchemaFieldDescription(
-        "The column used to derive event time for tracking progress. Uses the snapshot's commit timestamp by default.")
-    abstract @Nullable String getWatermarkColumn();
-
-    @SchemaFieldDescription(
-        "Use only when the watermark column is set to a Long type. Specifies the TimeUnit represented by the watermark column. Default is 'microseconds'. "
-            + "Check https://docs.oracle.com/javase/8/docs/api///?java/util/concurrent/TimeUnit.html for possible values.")
-    abstract @Nullable String getWatermarkTimeUnit();
-
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -190,24 +130,6 @@ public class IcebergReadSchemaTransformProvider
       abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
 
       abstract Builder setConfigProperties(Map<String, String> confProperties);
-
-      abstract Builder setFromSnapshot(Long snapshot);
-
-      abstract Builder setToSnapshot(Long snapshot);
-
-      abstract Builder setFromTimestamp(Long timestamp);
-
-      abstract Builder setToTimestamp(Long timestamp);
-
-      abstract Builder setPollIntervalSeconds(Integer pollInterval);
-
-      abstract Builder setStreaming(Boolean streaming);
-
-      abstract Builder setStartingStrategy(String strategy);
-
-      abstract Builder setWatermarkColumn(String column);
-
-      abstract Builder setWatermarkTimeUnit(String watermarkTimeUnit);
 
       abstract Configuration build();
     }

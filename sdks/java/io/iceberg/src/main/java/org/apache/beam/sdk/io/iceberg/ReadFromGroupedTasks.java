@@ -63,8 +63,8 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
     String tableIdentifier = element.getKey().getTableIdentifierString();
     List<ReadTask> readTasks = element.getValue();
     Table table = TableCache.get(tableIdentifier, scanConfig.getCatalogConfig().catalog());
-    Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
-    Schema outputSchema = ReadUtils.outputCdcSchema(beamSchema);
+    Schema dataSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
+    Schema outputCdcSchema = ReadUtils.outputCdcSchema(dataSchema);
 
     // SDF can split by the number of read tasks
     for (long taskIndex = tracker.currentRestriction().getFrom();
@@ -82,8 +82,8 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
         for (Record record : reader) {
           Row row =
-              Row.withSchema(outputSchema)
-                  .addValue(IcebergUtils.icebergRecordToBeamRow(beamSchema, record))
+              Row.withSchema(outputCdcSchema)
+                  .addValue(IcebergUtils.icebergRecordToBeamRow(dataSchema, record))
                   .addValue(operation)
                   .build();
           out.outputWithTimestamp(row, outputTimestamp);

@@ -23,7 +23,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -49,16 +51,6 @@ import org.joda.time.Duration;
 
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
-  public boolean useIncrementalSource() {
-    return MoreObjects.firstNonNull(getStreaming(), false)
-        || getPollInterval() != null
-        || getToTimestamp() != null
-        || getFromSnapshotInclusive() != null
-        || getToSnapshot() != null
-        || getStartingStrategy() != null
-        || getWatermarkColumn() != null;
-  }
-
   private transient @MonotonicNonNull Table cachedTable;
 
   public enum ScanType {
@@ -134,6 +126,9 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable StartingStrategy getStartingStrategy();
 
   @Pure
+  public abstract boolean getUseCdc();
+
+  @Pure
   public abstract @Nullable Boolean getStreaming();
 
   @Pure
@@ -168,6 +163,7 @@ public abstract class IcebergScanConfig implements Serializable {
         .setToSnapshotRef(null)
         .setFromTimestamp(null)
         .setToTimestamp(null)
+        .setUseCdc(false)
         .setStreaming(null)
         .setPollInterval(null)
         .setStartingStrategy(null)
@@ -221,6 +217,8 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
 
+    public abstract Builder setUseCdc(boolean useCdc);
+
     public abstract Builder setStreaming(@Nullable Boolean streaming);
 
     public abstract Builder setPollInterval(@Nullable Duration pollInterval);
@@ -237,6 +235,45 @@ public abstract class IcebergScanConfig implements Serializable {
   }
 
   void validate(Table table) {
+    // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
+    if (!getUseCdc()) {
+      List<String> invalidOptions = new ArrayList<>();
+      if (MoreObjects.firstNonNull(getStreaming(), false)) {
+        invalidOptions.add("streaming");
+      }
+      if (getPollInterval() != null) {
+        invalidOptions.add("poll_interval_seconds");
+      }
+      if (getFromTimestamp() != null) {
+        invalidOptions.add("from_timestamp");
+      }
+      if (getToTimestamp() != null) {
+        invalidOptions.add("to_timestamp");
+      }
+      if (getFromSnapshotInclusive() != null) {
+        invalidOptions.add("from_snapshot");
+      }
+      if (getToSnapshot() != null) {
+        invalidOptions.add("to_snapshot");
+      }
+      if (getStartingStrategy() != null) {
+        invalidOptions.add("starting_strategy");
+      }
+      if (getWatermarkColumn() != null) {
+        invalidOptions.add("watermark_column");
+      }
+      if (getWatermarkTimeUnit() != null) {
+        invalidOptions.add("watermark_time_unit");
+      }
+      if (!invalidOptions.isEmpty()) {
+        throw new IllegalArgumentException(
+            error(
+                "the following options are currently only available when "
+                    + "reading with Managed.ICEBERG_CDC: "
+                    + invalidOptions));
+      }
+    }
+
     if (getStartingStrategy() != null) {
       checkArgument(
           getFromTimestamp() == null && getFromSnapshotInclusive() == null,

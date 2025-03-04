@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -64,7 +65,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     properties.put("warehouse", "test_location");
 
     Row config =
-        Row.withSchema(new IcebergReadSchemaTransformProvider().configurationSchema())
+        Row.withSchema(new IcebergCdcReadSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
@@ -78,7 +79,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
             .withFieldValue("watermark_time_unit", "nanoseconds")
             .build();
 
-    new IcebergReadSchemaTransformProvider().from(config);
+    new IcebergCdcReadSchemaTransformProvider().from(config);
   }
 
   @Test
@@ -114,7 +115,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
             .apply(new IcebergCdcReadSchemaTransformProvider().from(readConfigBuilder.build()))
             .getSinglePCollection();
 
-    assertThat(output.isBounded(), equalTo(UNBOUNDED));
+    assertThat(output.isBounded(), equalTo(BOUNDED));
     PAssert.that(output)
         .satisfies(
             (Iterable<Row> rows) -> {
@@ -129,7 +130,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
   }
 
   @Test
-  public void testReadUsingManagedTransform() throws Exception {
+  public void testStreamingReadUsingManagedTransform() throws Exception {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
@@ -149,7 +150,8 @@ public class IcebergCdcReadSchemaTransformProviderTest {
                 + "  type: %s\n"
                 + "  warehouse: %s\n"
                 + "from_snapshot: %s\n"
-                + "to_snapshot: %s",
+                + "to_snapshot: %s\n"
+                + "streaming: true",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location, second, third);
 
     final List<Row> expectedRows =

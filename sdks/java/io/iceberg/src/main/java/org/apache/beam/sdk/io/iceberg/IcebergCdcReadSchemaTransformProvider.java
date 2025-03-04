@@ -108,6 +108,7 @@ public class IcebergCdcReadSchemaTransformProvider
 
       IcebergIO.ReadRows readRows =
           IcebergIO.readRows(configuration.getIcebergCatalog())
+              .withCdc()
               .from(TableIdentifier.parse(configuration.getTable()))
               .fromSnapshot(configuration.getFromSnapshot())
               .toSnapshot(configuration.getToSnapshot())
@@ -116,7 +117,7 @@ public class IcebergCdcReadSchemaTransformProvider
               .withStartingStrategy(strategy)
               .withWatermarkColumn(configuration.getWatermarkColumn())
               .withWatermarkTimeUnit(configuration.getWatermarkTimeUnit())
-              .streaming(true);
+              .streaming(configuration.getStreaming());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -171,10 +172,6 @@ public class IcebergCdcReadSchemaTransformProvider
     abstract @Nullable String getStartingStrategy();
 
     @SchemaFieldDescription(
-        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
-    abstract @Nullable Integer getPollIntervalSeconds();
-
-    @SchemaFieldDescription(
         "The column used to derive event time for tracking progress. Uses the snapshot's commit timestamp by default.")
     abstract @Nullable String getWatermarkColumn();
 
@@ -182,6 +179,14 @@ public class IcebergCdcReadSchemaTransformProvider
         "Use only when the watermark column is set to a Long type. Specifies the TimeUnit represented by the watermark column. Default is 'microseconds'. "
             + "Check https://docs.oracle.com/javase/8/docs/api///?java/util/concurrent/TimeUnit.html for possible values.")
     abstract @Nullable String getWatermarkTimeUnit();
+
+    @SchemaFieldDescription(
+        "Enables streaming reads, where source continuously polls for snapshots forever.")
+    abstract @Nullable Boolean getStreaming();
+
+    @SchemaFieldDescription(
+        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
+    abstract @Nullable Integer getPollIntervalSeconds();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -203,11 +208,13 @@ public class IcebergCdcReadSchemaTransformProvider
 
       abstract Builder setStartingStrategy(String strategy);
 
-      abstract Builder setPollIntervalSeconds(Integer pollInterval);
-
       abstract Builder setWatermarkColumn(String column);
 
       abstract Builder setWatermarkTimeUnit(String watermarkTimeUnit);
+
+      abstract Builder setPollIntervalSeconds(Integer pollInterval);
+
+      abstract Builder setStreaming(Boolean streaming);
 
       abstract Configuration build();
     }

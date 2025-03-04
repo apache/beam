@@ -135,6 +135,8 @@ import org.joda.time.Duration;
  *
  * <h3>Source-only Options</h3>
  *
+ * <h4>CDC Source options</h4>
+ *
  * <table border="1" cellspacing="1">
  *   <tr>
  *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
@@ -198,13 +200,12 @@ import org.joda.time.Duration;
  *       <p>Check {@link TimeUnit} for possible values.
  *     </td>
  *   </tr>
- * </table>
- *
- * <h4>CDC Streaming Source options</h4>
- *
- * <table border="1" cellspacing="1">
  *   <tr>
- *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
+ *     <td> {@code streaming} </td>
+ *     <td> {@code boolean} </td>
+ *     <td>
+ *       Enables streaming reads. The source will continuously poll for snapshots forever.
+ *     </td>
  *   </tr>
  *   <tr>
  *     <td> {@code poll_interval_seconds} </td>
@@ -219,7 +220,7 @@ import org.joda.time.Duration;
  *
  * <p>Being a Managed transform, this IO exclusively writes and reads using Beam {@link Row}s.
  * Conversion takes place between Beam {@link Row}s and Iceberg {@link Record}s using helper methods
- * in {@link IcebergUtils}. Below is a type conversion table mapping Beam and Iceberg types:
+ * in {@link IcebergUtils}. Below is the mapping between Beam and Iceberg types:
  *
  * <table border="1" cellspacing="1">
  *   <tr>
@@ -425,27 +426,30 @@ import org.joda.time.Duration;
  * Example of a simple batch read:
  *
  * <pre>{@code
- * PCollection<Row> = pipeline
+ * PCollection<Row> rows = pipeline
  *     .apply(Managed.read(ICEBERG).withConfig(config))
  *     .getSinglePCollection();
  * }</pre>
  *
- * Example of a simple CDC streaming read:
+ * Example of a simple CDC read:
  *
  * <pre>{@code
- * PCollection<Row> = pipeline
+ * PCollection<Row> output = pipeline
  *     .apply(Managed.read(ICEBERG_CDC).withConfig(config))
- *     .getSinglePCollection()
+ *     .getSinglePCollection();
+ *
+ * PCollection<Row> rows = output
  *     .apply(ReadUtils.extractRecords());
  * }</pre>
  *
- * <p>The streaming source continuously polls the table for new <b>append-only</b> snapshots, with a
- * default interval of 60 seconds. This can be overridden using <b>{@code
- * poll_interval_seconds}</b>.
+ * <p><b>Note</b>: This reads <b>append-only</b> snapshots. Full CDC is not supported yet.
  *
- * <p><b>Note</b>: Full CDC is not supported yet.
+ * <p>The CDC <b>streaming</b> source (enabled with {@code streaming=true}) continuously polls the
+ * table for new snapshots, with a default interval of 60 seconds. This can be overridden using
+ * <b>{@code poll_interval_seconds}</b>:
  *
  * <pre>{@code
+ * config.put("streaming", true);
  * config.put("poll_interval_seconds", 10);
  * }</pre>
  *
@@ -457,13 +461,27 @@ import org.joda.time.Duration;
  * <p>Reading with <b>{@code Managed.read(ICEBERG_CDC)}</b> produces a <b>{@code
  * PCollection<Row>}</b> with the following schema:
  *
- * <ul>
- *   <li><b>{@code "record"}</b>: a Row representing the data record
- *   <li><b>{@code "operation"}</b>: the snapshot operation associated with this record (e.g.
- *       "append", "replace", "delete")
- * </ul>
+ * <table border="1" cellspacing="1">
+ *   <tr>
+ *     <td> <b>Field</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code record} </td>
+ *     <td> {@code Beam Row} </td>
+ *     <td>
+ *       The data record.
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code operation} </td>
+ *     <td> {@code string} </td>
+ *     <td>
+ *       The snapshot operation associated with this record (e.g. "append", "replace", "delete")
+ *     </td>
+ *   </tr>
+ * </table>
  *
- * <h3>Choosing a Starting Point</h3>
+ * <h3>Choosing a Starting Point (CDC only)</h3>
  *
  * By default, a batch read will start reading from the earliest (oldest) table snapshot. A
  * streaming read will start reading from the latest (most recent) snapshot. This behavior can be
@@ -488,11 +506,11 @@ import org.joda.time.Duration;
  *         "from_snapshot", 123456789L);
  *
  * PCollection<Row> = pipeline
- *     .apply(Managed.read(ICEBERG).withConfig(config))
+ *     .apply(Managed.read(ICEBERG_CDC).withConfig(config))
  *     .getSinglePCollection();
  * }</pre>
  *
- * <h3>Choosing an End Point</h3>
+ * <h3>Choosing an End Point (CDC only)</h3>
  *
  * By default, a batch read will go up until the most recent table snapshot. A streaming read will
  * continue monitoring the table for new snapshots forever. This can also be overridden with a
@@ -515,13 +533,13 @@ import org.joda.time.Duration;
  *         "to_timestamp", 987654321L);
  *
  * PCollection<Row> = pipeline
- *     .apply(Managed.read(ICEBERG).withConfig(config))
+ *     .apply(Managed.read(ICEBERG_CDC).withConfig(config))
  *     .getSinglePCollection();
  * }</pre>
  *
  * <b>Note</b>: An end point can also be set when performing a streaming read.
  *
- * <h3>Handling Watermarks</h3>
+ * <h3>Handling Watermarks (CDC only)</h3>
  *
  * By default, a snapshot's commit timestamp is assigned to all the records it contains.
  *
@@ -622,7 +640,10 @@ public class IcebergIO {
   }
 
   public static ReadRows readRows(IcebergCatalogConfig catalogConfig) {
-    return new AutoValue_IcebergIO_ReadRows.Builder().setCatalogConfig(catalogConfig).build();
+    return new AutoValue_IcebergIO_ReadRows.Builder()
+        .setCatalogConfig(catalogConfig)
+        .setUseCdc(false)
+        .build();
   }
 
   @AutoValue
@@ -635,6 +656,8 @@ public class IcebergIO {
     abstract IcebergCatalogConfig getCatalogConfig();
 
     abstract @Nullable TableIdentifier getTableIdentifier();
+
+    abstract boolean getUseCdc();
 
     abstract @Nullable Long getFromSnapshot();
 
@@ -662,6 +685,8 @@ public class IcebergIO {
 
       abstract Builder setTableIdentifier(TableIdentifier identifier);
 
+      abstract Builder setUseCdc(boolean useCdc);
+
       abstract Builder setFromSnapshot(@Nullable Long fromSnapshot);
 
       abstract Builder setToSnapshot(@Nullable Long toSnapshot);
@@ -681,6 +706,10 @@ public class IcebergIO {
       abstract Builder setWatermarkTimeUnit(@Nullable String timeUnit);
 
       abstract ReadRows build();
+    }
+
+    public ReadRows withCdc() {
+      return toBuilder().setUseCdc(true).build();
     }
 
     public ReadRows from(TableIdentifier tableIdentifier) {
@@ -745,11 +774,12 @@ public class IcebergIO {
               .setPollInterval(getPollInterval())
               .setWatermarkColumn(getWatermarkColumn())
               .setWatermarkTimeUnit(getWatermarkTimeUnit())
+              .setUseCdc(getUseCdc())
               .build();
       scanConfig.validate(table);
 
       PTransform<PBegin, PCollection<Row>> source =
-          scanConfig.useIncrementalSource()
+          getUseCdc()
               ? new IncrementalScanSource(scanConfig)
               : Read.from(new ScanSource(scanConfig));
 

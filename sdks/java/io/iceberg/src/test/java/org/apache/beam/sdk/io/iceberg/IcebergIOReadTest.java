@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.io.iceberg.ReadUtils.OPERATION;
 import static org.apache.beam.sdk.io.iceberg.ReadUtils.RECORD;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.iceberg.util.DateTimeUtil.microsFromTimestamp;
+import static org.apache.iceberg.util.DateTimeUtil.microsToMillis;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -28,6 +30,7 @@ import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -39,10 +42,13 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -108,17 +114,28 @@ public class IcebergIOReadTest {
     return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
+  // TODO(#34168, ahmedabu98): Update tests when we close feature gaps between regular and cdc
+  // sources
   @Parameter(0)
   public boolean useIncrementalScan;
 
-  static class PrintRow extends DoFn<Row, Row> {
+  static class PrintRow extends PTransform<PCollection<Row>, PCollection<Row>> {
 
-    @ProcessElement
-    public void process(@Element Row row, @Timestamp Instant timestamp, OutputReceiver<Row> output)
-        throws Exception {
-      LOG.info("Got row {}", row);
-      LOG.info("timestamp: " + timestamp);
-      output.output(row);
+    @Override
+    public PCollection<Row> expand(PCollection<Row> input) {
+      Schema inputSchema = input.getSchema();
+
+      return input
+          .apply(
+              ParDo.of(
+                  new DoFn<Row, Row>() {
+                    @ProcessElement
+                    public void process(@Element Row row, OutputReceiver<Row> output) {
+                      LOG.info("Got row {}", row);
+                      output.output(row);
+                    }
+                  }))
+          .setRowSchema(inputSchema);
     }
   }
 
@@ -128,7 +145,11 @@ public class IcebergIOReadTest {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).fromSnapshot(123L).fromTimestamp(123L);
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .withCdc()
+            .fromSnapshot(123L)
+            .fromTimestamp(123L);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -142,7 +163,11 @@ public class IcebergIOReadTest {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).toSnapshot(123L).toTimestamp(123L);
+        IcebergIO.readRows(catalogConfig())
+            .withCdc()
+            .from(tableId)
+            .toSnapshot(123L)
+            .toTimestamp(123L);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -157,6 +182,7 @@ public class IcebergIOReadTest {
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
         IcebergIO.readRows(catalogConfig())
+            .withCdc()
             .from(tableId)
             .fromSnapshot(123L)
             .withStartingStrategy(StartingStrategy.EARLIEST);
@@ -174,6 +200,7 @@ public class IcebergIOReadTest {
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
         IcebergIO.readRows(catalogConfig())
+            .withCdc()
             .from(tableId)
             .withPollInterval(Duration.standardSeconds(5));
 
@@ -189,7 +216,7 @@ public class IcebergIOReadTest {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withWatermarkColumn("unknown");
+        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkColumn("unknown");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -203,7 +230,7 @@ public class IcebergIOReadTest {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withWatermarkColumn("data");
+        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkColumn("data");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -219,7 +246,7 @@ public class IcebergIOReadTest {
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     table.updateProperties().set("write.metadata.metrics.default", "none").commit();
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withWatermarkColumn("id");
+        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkColumn("id");
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Invalid source configuration: source table");
@@ -236,7 +263,7 @@ public class IcebergIOReadTest {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withWatermarkTimeUnit("hours");
+        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkTimeUnit("hours");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -257,7 +284,7 @@ public class IcebergIOReadTest {
     IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
 
     if (useIncrementalScan) {
-      read = read.toSnapshot(simpleTable.currentSnapshot().snapshotId());
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
     final List<Row> expectedRows =
         expectedRecords.stream()
@@ -265,8 +292,11 @@ public class IcebergIOReadTest {
             .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
-    PCollection<Row> output =
-        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setRowSchema(schema);
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
+
+    if (useIncrementalScan) {
+      output = output.apply(ReadUtils.extractRecords());
+    }
 
     PAssert.that(output)
         .satisfies(
@@ -320,10 +350,13 @@ public class IcebergIOReadTest {
 
     IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
     if (useIncrementalScan) {
-      read = read.toSnapshot(simpleTable.currentSnapshot().snapshotId());
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
-    PCollection<Row> output =
-        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setRowSchema(schema);
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
+
+    if (useIncrementalScan) {
+      output = output.apply(ReadUtils.extractRecords());
+    }
 
     PAssert.that(output)
         .satisfies(
@@ -430,10 +463,9 @@ public class IcebergIOReadTest {
 
     IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
     if (useIncrementalScan) {
-      read = read.toSnapshot(simpleTable.currentSnapshot().snapshotId());
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
-    PCollection<Row> output =
-        testPipeline.apply(read).apply(ParDo.of(new PrintRow())).setRowSchema(beamSchema);
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
 
     final Row[] expectedRows =
         recordData.stream()
@@ -441,6 +473,9 @@ public class IcebergIOReadTest {
             .map(record -> IcebergUtils.icebergRecordToBeamRow(beamSchema, record))
             .toArray(Row[]::new);
 
+    if (useIncrementalScan) {
+      output = output.apply(ReadUtils.extractRecords());
+    }
     PAssert.that(output)
         .satisfies(
             (Iterable<Row> rows) -> {
@@ -492,7 +527,7 @@ public class IcebergIOReadTest {
   }
 
   @Test
-  public void testWatermarkColumn() throws IOException {
+  public void testWatermarkColumnLongType() throws IOException {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
@@ -522,6 +557,7 @@ public class IcebergIOReadTest {
     IcebergIO.ReadRows readRows =
         IcebergIO.readRows(catalogConfig())
             .from(tableId)
+            .withCdc()
             .streaming(true)
             .withStartingStrategy(StartingStrategy.EARLIEST)
             .toSnapshot(simpleTable.currentSnapshot().snapshotId())
@@ -531,9 +567,87 @@ public class IcebergIOReadTest {
     output.apply(
         ParDo.of(
             new CheckWatermarks(
-                TestFixtures.FILE1SNAPSHOT4_DATA,
-                TestFixtures.FILE2SNAPSHOT4_DATA,
-                TestFixtures.FILE3SNAPSHOT4_DATA)));
+                lowestMillisOf(TestFixtures.FILE1SNAPSHOT4_DATA),
+                lowestMillisOf(TestFixtures.FILE2SNAPSHOT4_DATA),
+                lowestMillisOf(TestFixtures.FILE3SNAPSHOT4_DATA),
+                row -> TimeUnit.DAYS.toMillis(checkStateNotNull(row.getInt64("id"))))));
+    testPipeline.run().waitUntilFinish();
+  }
+
+  private static long lowestMillisOf(List<Map<String, Object>> data) {
+    long lowestId = data.stream().mapToLong(m -> (long) m.get("id")).min().getAsLong();
+    return TimeUnit.DAYS.toMillis(lowestId);
+  }
+
+  @Test
+  public void testWatermarkColumnTimestampType() throws IOException {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    Schema schema =
+        Schema.builder()
+            .addStringField("str")
+            .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+            .build();
+    org.apache.iceberg.Schema iceSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    Table simpleTable = warehouse.createTable(tableId, iceSchema);
+
+    LocalDateTime file1Watermark = LocalDateTime.parse("2025-01-01T12:00:00");
+    List<Map<String, Object>> data1 =
+        ImmutableList.of(
+            ImmutableMap.of("str", "a", "datetime", file1Watermark),
+            ImmutableMap.of("str", "b", "datetime", file1Watermark.plusMinutes(10)),
+            ImmutableMap.of("str", "c", "datetime", file1Watermark.plusMinutes(30)));
+
+    LocalDateTime file2Watermark = LocalDateTime.parse("2025-02-01T12:00:00");
+    List<Map<String, Object>> data2 =
+        ImmutableList.of(
+            ImmutableMap.of("str", "d", "datetime", file2Watermark),
+            ImmutableMap.of("str", "e", "datetime", file2Watermark.plusMinutes(10)),
+            ImmutableMap.of("str", "f", "datetime", file2Watermark.plusMinutes(30)));
+
+    LocalDateTime file3Watermark = LocalDateTime.parse("2025-03-01T12:00:00");
+    List<Map<String, Object>> data3 =
+        ImmutableList.of(
+            ImmutableMap.of("str", "g", "datetime", file3Watermark),
+            ImmutableMap.of("str", "h", "datetime", file3Watermark.plusMinutes(10)),
+            ImmutableMap.of("str", "i", "datetime", file3Watermark.plusMinutes(30)));
+
+    // configure the table to capture full metrics
+    simpleTable
+        .updateProperties()
+        .set(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + "datetime", "full")
+        .commit();
+
+    simpleTable
+        .newFastAppend()
+        .appendFile(warehouse.writeData("file1.parquet", iceSchema, data1))
+        .commit();
+    simpleTable
+        .newFastAppend()
+        .appendFile(warehouse.writeData("file2.parquet", iceSchema, data2))
+        .appendFile(warehouse.writeData("file3.parquet", iceSchema, data3))
+        .commit();
+
+    IcebergIO.ReadRows readRows =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .withCdc()
+            .streaming(true)
+            .withStartingStrategy(StartingStrategy.EARLIEST)
+            .toSnapshot(simpleTable.currentSnapshot().snapshotId())
+            .withWatermarkColumn("datetime");
+    PCollection<Row> output = testPipeline.apply(readRows);
+    output.apply(
+        ParDo.of(
+            new CheckWatermarks(
+                microsToMillis(microsFromTimestamp(file1Watermark)),
+                microsToMillis(microsFromTimestamp(file2Watermark)),
+                microsToMillis(microsFromTimestamp(file3Watermark)),
+                row -> {
+                  LocalDateTime dt =
+                      checkStateNotNull(row.getLogicalTypeValue("datetime", LocalDateTime.class));
+                  return microsToMillis(microsFromTimestamp(dt));
+                })));
     testPipeline.run().waitUntilFinish();
   }
 
@@ -541,21 +655,23 @@ public class IcebergIOReadTest {
     long file1Watermark;
     long file2Watermark;
     long file3Watermark;
+    SerializableFunction<Row, Long> getMillisFn;
 
     CheckWatermarks(
-        List<Map<String, Object>> data1,
-        List<Map<String, Object>> data2,
-        List<Map<String, Object>> data3) {
-      file1Watermark = lowestMillisOf(data1);
-      file2Watermark = lowestMillisOf(data2);
-      file3Watermark = lowestMillisOf(data3);
+        long file1Watermark,
+        long file2Watermark,
+        long file3Watermark,
+        SerializableFunction<Row, Long> getMillisFn) {
+      this.file1Watermark = file1Watermark;
+      this.file2Watermark = file2Watermark;
+      this.file3Watermark = file3Watermark;
+      this.getMillisFn = getMillisFn;
     }
 
     @ProcessElement
     public void process(@Element Row row, @Timestamp Instant timestamp) {
       Row record = checkStateNotNull(row.getRow(RECORD));
-      long id = checkStateNotNull(record.getInt64("id"));
-      long expectedMillis = TimeUnit.DAYS.toMillis(id);
+      long expectedMillis = getMillisFn.apply(record);
       long actualMillis = timestamp.getMillis();
 
       if (expectedMillis >= file3Watermark) {
@@ -565,11 +681,6 @@ public class IcebergIOReadTest {
       } else {
         assertEquals(file1Watermark, actualMillis);
       }
-    }
-
-    private static long lowestMillisOf(List<Map<String, Object>> data) {
-      long lowestId = data.stream().mapToLong(m -> (long) m.get("id")).min().getAsLong();
-      return TimeUnit.DAYS.toMillis(lowestId);
     }
   }
 
@@ -593,6 +704,7 @@ public class IcebergIOReadTest {
     IcebergIO.ReadRows readRows =
         IcebergIO.readRows(catalogConfig())
             .from(tableId)
+            .withCdc()
             .streaming(streaming)
             .toSnapshot(simpleTable.currentSnapshot().snapshotId());
     if (strategy != null) {
@@ -600,22 +712,20 @@ public class IcebergIOReadTest {
     }
 
     PCollection<Row> output = testPipeline.apply(readRows);
-    if (streaming) {
-      PAssert.that(output)
-          .satisfies(
-              rows -> {
-                for (Row row : rows) {
-                  assertEquals(DataOperations.APPEND, checkStateNotNull(row.getString(OPERATION)));
-                }
-                return null;
-              });
-      output = output.apply(ReadUtils.extractRecords());
-    }
+    PAssert.that(output)
+        .satisfies(
+            rows -> {
+              for (Row row : rows) {
+                assertEquals(DataOperations.APPEND, checkStateNotNull(row.getString(OPERATION)));
+              }
+              return null;
+            });
+    PCollection<Row> rows = output.apply(ReadUtils.extractRecords());
     PCollection.IsBounded expectedBoundedness =
         streaming ? PCollection.IsBounded.UNBOUNDED : PCollection.IsBounded.BOUNDED;
-    assertEquals(expectedBoundedness, output.isBounded());
+    assertEquals(expectedBoundedness, rows.isBounded());
 
-    PAssert.that(output).containsInAnyOrder(expectedRows);
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
     testPipeline.run().waitUntilFinish();
   }
 
@@ -640,7 +750,7 @@ public class IcebergIOReadTest {
     Snapshot thirdSnapshot = snapshots.get(2);
 
     IcebergIO.ReadRows readRows =
-        IcebergIO.readRows(catalogConfig()).from(tableId).streaming(streaming);
+        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).streaming(streaming);
 
     if (useSnapshotBoundary) {
       readRows =
@@ -652,24 +762,21 @@ public class IcebergIOReadTest {
               .toTimestamp(thirdSnapshot.timestampMillis() + 1);
     }
 
-    PCollection<Row> output = testPipeline.apply(readRows);
-    output = output.apply(ParDo.of(new PrintRow())).setRowSchema(output.getSchema());
-    if (streaming) {
-      PAssert.that(output)
-          .satisfies(
-              rows -> {
-                for (Row row : rows) {
-                  assertEquals(DataOperations.APPEND, checkStateNotNull(row.getString(OPERATION)));
-                }
-                return null;
-              });
-      output = output.apply(ReadUtils.extractRecords());
-    }
+    PCollection<Row> output = testPipeline.apply(readRows).apply(new PrintRow());
+    PAssert.that(output)
+        .satisfies(
+            rows -> {
+              for (Row row : rows) {
+                assertEquals(DataOperations.APPEND, checkStateNotNull(row.getString(OPERATION)));
+              }
+              return null;
+            });
+    PCollection<Row> rows = output.apply(ReadUtils.extractRecords());
     PCollection.IsBounded expectedBoundedness =
         streaming ? PCollection.IsBounded.UNBOUNDED : PCollection.IsBounded.BOUNDED;
-    assertEquals(expectedBoundedness, output.isBounded());
+    assertEquals(expectedBoundedness, rows.isBounded());
 
-    PAssert.that(output).containsInAnyOrder(expectedRows);
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
     testPipeline.run();
   }
 

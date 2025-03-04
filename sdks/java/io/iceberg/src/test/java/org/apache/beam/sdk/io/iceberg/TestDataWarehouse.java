@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.apache.iceberg.hadoop.HadoopOutputFile.fromPath;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
@@ -106,6 +109,11 @@ public class TestDataWarehouse extends ExternalResource {
     } catch (Exception e) {
       LOG.error("Unable to close catalog", e);
     }
+  }
+
+  public DataFile writeData(String filename, Schema schema, List<Map<String, Object>> data)
+      throws IOException {
+    return writeRecords(filename, schema, Lists.transform(data, d -> createRecord(schema, d)));
   }
 
   public DataFile writeRecords(String filename, Schema schema, List<Record> records)

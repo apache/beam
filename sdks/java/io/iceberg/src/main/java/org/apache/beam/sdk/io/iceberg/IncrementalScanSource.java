@@ -47,10 +47,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * An Iceberg source that reads a table incrementally using range(s) of table Snapshots. The
- * unbounded implementation will continuously poll for new Snapshots at the specified frequency. A
- * collection of FileScanTasks are created for each snapshot range. An SDF (shared by bounded and
- * unbounded implementations) is used to process each task and output Beam rows.
+ * An Iceberg source that reads a table incrementally using range(s) of table snapshots. The bounded
+ * source creates a single range, while the unbounded implementation continuously polls for new
+ * snapshots at the specified interval.
+ *
+ * <p>Outputs CDC Rows with the following schema:
+ *
+ * <ul>
+ *   <li>"record" [Row]: the data record itself
+ *   <li>"operation" [String]: the operation associated with this record
+ * </ul>
  */
 class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   // (streaming) We will group files into batches of this size
@@ -70,10 +76,11 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         TableCache.getRefreshed(
             scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
-    return MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
-        ? readUnbounded(input).setRowSchema(ReadUtils.outputCdcSchema(table.schema()))
-        : readBounded(input, table)
-            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
+    PCollection<Row> rows =
+        MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
+            ? readUnbounded(input)
+            : readBounded(input, table);
+    return rows.setRowSchema(ReadUtils.outputCdcSchema(table.schema()));
   }
 
   /**

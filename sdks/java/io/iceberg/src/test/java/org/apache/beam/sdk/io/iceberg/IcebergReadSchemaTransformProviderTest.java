@@ -64,13 +64,6 @@ public class IcebergReadSchemaTransformProviderTest {
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
-            .withFieldValue("from_snapshot", 123L)
-            .withFieldValue("to_snapshot", 456L)
-            .withFieldValue("from_timestamp", 123L)
-            .withFieldValue("to_timestamp", 456L)
-            .withFieldValue("starting_strategy", "earliest")
-            .withFieldValue("watermark_column", "abc")
-            .withFieldValue("watermark_time_unit", "nanoseconds")
             .build();
 
     new IcebergReadSchemaTransformProvider().from(config);
