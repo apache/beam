@@ -46,7 +46,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -74,14 +78,17 @@ class WriteUngroupedRowsToFiles
   private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
+  private final @Nullable Map<String, String> partitionSpec; // Add this field
 
   WriteUngroupedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      String filePrefix) {
+      String filePrefix,
+      @Nullable Map<String, String> partitionSpec) { // Add partitionSpec to the constructor
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
+    this.partitionSpec = partitionSpec; // Initialize the partition spec
   }
 
   @Override
@@ -95,7 +102,8 @@ class WriteUngroupedRowsToFiles
                         dynamicDestinations,
                         filePrefix,
                         DEFAULT_MAX_WRITERS_PER_BUNDLE,
-                        DEFAULT_MAX_BYTES_PER_FILE))
+                        DEFAULT_MAX_BYTES_PER_FILE,
+                        partitionSpec)) // Pass partitionSpec to the DoFn
                 .withOutputTags(
                     WRITTEN_FILES_TAG,
                     TupleTagList.of(ImmutableList.of(WRITTEN_ROWS_TAG, SPILLED_ROWS_TAG))));
@@ -191,6 +199,7 @@ class WriteUngroupedRowsToFiles
     private final long maxFileSize;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
+    private final @Nullable Map<String, String> partitionSpec; // Add this field
     private transient @MonotonicNonNull Catalog catalog;
     private transient @Nullable RecordWriterManager recordWriterManager;
     private int spilledShardNumber;
@@ -200,12 +209,14 @@ class WriteUngroupedRowsToFiles
         DynamicDestinations dynamicDestinations,
         String filename,
         int maximumWritersPerBundle,
-        long maxFileSize) {
+        long maxFileSize,
+        @Nullable Map<String, String> partitionSpec) { // Add partitionSpec to the constructor
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filename = filename;
       this.maxWritersPerBundle = maximumWritersPerBundle;
       this.maxFileSize = maxFileSize;
+      this.partitionSpec = partitionSpec; // Initialize the partition spec
     }
 
     private org.apache.iceberg.catalog.Catalog getCatalog() {
@@ -234,6 +245,19 @@ class WriteUngroupedRowsToFiles
       IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
+
+      // Create or load the table with the specified partition spec
+      TableIdentifier tableId = TableIdentifier.parse(dest);
+      Catalog catalog = getCatalog();
+      Table table;
+      if (catalog.tableExists(tableId)) {
+        table = catalog.loadTable(tableId);
+      } else {
+        // Convert Beam Schema to Iceberg Schema
+        org.apache.beam.sdk.schemas.Schema beamSchema = dynamicDestinations.getDataSchema();
+        org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
+        table = createTableWithPartitionSpec(catalog, tableId, icebergSchema, partitionSpec);
+      }
 
       // Attempt to write record. If the writer is saturated and cannot accept
       // the record, spill it over to WriteGroupedRowsToFiles
@@ -268,9 +292,9 @@ class WriteUngroupedRowsToFiles
 
       for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
           destinationAndFiles :
-              Preconditions.checkNotNull(recordWriterManager)
-                  .getSerializableDataFiles()
-                  .entrySet()) {
+          Preconditions.checkNotNull(recordWriterManager)
+              .getSerializableDataFiles()
+              .entrySet()) {
         WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
 
         for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
@@ -284,6 +308,44 @@ class WriteUngroupedRowsToFiles
         }
       }
       recordWriterManager = null;
+    }
+
+    // Helper method to create a table with the specified partition spec
+    private Table createTableWithPartitionSpec(
+        Catalog catalog, TableIdentifier tableId, Schema schema, Map<String, String> partitionSpecMap) {
+      if (partitionSpecMap != null) {
+        PartitionSpec partitionSpec = createPartitionSpec(schema, partitionSpecMap);
+        return catalog.createTable(tableId, schema, partitionSpec);
+      } else {
+        return catalog.createTable(tableId, schema);
+      }
+    }
+
+    // Helper method to create a partition spec from a map of column names to transforms
+    private PartitionSpec createPartitionSpec(Schema schema, Map<String, String> partitionSpecMap) {
+      PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
+      for (Map.Entry<String, String> entry : partitionSpecMap.entrySet()) {
+        String column = entry.getKey();
+        String transform = entry.getValue();
+        switch (transform) {
+          case "identity":
+            partitionSpecBuilder.identity(column);
+            break;
+          case "year":
+            partitionSpecBuilder.year(column);
+            break;
+          case "month":
+            partitionSpecBuilder.month(column);
+            break;
+          case "day":
+            partitionSpecBuilder.day(column);
+            break;
+          // Add other transforms as needed
+          default:
+            throw new IllegalArgumentException("Unsupported partition transform: " + transform);
+        }
+      }
+      return partitionSpecBuilder.build();
     }
   }
 }

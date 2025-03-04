@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -44,12 +45,14 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.FileIO;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,10 +61,18 @@ class AppendFilesToTables
   private static final Logger LOG = LoggerFactory.getLogger(AppendFilesToTables.class);
   private final IcebergCatalogConfig catalogConfig;
   private final String manifestFilePrefix;
+  private final @Nullable Map<String, String> partitionSpec; // Add this field
+  private final DynamicDestinations dynamicDestinations; // Add this field
 
-  AppendFilesToTables(IcebergCatalogConfig catalogConfig, String manifestFilePrefix) {
+  AppendFilesToTables(
+      IcebergCatalogConfig catalogConfig,
+      String manifestFilePrefix,
+      @Nullable Map<String, String> partitionSpec,
+      DynamicDestinations dynamicDestinations) { // Add dynamicDestinations to the constructor
     this.catalogConfig = catalogConfig;
     this.manifestFilePrefix = manifestFilePrefix;
+    this.partitionSpec = partitionSpec; // Initialize the partition spec
+    this.dynamicDestinations = dynamicDestinations; // Initialize dynamicDestinations
   }
 
   @Override
@@ -81,7 +92,9 @@ class AppendFilesToTables
         .apply("Group metadata updates by table", GroupByKey.create())
         .apply(
             "Append metadata updates to tables",
-            ParDo.of(new AppendFilesToTablesDoFn(catalogConfig, manifestFilePrefix)))
+            ParDo.of(
+                new AppendFilesToTablesDoFn(
+                    catalogConfig, manifestFilePrefix, partitionSpec, dynamicDestinations)))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.CODER));
   }
 
@@ -96,12 +109,20 @@ class AppendFilesToTables
 
     private final IcebergCatalogConfig catalogConfig;
     private final String manifestFilePrefix;
+    private final @Nullable Map<String, String> partitionSpec; // Add this field
+    private final DynamicDestinations dynamicDestinations; // Add this field
 
     private transient @MonotonicNonNull Catalog catalog;
 
-    private AppendFilesToTablesDoFn(IcebergCatalogConfig catalogConfig, String manifestFilePrefix) {
+    private AppendFilesToTablesDoFn(
+        IcebergCatalogConfig catalogConfig,
+        String manifestFilePrefix,
+        @Nullable Map<String, String> partitionSpec,
+        DynamicDestinations dynamicDestinations) { // Add dynamicDestinations to the constructor
       this.catalogConfig = catalogConfig;
       this.manifestFilePrefix = manifestFilePrefix;
+      this.partitionSpec = partitionSpec; // Initialize the partition spec
+      this.dynamicDestinations = dynamicDestinations; // Initialize dynamicDestinations
     }
 
     private Catalog getCatalog() {
@@ -133,7 +154,19 @@ class AppendFilesToTables
         return;
       }
 
-      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
+      TableIdentifier tableId = TableIdentifier.parse(tableStringIdentifier);
+      Catalog catalog = getCatalog();
+      Table table;
+
+      // If the table doesn't exist, create it with the specified partition spec
+      if (!catalog.tableExists(tableId)) {
+        // Convert Beam Schema to Iceberg Schema
+        org.apache.beam.sdk.schemas.Schema beamSchema = dynamicDestinations.getDataSchema();
+        org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
+        table = createTableWithPartitionSpec(catalog, tableId, icebergSchema, partitionSpec);
+      } else {
+        table = catalog.loadTable(tableId);
+      }
 
       // vast majority of the time, we will simply append data files.
       // in the rare case we get a batch that contains multiple partition specs, we will group
@@ -210,6 +243,53 @@ class AppendFilesToTables
                   "%s/metadata/%s-%s-%s.manifest",
                   tableLocation, manifestFilePrefix, uuid, spec.specId()));
       return ManifestFiles.write(spec, io.newOutputFile(location));
+    }
+
+    // Helper method to create a table with the specified partition spec
+    private Table createTableWithPartitionSpec(
+        Catalog catalog, TableIdentifier tableId, org.apache.iceberg.Schema schema,
+        Map<String, String> partitionSpecMap) {
+      if (partitionSpecMap != null) {
+        PartitionSpec partitionSpec = createPartitionSpec(schema, partitionSpecMap);
+        return catalog.createTable(tableId, schema, partitionSpec);
+      } else {
+        return catalog.createTable(tableId, schema);
+      }
+    }
+
+    // Helper method to create a partition spec from a map of column names to transforms
+    private PartitionSpec createPartitionSpec(org.apache.iceberg.Schema schema, Map<String, String> partitionSpecMap) {
+      PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
+      for (Map.Entry<String, String> entry : partitionSpecMap.entrySet()) {
+        String column = entry.getKey();
+        String transform = entry.getValue();
+        switch (transform) {
+          case "identity":
+            partitionSpecBuilder.identity(column);
+            break;
+          case "year":
+            partitionSpecBuilder.year(column);
+            break;
+          case "month":
+            partitionSpecBuilder.month(column);
+            break;
+          case "day":
+            partitionSpecBuilder.day(column);
+            break;
+          case "bucket16":  // Predefined bucket transforms
+            partitionSpecBuilder.bucket(column, 16);
+            break;
+          case "bucket32":
+            partitionSpecBuilder.bucket(column, 32);
+            break;
+          case "truncate10":  // Predefined truncate transforms
+            partitionSpecBuilder.truncate(column, 10);
+            break;
+          default:
+            throw new IllegalArgumentException("Unsupported partition transform: " + transform);
+        }
+      }
+      return partitionSpecBuilder.build();
     }
   }
 }

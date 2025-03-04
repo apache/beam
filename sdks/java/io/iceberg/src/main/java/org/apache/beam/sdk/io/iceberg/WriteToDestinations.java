@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
-import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -41,6 +38,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
+import java.util.Map;
+import java.util.UUID;
+
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, IcebergWriteResult> {
 
   // Used for auto-sharding in streaming. Limits number of records per batch/file
@@ -52,14 +54,17 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
   private final String filePrefix;
+  private final @Nullable Map<String, String> partitionSpec;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      @Nullable Duration triggeringFrequency) {
+      @Nullable Duration triggeringFrequency,
+      @Nullable Map<String, String> partitionSpec) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
+    this.partitionSpec = partitionSpec;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
@@ -74,7 +79,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
 
     // Commit files to tables
     PCollection<KV<String, SnapshotInfo>> snapshots =
-        writtenFiles.apply(new AppendFilesToTables(catalogConfig, filePrefix));
+        writtenFiles.apply(new AppendFilesToTables(catalogConfig, filePrefix, partitionSpec, dynamicDestinations));
 
     return new IcebergWriteResult(input.getPipeline(), snapshots);
   }
@@ -103,7 +108,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     return groupedRecords
         .apply(
             "WriteGroupedRows",
-            new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix))
+            new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix, partitionSpec))
         // Respect user's triggering frequency before committing snapshots
         .apply(
             "ApplyUserTrigger",
@@ -126,7 +131,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     WriteUngroupedRowsToFiles.Result writeUngroupedResult =
         input.apply(
             "Fast-path write rows",
-            new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+            new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix, partitionSpec));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -135,7 +140,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .apply("Group spilled rows by destination shard", GroupByKey.create())
             .apply(
                 "Write remaining rows to files",
-                new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+                new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix, partitionSpec));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)
