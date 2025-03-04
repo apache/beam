@@ -436,8 +436,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               partition_column="id",
               schema=SimpleRow))
 
-      # revert
-      assert_that(result, equal_to(test_rows))
+      assert_that(result, equal_to(expected_filtered_rows))
 
 
 if __name__ == '__main__':
