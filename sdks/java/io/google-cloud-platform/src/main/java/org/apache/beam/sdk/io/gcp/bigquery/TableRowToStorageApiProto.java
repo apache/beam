@@ -557,7 +557,6 @@ public class TableRowToStorageApiProto {
             e);
       }
     }
-
     if (changeType != null) {
       builder.setField(
           Preconditions.checkStateNotNull(
