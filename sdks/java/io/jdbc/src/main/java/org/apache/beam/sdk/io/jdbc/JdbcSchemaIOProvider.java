@@ -84,7 +84,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
    */
   @Override
   public JdbcSchemaIO from(String location, Row configuration, @Nullable Schema dataSchema) {
-    return new JdbcSchemaIO(location, configuration, dataSchema);
+    return new JdbcSchemaIO(location, configuration);
   }
 
   @Override
@@ -101,12 +101,10 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
   static class JdbcSchemaIO implements SchemaIO, Serializable {
     protected final Row config;
     protected final String location;
-    protected final @Nullable Schema dataSchema;
 
-    JdbcSchemaIO(String location, Row config, @Nullable Schema dataSchema) {
+    JdbcSchemaIO(String location, Row config) {
       this.config = config;
       this.location = location;
-      this.dataSchema = dataSchema;
     }
 
     @Override
@@ -149,10 +147,6 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
               readRows = readRows.withDisableAutoCommit(disableAutoCommit);
             }
 
-            if (dataSchema != null) {
-              readRows = readRows.withSchema(dataSchema);
-            }
-
             return input.apply(readRows);
           } else {
 
@@ -181,9 +175,6 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
               readRows = readRows.withDisableAutoCommit(disableAutoCommit);
             }
 
-            if (dataSchema != null) {
-              readRows = readRows.withSchema(dataSchema);
-            }
             return input.apply(readRows);
           }
         }

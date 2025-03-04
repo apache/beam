@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -83,92 +82,6 @@ public class JdbcSchemaIOProviderTest {
     PCollection<Row> output = pipeline.apply(schemaIO.buildReader());
     Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
     PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
-    pipeline.run();
-  }
-
-  @Test
-  public void testPartitionedReadWithExplicitSchema() {
-    JdbcSchemaIOProvider provider = new JdbcSchemaIOProvider();
-
-    Schema customSchema =
-        Schema.of(
-            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
-            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT32).withNullable(true));
-
-    Row config =
-        Row.withSchema(provider.configurationSchema())
-            .withFieldValue("driverClassName", DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
-            .withFieldValue("jdbcUrl", DATA_SOURCE_CONFIGURATION.getUrl().get())
-            .withFieldValue("username", "")
-            .withFieldValue("password", "")
-            .withFieldValue("partitionColumn", "id")
-            .withFieldValue("partitions", (short) 10)
-            .build();
-
-    JdbcSchemaIOProvider.JdbcSchemaIO schemaIO =
-        provider.from(
-            String.format("(select name,id from %s) as subq", READ_TABLE_NAME),
-            config,
-            customSchema);
-
-    PCollection<Row> output = pipeline.apply(schemaIO.buildReader());
-
-    assertEquals(customSchema, output.getSchema());
-
-    Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
-    PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
-
-    PAssert.that(output)
-        .satisfies(
-            rows -> {
-              for (Row row : rows) {
-                assertNotNull(row.getString("CUSTOMER_NAME"));
-                assertNotNull(row.getInt32("CUSTOMER_ID"));
-              }
-              return null;
-            });
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testReadWithExplicitSchema() {
-    JdbcSchemaIOProvider provider = new JdbcSchemaIOProvider();
-
-    Schema customSchema =
-        Schema.of(
-            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
-            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT32).withNullable(true));
-
-    Row config =
-        Row.withSchema(provider.configurationSchema())
-            .withFieldValue("driverClassName", DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
-            .withFieldValue("jdbcUrl", DATA_SOURCE_CONFIGURATION.getUrl().get())
-            .withFieldValue("username", "")
-            .withFieldValue("password", "")
-            .withFieldValue("readQuery", "SELECT name, id FROM " + READ_TABLE_NAME)
-            .build();
-
-    JdbcSchemaIOProvider.JdbcSchemaIO schemaIO =
-        provider.from(READ_TABLE_NAME, config, customSchema);
-
-    PCollection<Row> output = pipeline.apply(schemaIO.buildReader());
-
-    assertEquals(customSchema, output.getSchema());
-
-    Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
-    PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
-
-    PAssert.that(output)
-        .satisfies(
-            rows -> {
-              for (Row row : rows) {
-                assertNotNull(row.getString("CUSTOMER_NAME"));
-                assertNotNull(row.getInt32("CUSTOMER_ID"));
-              }
-              return null;
-            });
-
     pipeline.run();
   }
 

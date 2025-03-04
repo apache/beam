@@ -747,9 +747,6 @@ public class JdbcIO {
     @Pure
     abstract boolean getDisableAutoCommit();
 
-    @Pure
-    abstract @Nullable Schema getSchema();
-
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -766,8 +763,6 @@ public class JdbcIO {
       abstract Builder setOutputParallelization(boolean outputParallelization);
 
       abstract Builder setDisableAutoCommit(boolean disableAutoCommit);
-
-      abstract Builder setSchema(@Nullable Schema schema);
 
       abstract ReadRows build();
     }
@@ -794,10 +789,6 @@ public class JdbcIO {
     public ReadRows withStatementPreparator(StatementPreparator statementPreparator) {
       checkArgument(statementPreparator != null, "statementPreparator can not be null");
       return toBuilder().setStatementPreparator(statementPreparator).build();
-    }
-
-    public ReadRows withSchema(Schema schema) {
-      return toBuilder().setSchema(schema).build();
     }
 
     /**
@@ -841,14 +832,7 @@ public class JdbcIO {
               getDataSourceProviderFn(),
               "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      // Don't infer schema if explicitly provided.
-      Schema schema;
-      if (getSchema() != null) {
-        schema = getSchema();
-      } else {
-        schema = inferBeamSchema(dataSourceProviderFn.apply(null), query.get());
-      }
-
+      Schema schema = inferBeamSchema(dataSourceProviderFn.apply(null), query.get());
       PCollection<Row> rows =
           input.apply(
               JdbcIO.<Row>read()
@@ -1311,9 +1295,6 @@ public class JdbcIO {
     abstract boolean getUseBeamSchema();
 
     @Pure
-    abstract @Nullable Schema getSchema();
-
-    @Pure
     abstract @Nullable PartitionColumnT getLowerBound();
 
     @Pure
@@ -1353,8 +1334,6 @@ public class JdbcIO {
       abstract Builder<T, PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
 
       abstract Builder<T, PartitionColumnT> setUseBeamSchema(boolean useBeamSchema);
-
-      abstract Builder setSchema(@Nullable Schema schema);
 
       abstract Builder<T, PartitionColumnT> setFetchSize(int fetchSize);
 
@@ -1445,10 +1424,6 @@ public class JdbcIO {
     public ReadWithPartitions<T, PartitionColumnT> withTable(String tableName) {
       checkNotNull(tableName, "table can not be null");
       return toBuilder().setTable(tableName).build();
-    }
-
-    public ReadWithPartitions<T, PartitionColumnT> withSchema(Schema schema) {
-      return toBuilder().setSchema(schema).build();
     }
 
     private static final int EQUAL = 0;
@@ -1559,11 +1534,8 @@ public class JdbcIO {
       Schema schema = null;
       if (getUseBeamSchema()) {
         schema =
-            getSchema() != null
-                ? getSchema()
-                : ReadRows.inferBeamSchema(
-                    dataSourceProviderFn.apply(null),
-                    String.format("SELECT * FROM %s", getTable()));
+            ReadRows.inferBeamSchema(
+                dataSourceProviderFn.apply(null), String.format("SELECT * FROM %s", getTable()));
         rowMapper = (RowMapper<T>) SchemaUtil.BeamRowMapper.of(schema);
       } else {
         rowMapper = getRowMapper();
