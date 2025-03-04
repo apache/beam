@@ -36,7 +36,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.CheckReturnValue;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -49,7 +48,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.StreamGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
@@ -105,6 +103,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineBackends> backends;
 
+  private final BackendWorkerMetadataVendor backendWorkerMetadataVendor;
+
   @GuardedBy("this")
   private long activeMetadataVersion;
 
@@ -113,9 +113,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   @GuardedBy("this")
   private boolean started;
-
-  @GuardedBy("this")
-  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream = null;
 
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
@@ -145,6 +142,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
+    this.backendWorkerMetadataVendor =
+        BackendWorkerMetadataVendor.create(
+            endpointsConsumer ->
+                streamFactory.createGetWorkerMetadataStream(
+                    dispatcherClient::getWindmillMetadataServiceStubBlocking,
+                    getWorkerMetadataThrottleTimer,
+                    endpointsConsumer));
   }
 
   /**
@@ -213,12 +217,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
-    getWorkerMetadataStream =
-        streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient::getWindmillMetadataServiceStubBlocking,
-            getWorkerMetadataThrottleTimer,
-            this::consumeWorkerMetadata);
-    getWorkerMetadataStream.start();
+    backendWorkerMetadataVendor.start(this::consumeWorkerMetadata);
     started = true;
   }
 
@@ -246,19 +245,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void shutdown() {
     Preconditions.checkState(started, "FanOutStreamingEngineWorkerHarness never started.");
-    Preconditions.checkNotNull(getWorkerMetadataStream).shutdown();
+    backendWorkerMetadataVendor.stop();
     workerMetadataConsumer.shutdownNow();
     // Close all the streams blocking until this completes to not leak resources.
     closeStreamsNotIn(WindmillEndpoints.none()).join();
     channelCachingStubFactory.shutdown();
-
-    try {
-      Preconditions.checkNotNull(getWorkerMetadataStream).awaitTermination(10, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOG.warn("Interrupted waiting for GetWorkerMetadataStream to shutdown.", e);
-    }
-
     windmillStreamManager.shutdown();
     boolean isStreamManagerShutdown = false;
     try {
