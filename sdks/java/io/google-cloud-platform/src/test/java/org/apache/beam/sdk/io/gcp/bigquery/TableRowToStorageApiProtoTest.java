@@ -1710,7 +1710,7 @@ public class TableRowToStorageApiProtoTest {
   }
 
   @Test
-  public void testIgnoreUnknownRepeatedNestedFieldWithUknownInRepeatedField() throws Exception {
+  public void testIgnoreUnknownRepeatedNestedFieldWithUnknownInRepeatedField() throws Exception {
 
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
@@ -1749,6 +1749,7 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
     assertNotNull(((List<?>) unknown.get("repeated1")).get(0));
     assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
+    assertTrue(((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty());
     assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
   }
 

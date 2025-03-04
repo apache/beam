@@ -539,16 +539,14 @@ public class TableRowToStorageApiProto {
 
         if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
             && unknownFields != null) {
-          if (unknownFields.get(key) instanceof Map
-              && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
+          if ((unknownFields.get(key) instanceof Map
+                  && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) // single struct, empty
+              || (unknownFields.get(key)
+                      instanceof List // repeated struct, empty list or list with empty structs
+                  && (((List<?>) unknownFields.get(key)).isEmpty()
+                      || ((List<?>) unknownFields.get(key))
+                          .stream().allMatch(row -> row == null || ((Map<?, ?>) row).isEmpty())))) {
             unknownFields.remove(key);
-          } else if (unknownFields.get(key) instanceof List) { // repeated
-
-            if (((List<?>) unknownFields.get(key)).isEmpty()
-                || ((List<?>) unknownFields.get(key))
-                    .stream().allMatch(row -> row == null || ((Map<?, ?>) row).isEmpty())) {
-              unknownFields.remove(key);
-            }
           }
         }
       } catch (Exception e) {
