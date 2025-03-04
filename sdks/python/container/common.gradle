@@ -88,8 +88,9 @@ docker {
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.useBuildx()
   platform(*project.containerPlatforms())
+  output = "type=image,push=true"
+  push true
   load project.useBuildx() && !pushContainers
-  push pushContainers
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
