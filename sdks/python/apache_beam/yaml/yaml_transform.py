@@ -1009,7 +1009,12 @@ def expand_jinja(
 
 
 class YamlTransform(beam.PTransform):
-  def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
+  def __init__( # pylint: disable=dangerous-default-value
+      self,
+      spec,
+      providers={},
+      standard_io_yaml_file=None,
+      standard_providers_yaml_file=None):
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
     if isinstance(providers, dict):
@@ -1019,7 +1024,9 @@ class YamlTransform(beam.PTransform):
       }
     # TODO(BEAM-26941): Validate as a transform.
     self._providers = yaml_provider.merge_providers(
-        providers, yaml_provider.standard_providers())
+        providers,
+        yaml_provider.standard_providers(
+            standard_io_yaml_file, standard_providers_yaml_file))
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
     self._was_chain = spec['type'] == 'chain'
 
@@ -1074,7 +1081,9 @@ def expand_pipeline(
     pipeline_spec,
     providers=None,
     validate_schema='generic' if jsonschema is not None else None,
-    pipeline_path=''):
+    pipeline_path='',
+    standard_io_yaml_file=None,
+    standard_providers_yaml_file=None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
@@ -1087,4 +1096,6 @@ def expand_pipeline(
       yaml_provider.merge_providers(
           yaml_provider.parse_providers(
               pipeline_path, pipeline_spec.get('providers', [])),
-          providers or {})).expand(beam.pvalue.PBegin(pipeline))
+          providers or {}),
+      standard_io_yaml_file,
+      standard_providers_yaml_file).expand(beam.pvalue.PBegin(pipeline))
