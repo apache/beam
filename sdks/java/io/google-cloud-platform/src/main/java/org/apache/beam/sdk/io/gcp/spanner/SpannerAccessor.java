@@ -177,7 +177,14 @@ public class SpannerAccessor implements AutoCloseable {
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
               .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .setRpcTimeoutMultiplier(1.0)
+              .setInitialRetryDelay(org.threeten.bp.Duration.ofSeconds(2))
+              .setMaxRetryDelay(org.threeten.bp.Duration.ofSeconds(60))
+              .setRetryDelayMultiplier(1.5)
+              .setMaxAttempts(100)
               .build());
+      // This property sets the default timeout between 2 response packets in the client library.
+      System.setProperty("com.google.cloud.spanner.watchdogTimeoutSeconds", "7200");
     }
 
     SpannerStubSettings.Builder spannerStubSettingsBuilder =
