@@ -61,7 +61,7 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
-  private final Map<PCollection<?>, Integer> dependentTransforms = new HashMap<>();
+  private final Map<PCollection<?>, Integer> pCollectionConsumptionMap = new HashMap<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
@@ -309,12 +309,22 @@ public class EvaluationContext {
   }
 
   /**
-   * Get the map of dependent transforms hold by the evaluation context.
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
    *
-   * @return The current {@link Map} of dependent transforms.
+   * @see #isLeaf(PCollection)
    */
-  public Map<PCollection<?>, Integer> getDependentTransforms() {
-    return this.dependentTransforms;
+  public void reportPCollectionConsumed(PCollection<?> pCollection) {
+    int count = this.pCollectionConsumptionMap.getOrDefault(pCollection, 0);
+    this.pCollectionConsumptionMap.put(pCollection, count + 1);
+  }
+
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionProduced(PCollection<?> pCollection) {
+    this.pCollectionConsumptionMap.computeIfAbsent(pCollection, k -> 0);
   }
 
   /**
@@ -325,7 +335,7 @@ public class EvaluationContext {
    * @return true if pCollection is leaf; otherwise false
    */
   public boolean isLeaf(PCollection<?> pCollection) {
-    return this.dependentTransforms.get(pCollection) == 0;
+    return this.pCollectionConsumptionMap.get(pCollection) == 0;
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {

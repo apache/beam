@@ -39,14 +39,12 @@ class DependentTransformsVisitor extends SparkRunner.Evaluator {
   @Override
   public void doVisitTransform(TransformHierarchy.Node node) {
 
-    Map<PCollection<?>, Integer> dependentTransforms = ctxt.getDependentTransforms();
     for (Map.Entry<TupleTag<?>, PCollection<?>> entry : node.getInputs().entrySet()) {
-      int dependants = dependentTransforms.getOrDefault(entry.getValue(), 0);
-      dependentTransforms.put(entry.getValue(), dependants + 1);
+      ctxt.reportPCollectionConsumed(entry.getValue());
     }
 
     for (PCollection<?> pOut : node.getOutputs().values()) {
-      dependentTransforms.computeIfAbsent(pOut, k -> 0);
+      ctxt.reportPCollectionProduced(pOut);
     }
   }
 }

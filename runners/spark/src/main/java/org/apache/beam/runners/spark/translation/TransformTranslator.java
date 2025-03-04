@@ -466,7 +466,7 @@ public final class TransformTranslator {
 
         // Filter out obsolete PCollections to only cache when absolutely necessary
         Map<TupleTag<?>, PCollection<?>> outputs =
-            skipObsoleteOutputs(
+            skipUnconsumedOutputs(
                 context.getOutputs(transform),
                 mainOutputTag,
                 transform.getAdditionalOutputTags(),
@@ -509,12 +509,12 @@ public final class TransformTranslator {
       }
 
       /**
-       * Filter out obsolete, unused output tags except for {@code mainTag}.
+       * Filter out output tags which are not consumed by any transform, except for {@code mainTag}.
        *
        * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
        * mainTag} is consumed.
        */
-      private Map<TupleTag<?>, PCollection<?>> skipObsoleteOutputs(
+      private Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
           Map<TupleTag<?>, PCollection<?>> outputs,
           TupleTag<?> mainTag,
           TupleTagList otherTags,
