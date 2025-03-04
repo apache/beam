@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.apache.beam.sdk.extensions.gcp.options.GcsOptions.GcsCustomAuditEntries.CUSTOM_AUDIT_JOB_ENTRY_KEY;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
@@ -128,7 +129,7 @@ public class Transport {
     String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
 
     ImmutableMap.Builder<String, String> builder =
-        new ImmutableMap.Builder<String, String>().put("x-goog-custom-audit-job", jobName);
+        new ImmutableMap.Builder<String, String>().put(CUSTOM_AUDIT_JOB_ENTRY_KEY, jobName);
 
     Map<String, String> customAuditEntries = options.getGcsCustomAuditEntries();
     if (customAuditEntries != null && customAuditEntries.size() > 0) {

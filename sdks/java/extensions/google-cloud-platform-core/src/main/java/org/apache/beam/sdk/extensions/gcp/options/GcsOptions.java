@@ -186,7 +186,10 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   @Description("Get key-value pairs to be stored as custom information in GCS audit logs")
   GcsCustomAuditEntries getGcsCustomAuditEntries();
 
-  @Description("Set key-value pairs to be stored as custom information in GCS audit logs")
+  @Description(
+      "Set key-value pairs to be stored as custom information in GCS audit logs. To"
+          + " specify these entries via command line, use"
+          + " `--gcsCustomAuditEntries={\"user\":\"test-user\", \"work\":\"test-work\", \"job\":\"test-job\", \"id\":\"1234\"}`")
   void setGcsCustomAuditEntries(GcsCustomAuditEntries entries);
 
   /**
@@ -230,7 +233,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
     private static final String CUSTOM_AUDIT_ENTRY_TMPL = "x-goog-custom-audit-%s";
 
-    private static final String CUSTOM_AUDIT_JOB_ENTRY_KEY =
+    public static final String CUSTOM_AUDIT_JOB_ENTRY_KEY =
         String.format(CUSTOM_AUDIT_ENTRY_TMPL, "job");
 
     boolean exceedsEntryLimit() {
