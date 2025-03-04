@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WriteGroupedRowsToFiles
     extends PTransform<
-    PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
+        PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
 
   private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
 
@@ -124,7 +124,8 @@ class WriteGroupedRowsToFiles
       if (!catalog.tableExists(tableId)) {
         // Convert Beam Schema to Iceberg Schema
         org.apache.beam.sdk.schemas.Schema beamSchema = dynamicDestinations.getDataSchema();
-        org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
+        org.apache.iceberg.Schema icebergSchema =
+            IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
         table = createTableWithPartitionSpec(catalog, tableId, icebergSchema, partitionSpec);
       } else {
         table = catalog.loadTable(tableId);
@@ -133,7 +134,7 @@ class WriteGroupedRowsToFiles
       // Write rows to files
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
-               new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
+          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
         writer = openWriter;
         for (Row e : element.getValue()) {
           writer.write(windowedDestination, e);
@@ -154,7 +155,10 @@ class WriteGroupedRowsToFiles
 
     // Helper method to create a table with the specified partition spec
     private Table createTableWithPartitionSpec(
-        Catalog catalog, TableIdentifier tableId, Schema schema, Map<String, String> partitionSpecMap) {
+        Catalog catalog,
+        TableIdentifier tableId,
+        Schema schema,
+        Map<String, String> partitionSpecMap) {
       if (partitionSpecMap != null) {
         PartitionSpec partitionSpec = createPartitionSpec(schema, partitionSpecMap);
         return catalog.createTable(tableId, schema, partitionSpec);
@@ -182,13 +186,13 @@ class WriteGroupedRowsToFiles
           case "day":
             partitionSpecBuilder.day(column);
             break;
-          case "bucket16":  // Predefined bucket transforms
+          case "bucket16": // Predefined bucket transforms
             partitionSpecBuilder.bucket(column, 16);
             break;
           case "bucket32":
             partitionSpecBuilder.bucket(column, 32);
             break;
-          case "truncate10":  // Predefined truncate transforms
+          case "truncate10": // Predefined truncate transforms
             partitionSpecBuilder.truncate(column, 10);
             break;
           default:

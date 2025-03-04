@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -45,7 +44,6 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -162,7 +160,8 @@ class AppendFilesToTables
       if (!catalog.tableExists(tableId)) {
         // Convert Beam Schema to Iceberg Schema
         org.apache.beam.sdk.schemas.Schema beamSchema = dynamicDestinations.getDataSchema();
-        org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
+        org.apache.iceberg.Schema icebergSchema =
+            IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
         table = createTableWithPartitionSpec(catalog, tableId, icebergSchema, partitionSpec);
       } else {
         table = catalog.loadTable(tableId);
@@ -247,7 +246,9 @@ class AppendFilesToTables
 
     // Helper method to create a table with the specified partition spec
     private Table createTableWithPartitionSpec(
-        Catalog catalog, TableIdentifier tableId, org.apache.iceberg.Schema schema,
+        Catalog catalog,
+        TableIdentifier tableId,
+        org.apache.iceberg.Schema schema,
         Map<String, String> partitionSpecMap) {
       if (partitionSpecMap != null) {
         PartitionSpec partitionSpec = createPartitionSpec(schema, partitionSpecMap);
@@ -258,7 +259,8 @@ class AppendFilesToTables
     }
 
     // Helper method to create a partition spec from a map of column names to transforms
-    private PartitionSpec createPartitionSpec(org.apache.iceberg.Schema schema, Map<String, String> partitionSpecMap) {
+    private PartitionSpec createPartitionSpec(
+        org.apache.iceberg.Schema schema, Map<String, String> partitionSpecMap) {
       PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
       for (Map.Entry<String, String> entry : partitionSpecMap.entrySet()) {
         String column = entry.getKey();
@@ -276,13 +278,13 @@ class AppendFilesToTables
           case "day":
             partitionSpecBuilder.day(column);
             break;
-          case "bucket16":  // Predefined bucket transforms
+          case "bucket16": // Predefined bucket transforms
             partitionSpecBuilder.bucket(column, 16);
             break;
           case "bucket32":
             partitionSpecBuilder.bucket(column, 32);
             break;
-          case "truncate10":  // Predefined truncate transforms
+          case "truncate10": // Predefined truncate transforms
             partitionSpecBuilder.truncate(column, 10);
             break;
           default:

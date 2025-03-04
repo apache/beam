@@ -23,7 +23,6 @@ import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.schemas.Schema;

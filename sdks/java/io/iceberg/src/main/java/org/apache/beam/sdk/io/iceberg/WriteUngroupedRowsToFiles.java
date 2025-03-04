@@ -255,7 +255,8 @@ class WriteUngroupedRowsToFiles
       } else {
         // Convert Beam Schema to Iceberg Schema
         org.apache.beam.sdk.schemas.Schema beamSchema = dynamicDestinations.getDataSchema();
-        org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
+        org.apache.iceberg.Schema icebergSchema =
+            IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
         table = createTableWithPartitionSpec(catalog, tableId, icebergSchema, partitionSpec);
       }
 
@@ -292,9 +293,9 @@ class WriteUngroupedRowsToFiles
 
       for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
           destinationAndFiles :
-          Preconditions.checkNotNull(recordWriterManager)
-              .getSerializableDataFiles()
-              .entrySet()) {
+              Preconditions.checkNotNull(recordWriterManager)
+                  .getSerializableDataFiles()
+                  .entrySet()) {
         WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
 
         for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
@@ -312,7 +313,10 @@ class WriteUngroupedRowsToFiles
 
     // Helper method to create a table with the specified partition spec
     private Table createTableWithPartitionSpec(
-        Catalog catalog, TableIdentifier tableId, Schema schema, Map<String, String> partitionSpecMap) {
+        Catalog catalog,
+        TableIdentifier tableId,
+        Schema schema,
+        Map<String, String> partitionSpecMap) {
       if (partitionSpecMap != null) {
         PartitionSpec partitionSpec = createPartitionSpec(schema, partitionSpecMap);
         return catalog.createTable(tableId, schema, partitionSpec);
@@ -340,7 +344,7 @@ class WriteUngroupedRowsToFiles
           case "day":
             partitionSpecBuilder.day(column);
             break;
-          // Add other transforms as needed
+            // Add other transforms as needed
           default:
             throw new IllegalArgumentException("Unsupported partition transform: " + transform);
         }
