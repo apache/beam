@@ -78,8 +78,8 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
 
   /**
    * Watches for new snapshots and creates tasks for each range. Uses GiB (with auto-sharding) to
-   * groups tasks in batches of size {@link #MAX_FILES_BATCH_BYTE_SIZE}, then reads from each
-   * batch using an SDF.
+   * groups tasks in batches of size {@link #MAX_FILES_BATCH_BYTE_SIZE}, then reads from each batch
+   * using an SDF.
    *
    * <p>Output schema is:
    *
