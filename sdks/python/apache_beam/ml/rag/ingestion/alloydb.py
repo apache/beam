@@ -39,7 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class AlloyDBLanguageConnectorOptions:
+class AlloyDBLanguageConnectorConfig:
   """Configuration options for AlloyDB Java language connector.
     
     Contains all parameters needed to configure a connection using the AlloyDB
@@ -51,8 +51,8 @@ class AlloyDBLanguageConnectorOptions:
         instance_name: Fullly qualified instance. Format: 
             'projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances
             /<INSTANCE>'
-        ip_type: IP type to use for connection. Either 'PRIVATE' (default) or 
-            'PUBLIC'.
+        ip_type: IP type to use for connection. Either 'PRIVATE' (default), 
+            'PUBLIC' 'PSC.
         enable_iam_auth: Whether to enable IAM authentication. Default is False
         target_principal: Optional service account to impersonate for
             connection.
@@ -63,7 +63,7 @@ class AlloyDBLanguageConnectorOptions:
     """
   database_name: str
   instance_name: str
-  ip_type: Literal["PRIVATE", "PUBLIC"] = "PRIVATE"
+  ip_type: str = "PRIVATE"
   enable_iam_auth: bool = False
   target_principal: Optional[str] = None
   delegates: Optional[List[str]] = None
@@ -152,7 +152,7 @@ class AlloyDBConnectionConfig:
   @classmethod
   def with_language_connector(
       cls,
-      connector_options: AlloyDBLanguageConnectorOptions,
+      connector_options: AlloyDBLanguageConnectorConfig,
       username: str,
       password: str,
       connection_properties: Optional[Dict[str, str]] = None,
@@ -178,7 +178,7 @@ class AlloyDBConnectionConfig:
             Configured AlloyDBConnectionConfig instance.
             
         Example:
-            >>> options = AlloyDBLanguageConnectorOptions(
+            >>> options = AlloyDBLanguageConnectorConfig(
             ...     database_name="mydb",
             ...     instance_name="projects/my-project/locations/us-central1\
             ....      /clusters/my-cluster/instances/my-instance",
