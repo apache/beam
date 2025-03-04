@@ -17,6 +17,7 @@
 import json
 import logging
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -35,6 +36,73 @@ from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import Chunk
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class AlloyDBLanguageConnectorOptions:
+  """Configuration options for AlloyDB Java language connector.
+    
+    Contains all parameters needed to configure a connection using the AlloyDB
+    Java connector via JDBC. For details see
+    https://github.com/GoogleCloudPlatform/alloydb-java-connector/blob/main/docs/jdbc.md
+    
+    Attributes:
+        database_name: Name of the database to connect to.
+        instance_name: Fullly qualified instance. Format: 
+            'projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances
+            /<INSTANCE>'
+        ip_type: IP type to use for connection. Either 'PRIVATE' (default) or 
+            'PUBLIC'.
+        enable_iam_auth: Whether to enable IAM authentication. Default is False
+        target_principal: Optional service account to impersonate for
+            connection.
+        delegates: Optional comma-separated list of service accounts for
+            delegated impersonation.
+        admin_service_endpoint: Optional custom API service endpoint.
+        quota_project: Optional project ID for quota and billing.
+    """
+  database_name: str
+  instance_name: str
+  ip_type: Literal["PRIVATE", "PUBLIC"] = "PRIVATE"
+  enable_iam_auth: bool = False
+  target_principal: Optional[str] = None
+  delegates: Optional[List[str]] = None
+  admin_service_endpoint: Optional[str] = None
+  quota_project: Optional[str] = None
+
+  def to_jdbc_url(self) -> str:
+    """Convert options to a properly formatted JDBC URL.
+      
+      Returns:
+          JDBC URL string configured with all options.
+      """
+    # Base URL with database name
+    url = f"jdbc:postgresql:///{self.database_name}?"
+
+    # Add required properties
+    properties = {
+        "socketFactory": "com.google.cloud.alloydb.SocketFactory",
+        "alloydbInstanceName": self.instance_name,
+        "alloydbIpType": self.ip_type
+    }
+
+    if self.enable_iam_auth:
+      properties["alloydbEnableIAMAuth"] = "true"
+
+    if self.target_principal:
+      properties["alloydbTargetPrincipal"] = self.target_principal
+
+    if self.delegates:
+      properties["alloydbDelegates"] = ",".join(self.delegates)
+
+    if self.admin_service_endpoint:
+      properties["alloydbAdminServiceEndpoint"] = self.admin_service_endpoint
+
+    if self.quota_project:
+      properties["alloydbQuotaProject"] = self.quota_project
+
+    property_string = "&".join(f"{k}={v}" for k, v in properties.items())
+    return url + property_string
 
 
 @dataclass
@@ -58,6 +126,9 @@ class AlloyDBConnectionConfig:
         max_connections: Optional number of connections in the pool.
             Use negative for no limit.
         write_batch_size: Optional write batch size for bulk operations.
+        additional_jdbc_args: Additional arguments that will be passed to
+            WriteToJdbc. These may include 'driver_jars', 'expansion_service',
+            'classpath', etc.
     
     Example:
         >>> config = AlloyDBConnectionConfig(
@@ -76,6 +147,60 @@ class AlloyDBConnectionConfig:
   autosharding: Optional[bool] = None
   max_connections: Optional[int] = None
   write_batch_size: Optional[int] = None
+  additional_jdbc_args: Dict[str, Any] = field(default_factory=dict)
+
+  @classmethod
+  def with_language_connector(
+      cls,
+      connector_options: AlloyDBLanguageConnectorOptions,
+      username: str,
+      password: str,
+      connection_properties: Optional[Dict[str, str]] = None,
+      connection_init_sqls: Optional[List[str]] = None,
+      autosharding: Optional[bool] = None,
+      max_connections: Optional[int] = None,
+      write_batch_size: Optional[int] = None) -> 'AlloyDBConnectionConfig':
+    """Create AlloyDBConnectionConfig using the AlloyDB language connector.
+        
+        Args:
+            connector_options: AlloyDB language connector configuration options.
+            username: Database username. For IAM auth, this should be the IAM
+                user email.
+            password: Database password. Can be empty string when using IAM
+                auth.
+            connection_properties: Additional JDBC connection properties.
+            connection_init_sqls: SQL statements to execute on connection.
+            autosharding: Enable autosharding.
+            max_connections: Max connections in pool.
+            write_batch_size: Write batch size.
+            
+        Returns:
+            Configured AlloyDBConnectionConfig instance.
+            
+        Example:
+            >>> options = AlloyDBLanguageConnectorOptions(
+            ...     database_name="mydb",
+            ...     instance_name="projects/my-project/locations/us-central1\
+            ....      /clusters/my-cluster/instances/my-instance",
+            ...     ip_type="PUBLIC",
+            ...     enable_iam_auth=True
+            ... )
+        """
+    return cls(
+        jdbc_url=connector_options.to_jdbc_url(),
+        username=username,
+        password=password,
+        connection_properties=connection_properties,
+        connection_init_sqls=connection_init_sqls,
+        autosharding=autosharding,
+        max_connections=max_connections,
+        write_batch_size=write_batch_size,
+        additional_jdbc_args={
+            'classpath': [
+                "org.postgresql:postgresql:42.2.16",
+                "com.google.cloud:alloydb-jdbc-connector:1.2.0"
+            ]
+        })
 
 
 @dataclass
@@ -713,4 +838,5 @@ class _WriteToAlloyDBVectorDatabase(beam.PTransform):
             connection_init_sqls,
             autosharding=self.config.connection_config.autosharding,
             max_connections=self.config.connection_config.max_connections,
-            write_batch_size=self.config.connection_config.write_batch_size))
+            write_batch_size=self.config.connection_config.write_batch_size,
+            **self.config.connection_config.additional_jdbc_args))
