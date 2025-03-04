@@ -30,6 +30,7 @@ from apache_beam import version as beam_version
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.pipeline import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
@@ -152,6 +153,10 @@ class FakeBucket(object):
     bucket = self._get_canonical_bucket()
     if name in bucket.blobs:
       del bucket.blobs[name]
+
+  def list_blobs(self, prefix=None, **kwargs):
+    bucket = self._get_canonical_bucket()
+    return self.client.list_blobs(bucket, prefix, **kwargs)
 
 
 class FakeBlob(object):
@@ -445,19 +450,42 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.open(file_name, 'r+b')
 
   def test_delete(self):
+    # File path.
     file_name = 'gs://gcsio-test/delete_me'
     file_size = 1024
     bucket_name, blob_name = gcsio.parse_gcs_path(file_name)
+
     # Test deletion of non-existent file.
     bucket = self.client.get_bucket(bucket_name)
     self.gcs.delete(file_name)
 
+    # Insert a random file for testing.
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(blob_name in bucket.blobs)
 
+    # Deleting the file.
     self.gcs.delete(file_name)
-
     self.assertFalse(blob_name in bucket.blobs)
+
+    # Now test deleting a directory (prefix) with multiple files.
+    prefix = 'gs://gcsio-test/directory_to_delete/'
+    file_names = [f"{prefix}file1", f"{prefix}file2", f"{prefix}file3"]
+    blobs = [gcsio.parse_gcs_path(file_name) for file_name in file_names]
+
+    # Insert random files under the prefix.
+    for file_name in file_names:
+      self._insert_random_file(self.client, file_name, file_size)
+
+    # Verify the files exist before deletion
+    for blob in blobs:
+      self.assertTrue(blob[1] in bucket.blobs)
+
+    # Deleting the directory (all files under the prefix).
+    self.gcs.delete(prefix, recursive=True)
+
+    # Verify that the files are deleted.
+    for blob in blobs:
+      self.assertFalse(blob[1] in bucket.blobs)
 
   def test_copy(self):
     src_file_name = 'gs://gcsio-test/source'
@@ -685,7 +713,13 @@ class TestGCSIO(unittest.TestCase):
     mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
         _make_credentials("test-project"))
 
-    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    options = PipelineOptions([
+        "--job_name=test-job-name",
+        "--gcs_custom_audit_entry=user=test-user-id",
+        "--gcs_custom_audit_entries={\"id\": \"1234\", \"status\": \"ok\"}"
+    ])
+
+    gcs = gcsio.GcsIO(pipeline_options=options)
     # no HTTP request when initializing GcsIO
     mock_do_request.assert_not_called()
 
@@ -705,6 +739,9 @@ class TestGCSIO(unittest.TestCase):
     beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
     self.assertIn(beam_user_agent, actual_headers['User-Agent'])
     self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+    self.assertEqual(actual_headers['x-goog-custom-audit-user'], 'test-user-id')
+    self.assertEqual(actual_headers['x-goog-custom-audit-id'], '1234')
+    self.assertEqual(actual_headers['x-goog-custom-audit-status'], 'ok')
 
   @mock.patch('google.cloud._http.JSONConnection._do_request')
   @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')

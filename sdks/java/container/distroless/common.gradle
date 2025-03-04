@@ -68,3 +68,5 @@ docker {
     push true
     load project.useBuildx() && !pushContainers
 }
+
+dockerPrepare.dependsOn ":sdks:java:container:java${imageJavaVersion}:docker"

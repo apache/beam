@@ -25,8 +25,12 @@ import logging
 import sys
 import types
 import typing
+from typing import Generic
+from typing import TypeVar
 
 from apache_beam.typehints import typehints
+
+T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +65,7 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.Set,
     collections.abc.MutableSet,
     collections.abc.Collection,
+    collections.abc.Sequence,
 ]
 
 
@@ -138,6 +143,10 @@ def _match_is_exactly_iterable(user_type):
 
 def _match_is_exactly_collection(user_type):
   return getattr(user_type, '__origin__', None) is collections.abc.Collection
+
+
+def _match_is_exactly_sequence(user_type):
+  return getattr(user_type, '__origin__', None) is collections.abc.Sequence
 
 
 def match_is_named_tuple(user_type):
@@ -277,6 +286,18 @@ def is_builtin(typ):
   return getattr(typ, '__origin__', None) in _BUILTINS
 
 
+# During type inference of WindowedValue, we need to pass in the inner value
+# type. This cannot be achieved immediately with WindowedValue class because it
+# is not parameterized. Changing it to a generic class (e.g. WindowedValue[T])
+# could work in theory. However, the class is cythonized and it seems that
+# cython does not handle generic classes well.
+# The workaround here is to create a separate class solely for the type
+# inference purpose. This class should never be used for creating instances.
+class TypedWindowedValue(Generic[T]):
+  def __init__(self, *args, **kwargs):
+    raise NotImplementedError("This class is solely for type inference")
+
+
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -385,6 +406,14 @@ def convert_to_beam_type(typ):
           match=_match_is_exactly_collection,
           arity=1,
           beam_type=typehints.Collection),
+      _TypeMapEntry(
+          match=_match_issubclass(TypedWindowedValue),
+          arity=1,
+          beam_type=typehints.WindowedValue),
+      _TypeMapEntry(
+          match=_match_is_exactly_sequence,
+          arity=1,
+          beam_type=typehints.Sequence),
   ]
 
   # Find the first matching entry.
@@ -501,6 +530,8 @@ def convert_to_python_type(typ):
     return tuple[tuple(convert_to_python_types(typ.tuple_types))]
   if isinstance(typ, typehints.TupleSequenceConstraint):
     return tuple[convert_to_python_type(typ.inner_type), ...]
+  if isinstance(typ, typehints.ABCSequenceTypeConstraint):
+    return collections.abc.Sequence[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.IteratorTypeConstraint):
     return collections.abc.Iterator[convert_to_python_type(typ.yielded_type)]
 

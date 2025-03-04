@@ -35,7 +35,7 @@ on:
       NEXT_VERSION:
         description: Next release version
         required: true
-        default: '2.XX'
+        default: '2.XX.0'
       CREATE_RELEASE_BRANCH:
         description: Whether to cut the release branch. You shouldnt skip this unless it has already been completed successfully (yes/no)
         required: true
@@ -53,11 +53,11 @@ jobs:
     steps:
       - name: Validate Release Version
         run: |
-          if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+) ]]; then
             echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
             echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
           else
-            echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
+            echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+"
             exit 1
           fi
       - name: Check out code
@@ -74,7 +74,7 @@ jobs:
           echo "==============================================================="
       - name: Update release version for dataflow runner
         run: |
-          sed -i -e "s/'beam-master-.*'/'${RELEASE}'/g" \
+          sed -i -e "s/'beam-master-.*'/'${RELEASE}.0'/g" \
           runners/google-cloud-dataflow-java/build.gradle
           echo "===============Update release branch as following=============="
           git diff

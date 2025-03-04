@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.testing;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -28,20 +28,20 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.QueryRequest;
 import java.io.IOException;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link BigqueryClient}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(BigqueryClient.class)
+@RunWith(JUnit4.class)
 public class BigqueryClientTest {
   private final String projectId = "test-project";
   private final String query = "test-query";
@@ -51,15 +51,21 @@ public class BigqueryClientTest {
   @Mock private Bigquery mockBigqueryClient;
   @Mock private Bigquery.Jobs mockJobs;
   @Mock private Bigquery.Jobs.Query mockQuery;
+  private MockedStatic<BigqueryClient> mockStatic;
 
   @Before
   public void setUp() throws IOException {
     MockitoAnnotations.initMocks(this);
     when(mockBigqueryClient.jobs()).thenReturn(mockJobs);
     when(mockJobs.query(anyString(), any(QueryRequest.class))).thenReturn(mockQuery);
-    PowerMockito.mockStatic(BigqueryClient.class);
+    mockStatic = Mockito.mockStatic(BigqueryClient.class);
     when(BigqueryClient.getNewBigqueryClient(anyString())).thenReturn(mockBigqueryClient);
     bqClient = spy(new BigqueryClient("test-app"));
+  }
+
+  @After
+  public void tearDown() {
+    mockStatic.close();
   }
 
   @Test

@@ -426,18 +426,19 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
 1. Use the following command to build the SDK harness container:
 
     ```shell
-    ./gradlew :sdks:java:container:java8:docker # java8, java11, java17, etc
-  docker tag apache/beam_java8_sdk:2.49.0.dev \
-    "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"  # change to your container registry
-  docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    ./gradlew :sdks:java:container:java11:docker # java8, java11, java17, etc
+    # change version number to the actual tag below
+    docker tag apache/beam_java8_sdk:2.64.0.dev \
+      "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"  # change to your container registry
+    docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"
     ```
 
 2. Run the pipeline with the following options:
 
-  ```
-  --experiments=use_runner_v2 \
-  --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
-  ```
+    ```
+    --experiments=use_runner_v2 \
+    --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    ```
 
 #### Snapshot Version Containers
 
@@ -629,7 +630,10 @@ Tips for using the Dataflow runner:
 
 ### Common Issues
 
-* If you run into some strange errors such as `java.lang.NoClassDefFoundError`, run `./gradlew clean` first
+* If you run into some strange errors such as `java.lang.NoClassDefFoundError` or errors related to proto changes, try these:
+  * run `./gradlew clean`
+  * remove the gradle cache, e.g., `rm -fr ~/.gradle`
+  * remove the `build` directory at the repo root
 * To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
 ### Directories of snapshot builds

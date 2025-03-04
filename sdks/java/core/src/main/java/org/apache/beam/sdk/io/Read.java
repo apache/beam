@@ -28,6 +28,8 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -51,10 +53,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.MemoizingPerInstantiationSerializableSupplier;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
@@ -65,10 +67,11 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalCause;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -481,12 +484,37 @@ public class Read {
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
     private final Coder<CheckpointT> checkpointCoder;
-    private @Nullable Cache<Object, UnboundedReader<OutputT>> cachedReaders;
+    private final MemoizingPerInstantiationSerializableSupplier<
+            Cache<Object, UnboundedReader<OutputT>>>
+        readerCacheSupplier;
+    private static final Executor closeExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("UnboundedReaderCloses-%d").build());
     private @Nullable Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
     @VisibleForTesting
     UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
       this.checkpointCoder = checkpointCoder;
+      readerCacheSupplier =
+          new MemoizingPerInstantiationSerializableSupplier<>(
+              () ->
+                  CacheBuilder.newBuilder()
+                      .expireAfterWrite(1, TimeUnit.MINUTES)
+                      .removalListener(
+                          (RemovalListener<Object, UnboundedReader<OutputT>>)
+                              removalNotification -> {
+                                if (removalNotification.getCause() != RemovalCause.EXPLICIT) {
+                                  closeExecutor.execute(
+                                      () -> {
+                                        try {
+                                          checkStateNotNull(removalNotification.getValue()).close();
+                                        } catch (IOException e) {
+                                          LOG.warn("Failed to close UnboundedReader.", e);
+                                        }
+                                      });
+                                }
+                              })
+                      .build());
     }
 
     @GetInitialRestriction
@@ -498,22 +526,6 @@ public class Read {
     @Setup
     public void setUp() throws Exception {
       restrictionCoder = restrictionCoder();
-      cachedReaders =
-          CacheBuilder.newBuilder()
-              .expireAfterWrite(1, TimeUnit.MINUTES)
-              .maximumSize(100)
-              .removalListener(
-                  (RemovalListener<Object, UnboundedReader<OutputT>>)
-                      removalNotification -> {
-                        if (removalNotification.wasEvicted()) {
-                          try {
-                            Preconditions.checkNotNull(removalNotification.getValue()).close();
-                          } catch (IOException e) {
-                            LOG.warn("Failed to close UnboundedReader.", e);
-                          }
-                        }
-                      })
-              .build();
     }
 
     @SplitRestriction
@@ -556,7 +568,8 @@ public class Read {
             PipelineOptions pipelineOptions) {
       Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder =
           checkStateNotNull(this.restrictionCoder);
-      Cache<Object, UnboundedReader<OutputT>> cachedReaders = checkStateNotNull(this.cachedReaders);
+      Cache<Object, UnboundedReader<OutputT>> cachedReaders =
+          checkStateNotNull(this.readerCacheSupplier.get());
       return new UnboundedSourceAsSDFRestrictionTracker<>(
           restriction, pipelineOptions, cachedReaders, restrictionCoder);
     }
@@ -840,10 +853,11 @@ public class Read {
         implements HasProgress {
       private final UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
+      private final Cache<Object, UnboundedReader<OutputT>> cachedReaders;
+      private final Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
+
       private UnboundedSource.@Nullable UnboundedReader<OutputT> currentReader;
       private boolean readerHasBeenStarted;
-      private Cache<Object, UnboundedReader<OutputT>> cachedReaders;
-      private Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
       UnboundedSourceAsSDFRestrictionTracker(
           UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction,
@@ -870,7 +884,8 @@ public class Read {
         checkState(currentReader == null);
         Object cacheKey =
             createCacheKey(initialRestriction.getSource(), initialRestriction.getCheckpoint());
-        UnboundedReader<OutputT> cachedReader = cachedReaders.getIfPresent(cacheKey);
+        // We remove the reader if cached so that it is not possibly claimed by multiple DoFns.
+        UnboundedReader<OutputT> cachedReader = cachedReaders.asMap().remove(cacheKey);
 
         if (cachedReader == null) {
           this.currentReader =
@@ -879,9 +894,7 @@ public class Read {
                   .createReader(pipelineOptions, initialRestriction.getCheckpoint());
         } else {
           // If the reader is from cache, then we know that the reader has been started.
-          // We also remove this cache entry to avoid eviction.
           readerHasBeenStarted = true;
-          cachedReaders.invalidate(cacheKey);
           this.currentReader = cachedReader;
         }
       }

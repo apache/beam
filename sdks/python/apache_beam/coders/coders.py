@@ -1432,7 +1432,9 @@ class WindowedValueCoder(FastCoder):
     return self.wrapped_value_coder.value_coder()
 
   def __repr__(self):
-    return 'WindowedValueCoder[%s]' % self.wrapped_value_coder
+    return (
+        f'WindowedValueCoder[window_coder={self.window_coder}, '
+        f'value_coder={self.value_coder()}]')
 
   def __eq__(self, other):
     return (
@@ -1444,6 +1446,17 @@ class WindowedValueCoder(FastCoder):
   def __hash__(self):
     return hash(
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
+
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (Any, CoderRegistry) -> WindowedValueCoder
+    # Ideally this'd take two parameters so that one could hint at
+    # the window type as well instead of falling back to the
+    # pickle coders.
+    return cls(registry.get_coder(typehint.inner_type))
+
+  def to_type_hint(self):
+    return typehints.WindowedValue[self.wrapped_value_coder.to_type_hint()]
 
 
 Coder.register_structured_urn(

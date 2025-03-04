@@ -1057,7 +1057,7 @@ class PypiExpansionService:
         # Ignore the exact path by which this package was referenced,
         # but do create a new environment if it changed.
         with open(package, 'rb') as fin:
-          return os.path.basename(package) + '-' + hashlib.file_digest(
+          return os.path.basename(package) + '-' + _file_digest(
               fin, 'sha256').hexdigest()
       else:
         # Assume urls and pypi identifiers are immutable.
@@ -1363,3 +1363,15 @@ def standard_providers():
       io_providers(),
       load_providers(
           os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
+
+
+def _file_digest(fileobj, digest):
+  if hasattr(hashlib, 'file_digest'):  # Python 3.11+
+    return hashlib.file_digest(fileobj, digest)
+  else:
+    hasher = hashlib.new(digest)
+    data = fileobj.read(1 << 20)
+    while data:
+      hasher.update(data)
+      data = fileobj.read(1 << 20)
+    return hasher

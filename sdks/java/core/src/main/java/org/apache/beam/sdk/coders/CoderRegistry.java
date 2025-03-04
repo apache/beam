@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
@@ -113,6 +114,8 @@ public class CoderRegistry {
           Instant.class, CoderProviders.fromStaticMethods(Instant.class, InstantCoder.class));
       builder.put(
           Integer.class, CoderProviders.fromStaticMethods(Integer.class, VarIntCoder.class));
+      builder.put(
+          Optional.class, CoderProviders.fromStaticMethods(Optional.class, OptionalCoder.class));
       builder.put(
           Iterable.class, CoderProviders.fromStaticMethods(Iterable.class, IterableCoder.class));
       builder.put(KV.class, CoderProviders.fromStaticMethods(KV.class, KvCoder.class));

@@ -95,8 +95,6 @@ jobs:
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5
-          HIGH_MEM_MACHINE: n1-highmem-16
-          HIGH_MEM_FLINK_PROPS: flink:taskmanager.memory.process.size=16g,flink:taskmanager.memory.flink.size=6g,flink:taskmanager.memory.jvm-overhead.max=10g,flink:jobmanager.memory.process.size=16g,flink:jobmanager.memory.jvm-overhead.max=10g,flink:jobmanager.memory.flink.size=6g,flink:restart-strategy=fixed-delay,flink:restart-strategy.fixed-delay.attempts=3,flink:restart-strategy.fixed-delay.delay=10s
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

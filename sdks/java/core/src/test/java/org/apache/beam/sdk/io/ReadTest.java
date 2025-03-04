@@ -179,12 +179,7 @@ public class ReadTest implements Serializable {
     // read is default.
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
-    // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn
-    // instance.
-    // We are not able to use DirectOptions because of circular dependency.
-    pipeline
-        .runWithAdditionalOptionArgs(ImmutableList.of("--targetParallelism=1"))
-        .waitUntilFinish();
+    pipeline.run().waitUntilFinish();
   }
 
   @Test

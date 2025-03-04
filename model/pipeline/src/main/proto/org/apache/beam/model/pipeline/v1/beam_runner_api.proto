@@ -722,19 +722,6 @@ message TestStreamPayload {
   }
 }
 
-service TestStreamService {
-  // A TestStream will request for events using this RPC.
-  rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
-}
-
-message EventsRequest {
-  // The set of PCollections to read from. These are the PTransform outputs
-  // local names. These are a subset of the TestStream's outputs. This allows
-  // Interactive Beam to cache many PCollections from a pipeline then replay a
-  // subset of them.
-  repeated string output_ids = 1;
-}
-
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
@@ -750,7 +737,7 @@ message WriteFilesPayload {
 
   map<string, SideInput> side_inputs = 5;
 
-  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding 
+  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding
   // is by the runner translator
   bool auto_sharded = 6;
 }
@@ -968,7 +955,7 @@ message StandardCoders {
     //         01 - on time
     //         10 - late
     //         11 - unknown
-    //     * bit 6 is 1 if this is the last pane, 0 otherwise. 
+    //     * bit 6 is 1 if this is the last pane, 0 otherwise.
     //         Commonly set with `byte |= 0x02`
     //     * bit 7 is 1 if this is the first pane, 0 otherwise.
     //         Commonly set with `byte |= 0x01`

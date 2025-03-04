@@ -53,8 +53,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250203'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250203'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250226'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250226'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -94,6 +94,7 @@ dependencies {
   // io-kafka is only used in PTransform override so it is optional
   provided project(":sdks:java:io:kafka")
   implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":runners:core-java")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.commons_codec
@@ -165,6 +166,7 @@ def legacyPipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
   "--workerHarnessContainerImage=",
+  "--experiments=enable_lineage"
 ]
 
 def runnerV2PipelineOptions = [
@@ -175,6 +177,7 @@ def runnerV2PipelineOptions = [
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--experiments=enable_lineage"
 ]
 
 def commonLegacyExcludeCategories = [
@@ -190,12 +193,12 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesParDoLifecycle', // doesn't support remote runner
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesBundleFinalizer',
+  'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics',
 ]
 
 def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesExternalService',
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-        'org.apache.beam.sdk.testing.UsesStringSetMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
         'org.apache.beam.sdk.testing.UsesMultimapState',
@@ -204,6 +207,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesTestStream',
         'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
         'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+        'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -842,7 +846,7 @@ def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDist
   }
   dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroess",
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
           root: "apache",
           tag: project.sdk_version)
   doLast {

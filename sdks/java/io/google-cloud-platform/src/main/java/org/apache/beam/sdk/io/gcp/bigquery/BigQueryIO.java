@@ -586,8 +586,14 @@ public class BigQueryIO {
   /** Regular expression that matches Dataset IDs. */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
 
-  /** Regular expression that matches Table IDs. */
-  private static final String TABLE_REGEXP = "[-\\w$@ ]{1,1024}";
+  /**
+   * Regular expression that matches BigQuery Table IDs. Supports Unicode characters in categories:
+   * - L (letter) - M (mark) - N (number) As well as: - Underscore (_) - Dash (-) - Dollar sign ($)
+   * - At sign (@) - Space
+   *
+   * <p>The pattern requires 1-1024 characters matching these categories.
+   */
+  private static final String TABLE_REGEXP = "[-_\\p{L}\\p{N}\\p{M}$@ ]{1,1024}";
 
   /**
    * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"} or
