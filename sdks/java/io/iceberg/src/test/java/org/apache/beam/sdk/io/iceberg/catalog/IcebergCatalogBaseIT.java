@@ -89,7 +89,9 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -121,6 +123,9 @@ import org.slf4j.LoggerFactory;
  * #numRecords()}.
  */
 public abstract class IcebergCatalogBaseIT implements Serializable {
+
+  protected long salt = System.nanoTime();
+
   public abstract Catalog createCatalog();
 
   public abstract Map<String, Object> managedIcebergConfig(String tableId);
@@ -137,23 +142,18 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return testName.getMethodName() + ".test_table";
   }
 
-  public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass) {
+  public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass, String random) {
     return String.format(
         "%s/%s/%s",
-        TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), RANDOM);
+        TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), random);
   }
 
   public String catalogName = "test_catalog_" + System.nanoTime();
 
   @Before
   public void setUp() throws Exception {
-    warehouse =
-        String.format(
-            "%s/%s/%s",
-            TestPipeline.testingPipelineOptions().getTempLocation(),
-            getClass().getSimpleName(),
-            RANDOM);
-    warehouse = warehouse(getClass());
+    salt = System.nanoTime();
+    catalogName = "test_catalog_" + System.nanoTime();
     catalogSetup();
     catalog = createCatalog();
   }
@@ -165,7 +165,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     } catch (Exception e) {
       LOG.warn("Catalog cleanup failed.", e);
     }
+  }
 
+  @BeforeClass
+  public static void createWarehouse() {
+    random = UUID.randomUUID().toString();
+    warehouse = warehouse(IcebergCatalogBaseIT.class, random);
+  }
+
+  @AfterClass
+  public static void cleanUpGCS() {
     try {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
@@ -175,7 +184,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           gcsUtil
               .listObjects(
                   path.getBucket(),
-                  getClass().getSimpleName() + "/" + path.getFileName().toString(),
+                  IcebergCatalogBaseIT.class.getSimpleName() + "/" + path.getFileName().toString(),
                   null)
               .getItems();
 
@@ -197,7 +206,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public Catalog catalog;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-  private static final String RANDOM = UUID.randomUUID().toString();
+  protected static String random = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
@@ -340,43 +349,53 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     org.apache.iceberg.Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
     List<Record> writtenRecords = new ArrayList<>();
-    CloseableIterable<CombinedScanTask> tasks = tableScan.planTasks();
-    for (CombinedScanTask task : tasks) {
-      InputFilesDecryptor decryptor;
-      try (FileIO io = table.io()) {
-        decryptor = new InputFilesDecryptor(task, io, table.encryption());
-      }
-      for (FileScanTask fileTask : task.files()) {
-        Map<Integer, ?> idToConstants =
-            constantsMap(fileTask, IdentityPartitionConverters::convertConstant, tableSchema);
-        InputFile inputFile = decryptor.getInputFile(fileTask);
-        CloseableIterable<Record> iterable =
-            Parquet.read(inputFile)
-                .split(fileTask.start(), fileTask.length())
-                .project(tableSchema)
-                .createReaderFunc(
-                    fileSchema ->
-                        GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
-                .filter(fileTask.residual())
-                .build();
 
-        for (Record rec : iterable) {
-          writtenRecords.add(rec);
+    try (CloseableIterable<CombinedScanTask> tasks = tableScan.planTasks();
+        FileIO io = table.io()) {
+
+      for (CombinedScanTask task : tasks) {
+        InputFilesDecryptor decryptor = new InputFilesDecryptor(task, io, table.encryption());
+
+        for (FileScanTask fileTask : task.files()) {
+          long startTime = System.currentTimeMillis();
+          LOG.info("Reading file: {}", fileTask.file().path());
+
+          Map<Integer, ?> idToConstants =
+              constantsMap(fileTask, IdentityPartitionConverters::convertConstant, tableSchema);
+          InputFile inputFile = decryptor.getInputFile(fileTask);
+
+          try (CloseableIterable<Record> iterable =
+              Parquet.read(inputFile)
+                  .split(fileTask.start(), fileTask.length())
+                  .project(tableSchema)
+                  .createReaderFunc(
+                      fileSchema ->
+                          GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
+                  .filter(fileTask.residual())
+                  .build()) {
+
+            for (Record rec : iterable) {
+              writtenRecords.add(rec);
+            }
+          }
+          LOG.info(
+              "Finished reading file: {} in {} ms",
+              fileTask.file().path(),
+              System.currentTimeMillis() - startTime);
         }
-        iterable.close();
       }
     }
-    tasks.close();
     return writtenRecords;
   }
 
   @Test
   public void testRead() throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    String tableId = tableId();
+    Table table = catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
 
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = managedIcebergConfig(tableId);
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
@@ -389,12 +408,13 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void testWrite() throws IOException {
     // Write with Beam
     // Expect the sink to create the table
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    String tableId = tableId();
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
-    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId));
     assertTrue(table.schema().sameSchema(ICEBERG_SCHEMA));
 
     // Read back and check records are correct
@@ -404,7 +424,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWriteToPartitionedTable() throws IOException {
+  public void testWriteToPartitionedTable() throws Exception {
     // For an example row where bool=true, modulo_5=3, str=value_303,
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
@@ -413,11 +433,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
             .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
+    String tableId = tableId();
     Table table =
-        catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
+        catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
+    LOG.info("TABLE CREATED: {}", tableId);
+    verifyTableExists(TableIdentifier.parse(tableId));
 
     // Write with Beam
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
@@ -435,14 +458,17 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingWrite() throws IOException {
+  public void testStreamingWrite() throws Exception {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
+    String tableId = tableId();
     Table table =
-        catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
+        catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
+    LOG.info("TABLE CREATED: {}", tableId);
+    verifyTableExists(TableIdentifier.parse(tableId));
 
-    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId));
     config.put("triggering_frequency_seconds", 4);
 
     // create elements from longs in range [0, 1000)
@@ -465,14 +491,17 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingWriteWithPriorWindowing() throws IOException {
+  public void testStreamingWriteWithPriorWindowing() throws Exception {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
+    String tableId = tableId();
     Table table =
-        catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
+        catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
+    LOG.info("TABLE CREATED: {}", tableId);
+    verifyTableExists(TableIdentifier.parse(tableId));
 
-    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId));
     config.put("triggering_frequency_seconds", 4);
 
     // over a span of 10 seconds, create elements from longs in range [0, 1000)
@@ -497,9 +526,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  private void writeToDynamicDestinations(@Nullable String filterOp) throws IOException {
+  private void writeToDynamicDestinations(@Nullable String filterOp) throws Exception {
     writeToDynamicDestinations(filterOp, false, false);
   }
+
+  public abstract void verifyTableExists(TableIdentifier tableIdentifier) throws Exception;
 
   /**
    * @param filterOp if null, just perform a normal dynamic destination write test; otherwise,
@@ -507,9 +538,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
    *     and "only"
    */
   private void writeToDynamicDestinations(
-      @Nullable String filterOp, boolean streaming, boolean partitioning) throws IOException {
+      @Nullable String filterOp, boolean streaming, boolean partitioning) throws Exception {
     int numRecords = numRecords();
-    String tableIdentifierTemplate = tableId() + "_{modulo_5}_{char}";
+    String tableId = tableId();
+    String tableIdentifierTemplate = tableId + "_{modulo_5}_{char}";
     Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(tableIdentifierTemplate));
 
     List<String> fieldsToFilter = Arrays.asList("row", "str", "int", "nullable_long");
@@ -537,11 +569,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     org.apache.iceberg.Schema tableSchema =
         IcebergUtils.beamSchemaToIcebergSchema(rowFilter.outputSchema());
 
-    TableIdentifier tableIdentifier0 = TableIdentifier.parse(tableId() + "_0_a");
-    TableIdentifier tableIdentifier1 = TableIdentifier.parse(tableId() + "_1_b");
-    TableIdentifier tableIdentifier2 = TableIdentifier.parse(tableId() + "_2_c");
-    TableIdentifier tableIdentifier3 = TableIdentifier.parse(tableId() + "_3_d");
-    TableIdentifier tableIdentifier4 = TableIdentifier.parse(tableId() + "_4_e");
+    TableIdentifier tableIdentifier0 = TableIdentifier.parse(tableId + "_0_a");
+    TableIdentifier tableIdentifier1 = TableIdentifier.parse(tableId + "_1_b");
+    TableIdentifier tableIdentifier2 = TableIdentifier.parse(tableId + "_2_c");
+    TableIdentifier tableIdentifier3 = TableIdentifier.parse(tableId + "_3_d");
+    TableIdentifier tableIdentifier4 = TableIdentifier.parse(tableId + "_4_e");
     // the sink doesn't support creating partitioned tables yet,
     // so we need to create it manually for this test case
     if (partitioning) {
@@ -549,10 +581,20 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       PartitionSpec partitionSpec =
           PartitionSpec.builderFor(tableSchema).identity("bool").identity("modulo_5").build();
       catalog.createTable(tableIdentifier0, tableSchema, partitionSpec);
+      LOG.info("TABLE 0 CREATED");
+      verifyTableExists(tableIdentifier0);
       catalog.createTable(tableIdentifier1, tableSchema, partitionSpec);
+      LOG.info("TABLE 1 CREATED");
+      verifyTableExists(tableIdentifier1);
       catalog.createTable(tableIdentifier2, tableSchema, partitionSpec);
+      LOG.info("TABLE 2 CREATED");
+      verifyTableExists(tableIdentifier2);
       catalog.createTable(tableIdentifier3, tableSchema, partitionSpec);
+      LOG.info("TABLE 3 CREATED");
+      verifyTableExists(tableIdentifier3);
       catalog.createTable(tableIdentifier4, tableSchema, partitionSpec);
+      LOG.info("TABLE 4 CREATED");
+      verifyTableExists(tableIdentifier4);
     }
 
     // Write with Beam
@@ -608,27 +650,27 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testWriteToDynamicDestinations() throws IOException {
+  public void testWriteToDynamicDestinations() throws Exception {
     writeToDynamicDestinations(null);
   }
 
   @Test
-  public void testWriteToDynamicDestinationsAndDropFields() throws IOException {
+  public void testWriteToDynamicDestinationsAndDropFields() throws Exception {
     writeToDynamicDestinations("drop");
   }
 
   @Test
-  public void testWriteToDynamicDestinationsWithOnlyRecord() throws IOException {
+  public void testWriteToDynamicDestinationsWithOnlyRecord() throws Exception {
     writeToDynamicDestinations("only");
   }
 
   @Test
-  public void testStreamToDynamicDestinationsAndKeepFields() throws IOException {
+  public void testStreamToDynamicDestinationsAndKeepFields() throws Exception {
     writeToDynamicDestinations("keep", true, false);
   }
 
   @Test
-  public void testStreamToPartitionedDynamicDestinations() throws IOException {
+  public void testStreamToPartitionedDynamicDestinations() throws Exception {
     writeToDynamicDestinations(null, true, true);
   }
 }

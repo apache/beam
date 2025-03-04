@@ -60,6 +60,7 @@ class BeamDockerPlugin implements Plugin<Project> {
     boolean push = false
     String builder = null
     String target = null
+    String output = null
 
     File resolvedDockerfile = null
     File resolvedDockerComposeTemplate = null
@@ -232,6 +233,9 @@ class BeamDockerPlugin implements Plugin<Project> {
       }
       if (ext.load) {
         buildCommandLine.add '--load'
+      }
+      if (ext.output != null) {
+        buildCommandLine.addAll('--output', ext.output)
       }
       if (ext.push) {
         buildCommandLine.add '--push'

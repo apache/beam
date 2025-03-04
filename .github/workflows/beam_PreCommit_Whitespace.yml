@@ -16,17 +16,17 @@
 name: PreCommit Whitespace
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ['**.md', '**.gradle', '**.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths: ['**.md', '**.gradle', '**.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Whitespace.json']
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '15 3/6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths: ['**.md', '**.gradle', '**.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths: ['**.md', '**.gradle', '**.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Whitespace.json']
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#    - cron: '15 3/6 * * *'
   workflow_dispatch:
 
 permissions:
