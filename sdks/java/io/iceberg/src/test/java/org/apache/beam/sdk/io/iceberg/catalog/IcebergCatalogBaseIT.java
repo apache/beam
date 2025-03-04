@@ -248,7 +248,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   private static final SimpleFunction<Long, Row> ROW_FUNC =
       new SimpleFunction<Long, Row>() {
-        final long OFFSET_2025_MILLIS =
+        final long offset2025Millis =
             LocalDate.parse("2025-01-01").toDateTime(LocalTime.MIDNIGHT).getMillis();
 
         @Override
@@ -266,7 +266,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                   .addValue(Float.valueOf(strNum + "." + strNum))
                   .build();
 
-          long timestampMillis = OFFSET_2025_MILLIS + TimeUnit.MICROSECONDS.toHours(num);
+          long timestampMillis = offset2025Millis + TimeUnit.MICROSECONDS.toHours(num);
           return Row.withSchema(BEAM_SCHEMA)
               .addValue("value_" + strNum)
               .addValue(String.valueOf((char) (97 + num % 5)))

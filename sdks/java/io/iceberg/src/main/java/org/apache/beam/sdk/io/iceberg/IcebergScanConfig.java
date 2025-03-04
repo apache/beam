@@ -58,7 +58,7 @@ public abstract class IcebergScanConfig implements Serializable {
     BATCH
   }
 
-  private final Set<Type> WATERMARK_COLUMN_TYPES =
+  private static final Set<Type> WATERMARK_COLUMN_TYPES =
       ImmutableSet.of(
           Types.LongType.get(), Types.TimestampType.withoutZone(), Types.TimestampType.withZone());
 
