@@ -62,6 +62,13 @@ Available transforms are:
 
 **Note:** Today, all managed transforms are essentially cross-language
 transforms, and Java's ManagedSchemaTransform is used under the hood.
+
+Runner specific features
+========================
+Google Cloud Dataflow supports additional management features for `managed`
+including automatically upgrading transforms to the latest supported version.
+For more details and examples, please see
+Dataflow managed I/O https://cloud.google.com/dataflow/docs/guides/managed-io.
 """
 
 from typing import Any
