@@ -80,10 +80,10 @@ public class DependentTransformsVisitorTest {
     TransformTranslator.Translator translator = new TransformTranslator.Translator();
     pipeline.traverseTopologically(new DependentTransformsVisitor(translator, ctxt));
 
-    assertEquals(2, ctxt.getDependentTransforms().get(pCollection).intValue());
-    assertEquals(0, ctxt.getDependentTransforms().get(leaf1).intValue());
-    assertEquals(0, ctxt.getDependentTransforms().get(leaf2).intValue());
-    assertEquals(2, ctxt.getDependentTransforms().get(view.getPCollection()).intValue());
+    assertEquals(2, ctxt.getPCollectionConsumptionMap().get(pCollection).intValue());
+    assertEquals(0, ctxt.getPCollectionConsumptionMap().get(leaf1).intValue());
+    assertEquals(0, ctxt.getPCollectionConsumptionMap().get(leaf2).intValue());
+    assertEquals(2, ctxt.getPCollectionConsumptionMap().get(view.getPCollection()).intValue());
   }
 
   @Test
@@ -134,8 +134,10 @@ public class DependentTransformsVisitorTest {
     TransformTranslator.Translator translator = new TransformTranslator.Translator();
     pipeline.traverseTopologically(new DependentTransformsVisitor(translator, ctxt));
 
-    assertEquals(1, ctxt.getDependentTransforms().get(result.get(passOutTag)).intValue());
-    assertEquals(1, ctxt.getDependentTransforms().get(result.get(wordCountOutTag)).intValue());
-    assertEquals(0, ctxt.getDependentTransforms().get(result.get(lettersCountOutTag)).intValue());
+    assertEquals(1, ctxt.getPCollectionConsumptionMap().get(result.get(passOutTag)).intValue());
+    assertEquals(
+        1, ctxt.getPCollectionConsumptionMap().get(result.get(wordCountOutTag)).intValue());
+    assertEquals(
+        0, ctxt.getPCollectionConsumptionMap().get(result.get(lettersCountOutTag)).intValue());
   }
 }

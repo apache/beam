@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -325,6 +326,15 @@ public class EvaluationContext {
    */
   public void reportPCollectionProduced(PCollection<?> pCollection) {
     this.pCollectionConsumptionMap.computeIfAbsent(pCollection, k -> 0);
+  }
+
+  /**
+   * Get the map of {@link PCollection} to the number of {@link PTransform} consuming it.
+   *
+   * @return
+   */
+  public Map<PCollection<?>, Integer> getPCollectionConsumptionMap() {
+    return Collections.unmodifiableMap(pCollectionConsumptionMap);
   }
 
   /**
