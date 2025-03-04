@@ -687,6 +687,21 @@ class TestBigQueryWrapper(unittest.TestCase):
     # Should only make one API call despite concurrent access
     self.assertEqual(client.tables.Get.call_count, 1)
 
+  def test_temp_dataset_creation(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Test with no temp_dataset_id provided
+    self.assertEqual(
+        wrapper.temp_dataset_id,
+        wrapper._get_temp_dataset())  # Should use _get_temp_dataset
+    
+    # Test with provided temp_dataset_id
+    custom_dataset = "my_temp_dataset"
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(
+        client, temp_dataset_id=custom_dataset)
+    self.assertEqual(wrapper.temp_dataset_id, custom_dataset)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestRowAsDictJsonCoder(unittest.TestCase):

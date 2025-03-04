@@ -388,8 +388,8 @@ class BigQueryWrapper(object):
     else:
       self.temp_table_ref = None
       self._temporary_table_suffix = uuid.uuid4().hex
-      self.temp_dataset_id = temp_dataset_id or (BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix)
-      
+      self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
+
     # Initialize table definition cache with default TTL of 1 hour
     # Cache entries are invalidated after TTL expires to ensure fresh metadata
     self._table_cache = {}
@@ -440,6 +440,60 @@ class BigQueryWrapper(object):
     if self.temp_table_ref:
       return self.temp_table_ref.datasetId
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
+
+  def get_query_location(self, project_id, query, use_legacy_sql):
+    """
+    Get the location of tables referenced in a query.
+
+    This method returns the location of the first available referenced
+    table for user in the query and depends on the BigQuery service to
+    provide error handling for queries that reference tables in multiple
+    locations.
+    """
+    reference = bigquery.JobReference(
+        jobId=uuid.uuid4().hex, projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                dryRun=True,
+                query=bigquery.JobConfigurationQuery(
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                )),
+            jobReference=reference))
+
+    response = self.client.jobs.Insert(request)
+
+    if response.statistics is None:
+      # This behavior is only expected in tests
+      _LOGGER.warning(
+          "Unable to get location, missing response.statistics. Query: %s",
+          query)
+      return None
+
+    referenced_tables = response.statistics.query.referencedTables
+    if referenced_tables:  # Guards against both non-empty and non-None
+      for table in referenced_tables:
+        try:
+          location = self.get_table_location(
+              table.projectId, table.datasetId, table.tableId)
+        except HttpForbiddenError:
+          # Permission access for table (i.e. from authorized_view),
+          # try next one
+          continue
+        _LOGGER.info(
+            "Using location %r from table %r referenced by query %s",
+            location,
+            table,
+            query)
+        return location
+
+    _LOGGER.debug(
+        "Query %s does not reference any tables or "
+        "you don't have permission to inspect them.",
+        query)
+    return None
 
   def get_table(self, project_id, dataset_id, table_id):
     """Lookup a table's metadata object.
@@ -1379,63 +1433,6 @@ class BigQueryWrapper(object):
         additional_http_headers={
             "user-agent": "apache-beam-%s" % apache_beam.__version__
         })
-
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def get_query_location(self, project_id, query, use_legacy_sql):
-    """
-    Get the location of tables referenced in a query.
-
-    This method returns the location of the first available referenced
-    table for user in the query and depends on the BigQuery service to
-    provide error handling for queries that reference tables in multiple
-    locations.
-    """
-    reference = bigquery.JobReference(
-        jobId=uuid.uuid4().hex, projectId=project_id)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                dryRun=True,
-                query=bigquery.JobConfigurationQuery(
-                    query=query,
-                    useLegacySql=use_legacy_sql,
-                )),
-            jobReference=reference))
-
-    response = self.client.jobs.Insert(request)
-
-    if response.statistics is None:
-      # This behavior is only expected in tests
-      _LOGGER.warning(
-          "Unable to get location, missing response.statistics. Query: %s",
-          query)
-      return None
-
-    referenced_tables = response.statistics.query.referencedTables
-    if referenced_tables:  # Guards against both non-empty and non-None
-      for table in referenced_tables:
-        try:
-          location = self.get_table_location(
-              table.projectId, table.datasetId, table.tableId)
-        except HttpForbiddenError:
-          # Permission access for table (i.e. from authorized_view),
-          # try next one
-          continue
-        _LOGGER.info(
-            "Using location %r from table %r referenced by query %s",
-            location,
-            table,
-            query)
-        return location
-
-    _LOGGER.debug(
-        "Query %s does not reference any tables or "
-        "you don't have permission to inspect them.",
-        query)
-    return None
 
 
 class RowAsDictJsonCoder(coders.Coder):
