@@ -836,6 +836,8 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_core                                 : "org.apache.logging.log4j:log4j-core:$log4j2_version",
         log4j2_to_slf4j                             : "org.apache.logging.log4j:log4j-to-slf4j:$log4j2_version",
         log4j2_slf4j_impl                           : "org.apache.logging.log4j:log4j-slf4j-impl:$log4j2_version",
+        log4j2_slf4j2_impl                          : "org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2_version",
+        log4j2_log4j12_api                          : "org.apache.logging.log4j:log4j-1.2-api:$log4j2_version",
         mockito_core                                : "org.mockito:mockito-core:4.11.0",
         mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
