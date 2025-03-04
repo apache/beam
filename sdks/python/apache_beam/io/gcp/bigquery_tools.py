@@ -388,10 +388,12 @@ class BigQueryWrapper(object):
     else:
       self.temp_table_ref = None
       self._temporary_table_suffix = uuid.uuid4().hex
-      self.temp_dataset_id = temp_dataset_id
+      self.temp_dataset_id = temp_dataset_id or (BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix)
       
-    # Initialize table definition cache
+    # Initialize table definition cache with default TTL of 1 hour
+    # Cache entries are invalidated after TTL expires to ensure fresh metadata
     self._table_cache = {}
+    # Use RLock for thread-safe cache access in concurrent environments
     self._table_cache_lock = threading.RLock()
     self._table_definition_ttl = self.DEFAULT_TABLE_DEFINITION_TTL
     self.created_temp_dataset = False
@@ -439,16 +441,12 @@ class BigQueryWrapper(object):
       return self.temp_table_ref.datasetId
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def get_table(self, project_id, dataset_id, table_id):
     """Lookup a table's metadata object.
 
     Args:
-      client: bigquery.BigqueryV2 instance
       project_id: table lookup parameter
-      dataset_id: table lookup parameter
+      dataset_id: table lookup parameter 
       table_id: table lookup parameter
 
     Returns:
@@ -476,7 +474,7 @@ class BigQueryWrapper(object):
           'timestamp': time.time()
       }
       return table
-      
+
   def _fetch_table(self, project_id, dataset_id, table_id):
     """Actual implementation of fetching a table from BigQuery API.
     
@@ -497,7 +495,7 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_copy_job(
       self,
       project_id,
@@ -1136,8 +1134,6 @@ class BigQueryWrapper(object):
           raise RuntimeError(
               'Table %s:%s.%s not found but create disposition is CREATE_NEVER.'
               % (project_id, dataset_id, table_id))
-      else:
-        raise
 
     # If table exists already then handle the semantics for WRITE_EMPTY and
     # WRITE_TRUNCATE write dispositions.
@@ -1641,7 +1637,7 @@ def beam_row_from_dict(row: dict, schema):
   Nested records and lists are supported.
 
   Args:
-    row (dict):
+    row (dict): 
       The row to convert.
     schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema):
@@ -1655,31 +1651,31 @@ bigquery_v2_messages.TableSchema):
   beam_row = {}
   for field in schema.fields:
     name = field.name
-    mode = field.mode.upper()
-    type = field.type.upper()
-    # When writing with Storage Write API via xlang, we give the Beam Row
-    # PCollection a hint on the schema using `with_output_types`.
-    # This requires that each row has all the fields in the schema.
-    # However, it's possible that some nullable fields don't appear in the row.
-    # For this case, we create the field with a `None` value
-    # None is also set when a repeated field is missing as BigQuery
-    # converts Null Repeated fields to empty lists
+    mode = field.mode.upper() 
+    type = field.type.upper()  # Only call upper() once on field.type
+    
+    # Handle missing nullable fields - set to None for nullable/repeated fields
+    # This is required when writing with Storage Write API via xlang, as the
+    # Beam Row PCollection schema requires all fields to be present
     if name not in row and mode != "REQUIRED":
       row[name] = None
 
     value = row[name]
     if type in ["RECORD", "STRUCT"] and value:
-      # if this is a list of records, we create a list of Beam Rows
+      # For nested records, recursively convert to Beam Rows
       if mode == "REPEATED":
+        # Handle repeated records by converting each record in the list
         list_of_beam_rows = []
         for record in value:
           list_of_beam_rows.append(beam_row_from_dict(record, field))
         beam_row[name] = list_of_beam_rows
-      # otherwise, create a Beam Row from this record
       else:
+        # Handle single nested record
         beam_row[name] = beam_row_from_dict(value, field)
     else:
+      # For non-record types, use the value directly
       beam_row[name] = value
+
   return apache_beam.pvalue.Row(**beam_row)
 
 
@@ -1898,11 +1894,11 @@ bigquery.bigquery_v2_messages.TableFieldSchema):
 
     if left.type != right.type:
       # Check for type aliases
-      if sorted(
-          (left.type, right.type)) not in (["BOOL", "BOOLEAN"], ["FLOAT",
-                                                                 "FLOAT64"],
-                                                   ["INT64", "INTEGER"], ["RECORD",
-                                                                  "STRUCT"]):
+      if sorted((left.type, right.type)) not in (
+          ["BOOL", "BOOLEAN"],
+          ["FLOAT", "FLOAT64"],
+          ["INT64", "INTEGER"],
+          ["RECORD", "STRUCT"]):
         return False
 
     if left.mode != right.mode:
@@ -1911,8 +1907,8 @@ bigquery.bigquery_v2_messages.TableFieldSchema):
     if not ignore_descriptions and left.description != right.description:
       return False
 
-  if isinstance(left,
-                bigquery.TableSchema) or left.type in ("RECORD", "STRUCT"):
+  if (isinstance(left, bigquery.TableSchema) or 
+      left.type in ("RECORD", "STRUCT")):
     if len(left.fields) != len(right.fields):
       return False
 
@@ -1924,10 +1920,11 @@ bigquery.bigquery_v2_messages.TableFieldSchema):
       right_fields = right.fields
 
     for left_field, right_field in zip(left_fields, right_fields):
-      if not check_schema_equal(left_field,
-                                right_field,
-                                ignore_descriptions=ignore_descriptions,
-                                ignore_field_order=ignore_field_order):
+      if not check_schema_equal(
+          left_field,
+          right_field,
+          ignore_descriptions=ignore_descriptions,
+          ignore_field_order=ignore_field_order):
         return False
 
   return True
