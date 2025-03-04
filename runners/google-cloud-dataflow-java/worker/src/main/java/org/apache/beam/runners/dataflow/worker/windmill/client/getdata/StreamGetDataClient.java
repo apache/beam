@@ -21,7 +21,9 @@ import java.io.PrintWriter;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.sdk.annotations.Internal;
 
@@ -29,25 +31,25 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 public final class StreamGetDataClient implements GetDataClient {
 
-  private final GetDataStream getDataStream;
-  private final Function<String, GetDataStream> sideInputGetDataStreamFactory;
+  private final WindmillStreamPool<GetDataStream> getStateDataStreamPool;
+  private final Function<String, WindmillStreamPool<GetDataStream>> getSideInputDataStreamPool;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
 
   private StreamGetDataClient(
-      GetDataStream getDataStream,
-      Function<String, GetDataStream> sideInputGetDataStreamFactory,
+      WindmillStreamPool<GetDataStream> getStateDataStreamPool,
+      Function<String, WindmillStreamPool<GetDataStream>> getSideInputDataStreamPool,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    this.getDataStream = getDataStream;
-    this.sideInputGetDataStreamFactory = sideInputGetDataStreamFactory;
+    this.getStateDataStreamPool = getStateDataStreamPool;
+    this.getSideInputDataStreamPool = getSideInputDataStreamPool;
     this.getDataMetricTracker = getDataMetricTracker;
   }
 
   public static GetDataClient create(
-      GetDataStream getDataStream,
-      Function<String, GetDataStream> sideInputGetDataStreamFactory,
+      WindmillStreamPool<GetDataStream> getStateDataStreamPool,
+      Function<String, WindmillStreamPool<GetDataStream>> getSideInputDataStreamPool,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
     return new StreamGetDataClient(
-        getDataStream, sideInputGetDataStreamFactory, getDataMetricTracker);
+        getStateDataStreamPool, getSideInputDataStreamPool, getDataMetricTracker);
   }
 
   /**
@@ -59,8 +61,10 @@ public final class StreamGetDataClient implements GetDataClient {
   @Override
   public Windmill.KeyedGetDataResponse getStateData(
       String computationId, Windmill.KeyedGetDataRequest request) throws GetDataException {
-    try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling()) {
-      return getDataStream.requestKeyedData(computationId, request);
+    try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling();
+        CloseableStream<GetDataStream> closeableStream =
+            getStateDataStreamPool.getCloseableStream()) {
+      return closeableStream.stream().requestKeyedData(computationId, request);
     } catch (WindmillStreamShutdownException e) {
       throw new WorkItemCancelledException(request.getShardingKey());
     } catch (Exception e) {
@@ -82,10 +86,12 @@ public final class StreamGetDataClient implements GetDataClient {
   @Override
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request)
       throws GetDataException {
-    GetDataStream sideInputGetDataStream =
-        sideInputGetDataStreamFactory.apply(request.getDataId().getTag());
-    try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling()) {
-      return sideInputGetDataStream.requestGlobalData(request);
+    WindmillStreamPool<GetDataStream> sideInputGetDataStreamPool =
+        getSideInputDataStreamPool.apply(request.getDataId().getTag());
+    try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling();
+        CloseableStream<GetDataStream> closeableStream =
+            sideInputGetDataStreamPool.getCloseableStream()) {
+      return closeableStream.stream().requestGlobalData(request);
     } catch (WindmillStreamShutdownException e) {
       throw new WorkItemCancelledException(e);
     } catch (Exception e) {
