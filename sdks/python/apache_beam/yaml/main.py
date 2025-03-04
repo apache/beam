@@ -93,6 +93,23 @@ def _parse_arguments(argv):
   return parser.parse_known_args(argv)
 
 
+def _parse_overrides_arguments(argv):
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--pipeline_schema_yaml_file',
+      default=None,
+      help='The YAML file contains definitions for pipeline schema.')
+  parser.add_argument(
+      '--standard_io_yaml_file',
+      default=None,
+      help='The YAML file contains definitions for stanard I/O providers.')
+  parser.add_argument(
+      '--standard_providers_yaml_file',
+      default=None,
+      help='The YAML file contains definitions for other standard providers.')
+  return parser.parse_known_args(argv)
+
+
 def _pipeline_spec_from_args(known_args):
   if known_args.yaml_pipeline_file and known_args.yaml_pipeline:
     raise ValueError(
@@ -124,6 +141,7 @@ def _fix_xlang_instant_coding():
 def run(argv=None):
   argv = _preparse_jinja_flags(argv)
   known_args, pipeline_args = _parse_arguments(argv)
+  overrides_args, pipeline_args = _parse_overrides_arguments(pipeline_args)
   pipeline_template = _pipeline_spec_from_args(known_args)
   pipeline_yaml = yaml_transform.expand_jinja(
       pipeline_template, known_args.jinja_variables or {})
@@ -151,7 +169,8 @@ def run(argv=None):
           p,
           pipeline_spec,
           validate_schema=known_args.json_schema_validation,
-          pipeline_path=known_args.yaml_pipeline_file)
+          pipeline_path=known_args.yaml_pipeline_file,
+          pipeline_overrides=vars(overrides_args))  # convert Namespace to dict.
       print("Running pipeline...")
 
 

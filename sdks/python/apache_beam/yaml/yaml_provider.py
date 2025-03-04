@@ -1348,11 +1348,22 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
   return result
 
 
-def standard_providers():
+def standard_providers(overrides=None):
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+
+  if overrides and overrides.get('standard_io_yaml_file'):
+    standard_io_providers = load_providers(overrides['standard_io_yaml_file'])
+  else:
+    standard_io_providers = io_providers()
+  if overrides and overrides.get('standard_providers_yaml_file'):
+    other_standard_providers = load_providers(
+        overrides['standard_providers_yaml_file'])
+  else:
+    other_standard_providers = load_providers(
+        os.path.join(os.path.dirname(__file__), 'standard_providers.yaml'))
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
@@ -1360,9 +1371,8 @@ def standard_providers():
       create_mapping_providers(),
       create_combine_providers(),
       create_join_providers(),
-      io_providers(),
-      load_providers(
-          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
+      standard_io_providers,
+      other_standard_providers)
 
 
 def _file_digest(fileobj, digest):

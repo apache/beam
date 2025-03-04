@@ -52,9 +52,8 @@ except ImportError:
 
 
 @functools.lru_cache
-def pipeline_schema(strictness):
-  with open(os.path.join(os.path.dirname(__file__),
-                         'pipeline.schema.yaml')) as yaml_file:
+def pipeline_schema(schema_file, strictness):
+  with open(schema_file) as yaml_file:
     pipeline_schema = yaml.safe_load(yaml_file)
   if strictness == 'per_transform':
     transform_schemas_path = os.path.join(
@@ -80,9 +79,15 @@ def _closest_line(o, path):
   return best_line
 
 
-def validate_against_schema(pipeline, strictness):
+def validate_against_schema(pipeline, strictness, pipeline_overrides=None):
   try:
-    jsonschema.validate(pipeline, pipeline_schema(strictness))
+    if pipeline_overrides and pipeline_overrides.get(
+        'pipeline_schema_yaml_file'):
+      schema_file = pipeline_overrides['pipeline_schema_yaml_file']
+    else:
+      schema_file = os.path.join(
+          os.path.dirname(__file__), 'pipeline.schema.yaml')
+    jsonschema.validate(pipeline, pipeline_schema(schema_file, strictness))
   except jsonschema.ValidationError as exn:
     exn.message += f" around line {_closest_line(pipeline, exn.path)}"
     raise exn
@@ -1009,7 +1014,7 @@ def expand_jinja(
 
 
 class YamlTransform(beam.PTransform):
-  def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
+  def __init__(self, spec, providers={}, pipeline_overrides=None):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
     if isinstance(providers, dict):
@@ -1019,7 +1024,7 @@ class YamlTransform(beam.PTransform):
       }
     # TODO(BEAM-26941): Validate as a transform.
     self._providers = yaml_provider.merge_providers(
-        providers, yaml_provider.standard_providers())
+        providers, yaml_provider.standard_providers(pipeline_overrides))
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
     self._was_chain = spec['type'] == 'chain'
 
@@ -1074,17 +1079,19 @@ def expand_pipeline(
     pipeline_spec,
     providers=None,
     validate_schema='generic' if jsonschema is not None else None,
-    pipeline_path=''):
+    pipeline_path='',
+    pipeline_overrides=None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
   # this could certainly be handy as a first pass when Beam is not available.
   if validate_schema and validate_schema != 'none':
-    validate_against_schema(pipeline_spec, validate_schema)
+    validate_against_schema(pipeline_spec, validate_schema, pipeline_overrides)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
       yaml_provider.merge_providers(
           yaml_provider.parse_providers(
               pipeline_path, pipeline_spec.get('providers', [])),
-          providers or {})).expand(beam.pvalue.PBegin(pipeline))
+          providers or {}),
+      pipeline_overrides).expand(beam.pvalue.PBegin(pipeline))
