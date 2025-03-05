@@ -262,7 +262,7 @@ public class UnboundedReadFromBoundedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<?> splits = unboundedCountingSource.split(100, options);
     assertEquals(1, splits.size());
-    assertNotEquals(splits.get(0), unboundedCountingSource);
+    assertEquals(splits.get(0), unboundedCountingSource);
   }
 
   @Test
@@ -272,7 +272,7 @@ public class UnboundedReadFromBoundedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<?> splits = unboundedCountingSource.split(100, options);
     assertEquals(1, splits.size());
-    assertNotEquals(splits.get(0), unboundedCountingSource);
+    assertEquals(splits.get(0), unboundedCountingSource);
   }
 
   @Test
