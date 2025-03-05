@@ -893,7 +893,9 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp'
     ])
-    pipeline_options.view_as(GoogleCloudOptions).labels = { "name": "wrench", "mass": "1_3kg", "count": "3" }
+    pipeline_options.view_as(GoogleCloudOptions).labels = {
+        "name": "wrench", "mass": "1_3kg", "count": "3"
+    }
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertEqual(3, len(job.proto.labels.additionalProperties))
     self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
@@ -911,7 +913,9 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp'
     ])
-    pipeline_options.view_as(GoogleCloudOptions).labels = '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
+    pipeline_options.view_as(
+        GoogleCloudOptions
+    ).labels = '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertEqual(3, len(job.proto.labels.additionalProperties))
     self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
