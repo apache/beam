@@ -447,6 +447,8 @@ class Job(object):
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
       labels = self.google_cloud_options.labels
+      if isinstance(labels, str):
+        labels = [labels]
       for label in labels:
         if '{' in label:
           label = ast.literal_eval(label)
