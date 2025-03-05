@@ -84,7 +84,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
-                .metricsConfig(metricsConfig) // Pass the MetricsConfig
+                .metricsConfig(metricsConfig)
                 .overwrite()
                 .build();
         break;
@@ -95,7 +95,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
-                .metricsConfig(metricsConfig) // Pass the MetricsConfig
+                .metricsConfig(metricsConfig)
                 .overwrite()
                 .build();
         break;
