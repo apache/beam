@@ -186,7 +186,7 @@ public final class KafkaIOUtils {
    * Sanity of visibility is only useful when the writer thread changes since avg is the only field that can be shared between multiple concurrent threads.
    */
   @SuppressFBWarnings("UUF_UNUSED_FIELD")
-  static class MovingAvg extends MovingAvgFields {
+  public static final class MovingAvg extends MovingAvgFields {
     byte p100, p101, p102, p103, p104, p105, p106, p107;
     byte p110, p111, p112, p113, p114, p115, p116, p117;
     byte p120, p121, p122, p123, p124, p125, p126, p127;
@@ -194,7 +194,7 @@ public final class KafkaIOUtils {
     byte p140, p141, p142, p143, p144, p145, p146, p147;
     byte p150, p151, p152, p153, p154, p155, p156, p157;
 
-    void update(final double quantity) {
+    public void update(final double quantity) {
       final double prevAvg = getAvg(); // volatile load (acquire)
 
       final long nextNumUpdates = incrementAndGetNumUpdates(); // normal load/store
@@ -203,7 +203,7 @@ public final class KafkaIOUtils {
       setAvg(nextAvg); // ordered store (release)
     }
 
-    double get() {
+    public double get() {
       return getAvg(); // volatile load (acquire)
     }
   }
