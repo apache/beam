@@ -123,9 +123,7 @@ class ConflictResolution:
 
     conflict_fields = ([self.on_conflict_fields] if isinstance(
         self.on_conflict_fields, str) else self.on_conflict_fields)
-    self.conflict_resolution.update_fields = [
-        col for col in columns if col not in conflict_fields
-    ]
+    self.update_fields = [col for col in columns if col not in conflict_fields]
 
   def get_conflict_clause(self) -> str:
     """Get conflict clause with update fields."""
@@ -708,4 +706,11 @@ class _WriteToAlloyDBVectorDatabase(beam.PTransform):
             jdbc_url=self.config.connection_config.jdbc_url,
             username=self.config.connection_config.username,
             password=self.config.connection_config.password,
-            statement=self.config.query_builder.build_insert()))
+            statement=self.config.query_builder.build_insert(),
+            connection_properties=self.config.connection_config.
+            connection_properties,
+            connection_init_sqls=self.config.connection_config.
+            connection_init_sqls,
+            autosharding=self.config.connection_config.autosharding,
+            max_connections=self.config.connection_config.max_connections,
+            write_batch_size=self.config.connection_config.write_batch_size))

@@ -220,6 +220,13 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
     // Force paranamer 2.8 to avoid issues when using Scala 2.12
     "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
+    if ("$spark_version" >= "3.5.0") {
+      // Add log4j 2.x dependencies as Spark 3.5+ uses slf4j with log4j 2.x backend
+      "hadoopVersion$kv.key" library.java.log4j2_api
+      "hadoopVersion$kv.key" library.java.log4j2_core
+      "hadoopVersion$kv.key" library.java.log4j2_slf4j2_impl
+      "hadoopVersion$kv.key" library.java.log4j2_log4j12_api
+    }
   }
 }
 
@@ -238,12 +245,21 @@ configurations.all {
 configurations.validatesRunner {
   // Exclude to make sure log4j binding is used
   exclude group: "org.slf4j", module: "slf4j-simple"
+
+  if ("$spark_version" >= "3.5.0") {
+    // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
+    exclude group: "log4j", module: "log4j"
+  }
 }
 
 hadoopVersions.each { kv ->
   configurations."hadoopVersion$kv.key" {
     resolutionStrategy {
       force "org.apache.hadoop:hadoop-common:$kv.value"
+    }
+    if ("$spark_version" >= "3.5.0") {
+      // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
+      exclude group: "log4j", module: "log4j"
     }
   }
 }

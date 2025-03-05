@@ -99,8 +99,8 @@ dependencies {
   // For testing Cross-language transforms
   testImplementation library.java.avro
   testImplementation library.java.junit
-  testImplementation library.java.powermock
-  testImplementation library.java.powermock_mockito
+  testImplementation library.java.mockito_core
+  testRuntimeOnly library.java.mockito_inline
   testImplementation library.java.testcontainers_kafka
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

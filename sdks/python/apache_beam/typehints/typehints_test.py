@@ -875,6 +875,36 @@ class CollectionHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
 
+class SequenceHintTestCase(TypeHintTestCase):
+  def test_type_constraint_compatibility(self):
+    self.assertCompatible(typehints.Sequence[str], typehints.List[str])
+    self.assertCompatible(typehints.Sequence[str], typehints.Tuple[str])
+    self.assertCompatible(
+        typehints.Sequence[typehints.Any], typehints.Sequence[str])
+    self.assertCompatible(
+        typehints.Sequence[str], typehints.Sequence[typehints.Any])
+    self.assertCompatible(typehints.Any, typehints.Sequence[str])
+
+  def test_one_way_compatibility(self):
+    self.assertNotCompatible(typehints.List[str], typehints.Sequence[str])
+    self.assertNotCompatible(typehints.Tuple[str], typehints.Sequence[str])
+
+  def test_getitem_invalid_composite_type_param(self):
+    with self.assertRaises(TypeError) as e:
+      typehints.Sequence[5]
+    self.assertEqual(
+        'Parameter to a Sequence hint must be a '
+        'non-sequence, a type, or a TypeConstraint. 5 is '
+        'an instance of int.',
+        e.exception.args[0])
+
+  def test_normalize(self):
+    expected_beam_type = typehints.Sequence[int]
+    converted_beam_type = typehints.normalize(
+        collections.abc.Sequence[int], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
+
+
 class IterableHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError) as e:
@@ -891,6 +921,7 @@ class IterableHintTestCase(TypeHintTestCase):
     self.assertCompatible(
         typehints.Iterable[typehints.Any],
         typehints.List[typehints.Tuple[int, bool]])
+    self.assertCompatible(typehints.Iterable[str], typehints.Sequence[str])
 
     self.assertCompatible(typehints.Iterable[int], typehints.Iterable[int])
     self.assertCompatible(
@@ -957,6 +988,12 @@ class IterableHintTestCase(TypeHintTestCase):
     hint = typehints.Iterable[typehints.List[int]]
     l = ([[1, 2], [3, 4, 5]])
     self.assertIsNone(hint.type_check(l))
+
+  def test_normalize(self):
+    expected_beam_type = typehints.Iterable[str]
+    converted_beam_type = typehints.normalize(
+        collections.abc.Iterable[str], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
 
 
 class TestGeneratorWrapper(TypeHintTestCase):
@@ -1354,6 +1391,7 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertFalse(is_consistent_with(object, str))
     self.assertTrue(is_consistent_with(str, Union[str, int]))
     self.assertFalse(is_consistent_with(Union[str, int], str))
+    self.assertFalse(is_consistent_with(str, NonBuiltInGeneric[str]))
 
   def test_positional_arg_hints(self):
     self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))

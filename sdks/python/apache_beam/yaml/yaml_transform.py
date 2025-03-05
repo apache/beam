@@ -304,6 +304,13 @@ class Scope(LightweightScope):
 
   # A method on scope as providers may be scoped...
   def create_ptransform(self, spec, input_pcolls):
+    def maybe_with_resource_hints(transform):
+      if 'resource_hints' in spec:
+        return transform.with_resource_hints(
+            **SafeLineLoader.strip_metadata(spec['resource_hints']))
+      else:
+        return transform
+
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
@@ -333,7 +340,7 @@ class Scope(LightweightScope):
                 for (key, value) in spec['output'].items()
             }
 
-      return _CompositeTransformStub()
+      return maybe_with_resource_hints(_CompositeTransformStub())
 
     if spec['type'] not in self.providers:
       raise ValueError(
@@ -368,8 +375,9 @@ class Scope(LightweightScope):
             spec['type'].rsplit('-', 1)[0], config, input_pcolls)
 
       # pylint: disable=undefined-loop-variable
-      ptransform = provider.create_transform(
-          spec['type'], config, self.create_ptransform)
+      ptransform = maybe_with_resource_hints(
+          provider.create_transform(
+              spec['type'], config, self.create_ptransform))
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = {
@@ -514,16 +522,21 @@ def expand_composite_transform(spec, scope):
             for (key, value) in spec['output'].items()
         }
 
+  transform = CompositePTransform()
+  if 'resource_hints' in spec:
+    transform = transform.with_resource_hints(
+        **SafeLineLoader.strip_metadata(spec['resource_hints']))
+
   if 'name' not in spec:
     spec['name'] = 'Composite'
   if spec['name'] is None:  # top-level pipeline, don't nest
-    return CompositePTransform.expand(None)
+    return transform.expand(None)
   else:
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
         key: scope.get_pcollection(value)
         for (key, value) in empty_if_explicitly_empty(spec['input']).items()
-    } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
+    } or scope.root) | scope.unique_name(spec, None) >> transform
 
 
 def expand_chain_transform(spec, scope):
