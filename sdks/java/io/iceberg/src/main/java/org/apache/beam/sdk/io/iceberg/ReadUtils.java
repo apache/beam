@@ -263,10 +263,8 @@ public class ReadUtils {
               ReadUtils.getLowerBoundTimestampMillis(
                   readTask.getFileScanTask(), watermarkColumn, scanConfig.getWatermarkTimeUnit()),
               BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
-      System.out.println("xxx using file millis " + millis);
     } else {
       millis = readTask.getSnapshotTimestampMillis();
-      System.out.println("xxx using snapshot millis " + millis);
     }
     return Instant.ofEpochMilli(millis);
   }

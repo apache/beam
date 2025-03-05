@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -233,6 +234,9 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract IcebergScanConfig build();
   }
+
+  @VisibleForTesting
+  abstract Builder toBuilder();
 
   void validate(Table table) {
     // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
