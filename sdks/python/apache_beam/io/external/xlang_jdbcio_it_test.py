@@ -19,11 +19,13 @@
 
 import datetime
 import logging
+import os
 import time
 import typing
 import unittest
 from decimal import Decimal
 
+import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -88,6 +90,11 @@ SimpleRow = typing.NamedTuple(
 coders.registry.register_coder(SimpleRow, coders.RowCoder)
 
 
+@pytest.mark.uses_gcp_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 @unittest.skipIf(sqlalchemy is None, 'sql alchemy package is not installed.')
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
