@@ -31,7 +31,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,7 +52,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices,
       boolean projectionPushdownApplied) {
@@ -62,7 +61,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         format,
         selectedFields,
         rowRestriction,
-        parseFn,
+        readerFactory,
         outputCoder,
         bqServices,
         projectionPushdownApplied);
@@ -72,7 +71,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       ValueProvider<TableReference> tableRefProvider,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
@@ -80,7 +79,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         null,
         selectedFields,
         rowRestriction,
-        parseFn,
+        readerFactory,
         outputCoder,
         bqServices,
         false);
@@ -91,11 +90,11 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       @Nullable DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices,
       boolean projectionPushdownApplied) {
-    super(format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+    super(format, selectedFields, rowRestriction, readerFactory, outputCoder, bqServices);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
     this.projectionPushdownApplied = projectionPushdownApplied;
     cachedTable = new AtomicReference<>();
