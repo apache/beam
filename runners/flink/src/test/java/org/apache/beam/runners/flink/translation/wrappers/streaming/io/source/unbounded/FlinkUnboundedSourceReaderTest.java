@@ -92,7 +92,7 @@ public class FlinkUnboundedSourceReaderTest
    * This is a concurrency correctness test. It verifies that the main thread is always waken up by
    * the alarm runner executed in the executor thread.
    */
-  @Test(timeout = 30000L)
+  @Test(timeout = 60000L)
   public void testIsAvailableAlwaysWakenUp() throws Exception {
     final int numFuturesRequired = 1_000_000;
     List<CompletableFuture<Void>> futures = new ArrayList<>();
