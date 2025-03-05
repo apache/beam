@@ -391,12 +391,14 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
             "apache_beam/io/external/xlang_debeziumio_it_test.py",
     ]
     def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
+    def flink_conf_dir = "${rootDir}/runners/flink/src/test/resources/"
     def pipelineOpts = [
         "--runner=FlinkRunner",
         "--project=apache-beam-testing",
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_conf_dir=${flink_conf_dir}",
         '--sdk_harness_log_level_overrides=' +
             // suppress info level flink.runtime log flood
             '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
