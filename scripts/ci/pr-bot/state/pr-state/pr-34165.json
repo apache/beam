@@ -1,7 +1,12 @@
 {
-  "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "java": "kennknowles",
+    "build": "Abacn",
+    "io": "Abacn",
+    "kafka": "johnjcasey"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
