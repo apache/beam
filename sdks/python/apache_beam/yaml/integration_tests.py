@@ -165,7 +165,8 @@ def create_test_methods(spec):
         stack.enter_context(
             mock.patch(
                 'apache_beam.yaml.yaml_provider.standard_providers',
-                lambda: providers))
+                lambda _,
+                __: providers))
         for fixture in spec.get('fixtures', []):
           vars[fixture['name']] = stack.enter_context(
               python_callable.PythonCallableWithSource.
