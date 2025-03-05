@@ -58,7 +58,10 @@ public class IcebergWriteSchemaTransformProvider
   static final String SNAPSHOTS_TAG = "snapshots";
 
   static final Schema OUTPUT_SCHEMA =
-      Schema.builder().addStringField("table").addFields(SnapshotInfo.SCHEMA.getFields()).build();
+      Schema.builder()
+          .addStringField("table")
+          .addFields(SnapshotInfo.getSchema().getFields())
+          .build();
 
   @Override
   public String description() {

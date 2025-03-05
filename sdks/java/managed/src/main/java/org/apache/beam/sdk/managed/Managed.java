@@ -92,6 +92,7 @@ public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
+  public static final String ICEBERG_CDC = "iceberg_cdc";
   public static final String KAFKA = "kafka";
   public static final String BIGQUERY = "bigquery";
 
@@ -99,6 +100,7 @@ public class Managed {
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ))
+          .put(ICEBERG_CDC, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_READ))
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
           .build();
@@ -115,6 +117,7 @@ public class Managed {
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables
+   *   <li>{@link Managed#ICEBERG_CDC} : CDC Read from Apache Iceberg tables
    *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics
    *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables
    * </ul>
