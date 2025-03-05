@@ -142,6 +142,20 @@ import org.joda.time.Duration;
  *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
  *   </tr>
  *   <tr>
+ *     <td> {@code streaming} </td>
+ *     <td> {@code boolean} </td>
+ *     <td>
+ *       Enables streaming reads. The source will continuously poll for snapshots forever.
+ *     </td>
+ *   </tr>
+ *   <tr>
+ *     <td> {@code poll_interval_seconds} </td>
+ *     <td> {@code int} </td>
+ *     <td>
+ *       The interval at which to scan the table for new snapshots. Defaults to 60 seconds. Only applicable for streaming reads.
+ *     </td>
+ *   </tr>
+ *   <tr>
  *     <td> {@code from_snapshot} </td>
  *     <td> {@code long} </td>
  *     <td> Starts reading from this snapshot ID (inclusive).
@@ -150,8 +164,8 @@ import org.joda.time.Duration;
  *   <tr>
  *     <td> {@code to_snapshot} </td>
  *     <td> {@code long} </td>
- *     <td> Reads up to this snapshot ID (inclusive). If unset and the source is bounded, it will read
- *     up to the current snapshot (inclusive). If unset and source is unbounded, it will continue polling for new snapshots forever.
+ *     <td> Reads up to this snapshot ID (inclusive). By default, batch reads will read up to the latest snapshot (inclusive),
+ *     while streaming reads will continue polling for new snapshots forever.
  *     </td>
  *   </tr>
  *   <tr>
@@ -163,7 +177,8 @@ import org.joda.time.Duration;
  *   <tr>
  *     <td> {@code to_timestamp} </td>
  *     <td> {@code long} </td>
- *     <td> Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).
+ *     <td> Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds). By default, batch reads will read up to the latest snapshot (inclusive),
+ *       while streaming reads will continue polling for new snapshots forever.
  *     </td>
  *   </tr>
  *   <tr>
@@ -182,7 +197,7 @@ import org.joda.time.Duration;
  *     <td> {@code watermark_column} </td>
  *     <td> {@code str} </td>
  *     <td>
- *       The column used to derive event time to track progress. Must be of type:
+ *       The column used to derive event time to track progress. Must be one of the following Iceberg <a href="https://iceberg.apache.org/spec/#primitive-types">types</a>:
  *       <ul>
  *           <li>{@code timestamp}</li>
  *           <li>{@code timestamptz}</li>
@@ -198,20 +213,6 @@ import org.joda.time.Duration;
  *       Default is {@code "microseconds"}.
  *
  *       <p>Check {@link TimeUnit} for possible values.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code streaming} </td>
- *     <td> {@code boolean} </td>
- *     <td>
- *       Enables streaming reads. The source will continuously poll for snapshots forever.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code poll_interval_seconds} </td>
- *     <td> {@code int} </td>
- *     <td>
- *       The interval at which to scan the table for new snapshots. Defaults to 60 seconds.
  *     </td>
  *   </tr>
  * </table>
@@ -476,7 +477,7 @@ import org.joda.time.Duration;
  *     <td> {@code operation} </td>
  *     <td> {@code string} </td>
  *     <td>
- *       The snapshot operation associated with this record (e.g. "append", "replace", "delete")
+ *       The snapshot <a href="https://iceberg.apache.org/javadoc/0.11.0/org/apache/iceberg/DataOperations">operation</a> associated with this record. For now, only "append" is supported.
  *     </td>
  *   </tr>
  * </table>
@@ -513,8 +514,8 @@ import org.joda.time.Duration;
  * <h3>Choosing an End Point (CDC only)</h3>
  *
  * By default, a batch read will go up until the most recent table snapshot. A streaming read will
- * continue monitoring the table for new snapshots forever. This can also be overridden with a
- * couple of <b>mutually exclusive</b> options:
+ * continue monitoring the table for new snapshots forever. This can be overridden with one of the
+ * following options:
  *
  * <ul>
  *   <li>Setting an ending snapshot id with <b>{@code to_snapshot}</b>.
@@ -537,7 +538,8 @@ import org.joda.time.Duration;
  *     .getSinglePCollection();
  * }</pre>
  *
- * <b>Note</b>: An end point can also be set when performing a streaming read.
+ * <b>Note</b>: If <b>{@code streaming=true}</b> and an end point is set, the pipeline will run in
+ * streaming mode and shut down automatically after processing the final snapshot.
  *
  * <h3>Handling Watermarks (CDC only)</h3>
  *

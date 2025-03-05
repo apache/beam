@@ -110,6 +110,7 @@ public class Managed {
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables
+   *   <li>{@link Managed#ICEBERG_CDC} : CDC Read from Apache Iceberg tables
    *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics
    *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables
    * </ul>
