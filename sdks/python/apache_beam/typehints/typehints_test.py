@@ -1447,6 +1447,10 @@ class TestGetYieldedType(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
       typehints.get_yielded_type(int)
 
+  def test_union_not_iterable(self):
+    with self.assertRaisesRegex(ValueError, r'not iterable'):
+      typehints.get_yielded_type(typehints.Union[int, typehints.List[int]])
+
 
 class TestCoerceToKvType(TypeHintTestCase):
   def test_coercion_success(self):
