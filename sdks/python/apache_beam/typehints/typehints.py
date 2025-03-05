@@ -1401,6 +1401,11 @@ def get_yielded_type(type_hint):
     else:  # TupleSequenceConstraint
       return type_hint.inner_type
   if is_consistent_with(type_hint, Iterable[Any]):
+    if isinstance(type_hint, UnionConstraint):
+      yielded_types = set()
+      for typ in type_hint.inner_types():
+        yielded_types.add(get_yielded_type(typ))
+      return Union[yielded_types]
     return type_hint.inner_type
   raise ValueError('%s is not iterable' % type_hint)
 

@@ -1438,6 +1438,10 @@ class TestGetYieldedType(unittest.TestCase):
         typehints.get_yielded_type(typehints.Tuple[int, str]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.Set[int]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.FrozenSet[int]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typehints.Union[typehints.List[int], typehints.List[str]]))
 
   def test_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
