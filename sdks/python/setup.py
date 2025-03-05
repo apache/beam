@@ -270,12 +270,17 @@ if __name__ == '__main__':
         'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
-        # use a tighter upper bound in protobuf dependency
-        # to make sure the minor version at job submission
+        # 1. Use a tighter upper bound in protobuf dependency to make sure
+        # the minor version at job submission
         # does not exceed the minor version at runtime.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/25590
-        'protobuf>=3.20.3,<4.24.0',
+
+        # 2. Allow latest protobuf 3 version as a courtesy to some customers.
+        #
+        # 3. Exclude protobuf 4 versions that leak memory, see:
+        # https://github.com/apache/beam/issues/28246
+        'protobuf>=3.20.3,<4.26.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
