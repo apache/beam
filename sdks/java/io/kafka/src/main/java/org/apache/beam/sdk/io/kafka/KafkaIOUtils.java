@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -135,6 +136,7 @@ public final class KafkaIOUtils {
    * object header: 4, 8, 12 or 16 bytes
    * alignment: at least 8 bytes
    */
+  @SuppressFBWarnings("UUF_UNUSED_FIELD")
   private static class MovingAvgPadding {
     byte p000, p001, p002, p003, p004, p005, p006, p007;
     byte p010, p011, p012, p013, p014, p015, p016, p017;
@@ -183,6 +185,7 @@ public final class KafkaIOUtils {
    * Visibility and ordering of non-volatile loads/stores on numUpdates is guaranteed by volatile loads/stores on avg.
    * Sanity of visibility is only useful when the writer thread changes since avg is the only field that can be shared between multiple concurrent threads.
    */
+  @SuppressFBWarnings("UUF_UNUSED_FIELD")
   static class MovingAvg extends MovingAvgFields {
     byte p100, p101, p102, p103, p104, p105, p106, p107;
     byte p110, p111, p112, p113, p114, p115, p116, p117;
