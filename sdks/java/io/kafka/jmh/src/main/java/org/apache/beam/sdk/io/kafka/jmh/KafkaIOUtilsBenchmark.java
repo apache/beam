@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka.jmh;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Group;
