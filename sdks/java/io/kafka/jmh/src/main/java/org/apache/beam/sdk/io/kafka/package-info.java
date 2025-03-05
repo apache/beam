@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Transforms for reading and writing from Apache Kafka. */
+/** Benchmarks for KafkaIO. */
 package org.apache.beam.sdk.io.kafka.jmh;
