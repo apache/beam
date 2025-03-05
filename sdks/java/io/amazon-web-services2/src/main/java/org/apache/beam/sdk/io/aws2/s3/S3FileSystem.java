@@ -668,7 +668,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     if (level != LineageLevel.TOP_LEVEL && !resourceId.getKey().isEmpty()) {
       segments.add(resourceId.getKey());
     }
-    lineage.add("s3", segments.build());
+    lineage.add("s3", segments.build(), "/");
   }
 
   /**
