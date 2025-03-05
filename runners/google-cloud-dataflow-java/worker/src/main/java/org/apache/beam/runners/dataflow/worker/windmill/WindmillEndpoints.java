@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class WindmillEndpoints {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
+  private static final int WINDMILL_SERVICE_PORT = 443;
   private static final WindmillEndpoints NO_ENDPOINTS =
       WindmillEndpoints.builder()
           .setVersion(Long.MAX_VALUE)
@@ -103,7 +105,8 @@ public abstract class WindmillEndpoints {
 
   private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
     try {
-      return Optional.of(HostAndPort.fromString(directEndpoint));
+      return Optional.of(
+          HostAndPort.fromString(directEndpoint).withDefaultPort(WINDMILL_SERVICE_PORT));
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }
