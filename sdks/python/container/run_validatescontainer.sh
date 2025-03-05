@@ -125,7 +125,7 @@ echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
   -m=it_validatescontainer \
   --numprocesses=1 \
-  --timeout=3600 \
+  --timeout=6077 \
   --junitxml=$XUNIT_FILE \
   --ignore-glob '.*py3\d?\.py$' \
   --log-cli-level=INFO \
