@@ -1901,6 +1901,11 @@ public class KafkaIO {
               for (Map.Entry<String, List<PartitionInfo>> entry :
                   consumer.listTopics().entrySet()) {
                 if (pattern.matcher(entry.getKey()).matches()) {
+                  List<PartitionInfo> partitionInfoList = entry.getValue();
+                  if (partitionInfoList == null) {
+                    LOG.warn("Could not find any partitions info for topic {}. Please check Kafka configuration and make sure "
+                        + "that provided topics exist.", entry.getKey());
+                  }
                   for (PartitionInfo p : entry.getValue()) {
                     partitions.add(new TopicPartition(p.topic(), p.partition()));
                   }
@@ -1908,7 +1913,12 @@ public class KafkaIO {
               }
             } else {
               for (String topic : topics) {
-                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                  List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+                  checkState(
+                          partitionInfoList != null,
+                          "Could not find any partitions info for topic " + topic + ". Please check Kafka configuration and make sure "
+                                  + "that provided topics exist.");
+                for (PartitionInfo p : partitionInfoList) {
                   partitions.add(new TopicPartition(p.topic(), p.partition()));
                 }
               }
