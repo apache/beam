@@ -449,6 +449,8 @@ class Job(object):
       labels = self.google_cloud_options.labels
       if isinstance(labels, str):
         labels = [labels]
+      elif isinstance(labels, dict):
+        labels = [str(labels)]
       for label in labels:
         if '{' in label:
           label = ast.literal_eval(label)
