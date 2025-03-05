@@ -38,6 +38,8 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
@@ -483,7 +485,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    PipelineResult.State state = result.waitUntilFinish(Duration.standardSeconds(250));
+    if (state == null) {
+      result.cancel();
+    }
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -519,7 +525,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
 
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    PipelineResult.State state = result.waitUntilFinish(Duration.standardSeconds(250));
+    if (state == null) {
+      result.cancel();
+    }
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
@@ -612,7 +622,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
 
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    PipelineResult.State state = result.waitUntilFinish(Duration.standardSeconds(250));
+    if (state == null) {
+      result.cancel();
+    }
 
     Table table0 = catalog.loadTable(tableIdentifier0);
     Table table1 = catalog.loadTable(tableIdentifier1);
