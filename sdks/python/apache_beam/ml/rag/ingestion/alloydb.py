@@ -128,7 +128,8 @@ class AlloyDBConnectionConfig:
         write_batch_size: Optional write batch size for bulk operations.
         additional_jdbc_args: Additional arguments that will be passed to
             WriteToJdbc. These may include 'driver_jars', 'expansion_service',
-            'classpath', etc.
+            'classpath', etc. See full set of args at
+            :class:`~apache_beam.io.jdbc.WriteToJdbc`
     
     Example:
         >>> config = AlloyDBConnectionConfig(
