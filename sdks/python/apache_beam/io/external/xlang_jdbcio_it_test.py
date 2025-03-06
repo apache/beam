@@ -19,11 +19,13 @@
 
 import datetime
 import logging
+import os
 import time
 import typing
 import unittest
 from decimal import Decimal
 
+import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -88,6 +90,11 @@ SimpleRow = typing.NamedTuple(
 coders.registry.register_coder(SimpleRow, coders.RowCoder)
 
 
+@pytest.mark.uses_gcp_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 @unittest.skipIf(sqlalchemy is None, 'sql alchemy package is not installed.')
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
@@ -95,6 +102,12 @@ coders.registry.register_coder(SimpleRow, coders.RowCoder)
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
     None,
     'Do not run this test on precommit suites.')
+@unittest.skipIf(
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+    not None and
+    "dataflowrunner" in TestPipeline().get_pipeline_options().view_as(
+        StandardOptions).runner.lower(),
+    'Do not run this test on dataflow runner.')
 class CrossLanguageJdbcIOTest(unittest.TestCase):
   DbData = typing.NamedTuple(
       'DbData',
@@ -436,8 +449,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               partition_column="id",
               schema=SimpleRow))
 
-      # revert
-      assert_that(result, equal_to(test_rows))
+      assert_that(result, equal_to(expected_filtered_rows))
 
 
 if __name__ == '__main__':
