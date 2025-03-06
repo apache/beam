@@ -33,17 +33,12 @@ import org.slf4j.LoggerFactory;
 /** Stores and exports metrics for a batch of Kafka Client RPCs. */
 public interface KafkaMetrics {
 
-  /*Used to update latency metrics, which is later used to update metrics container in another thread*/
   void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime);
 
-  /*Used to update backlog metrics in current thread*/
   void updateBacklogBytes(String topic, int partitionId, long backlog);
 
   /*Used to update all metrics in container*/
   void updateKafkaMetrics();
-
-  /*Used to update backlog metrics, which is later used to update metrics container in another thread*/
-  // void recordBacklogBytes(String topic, int partitionId, long backlog);
 
   /** No-op implementation of {@code KafkaResults}. */
   class NoOpKafkaMetrics implements KafkaMetrics {
@@ -57,9 +52,6 @@ public interface KafkaMetrics {
 
     @Override
     public void updateKafkaMetrics() {}
-
-    // @Override
-    // public void recordBacklogBytes(String topic, int partitionId, long backlog) {};
 
     private static NoOpKafkaMetrics singleton = new NoOpKafkaMetrics();
 
@@ -132,7 +124,6 @@ public interface KafkaMetrics {
     @Override
     public void updateBacklogBytes(String topicName, int partitionId, long backlog) {
       if (isWritable().get()) {
-        // Key by MetricName so info isn't lost
         MetricName metricName = KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId);
         perTopicPartitionBacklogs().put(metricName, backlog);
       }
@@ -162,32 +153,10 @@ public interface KafkaMetrics {
     /** This is for creating gauges from backlog bytes recorded previously. */
     private void recordBacklogBytesInternal() {
       for (Map.Entry<MetricName, Long> backlog : perTopicPartitionBacklogs().entrySet()) {
-        // MetricName perPartionBacklogName = KafkaSinkMetrics.getMetricGaugeName(topicName,
-        // partitionId);
-        // Gauge perPartition =
-        //       Metrics.gauge(KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId));
-        // Use lambda for more readability?
-        // map.forEach((key, value) -> System.out.println(key + ": " + value));
         Gauge gauge = KafkaSinkMetrics.createBacklogGauge(backlog.getKey());
         gauge.set(backlog.getValue());
       }
     }
-
-    /**
-     * This is for recording backlog bytes on the current thread.
-     *
-     * @param topicName topicName
-     * @param partitionId partitionId for the topic Only included in the metric key if
-     *     'supportsMetricsDeletion' is enabled.
-     * @param backlogBytes backlog for the topic Only included in the metric key if
-     *     'supportsMetricsDeletion' is enabled.
-     */
-    // @Override
-    // public void recordBacklogBytes(String topicName, int partitionId, long backlogBytes) {
-    //   Gauge perPartition =
-    //       Metrics.gauge(KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId));
-    //   perPartition.set(backlogBytes);
-    // }
 
     /**
      * Export all metrics recorded in this instance to the underlying {@code perWorkerMetrics}

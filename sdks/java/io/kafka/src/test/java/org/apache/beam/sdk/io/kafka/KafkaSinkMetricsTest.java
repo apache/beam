@@ -44,7 +44,9 @@ public class KafkaSinkMetricsTest {
 
   @Test
   public void testCreatingBacklogGauge() throws Exception {
-    Gauge gauge = KafkaSinkMetrics.createBacklogGauge("topic", /*partitionId*/ 0);
+    Gauge gauge =
+        KafkaSinkMetrics.createBacklogGauge(
+            KafkaSinkMetrics.getMetricGaugeName("topic", /*partitionId*/ 0));
 
     MetricName gaugeName =
         MetricName.named(

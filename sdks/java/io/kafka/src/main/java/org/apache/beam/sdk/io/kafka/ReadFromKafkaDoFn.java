@@ -559,8 +559,6 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .doubleValue()
                     * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
         KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
-        // public void updateBacklogBytes(String topicName, int partitionId, long backlog) {
-
         kafkaResults.updateBacklogBytes(
             kafkaSourceDescriptor.getTopic(),
             kafkaSourceDescriptor.getPartition(),
@@ -571,9 +569,6 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
-        // flush imediately afterwards, can it be moved to finish bundle?
-        // create the same kind of metric? This creates a per Worker metric, we dont want that to be
-        // reusable between the two ios
         kafkaResults.updateKafkaMetrics();
       }
     }
