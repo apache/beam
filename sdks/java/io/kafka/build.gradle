@@ -43,6 +43,7 @@ def kafkaVersions = [
     '241': "2.4.1",
     '251': "2.5.1",
     '312': "3.1.2",
+    '390': "3.9.0",
 ]
 
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
@@ -71,7 +72,7 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation "org.springframework:spring-expression:5.3.27"
-  implementation group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.2'
+  implementation group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.5'
   implementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
@@ -144,6 +145,7 @@ task kafkaVersionsCompatibilityTest {
   dependsOn (":sdks:java:io:kafka:kafka-241:kafkaVersion241BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-251:kafkaVersion251BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-312:kafkaVersion312BatchIT")
+  dependsOn (":sdks:java:io:kafka:kafka-390:kafkaVersion390BatchIT")
 }
 
 static def createTestList(Map<String, String> prefixMap, String suffix) {
