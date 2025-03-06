@@ -106,7 +106,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
@@ -219,7 +219,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     ProtoCoder<?> otherCoder = (ProtoCoder<?>) other;
     return protoMessageClass.equals(otherCoder.protoMessageClass)
         && Sets.newHashSet(extensionHostClasses)
-        .equals(Sets.newHashSet(otherCoder.extensionHostClasses));
+            .equals(Sets.newHashSet(otherCoder.extensionHostClasses));
   }
 
   @Override
@@ -289,9 +289,9 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   /**
-   * Get the memoized {@link Parser}, possibly initializing it lazily.
-   * Attempts to use {@code getDefaultInstance()} first, falling back to instantiation
-   * if necessary, with clear error handling for unsupported cases.
+   * Get the memoized {@link Parser}, possibly initializing it lazily. Attempts to use {@code
+   * getDefaultInstance()} first, falling back to instantiation if necessary, with clear error
+   * handling for unsupported cases.
    */
   protected synchronized Parser<T> getParser() {
     if (memoizedParser == null) {
@@ -321,19 +321,25 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
               memoizedParser = tParser;
             } catch (NoSuchMethodException e2) {
               throw new IllegalArgumentException(
-                  "Class " + protoMessageClass.getName()
+                  "Class "
+                      + protoMessageClass.getName()
                       + " lacks both getDefaultInstance() and a no-arg constructor. "
-                      + "Ensure it is a concrete Protobuf-generated class.", e2);
+                      + "Ensure it is a concrete Protobuf-generated class.",
+                  e2);
             } catch (InstantiationException e2) {
               throw new IllegalArgumentException(
-                  "Class " + protoMessageClass.getName()
+                  "Class "
+                      + protoMessageClass.getName()
                       + " is abstract or cannot be instantiated. "
-                      + "Ensure it is a concrete Protobuf-generated class.", e2);
+                      + "Ensure it is a concrete Protobuf-generated class.",
+                  e2);
             } catch (IllegalAccessException | InvocationTargetException e2) {
               throw new IllegalArgumentException(
-                  "Failed to instantiate " + protoMessageClass.getName()
+                  "Failed to instantiate "
+                      + protoMessageClass.getName()
                       + " due to access or runtime issues. "
-                      + "Ensure it is a concrete Protobuf-generated class with an accessible constructor.", e2);
+                      + "Ensure it is a concrete Protobuf-generated class with an accessible constructor.",
+                  e2);
             }
           }
         }
