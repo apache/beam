@@ -80,6 +80,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *
  * inputRows.apply(Managed.write(ICEBERG).withConfigUrl("path/to/config.yaml"));
  * }</pre>
+ *
+ * <h3>Runner specific features</h3>
+ *
+ * Google Cloud Dataflow supports additional management features for {@code Managed} including
+ * automatically upgrading transforms to the latest supported version. For more details and
+ * examples, please see <a href="https://cloud.google.com/dataflow/docs/guides/managed-io">Dataflow
+ * managed I/O</a>.
  */
 public class Managed {
 

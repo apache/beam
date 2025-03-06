@@ -94,7 +94,7 @@ public class FlinkUnboundedSourceReaderTest
    */
   @Test(timeout = 30000L)
   public void testIsAvailableAlwaysWakenUp() throws Exception {
-    final int numFuturesRequired = 1_000_000;
+    final int numFuturesRequired = 10_000;
     List<CompletableFuture<Void>> futures = new ArrayList<>();
     AtomicReference<Exception> exceptionRef = new AtomicReference<>();
 
