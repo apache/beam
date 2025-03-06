@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,11 +34,17 @@ import org.slf4j.LoggerFactory;
 /** Stores and exports metrics for a batch of Kafka Client RPCs. */
 public interface KafkaMetrics {
 
+  /*Used to update latency metrics, which is later used to update metrics container in another thread*/
   void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime);
 
+  /*Used to update backlog metrics in current thread*/
   void updateBacklogBytes(String topic, int partitionId, long backlog);
 
+  /*Used to update all metrics in container*/
   void updateKafkaMetrics();
+
+  /*Used to update backlog metrics, which is later used to update metrics container in another thread*/
+  void recordBacklogBytes(String topic, int partitionId, long backlog);
 
   /** No-op implementation of {@code KafkaResults}. */
   class NoOpKafkaMetrics implements KafkaMetrics {
@@ -51,6 +58,9 @@ public interface KafkaMetrics {
 
     @Override
     public void updateKafkaMetrics() {}
+
+    @Override
+    public void recordBacklogBytes(String topic, int partitionId, long backlog) {};
 
     private static NoOpKafkaMetrics singleton = new NoOpKafkaMetrics();
 
@@ -93,10 +103,11 @@ public interface KafkaMetrics {
     /**
      * Record the rpc status and latency of a successful Kafka poll RPC call.
      *
-     * <p>TODO: It's possible that `isWritable().get()` is called before it's set to false in
-     * another thread, allowing an extraneous measurement to slip in, so perTopicRpcLatencies()
-     * isn't necessarily thread safe. One way to address this would be to add syncrhoized blocks to
-     * ensure that there is only one thread ever reading/modifying the perTopicRpcLatencies() map.
+     * <p>TODO(naireenhussain): It's possible that `isWritable().get()` is called before it's set to
+     * false in another thread, allowing an extraneous measurement to slip in, so
+     * perTopicRpcLatencies() isn't necessarily thread safe. One way to address this would be to add
+     * synchronized blocks to ensure that there is only one thread ever reading/modifying the
+     * perTopicRpcLatencies() map.
      */
     @Override
     public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {
@@ -113,6 +124,8 @@ public interface KafkaMetrics {
     }
 
     /**
+     * This is for tracking backlog bytes to be added to the Metric Container at a later time.
+     *
      * @param topicName topicName
      * @param partitionId partitionId
      * @param backlog backlog for the specific partitionID of topicName
@@ -146,12 +159,29 @@ public interface KafkaMetrics {
       }
     }
 
-    private void recordBacklogBytes() {
+    /** This is for creating gauges from backlog bytes recorded previously. */
+    private void recordBacklogBytesInternal() {
       for (Map.Entry<String, Long> backlogs : perTopicPartitionBacklogs().entrySet()) {
         Gauge gauge =
             KafkaSinkMetrics.createBacklogGauge(MetricName.named("KafkaSink", backlogs.getKey()));
         gauge.set(backlogs.getValue());
       }
+    }
+
+    /**
+     * This is for recording backlog bytes on the current thread.
+     *
+     * @param topicName topicName
+     * @param partitionId partitionId for the topic Only included in the metric key if
+     *     'supportsMetricsDeletion' is enabled.
+     * @param backlogBytes backlog for the topic Only included in the metric key if
+     *     'supportsMetricsDeletion' is enabled.
+     */
+    @Override
+    public void recordBacklogBytes(String topicName, int partitionId, long backlogBytes) {
+      Gauge perPartition =
+          Metrics.gauge(KafkaSinkMetrics.getMetricGaugeName(topicName, partitionId));
+      perPartition.set(backlogBytes);
     }
 
     /**
@@ -165,7 +195,7 @@ public interface KafkaMetrics {
         LOG.warn("Updating stale Kafka metrics container");
         return;
       }
-      recordBacklogBytes();
+      recordBacklogBytesInternal();
       recordRpcLatencyMetrics();
     }
   }
