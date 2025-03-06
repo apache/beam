@@ -94,8 +94,8 @@ public class FlinkUnboundedSourceReaderTest
    */
   @Test(timeout = 30000L)
   public void testIsAvailableAlwaysWakenUp() throws Exception {
-    final int numFuturesRequired = 10_000;
-    assertEquals(numFuturesRequired, 1);
+    long startTime = System.currentTimeMillis();
+    final int numFuturesRequired = 1_000_000;
     List<CompletableFuture<Void>> futures = new ArrayList<>();
     AtomicReference<Exception> exceptionRef = new AtomicReference<>();
 
@@ -144,6 +144,7 @@ public class FlinkUnboundedSourceReaderTest
       mainThread.start();
       executorThread.start();
       executorThread.join();
+      System.err.println("ALWAYS TIME = " + (System.currentTimeMillis() - startTime));
     }
   }
 
