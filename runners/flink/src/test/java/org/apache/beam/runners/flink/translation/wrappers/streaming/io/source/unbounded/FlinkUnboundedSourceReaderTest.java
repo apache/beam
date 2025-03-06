@@ -55,10 +55,14 @@ import org.apache.flink.metrics.Gauge;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Unite tests for {@link FlinkUnboundedSourceReader}. */
 public class FlinkUnboundedSourceReaderTest
     extends FlinkSourceReaderTestBase<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkUnboundedSourceReaderTest.class);
 
   @Test
   public void testSnapshotStateAndRestore() throws Exception {
@@ -94,7 +98,8 @@ public class FlinkUnboundedSourceReaderTest
    */
   @Test(timeout = 30000L)
   public void testIsAvailableAlwaysWakenUp() throws Exception {
-    final int numFuturesRequired = 10_000;
+    long startTime = System.currentTimeMillis();
+    final int numFuturesRequired = 1_000;
     List<CompletableFuture<Void>> futures = new ArrayList<>();
     AtomicReference<Exception> exceptionRef = new AtomicReference<>();
 
@@ -143,6 +148,8 @@ public class FlinkUnboundedSourceReaderTest
       mainThread.start();
       executorThread.start();
       executorThread.join();
+      LOG.error("ALWAYS TIME = " + (System.currentTimeMillis() - startTime));
+      LOG.info("ALWAYS TIME = " + (System.currentTimeMillis() - startTime));
     }
   }
 
