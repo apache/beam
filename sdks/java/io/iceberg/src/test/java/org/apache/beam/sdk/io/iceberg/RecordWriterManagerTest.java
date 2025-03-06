@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -30,7 +31,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -514,7 +515,7 @@ public class RecordWriterManagerTest {
     for (Schema.Field field : primitiveTypeSchema.getFields()) {
       Object val = checkStateNotNull(row.getValue(field.getName()));
       if (dateTypes.contains(field.getName())) {
-        val = URLEncoder.encode(val.toString(), StandardCharsets.UTF_8.toString());
+        val = URLEncoder.encode(val.toString(), UTF_8.toString());
       }
       expectedPartitions.add(field.getName() + "=" + val);
     }
@@ -739,39 +740,45 @@ public class RecordWriterManagerTest {
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
 
-    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
-    boolean writeSuccess = writerManager.write(windowedDestination, row);
-    assertTrue("Write operation should succeed", writeSuccess);
+    // Write multiple rows
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
+    assertTrue("Write operation should succeed", writerManager.write(windowedDestination, row1));
+    assertTrue("Write operation should succeed", writerManager.write(windowedDestination, row2));
+    assertTrue("Write operation should succeed", writerManager.write(windowedDestination, row3));
     writerManager.close();
 
     Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>> dataFiles =
         writerManager.getSerializableDataFiles();
     assertFalse("Data files should not be empty", dataFiles.isEmpty());
 
+    // Commit using the same table instance
     for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>> entry :
         dataFiles.entrySet()) {
-      Table tableToCommit = catalog.loadTable(entry.getKey().getValue().getTableIdentifier());
-      AppendFiles appendFiles = tableToCommit.newAppend();
+      AppendFiles appendFiles = table.newAppend();
       for (SerializableDataFile dataFile : entry.getValue()) {
-        appendFiles.appendFile(dataFile.createDataFile(tableToCommit.specs()));
+        appendFiles.appendFile(dataFile.createDataFile(table.specs()));
       }
       appendFiles.commit();
-      tableToCommit.refresh();
     }
+    table.refresh(); // Single refresh after all commits
 
-    // Verify the correct table (where data was written)
-    Table dataTable =
-        catalog.loadTable(
-            TableIdentifier.of("default", "table_testColumnSpecificMetricsCollection"));
-    dataTable.refresh();
-
-    // Verify that a snapshot exists
-    Snapshot snapshot = dataTable.currentSnapshot();
+    // Verify using the same table
+    Snapshot snapshot = table.currentSnapshot();
     assertNotNull("Table should have a snapshot after writing data", snapshot);
 
-    // Verify metrics are collected only for specified columns
-    DataFile dataFile = snapshot.addedDataFiles(dataTable.io()).iterator().next();
-    assertNotNull(dataFile.valueCounts());
+    // Verify metrics are collected for specified columns in one file
+    DataFile dataFile = snapshot.addedDataFiles(table.io()).iterator().next();
+    Map<Integer, Long> valueCounts = dataFile.valueCounts();
+    assertNotNull("Value counts should not be null", valueCounts);
+    assertTrue("Value counts should exist for id (column 1)", valueCounts.containsKey(1));
+    assertEquals("Value count for id should be 1 in this file", 1L, valueCounts.get(1).longValue());
+    assertTrue("Value counts should exist for name (column 2)", valueCounts.containsKey(2));
+    assertEquals(
+        "Value count for name should be 1 in this file", 1L, valueCounts.get(2).longValue());
+    // Note: bool (column 3) may have metrics due to default behavior; not explicitly excluded
+
     assertNotNull(dataFile.nullValueCounts());
     assertNotNull(dataFile.columnSizes());
   }
@@ -786,10 +793,13 @@ public class RecordWriterManagerTest {
     // Create a RecordWriterManager
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
 
-    // Write a row
-    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
-    boolean writeSuccess = writerManager.write(windowedDestination, row);
-    assertTrue("Write operation should succeed", writeSuccess);
+    // Write multiple rows
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
+    assertTrue("Write operation should succeed", writerManager.write(windowedDestination, row1));
+    assertTrue("Write operation should succeed", writerManager.write(windowedDestination, row2));
+    assertTrue("Write operation should succeed", writerManager.write(windowedDestination, row3));
     writerManager.close();
 
     // Manually commit the data files to the Iceberg table
@@ -797,41 +807,55 @@ public class RecordWriterManagerTest {
         writerManager.getSerializableDataFiles();
     assertFalse("Data files should not be empty", dataFiles.isEmpty());
 
+    // Commit using the same table instance
     for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>> entry :
         dataFiles.entrySet()) {
-      Table tableToCommit = catalog.loadTable(entry.getKey().getValue().getTableIdentifier());
-      AppendFiles appendFiles = tableToCommit.newAppend();
+      AppendFiles appendFiles = table.newAppend();
       for (SerializableDataFile dataFile : entry.getValue()) {
-        appendFiles.appendFile(dataFile.createDataFile(tableToCommit.specs()));
+        appendFiles.appendFile(dataFile.createDataFile(table.specs()));
       }
       appendFiles.commit();
-      tableToCommit.refresh();
     }
+    table.refresh(); // Single refresh after all commits
 
-    // Verify the correct table (where data was written)
-    Table dataTable = catalog.loadTable(TableIdentifier.of("default", "test_default_metrics"));
-    dataTable.refresh();
-
-    // Verify that a snapshot exists
-    Snapshot snapshot = dataTable.currentSnapshot();
+    // Verify using the same table
+    Snapshot snapshot = table.currentSnapshot();
     assertNotNull("Table should have a snapshot after writing data", snapshot);
 
-    // Verify metrics are collected for all columns
-    DataFile dataFile = snapshot.addedDataFiles(dataTable.io()).iterator().next();
+    // Verify metrics are collected for all columns in one file
+    DataFile dataFile = snapshot.addedDataFiles(table.io()).iterator().next();
     assertNotNull(dataFile.valueCounts());
     assertNotNull(dataFile.nullValueCounts());
     assertNotNull(dataFile.columnSizes());
+    assertNotNull(dataFile.lowerBounds());
+    assertNotNull(dataFile.upperBounds());
 
-    // Verify metrics are collected for all columns
     Map<Integer, Long> valueCounts = dataFile.valueCounts();
     Map<Integer, Long> nullValueCounts = dataFile.nullValueCounts();
     Map<Integer, Long> columnSizes = dataFile.columnSizes();
+    Map<Integer, ByteBuffer> lowerBounds = dataFile.lowerBounds();
+    Map<Integer, ByteBuffer> upperBounds = dataFile.upperBounds();
 
     for (int i = 1; i <= ICEBERG_SCHEMA.columns().size(); i++) {
       assertTrue("Value counts should be collected for column " + i, valueCounts.containsKey(i));
+      assertEquals(
+          "Value count for column " + i + " should be 1 in this file",
+          1L,
+          valueCounts.get(i).longValue());
       assertTrue(
           "Null value counts should be collected for column " + i, nullValueCounts.containsKey(i));
       assertTrue("Column sizes should be collected for column " + i, columnSizes.containsKey(i));
+      assertTrue("Lower bounds should be collected for column " + i, lowerBounds.containsKey(i));
+      assertTrue("Upper bounds should be collected for column " + i, upperBounds.containsKey(i));
+
+      // Verify bounds are non-null and equal (single-row file)
+      ByteBuffer lower = lowerBounds.get(i);
+      ByteBuffer upper = upperBounds.get(i);
+      assertNotNull("Lower bound for column " + i + " should not be null", lower);
+      assertNotNull("Upper bound for column " + i + " should not be null", upper);
+      assertTrue(
+          "Lower and upper bounds for column " + i + " should be equal in single-row file",
+          lower.equals(upper));
     }
   }
 }
