@@ -98,7 +98,25 @@ public class KafkaSinkMetrics {
    * @return Counter.
    */
   public static Gauge createBacklogGauge(MetricName name) {
-    return new DelegatingGauge(name, false, true);
+    // use label to differenciate between the type of gauge metric is created
+    // TODO(bug to clean this to make more consistent between the two runners)
+    // test if set to false, this doesn't occur
+    // && name.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC)
+    if (name.getLabels().containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC)
+        && name.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC).equals("true")) {
+      // return Metrics.gauge(name); // can this be a delgating gauge of false type?
+      // metric name always exists, so need a way to handle them differently
+      // second bollean should be false for u2 path, how to not add label just yet?
+      // for legacy
+      // return new DelegatingGauge(name, false, true);
+
+      // for runner v2
+      // investigate why it gest ton UW container, but not to DFE
+      // return Metrics.gauge(name);
+      return new DelegatingGauge(name, false, false);
+    } else {
+      return new DelegatingGauge(name, false, true);
+    }
   }
 
   /**
