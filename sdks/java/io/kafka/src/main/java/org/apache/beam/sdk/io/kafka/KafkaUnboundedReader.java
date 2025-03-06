@@ -481,8 +481,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     // Update consumedOffset and avgRecordSize
     void recordConsumed(long offset, int size) {
       nextOffset = offset + 1;
-
-      // This is always updated from single thread. Probably not worth making atomic.
       avgRecordSize.update(size);
     }
 
