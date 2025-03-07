@@ -201,6 +201,15 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
+ * 
+ * <p>DataflowRunner now supports creating job templates using the {@code --templateLocation} option.
+ * If this option is set, the runner will generate a template instead of running the pipeline immediately.
+ *
+ * Example:
+ * <pre>{@code
+ * --runner=DataflowRunner
+ * --templateLocation=gs://your-bucket/templates/my-template
+ * }</pre>
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
