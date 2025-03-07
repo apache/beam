@@ -29,7 +29,6 @@ from typing import Any
 from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
-from typing import Hashable
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -1338,7 +1337,7 @@ class PGBKCVOperation(Operation):
       window, key = wkey
       if self.timestamp_combiner is None:
         timestamp = window.max_timestamp()
-      self.output(WindowedValue((key, value), timestamp, (window,)))
+      self.output(WindowedValue((key, value), timestamp, (window, )))
 
 
 class FlattenOperation(Operation):
