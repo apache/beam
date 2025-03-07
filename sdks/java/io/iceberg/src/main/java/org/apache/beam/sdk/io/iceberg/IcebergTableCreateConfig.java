@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.checkerframework.dataflow.qual.Pure;
 import java.io.Serializable;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.checkerframework.dataflow.qual.Pure;
 
 @AutoValue
 public abstract class IcebergTableCreateConfig implements Serializable {
