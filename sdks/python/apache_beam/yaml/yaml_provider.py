@@ -1155,7 +1155,7 @@ class PypiExpansionService:
       try:
         clonable_venv = cls._create_venv_to_clone(base_python)
         clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-        print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']))
+        print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']).decode('utf-8'))
 #         subprocess.run(
 #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
 #             check=True)

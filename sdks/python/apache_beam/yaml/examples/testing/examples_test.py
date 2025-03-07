@@ -264,6 +264,9 @@ def create_test_method(
               actual += list(transform.outputs.values())
         check_output(expected)(actual)
 
+  if 'deps' in pipeline_spec_file:
+    test_yaml_example = pytest.mark.no_xdist(test_yaml_example)
+
   if 'java_deps' in pipeline_spec_file:
     test_yaml_example = pytest.mark.xlang_sql_expansion_service(
         test_yaml_example)
