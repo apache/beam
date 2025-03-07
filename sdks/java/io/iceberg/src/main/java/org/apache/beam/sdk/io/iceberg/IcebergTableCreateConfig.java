@@ -21,9 +21,12 @@ import com.google.auto.value.AutoValue;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.checkerframework.dataflow.qual.Pure;
+import java.io.Serializable;
+import java.util.Map;
+import javax.annotation.Nullable;
 
 @AutoValue
-public abstract class IcebergTableCreateConfig {
+public abstract class IcebergTableCreateConfig implements Serializable {
 
   /** Schema for the destination, in the event that it must be dynamically created. */
   @Pure
@@ -32,6 +35,9 @@ public abstract class IcebergTableCreateConfig {
   /** Partition spec destination, in the event that it must be dynamically created. */
   @Pure
   public abstract PartitionSpec getPartitionSpec();
+
+  @Nullable
+  public abstract Map<String, String> getTableProperties();
 
   @Pure
   public Builder builder() {
@@ -43,6 +49,8 @@ public abstract class IcebergTableCreateConfig {
     public abstract Builder setSchema(Schema schema);
 
     public abstract Builder setPartitionSpec(PartitionSpec partitionSpec);
+
+    public abstract Builder setTableProperties(@Nullable Map<String, String> tableProperties);
 
     @Pure
     public abstract IcebergTableCreateConfig build();

@@ -277,7 +277,7 @@ class RecordWriterManager implements AutoCloseable {
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema) {
+  private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema,IcebergDestination icebergDestination) {
     @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
     if (table == null) {
       synchronized (TABLE_CACHE) {
@@ -288,7 +288,15 @@ class RecordWriterManager implements AutoCloseable {
             org.apache.iceberg.Schema tableSchema =
                 IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
             // TODO(ahmedabu98): support creating a table with a specified partition spec
-            table = catalog.createTable(identifier, tableSchema);
+            Map<String, String> tableProperties;
+            if(icebergDestination.getTableCreateConfig() != null) {
+              tableProperties = icebergDestination.getTableCreateConfig().getTableProperties();
+            } else {
+              tableProperties = null;
+            }
+            
+            table = catalog.createTable(identifier, tableSchema,null,null,tableProperties);
+
             LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
           } catch (AlreadyExistsException alreadyExistsException) {
             // handle race condition where workers are concurrently creating the same table.
@@ -319,7 +327,7 @@ class RecordWriterManager implements AutoCloseable {
             icebergDestination,
             destination -> {
               TableIdentifier identifier = destination.getValue().getTableIdentifier();
-              Table table = getOrCreateTable(identifier, row.getSchema());
+              Table table = getOrCreateTable(identifier, row.getSchema(),destination.getValue());
               return new DestinationState(destination.getValue(), table);
             });
 
