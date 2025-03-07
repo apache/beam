@@ -1567,7 +1567,8 @@ class SetupOptions(PipelineOptions):
         default=None,
         help=('Local path to a file. During job submission, the files will be '
               'staged in the staging area (--staging_location option) and then '
-              'workers will upload them to the current working directory.'))
+              'workers will upload them to the worker specific staging location '
+              '(e.g. /tmp/stager/ for portable runner.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
         help=(
