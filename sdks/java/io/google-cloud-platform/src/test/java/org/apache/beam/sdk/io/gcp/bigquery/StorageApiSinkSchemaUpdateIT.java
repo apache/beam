@@ -621,8 +621,7 @@ public class StorageApiSinkSchemaUpdateIT {
     // Skipping dynamic destinations tests on Dataflow because of timing issues.
     // These tests are more stable on the DirectRunner, where timing is less variable.
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
-      assumeTrue(
-          "Skipping dynamic destinations tests on Dataflow", false);
+      assumeTrue("Skipping dynamic destinations tests on Dataflow", false);
     }
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
