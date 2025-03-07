@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
@@ -60,11 +59,9 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<Row> out)
       throws IOException, ExecutionException {
-    String tableIdentifier = element.getKey().getTableIdentifierString();
     List<ReadTask> readTasks = element.getValue();
-    Table table = TableCache.get(tableIdentifier, scanConfig.getCatalogConfig().catalog());
-    Schema dataSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
-    Schema outputCdcSchema = ReadUtils.outputCdcSchema(dataSchema);
+    Table table =
+        TableCache.get(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
     // SDF can split by the number of read tasks
     for (long taskIndex = tracker.currentRestriction().getFrom();
@@ -82,8 +79,8 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
         for (Record record : reader) {
           Row row =
-              Row.withSchema(outputCdcSchema)
-                  .addValue(IcebergUtils.icebergRecordToBeamRow(dataSchema, record))
+              Row.withSchema(scanConfig.getCdcSchema())
+                  .addValue(IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record))
                   .addValue(operation)
                   .build();
           out.outputWithTimestamp(row, outputTimestamp);

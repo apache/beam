@@ -53,6 +53,7 @@ import org.joda.time.Duration;
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
   private transient @MonotonicNonNull Table cachedTable;
+  private @MonotonicNonNull Schema cachedCdcSchema;
 
   public enum ScanType {
     TABLE,
@@ -83,6 +84,14 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   public abstract Schema getSchema();
+
+  @Pure
+  public Schema getCdcSchema() {
+    if (cachedCdcSchema == null) {
+      cachedCdcSchema = ReadUtils.outputCdcSchema(getSchema());
+    }
+    return cachedCdcSchema;
+  }
 
   @Pure
   public abstract @Nullable Expression getFilter();

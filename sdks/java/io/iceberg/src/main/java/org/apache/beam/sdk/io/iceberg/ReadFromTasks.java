@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
@@ -50,11 +49,9 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
   @ProcessElement
   public void process(@Element KV<ReadTaskDescriptor, ReadTask> element, OutputReceiver<Row> out)
       throws IOException, ExecutionException {
-    String tableIdentifier = element.getKey().getTableIdentifierString();
     ReadTask readTask = element.getValue();
-    Table table = TableCache.get(tableIdentifier, scanConfig.getCatalogConfig().catalog());
-    Schema dataSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
-    Schema outputCdcSchema = ReadUtils.outputCdcSchema(dataSchema);
+    Table table =
+        TableCache.get(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
     Instant outputTimestamp = ReadUtils.getReadTaskTimestamp(readTask, scanConfig);
     FileScanTask task = readTask.getFileScanTask();
@@ -63,8 +60,8 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
     try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
       for (Record record : reader) {
         Row row =
-            Row.withSchema(outputCdcSchema)
-                .addValue(IcebergUtils.icebergRecordToBeamRow(dataSchema, record))
+            Row.withSchema(scanConfig.getCdcSchema())
+                .addValue(IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record))
                 .addValue(operation)
                 .build();
         out.outputWithTimestamp(row, outputTimestamp);
