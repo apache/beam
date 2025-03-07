@@ -1565,10 +1565,11 @@ class SetupOptions(PipelineOptions):
         dest='files_to_stage',
         action='append',
         default=None,
-        help=('Local path to a file. During job submission, the files will be '
-              'staged in the staging area (--staging_location option) and then '
-              'workers will upload them to the worker specific staging location '
-              '(e.g. /tmp/staged/ for portable runner.'))
+        help=(
+            'Local path to a file. During job submission, the files will be '
+            'staged in the staging area (--staging_location option) and then '
+            'workers will upload them to the worker specific staging location '
+            '(e.g. /tmp/staged/ for portable runner.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
         help=(
@@ -1898,6 +1899,7 @@ class TestDataflowOptions(PipelineOptions):
         default=None,
         help='Root URL for use with the Google Cloud Pub/Sub API.',
     )
+
 
 # TODO(silviuc): Non-standard options. Keep them? If yes, add help too!
 # Remote execution must check that this option is not None.
