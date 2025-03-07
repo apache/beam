@@ -21,11 +21,13 @@ import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteAr
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.InvalidClassException;
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +40,9 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.FromBeamRowFunction;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -91,8 +96,11 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("use_legacy_sql")
             .addNullableBooleanField("with_template_compatibility")
             .addNullableByteArrayField("bigquery_services")
-            .addNullableByteArrayField("parse_fn")
+            .addNullableByteArrayField("avro_schema")
             .addNullableByteArrayField("datum_reader_factory")
+            .addNullableByteArrayField("parse_fn")
+            .addNullableByteArrayField("arrow_schema")
+            .addNullableByteArrayField("arrow_parse_fn")
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
@@ -148,11 +156,27 @@ public class BigQueryIOTranslation {
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
-      if (transform.getParseFn() != null) {
-        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
+      if (transform.getAvroSchema() != null) {
+        org.apache.avro.Schema avroSchema = transform.getAvroSchema();
+        // avro 1.8 Schema is not serializable
+        if (avroSchema instanceof Serializable) {
+          fieldValues.put("avro_schema", toByteArray(transform.getAvroSchema()));
+        } else {
+          String avroSchemaStr = avroSchema.toString();
+          fieldValues.put("avro_schema", toByteArray(avroSchemaStr));
+        }
       }
       if (transform.getDatumReaderFactory() != null) {
         fieldValues.put("datum_reader_factory", toByteArray(transform.getDatumReaderFactory()));
+      }
+      if (transform.getParseFn() != null) {
+        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
+      }
+      if (transform.getArrowSchema() != null) {
+        fieldValues.put("arrow_schema", toByteArray(transform.getArrowSchema()));
+      }
+      if (transform.getArrowParseFn() != null) {
+        fieldValues.put("arrow_parse_fn", toByteArray(transform.getArrowParseFn()));
       }
       if (transform.getQueryPriority() != null) {
         fieldValues.put("query_priority", toByteArray(transform.getQueryPriority()));
@@ -254,15 +278,68 @@ public class BigQueryIOTranslation {
             builder.setBigQueryServices(new BigQueryServicesImpl());
           }
         }
+        byte[] formatBytes = configRow.getBytes("format");
+        DataFormat format = null;
+        if (formatBytes != null) {
+          format = (DataFormat) fromByteArray(formatBytes);
+          builder = builder.setFormat(format);
+        }
+        byte[] avroSchemaBytes = configRow.getBytes("avro_schema");
+        if (avroSchemaBytes != null) {
+          Object avroSchemaObj = fromByteArray(avroSchemaBytes);
+          if (avroSchemaObj instanceof org.apache.avro.Schema) {
+            builder = builder.setAvroSchema((org.apache.avro.Schema) avroSchemaObj);
+          } else {
+            String avroSchemaStr = (String) avroSchemaObj;
+            org.apache.avro.Schema avroSchema =
+                new org.apache.avro.Schema.Parser().parse(avroSchemaStr);
+            builder = builder.setAvroSchema(avroSchema);
+          }
+        }
         byte[] parseFnBytes = configRow.getBytes("parse_fn");
         if (parseFnBytes != null) {
           builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
         }
         byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
         if (datumReaderFactoryBytes != null) {
-          builder =
-              builder.setDatumReaderFactory(
-                  (SerializableFunction) fromByteArray(datumReaderFactoryBytes));
+          if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.62.0") < 0) {
+            // on old version, readWithDatumReader sets a SerializableFunction with unused parameter
+            // when parseFnBytes was set, just read as GenericRecord
+            if (parseFnBytes == null) {
+              SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<Object>>
+                  datumReaderFactoryFn =
+                      (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<Object>>)
+                          fromByteArray(datumReaderFactoryBytes);
+              builder = builder.setDatumReaderFactory(datumReaderFactoryFn.apply(null));
+            } else {
+              builder = builder.setDatumReaderFactory(AvroDatumFactory.generic());
+            }
+          } else {
+            builder =
+                builder.setDatumReaderFactory(
+                    (AvroSource.DatumReaderFactory<Object>) fromByteArray(datumReaderFactoryBytes));
+          }
+        }
+        byte[] arrowSchemaBytes = configRow.getBytes("arrow_schema");
+        if (arrowSchemaBytes != null) {
+          builder = builder.setArrowSchema((Schema) fromByteArray(avroSchemaBytes));
+        }
+        byte[] arrowParseFnBytes = configRow.getBytes("arrow_parse_fn");
+        if (arrowParseFnBytes != null) {
+          builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
+        } else if (format == DataFormat.ARROW
+            && TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.62.0") < 0) {
+          if (parseFnBytes != null) {
+            // on old version, arrow was read from avro record
+            SerializableFunction<SchemaAndRecord, ?> avroFn =
+                (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFnBytes);
+            SerializableFunction<SchemaAndRow, ?> arrowFn =
+                input ->
+                    avroFn.apply(
+                        new SchemaAndRecord(
+                            AvroUtils.toGenericRecord(input.getElement()), input.getTableSchema()));
+            builder = builder.setArrowParseFn(arrowFn);
+          }
         }
         byte[] queryPriorityBytes = configRow.getBytes("query_priority");
         if (queryPriorityBytes != null) {
@@ -289,10 +366,6 @@ public class BigQueryIOTranslation {
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
-        }
-        byte[] formatBytes = configRow.getBytes("format");
-        if (formatBytes != null) {
-          builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
         if (selectedFields != null && !selectedFields.isEmpty()) {

@@ -17,29 +17,38 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.ArrowSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1.ReadSession;
 import java.io.IOException;
-import java.io.InputStream;
-import javax.annotation.Nullable;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion.RecordBatchRowIterator;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-class BigQueryStorageArrowReader implements BigQueryStorageReader {
+class BigQueryStorageArrowReader<T> implements BigQueryStorageReader<T> {
 
+  private final org.apache.arrow.vector.types.pojo.Schema arrowSchema;
+  private final Schema schema;
+  private final SerializableFunction<Row, T> fromRow;
+  private final Coder<Row> badRecordCoder;
   private @Nullable RecordBatchRowIterator recordBatchIterator;
   private long rowCount;
-  private ArrowSchema protoSchema;
   private @Nullable RootAllocator alloc;
 
-  BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
-    protoSchema = readSession.getArrowSchema();
+  private transient @Nullable Row badRecord = null;
+
+  BigQueryStorageArrowReader(
+      org.apache.arrow.vector.types.pojo.Schema writerSchema,
+      Schema readerSchema,
+      SerializableFunction<Row, T> fromRow) {
+    this.arrowSchema = writerSchema;
+    this.schema = readerSchema;
+    this.fromRow = fromRow;
+    this.badRecordCoder = RowCoder.of(readerSchema);
     this.rowCount = 0;
     this.alloc = null;
   }
@@ -49,13 +58,11 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
     com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
         readRowsResponse.getArrowRecordBatch();
     rowCount = recordBatch.getRowCount();
-    InputStream input = protoSchema.getSerializedSchema().newInput();
-    Schema arrowSchema = ArrowConversion.arrowSchemaFromInput(input);
     RootAllocator alloc = new RootAllocator(Long.MAX_VALUE);
     this.alloc = alloc;
     this.recordBatchIterator =
         ArrowConversion.rowsFromSerializedRecordBatch(
-            arrowSchema, recordBatch.getSerializedRecordBatch().newInput(), alloc);
+            arrowSchema, schema, recordBatch.getSerializedRecordBatch().newInput(), alloc);
   }
 
   @Override
@@ -64,15 +71,27 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   }
 
   @Override
-  public GenericRecord readSingleRecord() throws IOException {
+  public T readSingleRecord() throws IOException {
     if (recordBatchIterator == null) {
       throw new IOException("Not Initialized");
     }
     Row row = recordBatchIterator.next();
-    // TODO(https://github.com/apache/beam/issues/21076): Update this interface to expect a Row, and
-    // avoid converting Arrow data to
-    // GenericRecord.
-    return AvroUtils.toGenericRecord(row, null);
+    try {
+      return fromRow.apply(row);
+    } catch (Exception e) {
+      badRecord = row;
+      throw new ReadException(e);
+    }
+  }
+
+  @Override
+  public @Nullable Row getLastBadRecord() {
+    return badRecord;
+  }
+
+  @Override
+  public Coder<Row> getBadRecordCoder() {
+    return badRecordCoder;
   }
 
   @Override
