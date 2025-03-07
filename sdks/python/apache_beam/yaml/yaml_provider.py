@@ -1171,7 +1171,7 @@ class PypiExpansionService:
         if os.path.exists(venv):
           shutil.rmtree(venv, ignore_errors=True)
         print("OUTPUT")
-        print(getattr(exn, 'output', None)
+        print(getattr(exn, 'output', None))
         raise
     return venv
 
