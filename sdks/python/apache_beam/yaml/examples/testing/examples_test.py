@@ -37,6 +37,7 @@ from apache_beam import PCollection
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.utils import subprocess_server
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
@@ -270,6 +271,12 @@ def create_test_method(
   if 'java_deps' in pipeline_spec_file:
     test_yaml_example = pytest.mark.xlang_sql_expansion_service(
         test_yaml_example)
+    test_yaml_example = unittest.skipIf(
+        not os.path.exists(
+            subprocess_server.JavaJarServer.path_to_dev_beam_jar(
+                'sdks:java:extensions:sql:expansion-service:shadowJar')),
+        "Requires expansion service jars.")(
+            test_yaml_example)
 
   return test_yaml_example
 

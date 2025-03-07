@@ -1155,15 +1155,15 @@ class PypiExpansionService:
     if not os.path.exists(venv):
       try:
         clonable_venv = cls._create_venv_to_clone(base_python)
-#         clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        #         clonable_python = os.path.join(clonable_venv, 'bin', 'python')
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
-#         print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']).decode('utf-8'))
-#         subprocess.run(
-#             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-#             check=True)
-#         subprocess.check_output(
-#             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-#             )
+        #         print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']).decode('utf-8'))
+        #         subprocess.run(
+        #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+        #             check=True)
+        #         subprocess.check_output(
+        #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+        #             )
         venv_pip = os.path.join(venv, 'bin', 'pip')
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
@@ -1171,6 +1171,8 @@ class PypiExpansionService:
       except Exception as exn:  # pylint: disable=bare-except
         if os.path.exists(venv):
           shutil.rmtree(venv, ignore_errors=True)
+
+
 #         print("OUTPUT")
 #         print(getattr(exn, 'output', None))
         raise
