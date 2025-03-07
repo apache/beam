@@ -70,19 +70,21 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Read
  *
- * <p>HL7v2 Messages can be fetched from the HL7v2 store in two ways Message Fetching and Message
- * Listing.
+ * <p>HL7v2 Messages can be fetched from the HL7v2 store in two ways: Message Fetching and Message
+ * Listing. All read transforms now include the {@link HL7v2Message#getParsedData()} field, which
+ * provides the parsed HL7v2 message content as a {@link com.google.api.services.healthcare.v1.model.ParsedData}
+ * object, in addition to the existing {@link HL7v2Message#getSchematizedData()} field.
  *
  * <p>Message Fetching
  *
  * <p>Message Fetching with {@link HL7v2IO.Read} supports use cases where you have a ${@link
- * PCollection} of message IDS. This is appropriate for reading the HL7v2 notifications from a
+ * PCollection} of message IDs. This is appropriate for reading the HL7v2 notifications from a
  * Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}) .
  *
  * <p>Fetch Message contents from HL7v2 Store based on the {@link PCollection} of message ID strings
- * {@link HL7v2IO.Read.Result} where one can call {@link Read.Result#getMessages()} to retrived a
+ * {@link HL7v2IO.Read.Result} where one can call {@link Read.Result#getMessages()} to retrieve a
  * {@link PCollection} containing the successfully fetched {@link HL7v2Message}s and/or {@link
  * Read.Result#getFailedReads()} to retrieve a {@link PCollection} of {@link HealthcareIOError}
  * containing the msgID that could not be fetched and the exception as a {@link HealthcareIOError},
@@ -94,9 +96,9 @@ import org.slf4j.LoggerFactory;
  * cases where you want to process all the messages in an HL7v2 store or those matching a filter
  *
  * @see <a
- *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
+ *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
  *     This paginates through results of a Messages.List call @see <a
- *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list</a>
+ *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list</a>
  *     and outputs directly to a {@link PCollection} of {@link HL7v2Message}. In these use cases,
  *     the error handling similar to above is unnecessary because we are listing from the source of
  *     truth the pipeline should fail transparently if this transform fails to paginate through all
@@ -107,7 +109,7 @@ import org.slf4j.LoggerFactory;
  *     HL7v2IO.Write.Result} on which you can call {@link Write.Result#getFailedInsertsWithErr()} to
  *     retrieve a {@link PCollection} of {@link HealthcareIOError} containing the {@link
  *     HL7v2Message} that failed to be ingested and the exception. This can be used to write to the
- *     dead letter storage system of your chosing.
+ *     dead letter storage system of your choosing.
  *     <p>Unbounded Read Example:
  *     <pre>{@code
  * PipelineOptions options = ...;
@@ -119,18 +121,25 @@ import org.slf4j.LoggerFactory;
  *     PubsubIO.readStrings().fromSubscription(options.getNotificationSubscription()))
  *   .apply(HL7v2IO.getAll());
  *
- * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
+ * // Write errors to your favorite dead letter queue (e.g. Pub/Sub, GCS, BigQuery)
  * readResult.getFailedReads().apply("WriteToDeadLetterQueue", ...);
  *
- *
- * // Go about your happy path transformations.
- * PCollection<HL7v2Message> out = readResult.getMessages().apply("ProcessFetchedMessages", ...);
+ * // Access parsedData from messages
+ * PCollection<HL7v2Message> out = readResult.getMessages()
+ *   .apply("ProcessFetchedMessages", ParDo.of(new DoFn<HL7v2Message, HL7v2Message>() {
+ *     @ProcessElement
+ *     public void process(ProcessContext c) {
+ *       HL7v2Message msg = c.element();
+ *       ParsedData parsed = msg.getParsedData(); // Now available
+ *       // Process parsed data as needed
+ *       c.output(msg);
+ *     }
+ *   }));
  *
  * // Write using the Message.Ingest method of the HL7v2 REST API.
  * out.apply(HL7v2IO.ingestMessages(options.getOutputHL7v2Store()));
  *
  * pipeline.run();
- *
  * }***
  * </pre>
  *     <p>Bounded Read Example:
@@ -142,15 +151,23 @@ import org.slf4j.LoggerFactory;
  *   .apply(
  *       "List messages in HL7v2 store with filter",
  *       ListHL7v2Messages(
- *           Collections.singletonList(options.getInputHL7v2Store()), option.getHL7v2Filter()))
- *    // Go about your happy path transformations.
- *   .apply("Process HL7v2 Messages", ...);
+ *           Collections.singletonList(options.getInputHL7v2Store()), options.getHL7v2Filter()))
+ *    // Access parsedData in transformations
+ *   .apply("Process HL7v2 Messages", ParDo.of(new DoFn<HL7v2Message, HL7v2Message>() {
+ *     @ProcessElement
+ *     public void process(ProcessContext c) {
+ *       HL7v2Message msg = c.element();
+ *       ParsedData parsed = msg.getParsedData(); // Now available
+ *       // Process parsed data as needed
+ *       c.output(msg);
+ *     }
+ *   }));
  * pipeline.run().waitUntilFinish();
  * }***
  * </pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HL7v2IO {
 
@@ -221,7 +238,7 @@ public class HL7v2IO {
   }
 
   /**
-   * Read all HL7v2 Messages from a multiple stores matching a filter.
+   * Read all HL7v2 Messages from multiple stores matching a filter.
    *
    * @see <a
    *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
@@ -232,7 +249,7 @@ public class HL7v2IO {
   }
 
   /**
-   * Read all HL7v2 Messages from a multiple stores matching a filter.
+   * Read all HL7v2 Messages from multiple stores matching a filter.
    *
    * @see <a
    *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
@@ -246,7 +263,7 @@ public class HL7v2IO {
    * Write with Messages.Ingest method. @see <a
    * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
    *
-   * @param hl7v2Store the hl 7 v 2 store
+   * @param hl7v2Store the hl7v2 store
    * @return the write
    */
   public static Write ingestMessages(String hl7v2Store) {
@@ -345,7 +362,7 @@ public class HL7v2IO {
 
         private HL7v2MessageClient client;
 
-        /** Instantiates a new Hl 7 v 2 message get fn. */
+        /** Instantiates a new Hl7v2 message get fn. */
         HL7v2MessageGetFn() {}
 
         /**
@@ -592,7 +609,7 @@ public class HL7v2IO {
    *       parallelization in separate messages.list calls.
    * </ol>
    *
-   * If your use case doesn't lend itself to daily splitting, you can can control initial splitting
+   * If your use case doesn't lend itself to daily splitting, you can control initial splitting
    * with {@link ListHL7v2Messages#withInitialSplitDuration(Duration)}
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
@@ -633,7 +650,7 @@ public class HL7v2IO {
   }
 
   /**
-   * Implemented as Splitable DoFn that claims millisecond resolutions of offset restrictions in the
+   * Implemented as Splittable DoFn that claims millisecond resolutions of offset restrictions in the
    * Message.sendTime dimension.
    */
   @BoundedPerElement

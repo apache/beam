@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1.model.Message;
+import com.google.api.services.healthcare.v1.model.ParsedData; // Import ParsedData
 import com.google.api.services.healthcare.v1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
@@ -27,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HL7v2Message {
   private final String name;
@@ -37,6 +38,7 @@ public class HL7v2Message {
   private final String data;
   private final String sendFacility;
   private String schematizedData;
+  private final ParsedData parsedData; // Use ParsedData directly
   private final Map<String, String> labels;
 
   @Override
@@ -65,6 +67,7 @@ public class HL7v2Message {
         msg.getData(),
         msg.getSendFacility(),
         schematizedData != null ? schematizedData.getData() : null,
+        msg.getParsedData(), // Use ParsedData directly
         msg.getLabels());
   }
 
@@ -84,6 +87,7 @@ public class HL7v2Message {
     if (this.schematizedData != null) {
       out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
     }
+    out.setParsedData(this.parsedData); // Pass ParsedData directly
     out.setLabels(this.labels);
     return out;
   }
@@ -96,6 +100,7 @@ public class HL7v2Message {
       String data,
       String sendFacility,
       @Nullable String schematizedData,
+      @Nullable ParsedData parsedData, // Use ParsedData type
       @Nullable Map<String, String> labels) {
     this.name = name;
     this.messageType = messageType;
@@ -104,6 +109,7 @@ public class HL7v2Message {
     this.data = data;
     this.sendFacility = sendFacility;
     this.schematizedData = schematizedData;
+    this.parsedData = parsedData; // Assign directly
     this.labels = labels;
   }
 
@@ -173,6 +179,16 @@ public class HL7v2Message {
   public void setSchematizedData(String schematizedData) {
     this.schematizedData = schematizedData;
   }
+
+  /**
+   * Gets parsed data.
+   *
+   * @return the parsed data
+   */
+  public ParsedData getParsedData() {
+    return parsedData;
+  }
+
   /**
    * Gets labels.
    *
@@ -198,12 +214,14 @@ public class HL7v2Message {
         && Objects.equals(data, other.getData())
         && Objects.equals(sendFacility, other.getSendFacility())
         && Objects.equals(schematizedData, other.getSchematizedData())
+        && Objects.equals(parsedData, other.getParsedData())
         && Objects.equals(labels, other.getLabels());
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        name, messageType, sendTime, createTime, data, sendFacility, schematizedData, labels);
+        name, messageType, sendTime, createTime, data, sendFacility, schematizedData,
+        parsedData, labels);
   }
 }
