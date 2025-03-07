@@ -75,9 +75,6 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
-  private final ConcurrentHashMap<MetricName, GaugeCell> perWorkerGauges =
-      new ConcurrentHashMap<>();
-
   private MetricsMap<MetricName, StringSetCell> stringSets = new MetricsMap<>(StringSetCell::new);
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
@@ -176,19 +173,6 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @Override
   public Gauge getGauge(MetricName metricName) {
     return gauges.get(metricName);
-  }
-
-  @Override
-  public Gauge getPerWorkerGauge(MetricName metricName) {
-    if (!enablePerWorkerMetrics) {
-      return MetricsContainer.super.getPerWorkerGauge(metricName);
-    }
-    Gauge val = perWorkerGauges.get(metricName);
-    if (val != null) {
-      return val;
-    }
-
-    return perWorkerGauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
   }
 
   @Override
@@ -388,7 +372,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @VisibleForTesting
   Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
     ConcurrentHashMap<MetricName, Long> counters = new ConcurrentHashMap<MetricName, Long>();
-    ConcurrentHashMap<MetricName, Long> gauges = new ConcurrentHashMap<MetricName, Long>();
+    ConcurrentHashMap<MetricName, Long> per_worker_gauges =
+        new ConcurrentHashMap<MetricName, Long>();
     ConcurrentHashMap<MetricName, LockFreeHistogram.Snapshot> histograms =
         new ConcurrentHashMap<MetricName, LockFreeHistogram.Snapshot>();
     HashSet<MetricName> currentZeroValuedCounters = new HashSet<MetricName>();
@@ -402,12 +387,17 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
           counters.put(k, val);
         });
 
-    perWorkerGauges.forEach(
+    gauges.forEach(
         (k, v) -> {
-          Long val = v.getCumulative().value();
-          gauges.put(k, val);
-          v.reset();
+          // Check if metric name has the per worker label set
+          if (k.getLabels().containsKey("PER_WORKER_METRIC")
+              && k.getLabels().get("PER_WORKER_METRIC").equals("true")) {
+            Long val = v.getCumulative().value();
+            per_worker_gauges.put(k, val);
+            v.reset();
+          }
         });
+
     perWorkerHistograms.forEach(
         (k, v) -> {
           v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k, snapshot));
@@ -416,7 +406,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));
 
     return MetricsToPerStepNamespaceMetricsConverter.convert(
-        stepName, counters, gauges, histograms, parsedPerWorkerMetricsCache);
+        stepName, counters, per_worker_gauges, histograms, parsedPerWorkerMetricsCache);
   }
 
   /**

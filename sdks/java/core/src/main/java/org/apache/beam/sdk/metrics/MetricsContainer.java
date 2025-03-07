@@ -81,14 +81,6 @@ public interface MetricsContainer extends Serializable {
     return NoOpHistogram.getInstance();
   }
 
-  /**
-   * Return the {@link Gauge} that should be used for implementing the given per-worker {@code
-   * metricName} in this container.
-   */
-  default Gauge getPerWorkerGauge(MetricName metricName) {
-    return NoOpGauge.getInstance();
-  }
-
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
   default Iterable<MetricsApi.MonitoringInfo> getMonitoringInfos() {
     throw new RuntimeException("getMonitoringInfos is not implemented on this MetricsContainer.");

@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.metrics.DelegatingGauge;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.NoOpGauge;
 import org.apache.beam.sdk.util.HistogramData;
 
 /**
@@ -78,26 +80,21 @@ public class KafkaSinkMetrics {
   /**
    * Creates a {@link Gauge} metric to record per partition backlog with the name
    *
-   * <p>'EstimatedBacklogSize*topic_name:{topic};partitionId:{partitionId};'.
-   *
-   * @param topic Kafka topic associated with this metric.
-   * @param partitionId partition id associated with this metric.
-   * @return Counter.
-   */
-  public static Gauge createBacklogGauge(String topic, int partitionId) {
-    return new DelegatingGauge(getMetricGaugeName(topic, partitionId), false, true);
-  }
-
-  /**
-   * Creates a {@link Gauge} metric to record per partition backlog with the name
-   *
    * <p>'name'.
    *
    * @param name MetricName for the KafkaSink.
    * @return Counter.
    */
   public static Gauge createBacklogGauge(MetricName name) {
-    return new DelegatingGauge(name, false, true);
+    // Use label to differenciate between the type of gauge metric is created
+    // TODO(34195):
+    if (name.getLabels().containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC)
+        && name.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC).equals("true")) {
+      return new DelegatingGauge(name, false);
+    } else {
+      // Currently KafkaSink metrics only supports aggregated per worker metrics.
+      return NoOpGauge.getInstance();
+    }
   }
 
   /**
@@ -114,6 +111,7 @@ public class KafkaSinkMetrics {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
     nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
     nameBuilder.addLabel(TOPIC_LABEL, topic);
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     return nameBuilder.build(METRICS_NAMESPACE);
   }
 

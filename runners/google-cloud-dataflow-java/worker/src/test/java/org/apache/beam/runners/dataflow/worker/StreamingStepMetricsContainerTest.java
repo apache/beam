@@ -31,6 +31,7 @@ import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.DataflowGaugeValue;
 import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.IntegerGauge;
@@ -38,6 +39,7 @@ import com.google.api.services.dataflow.model.Linear;
 import com.google.api.services.dataflow.model.MetricValue;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.api.services.dataflow.model.StringList;
+import com.google.common.collect.ImmutableMap;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -471,7 +473,7 @@ public class StreamingStepMetricsContainerTest {
   }
 
   @Test
-  public void testExtractPerWorkerMetricUpdatesKafka_populatedMetrics() {
+  public void testExtractPerWorkerMetricUpdatesKafka_populatedHistogramMetrics() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
 
     MetricName histogramMetricName = MetricName.named("KafkaSink", "histogram");
@@ -506,6 +508,48 @@ public class StreamingStepMetricsContainerTest {
             .setMetricValues(Collections.singletonList(expectedHistogram));
 
     assertThat(updates, containsInAnyOrder(histograms));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdatesKafka_populateGaugeMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+    MetricName gaugeMetricName =
+        MetricName.named("KafkaSink", "gauge", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    c2.getGauge(gaugeMetricName).set(5L);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+
+    DataflowGaugeValue gaugeValue = new DataflowGaugeValue();
+    gaugeValue.setValue(5L);
+
+    MetricValue expectedGauge =
+        new MetricValue()
+            .setMetric("gauge")
+            .setMetricLabels(new HashMap<>())
+            .setValueGauge64(gaugeValue);
+
+    PerStepNamespaceMetrics gauge =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s2")
+            .setMetricsNamespace("KafkaSink")
+            .setMetricValues(Collections.singletonList(expectedGauge));
+
+    assertThat(updates, containsInAnyOrder(gauge));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdatesKafka_gaugeMetricsDropped() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+    MetricName gaugeMetricName =
+        MetricName.named("KafkaSink", "gauge", ImmutableMap.of("PER_WORKER_METRIC", "false"));
+    c2.getGauge(gaugeMetricName).set(5L);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+    assertThat(updates, IsEmptyIterable.emptyIterable());
   }
 
   @Test

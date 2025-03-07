@@ -27,11 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.HistogramCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,7 +65,7 @@ public class KafkaMetricsTest {
         perWorkerHistograms =
             new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>();
 
-    public ConcurrentHashMap<MetricName, GaugeCell> perWorkerGauges =
+    public ConcurrentHashMap<MetricName, GaugeCell> gauges =
         new ConcurrentHashMap<MetricName, GaugeCell>();
 
     public TestMetricsContainer() {
@@ -81,15 +81,15 @@ public class KafkaMetricsTest {
     }
 
     @Override
-    public Gauge getPerWorkerGauge(MetricName metricName) {
-      perWorkerGauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
-      return perWorkerGauges.get(metricName);
+    public GaugeCell getGauge(MetricName metricName) {
+      gauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
+      return gauges.get(metricName);
     }
 
     @Override
     public void reset() {
       perWorkerHistograms.clear();
-      perWorkerGauges.clear();
+      gauges.clear();
     }
   }
 
@@ -104,7 +104,7 @@ public class KafkaMetricsTest {
     results.updateKafkaMetrics();
 
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
-    assertThat(testContainer.perWorkerGauges.size(), equalTo(0));
+    assertThat(testContainer.gauges.size(), equalTo(0));
   }
 
   @Test
@@ -131,9 +131,12 @@ public class KafkaMetricsTest {
         containsInAnyOrder(Double.valueOf(10.0)));
 
     MetricName gaugeName =
-        MetricName.named("KafkaSink", "EstimatedBacklogSize*partition_id:0;topic_name:test-topic;");
-    assertThat(testContainer.perWorkerGauges.size(), equalTo(1));
-    assertThat(testContainer.perWorkerGauges.get(gaugeName).getCumulative().value(), equalTo(10L));
+        MetricName.named(
+            "KafkaSink",
+            "EstimatedBacklogSize*partition_id:0;topic_name:test-topic;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    assertThat(testContainer.gauges.size(), equalTo(1));
+    assertThat(testContainer.gauges.get(gaugeName).getCumulative().value(), equalTo(10L));
   }
 
   @Test
