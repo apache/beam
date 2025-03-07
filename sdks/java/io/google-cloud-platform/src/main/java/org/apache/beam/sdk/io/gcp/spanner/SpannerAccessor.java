@@ -153,8 +153,10 @@ public class SpannerAccessor implements AutoCloseable {
           commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(
           commitRetrySettingsBuilder
-              .setTotalTimeoutDuration(java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setMaxRpcTimeoutDuration(java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setTotalTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setMaxRpcTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
               .setInitialRpcTimeoutDuration(
                   java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
               .build());
