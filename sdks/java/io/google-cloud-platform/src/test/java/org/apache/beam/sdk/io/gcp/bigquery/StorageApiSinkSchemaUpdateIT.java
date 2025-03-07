@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.api.services.bigquery.model.Table;
@@ -620,9 +621,7 @@ public class StorageApiSinkSchemaUpdateIT {
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     // Skipping dynamic destinations tests on Dataflow because of timing issues.
     // These tests are more stable on the DirectRunner, where timing is less variable.
-    if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
-      assumeTrue("Skipping dynamic destinations tests on Dataflow", false);
-    }
+    assumeFalse(p.getOptions().getRunner().getName().contains("DataflowRunner"));
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
 
