@@ -153,10 +153,10 @@ public class SpannerAccessor implements AutoCloseable {
           commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(
           commitRetrySettingsBuilder
-              .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setInitialRpcTimeout(
-                  org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setTotalTimeoutDuration(java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setMaxRpcTimeoutDuration(java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setInitialRpcTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
               .build());
     }
 
@@ -174,12 +174,12 @@ public class SpannerAccessor implements AutoCloseable {
           executeStreamingSqlSettings.getRetrySettings().toBuilder();
       executeStreamingSqlSettings.setRetrySettings(
           executeSqlStreamingRetrySettings
-              .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-              .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .setInitialRpcTimeoutDuration(java.time.Duration.ofMinutes(120))
+              .setMaxRpcTimeoutDuration(java.time.Duration.ofMinutes(120))
+              .setTotalTimeoutDuration(java.time.Duration.ofMinutes(120))
               .setRpcTimeoutMultiplier(1.0)
-              .setInitialRetryDelay(org.threeten.bp.Duration.ofSeconds(2))
-              .setMaxRetryDelay(org.threeten.bp.Duration.ofSeconds(60))
+              .setInitialRetryDelayDuration(java.time.Duration.ofSeconds(2))
+              .setMaxRetryDelayDuration(java.time.Duration.ofSeconds(60))
               .setRetryDelayMultiplier(1.5)
               .setMaxAttempts(100)
               .build());
