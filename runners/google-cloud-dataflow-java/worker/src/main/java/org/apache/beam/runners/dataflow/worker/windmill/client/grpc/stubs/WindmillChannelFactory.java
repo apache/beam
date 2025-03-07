@@ -59,7 +59,6 @@ public final class WindmillChannelFactory {
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
-      // switch is exhaustive will never happen.
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
         return remoteDirectChannel(
             windmillServiceAddress.authenticatedGcpServiceAddress(),
@@ -130,9 +129,7 @@ public final class WindmillChannelFactory {
   private static class WindmillChannelCreationException extends IllegalStateException {
     private WindmillChannelCreationException(HostAndPort endpoint, SSLException sourceException) {
       super(
-          String.format(
-              "Exception thrown when trying to create channel to endpoint={host:%s; port:%d}",
-              endpoint.getHost(), endpoint.hasPort() ? endpoint.getPort() : -1),
+          String.format("Exception thrown when trying to create channel to %s", endpoint),
           sourceException);
     }
   }
