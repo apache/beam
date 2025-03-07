@@ -1165,9 +1165,11 @@ class PypiExpansionService:
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
-      except:  # pylint: disable=bare-except
+      except Exception as exn:  # pylint: disable=bare-except
         if os.path.exists(venv):
           shutil.rmtree(venv, ignore_errors=True)
+        print("OUTPUT")
+        print(exn.output)
         raise
     return venv
 
