@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HL7v2Message {
   private final String name;
@@ -221,7 +221,14 @@ public class HL7v2Message {
   @Override
   public int hashCode() {
     return Objects.hash(
-        name, messageType, sendTime, createTime, data, sendFacility, schematizedData,
-        parsedData, labels);
+        name,
+        messageType,
+        sendTime,
+        createTime,
+        data,
+        sendFacility,
+        schematizedData,
+        parsedData,
+        labels);
   }
 }

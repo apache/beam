@@ -72,8 +72,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>HL7v2 Messages can be fetched from the HL7v2 store in two ways: Message Fetching and Message
  * Listing. All read transforms now include the {@link HL7v2Message#getParsedData()} field, which
- * provides the parsed HL7v2 message content as a {@link com.google.api.services.healthcare.v1.model.ParsedData}
- * object, in addition to the existing {@link HL7v2Message#getSchematizedData()} field.
+ * provides the parsed HL7v2 message content as a {@link
+ * com.google.api.services.healthcare.v1.model.ParsedData} object, in addition to the existing
+ * {@link HL7v2Message#getSchematizedData()} field.
  *
  * <p>Message Fetching
  *
@@ -167,7 +168,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HL7v2IO {
 
@@ -609,8 +610,8 @@ public class HL7v2IO {
    *       parallelization in separate messages.list calls.
    * </ol>
    *
-   * If your use case doesn't lend itself to daily splitting, you can control initial splitting
-   * with {@link ListHL7v2Messages#withInitialSplitDuration(Duration)}
+   * If your use case doesn't lend itself to daily splitting, you can control initial splitting with
+   * {@link ListHL7v2Messages#withInitialSplitDuration(Duration)}
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
 
@@ -650,8 +651,8 @@ public class HL7v2IO {
   }
 
   /**
-   * Implemented as Splittable DoFn that claims millisecond resolutions of offset restrictions in the
-   * Message.sendTime dimension.
+   * Implemented as Splittable DoFn that claims millisecond resolutions of offset restrictions in
+   * the Message.sendTime dimension.
    */
   @BoundedPerElement
   @VisibleForTesting
