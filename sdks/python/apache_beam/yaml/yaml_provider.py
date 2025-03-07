@@ -39,6 +39,7 @@ from collections.abc import Mapping
 from typing import Any
 from typing import Optional
 
+import clonevirtualenv
 import docstring_parser
 import yaml
 
@@ -1170,7 +1171,7 @@ class PypiExpansionService:
         if os.path.exists(venv):
           shutil.rmtree(venv, ignore_errors=True)
         print("OUTPUT")
-        print(exn.output)
+        print(getattr(exn, 'output', None)
         raise
     return venv
 
