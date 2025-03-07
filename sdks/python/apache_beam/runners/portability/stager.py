@@ -293,11 +293,10 @@ class Stager(object):
                 tarball_file, WORKFLOW_TARBALL_FILE))
 
       if setup_options.files_to_stage is not None:
-          for file in setup_options.files_to_stage.split(','):
-              resources.append(
-                  Stager._create_file_stage_to_artifact(
-                      file, os.path.basename(file)))
-
+        for file in setup_options.files_to_stage.split(','):
+          resources.append(
+              Stager._create_file_stage_to_artifact(
+                  file, os.path.basename(file)))
 
       # Handle extra local packages that should be staged.
       if setup_options.extra_packages is not None:
