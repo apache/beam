@@ -297,7 +297,7 @@ class RecordWriterManager implements AutoCloseable {
               tableProperties = null;
             }
 
-            table = catalog.createTable(identifier, tableSchema, partitionSpec, null, tableProperties);
+            table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
 
             LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
           } catch (AlreadyExistsException alreadyExistsException) {
