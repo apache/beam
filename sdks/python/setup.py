@@ -354,11 +354,14 @@ if __name__ == '__main__':
           'cloudpickle~=2.2.1',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          #  NOTE(https://github.com/grpc/grpc/issues/37710): Some grpc 1.66.0+ versions 
-          #  have a regression, which might not be reproducible in newer versions.
+          # NOTE(https://github.com/grpc/grpc/issues/37710):
+          # Some grpc 1.66.0+ versions have a regression,
+          # which might not be reproducible in newer versions.
           # internal bug number: 372274680
           # external issue: https://github.com/grpc/grpc/issues/37710
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
+          # grpcio rc versions can break the build on Mac. Use 1.71 here.
+          # Error message: grpcio 1.71.0rc2 is not supported on this platform.
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.71',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
