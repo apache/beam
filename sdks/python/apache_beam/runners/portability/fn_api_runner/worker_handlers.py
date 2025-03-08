@@ -642,7 +642,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     # type: () -> str
     # TODO(https://github.com/apache/beam/issues/19947): Reconcile across
     # platforms.
-    if sys.platform in ['win32', 'darwin']:
+    if sys.platform in ['win32', 'darwin'] or True:  # DO NOT SUBMIT
       return 'localhost'
     import socket
     return socket.getfqdn()
