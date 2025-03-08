@@ -125,7 +125,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
@@ -147,7 +147,15 @@ public class Pipeline {
 
   /** Constructs a pipeline from default {@link PipelineOptions}. */
   public static Pipeline create() {
-    Pipeline pipeline = new Pipeline(PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    if (options.getRunner() == null) {
+      LOG.warn(
+          "Pipeline created with no effective PipelineOptions specified. Command-line arguments "
+              + "were parsed, but no runner or critical options were found. This may lead to "
+              + "unexpected behavior. Consider providing explicit options via "
+              + "Pipeline.create(PipelineOptions) or command-line arguments.");
+    }
+    Pipeline pipeline = new Pipeline(options);
     LOG.debug("Creating {}", pipeline);
     return pipeline;
   }
@@ -156,7 +164,12 @@ public class Pipeline {
   public static Pipeline create(PipelineOptions options) {
     // TODO: fix runners that mutate PipelineOptions in this method, then remove this line
     PipelineRunner.fromOptions(options);
-
+    if (options.getRunner() == null) {
+      LOG.warn(
+          "Pipeline created with no effective PipelineOptions specified. The provided options "
+              + "lack a runner or critical configuration. This may lead to unexpected behavior. "
+              + "Consider providing a PipelineOptions instance with explicit settings.");
+    }
     Pipeline pipeline = new Pipeline(options);
     LOG.debug("Creating {}", pipeline);
     return pipeline;
@@ -263,7 +276,8 @@ public class Pipeline {
         });
   }
 
-  private void replace(final PTransformOverride override) {
+  private <InputT extends PInput, OutputT extends POutput, TransformT extends PTransform<? super InputT, OutputT>>
+  void replace(final PTransformOverride override) {
     final Set<Node> matches = new HashSet<>();
     final Set<Node> freedNodes = new HashSet<>();
     traverseTopologically(
@@ -298,7 +312,10 @@ public class Pipeline {
       usedFullNames.remove(freedNode.getFullName());
     }
     for (Node match : matches) {
-      applyReplacement(match, override.getOverrideFactory());
+      @SuppressWarnings("unchecked")
+      PTransformOverrideFactory<InputT, OutputT, TransformT> factory =
+          (PTransformOverrideFactory<InputT, OutputT, TransformT>) override.getOverrideFactory();
+      applyReplacement(match, factory);
     }
   }
 
@@ -566,12 +583,12 @@ public class Pipeline {
   }
 
   private <
-          InputT extends PInput,
-          OutputT extends POutput,
-          TransformT extends PTransform<? super InputT, OutputT>>
-      void applyReplacement(
-          Node original,
-          PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
+      InputT extends PInput,
+      OutputT extends POutput,
+      TransformT extends PTransform<? super InputT, OutputT>>
+  void applyReplacement(
+      Node original,
+      PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
     PTransformReplacement<InputT, OutputT> replacement =
         replacementFactory.getReplacementTransform(
             (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform(this));
@@ -621,13 +638,13 @@ public class Pipeline {
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
-                      "Pipeline update will not be possible because the following transforms do"
-                          + " not have stable unique names: %s.",
-                      Joiner.on(", ").join(transform(errors, new KeysExtractor())))
+                  "Pipeline update will not be possible because the following transforms do"
+                      + " not have stable unique names: %s.",
+                  Joiner.on(", ").join(transform(errors, new KeysExtractor())))
                   + "\n\n"
                   + "Conflicting instances:\n"
                   + Joiner.on("\n")
-                      .join(transform(errors, new UnstableNameToMessage(instancePerName)))
+                  .join(transform(errors, new UnstableNameToMessage(instancePerName)))
                   + "\n\nYou can fix it adding a name when you call apply(): "
                   + "pipeline.apply(<name>, <transform>).");
         default:
