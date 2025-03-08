@@ -289,6 +289,7 @@ class RecordWriterManager implements AutoCloseable {
             org.apache.iceberg.Schema tableSchema =
                 IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
             // TODO(ahmedabu98): support creating a table with a specified partition spec
+            PartitionSpec partitionSpec = PartitionSpec.unpartitioned();
             Map<String, String> tableProperties;
             if (icebergDestination.getTableCreateConfig() != null) {
               tableProperties = icebergDestination.getTableCreateConfig().getTableProperties();
@@ -296,7 +297,7 @@ class RecordWriterManager implements AutoCloseable {
               tableProperties = null;
             }
 
-            table = catalog.createTable(identifier, tableSchema, null, null, tableProperties);
+            table = catalog.createTable(identifier, tableSchema, partitionSpec, null, tableProperties);
 
             LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
           } catch (AlreadyExistsException alreadyExistsException) {
