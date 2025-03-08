@@ -24,8 +24,8 @@ from apache_beam.ml.anomaly.base import AnomalyDetector
 from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.thresholds import FixedThreshold
 from apache_beam.ml.anomaly.univariate.base import EPSILON
-from apache_beam.ml.anomaly.univariate.quantile import QuantileTracker
 from apache_beam.ml.anomaly.univariate.quantile import BufferedSlidingQuantileTracker  # pylint: disable=line-too-long
+from apache_beam.ml.anomaly.univariate.quantile import QuantileTracker
 from apache_beam.ml.anomaly.univariate.quantile import SecondaryBufferedQuantileTracker  # pylint: disable=line-too-long
 
 DEFAULT_WINDOW_SIZE = 1000

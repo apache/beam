@@ -17,20 +17,20 @@
 
 import logging
 import math
-from typing import Iterable
 import unittest
+from typing import Iterable
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.aggregations import AnyVote
-from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import AnomalyPrediction
+from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.detectors.zscore import ZScore
+from apache_beam.ml.anomaly.thresholds import FixedThreshold
+from apache_beam.ml.anomaly.thresholds import QuantileThreshold
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import _StatefulThresholdDoFn
 from apache_beam.ml.anomaly.transforms import _StatelessThresholdDoFn
-from apache_beam.ml.anomaly.thresholds import FixedThreshold
-from apache_beam.ml.anomaly.thresholds import QuantileThreshold
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to

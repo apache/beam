@@ -23,11 +23,11 @@ from typing import Callable
 from typing import Iterable
 from typing import Optional
 
-from apache_beam.ml.anomaly.base import AggregationFn
-from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import DEFAULT_MISSING_LABEL
 from apache_beam.ml.anomaly.base import DEFAULT_NORMAL_LABEL
 from apache_beam.ml.anomaly.base import DEFAULT_OUTLIER_LABEL
+from apache_beam.ml.anomaly.base import AggregationFn
+from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.specifiable import specifiable
 
 

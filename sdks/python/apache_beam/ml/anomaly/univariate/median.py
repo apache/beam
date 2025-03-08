@@ -21,8 +21,8 @@ from typing import Optional
 
 from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.univariate.base import BaseTracker
-from apache_beam.ml.anomaly.univariate.quantile import QuantileTracker
 from apache_beam.ml.anomaly.univariate.quantile import BufferedSlidingQuantileTracker  # pylint: disable=line-too-long
+from apache_beam.ml.anomaly.univariate.quantile import QuantileTracker
 
 DEFAULT_WINDOW_SIZE = 1000
 

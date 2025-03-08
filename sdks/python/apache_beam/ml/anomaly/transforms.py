@@ -17,27 +17,27 @@
 
 import dataclasses
 import typing
+import uuid
 from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
-import uuid
 
 import apache_beam as beam
 from apache_beam.coders import DillCoder
 from apache_beam.ml.anomaly import aggregations
+from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyDetector
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
-from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.base import ThresholdFn
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
-from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteRuntimeState
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.utils import timestamp
 
 KeyT = TypeVar('KeyT')
