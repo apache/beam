@@ -616,7 +616,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
-    _LOGGER.info("Requesting worker at %s", self._external_payload.endpoint.url)
+    _LOGGER.error("Requesting worker at %s", self._external_payload.endpoint.url)
     stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
         GRPCChannelFactory.insecure_channel(
             self._external_payload.endpoint.url))
