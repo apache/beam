@@ -619,8 +619,8 @@ public class StorageApiSinkSchemaUpdateIT {
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-    // Skipping dynamic destinations tests on Dataflow because of timing issues.
-    // These tests are more stable on the DirectRunner, where timing is less variable.
+    // Skipping dynamic destinations tests on Dataflow because of timing issues
+    // These tests are more stable on the DirectRunner, where timing is less variable
     assumeFalse(p.getOptions().getRunner().getName().contains("DataflowRunner"));
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
