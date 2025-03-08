@@ -1,4 +1,8 @@
 {
   "comment": "Modify this file in a trivial way to cause this test suite to run",
+<<<<<<< HEAD
   "modification": 10
+=======
+  "modification": 12
+>>>>>>> Trigger postcommits.
 }
