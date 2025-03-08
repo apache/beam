@@ -372,6 +372,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   ./gradlew :sdks:python:generateYamlDocs -PisRelease
   GENERATE_YAMLDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}/${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html
+  GENERATE_YAMLDOC_EXAMPLES=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}/${BEAM_ROOT_DIR}/sdks/python/build/yaml-examples.html
 
   echo "------------------Updating Release Docs---------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
@@ -402,6 +403,7 @@ if [[ $confirmation = "y" ]]; then
   echo "............Copying generated yaml docs into beam-site.........."
   mkdir -p yamldoc
   cp -r ${GENERATE_YAMLDOC} yamldoc/${RELEASE}/index.html
+  cp -r ${GENERATE_YAMLDOC_EXAMPLES} yamldoc/${RELEASE}/examples.html
   # Update current symlink to point to the latest release
   unlink yamldoc/current | true
   ln -s ${RELEASE} yamldoc/current
