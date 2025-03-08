@@ -986,8 +986,20 @@ public class BigQueryServicesImpl implements BigQueryServices {
           AtomicLong maxThrottlingMsec,
           Sleeper sleeper,
           StreamingInsertsMetrics result) {
-        this(ref, skipInvalidRows, ignoreUnknownValues, client, rateLimitBackoffFactory, rows,
-            maxThrottlingMsec, sleeper, result, null, null, null, null);
+        this(
+            ref,
+            skipInvalidRows,
+            ignoreUnknownValues,
+            client,
+            rateLimitBackoffFactory,
+            rows,
+            maxThrottlingMsec,
+            sleeper,
+            result,
+            null,
+            null,
+            null,
+            null);
       }
 
       // New 13-parameter constructor
@@ -1040,7 +1052,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
           Instant start = Instant.now();
           try {
             TableDataInsertAllResponse response = insert.execute();
-            List<TableDataInsertAllResponse.InsertErrors> responseErrors = response.getInsertErrors();
+            List<TableDataInsertAllResponse.InsertErrors> responseErrors =
+                response.getInsertErrors();
             if (responseErrors == null || responseErrors.isEmpty()) {
               serviceCallMetric.call("ok");
             } else {
@@ -1063,17 +1076,25 @@ public class BigQueryServicesImpl implements BigQueryServices {
               InsertRetryPolicy.Context context = new InsertRetryPolicy.Context(null, e);
               if (!retryPolicy.shouldRetry(context)) {
                 // Non-retriable non-200 response: send all rows in this batch to DLQ if configured
-                LOG.warn("Non-retriable HTTP error {} for insertAll, sending to DLQ: {}", e.getStatusCode(), e.getMessage());
+                LOG.warn(
+                    "Non-retriable HTTP error {} for insertAll, sending to DLQ: {}",
+                    e.getStatusCode(),
+                    e.getMessage());
                 List<InsertErrors> syntheticErrors = new ArrayList<>();
                 for (int i = 0; i < rows.size(); i++) {
                   InsertErrors error =
                       new InsertErrors()
                           .setIndex((long) i)
-                          .setErrors(ImmutableList.of(new ErrorProto()
-                              .setReason(errorReason)
-                              .setMessage(e.getMessage())));
+                          .setErrors(
+                              ImmutableList.of(
+                                  new ErrorProto()
+                                      .setReason(errorReason)
+                                      .setMessage(e.getMessage())));
                   syntheticErrors.add(error);
-                  if (originalRows != null && failedInserts != null && errorContainer != null && i < originalRows.size()) {
+                  if (originalRows != null
+                      && failedInserts != null
+                      && errorContainer != null
+                      && i < originalRows.size()) {
                     @SuppressWarnings("unchecked")
                     List rawFailedInserts = (List) failedInserts;
                     @SuppressWarnings("unchecked")
@@ -1087,7 +1108,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
             // Retryable non-200 response or no retry policy
             if (!ApiErrorExtractor.INSTANCE.rateLimited(e) && !errorReason.equals(QUOTA_EXCEEDED)) {
-              if (ApiErrorExtractor.INSTANCE.badRequest(e) && e.getMessage().contains(NO_ROWS_PRESENT)) {
+              if (ApiErrorExtractor.INSTANCE.badRequest(e)
+                  && e.getMessage().contains(NO_ROWS_PRESENT)) {
                 LOG.error(
                     "No rows present in the request error likely caused by BigQuery Insert"
                         + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
@@ -1098,10 +1120,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
             }
 
             try (QuotaEventCloseable qec =
-                     new QuotaEvent.Builder()
-                         .withOperation("insert_all")
-                         .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
-                         .create()) {
+                new QuotaEvent.Builder()
+                    .withOperation("insert_all")
+                    .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
+                    .create()) {
               LOG.info(
                   String.format(
                       "BigQuery insertAll error, retrying: %s",
