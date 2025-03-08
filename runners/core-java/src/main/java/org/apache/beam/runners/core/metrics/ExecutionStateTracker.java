@@ -150,7 +150,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
   private long transitionsAtLastSample = 0;
   private long nextLullReportMs = LULL_REPORT_MS;
-  private long nextBundleLullDurationReportMs = BUNDLE_LULL_REPORT_MS;
+  private volatile long nextBundleLullDurationReportMs = BUNDLE_LULL_REPORT_MS;
 
   public ExecutionStateTracker(ExecutionStateSampler sampler) {
     this.sampler = sampler;
