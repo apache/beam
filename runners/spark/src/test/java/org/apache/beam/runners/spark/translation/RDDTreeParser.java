@@ -30,7 +30,7 @@ class RDDTreeParser {
 
     for (String line : lines) {
       line = line.trim();
-      if (line.isEmpty()) {
+      if (line.isEmpty() || isStatsLine(line)) {
         continue;
       }
 
@@ -46,6 +46,10 @@ class RDDTreeParser {
     }
 
     return list;
+  }
+
+  private static boolean isStatsLine(String line) {
+    return line.contains("MemorySize:") && line.contains("DiskSize:");
   }
 
   private static int extractId(String line) {

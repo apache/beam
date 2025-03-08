@@ -214,6 +214,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       // update the cache candidates
       updateCacheCandidates(pipeline, translator, evaluationContext);
+      updateDependentTransforms(pipeline, translator, evaluationContext);
 
       // update GBK candidates for memory optimized transform
       pipeline.traverseTopologically(new GroupByKeyVisitor(translator, evaluationContext));
@@ -275,8 +276,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /** Evaluator that update/populate the cache candidates. */
   public static void updateCacheCandidates(
       Pipeline pipeline, SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
-    CacheVisitor cacheVisitor = new CacheVisitor(translator, evaluationContext);
-    pipeline.traverseTopologically(cacheVisitor);
+    pipeline.traverseTopologically(new CacheVisitor(translator, evaluationContext));
+  }
+
+  /** Evaluator that update/populate information about dependent transforms for pCollections. */
+  public static void updateDependentTransforms(
+      Pipeline pipeline, SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
+    pipeline.traverseTopologically(new DependentTransformsVisitor(translator, evaluationContext));
   }
 
   /** The translation mode of the Beam Pipeline. */
