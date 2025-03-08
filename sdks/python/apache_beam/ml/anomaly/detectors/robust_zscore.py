@@ -27,6 +27,7 @@ from apache_beam.ml.anomaly.univariate.base import EPSILON
 from apache_beam.ml.anomaly.univariate.mad import MadTracker
 
 
+# pylint: disable=line-too-long
 @specifiable
 class RobustZScore(AnomalyDetector):
   """Robust Z-Score anomaly detector.
@@ -62,6 +63,7 @@ class RobustZScore(AnomalyDetector):
   .. [#] Yilmaz, Selim & Kozat, Suleyman. (2020). PySAD: A Streaming Anomaly Detection Framework in Python. 10.48550/arXiv.2009.02572.
   .. [#] Zhao, Y., Nasrullah, Z. and Li, Z.. (2019). PyOD: A Python Toolbox for Scalable Outlier Detection. Journal of machine learning research (JMLR), 20(96), pp.1-7.
   """
+  # pylint: enable=line-too-long
   SCALE_FACTOR = 0.6745
 
   def __init__(self, mad_tracker: Optional[MadTracker] = None, **kwargs):

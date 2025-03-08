@@ -20,7 +20,6 @@ import typing
 from typing import Any
 from typing import Callable
 from typing import Iterable
-from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -141,7 +140,7 @@ class _BaseThresholdDoFn(beam.DoFn):
   """
   def __init__(self, threshold_fn_spec: Spec):
     self._threshold_fn_spec = threshold_fn_spec
-    self._threshold_fn: Optional[ThresholdFn] = None
+    self._threshold_fn: ThresholdFn
 
   def _apply_threshold_to_predictions(
       self, result: AnomalyResult) -> AnomalyResult:
@@ -300,7 +299,7 @@ class RunThresholdCriterion(beam.PTransform[beam.PCollection[KeyedOutputT],
             input
             | beam.ParDo(_StatelessThresholdDoFn(self._threshold_fn.to_spec())))
     else:
-      ret: Any = input
+      ret = input
 
     return ret
 

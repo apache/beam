@@ -56,8 +56,8 @@ def _prediction_is_equal_to(a: AnomalyPrediction, b: AnomalyPrediction):
     return False
 
   if a.score != b.score:
-    if not (a is not None and b is not None and math.isnan(a.score) and
-            math.isnan(b.score)):
+    if not (a.score is not None and b.score is not None and
+            math.isnan(a.score) and math.isnan(b.score)):
       return False
 
   if a.label != b.label:

@@ -32,6 +32,7 @@ from apache_beam.ml.anomaly.univariate.stdev import StdevTracker
 DEFAULT_WINDOW_SIZE = 1000
 
 
+# pylint: disable=line-too-long
 @specifiable
 class ZScore(AnomalyDetector):
   """Z-Score anomaly detector.
@@ -66,6 +67,8 @@ class ZScore(AnomalyDetector):
   .. [#] Yilmaz, Selim & Kozat, Suleyman. (2020). PySAD: A Streaming Anomaly Detection Framework in Python. 10.48550/arXiv.2009.02572.
   .. [#] Jacob Montiel, Max Halford, Saulo Martiello Mastelini, Geoffrey Bolmier, Raphaël Sourty, et al.. (2021). River: machine learning for streaming data in Python. Journal of Machine Learning Research, 2021, 22, pp.1-8.
   """
+
+  # pylint: enable=line-too-long
   def __init__(
       self,
       sub_stat_tracker: Optional[MeanTracker] = None,

@@ -169,7 +169,7 @@ class AnomalyDetector(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def score_one(self, x: beam.Row) -> float:
+  def score_one(self, x: beam.Row) -> Optional[float]:
     """Scores a single data instance for anomalies.
 
     Args:
