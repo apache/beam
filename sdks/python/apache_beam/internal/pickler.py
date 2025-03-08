@@ -33,9 +33,9 @@ from apache_beam.internal import dill_pickler
 
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
-DEFAULT_PICKLE_LIB = USE_DILL
+DEFAULT_PICKLE_LIB = USE_CLOUDPICKLE
 
-desired_pickle_lib = dill_pickler
+desired_pickle_lib = cloudpickle_pickler
 
 
 def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
@@ -66,6 +66,7 @@ def load_session(file_path):
 
 def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
+  selected_library = USE_CLOUDPICKLE
   global desired_pickle_lib
   # If switching to or from dill, update the pickler hook overrides.
   if (selected_library == USE_DILL) != (desired_pickle_lib == dill_pickler):
