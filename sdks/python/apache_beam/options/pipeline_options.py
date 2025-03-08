@@ -349,7 +349,6 @@ class PipelineOptions(HasDisplayData):
       add_extra_args_fn(parser)
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    print("HERE", self._flags, unknown_args)
     if retain_unknown_options:
       if unknown_args:
         _LOGGER.warning(

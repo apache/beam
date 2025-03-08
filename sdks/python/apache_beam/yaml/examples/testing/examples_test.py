@@ -20,6 +20,7 @@ import glob
 import logging
 import os
 import random
+import sys
 import unittest
 from typing import Any
 from typing import Callable
@@ -267,6 +268,9 @@ def create_test_method(
 
   if 'deps' in pipeline_spec_file:
     test_yaml_example = pytest.mark.no_xdist(test_yaml_example)
+    test_yaml_example = unittest.skipIf(
+        sys.platform == 'win32', "Github virtualenv permissions issues.")(
+            test_yaml_example)
 
   if 'java_deps' in pipeline_spec_file:
     test_yaml_example = pytest.mark.xlang_sql_expansion_service(
