@@ -27,10 +27,13 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.beam.sdk.io.iceberg.RecordWriterManager.DestinationState;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -294,7 +297,7 @@ class RecordWriterManager implements AutoCloseable {
             if (icebergDestination.getTableCreateConfig() != null) {
               tableProperties = icebergDestination.getTableCreateConfig().getTableProperties();
             } else {
-              tableProperties = null;
+              tableProperties = new HashMap<>();
             }
 
             table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
