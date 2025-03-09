@@ -60,11 +60,6 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 ###
-# Set Python3.6 as default
-###
-RUN alias python=python3.6
-
-###
 # Install grpcio-tools mypy-protobuf for `python3 sdks/python/setup.py sdist` to work
 ###
 RUN pip3 install grpcio-tools mypy-protobuf
