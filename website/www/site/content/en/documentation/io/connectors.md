@@ -22,6 +22,8 @@ Apache Beam I/O connectors provide read and write transforms for the most popula
 
 I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](/documentation/programming-guide/#multi-language-pipelines).
 
+I/O connectors denoted as _Supported via Managed API_ can be accessed using the simplified _managed I/O_ APIs for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed).
+
 ## Built-in I/O Connectors
 
 This table provides a consolidated, at-a-glance overview of the available built-in I/O connectors.
@@ -1053,8 +1055,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/2.56.0/org/apache/beam/sdk/managed/Managed.html">native</a></td>
-    <td>Not available</td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html">native</a></td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed">via X-language</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
