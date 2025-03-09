@@ -168,7 +168,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testInsertRowsWithInvalidData() throws SQLException {
+  void testInsertRowsWithInvalidData(){
     // Arrange
     String tableName = "test_table";
     List<Map<String, Object>> rows = new ArrayList<>();

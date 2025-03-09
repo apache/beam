@@ -92,7 +92,6 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
 
     this.connection =
         clickHosueConnection != null ? clickHosueConnection : container.createConnection("");
-    ;
   }
 
   /** Builder for {@link ClickHouseResourceManager}. */

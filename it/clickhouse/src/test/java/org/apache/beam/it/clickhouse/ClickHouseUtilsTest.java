@@ -48,7 +48,7 @@ class ClickHouseUtilsTest {
             () -> ClickHouseUtils.checkValidTableName(tableNameTooLong.toString()));
 
     assertEquals(
-        "Table name " + tableNameTooLong.toString() + " cannot be longer than 206 characters.",
+        "Table name " + tableNameTooLong + " cannot be longer than 206 characters.",
         exception.getMessage());
   }
 
