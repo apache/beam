@@ -77,6 +77,8 @@ env:
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
+  DOCKER_REPOSITORY_ROOT: us-central1-docker.pkg.dev/apache-beam-testing/akarys-test
+  PYTHON_VERSION: 3.9
 
 jobs:
   beam_PreCommit_Flink_Container:
@@ -105,6 +107,19 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
+      - name: Generate TAG unique variable based on timestamp
+        id: set_tag
+        run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
+      - name: Build and push to registry
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:container:py39:docker
+          arguments: |
+            -PpythonVersion=${{ env.PYTHON_VERSION }}
+            -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \
+            -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
+            -PuseBuildx \
+            -Ppush-containers
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -141,7 +156,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ steps.set_tag.outputs.TAG }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
