@@ -87,6 +87,7 @@ docker {
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.useBuildx()
+  println "useBuildx = ${project.useBuildx()}"
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers
   push pushContainers

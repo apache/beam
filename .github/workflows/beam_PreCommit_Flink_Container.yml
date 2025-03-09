@@ -115,7 +115,7 @@ jobs:
         with:
           gradle-command: :sdks:python:container:py39:docker
           arguments: |
-            -PpythonVersion=${{ env.PYTHON_VERSION }}
+            -PpythonVersion=${{ env.PYTHON_VERSION }} \
             -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \
             -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
             -PuseBuildx \
