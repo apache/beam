@@ -625,4 +625,11 @@ public class JavaBeanSchemaTest {
     assertEquals(
         registry.getFromRowFunction(BeanWithCaseFormat.class).apply(row), beanWithCaseFormat);
   }
+
+  @Test
+  public void testSimpleBeanWithOverriddenAccessors() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(TestJavaBeans.SimpleBeanWithOverriddenAccessors.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
+  }
 }
