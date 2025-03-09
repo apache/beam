@@ -77,6 +77,7 @@ env:
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
+  DOCKER_REGISTRY: us-central1-docker.pkg.dev
   DOCKER_REPOSITORY_ROOT: us-central1-docker.pkg.dev/apache-beam-testing/akarys-test
   PYTHON_VERSION: 3.9
 
@@ -107,6 +108,9 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.DOCKER_REGISTRY }}
       - name: Generate TAG unique variable based on timestamp
         id: set_tag
         run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
