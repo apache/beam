@@ -298,7 +298,12 @@ class RecordWriterManager implements AutoCloseable {
             } else {
               tableProperties = new HashMap<>();
             }
-            table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties != null ? tableProperties : new HashMap<>());
+            table =
+                catalog.createTable(
+                    identifier,
+                    tableSchema,
+                    partitionSpec,
+                    tableProperties != null ? tableProperties : new HashMap<>());
             LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
           } catch (AlreadyExistsException alreadyExistsException) {
             // handle race condition where workers are concurrently creating the same table.
