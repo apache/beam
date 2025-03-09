@@ -177,3 +177,9 @@ jobs:
         if: always()
         run: |
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
+
+      - name: Cleanup Python SDK Container
+        if: always()
+        run: |
+          gcloud container images delete ${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ steps.set_tag.outputs.TAG }} --force-delete-tags --quiet
+
