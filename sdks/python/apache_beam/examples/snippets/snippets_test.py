@@ -1153,7 +1153,7 @@ class SnippetsTest(unittest.TestCase):
           pcollection | WindowInto(
               FixedWindows(1 * 60),
               trigger=AfterWatermark(late=AfterProcessingTime(10 * 60)),
-              allowed_lateness=10,
+              allowed_c=2,
               accumulation_mode=AccumulationMode.DISCARDING)
           # [END model_composite_triggers]
           | 'group' >> beam.GroupByKey()
