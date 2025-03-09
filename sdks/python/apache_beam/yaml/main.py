@@ -90,6 +90,14 @@ def _parse_arguments(argv):
       type=json.loads,
       help='A json dict of variables used when invoking the jinja preprocessor '
       'on the provided yaml pipeline.')
+  parser.add_argument(
+      '--standard_io_yaml_file',
+      default=None,
+      help='The YAML file contains definitions for stanard I/O providers.')
+  parser.add_argument(
+      '--standard_providers_yaml_file',
+      default=None,
+      help='The YAML file contains definitions for other standard providers.')
   return parser.parse_known_args(argv)
 
 
@@ -151,7 +159,9 @@ def run(argv=None):
           p,
           pipeline_spec,
           validate_schema=known_args.json_schema_validation,
-          pipeline_path=known_args.yaml_pipeline_file)
+          pipeline_path=known_args.yaml_pipeline_file,
+          standard_io_yaml_file=known_args.standard_io_yaml_file,
+          standard_providers_yaml_file=known_args.standard_providers_yaml_file)
       print("Running pipeline...")
 
 
