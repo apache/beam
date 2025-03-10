@@ -80,6 +80,7 @@ env:
   DOCKER_REGISTRY: gcr.io
   DOCKER_REPOSITORY_ROOT: ${{ github.event_name == 'pull_request_target' && 'gcr.io/apache-beam-testing/beam-sdk-pr' || 'gcr.io/apache-beam-testing/beam-sdk' }}
   PYTHON_VERSION: 3.9
+  PYTHON_SDK_IMAGE_TAG: latest
 
 jobs:
   beam_PreCommit_Flink_Container:
@@ -116,6 +117,9 @@ jobs:
         if: ${{ github.event_name == 'pull_request_target' }}
         id: set_tag
         run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
+      - name: Set PYTHON_SDK_IMAGE_TAG for pull_request_target
+        if: ${{ github.event_name == 'pull_request_target' }}
+        run: echo "PYTHON_SDK_IMAGE_TAG=${{ steps.set_tag.outputs.TAG }}" >> $GITHUB_ENV
       - name: Build and push to registry
         if: ${{ github.event_name == 'pull_request_target' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -163,7 +167,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            "-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ github.event_name == 'pull_request_target' && steps.set_tag.outputs.TAG || 'latest' }} --job_name=flink-tests-python-${{env.NOW_UTC}}"
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ env.PYTHON_SDK_IMAGE_TAG }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
