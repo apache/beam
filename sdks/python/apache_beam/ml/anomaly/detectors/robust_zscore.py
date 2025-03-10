@@ -79,10 +79,9 @@ class RobustZScore(AnomalyDetector):
       x: A `beam.Row` containing a single numerical value.
     """
     if len(x.__dict__) != 1:
-      logging.warning(
+      raise ValueError(
           "RobustZScore.learn_one expected univariate input, but got %s",
           str(x))
-      return
 
     v = next(iter(x))
     self._mad_tracker.push(v)
@@ -97,10 +96,9 @@ class RobustZScore(AnomalyDetector):
       float | None: The Robust Z-Score.
     """
     if len(x.__dict__) != 1:
-      logging.warning(
+      raise ValueError(
           "RobustZScore.score_one expected univariate input, but got %s",
           str(x))
-      return None
 
     v = next(iter(x))
     if v is None or math.isnan(v):

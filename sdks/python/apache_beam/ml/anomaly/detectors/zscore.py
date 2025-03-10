@@ -90,9 +90,8 @@ class ZScore(AnomalyDetector):
       x: A `beam.Row` containing a single numerical value.
     """
     if len(x.__dict__) != 1:
-      logging.warning(
+      raise ValueError(
           "ZScore.learn_one expected univariate input, but got %s", str(x))
-      return
 
     v = next(iter(x))
     self._stdev_tracker.push(v)
@@ -108,9 +107,8 @@ class ZScore(AnomalyDetector):
       float | None: The Z-Score.
     """
     if len(x.__dict__) != 1:
-      logging.warning(
+      raise ValueError(
           "ZScore.score_one expected univariate input, but got %s", str(x))
-      return None
 
     v = next(iter(x))
     if v is None or math.isnan(v):

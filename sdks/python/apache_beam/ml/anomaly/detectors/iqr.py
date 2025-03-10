@@ -85,9 +85,8 @@ class IQR(AnomalyDetector):
       x: A `beam.Row` containing a single numerical value.
     """
     if len(x.__dict__) != 1:
-      logging.warning(
+      raise ValueError(
           "IQR.learn_one expected univariate input, but got %s", str(x))
-      return
 
     v = next(iter(x))
     self._q1_tracker.push(v)
@@ -103,9 +102,8 @@ class IQR(AnomalyDetector):
       float | None: The anomaly score.
     """
     if len(x.__dict__) != 1:
-      logging.warning(
+      raise ValueError(
           "IQR.score_one expected univariate input, but got %s", str(x))
-      return None
 
     v = next(iter(x))
     if v is None or math.isnan(v):
