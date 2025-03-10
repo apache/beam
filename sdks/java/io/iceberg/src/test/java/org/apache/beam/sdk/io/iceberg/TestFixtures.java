@@ -58,36 +58,52 @@ public class TestFixtures {
           ImmutableMap.of("id", 6L, "data", "brainy"),
           ImmutableMap.of("id", 7L, "data", "film"),
           ImmutableMap.of("id", 8L, "data", "feta"));
+  public static final List<Map<String, Object>> FILE1SNAPSHOT4_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 9L, "data", "clammy"),
+          ImmutableMap.of("id", 10L, "data", "evacuate"),
+          ImmutableMap.of("id", 11L, "data", "tissue"));
   public static final List<Map<String, Object>> FILE2SNAPSHOT1_DATA =
       ImmutableList.of(
-          ImmutableMap.of("id", 10L, "data", "clammy"),
-          ImmutableMap.of("id", 11L, "data", "evacuate"),
-          ImmutableMap.of("id", 12L, "data", "tissue"));
+          ImmutableMap.of("id", 12L, "data", "radical"),
+          ImmutableMap.of("id", 13L, "data", "collocation"),
+          ImmutableMap.of("id", 14L, "data", "book"));
   public static final List<Map<String, Object>> FILE2SNAPSHOT2_DATA =
       ImmutableList.of(
-          ImmutableMap.of("id", 14L, "data", "radical"),
-          ImmutableMap.of("id", 15L, "data", "collocation"),
-          ImmutableMap.of("id", 16L, "data", "book"));
+          ImmutableMap.of("id", 15L, "data", "cake"),
+          ImmutableMap.of("id", 16L, "data", "intrinsic"),
+          ImmutableMap.of("id", 17L, "data", "paper"));
   public static final List<Map<String, Object>> FILE2SNAPSHOT3_DATA =
       ImmutableList.of(
-          ImmutableMap.of("id", 16L, "data", "cake"),
-          ImmutableMap.of("id", 17L, "data", "intrinsic"),
-          ImmutableMap.of("id", 18L, "data", "paper"));
+          ImmutableMap.of("id", 18L, "data", "ocean"),
+          ImmutableMap.of("id", 19L, "data", "holistic"),
+          ImmutableMap.of("id", 20L, "data", "preventative"));
+  public static final List<Map<String, Object>> FILE2SNAPSHOT4_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 21L, "data", "cloud"),
+          ImmutableMap.of("id", 22L, "data", "zen"),
+          ImmutableMap.of("id", 23L, "data", "sky"));
   public static final List<Map<String, Object>> FILE3SNAPSHOT1_DATA =
       ImmutableList.of(
-          ImmutableMap.of("id", 20L, "data", "ocean"),
-          ImmutableMap.of("id", 21L, "data", "holistic"),
-          ImmutableMap.of("id", 22L, "data", "preventative"));
+          ImmutableMap.of("id", 24L, "data", "belleview"),
+          ImmutableMap.of("id", 25L, "data", "overview"),
+          ImmutableMap.of("id", 26L, "data", "tender"));
+
   public static final List<Map<String, Object>> FILE3SNAPSHOT2_DATA =
       ImmutableList.of(
-          ImmutableMap.of("id", 24L, "data", "cloud"),
-          ImmutableMap.of("id", 25L, "data", "zen"),
-          ImmutableMap.of("id", 26L, "data", "sky"));
+          ImmutableMap.of("id", 30L, "data", "ripple"),
+          ImmutableMap.of("id", 31L, "data", "coral"),
+          ImmutableMap.of("id", 32L, "data", "tide"));
   public static final List<Map<String, Object>> FILE3SNAPSHOT3_DATA =
       ImmutableList.of(
-          ImmutableMap.of("id", 26L, "data", "belleview"),
-          ImmutableMap.of("id", 27L, "data", "overview"),
-          ImmutableMap.of("id", 28L, "data", "tender"));
+          ImmutableMap.of("id", 33L, "data", "pebble"),
+          ImmutableMap.of("id", 34L, "data", "lagoon"),
+          ImmutableMap.of("id", 35L, "data", "warm"));
+  public static final List<Map<String, Object>> FILE3SNAPSHOT4_DATA =
+      ImmutableList.of(
+          ImmutableMap.of("id", 27L, "data", "horizon"),
+          ImmutableMap.of("id", 28L, "data", "blossom"),
+          ImmutableMap.of("id", 29L, "data", "meadow"));
 
   /* First file in test table */
   public static final List<Record> FILE1SNAPSHOT1 =
@@ -96,6 +112,8 @@ public class TestFixtures {
       Lists.transform(FILE1SNAPSHOT2_DATA, d -> createRecord(SCHEMA, d));
   public static final List<Record> FILE1SNAPSHOT3 =
       Lists.transform(FILE1SNAPSHOT3_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE1SNAPSHOT4 =
+      Lists.transform(FILE1SNAPSHOT4_DATA, d -> createRecord(SCHEMA, d));
 
   /* Second file in test table */
   public static final List<Record> FILE2SNAPSHOT1 =
@@ -104,6 +122,8 @@ public class TestFixtures {
       Lists.transform(FILE2SNAPSHOT2_DATA, d -> createRecord(SCHEMA, d));
   public static final List<Record> FILE2SNAPSHOT3 =
       Lists.transform(FILE2SNAPSHOT3_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE2SNAPSHOT4 =
+      Lists.transform(FILE2SNAPSHOT4_DATA, d -> createRecord(SCHEMA, d));
 
   /* Third file in test table */
   public static final List<Record> FILE3SNAPSHOT1 =
@@ -112,6 +132,8 @@ public class TestFixtures {
       Lists.transform(FILE3SNAPSHOT2_DATA, d -> createRecord(SCHEMA, d));
   public static final List<Record> FILE3SNAPSHOT3 =
       Lists.transform(FILE3SNAPSHOT3_DATA, d -> createRecord(SCHEMA, d));
+  public static final List<Record> FILE3SNAPSHOT4 =
+      Lists.transform(FILE3SNAPSHOT4_DATA, d -> createRecord(SCHEMA, d));
 
   public static final ImmutableList<Row> asRows(Iterable<Record> records) {
     ArrayList<Row> rows = new ArrayList<>();

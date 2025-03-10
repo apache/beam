@@ -17,26 +17,52 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.iceberg.MetricsConfig;
+import org.apache.iceberg.MetricsModes;
+import org.apache.iceberg.MetricsModes.Full;
+import org.apache.iceberg.MetricsModes.Truncate;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.Types.NestedField;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
-
   private transient @MonotonicNonNull Table cachedTable;
+  private @MonotonicNonNull Schema cachedCdcSchema;
 
   public enum ScanType {
     TABLE,
     BATCH
   }
+
+  private static final Set<Type> WATERMARK_COLUMN_TYPES =
+      ImmutableSet.of(
+          Types.LongType.get(), Types.TimestampType.withoutZone(), Types.TimestampType.withZone());
 
   @Pure
   public abstract ScanType getScanType();
@@ -58,6 +84,14 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   public abstract Schema getSchema();
+
+  @Pure
+  public Schema getCdcSchema() {
+    if (cachedCdcSchema == null) {
+      cachedCdcSchema = ReadUtils.outputCdcSchema(getSchema());
+    }
+    return cachedCdcSchema;
+  }
 
   @Pure
   public abstract @Nullable Expression getFilter();
@@ -93,6 +127,30 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable String getToSnapshotRef();
 
   @Pure
+  public abstract @Nullable Long getFromTimestamp();
+
+  @Pure
+  public abstract @Nullable Long getToTimestamp();
+
+  @Pure
+  public abstract @Nullable StartingStrategy getStartingStrategy();
+
+  @Pure
+  public abstract boolean getUseCdc();
+
+  @Pure
+  public abstract @Nullable Boolean getStreaming();
+
+  @Pure
+  public abstract @Nullable Duration getPollInterval();
+
+  @Pure
+  public abstract @Nullable String getWatermarkColumn();
+
+  @Pure
+  public abstract @Nullable String getWatermarkTimeUnit();
+
+  @Pure
   public abstract @Nullable String getTag();
 
   @Pure
@@ -113,6 +171,12 @@ public abstract class IcebergScanConfig implements Serializable {
         .setFromSnapshotRefExclusive(null)
         .setToSnapshot(null)
         .setToSnapshotRef(null)
+        .setFromTimestamp(null)
+        .setToTimestamp(null)
+        .setUseCdc(false)
+        .setStreaming(null)
+        .setPollInterval(null)
+        .setStartingStrategy(null)
         .setTag(null)
         .setBranch(null);
   }
@@ -157,10 +221,146 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setToSnapshotRef(@Nullable String ref);
 
+    public abstract Builder setFromTimestamp(@Nullable Long timestamp);
+
+    public abstract Builder setToTimestamp(@Nullable Long timestamp);
+
+    public abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
+
+    public abstract Builder setUseCdc(boolean useCdc);
+
+    public abstract Builder setStreaming(@Nullable Boolean streaming);
+
+    public abstract Builder setPollInterval(@Nullable Duration pollInterval);
+
+    public abstract Builder setWatermarkColumn(@Nullable String column);
+
+    public abstract Builder setWatermarkTimeUnit(@Nullable String timeUnit);
+
     public abstract Builder setTag(@Nullable String tag);
 
     public abstract Builder setBranch(@Nullable String branch);
 
     public abstract IcebergScanConfig build();
+  }
+
+  @VisibleForTesting
+  abstract Builder toBuilder();
+
+  void validate(Table table) {
+    // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
+    if (!getUseCdc()) {
+      List<String> invalidOptions = new ArrayList<>();
+      if (MoreObjects.firstNonNull(getStreaming(), false)) {
+        invalidOptions.add("streaming");
+      }
+      if (getPollInterval() != null) {
+        invalidOptions.add("poll_interval_seconds");
+      }
+      if (getFromTimestamp() != null) {
+        invalidOptions.add("from_timestamp");
+      }
+      if (getToTimestamp() != null) {
+        invalidOptions.add("to_timestamp");
+      }
+      if (getFromSnapshotInclusive() != null) {
+        invalidOptions.add("from_snapshot");
+      }
+      if (getToSnapshot() != null) {
+        invalidOptions.add("to_snapshot");
+      }
+      if (getStartingStrategy() != null) {
+        invalidOptions.add("starting_strategy");
+      }
+      if (getWatermarkColumn() != null) {
+        invalidOptions.add("watermark_column");
+      }
+      if (getWatermarkTimeUnit() != null) {
+        invalidOptions.add("watermark_time_unit");
+      }
+      if (!invalidOptions.isEmpty()) {
+        throw new IllegalArgumentException(
+            error(
+                "the following options are currently only available when "
+                    + "reading with Managed.ICEBERG_CDC: "
+                    + invalidOptions));
+      }
+    }
+
+    if (getStartingStrategy() != null) {
+      checkArgument(
+          getFromTimestamp() == null && getFromSnapshotInclusive() == null,
+          error(
+              "'from_timestamp' and 'from_snapshot' are not allowed when 'starting_strategy' is set"));
+    }
+    checkArgument(
+        getFromTimestamp() == null || getFromSnapshotInclusive() == null,
+        error("only one of 'from_timestamp' or 'from_snapshot' can be set"));
+    checkArgument(
+        getToTimestamp() == null || getToSnapshot() == null,
+        error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
+
+    if (getPollInterval() != null) {
+      checkArgument(
+          Boolean.TRUE.equals(getStreaming()),
+          error("'poll_interval_seconds' can only be set when streaming is true"));
+    }
+
+    @Nullable String watermarkColumn = getWatermarkColumn();
+    if (watermarkColumn != null) {
+      org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(getSchema());
+      NestedField field =
+          checkArgumentNotNull(
+              icebergSchema.findField(watermarkColumn),
+              error("the specified 'watermark_column' field does not exist: '%s'."),
+              watermarkColumn);
+
+      Type type = field.type();
+      checkArgument(
+          WATERMARK_COLUMN_TYPES.contains(type),
+          error("invalid 'watermark_column' type: %s. Valid types are %s."),
+          type,
+          WATERMARK_COLUMN_TYPES);
+
+      MetricsModes.MetricsMode mode = MetricsConfig.forTable(table).columnMode(watermarkColumn);
+      checkState(
+          mode instanceof Truncate || mode instanceof Full,
+          error(
+              "source table '%s' is not configured to capture lower bound metrics for the specified watermark column '%s'. "
+                  + "Valid metric modes are '%s', but found '%s'. See "
+                  + "table option 'write.metadata.metrics...'in "
+                  + "https://iceberg.apache.org/docs/latest/configuration/#write-properties for more information."),
+          getTableIdentifier(),
+          watermarkColumn,
+          ImmutableSet.of("truncate(n)", "full"),
+          mode);
+
+      @Nullable String watermarkTimeUnit = getWatermarkTimeUnit();
+      if (watermarkTimeUnit != null) {
+        checkArgument(
+            type.equals(Types.LongType.get()),
+            error(
+                "'watermark_time_unit' is only applicable for Long types. The specified "
+                    + "'watermark_column' is of type: %s"),
+            type);
+
+        Set<String> validTimeUnits =
+            Arrays.stream(TimeUnit.values()).map(TimeUnit::name).collect(Collectors.toSet());
+        checkArgument(
+            validTimeUnits.contains(watermarkTimeUnit.toUpperCase()),
+            error("invalid 'watermark_time_unit': %s. Please choose one of: %s"),
+            watermarkTimeUnit,
+            validTimeUnits);
+      }
+    } else {
+      checkArgument(
+          getWatermarkTimeUnit() == null,
+          error(
+              "cannot set 'watermark_time_unit' without also setting a 'watermark_column' of Long type."));
+    }
+  }
+
+  private String error(String message) {
+    return "Invalid source configuration: " + message;
   }
 }
