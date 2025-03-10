@@ -77,8 +77,8 @@ env:
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
-  DOCKER_REGISTRY: us-central1-docker.pkg.dev
-  DOCKER_REPOSITORY_ROOT: us-central1-docker.pkg.dev/apache-beam-testing/akarys-test
+  DOCKER_REGISTRY: gcr.io
+  DOCKER_REPOSITORY_ROOT: gcr.io/apache-beam-testing/beam-sdk-pr
   PYTHON_VERSION: 3.9
 
 jobs:
@@ -160,7 +160,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:2.64.0-SNAPSHOT --job_name=flink-tests-python-${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ steps.set_tag.outputs.TAG }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
