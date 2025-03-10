@@ -19,6 +19,8 @@ import abc
 from collections import deque
 from enum import Enum
 
+EPSILON = 1e-9
+
 
 class BaseTracker(abc.ABC):
   """Abstract base class for all univariate trackers."""
