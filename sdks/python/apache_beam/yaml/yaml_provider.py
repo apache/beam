@@ -31,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 import warnings
 from collections.abc import Callable
