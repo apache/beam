@@ -1095,7 +1095,7 @@ class PypiExpansionService:
   with the given dependencies.
   """
   if 'TOX_WORK_DIR' in os.environ:
-    VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache', dir=os.environ['TOX_WORK_DIR'])
+    VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache-', dir=os.environ['TOX_WORK_DIR'])
   else:
     raise RuntimeError(list(os.environ.keys()))
     VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")

@@ -36,8 +36,9 @@ pipeline:
           year:
             callable: |
               import yaml
-              raise RuntimeError(yaml.__file__)
+              print("YAML PATH", yaml.__file__)
               import roman
+              print("ROMAN PATH", roman.__file__)
 
               def convert(row):
                 return roman.toRoman(row.year)
