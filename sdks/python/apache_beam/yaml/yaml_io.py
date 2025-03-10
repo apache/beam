@@ -24,7 +24,6 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import os
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
