@@ -16,6 +16,8 @@
 name: PreCommit Flink Container
 
 on:
+  issue_comment:
+    types: [created]
   pull_request_target:
     paths:
       - 'model/**'
