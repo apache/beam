@@ -134,6 +134,7 @@ class ClickHouseResourceManagerTest {
     rows.add(row2);
 
     assertTrue(resourceManager.insertRows("test_table", rows));
+    assertEquals(2, rows.size());
   }
 
   @Test
@@ -168,12 +169,12 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testInsertRowsWithInvalidData(){
+  void testInsertRowsWithInvalidData() {
     // Arrange
     String tableName = "test_table";
     List<Map<String, Object>> rows = new ArrayList<>();
     Map<String, Object> row = new HashMap<>();
-    row.put("id", null); // Invalid data
+    row.put("id", "string"); // Invalid data
     rows.add(row);
 
     // Act & Assert

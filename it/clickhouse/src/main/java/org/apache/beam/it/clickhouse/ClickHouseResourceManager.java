@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -237,7 +238,17 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
 
         // Execute batch insert
         int[] result = preparedStatement.executeBatch();
-        LOG.info("Successfully wrote {} rows to {}", result.length, tableName);
+
+        boolean allSuccessful =
+            Arrays.stream(result)
+                .allMatch(resRows -> resRows > 0 || resRows == Statement.SUCCESS_NO_INFO);
+        if (!allSuccessful) {
+          LOG.warn("Some rows might have failed to insert into {}", tableName);
+          return false;
+        }
+
+        int affectedRows = Arrays.stream(result).sum();
+        LOG.info("Successfully wrote {} rows to {}", affectedRows, tableName);
         return true;
       }
     } catch (Exception e) {
