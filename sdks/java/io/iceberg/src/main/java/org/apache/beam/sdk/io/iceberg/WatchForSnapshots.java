@@ -33,7 +33,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -107,8 +106,8 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
         @Nullable List<SnapshotInfo> snapshots, boolean isComplete) {
       List<TimestampedValue<List<SnapshotInfo>>> timestampedSnapshots = new ArrayList<>(1);
       if (snapshots != null) {
-        // watermark based on the most recent snapshot timestamp
-        Instant watermark = Instant.ofEpochMilli(Iterables.getLast(snapshots).getTimestampMillis());
+        // watermark based on the oldest observed snapshot in this poll interval
+        Instant watermark = Instant.ofEpochMilli(snapshots.get(0).getTimestampMillis());
         timestampedSnapshots.add(TimestampedValue.of(snapshots, watermark));
       }
 

@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -95,9 +93,6 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
    * </ul>
    */
   private PCollection<Row> readUnbounded(PBegin input) {
-    Preconditions.checkState(
-        input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming(),
-        "The streaming source requires '--streaming=true', but found '--streaming=false'.");
     @Nullable
     Duration pollInterval =
         MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
