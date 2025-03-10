@@ -27,7 +27,10 @@ from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.detectors.zscore import ZScore
 from apache_beam.ml.anomaly.thresholds import FixedThreshold
+from apache_beam.ml.anomaly.thresholds import QuantileThreshold
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
+from apache_beam.ml.anomaly.transforms import _StatefulThresholdDoFn
+from apache_beam.ml.anomaly.transforms import _StatelessThresholdDoFn
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -248,6 +251,161 @@ class TestAnomalyDetection(unittest.TestCase):
               AnomalyResult(example=input[1], predictions=[prediction]))
                     for input,
                     prediction in zip(self._input, aggregated)]))
+
+
+R = beam.Row(x=10, y=20)
+
+
+class TestStatelessThresholdDoFn(unittest.TestCase):
+  def test_dofn_on_single_prediction(self):
+    input = [
+        (1, (2, AnomalyResult(R, [AnomalyPrediction(score=1)]))),
+        (1, (3, AnomalyResult(R, [AnomalyPrediction(score=2)]))),
+        (1, (4, AnomalyResult(R, [AnomalyPrediction(score=3)]))),
+    ]
+    expected = [
+        (
+            1,
+            (
+                2,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=1, label=0, threshold=2)]))),
+        (
+            1,
+            (
+                3,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=2, label=1, threshold=2)]))),
+        (
+            1,
+            (
+                4,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=3, label=1, threshold=2)]))),
+    ]
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(input)
+          | beam.ParDo(
+              _StatelessThresholdDoFn(
+                  FixedThreshold(2, normal_label=0,
+                                 outlier_label=1).to_spec())))
+      assert_that(result, equal_to(expected))
+
+  def test_dofn_on_multiple_predictions(self):
+    input = [
+        (
+            1,
+            (
+                2,
+                AnomalyResult(
+                    R,
+                    [AnomalyPrediction(score=1), AnomalyPrediction(score=4)]))),
+        (
+            1,
+            (
+                3,
+                AnomalyResult(
+                    R,
+                    [AnomalyPrediction(score=2), AnomalyPrediction(score=0.5)
+                     ]))),
+    ]
+    expected = [
+        (
+            1,
+            (
+                2,
+                AnomalyResult(
+                    R,
+                    [
+                        AnomalyPrediction(score=1, label=0, threshold=2),
+                        AnomalyPrediction(score=4, label=1, threshold=2)
+                    ]))),
+        (
+            1,
+            (
+                3,
+                AnomalyResult(
+                    R,
+                    [
+                        AnomalyPrediction(score=2, label=1, threshold=2),
+                        AnomalyPrediction(score=0.5, label=0, threshold=2)
+                    ]))),
+    ]
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(input)
+          | beam.ParDo(
+              _StatelessThresholdDoFn(
+                  FixedThreshold(2, normal_label=0,
+                                 outlier_label=1).to_spec())))
+
+      assert_that(result, equal_to(expected))
+
+
+class TestStatefulThresholdDoFn(unittest.TestCase):
+  def test_dofn_on_single_prediction(self):
+    # use the input data with two keys to test stateful threshold function
+    input = [
+        (1, (2, AnomalyResult(R, [AnomalyPrediction(score=1)]))),
+        (1, (3, AnomalyResult(R, [AnomalyPrediction(score=2)]))),
+        (1, (4, AnomalyResult(R, [AnomalyPrediction(score=3)]))),
+        (2, (2, AnomalyResult(R, [AnomalyPrediction(score=10)]))),
+        (2, (3, AnomalyResult(R, [AnomalyPrediction(score=20)]))),
+        (2, (4, AnomalyResult(R, [AnomalyPrediction(score=30)]))),
+    ]
+    expected = [
+        (
+            1,
+            (
+                2,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=1, label=1, threshold=1)]))),
+        (
+            1,
+            (
+                3,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=2, label=1, threshold=1.5)]))),
+        (
+            2,
+            (
+                2,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=10, label=1, threshold=10)]))),
+        (
+            2,
+            (
+                3,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=20, label=1, threshold=15)]))),
+        (
+            1,
+            (
+                4,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=3, label=1, threshold=2)]))),
+        (
+            2,
+            (
+                4,
+                AnomalyResult(
+                    R, [AnomalyPrediction(score=30, label=1, threshold=20)]))),
+    ]
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(input)
+          # use median just for test convenience
+          | beam.ParDo(
+              _StatefulThresholdDoFn(
+                  QuantileThreshold(
+                      quantile=0.5, normal_label=0,
+                      outlier_label=1).to_spec())))
+
+      assert_that(result, equal_to(expected))
 
 
 if __name__ == '__main__':

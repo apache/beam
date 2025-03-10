@@ -123,7 +123,15 @@ class Specifiable(Protocol):
 
   @classmethod
   def from_spec(cls, spec: Spec, _run_init: bool = True) -> Self:
-    """Generate a `Specifiable` subclass object based on a spec."""
+    """Generate a `Specifiable` subclass object based on a spec.
+
+    Args:
+      spec: the specification of a `Specifiable` subclass object
+      _run_init: whether to call `__init__` or not for the initial instantiation
+
+    Returns:
+      Self: the `Specifiable` subclass object
+    """
     if spec.type is None:
       raise ValueError(f"Spec type not found in {spec}")
 
@@ -153,7 +161,11 @@ class Specifiable(Protocol):
     return v
 
   def to_spec(self) -> Spec:
-    """Generate a spec from a `Specifiable` subclass object."""
+    """Generate a spec from a `Specifiable` subclass object.
+
+    Returns:
+      Spec: The specification of the instance.
+    """
     if getattr(type(self), 'spec_type', None) is None:
       raise ValueError(
           f"'{type(self).__name__}' not registered as Specifiable. "
@@ -262,7 +274,14 @@ def specifiable(
       original_init(self, *args, **kwargs)
       self._initialized = True
 
-    def run_original_init(self):
+    def run_original_init(self) -> None:
+      """Execute the original `__init__` method with its saved arguments.
+
+      For instances of the `Specifiable` class, initialization is deferred
+      (lazy initialization). This function forces the execution of the
+      original `__init__` method using the arguments captured during
+      the object's initial instantiation.
+      """
       self._in_init = True
       original_init(self, **self.init_kwargs)
       self._in_init = False
