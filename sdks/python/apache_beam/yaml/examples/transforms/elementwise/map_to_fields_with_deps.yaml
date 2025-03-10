@@ -35,6 +35,10 @@ pipeline:
           tool_name: sdk
           year:
             callable: |
+              import apache_beam
+              import roman
+              raise RuntimeError(apache_beam.__file__, roman.__file__)
+
               import roman
 
               def convert(row):

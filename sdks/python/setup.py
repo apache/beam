@@ -401,7 +401,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'pandas<2.3.0',
-              'openai'
+              'openai',
               'virtualenv-clone>=0.5,<1.0',
           ],
           'test': [
