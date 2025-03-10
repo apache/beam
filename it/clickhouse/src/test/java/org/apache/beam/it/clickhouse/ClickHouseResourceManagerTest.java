@@ -39,9 +39,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.Before;
 import org.junit.Rule;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Answers;
@@ -52,7 +52,7 @@ import org.mockito.junit.MockitoRule;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 
 @RunWith(JUnit4.class)
-class ClickHouseResourceManagerTest {
+public class ClickHouseResourceManagerTest {
 
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
@@ -69,8 +69,8 @@ class ClickHouseResourceManagerTest {
 
   private ClickHouseResourceManager resourceManager;
 
-  @BeforeEach
-  void setUp() throws SQLException {
+  @Before
+  public void setUp() throws SQLException {
     MockitoAnnotations.initMocks(this); // This initializes the mocks
     when(mockContainer.createConnection("")).thenReturn(mockConnection);
     doReturn(mockContainer).when(mockContainer).withLogConsumer(any());
@@ -81,7 +81,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testTableExists_WhenTableExists() throws SQLException {
+  public void testTableExists_WhenTableExists() throws SQLException {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery("EXISTS TABLE test_table")).thenReturn(mockResultSet);
     when(mockResultSet.next()).thenReturn(true);
@@ -91,7 +91,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testTableExists_WhenTableDoesNotExist() throws SQLException {
+  public void testTableExists_WhenTableDoesNotExist() throws SQLException {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery("EXISTS TABLE test_table")).thenReturn(mockResultSet);
     when(mockResultSet.next()).thenReturn(false);
@@ -100,7 +100,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testCreateTable_Success() throws Exception {
+  public void testCreateTable_Success() throws Exception {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.execute(anyString())).thenReturn(true);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
@@ -118,7 +118,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testInsertRows_Success() throws Exception {
+  public void testInsertRows_Success() throws Exception {
     when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
     when(mockPreparedStatement.executeBatch()).thenReturn(new int[] {1, 1});
 
@@ -138,7 +138,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testFetchAll_Success() throws Exception {
+  public void testFetchAll_Success() throws Exception {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
     when(mockResultSet.getMetaData()).thenReturn(mock(ResultSetMetaData.class));
@@ -153,7 +153,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testCountRowsInTable() throws SQLException {
+  public void testCountRowsInTable() throws SQLException {
     String tableName = "test_table";
     ResultSet countRes = mock(ResultSet.class);
     when(countRes.next()).thenReturn(true);
@@ -169,7 +169,7 @@ class ClickHouseResourceManagerTest {
   }
 
   @Test
-  void testInsertRowsWithInvalidData() {
+  public void testInsertRowsWithInvalidData() {
     // Arrange
     String tableName = "test_table";
     List<Map<String, Object>> rows = new ArrayList<>();
