@@ -1161,9 +1161,9 @@ class PypiExpansionService:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
-        print("CLONING", clonable_venv, "TO", venv)
         clonable_venv = cls._create_venv_to_clone(base_python)
         #         clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        print("CLONING", clonable_venv, "TO", venv)
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         #         print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']).decode('utf-8'))
         #         subprocess.run(
