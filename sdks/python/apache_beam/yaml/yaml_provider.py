@@ -1096,6 +1096,7 @@ class PypiExpansionService:
   if 'RUNNER_TEMP' in os.environ:
     VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache', dir=os.environ['RUNNER_TEMP'])
   else:
+    raise RuntimeError(list(os.environ.keys()))
     VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
   def __init__(
