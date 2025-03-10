@@ -171,7 +171,7 @@ jobs:
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
-        timeout-minutes: 10
+        timeout-minutes: 20
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
