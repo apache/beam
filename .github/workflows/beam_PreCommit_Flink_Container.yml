@@ -163,7 +163,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ github.event_name == "pull_request_target" && steps.set_tag.outputs.TAG || "latest" }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
+            "-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ github.event_name == 'pull_request_target' && steps.set_tag.outputs.TAG || 'latest' }} --job_name=flink-tests-python-${{env.NOW_UTC}}"
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
