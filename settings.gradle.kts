@@ -361,3 +361,4 @@ include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
 include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
+include("temp")
