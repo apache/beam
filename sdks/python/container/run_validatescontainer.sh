@@ -72,8 +72,7 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# Use a unique tag to avoid conflicts
-TAG=$(date +%Y%m%d-%H%M%S%N)-$RANDOM
+TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
@@ -88,7 +87,6 @@ if [[ "$ARCH" == "x86" ]]; then
 
   # Push the container
   gcloud docker -- push $CONTAINER:$TAG
-  # gcloud docker -- push $CONTAINER:latest
 elif [[ "$ARCH" == "ARM" ]]; then
   # Reset the multi-arch Python SDK container image tag.
   TAG=$MULTIARCH_TAG
@@ -107,11 +105,11 @@ done
 echo ">>> Successfully built and pushed container $CONTAINER"
 
 function cleanup_container {
-  docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not saved locally."
-
-  # Only remove prebuilt SDK images for the current Python version
-  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PREBUILD_SDK_CONTAINER_REGISTRY_PATH/python${PY_VERSION//.}")
+  # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
+  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
   do
+    echo "DELETING DOCKER IMAGE: $image"
     docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
@@ -120,10 +118,9 @@ function cleanup_container {
   if [[ "$ARCH" == "x86" ]]; then
     gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   fi
-
-  # Only delete prebuilt SDK images for the current Python version
-  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags:${PY_VERSION}" --format="get(digest)")
+  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)")
   do
+    echo "DELETING FROM GCLOUD AN IMAGE WITH DIGEST: $digest"
     gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
   done
 
