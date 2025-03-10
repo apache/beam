@@ -27,17 +27,18 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Watch;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * Keeps watch over an Iceberg table and continuously outputs a range of snapshots, at the specified
@@ -106,7 +107,9 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
         @Nullable List<SnapshotInfo> snapshots, boolean isComplete) {
       List<TimestampedValue<List<SnapshotInfo>>> timestampedSnapshots = new ArrayList<>(1);
       if (snapshots != null) {
-        timestampedSnapshots.add(TimestampedValue.of(snapshots, BoundedWindow.TIMESTAMP_MIN_VALUE));
+        // watermark based on the most recent snapshot timestamp
+        Instant watermark = Instant.ofEpochMilli(Iterables.getLast(snapshots).getTimestampMillis());
+        timestampedSnapshots.add(TimestampedValue.of(snapshots, watermark));
       }
 
       return isComplete

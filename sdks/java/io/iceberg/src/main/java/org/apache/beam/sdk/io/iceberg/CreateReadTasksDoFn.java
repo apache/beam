@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -35,6 +36,7 @@ import org.apache.iceberg.ScanTaskParser;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +115,8 @@ class CreateReadTasksDoFn
                   .setTableIdentifierString(checkStateNotNull(snapshot.getTableIdentifierString()))
                   .build();
 
-          out.output(KV.of(descriptor, task));
+          out.outputWithTimestamp(
+              KV.of(descriptor, task), Instant.ofEpochMilli(snapshot.getTimestampMillis()));
           totalScanTasks.inc();
         }
       }

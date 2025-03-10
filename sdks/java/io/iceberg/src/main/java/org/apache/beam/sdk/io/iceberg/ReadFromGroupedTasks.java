@@ -32,7 +32,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -105,12 +104,5 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       size += task.getByteSize();
     }
     return size;
-  }
-
-  // infinite skew in case we encounter some files that don't support watermark column statistics,
-  // in which case we output a -inf timestamp.
-  @Override
-  public Duration getAllowedTimestampSkew() {
-    return Duration.millis(Long.MAX_VALUE);
   }
 }
