@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.StringSetCell;
 import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.BoundedTrie;
@@ -240,10 +241,15 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
               @Override
               public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, GaugeCell> entry) {
-                long value = entry.getValue().getCumulative().value();
-                org.joda.time.Instant timestamp = entry.getValue().getCumulative().timestamp();
-                return MetricsToCounterUpdateConverter.fromGauge(
-                    MetricKey.create(stepName, entry.getKey()), value, timestamp);
+                if (!MonitoringInfoConstants.isPerWorkerMetric(entry.getKey())) {
+                  long value = entry.getValue().getCumulative().value();
+                  org.joda.time.Instant timestamp = entry.getValue().getCumulative().timestamp();
+                  return MetricsToCounterUpdateConverter.fromGauge(
+                      MetricKey.create(stepName, entry.getKey()), value, timestamp);
+                } else {
+                  // add a test for this.
+                  return null;
+                }
               }
             })
         .filter(Predicates.notNull());
@@ -389,9 +395,10 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
     gauges.forEach(
         (k, v) -> {
-          // Check if metric name has the per worker label set
-          if (k.getLabels().containsKey("PER_WORKER_METRIC")
-              && k.getLabels().get("PER_WORKER_METRIC").equals("true")) {
+          // Check if metric name has the per worker label set.
+          // TODO(Naireen): Populate local map with perWorkerMetrics so we don't need to check each
+          // time we update the metrics.
+          if (MonitoringInfoConstants.isPerWorkerMetric(k)) {
             Long val = v.getCumulative().value();
             per_worker_gauges.put(k, val);
             v.reset();

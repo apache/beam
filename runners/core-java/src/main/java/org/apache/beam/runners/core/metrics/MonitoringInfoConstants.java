@@ -26,7 +26,9 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This static class fetches MonitoringInfo related values from metrics.proto. */
 public final class MonitoringInfoConstants {
@@ -211,5 +213,14 @@ public final class MonitoringInfoConstants {
 
   private static String extractLabel(MonitoringInfo.MonitoringInfoLabels value) {
     return value.getValueDescriptor().getOptions().getExtension(labelProps).getName();
+  }
+
+  public static boolean isPerWorkerMetric(MetricName metricName) {
+    @Nullable
+    String value = metricName.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC);
+    if (value != null && value.equals("true")) {
+      return true;
+    }
+    return false;
   }
 }

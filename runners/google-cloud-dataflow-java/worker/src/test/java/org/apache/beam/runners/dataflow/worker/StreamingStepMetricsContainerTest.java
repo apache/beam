@@ -90,6 +90,8 @@ public class StreamingStepMetricsContainerTest {
 
   private MetricName name1 = MetricName.named("ns", "name1");
   private MetricName name2 = MetricName.named("ns", "name2");
+  private MetricName name3 =
+      MetricName.named("ns", "name3", ImmutableMap.of("PER_WORKER_METRIC", "true"));
 
   @Test
   public void testDedupping() {
@@ -273,6 +275,16 @@ public class StreamingStepMetricsContainerTest {
 
     // Release freeze on clock.
     DateTimeUtils.setCurrentMillisSystem();
+  }
+
+  @Test
+  public void testNoPerWorkerGaugeUpdateExtraction() {
+    Gauge gauge = c1.getGauge(name3);
+    gauge.set(5);
+
+    // There is no update.
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, IsEmptyIterable.emptyIterable());
   }
 
   @Test

@@ -37,8 +37,8 @@ public interface KafkaMetrics {
 
   void updateBacklogBytes(String topic, int partitionId, long backlog);
 
-  /*Used to update all metrics in container*/
-  void updateKafkaMetrics();
+  /*Flushes the buffered metrics to the current metric container for this thread.*/
+  void flushBufferedMetrics();
 
   /** No-op implementation of {@code KafkaResults}. */
   class NoOpKafkaMetrics implements KafkaMetrics {
@@ -51,7 +51,7 @@ public interface KafkaMetrics {
     public void updateBacklogBytes(String topic, int partitionId, long backlog) {}
 
     @Override
-    public void updateKafkaMetrics() {}
+    public void flushBufferedMetrics() {}
 
     private static NoOpKafkaMetrics singleton = new NoOpKafkaMetrics();
 
@@ -164,7 +164,7 @@ public interface KafkaMetrics {
      * this function will no-op.
      */
     @Override
-    public void updateKafkaMetrics() {
+    public void flushBufferedMetrics() {
       if (!isWritable().compareAndSet(true, false)) {
         LOG.warn("Updating stale Kafka metrics container");
         return;

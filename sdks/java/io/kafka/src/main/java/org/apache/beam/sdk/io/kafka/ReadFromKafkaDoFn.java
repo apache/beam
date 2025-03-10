@@ -569,7 +569,7 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
-        kafkaResults.updateKafkaMetrics();
+        kafkaResults.flushBufferedMetrics();
       }
     }
   }

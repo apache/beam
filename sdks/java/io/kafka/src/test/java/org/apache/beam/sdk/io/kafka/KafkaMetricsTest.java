@@ -101,7 +101,7 @@ public class KafkaMetricsTest {
     KafkaMetrics results = KafkaMetrics.NoOpKafkaMetrics.getInstance();
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
     results.updateBacklogBytes("test-topic", 0, 10);
-    results.updateKafkaMetrics();
+    results.flushBufferedMetrics();
 
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
     assertThat(testContainer.gauges.size(), equalTo(0));
@@ -119,7 +119,7 @@ public class KafkaMetricsTest {
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
     results.updateBacklogBytes("test-topic", 0, 10);
 
-    results.updateKafkaMetrics();
+    results.flushBufferedMetrics();
     // RpcLatency*rpc_method:POLL;topic_name:test-topic
     MetricName histogramName =
         MetricName.named("KafkaSink", "RpcLatency*rpc_method:POLL;topic_name:test-topic;");
@@ -150,7 +150,7 @@ public class KafkaMetricsTest {
 
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
 
-    results.updateKafkaMetrics();
+    results.flushBufferedMetrics();
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
   }
 }

@@ -24,8 +24,8 @@ import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.NoOpGauge;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * Helper class to create per worker metrics for Kafka Sink stages.
@@ -86,15 +86,10 @@ public class KafkaSinkMetrics {
    * @return Counter.
    */
   public static Gauge createBacklogGauge(MetricName name) {
-    // Use label to differenciate between the type of gauge metric is created
-    // TODO(34195):
-    if (name.getLabels().containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC)
-        && name.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC).equals("true")) {
-      return new DelegatingGauge(name, false);
-    } else {
-      // Currently KafkaSink metrics only supports aggregated per worker metrics.
-      return NoOpGauge.getInstance();
-    }
+    // TODO(#34195): Unify metrics collection path.
+    // Currently KafkaSink metrics only supports aggregated per worker metrics.
+    Preconditions.checkState(MonitoringInfoConstants.isPerWorkerMetric(name));
+    return new DelegatingGauge(name, false);
   }
 
   /**
