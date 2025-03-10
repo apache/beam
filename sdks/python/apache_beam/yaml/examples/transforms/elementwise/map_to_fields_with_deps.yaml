@@ -35,6 +35,8 @@ pipeline:
           tool_name: sdk
           year:
             callable: |
+              import yaml
+              raise RuntimeError(yaml.__file__)
               import roman
 
               def convert(row):
