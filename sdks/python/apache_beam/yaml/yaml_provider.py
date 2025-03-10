@@ -19,6 +19,7 @@
 for where to find and how to invoke services that vend implementations of
 various PTransforms."""
 
+import abc
 import collections
 import functools
 import hashlib
@@ -38,6 +39,7 @@ from collections.abc import Mapping
 from typing import Any
 from typing import Optional
 
+import clonevirtualenv
 import docstring_parser
 import yaml
 
@@ -64,15 +66,18 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 
-class Provider:
+class Provider(abc.ABC):
   """Maps transform types names and args to concrete PTransform instances."""
+  @abc.abstractmethod
   def available(self) -> bool:
     """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
   def cache_artifacts(self) -> Optional[Iterable[str]]:
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
   def provided_transforms(self) -> Iterable[str]:
     """Returns a list of transform type names this provider can handle."""
     raise NotImplementedError(type(self))
@@ -93,6 +98,7 @@ class Provider:
     """
     return not typ.startswith('Read')
 
+  @abc.abstractmethod
   def create_transform(
       self,
       typ: str,
@@ -130,6 +136,18 @@ class Provider:
       return 10
     else:
       return 0
+
+  @functools.cache  # pylint: disable=method-cache-max-size-none
+  def with_extra_dependencies(self, dependencies: Iterable[str]):
+    result = self._with_extra_dependencies(dependencies)
+    if not hasattr(result, 'to_json'):
+      result.to_json = lambda: {'type': type(result).__name__}
+    return result
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    raise ValueError(
+        'This provider of type %s does not support additional dependencies.' %
+        type(self).__name__)
 
 
 def as_provider(name, provider_or_constructor):
@@ -323,10 +341,13 @@ class RemoteProvider(ExternalProvider):
 
 
 class ExternalJavaProvider(ExternalProvider):
-  def __init__(self, urns, jar_provider):
+  def __init__(self, urns, jar_provider, classpath=None):
     super().__init__(
-        urns, lambda: external.JavaJarExpansionService(jar_provider()))
+        urns,
+        lambda: external.JavaJarExpansionService(
+            jar_provider(), classpath=classpath))
     self._jar_provider = jar_provider
+    self._classpath = classpath
 
   def available(self):
     # pylint: disable=subprocess-run-check
@@ -335,6 +356,15 @@ class ExternalJavaProvider(ExternalProvider):
 
   def cache_artifacts(self):
     return [self._jar_provider()]
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    jars = sum((
+        external.JavaJarExpansionService._expand_jars(dep)
+        for dep in dependencies), [])
+    return ExternalJavaProvider(
+        self._urns,
+        jar_provider=self._jar_provider,
+        classpath=(list(self._classpath or []) + list(jars)))
 
 
 @ExternalProvider.register_provider_type('python')
@@ -364,6 +394,8 @@ class ExternalPythonProvider(ExternalProvider):
             if is_path_or_urn(package) else package for package in packages
         ]))
 
+    self._packages = packages
+
   def available(self):
     return True  # If we're running this script, we have Python installed.
 
@@ -389,6 +421,10 @@ class ExternalPythonProvider(ExternalProvider):
       return 50
     else:
       return super()._affinity(other)
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return ExternalPythonProvider(
+        self._urns, None, set(self._packages).union(set(dependencies)))
 
 
 @ExternalProvider.register_provider_type('yaml')
@@ -577,6 +613,18 @@ class InlineProvider(Provider):
       return self._transform_factories[typ]._yaml_requires_inputs
     else:
       return super().requires_inputs(typ, args)
+
+  def _with_extra_dependencies(self, dependencies):
+    external_provider = ExternalPythonProvider(  # disable yapf
+        {
+            typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.' +
+            typ.replace('-', '_')
+            for typ in self._transform_factories.keys()
+        },
+        '__inline__',
+        dependencies)
+    external_provider.to_json = self.to_json
+    return external_provider
 
 
 class MetaInlineProvider(InlineProvider):
@@ -989,6 +1037,11 @@ class TranslatingProvider(Provider):
       yaml_create_transform: Any) -> beam.PTransform:
     return self._transforms[typ](self._underlying_provider, **config)
 
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return TranslatingProvider(
+        self._transforms,
+        self._underlying_provider._with_extra_dependencies(dependencies))
+
 
 def create_java_builtin_provider():
   """Exposes built-in transforms from Java as well as Python to maximize
@@ -1040,7 +1093,11 @@ class PypiExpansionService:
   """Expands transforms by fully qualified name in a virtual environment
   with the given dependencies.
   """
-  VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
+  if 'TOX_WORK_DIR' in os.environ:
+    VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache', dir=os.environ['TOX_WORK_DIR'])
+  else:
+    raise RuntimeError(list(os.environ.keys()))
+    VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
   def __init__(
       self, packages: Iterable[str], base_python: str = sys.executable):
@@ -1102,17 +1159,26 @@ class PypiExpansionService:
     if not os.path.exists(venv):
       try:
         clonable_venv = cls._create_venv_to_clone(base_python)
-        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-        subprocess.run(
-            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-            check=True)
+        #         clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        clonevirtualenv.clone_virtualenv(clonable_venv, venv)
+        #         print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']).decode('utf-8'))
+        #         subprocess.run(
+        #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+        #             check=True)
+        #         subprocess.check_output(
+        #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+        #             )
         venv_pip = os.path.join(venv, 'bin', 'pip')
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
-      except:  # pylint: disable=bare-except
+      except Exception as exn:  # pylint: disable=bare-except
         if os.path.exists(venv):
           shutil.rmtree(venv, ignore_errors=True)
+
+
+#         print("OUTPUT")
+#         print(getattr(exn, 'output', None))
         raise
     return venv
 
@@ -1268,6 +1334,14 @@ class RenamingProvider(Provider):
   def cache_artifacts(self):
     self._underlying_provider.cache_artifacts()
 
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return RenamingProvider(
+        self._transforms,
+        None,
+        self._mappings,
+        self._underlying_provider._with_extra_dependencies(dependencies),
+        self._defaults)
+
 
 def _as_list(func):
   @functools.wraps(func)
@@ -1348,6 +1422,7 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
   return result
 
 
+@functools.cache
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
@@ -1375,3 +1450,19 @@ def _file_digest(fileobj, digest):
       hasher.update(data)
       data = fileobj.read(1 << 20)
     return hasher
+
+
+class _InlineProviderNamespace:
+  """Gives fully qualified names to inline providers from standard_providers().
+
+  This is needed to upgrade InlineProvider to ExternalPythonProvider.
+  """
+  def __getattr__(self, name):
+    typ = name.replace('_', '-')
+    for provider in standard_providers()[typ]:
+      if isinstance(provider, InlineProvider):
+        return provider._transform_factories[typ]
+    raise ValueError(f"No inline provider found for {name}")
+
+
+standard_inline_providers = _InlineProviderNamespace()

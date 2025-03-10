@@ -678,7 +678,8 @@ def _PyJsMapToFields(
     fields: Mapping[str, Union[str, Mapping[str, str]]],
     append: Optional[bool] = False,
     drop: Optional[Iterable[str]] = None,
-    language: Optional[str] = None):
+    language: Optional[str] = None,
+    dependencies: Optional[Iterable[str]] = None):
   """Creates records with new fields defined in terms of the input fields.
 
   See more complete documentation on
@@ -694,6 +695,8 @@ def _PyJsMapToFields(
       original record that should not be kept
     language: The language used to define (and execute) the
       expressions and/or callables in `fields`. Defaults to generic.
+    dependencies: An optional list of extra dependencies that are needed for
+      these UDFs.  The interpretation of these strings is language-dependent.
     error_handling: Whether and where to output records that throw errors when
       the above expressions are evaluated.
   """  # pylint: disable=line-too-long
