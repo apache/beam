@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import logging
 import math
 from typing import Optional
 
