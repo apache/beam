@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Install libsnappy-dev
+        run: sudo apt-get update && sudo apt-get install -y libsnappy-dev
       - name: Install python
         uses: actions/setup-python@v5
         with:
