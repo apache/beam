@@ -59,6 +59,7 @@ public class SerializablePipelineOptions implements Serializable {
   private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
     is.defaultReadObject();
     this.options = deserializeFromJson(serializedPipelineOptions);
+    // TODO https://github.com/apache/beam/issues/18430: remove this call.
     FileSystems.setDefaultPipelineOptions(options);
   }
 
