@@ -113,7 +113,9 @@ __all__ = [
     'WindowedValueCoder',
     'ParamWindowedValueCoder',
     'BigIntegerCoder',
-    'DecimalCoder'
+    'DecimalCoder',
+    'BigEndianInt32Coder',
+    'BigEndianShortCoder'
 ]
 
 T = TypeVar('T')
@@ -654,6 +656,25 @@ class BigEndianShortCoder(FastCoder):
   """A coder used for big-endian int16 values."""
   def _create_impl(self):
     return coder_impl.BigEndianShortCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class BigEndianInt32Coder(FastCoder):
+  """A coder used for big-endian int32 values."""
+  def _create_impl(self):
+    return coder_impl.BigEndianInt32CoderImpl()
 
   def is_deterministic(self):
     # type: () -> bool

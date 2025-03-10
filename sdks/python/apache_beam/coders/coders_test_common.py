@@ -164,6 +164,7 @@ class CodersTest(unittest.TestCase):
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
         coders.BigIntegerCoder, # tested in DecimalCoder
+        coders.BigEndianInt32Coder,
         coders.TimestampPrefixingOpaqueWindowCoder,
     ])
     cls.seen_nested -= set(
