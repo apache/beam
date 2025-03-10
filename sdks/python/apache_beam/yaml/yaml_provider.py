@@ -1093,7 +1093,10 @@ class PypiExpansionService:
   """Expands transforms by fully qualified name in a virtual environment
   with the given dependencies.
   """
-  VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
+  if 'RUNNER_TEMP' in os.env:
+    VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache', dir=os.env['RUNNER_TEMP'])
+  else:
+    VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
   def __init__(
       self, packages: Iterable[str], base_python: str = sys.executable):
