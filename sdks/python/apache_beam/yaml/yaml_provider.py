@@ -1095,11 +1095,12 @@ class PypiExpansionService:
   with the given dependencies.
   """
   if 'TOX_WORK_DIR' in os.environ:
-    VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache-', dir=os.environ['TOX_WORK_DIR'])
+    VENV_CACHE = tempfile.mkdtemp(
+        prefix='test-venv-cache-', dir=os.environ['TOX_WORK_DIR'])
   elif 'RUNNER_WORKDIR' in os.environ:
-    VENV_CACHE = tempfile.mkdtemp(prefix='test-venv-cache-', dir=os.environ['RUNNER_WORKDIR'])
+    VENV_CACHE = tempfile.mkdtemp(
+        prefix='test-venv-cache-', dir=os.environ['RUNNER_WORKDIR'])
   else:
-    raise RuntimeError(list(os.environ.keys()))
     VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
   def __init__(
@@ -1162,30 +1163,18 @@ class PypiExpansionService:
     if not os.path.exists(venv):
       try:
         clonable_venv = cls._create_venv_to_clone(base_python)
-        #         clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-        print("CLONING", clonable_venv, "TO", venv)
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
-        #         print(subprocess.check_output(['ls', '-lR', clonable_venv + '/tmp']).decode('utf-8'))
-        #         subprocess.run(
-        #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-        #             check=True)
-        #         subprocess.check_output(
-        #             [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-        #             )
         venv_pip = os.path.join(venv, 'bin', 'pip')
-        print("INSTALLING", packages)
         subprocess.run([venv_pip, 'install'] + packages, check=True)
-        print("CHECKING")
-        subprocess.run([os.path.join(venv, 'bin', 'python'), '-c', 'import roman'], check=True)
+        # Ensure our environment is set up correctly.
+        subprocess.run(
+            [os.path.join(venv, 'bin', 'python'), '-c', 'import apache_beam'],
+            check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
-      except Exception as exn:  # pylint: disable=bare-except
+      except:  # pylint: disable=bare-except
         if os.path.exists(venv):
           shutil.rmtree(venv, ignore_errors=True)
-
-
-#         print("OUTPUT")
-#         print(getattr(exn, 'output', None))
         raise
     return venv
 

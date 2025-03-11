@@ -35,10 +35,7 @@ pipeline:
           tool_name: sdk
           year:
             callable: |
-              import yaml
-              print("YAML PATH", yaml.__file__)
               import roman
-              print("ROMAN PATH", roman.__file__)
 
               def convert(row):
                 return roman.toRoman(row.year)
