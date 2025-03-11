@@ -77,6 +77,10 @@ env:
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
+  DOCKER_REGISTRY: gcr.io
+  DOCKER_REPOSITORY_ROOT: ${{ github.event_name == 'pull_request_target' && 'gcr.io/apache-beam-testing/beam-sdk-pr' || 'gcr.io/apache-beam-testing/beam-sdk' }}
+  PYTHON_VERSION: 3.9
+  PYTHON_SDK_IMAGE_TAG: latest
 
 jobs:
   beam_PreCommit_Flink_Container:
@@ -87,7 +91,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Flink Container PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 45
+    timeout-minutes: 90
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -105,6 +109,24 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
+      - name: GCloud Docker credential helper
+        if: ${{ github.event_name == 'pull_request_target' }}
+        run: |
+          gcloud auth configure-docker ${{ env.DOCKER_REGISTRY }}
+      - name: Set PYTHON_SDK_IMAGE_TAG unique variable based on timestamp
+        if: ${{ github.event_name == 'pull_request_target' }}
+        run: echo "PYTHON_SDK_IMAGE_TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_ENV
+      - name: Build and push to registry
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:container:py39:docker
+          arguments: |
+            -PpythonVersion=${{ env.PYTHON_VERSION }} \
+            -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \
+            -Pdocker-tag=${{ env.PYTHON_SDK_IMAGE_TAG }} \
+            -PuseBuildx \
+            -Ppush-containers
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -141,11 +163,11 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --environment_config=${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ env.PYTHON_SDK_IMAGE_TAG }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
-        timeout-minutes: 10
+        timeout-minutes: 20
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -158,3 +180,8 @@ jobs:
         if: always()
         run: |
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
+
+      - name: Cleanup Python SDK Container
+        if: ${{ always() && github.event_name == 'pull_request_target' }}
+        run: |
+          gcloud container images delete ${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ steps.set_tag.outputs.TAG }} --force-delete-tags --quiet
