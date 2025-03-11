@@ -126,6 +126,100 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @VisibleForTesting
+  static class BigtableReaderWithExperimentalOptions implements Reader {
+    private final BigtableDataClient client;
+
+    private final String projectId;
+    private final String instanceId;
+    private final String tableId;
+
+    private final List<ByteKeyRange> ranges;
+    private final RowFilter rowFilter;
+    private Iterator<Row> results;
+
+    private Row currentRow;
+
+    private ServerStream<Row> stream;
+
+    private boolean exhausted;
+
+    @VisibleForTesting
+    BigtableReaderWithExperimentalOptions(
+        BigtableDataClient client,
+        String projectId,
+        String instanceId,
+        String tableId,
+        List<ByteKeyRange> ranges,
+        @Nullable RowFilter rowFilter) {
+      this.client = client;
+      this.projectId = projectId;
+      this.instanceId = instanceId;
+      this.tableId = tableId;
+      this.ranges = ranges;
+      this.rowFilter = rowFilter;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      ServiceCallMetric serviceCallMetric = createCallMetric(projectId, instanceId, tableId);
+
+      Query query = Query.create(tableId);
+      for (ByteKeyRange sourceRange : ranges) {
+        query.range(
+            ByteString.copyFrom(sourceRange.getStartKey().getValue()),
+            ByteString.copyFrom(sourceRange.getEndKey().getValue()));
+      }
+
+      if (rowFilter != null) {
+        query.filter(Filters.FILTERS.fromProto(rowFilter));
+      }
+      try {
+        stream =
+            client
+                .skipLargeRowsCallable(new BigtableRowProtoAdapter())
+                .call(query, GrpcCallContext.createDefault());
+        results = stream.iterator();
+        serviceCallMetric.call("ok");
+      } catch (StatusRuntimeException e) {
+        serviceCallMetric.call(e.getStatus().getCode().toString());
+        throw e;
+      }
+      return advance();
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (results.hasNext()) {
+        currentRow = results.next();
+        return true;
+      }
+      exhausted = true;
+      return false;
+    }
+
+    @Override
+    public Row getCurrentRow() throws NoSuchElementException {
+      if (currentRow == null) {
+        throw new NoSuchElementException();
+      }
+      return currentRow;
+    }
+
+    @Override
+    public void close() {
+      if (!exhausted) {
+        stream.cancel();
+        exhausted = true;
+      }
+    }
+
+    @Override
+    public void reportLineage() {
+      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, tableId));
+    }
+  }
+
+  @VisibleForTesting
   static class BigtableReaderImpl implements Reader {
     private final BigtableDataClient client;
 
@@ -660,6 +754,14 @@ class BigtableServiceImpl implements BigtableService {
           source.getRanges(),
           source.getRowFilter(),
           source.getMaxBufferElementCount());
+    } else if (source.getReadOptions().getExperimentalSkipLargeRows()) {
+      return new BigtableReaderWithExperimentalOptions(
+          client,
+          projectId,
+          instanceId,
+          source.getTableId().get(),
+          source.getRanges(),
+          source.getRowFilter());
     } else {
       return new BigtableReaderImpl(
           client,

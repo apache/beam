@@ -232,6 +232,27 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadWithSkippingLargeRows() {
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withExperimentSkipLargeRows(true)
+            .withTableId("table")
+            .withInstanceId("instance")
+            .withProjectId("project")
+            .withAppProfileId("app-profile")
+            .withBigtableOptionsConfigurator(PORT_CONFIGURATOR);
+    assertEquals("options_project", read.getBigtableOptions().getProjectId());
+    assertEquals("options_instance", read.getBigtableOptions().getInstanceId());
+    assertEquals("instance", read.getBigtableConfig().getInstanceId().get());
+    assertEquals("project", read.getBigtableConfig().getProjectId().get());
+    assertEquals("app-profile", read.getBigtableConfig().getAppProfileId().get());
+    assertEquals("table", read.getTableId());
+    assertEquals(true, read.getBigtableReadOptions().getExperimentalSkipLargeRows());
+    assertEquals(PORT_CONFIGURATOR, read.getBigtableConfig().getBigtableOptionsConfigurator());
+  }
+
+  @Test
   public void testReadValidationFailsMissingTable() {
     BigtableIO.Read read = BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS);
 

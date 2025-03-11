@@ -190,6 +190,65 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
+   * as expected.
+   *
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testReadWithSkippingLargeRows() throws IOException {
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("d".getBytes(StandardCharsets.UTF_8));
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+
+    Row expectedRowA = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+    //    b is large row that's skipped
+    //    Row expectedRowB = Row.newBuilder().setKey(ByteString.copyFromUtf8("c")).build();
+    Row expectedRowC = Row.newBuilder().setKey(ByteString.copyFromUtf8("c")).build();
+
+    // Set up iterator to be returned by ServerStream.iterator()
+    Iterator<Row> mockIterator = Mockito.mock(Iterator.class);
+    when(mockIterator.next()).thenReturn(expectedRowA).thenReturn(expectedRowC).thenReturn(null);
+    when(mockIterator.hasNext()).thenReturn(true).thenReturn(true).thenReturn(false);
+    // Set up ServerStream to be returned by callable.call(Query)
+    ServerStream<Row> mockRows = Mockito.mock(ServerStream.class);
+    when(mockRows.iterator()).thenReturn(mockIterator);
+    // Set up Callable to be returned by stub.createReadRowsCallable()
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+    when(mockCallable.call(
+            any(com.google.cloud.bigtable.data.v2.models.Query.class), any(ApiCallContext.class)))
+        .thenReturn(mockRows);
+    when(mockStub.createSkipLargeRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createSkipLargeRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+
+    when(mockBigtableDataClient.skipLargeRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableReaderWithExperimentalOptions(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            mockBigtableSource.getTableId().get(),
+            mockBigtableSource.getRanges(),
+            null);
+
+    int rowCount = 0;
+    underTest.start();
+    Assert.assertEquals(expectedRowA, underTest.getCurrentRow());
+    rowCount++;
+    underTest.advance();
+    Assert.assertEquals(expectedRowC, underTest.getCurrentRow());
+    rowCount++;
+    Assert.assertFalse(underTest.advance());
+    Assert.assertEquals(2, rowCount);
+    verify(mockIterator, times(2)).next();
+  }
+
+  /**
+   * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
    * as expected. This test checks that a single row is returned from the future.
    *
    * @throws IOException
