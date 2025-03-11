@@ -6,6 +6,8 @@
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
-  "remindAfterTestsPass": [],
+  "remindAfterTestsPass": [
+    "portikCoder"
+  ],
   "committerAssigned": false
 }
