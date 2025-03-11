@@ -780,6 +780,7 @@ class BigQueryWrapper(object):
       project_id: table lookup parameter
       dataset_id: table lookup parameter
       table_id: table lookup parameter
+      table_view: table information parameter
 
     Returns:
       bigquery.Table instance
