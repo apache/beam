@@ -165,14 +165,15 @@ class AnomalyDetector(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def score_one(self, x: beam.Row) -> float:
+  def score_one(self, x: beam.Row) -> Optional[float]:
     """Scores a single data instance for anomalies.
 
     Args:
       x: A `beam.Row` representing the data instance.
 
     Returns:
-      The outlier score as a float.
+      The outlier score as a float. None if an exception occurs during scoring,
+      and NaN if the model is not ready.
     """
     raise NotImplementedError
 

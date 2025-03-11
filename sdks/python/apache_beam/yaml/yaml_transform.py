@@ -35,6 +35,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
@@ -53,12 +54,11 @@ except ImportError:
 
 @functools.lru_cache
 def pipeline_schema(strictness):
-  with open(os.path.join(os.path.dirname(__file__),
-                         'pipeline.schema.yaml')) as yaml_file:
+  with open(yaml_utils.locate_data_file('pipeline.schema.yaml')) as yaml_file:
     pipeline_schema = yaml.safe_load(yaml_file)
   if strictness == 'per_transform':
-    transform_schemas_path = os.path.join(
-        os.path.dirname(__file__), 'transforms.schema.yaml')
+    transform_schemas_path = yaml_utils.locate_data_file(
+        'transforms.schema.yaml')
     if not os.path.exists(transform_schemas_path):
       raise RuntimeError(
           "Please run "
