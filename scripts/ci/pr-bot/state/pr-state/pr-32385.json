@@ -4,7 +4,7 @@
     "java": "kennknowles",
     "io": "damondouglas"
   },
-  "nextAction": "Reviewers",
+  "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": true
