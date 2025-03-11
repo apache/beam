@@ -32,7 +32,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /**
  * Unbounded read implementation.
@@ -73,7 +72,6 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
       ReadTask readTask = readTasks.get((int) taskIndex);
       @Nullable String operation = readTask.getOperation();
       FileScanTask task = readTask.getFileScanTask();
-      Instant outputTimestamp = ReadUtils.getReadTaskTimestamp(readTask, scanConfig);
 
       try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
         for (Record record : reader) {
@@ -82,7 +80,7 @@ class ReadFromGroupedTasks extends DoFn<KV<ReadTaskDescriptor, List<ReadTask>>, 
                   .addValue(IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record))
                   .addValue(operation)
                   .build();
-          out.outputWithTimestamp(row, outputTimestamp);
+          out.output(row);
         }
       }
       scanTasksCompleted.inc();

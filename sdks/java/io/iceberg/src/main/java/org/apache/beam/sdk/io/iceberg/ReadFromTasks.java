@@ -29,7 +29,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /**
  * Bounded read implementation.
@@ -52,7 +51,6 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
     Table table =
         TableCache.get(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
-    Instant outputTimestamp = ReadUtils.getReadTaskTimestamp(readTask, scanConfig);
     FileScanTask task = readTask.getFileScanTask();
     @Nullable String operation = readTask.getOperation();
 
@@ -63,7 +61,7 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
                 .addValue(IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record))
                 .addValue(operation)
                 .build();
-        out.outputWithTimestamp(row, outputTimestamp);
+        out.output(row);
       }
     }
     scanTasksCompleted.inc();

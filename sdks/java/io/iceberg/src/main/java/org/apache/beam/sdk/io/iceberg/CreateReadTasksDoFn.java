@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
@@ -52,11 +51,9 @@ class CreateReadTasksDoFn
   // number?
 
   private final IcebergScanConfig scanConfig;
-  private final @Nullable String watermarkColumnName;
 
   CreateReadTasksDoFn(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
-    this.watermarkColumnName = scanConfig.getWatermarkColumn();
   }
 
   @ProcessElement
@@ -64,7 +61,8 @@ class CreateReadTasksDoFn
       @Element KV<String, List<SnapshotInfo>> element,
       OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException, ExecutionException {
-    Table table = TableCache.get(element.getKey(), scanConfig.getCatalogConfig().catalog());
+    Table table =
+        TableCache.getRefreshed(element.getKey(), scanConfig.getCatalogConfig().catalog());
     List<SnapshotInfo> snapshots = element.getValue();
 
     // scan snapshots individually and assign commit timestamp to files
@@ -80,13 +78,10 @@ class CreateReadTasksDoFn
             snapshot.getSnapshotId());
       }
 
-      LOG.info("Planning to scan snapshot id range ({}, {}]", fromSnapshot, toSnapshot);
+      LOG.info("Planning to scan snapshot {}", toSnapshot);
       IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
       if (fromSnapshot != null) {
         scan = scan.fromSnapshotExclusive(fromSnapshot);
-      }
-      if (watermarkColumnName != null) {
-        scan = scan.includeColumnStats(Collections.singletonList(watermarkColumnName));
       }
 
       createAndOutputReadTasks(scan, snapshot, out);
@@ -98,6 +93,7 @@ class CreateReadTasksDoFn
       SnapshotInfo snapshot,
       OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException {
+    int numTasks = 0;
     try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
       for (CombinedScanTask combinedScanTask : combinedScanTasks) {
         // A single DataFile can be broken up into multiple FileScanTasks
@@ -117,8 +113,10 @@ class CreateReadTasksDoFn
           out.outputWithTimestamp(
               KV.of(descriptor, task), Instant.ofEpochMilli(snapshot.getTimestampMillis()));
           totalScanTasks.inc();
+          numTasks++;
         }
       }
     }
+    LOG.info("Snapshot {} produced {} read tasks.", snapshot.getSnapshotId(), numTasks);
   }
 }

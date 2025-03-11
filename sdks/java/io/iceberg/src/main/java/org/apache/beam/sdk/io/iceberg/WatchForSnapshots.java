@@ -21,7 +21,9 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Create;
@@ -38,6 +40,8 @@ import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Keeps watch over an Iceberg table and continuously outputs a range of snapshots, at the specified
@@ -46,6 +50,7 @@ import org.joda.time.Instant;
  * <p>A downstream transform will create a list of read tasks for each range.
  */
 class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<SnapshotInfo>>>> {
+  private static final Logger LOG = LoggerFactory.getLogger(WatchForSnapshots.class);
   private final Duration pollInterval;
   private final IcebergScanConfig scanConfig;
 
@@ -67,6 +72,8 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
   private static class SnapshotPollFn extends Watch.Growth.PollFn<String, List<SnapshotInfo>> {
     private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
+    private final Counter totalSnapshotsObserved =
+        Metrics.counter(SnapshotPollFn.class, "numSnapshotsObserved");
     private final IcebergScanConfig scanConfig;
     private @Nullable Long fromSnapshotId;
 
@@ -98,6 +105,7 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
       List<SnapshotInfo> snapshots =
           ReadUtils.snapshotsBetween(table, tableIdentifier, fromSnapshotId, toSnapshotId);
+      fromSnapshotId = currentSnapshotId;
       return getPollResult(snapshots, isComplete);
     }
 
@@ -109,6 +117,11 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
         // watermark based on the oldest observed snapshot in this poll interval
         Instant watermark = Instant.ofEpochMilli(snapshots.get(0).getTimestampMillis());
         timestampedSnapshots.add(TimestampedValue.of(snapshots, watermark));
+        LOG.info(
+            "New poll fetched {} snapshots: {}",
+            snapshots.size(),
+            snapshots.stream().map(SnapshotInfo::getSnapshotId).collect(Collectors.toList()));
+        totalSnapshotsObserved.inc(snapshots.size());
       }
 
       return isComplete

@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.schemas.Schema;
@@ -191,28 +190,6 @@ import org.joda.time.Duration;
  *           <li>{@code latest}: starts reading from the latest snapshot</li>
  *       </ul>
  *       <p>Defaults to {@code earliest} for batch, and {@code latest} for streaming.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code watermark_column} </td>
- *     <td> {@code str} </td>
- *     <td>
- *       The column used to derive event time to track progress. Must be one of the following Iceberg <a href="https://iceberg.apache.org/spec/#primitive-types">types</a>:
- *       <ul>
- *           <li>{@code timestamp}</li>
- *           <li>{@code timestamptz}</li>
- *           <li>{@code long} (micros)</li>
- *       </ul>
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code watermark_time_unit} </td>
- *     <td> {@code str} </td>
- *     <td>
- *       Use only when {@code watermark_column} is set to a column of type Long. Specifies the TimeUnit represented by the watermark column.
- *       Default is {@code "microseconds"}.
- *
- *       <p>Check {@link TimeUnit} for possible values.
  *     </td>
  *   </tr>
  * </table>
@@ -540,24 +517,6 @@ import org.joda.time.Duration;
  *
  * <b>Note</b>: If <b>{@code streaming=true}</b> and an end point is set, the pipeline will run in
  * streaming mode and shut down automatically after processing the final snapshot.
- *
- * <h3>Handling Watermarks (CDC only)</h3>
- *
- * By default, a snapshot's commit timestamp is assigned to all the records it contains.
- *
- * <p>For greater watermark precision, specify a <b>{@code watermark_column}</b>, which allows the
- * source to extract the lower bound value from each data file and assign it to the corresponding
- * records. For Long column types, you can also specify the TimeUnit represented by the column:
- *
- * <pre>{@code
- * config.put("watermark_column", "flight_arrival");
- * config.put("watermark_time_unit", "hours");
- * }</pre>
- *
- * <b>Note</b>: this requires the data files to have been written with metrics enabled. For more
- * details, refer to the <a
- * href="https://iceberg.apache.org/docs/latest/configuration/#write-properties:~:text=write.metadata.metrics.default,tuning%3B%20none%2C%20counts%2C%20truncate(length)%2C%20or%20full">write
- * properties</a>.
  */
 @Internal
 public class IcebergIO {
@@ -675,10 +634,6 @@ public class IcebergIO {
 
     abstract @Nullable Duration getPollInterval();
 
-    abstract @Nullable String getWatermarkColumn();
-
-    abstract @Nullable String getWatermarkTimeUnit();
-
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -702,10 +657,6 @@ public class IcebergIO {
       abstract Builder setStreaming(@Nullable Boolean streaming);
 
       abstract Builder setPollInterval(@Nullable Duration triggeringFrequency);
-
-      abstract Builder setWatermarkColumn(@Nullable String column);
-
-      abstract Builder setWatermarkTimeUnit(@Nullable String timeUnit);
 
       abstract ReadRows build();
     }
@@ -746,14 +697,6 @@ public class IcebergIO {
       return toBuilder().setStartingStrategy(strategy).build();
     }
 
-    public ReadRows withWatermarkColumn(@Nullable String column) {
-      return toBuilder().setWatermarkColumn(column).build();
-    }
-
-    public ReadRows withWatermarkTimeUnit(@Nullable String timeUnit) {
-      return toBuilder().setWatermarkTimeUnit(timeUnit).build();
-    }
-
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -774,8 +717,6 @@ public class IcebergIO {
               .setStartingStrategy(getStartingStrategy())
               .setStreaming(getStreaming())
               .setPollInterval(getPollInterval())
-              .setWatermarkColumn(getWatermarkColumn())
-              .setWatermarkTimeUnit(getWatermarkTimeUnit())
               .setUseCdc(getUseCdc())
               .build();
       scanConfig.validate(table);

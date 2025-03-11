@@ -75,8 +75,6 @@ public class IcebergCdcReadSchemaTransformProviderTest {
             .withFieldValue("to_timestamp", 456L)
             .withFieldValue("starting_strategy", "earliest")
             .withFieldValue("poll_interval_seconds", 789)
-            .withFieldValue("watermark_column", "abc")
-            .withFieldValue("watermark_time_unit", "nanoseconds")
             .build();
 
     new IcebergCdcReadSchemaTransformProvider().from(config);

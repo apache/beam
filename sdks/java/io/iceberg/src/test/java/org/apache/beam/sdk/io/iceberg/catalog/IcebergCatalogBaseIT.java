@@ -422,7 +422,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("streaming", true);
     config.put("to_snapshot", table.currentSnapshot().snapshotId());
-    config.put("watermark_column", "datetime");
 
     PCollection<Row> rows =
         pipeline
@@ -472,7 +471,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     Map<String, Object> readConfig = new HashMap<>(config);
     readConfig.put("to_timestamp", System.currentTimeMillis());
-    readConfig.put("watermark_column", "datetime_tz");
     readConfig.put("streaming", true);
 
     Map<String, Object> writeConfig = new HashMap<>(config);
@@ -749,8 +747,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     populateTable(table, "d"); // fourth snapshot
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
-    config.put("watermark_column", "nullable_long");
-    config.put("watermark_time_unit", "days");
     if (useSnapshotBoundary) {
       config.put("from_snapshot", from.snapshotId());
       config.put("to_snapshot", to.snapshotId());

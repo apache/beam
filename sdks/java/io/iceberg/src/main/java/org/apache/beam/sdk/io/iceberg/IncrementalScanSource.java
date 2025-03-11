@@ -99,6 +99,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
     return input
         .apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, pollInterval))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), ListCoder.of(SnapshotInfo.getCoder())))
+        .apply("Redistribute by Source Table", Redistribute.byKey())
         .apply("Create Read Tasks", ParDo.of(new CreateReadTasksDoFn(scanConfig)))
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(

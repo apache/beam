@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.ReadUtils.OPERATION;
-import static org.apache.beam.sdk.io.iceberg.ReadUtils.RECORD;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.iceberg.util.DateTimeUtil.microsFromTimestamp;
-import static org.apache.iceberg.util.DateTimeUtil.microsToMillis;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -30,25 +27,21 @@ import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -82,7 +75,6 @@ import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -207,68 +199,6 @@ public class IcebergIOReadTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid source configuration: 'poll_interval_seconds' can only be set when streaming is true");
-    read.expand(PBegin.in(testPipeline));
-  }
-
-  @Test
-  public void testFailWhenWatermarkColumnDoesNotExist() {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkColumn("unknown");
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Invalid source configuration: the specified 'watermark_column' field does not exist: 'unknown'");
-    read.expand(PBegin.in(testPipeline));
-  }
-
-  @Test
-  public void testFailWithInvalidWatermarkColumnType() {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkColumn("data");
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Invalid source configuration: invalid 'watermark_column' type: string. "
-            + "Valid types are [long, timestamp, timestamptz]");
-    read.expand(PBegin.in(testPipeline));
-  }
-
-  @Test
-  public void testFailWhenWatermarkColumnMissingMetrics() {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    table.updateProperties().set("write.metadata.metrics.default", "none").commit();
-    IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkColumn("id");
-
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Invalid source configuration: source table");
-    thrown.expectMessage(
-        "not configured to capture lower bound metrics for the specified watermark column 'id'.");
-    thrown.expectMessage("found 'none'");
-
-    read.expand(PBegin.in(testPipeline));
-  }
-
-  @Test
-  public void testFailWhenWatermarkTimeUnitUsedWithoutSpecifyingColumn() {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).withCdc().from(tableId).withWatermarkTimeUnit("hours");
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Invalid source configuration: cannot set 'watermark_time_unit' without "
-            + "also setting a 'watermark_column' of Long type");
     read.expand(PBegin.in(testPipeline));
   }
 
@@ -524,164 +454,6 @@ public class IcebergIOReadTest {
   @Test
   public void testBatchReadBetweenTimestamps() throws IOException {
     runReadWithBoundary(false, false);
-  }
-
-  @Test
-  public void testWatermarkColumnLongType() throws IOException {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-
-    // configure the table to capture full metrics
-    simpleTable
-        .updateProperties()
-        .set(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + "id", "full")
-        .commit();
-
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s4.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT4))
-        .commit();
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s4.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT4))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s4.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT4))
-        .commit();
-
-    IcebergIO.ReadRows readRows =
-        IcebergIO.readRows(catalogConfig())
-            .from(tableId)
-            .withCdc()
-            .streaming(true)
-            .withStartingStrategy(StartingStrategy.EARLIEST)
-            .toSnapshot(simpleTable.currentSnapshot().snapshotId())
-            .withWatermarkColumn("id")
-            .withWatermarkTimeUnit("days");
-    PCollection<Row> output = testPipeline.apply(readRows);
-    output.apply(
-        ParDo.of(
-            new CheckWatermarks(
-                lowestMillisOf(TestFixtures.FILE1SNAPSHOT4_DATA),
-                lowestMillisOf(TestFixtures.FILE2SNAPSHOT4_DATA),
-                lowestMillisOf(TestFixtures.FILE3SNAPSHOT4_DATA),
-                row -> TimeUnit.DAYS.toMillis(checkStateNotNull(row.getInt64("id"))))));
-    testPipeline.run().waitUntilFinish();
-  }
-
-  private static long lowestMillisOf(List<Map<String, Object>> data) {
-    long lowestId = data.stream().mapToLong(m -> (long) m.get("id")).min().getAsLong();
-    return TimeUnit.DAYS.toMillis(lowestId);
-  }
-
-  @Test
-  public void testWatermarkColumnTimestampType() throws IOException {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    Schema schema =
-        Schema.builder()
-            .addStringField("str")
-            .addLogicalTypeField("datetime", SqlTypes.DATETIME)
-            .build();
-    org.apache.iceberg.Schema iceSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
-    Table simpleTable = warehouse.createTable(tableId, iceSchema);
-
-    LocalDateTime file1Watermark = LocalDateTime.parse("2025-01-01T12:00:00");
-    List<Map<String, Object>> data1 =
-        ImmutableList.of(
-            ImmutableMap.of("str", "a", "datetime", file1Watermark),
-            ImmutableMap.of("str", "b", "datetime", file1Watermark.plusMinutes(10)),
-            ImmutableMap.of("str", "c", "datetime", file1Watermark.plusMinutes(30)));
-
-    LocalDateTime file2Watermark = LocalDateTime.parse("2025-02-01T12:00:00");
-    List<Map<String, Object>> data2 =
-        ImmutableList.of(
-            ImmutableMap.of("str", "d", "datetime", file2Watermark),
-            ImmutableMap.of("str", "e", "datetime", file2Watermark.plusMinutes(10)),
-            ImmutableMap.of("str", "f", "datetime", file2Watermark.plusMinutes(30)));
-
-    LocalDateTime file3Watermark = LocalDateTime.parse("2025-03-01T12:00:00");
-    List<Map<String, Object>> data3 =
-        ImmutableList.of(
-            ImmutableMap.of("str", "g", "datetime", file3Watermark),
-            ImmutableMap.of("str", "h", "datetime", file3Watermark.plusMinutes(10)),
-            ImmutableMap.of("str", "i", "datetime", file3Watermark.plusMinutes(30)));
-
-    // configure the table to capture full metrics
-    simpleTable
-        .updateProperties()
-        .set(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + "datetime", "full")
-        .commit();
-
-    simpleTable
-        .newFastAppend()
-        .appendFile(warehouse.writeData("file1.parquet", iceSchema, data1))
-        .commit();
-    simpleTable
-        .newFastAppend()
-        .appendFile(warehouse.writeData("file2.parquet", iceSchema, data2))
-        .appendFile(warehouse.writeData("file3.parquet", iceSchema, data3))
-        .commit();
-
-    IcebergIO.ReadRows readRows =
-        IcebergIO.readRows(catalogConfig())
-            .from(tableId)
-            .withCdc()
-            .streaming(true)
-            .withStartingStrategy(StartingStrategy.EARLIEST)
-            .toSnapshot(simpleTable.currentSnapshot().snapshotId())
-            .withWatermarkColumn("datetime");
-    PCollection<Row> output = testPipeline.apply(readRows);
-    output.apply(
-        ParDo.of(
-            new CheckWatermarks(
-                microsToMillis(microsFromTimestamp(file1Watermark)),
-                microsToMillis(microsFromTimestamp(file2Watermark)),
-                microsToMillis(microsFromTimestamp(file3Watermark)),
-                row -> {
-                  LocalDateTime dt =
-                      checkStateNotNull(row.getLogicalTypeValue("datetime", LocalDateTime.class));
-                  return microsToMillis(microsFromTimestamp(dt));
-                })));
-    testPipeline.run().waitUntilFinish();
-  }
-
-  static class CheckWatermarks extends DoFn<Row, Void> {
-    long file1Watermark;
-    long file2Watermark;
-    long file3Watermark;
-    SerializableFunction<Row, Long> getMillisFn;
-
-    CheckWatermarks(
-        long file1Watermark,
-        long file2Watermark,
-        long file3Watermark,
-        SerializableFunction<Row, Long> getMillisFn) {
-      this.file1Watermark = file1Watermark;
-      this.file2Watermark = file2Watermark;
-      this.file3Watermark = file3Watermark;
-      this.getMillisFn = getMillisFn;
-    }
-
-    @ProcessElement
-    public void process(@Element Row row, @Timestamp Instant timestamp) {
-      Row record = checkStateNotNull(row.getRow(RECORD));
-      long expectedMillis = getMillisFn.apply(record);
-      long actualMillis = timestamp.getMillis();
-
-      if (expectedMillis >= file3Watermark) {
-        assertEquals(file3Watermark, actualMillis);
-      } else if (expectedMillis >= file2Watermark) {
-        assertEquals(file2Watermark, actualMillis);
-      } else {
-        assertEquals(file1Watermark, actualMillis);
-      }
-    }
   }
 
   public void runWithStartingStrategy(@Nullable StartingStrategy strategy, boolean streaming)

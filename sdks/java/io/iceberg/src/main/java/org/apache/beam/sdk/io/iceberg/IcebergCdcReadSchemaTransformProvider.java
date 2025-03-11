@@ -115,8 +115,6 @@ public class IcebergCdcReadSchemaTransformProvider
               .fromTimestamp(configuration.getFromTimestamp())
               .toTimestamp(configuration.getToTimestamp())
               .withStartingStrategy(strategy)
-              .withWatermarkColumn(configuration.getWatermarkColumn())
-              .withWatermarkTimeUnit(configuration.getWatermarkTimeUnit())
               .streaming(configuration.getStreaming());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
@@ -172,15 +170,6 @@ public class IcebergCdcReadSchemaTransformProvider
     abstract @Nullable String getStartingStrategy();
 
     @SchemaFieldDescription(
-        "The column used to derive event time for tracking progress. Uses the snapshot's commit timestamp by default.")
-    abstract @Nullable String getWatermarkColumn();
-
-    @SchemaFieldDescription(
-        "Use only when the watermark column is set to a Long type. Specifies the TimeUnit represented by the watermark column. Default is 'microseconds'. "
-            + "Check https://docs.oracle.com/javase/8/docs/api///?java/util/concurrent/TimeUnit.html for possible values.")
-    abstract @Nullable String getWatermarkTimeUnit();
-
-    @SchemaFieldDescription(
         "Enables streaming reads, where source continuously polls for snapshots forever.")
     abstract @Nullable Boolean getStreaming();
 
@@ -207,10 +196,6 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setToTimestamp(Long timestamp);
 
       abstract Builder setStartingStrategy(String strategy);
-
-      abstract Builder setWatermarkColumn(String column);
-
-      abstract Builder setWatermarkTimeUnit(String watermarkTimeUnit);
 
       abstract Builder setPollIntervalSeconds(Integer pollInterval);
 
