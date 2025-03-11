@@ -334,7 +334,8 @@ class JavaJarServer(SubprocessServer):
       appendix=None,
       version=beam_version,
       artifact_id=None):
-    gradle_package, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
+    gradle_package, artifact_id = cls.parse_gradle_target(
+        gradle_target, artifact_id)
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
     return os.path.join(
@@ -358,7 +359,7 @@ class JavaJarServer(SubprocessServer):
     if gradle_target in cls._BEAM_SERVICES.replacements:
       return cls._BEAM_SERVICES.replacements[gradle_target]
 
-    gradle_package, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
+    _, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
     local_path = cls.path_to_dev_beam_jar(
