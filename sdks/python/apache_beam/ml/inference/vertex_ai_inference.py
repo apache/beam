@@ -27,6 +27,7 @@ from typing import Sequence
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.cloud import aiplatform
+import requests
 
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
@@ -256,3 +257,46 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     return self._batching_kwargs
+
+
+class VertexAITritonModelHandler(ModelHandler):
+    """
+    A custom model handler for Vertex AI endpoints hosting Triton Inference Servers.
+    It constructs a payload that Triton expects and calls the raw predict endpoint.
+    """
+    
+    def __init__(self, endpoint_url: str):
+        self.endpoint_url = endpoint_url
+
+    def load_model(self) -> str:
+        """
+        This method can load or return any model resource information. In the case of
+        a Triton endpoint, it could simply return the URL or any other required reference.
+        """
+        return self.endpoint_url
+
+    def run_inference(
+        self,
+        batch,
+        model,
+        inference_args=None
+    ) -> Iterable[PredictionResult]:
+        """
+        Sends a prediction request with the Triton-specific payload structure.
+        """
+        
+        payload = {
+            "inputs": [
+                {
+                    "name": "name",
+                    "shape": [1, 1],
+                    "datatype": "BYTES",
+                    "data": batch,  
+                }
+            ]
+        }
+        response = requests.post(model, json=payload)
+        response.raise_for_status()
+        prediction_response = response.json()
+        
+        yield prediction_response
