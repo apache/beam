@@ -960,6 +960,7 @@ public class TextIO {
      * specific number of output files.
      *
      * @param numShards the number of shards to use, or 0 to let the system decide.
+     *     <p>Selecting 0 may not necessarily enable autosharding, enable that explicitly if needed.
      */
     public TypedWrite<UserT, DestinationT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
@@ -1053,6 +1054,10 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /**
+     * Allows the runner to determine a dynamic number of shards. If numShards is set to 0, it may
+     * not enable autosharding, enable this explicitly if needed.
+     */
     public TypedWrite<UserT, DestinationT> withAutoSharding() {
       return toBuilder().setAutoSharding(true).build();
     }
