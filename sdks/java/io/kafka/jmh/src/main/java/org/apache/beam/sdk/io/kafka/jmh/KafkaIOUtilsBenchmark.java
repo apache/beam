@@ -23,27 +23,21 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Group;
-import org.openjdk.jmh.annotations.GroupThreads;
 import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.infra.IterationParams;
 import org.openjdk.jmh.infra.ThreadParams;
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(batchSize = KafkaIOUtilsBenchmark.SIZE)
-@Measurement(batchSize = KafkaIOUtilsBenchmark.SIZE)
+@Threads(Threads.MAX)
 public class KafkaIOUtilsBenchmark {
-  static final int READERS = 2;
-  static final int WRITERS = 1;
-  static final int SIZE = 1024;
+  private static final int SIZE = 1024;
 
   @State(Scope.Thread)
   public static class ProducerState {
@@ -52,16 +46,14 @@ public class KafkaIOUtilsBenchmark {
 
     @Setup(Level.Iteration)
     public void setup(final IterationParams ip, final ThreadParams tp) {
-      values =
-          new Random(299792458 + ip.getCount() + tp.getThreadIndex())
-              .ints(KafkaIOUtilsBenchmark.SIZE, 0, 100)
-              .toArray();
+      values = new Random(299792458 + ip.getCount()).ints(SIZE, 0, 100).toArray();
       idx = 0;
     }
 
-    @TearDown(Level.Invocation)
-    public void tearDown(final IterationParams ip, final ThreadParams tp) {
-      idx = (idx + 1) % KafkaIOUtilsBenchmark.SIZE;
+    int next() {
+      final int value = values[idx];
+      idx = (idx + 1) % SIZE;
+      return value;
     }
   }
 
@@ -84,44 +76,160 @@ public class KafkaIOUtilsBenchmark {
       }
     }
 
-    private MovingAvg accumulator;
+    MovingAvg accumulator;
 
-    @Setup(Level.Iteration)
-    public void setup(final IterationParams ip, final ThreadParams tp) {
+    @Setup(Level.Trial)
+    public void setup() {
       accumulator = new MovingAvg();
     }
   }
 
   @State(Scope.Group)
   public static class AtomicAccumulatorState {
-    private final KafkaIOUtils.MovingAvg accumulator = new KafkaIOUtils.MovingAvg();
+    KafkaIOUtils.MovingAvg accumulator;
+
+    @Setup(Level.Trial)
+    public void setup() {
+      accumulator = new KafkaIOUtils.MovingAvg();
+    }
+  }
+
+  @State(Scope.Group)
+  public static class VolatileAccumulatorState {
+    // Atomic accumulator using only volatile reads and writes.
+    static class MovingAvg {
+      private static final int MOVING_AVG_WINDOW = 1000;
+
+      private volatile double avg = 0;
+      private long numUpdates = 0;
+
+      void update(final double quantity) {
+        final double prevAvg = avg;
+        numUpdates = Math.min(MOVING_AVG_WINDOW, numUpdates + 1);
+        avg = prevAvg + (quantity - prevAvg) / numUpdates;
+      }
+
+      double get() {
+        return avg;
+      }
+    }
+
+    MovingAvg accumulator;
+
+    @Setup(Level.Trial)
+    public void setup() {
+      accumulator = new MovingAvg();
+    }
   }
 
   @Benchmark
-  @Group("Plain")
-  @GroupThreads(KafkaIOUtilsBenchmark.WRITERS)
+  @Group("WritePlain")
   public void plainWrite(final PlainAccumulatorState as, final ProducerState ps) {
-    as.accumulator.update(ps.values[ps.idx]);
+    as.accumulator.update(ps.next());
   }
 
   @Benchmark
-  @Group("Plain")
-  @GroupThreads(KafkaIOUtilsBenchmark.READERS)
+  @Group("ReadPlain")
   public double plainRead(final PlainAccumulatorState as) {
     return as.accumulator.get();
   }
 
   @Benchmark
-  @Group("Atomic")
-  @GroupThreads(KafkaIOUtilsBenchmark.WRITERS)
-  public void atomicWrite(final AtomicAccumulatorState as, final ProducerState ps) {
-    as.accumulator.update(ps.values[ps.idx]);
+  @Group("ReadAndWritePlain")
+  public void plainWriteWhileReading(final PlainAccumulatorState as, final ProducerState ps) {
+    as.accumulator.update(ps.next());
   }
 
   @Benchmark
-  @Group("Atomic")
-  @GroupThreads(KafkaIOUtilsBenchmark.READERS)
+  @Group("ReadAndWritePlain")
+  public double plainReadWhileWriting(final PlainAccumulatorState as) {
+    return as.accumulator.get();
+  }
+
+  @Benchmark
+  @Group("WriteSynchronizedPlain")
+  public void synchronizedPlainWrite(final PlainAccumulatorState as, final ProducerState ps) {
+    final PlainAccumulatorState.MovingAvg accumulator = as.accumulator;
+    final int value = ps.next();
+    synchronized (accumulator) {
+      accumulator.update(value);
+    }
+  }
+
+  @Benchmark
+  @Group("ReadSynchronizedPlain")
+  public double synchronizedPlainRead(final PlainAccumulatorState as) {
+    final PlainAccumulatorState.MovingAvg accumulator = as.accumulator;
+    synchronized (accumulator) {
+      return accumulator.get();
+    }
+  }
+
+  @Benchmark
+  @Group("ReadAndWriteSynchronizedPlain")
+  public void synchronizedPlainWriteWhileReading(
+      final PlainAccumulatorState as, final ProducerState ps) {
+    final PlainAccumulatorState.MovingAvg accumulator = as.accumulator;
+    final int value = ps.next();
+    synchronized (accumulator) {
+      accumulator.update(value);
+    }
+  }
+
+  @Benchmark
+  @Group("ReadAndWriteSynchronizedPlain")
+  public double synchronizedPlainReadWhileWriting(final PlainAccumulatorState as) {
+    final PlainAccumulatorState.MovingAvg accumulator = as.accumulator;
+    synchronized (accumulator) {
+      return accumulator.get();
+    }
+  }
+
+  @Benchmark
+  @Group("WriteAtomic")
+  public void atomicWrite(final AtomicAccumulatorState as, final ProducerState ps) {
+    as.accumulator.update(ps.next());
+  }
+
+  @Benchmark
+  @Group("ReadAtomic")
   public double atomicRead(final AtomicAccumulatorState as) {
+    return as.accumulator.get();
+  }
+
+  @Benchmark
+  @Group("ReadAndWriteAtomic")
+  public void atomicWriteWhileReading(final AtomicAccumulatorState as, final ProducerState ps) {
+    as.accumulator.update(ps.next());
+  }
+
+  @Benchmark
+  @Group("ReadAndWriteAtomic")
+  public double atomicReadWhileWriting(final AtomicAccumulatorState as) {
+    return as.accumulator.get();
+  }
+
+  @Benchmark
+  @Group("WriteVolatile")
+  public void volatileWrite(final VolatileAccumulatorState as, final ProducerState ps) {
+    as.accumulator.update(ps.next());
+  }
+
+  @Benchmark
+  @Group("ReadVolatile")
+  public double volatileRead(final VolatileAccumulatorState as) {
+    return as.accumulator.get();
+  }
+
+  @Benchmark
+  @Group("ReadAndWriteVolatile")
+  public void volatileWriteWhileReading(final VolatileAccumulatorState as, final ProducerState ps) {
+    as.accumulator.update(ps.next());
+  }
+
+  @Benchmark
+  @Group("ReadAndWriteVolatile")
+  public double volatileReadWhileWriting(final VolatileAccumulatorState as) {
     return as.accumulator.get();
   }
 }
