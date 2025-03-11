@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -69,7 +70,7 @@ public class LabeledMetricNameUtilsTest implements Serializable {
   }
 
   @Test
-  public void testParseMetricName_malformedMetricLabels() {
+  public void testParseMetricName_malformedLabels() {
     String metricName = "baseLabel*malformed_kv_pair;key2:val2;";
     LabeledMetricNameUtils.ParsedMetricName expectedName =
         LabeledMetricNameUtils.ParsedMetricName.create("baseLabel");
@@ -92,5 +93,29 @@ public class LabeledMetricNameUtilsTest implements Serializable {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder("");
     String metricName = builder.build("namespace").getName();
     assertThat(LabeledMetricNameUtils.parseMetricName(metricName).isPresent(), equalTo(false));
+  }
+
+  @Test
+  public void testLabeledMetricNames_successfulMetricLabels() {
+    String baseMetricName = "baseMetricName";
+    LabeledMetricNameUtils.MetricNameBuilder builder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(baseMetricName);
+    builder.addMetricLabel("key1", "val1");
+    builder.addMetricLabel("key2", "val2");
+    builder.addMetricLabel("key3", "val3");
+    MetricName metric = builder.build("namespace");
+
+    ImmutableMap<String, String> expectedMetricLabels =
+        ImmutableMap.of("key1", "val1", "key2", "val2", "key3", "val3");
+
+    // Check metric labels are set.
+    assertThat(metric.getLabels(), equalTo(expectedMetricLabels));
+
+    // No KV pairs in the metricName itself.
+    Optional<LabeledMetricNameUtils.ParsedMetricName> parsedName =
+        LabeledMetricNameUtils.parseMetricName(metric.getName());
+    assertThat(parsedName.get().getBaseName(), equalTo(baseMetricName));
+
+    assertThat(parsedName.get().getMetricLabels(), equalTo(Collections.<String, String>emptyMap()));
   }
 }
