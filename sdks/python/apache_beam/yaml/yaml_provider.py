@@ -1168,7 +1168,7 @@ class PypiExpansionService:
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         # Ensure our environment is set up correctly.
         subprocess.run(
-            [os.path.join(venv, 'bin', 'python'), '-c', 'import roman'],
+            [os.path.join(venv, 'bin', 'python'), '-c', 'import apache_beam'],
             check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
