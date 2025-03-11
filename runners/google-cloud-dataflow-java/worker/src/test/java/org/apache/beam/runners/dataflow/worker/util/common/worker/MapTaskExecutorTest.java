@@ -279,9 +279,10 @@ public class MapTaskExecutorTest {
    * containers returned by {@link getMetricContainers}.
    */
   public void testGetMetricContainers() throws Exception {
+    ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
     ExecutionStateTracker stateTracker =
         new DataflowExecutionStateTracker(
-            ExecutionStateSampler.newForTest(),
+            sampler,
             new TestDataflowExecutionState(
                 NameContext.forStage("testStage"),
                 "other",
@@ -328,7 +329,7 @@ public class MapTaskExecutorTest {
                 }
               }
             });
-
+    sampler.start();
     try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
       // Call execute so that we run all the counters
       executor.execute();
