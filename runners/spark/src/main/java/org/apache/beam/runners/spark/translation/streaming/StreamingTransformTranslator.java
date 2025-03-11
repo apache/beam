@@ -309,14 +309,14 @@ public final class StreamingTransformTranslator {
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
-      private JavaDStream<WindowedValue<T>> buildDStream(
-          final StreamingContext ssc, final BoundedDataset<T> dataset) {
-
-        final SingleEmitInputDStream<WindowedValue<T>> singleEmitDStream =
-            new SingleEmitInputDStream<>(ssc, dataset.getRDD().rdd());
-
-        return JavaDStream.fromDStream(singleEmitDStream, JavaSparkContext$.MODULE$.fakeClassTag());
-      }
+//      private JavaDStream<WindowedValue<T>> buildDStream(
+//          final StreamingContext ssc, final BoundedDataset<T> dataset) {
+//
+//        final SingleEmitInputDStream<WindowedValue<T>> singleEmitDStream =
+//            new SingleEmitInputDStream<>(ssc, dataset.getRDD().rdd());
+//
+//        return JavaDStream.fromDStream(singleEmitDStream, JavaSparkContext$.MODULE$.fakeClassTag());
+//      }
 
       @Override
       public String toNativeString() {
