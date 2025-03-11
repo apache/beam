@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -132,67 +131,30 @@ public final class KafkaIOUtils {
   }
 
   /*
-   * Attempt to prevent false sharing by padding to at least 64 bytes.
-   * object header: 4, 8, 12 or 16 bytes
-   * alignment: at least 8 bytes
+   * Maintains approximate average over last 1000 elements.
+   * Usage is only thread-safe for a single producer and multiple consumers.
    */
-  @SuppressFBWarnings("UUF_UNUSED_FIELD")
-  private static class MovingAvgPadding {
-    byte p000, p001, p002, p003, p004, p005, p006, p007;
-    byte p010, p011, p012, p013, p014, p015, p016, p017;
-    byte p020, p021, p022, p023, p024, p025, p026, p027;
-    byte p030, p031, p032, p033, p034, p035, p036, p037;
-    byte p040, p041, p042, p043, p044, p045, p046, p047;
-    byte p050, p051, p052, p053, p054, p055, p056, p057;
-    byte p060, p061, p062, p063, p064, p065, p066, p067;
-  }
-
-  // The accumulator's fields should be padded to at least 128 bytes (at least 1 or 2
-  // cache lines).
-  private static class MovingAvgFields extends MovingAvgPadding {
+  public static final class MovingAvg {
+    private static final AtomicLongFieldUpdater<MovingAvg> AVG =
+        AtomicLongFieldUpdater.newUpdater(MovingAvg.class, "avg");
     private static final int MOVING_AVG_WINDOW = 1000;
 
-    private static final AtomicLongFieldUpdater<MovingAvgFields> AVG =
-        AtomicLongFieldUpdater.newUpdater(MovingAvgFields.class, "avg");
+    private volatile long avg;
+    private long numUpdates;
 
-    private volatile long avg = 0;
-    private long numUpdates = 0;
-
-    protected double getAvg() {
+    private double getAvg() {
       return Double.longBitsToDouble(avg);
     }
 
-    protected void setAvg(final double value) {
+    private void setAvg(final double value) {
       AVG.lazySet(this, Double.doubleToRawLongBits(value));
     }
 
-    protected long incrementAndGetNumUpdates() {
+    private long incrementAndGetNumUpdates() {
       final long nextNumUpdates = Math.min(MOVING_AVG_WINDOW, numUpdates + 1);
       numUpdates = nextNumUpdates;
       return nextNumUpdates;
     }
-  }
-
-  /*
-   * Maintains approximate average over last 1000 elements.
-   * Usage is only thread-safe for a single producer and multiple consumers.
-   *
-   * Attempt to prevent false sharing by padding to 64 bytes.
-   * avg: 8 bytes
-   * numUpdates: 8 bytes
-   * alignment: at least 8 bytes
-   *
-   * Visibility and ordering of non-volatile loads/stores on numUpdates is guaranteed by volatile loads/stores on avg.
-   * Sanity of visibility is only useful when the writer thread changes since avg is the only field that can be shared between multiple concurrent threads.
-   */
-  @SuppressFBWarnings("UUF_UNUSED_FIELD")
-  public static final class MovingAvg extends MovingAvgFields {
-    byte p100, p101, p102, p103, p104, p105, p106, p107;
-    byte p110, p111, p112, p113, p114, p115, p116, p117;
-    byte p120, p121, p122, p123, p124, p125, p126, p127;
-    byte p130, p131, p132, p133, p134, p135, p136, p137;
-    byte p140, p141, p142, p143, p144, p145, p146, p147;
-    byte p150, p151, p152, p153, p154, p155, p156, p157;
 
     public void update(final double quantity) {
       final double prevAvg = getAvg(); // volatile load (acquire)
