@@ -111,7 +111,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             FileUtils.deleteDirectory(new File(testSparkOptions.getCheckpointDir()));
           }
         } catch (IOException e) {
-          throw new Pipeline.PipelineExecutionException(e);
+          throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
         }
       }
     } else {
