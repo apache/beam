@@ -19,7 +19,9 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
@@ -58,9 +60,11 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
 
     @Override
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      Set<String> gettersSeen = new HashSet<>();
       List<Method> methods =
           ReflectUtils.getMethods(typeDescriptor.getRawType()).stream()
               .filter(ReflectUtils::isGetter)
+              .filter(m -> gettersSeen.add(m.getName()))
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
@@ -108,8 +112,10 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
 
     @Override
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      Set<String> settersSeen = new HashSet<>();
       return ReflectUtils.getMethods(typeDescriptor.getRawType()).stream()
           .filter(ReflectUtils::isSetter)
+          .filter(m -> settersSeen.add(m.getName()))
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(m -> FieldValueTypeInformation.forSetter(typeDescriptor, m))
           .map(
