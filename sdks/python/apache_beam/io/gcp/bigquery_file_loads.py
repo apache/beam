@@ -541,19 +541,16 @@ class TriggerCopyJobs(beam.DoFn):
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
 
+    full_table_ref = '%s:%s.%s' % (copy_from_reference.projectId, copy_from_reference.datasetId, copy_from_reference.tableId)
     copy_job_name = '%s_%s' % (
         job_name_prefix,
-        _bq_uuid(
-            '%s:%s.%s' % (
-                copy_from_reference.projectId,
-                copy_from_reference.datasetId,
-                copy_from_reference.tableId)))
+        _bq_uuid(full_table_ref))
 
     _LOGGER.info(
         "Triggering copy job from %s to %s",
         copy_from_reference,
         copy_to_reference)
-    if copy_to_reference.tableId not in self._observed_tables:
+    if full_table_ref not in self._observed_tables:
       # When the write_disposition for a job is WRITE_TRUNCATE,
       # multiple copy jobs to the same destination can stump on
       # each other, truncate data, and write to the BQ table over and
@@ -564,7 +561,7 @@ class TriggerCopyJobs(beam.DoFn):
       # by previous jobs.
       write_disposition = self.write_disposition
       wait_for_job = True
-      self._observed_tables.add(copy_to_reference.tableId)
+      self._observed_tables.add(full_table_ref)
       Lineage.sinks().add(
           'bigquery',
           copy_to_reference.projectId,
