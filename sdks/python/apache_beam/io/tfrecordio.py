@@ -57,7 +57,7 @@ def _default_crc32c_fn(value):
 
     if not _default_crc32c_fn.fn:
       _LOGGER.warning(
-          'Couldn\'t find python-snappy (<0.7) so the implementation of '
+          'Couldn\'t find python-snappy<0.7 so the implementation of '
           '_TFRecordUtil._masked_crc32c is not as fast as it could '
           'be.')
       _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
