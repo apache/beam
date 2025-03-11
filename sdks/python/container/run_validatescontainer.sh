@@ -104,7 +104,7 @@ function cleanup_container {
     echo "DELETING DOCKER IMAGE: $image"
     docker rmi $image || echo "Failed to remove prebuilt sdk container image"
     image_tag="${image##*:}"
-    digest=$(gcloud container images list-tags $IMAGE_PATH --filter="tags=$image_tag" --format="get(digest)")
+    digest=$(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags=$image_tag" --format="get(digest)")
     echo "DELETING FROM GCLOUD AN IMAGE WITH DIGEST: $digest"
     gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
   done
@@ -114,11 +114,6 @@ function cleanup_container {
   if [[ "$ARCH" == "x86" ]]; then
     gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   fi
-#  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags:$TAG" --format="get(digest)")
-#  do
-#    echo "DELETING FROM GCLOUD AN IMAGE WITH DIGEST: $digest"
-#    gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
-#  done
 
   echo "Removed the container"
 }
