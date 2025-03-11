@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.protobuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.protobuf.Message;
 import java.io.ObjectStreamClass;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -173,5 +174,38 @@ public class ProtoCoderTest {
   public void testSerialVersionID() {
     long serialVersionID = ObjectStreamClass.lookup(ProtoCoder.class).getSerialVersionUID();
     assertEquals(-5043999806040629525L, serialVersionID);
+  }
+
+  @Test
+  public void testProtoCoderWithRawMessageInterfaceThrowsException() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.");
+
+    ProtoCoder<Message> coder = ProtoCoder.of(Message.class);
+    coder.getParser(); // Should throw IllegalArgumentException after fix
+  }
+
+  @Test
+  public void testProtoCoderWithGeneratedClass() throws Exception {
+    ProtoCoder<MessageA> coder = ProtoCoder.of(MessageA.class);
+    MessageA message = MessageA.newBuilder().setField1("Test").build();
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, message);
+    MessageA decoded = CoderUtils.decodeFromByteArray(coder, encoded);
+    assertEquals(message, decoded);
+    assertEquals("Test", decoded.getField1());
+  }
+
+  @Test
+  public void testProtoCoderWithAbstractClassThrowsException() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Class org.apache.beam.sdk.extensions.protobuf.ProtoCoderTest$1InvalidMessage lacks both getDefaultInstance() and a no-arg constructor. Ensure it is a concrete Protobuf-generated class.");
+
+    abstract class InvalidMessage implements Message {
+      // No implementation needed for test
+    }
+    ProtoCoder<InvalidMessage> coder = ProtoCoder.of(InvalidMessage.class);
+    coder.getParser(); // Should throw due to abstract class
   }
 }
