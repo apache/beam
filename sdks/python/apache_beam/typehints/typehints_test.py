@@ -714,6 +714,11 @@ class DictHintTestCase(TypeHintTestCase):
         'Dict type-constraint violated. All passed instances '
         'must be of type dict. [1, 2] is of type list.',
         e.exception.args[0])
+    
+  def test_type_check_collection(self):
+    hint = typehints.Dict[str, int]
+    l = collections.defaultdict(list[("blue", 2)])
+    self.assertIsNone(hint.type_check(l))
 
   def test_type_check_invalid_key_type(self):
     hint = typehints.Dict[typehints.Tuple[int, int, int], typehints.List[str]]
@@ -767,11 +772,37 @@ class DictHintTestCase(TypeHintTestCase):
     converted_beam_type = typehints.normalize(dict[str, int], False)
     self.assertEqual(converted_beam_type, expected_beam_type)
 
+  def test_normalize_with_collections_dicts(self):
+    test_cases = [
+        (
+            'default dict',
+            collections.defaultdict[str, bool],
+            typehints.Dict[str, bool]),
+        (
+            'ordered dict',
+            collections.OrderedDict[str, bool],
+            typehints.Dict[str, bool]),
+        ('counter', collections.Counter[str, int], typehints.Dict[str, int]),
+    ]
+    for test_case in test_cases:
+      description = test_case[0]
+      collections_type = test_case[1]
+      expected_beam_type = test_case[2]
+      converted_beam_type = typehints.normalize(collections_type)
+      self.assertEqual(converted_beam_type, expected_beam_type, description)
+
   def test_builtin_and_type_compatibility(self):
     self.assertCompatible(dict, typing.Dict)
     self.assertCompatible(dict[str, int], typing.Dict[str, int])
     self.assertCompatible(
         dict[str, list[int]], typing.Dict[str, typing.List[int]])
+
+  def test_collections_subclass_compatibility(self):
+    self.assertCompatible(
+        collections.defaultdict[str, bool], typing.Dict[str, bool])
+    self.assertCompatible(
+        collections.OrderedDict[str, int], typing.Dict[str, int])
+    self.assertCompatible(collections.Counter[str, int], typing.Dict[str, int])
 
 
 class BaseSetHintTest:

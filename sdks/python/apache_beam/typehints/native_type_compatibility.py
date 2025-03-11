@@ -68,6 +68,8 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.Sequence,
 ]
 
+_CONVERTED_MODULES = ('typing', 'collections', 'collections.abc')
+
 
 def _get_args(typ):
   """Returns a list of arguments to the given type.
@@ -125,6 +127,10 @@ def _is_primitive(user_type, primitive):
 
 def _match_is_primitive(match_against):
   return lambda user_type: _is_primitive(user_type, match_against)
+
+
+def _match_is_dict(user_type):
+  return _is_primitive(user_type, dict) or _safe_issubclass(user_type, dict)
 
 
 def _match_is_exactly_mapping(user_type):
@@ -353,8 +359,7 @@ def convert_to_beam_type(typ):
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
 
-  elif (typ_module != 'typing') and (typ_module !=
-                                     'collections.abc') and not is_builtin(typ):
+  elif typ_module not in _CONVERTED_MODULES and not is_builtin(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
@@ -371,8 +376,7 @@ def convert_to_beam_type(typ):
       # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
-      _TypeMapEntry(
-          match=_match_is_primitive(dict), arity=2, beam_type=typehints.Dict),
+      _TypeMapEntry(match=_match_is_dict, arity=2, beam_type=typehints.Dict),
       _TypeMapEntry(
           match=_match_is_exactly_iterable,
           arity=1,
