@@ -184,4 +184,4 @@ jobs:
       - name: Cleanup Python SDK Container
         if: ${{ always() && github.event_name == 'pull_request_target' }}
         run: |
-          gcloud container images delete ${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ steps.set_tag.outputs.TAG }} --force-delete-tags --quiet
+          gcloud container images delete ${{ env.DOCKER_REPOSITORY_ROOT }}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ env.PYTHON_SDK_IMAGE_TAG }} --force-delete-tags --quiet
