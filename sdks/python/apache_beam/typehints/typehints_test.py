@@ -714,7 +714,7 @@ class DictHintTestCase(TypeHintTestCase):
         'Dict type-constraint violated. All passed instances '
         'must be of type dict. [1, 2] is of type list.',
         e.exception.args[0])
-    
+
   def test_type_check_collection(self):
     hint = typehints.Dict[str, int]
     l = collections.defaultdict(list[("blue", 2)])
