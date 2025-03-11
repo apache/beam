@@ -15,11 +15,10 @@
 # limitations under the License.
 #
 
-import typing
 import uuid
-from typing import Any
 from typing import Callable
 from typing import Iterable
+from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 
@@ -35,7 +34,7 @@ from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
 from apache_beam.ml.anomaly.thresholds import StatefulThresholdDoFn
 from apache_beam.ml.anomaly.thresholds import StatelessThresholdDoFn
-from apache_beam.transforms.userstate import ReadModifyWriteRuntimeState
+from apache_beam.ml.anomaly.thresholds import ThresholdFn
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 KeyT = TypeVar('KeyT')
@@ -88,12 +87,10 @@ class _ScoreAndLearnDoFn(beam.DoFn):
       model_state=beam.DoFn.StateParam(MODEL_STATE_INDEX),
       **kwargs) -> Iterable[KeyedOutputT]:
 
-    model_state = typing.cast(ReadModifyWriteRuntimeState, model_state)
     k1, (k2, data) = element
     self._underlying: AnomalyDetector = model_state.read()
     if self._underlying is None:
-      self._underlying = typing.cast(
-          AnomalyDetector, Specifiable.from_spec(self._detector_spec))
+      self._underlying = Specifiable.from_spec(self._detector_spec)
 
     yield k1, (k2,
                AnomalyResult(
@@ -135,25 +132,21 @@ class RunThresholdCriterion(beam.PTransform[beam.PCollection[KeyedOutputT],
   Args:
     threshold_criterion: The `ThresholdFn` to apply.
   """
-  def __init__(self, threshold_criterion):
+  def __init__(self, threshold_criterion: ThresholdFn):
     self._threshold_fn = threshold_criterion
 
   def expand(
       self,
       input: beam.PCollection[KeyedOutputT]) -> beam.PCollection[KeyedOutputT]:
-    if self._threshold_fn:
-      if self._threshold_fn.is_stateful:
-        ret = (
-            input
-            | beam.ParDo(StatefulThresholdDoFn(self._threshold_fn.to_spec())))
-      else:
-        ret = (
-            input
-            | beam.ParDo(StatelessThresholdDoFn(self._threshold_fn.to_spec())))
-    else:
-      ret = input
 
-    return ret
+    if self._threshold_fn.is_stateful:
+      return (
+          input
+          | beam.ParDo(StatefulThresholdDoFn(self._threshold_fn.to_spec())))
+    else:
+      return (
+          input
+          | beam.ParDo(StatelessThresholdDoFn(self._threshold_fn.to_spec())))
 
 
 class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
@@ -168,7 +161,8 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     aggregation_strategy: The `AggregationFn` to use.
     agg_model_id: The model ID for aggregation.
   """
-  def __init__(self, aggregation_strategy, agg_model_id):
+  def __init__(
+      self, aggregation_strategy: Optional[AggregationFn], agg_model_id: str):
     self._aggregation_fn = aggregation_strategy
     self._agg_model_id = agg_model_id
 
@@ -181,7 +175,7 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
 
     if self._aggregation_fn is None:
       # simply put predictions into an iterable (list)
-      ret: Any = (
+      ret = (
           post_gbk | beam.MapTuple(
               lambda k,
               v: (
@@ -199,14 +193,16 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     # create a new aggregation_fn from spec and make sure it is initialized
     aggregation_fn_spec = self._aggregation_fn.to_spec()
     aggregation_fn_spec.config["_run_init"] = True
-    aggregation_fn: AggregationFn = typing.cast(
-        AggregationFn, Specifiable.from_spec(aggregation_fn_spec))
+    aggregation_fn = Specifiable.from_spec(aggregation_fn_spec)
 
     # if no _agg_model_id is set in the aggregation function, use
     # model id from the ensemble instance
     if (isinstance(aggregation_fn, aggregations._AggModelIdMixin)):
       aggregation_fn._set_agg_model_id_if_unset(self._agg_model_id)
 
+    # post_gbk is a PCollection of ((original_key, temp_key), AnomalyResult).
+    # We use (original_key, temp_key) as the key for GroupByKey() so that
+    # scores from multiple detectors per data point are grouped.
     ret = (
         post_gbk | beam.MapTuple(
             lambda k,
@@ -248,12 +244,15 @@ class RunOneDetector(beam.PTransform[beam.PCollection[KeyedInputT],
         getattr(self._detector, "_key", "unknown_model"))
     model_uuid = f"{model_id}:{uuid.uuid4().hex[:6]}"
 
-    ret: Any = (
+    ret = (
         input
         | beam.Reshuffle()
-        | f"Score and Learn ({model_uuid})" >> RunScoreAndLearn(self._detector)
-        | f"Run Threshold Criterion ({model_uuid})" >> RunThresholdCriterion(
-            self._detector._threshold_criterion))
+        | f"Score and Learn ({model_uuid})" >> RunScoreAndLearn(self._detector))
+
+    if self._detector._threshold_criterion:
+      ret = (
+          ret | f"Run Threshold Criterion ({model_uuid})" >>
+          RunThresholdCriterion(self._detector._threshold_criterion))
 
     return ret
 
@@ -297,17 +296,17 @@ class RunEnsembleDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     else:
       aggregation_type = "Custom"
 
-    aggregated = (
+    ret = (
         results | beam.Flatten()
         | f"Run {aggregation_type} Aggregation Strategy ({model_uuid})" >>
         RunAggregationStrategy(
             self._ensemble_detector._aggregation_strategy,
             self._ensemble_detector._model_id))
 
-    ret: Any = (
-        aggregated
-        | f"Run Threshold Criterion ({model_uuid})" >> RunThresholdCriterion(
-            self._ensemble_detector._threshold_criterion))
+    if self._ensemble_detector._threshold_criterion:
+      ret = (
+          ret | f"Run Threshold Criterion ({model_uuid})" >>
+          RunThresholdCriterion(self._ensemble_detector._threshold_criterion))
 
     return ret
 
@@ -376,6 +375,6 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[InputT],
     # remove the temporary key and simplify the output.
     remove_temp_key_fn: Callable[[KeyedOutputT], OutputT] \
         = lambda e: (e[0], e[1][1])
-    ret: Any = keyed_output | "Remove temp key" >> beam.Map(remove_temp_key_fn)
+    ret = keyed_output | "Remove temp key" >> beam.Map(remove_temp_key_fn)
 
     return ret
