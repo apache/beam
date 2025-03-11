@@ -50,7 +50,7 @@ python my_pipeline.py \
     --resource_hints accelerator="hint"
 {{< /highlight >}}
 {{< highlight yaml >}}
-python -m apache_beam.yaml.main_
+python -m apache_beam.yaml.main
     ... \
     --resource_hints min_ram=<N>GB \
     --resource_hints accelerator="hint"
