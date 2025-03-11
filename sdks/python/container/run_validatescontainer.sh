@@ -101,11 +101,11 @@ function cleanup_container {
   docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
   do
-    echo "DELETING DOCKER IMAGE: $image"
+    echo "Deleting Docker image: $image"
     docker rmi $image || echo "Failed to remove prebuilt sdk container image"
     image_tag="${image##*:}"
     digest=$(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags=$image_tag" --format="get(digest)")
-    echo "DELETING FROM GCLOUD AN IMAGE WITH DIGEST: $digest"
+    echo "Deleting from GCloud an image with digest: $digest"
     gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
   done
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
