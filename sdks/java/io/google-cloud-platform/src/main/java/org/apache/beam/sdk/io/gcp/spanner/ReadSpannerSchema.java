@@ -32,16 +32,13 @@ import org.apache.beam.sdk.values.PCollectionView;
  * SpannerSchema}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   private final SpannerConfig config;
-
   private final PCollectionView<Dialect> dialectView;
-
   private final Set<String> allowedTableNames;
-
   private transient SpannerAccessor spannerAccessor;
 
   /**
@@ -93,76 +90,79 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
       ResultSet resultSet = readTableInfo(tx, dialect);
 
       while (resultSet.next()) {
-        String tableName = resultSet.getString(0);
-        String columnName = resultSet.getString(1);
-        String type = resultSet.getString(2);
-        long cellsMutated = resultSet.getLong(3);
-        if (allowedTableNames.size() > 0 && !allowedTableNames.contains(tableName)) {
-          // If we want to filter out table names, and the current table name is not part
-          // of the allowed names, we exclude it.
+        String schemaName = resultSet.getString(0); // TABLE_SCHEMA
+        String tableName = resultSet.getString(1);  // TABLE_NAME
+        String fullTableName = schemaName.isEmpty() ? tableName : schemaName + "." + tableName;
+        String columnName = resultSet.getString(2); // COLUMN_NAME
+        String type = resultSet.getString(3);       // SPANNER_TYPE
+        long cellsMutated = resultSet.getLong(4);   // CELLS_MUTATED
+
+        // Apply allowedTableNames filter on full table name if specified
+        if (allowedTableNames.size() > 0 && !allowedTableNames.contains(fullTableName)) {
           continue;
         }
-        builder.addColumn(tableName, columnName, type, cellsMutated);
+        builder.addColumn(fullTableName, columnName, type, cellsMutated);
       }
 
       resultSet = readPrimaryKeyInfo(tx, dialect);
       while (resultSet.next()) {
-        String tableName = resultSet.getString(0);
-        String columnName = resultSet.getString(1);
-        String ordering = resultSet.getString(2);
+        String schemaName = resultSet.getString(0); // TABLE_SCHEMA
+        String tableName = resultSet.getString(1);  // TABLE_NAME
+        String fullTableName = schemaName.isEmpty() ? tableName : schemaName + "." + tableName;
+        String columnName = resultSet.getString(2); // COLUMN_NAME
+        String ordering = resultSet.getString(3);   // COLUMN_ORDERING
 
-        builder.addKeyPart(tableName, columnName, "DESC".equalsIgnoreCase(ordering));
+        // Apply allowedTableNames filter on full table name if specified
+        if (allowedTableNames.size() > 0 && !allowedTableNames.contains(fullTableName)) {
+          continue;
+        }
+        builder.addKeyPart(fullTableName, columnName, "DESC".equalsIgnoreCase(ordering));
       }
     }
     c.output(builder.build());
   }
 
   private ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
-    // retrieve schema information for all tables, as well as aggregating the
-    // number of indexes that cover each column. this will be used to estimate
-    // the number of cells (table column plus indexes) mutated in an upsert operation
-    // in order to stay below the 20k threshold
+    // Retrieve schema information for all tables across all schemas, including the number of
+    // indexes covering each column to estimate cells mutated in upserts.
     String statement = "";
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:
         statement =
-            "SELECT"
-                + "    c.table_name"
-                + "  , c.column_name"
-                + "  , c.spanner_type"
-                + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
-                + "  FROM ("
-                + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
-                + "     FROM information_schema.columns as c"
-                + "     WHERE c.table_catalog = '' AND c.table_schema = '') AS c"
-                + "  LEFT OUTER JOIN ("
-                + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
-                + "      FROM information_schema.index_columns AS t "
-                + "      WHERE t.index_name != 'PRIMARY_KEY' AND t.table_catalog = ''"
-                + "      AND t.table_schema = ''"
-                + "      GROUP BY t.table_name, t.column_name) AS t"
-                + "  USING (table_name, column_name)"
-                + "  ORDER BY c.table_name, c.ordinal_position";
+            "SELECT "
+                + "  c.TABLE_SCHEMA, "
+                + "  c.TABLE_NAME, "
+                + "  c.COLUMN_NAME, "
+                + "  c.SPANNER_TYPE, "
+                + "  (1 + COALESCE(t.indices, 0)) AS cells_mutated "
+                + "FROM INFORMATION_SCHEMA.COLUMNS AS c "
+                + "LEFT OUTER JOIN ("
+                + "  SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.COLUMN_NAME, COUNT(*) AS indices "
+                + "  FROM INFORMATION_SCHEMA.INDEX_COLUMNS AS t "
+                + "  WHERE t.INDEX_NAME != 'PRIMARY_KEY' AND t.TABLE_CATALOG = '' "
+                + "  GROUP BY t.TABLE_SCHEMA, t.TABLE_NAME, t.COLUMN_NAME "
+                + ") AS t "
+                + "ON c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME AND c.COLUMN_NAME = t.COLUMN_NAME "
+                + "WHERE c.TABLE_CATALOG = '' "
+                + "ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION";
         break;
       case POSTGRESQL:
         statement =
-            "SELECT"
-                + "    c.table_name"
-                + "  , c.column_name"
-                + "  , c.spanner_type"
-                + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
-                + "  FROM ("
-                + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
-                + "      FROM information_schema.columns as c"
-                + "      WHERE c.table_schema='public') AS c"
-                + "  LEFT OUTER JOIN ("
-                + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
-                + "      FROM information_schema.index_columns AS t "
-                + "      WHERE t.index_name != 'PRIMARY_KEY'"
-                + "      AND t.table_schema='public'"
-                + "      GROUP BY t.table_name, t.column_name) AS t"
-                + "  USING (table_name, column_name)"
-                + "  ORDER BY c.table_name, c.ordinal_position";
+            "SELECT "
+                + "  c.TABLE_SCHEMA, "
+                + "  c.TABLE_NAME, "
+                + "  c.COLUMN_NAME, "
+                + "  c.SPANNER_TYPE, "
+                + "  (1 + COALESCE(t.indices, 0)) AS cells_mutated "
+                + "FROM INFORMATION_SCHEMA.COLUMNS AS c "
+                + "LEFT OUTER JOIN ("
+                + "  SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.COLUMN_NAME, COUNT(*) AS indices "
+                + "  FROM INFORMATION_SCHEMA.INDEX_COLUMNS AS t "
+                + "  WHERE t.INDEX_NAME != 'PRIMARY_KEY' "
+                + "  GROUP BY t.TABLE_SCHEMA, t.TABLE_NAME, t.COLUMN_NAME "
+                + ") AS t "
+                + "ON c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME AND c.COLUMN_NAME = t.COLUMN_NAME "
+                + "ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION";
         break;
       default:
         throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());
@@ -175,19 +175,25 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:
         statement =
-            "SELECT t.table_name, t.column_name, t.column_ordering"
-                + " FROM information_schema.index_columns AS t "
-                + " WHERE t.index_name = 'PRIMARY_KEY' AND t.table_catalog = ''"
-                + " AND t.table_schema = ''"
-                + " ORDER BY t.table_name, t.ordinal_position";
+            "SELECT "
+                + "  t.TABLE_SCHEMA, "
+                + "  t.TABLE_NAME, "
+                + "  t.COLUMN_NAME, "
+                + "  t.COLUMN_ORDERING "
+                + "FROM INFORMATION_SCHEMA.INDEX_COLUMNS AS t "
+                + "WHERE t.INDEX_NAME = 'PRIMARY_KEY' AND t.TABLE_CATALOG = '' "
+                + "ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME, t.ORDINAL_POSITION";
         break;
       case POSTGRESQL:
         statement =
-            "SELECT t.table_name, t.column_name, t.column_ordering"
-                + " FROM information_schema.index_columns AS t "
-                + " WHERE t.index_name = 'PRIMARY_KEY'"
-                + " AND t.table_schema='public'"
-                + " ORDER BY t.table_name, t.ordinal_position";
+            "SELECT "
+                + "  t.TABLE_SCHEMA, "
+                + "  t.TABLE_NAME, "
+                + "  t.COLUMN_NAME, "
+                + "  t.COLUMN_ORDERING "
+                + "FROM INFORMATION_SCHEMA.INDEX_COLUMNS AS t "
+                + "WHERE t.INDEX_NAME = 'PRIMARY_KEY' "
+                + "ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME, t.ORDINAL_POSITION";
         break;
       default:
         throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());

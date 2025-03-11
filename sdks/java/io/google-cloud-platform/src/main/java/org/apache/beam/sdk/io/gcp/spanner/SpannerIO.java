@@ -59,6 +59,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -67,6 +68,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.google.cloud.spanner.Value;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -1141,6 +1144,10 @@ public class SpannerIO {
 
   /**
    * A {@link PTransform} that writes {@link Mutation} objects to Google Cloud Spanner.
+   * <p>Input {@link Mutation} objects should specify table names that include schema prefixes
+   * (e.g., "my_schema.my_table") when using named schemas. If unqualified names are provided
+   * (e.g., "my_table"), the transform will attempt to rewrite them to match the schema-qualified
+   * names retrieved from the database, but this may fail if the table is ambiguous or not found.
    *
    * @see SpannerIO
    */
@@ -1928,6 +1935,88 @@ public class SpannerIO {
     public void processElement(ProcessContext c) {
       Mutation value = c.element();
       c.output(MutationGroup.create(value));
+    }
+  }
+
+  @VisibleForTesting
+  static class RewriteMutationTableNamesFn extends DoFn<MutationGroup, MutationGroup> {
+    private final PCollectionView<SpannerSchema> schemaView;
+
+    RewriteMutationTableNamesFn(PCollectionView<SpannerSchema> schemaView) {
+      this.schemaView = schemaView;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      SpannerSchema spannerSchema = c.sideInput(schemaView);
+      MutationGroup mg = c.element();
+      List<Mutation> rewrittenMutations = new ArrayList<>();
+
+      for (Mutation m : mg) {
+        String tableName = m.getTable();
+        // Check if the table exists in the schema (case-insensitive lookup)
+        String qualifiedTableName = findQualifiedTableName(spannerSchema, tableName);
+        if (qualifiedTableName == null) {
+          LOG.warn("Table {} not found in Spanner schema; using as-is", tableName);
+          rewrittenMutations.add(m);
+        } else if (!qualifiedTableName.equalsIgnoreCase(tableName)) {
+          // Rewrite the mutation with the schema-qualified table name
+          rewrittenMutations.add(rewriteMutation(m, qualifiedTableName));
+        } else {
+          rewrittenMutations.add(m); // Already qualified, no rewrite needed
+        }
+      }
+
+      c.output(MutationGroup.create(rewrittenMutations.get(0), rewrittenMutations.subList(1, rewrittenMutations.size())));
+    }
+
+    private Mutation rewriteMutation(Mutation m, String newTableName) {
+      Op op = m.getOperation();
+      switch (op) {
+        case INSERT:
+          Mutation.WriteBuilder insertBuilder = Mutation.newInsertBuilder(newTableName);
+          setValues(insertBuilder, m.getColumns(), m.getValues());
+          return insertBuilder.build();
+        case UPDATE:
+          Mutation.WriteBuilder updateBuilder = Mutation.newUpdateBuilder(newTableName);
+          setValues(updateBuilder, m.getColumns(), m.getValues());
+          return updateBuilder.build();
+        case INSERT_OR_UPDATE:
+          Mutation.WriteBuilder insertOrUpdateBuilder = Mutation.newInsertOrUpdateBuilder(newTableName);
+          setValues(insertOrUpdateBuilder, m.getColumns(), m.getValues());
+          return insertOrUpdateBuilder.build();
+        case REPLACE:
+          Mutation.WriteBuilder replaceBuilder = Mutation.newReplaceBuilder(newTableName);
+          setValues(replaceBuilder, m.getColumns(), m.getValues());
+          return replaceBuilder.build();
+        case DELETE:
+          return Mutation.delete(newTableName, m.getKeySet());
+        default:
+          throw new IllegalArgumentException("Unsupported mutation operation: " + op);
+      }
+    }
+
+    private void setValues(Mutation.WriteBuilder builder, Iterable<String> columns, Iterable<Value> values) {
+      Iterator<String> columnIter = columns.iterator();
+      Iterator<Value> valueIter = values.iterator();
+      while (columnIter.hasNext() && valueIter.hasNext()) {
+        String column = columnIter.next();
+        Value value = valueIter.next();
+        builder.set(column).to(value);
+      }
+      if (columnIter.hasNext() || valueIter.hasNext()) {
+        throw new IllegalStateException("Mismatch between number of columns and values");
+      }
+    }
+
+    private String findQualifiedTableName(SpannerSchema schema, String tableName) {
+      for (String fullTableName : schema.getTables()) {
+        if (fullTableName.equalsIgnoreCase(tableName) ||
+            fullTableName.substring(fullTableName.lastIndexOf('.') + 1).equalsIgnoreCase(tableName)) {
+          return fullTableName;
+        }
+      }
+      return null;
     }
   }
 
