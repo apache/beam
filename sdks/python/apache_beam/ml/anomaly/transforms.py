@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import dataclasses
 import uuid
 from typing import Callable
 from typing import Iterable
@@ -30,11 +31,9 @@ from apache_beam.ml.anomaly.base import AnomalyDetector
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
+from apache_beam.ml.anomaly.base import ThresholdFn
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
-from apache_beam.ml.anomaly.thresholds import StatefulThresholdDoFn
-from apache_beam.ml.anomaly.thresholds import StatelessThresholdDoFn
-from apache_beam.ml.anomaly.thresholds import ThresholdFn
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 KeyT = TypeVar('KeyT')
@@ -121,6 +120,149 @@ class RunScoreAndLearn(beam.PTransform[beam.PCollection[KeyedInputT],
     return input | beam.ParDo(_ScoreAndLearnDoFn(self._detector.to_spec()))
 
 
+class _BaseThresholdDoFn(beam.DoFn):
+  """Applies a ThresholdFn to anomaly detection results.
+
+  This abstract base class defines the structure for DoFns that use a
+  `ThresholdFn` to convert anomaly scores into anomaly labels (e.g., normal
+  or outlier). It handles the core logic of applying the threshold function
+  and updating the prediction labels within `AnomalyResult` objects.
+
+  Args:
+    threshold_fn_spec (Spec): Specification defining the `ThresholdFn` to be
+      used.
+  """
+  def __init__(self, threshold_fn_spec: Spec):
+    self._threshold_fn_spec = threshold_fn_spec
+
+  def _apply_threshold_to_predictions(
+      self, result: AnomalyResult) -> AnomalyResult:
+    """Updates the prediction labels in an AnomalyResult using the ThresholdFn.
+
+    Args:
+      result (AnomalyResult): The input `AnomalyResult` containing anomaly
+        scores.
+
+    Returns:
+      AnomalyResult: A new `AnomalyResult` with updated prediction labels
+        and threshold values.
+    """
+    predictions = [
+        dataclasses.replace(
+            p,
+            label=self._threshold_fn.apply(p.score),
+            threshold=self._threshold_fn.threshold) for p in result.predictions
+    ]
+    return dataclasses.replace(result, predictions=predictions)
+
+
+class _StatelessThresholdDoFn(_BaseThresholdDoFn):
+  """Applies a stateless ThresholdFn to anomaly detection results.
+
+  This DoFn is designed for stateless `ThresholdFn` implementations. It
+  initializes the `ThresholdFn` once during setup and applies it to each
+  incoming element without maintaining any state across elements.
+
+  Args:
+    threshold_fn_spec (Spec): Specification defining the `ThresholdFn` to be
+      used.
+
+  Raises:
+    AssertionError: If the provided `threshold_fn_spec` leads to the
+      creation of a stateful `ThresholdFn`.
+  """
+  def __init__(self, threshold_fn_spec: Spec):
+    threshold_fn_spec.config["_run_init"] = True
+    self._threshold_fn = Specifiable.from_spec(threshold_fn_spec)
+    assert not self._threshold_fn.is_stateful, \
+      "This DoFn can only take stateless function as threshold_fn"
+
+  def process(self, element: KeyedOutputT, **kwargs) -> Iterable[KeyedOutputT]:
+    """Processes a batch of anomaly results using a stateless ThresholdFn.
+
+    Args:
+      element (Tuple[Any, Tuple[Any, AnomalyResult]]): A tuple representing
+        an element in the Beam pipeline. It is expected to be in the format
+        `(key1, (key2, AnomalyResult))`, where key1 is the original input key,
+        and key2 is a disambiguating key for distinct data points.
+      **kwargs:  Additional keyword arguments passed to the `process` method
+        in Beam DoFns.
+
+    Yields:
+      Iterable[Tuple[Any, Tuple[Any, AnomalyResult]]]: An iterable containing
+        a single output element with the same structure as the input, but with
+        the `AnomalyResult` having updated prediction labels based on the
+        stateless `ThresholdFn`.
+    """
+    k1, (k2, result) = element
+    yield k1, (k2, self._apply_threshold_to_predictions(result))
+
+
+class _StatefulThresholdDoFn(_BaseThresholdDoFn):
+  """Applies a stateful ThresholdFn to anomaly detection results.
+
+  This DoFn is designed for stateful `ThresholdFn` implementations. It leverages
+  Beam's state management to persist and update the state of the `ThresholdFn`
+  across multiple elements. This is necessary for `ThresholdFn`s that need to
+  accumulate information or adapt over time, such as quantile-based thresholds.
+
+  Args:
+    threshold_fn_spec (Spec): Specification defining the `ThresholdFn` to be
+      used.
+
+  Raises:
+    AssertionError: If the provided `threshold_fn_spec` leads to the
+      creation of a stateless `ThresholdFn`.
+  """
+  THRESHOLD_STATE_INDEX = ReadModifyWriteStateSpec('saved_tracker', DillCoder())
+
+  def __init__(self, threshold_fn_spec: Spec):
+    threshold_fn_spec.config["_run_init"] = True
+    threshold_fn = Specifiable.from_spec(threshold_fn_spec)
+    assert threshold_fn.is_stateful, \
+      "This DoFn can only take stateful function as threshold_fn"
+    self._threshold_fn_spec = threshold_fn_spec
+
+  def process(
+      self,
+      element: KeyedOutputT,
+      threshold_state=beam.DoFn.StateParam(THRESHOLD_STATE_INDEX),
+      **kwargs) -> Iterable[KeyedOutputT]:
+    """Processes a batch of anomaly results using a stateful ThresholdFn.
+
+    For each input element, this DoFn retrieves the stateful `ThresholdFn` from
+    Beam state, initializes it if it's the first time, applies it to update
+    the prediction labels in the `AnomalyResult`, and then updates the state in
+    Beam for future elements.
+
+    Args:
+      element (Tuple[Any, Tuple[Any, AnomalyResult]]): A tuple representing
+        an element in the Beam pipeline. It is expected to be in the format
+        `(key1, (key2, AnomalyResult))`, where key1 is the original input key,
+        and key2 is a disambiguating key for distinct data points.
+      threshold_state: A Beam state parameter that provides access to the
+        persisted state of the `ThresholdFn`. It is automatically managed by
+        Beam.
+      **kwargs: Additional keyword arguments passed to the `process` method
+        in Beam DoFns.
+
+    Yields:
+      Iterable[Tuple[Any, Tuple[Any, AnomalyResult]]]: An iterable containing
+        a single output element with the same structure as the input, but
+        with the `AnomalyResult` having updated prediction labels based on
+        the stateful `ThresholdFn`.
+    """
+    k1, (k2, result) = element
+
+    self._threshold_fn = threshold_state.read()
+    if self._threshold_fn is None:
+      self._threshold_fn = Specifiable.from_spec(self._threshold_fn_spec)
+
+    yield k1, (k2, self._apply_threshold_to_predictions(result))
+
+    threshold_state.write(self._threshold_fn)
+
+
 class RunThresholdCriterion(beam.PTransform[beam.PCollection[KeyedOutputT],
                                             beam.PCollection[KeyedOutputT]]):
   """Applies a threshold criterion to anomaly detection results.
@@ -142,11 +284,11 @@ class RunThresholdCriterion(beam.PTransform[beam.PCollection[KeyedOutputT],
     if self._threshold_fn.is_stateful:
       return (
           input
-          | beam.ParDo(StatefulThresholdDoFn(self._threshold_fn.to_spec())))
+          | beam.ParDo(_StatefulThresholdDoFn(self._threshold_fn.to_spec())))
     else:
       return (
           input
-          | beam.ParDo(StatelessThresholdDoFn(self._threshold_fn.to_spec())))
+          | beam.ParDo(_StatelessThresholdDoFn(self._threshold_fn.to_spec())))
 
 
 class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
