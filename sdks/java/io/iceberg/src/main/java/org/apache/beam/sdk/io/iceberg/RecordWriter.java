@@ -63,8 +63,6 @@ class RecordWriter {
     this.table = table;
     this.fileFormat = fileFormat;
 
-    MetricsConfig metricsConfig = MetricsConfig.forTable(table);
-
     if (table.spec().isUnpartitioned()) {
       absoluteFilename =
           fileFormat.addExtension(table.locationProvider().newDataLocation(filename));
