@@ -95,11 +95,11 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
     while (durationInMillis < 1 || (System.currentTimeMillis() - start) < durationInMillis) {
       state = getState();
       if (state.isTerminal()) {
-        try {
-          this.jobClient.cancel().get();
-        } catch (InterruptedException | ExecutionException e) {
-          throw new RuntimeException("Fail to cancel flink job", e);
-        }
+//        try {
+//          this.jobClient.cancel().get();
+//        } catch (InterruptedException | ExecutionException e) {
+//          throw new RuntimeException("Fail to cancel flink job", e);
+//        }
         return state;
       }
       try {
@@ -112,11 +112,11 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
     if (state != null && !state.isTerminal()) {
       LOG.warn("Job is not finished in {} seconds", duration.getStandardSeconds());
     }
-    try {
-      this.jobClient.cancel().get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException("Fail to cancel flink job", e);
-    }
+//    try {
+//      this.jobClient.cancel().get();
+//    } catch (InterruptedException | ExecutionException e) {
+//      throw new RuntimeException("Fail to cancel flink job", e);
+//    }
     return state;
   }
 
