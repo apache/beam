@@ -42,10 +42,10 @@ echo "posargs: $posargs"
 
 # Run with pytest-xdist and without.
 pytest -v -rs -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs} apache_beam/yaml/examples/testing/examples_test.py::ElementWiseTest
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs}
 status1=$?
 pytest -v -rs -o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --import-mode=importlib ${pytest_args} --pyargs ${posargs} apache_beam/yaml/examples/testing/examples_test.py::ElementWiseTest
+  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --import-mode=importlib ${pytest_args} --pyargs ${posargs}
 status2=$?
 
 # Exit with error if no tests were run in either suite (status code 5).
