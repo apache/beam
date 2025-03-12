@@ -176,9 +176,9 @@ public class SpannerAccessor implements AutoCloseable {
           executeStreamingSqlSettings.getRetrySettings().toBuilder();
       executeStreamingSqlSettings.setRetrySettings(
           executeSqlStreamingRetrySettings
-              .setInitialRpcTimeoutDuration(java.time.Duration.ofMinutes(120))
-              .setMaxRpcTimeoutDuration(java.time.Duration.ofMinutes(120))
-              .setTotalTimeoutDuration(java.time.Duration.ofMinutes(120))
+              .setInitialRpcTimeoutDuration(java.time.Duration.ofHours(2))
+              .setMaxRpcTimeoutDuration(java.time.Duration.ofHours(2))
+              .setTotalTimeoutDuration(java.time.Duration.ofHours(2))
               .setRpcTimeoutMultiplier(1.0)
               .setInitialRetryDelayDuration(java.time.Duration.ofSeconds(2))
               .setMaxRetryDelayDuration(java.time.Duration.ofSeconds(60))
