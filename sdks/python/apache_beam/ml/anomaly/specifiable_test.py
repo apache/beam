@@ -18,6 +18,7 @@
 import copy
 import dataclasses
 import logging
+import os
 import unittest
 from typing import List
 from typing import Optional
@@ -43,6 +44,9 @@ class TestSpecifiable(unittest.TestCase):
     class A():
       pass
 
+    class B():
+      pass
+
     # class is not decorated and thus not registered
     self.assertNotIn("A", _KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE])
 
@@ -53,8 +57,11 @@ class TestSpecifiable(unittest.TestCase):
     self.assertIn("A", _KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE])
     self.assertEqual(_KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE]["A"], A)
 
-    # an error is raised if the specified spec_type already exists.
-    self.assertRaises(ValueError, specifiable, A)
+    # Re-registering spec_type with the same class is allowed
+    A = specifiable(A)
+
+    # Raise an error when re-registering spec_type with a different class
+    self.assertRaises(ValueError, specifiable(spec_type='A'), B)
 
     # apply the decorator function to an existing class with a different
     # spec_type
@@ -63,9 +70,6 @@ class TestSpecifiable(unittest.TestCase):
     self.assertTrue(isinstance(A(), Specifiable))
     self.assertIn("A_DUP", _KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE])
     self.assertEqual(_KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE]["A_DUP"], A)
-
-    # an error is raised if the specified spec_type already exists.
-    self.assertRaises(ValueError, specifiable(spec_type="A_DUP"), A)
 
   def test_decorator_in_syntactic_sugar_form(self):
     # call decorator without parameters
@@ -482,6 +486,103 @@ class TestNestedSpecifiable(unittest.TestCase):
     self.assertRaises(AttributeError, lambda: child_2.parent_inst_var)
     self.assertEqual(Parent.counter, 0)
     self.assertEqual(Child_2.counter, 0)
+
+
+def my_normal_func(x, y):
+  return x + y
+
+
+@specifiable
+class Wrapper():
+  def __init__(self, func=None, cls=None, **kwargs):
+    self._func = func
+    if cls is not None:
+      self._cls = cls(**kwargs)
+
+  def run_func(self, x, y):
+    return self._func(x, y)
+
+  def run_func_in_class(self, x, y):
+    return self._cls.apply(x, y)
+
+
+class TestFunctionAsArgument(unittest.TestCase):
+  def setUp(self) -> None:
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
+    _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
+
+  def test_normal_function(self):
+    w = Wrapper(my_normal_func)
+
+    self.assertEqual(w.run_func(1, 2), 3)
+
+    w_spec = w.to_spec()
+    self.assertEqual(
+        w_spec,
+        Spec(
+            type='Wrapper',
+            config={'func': Spec(type="my_normal_func", config=None)}))
+
+    w_2 = Specifiable.from_spec(w_spec)
+    self.assertEqual(w_2.run_func(2, 3), 5)
+
+  def test_lambda_function(self):
+    my_lambda_func = lambda x, y: x - y
+
+    w = Wrapper(my_lambda_func)
+
+    self.assertEqual(w.run_func(3, 2), 1)
+
+    w_spec = w.to_spec()
+    self.assertEqual(
+        w_spec,
+        Spec(
+            type='Wrapper',
+            config={
+                'func': Spec(
+                    type=
+                    f"<lambda at {os.path.basename(__file__)}:{my_lambda_func.__code__.co_firstlineno}>",  # pylint: disable=line-too-long
+                    config=None)
+            }
+        ))
+
+    w_2 = Specifiable.from_spec(w_spec)
+    self.assertEqual(w_2.run_func(5, 3), 2)
+
+
+class TestClassAsArgument(unittest.TestCase):
+  def setUp(self) -> None:
+    self.saved_specifiable = copy.deepcopy(_KNOWN_SPECIFIABLE)
+
+  def tearDown(self) -> None:
+    _KNOWN_SPECIFIABLE.clear()
+    _KNOWN_SPECIFIABLE.update(self.saved_specifiable)
+
+  def test_normal_class(self):
+    class InnerClass():
+      def __init__(self, multiplier):
+        self._multiplier = multiplier
+
+      def apply(self, x, y):
+        return x * y * self._multiplier
+
+    w = Wrapper(cls=InnerClass, multiplier=10)
+    self.assertEqual(w.run_func_in_class(2, 3), 60)
+
+    w_spec = w.to_spec()
+    self.assertEqual(
+        w_spec,
+        Spec(
+            type='Wrapper',
+            config={
+                'cls': Spec(type='InnerClass', config=None), 'multiplier': 10
+            }))
+
+    w_2 = Specifiable.from_spec(w_spec)
+    self.assertEqual(w_2.run_func_in_class(5, 3), 150)
 
 
 if __name__ == '__main__':
