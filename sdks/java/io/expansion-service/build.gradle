@@ -27,10 +27,12 @@ applyJavaNature(
   shadowClosure: {},
 )
 
-// TODO(https://github.com/apache/beam/pull/32486/) Use library.java.kafka_clients once >=3.1.0 is set as default
+// We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
+// We set this for python and cross-lang since it cannot be overwritten and version 3.4.0>= is required in order to
+// take advantage of OAuth authentication with all providers.
 configurations.runtimeClasspath {
-  // Pin kafka-clients version due to <3.1.0 missing auth callback classes
-  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.1.2'
+  // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
+  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
 }
 
 shadowJar {
