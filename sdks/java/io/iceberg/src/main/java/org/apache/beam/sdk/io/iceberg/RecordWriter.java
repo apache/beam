@@ -28,6 +28,8 @@ import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.encryption.EncryptedOutputFile;
+import org.apache.iceberg.encryption.EncryptionKeyMetadata;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
@@ -68,11 +70,10 @@ class RecordWriter {
               table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
     OutputFile outputFile;
-    org.apache.iceberg.encryption.EncryptionKeyMetadata keyMetadata;
+    EncryptionKeyMetadata keyMetadata;
     try (FileIO io = table.io()) {
       OutputFile tmpFile = io.newOutputFile(absoluteFilename);
-      org.apache.iceberg.encryption.EncryptedOutputFile encryptedOutputFile =
-          table.encryption().encrypt(tmpFile);
+      EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
       outputFile = encryptedOutputFile.encryptingOutputFile();
       keyMetadata = encryptedOutputFile.keyMetadata();
     }
