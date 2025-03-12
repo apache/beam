@@ -142,16 +142,24 @@ class FlinkPipelineExecutionEnvironment {
 
     if (flinkBatchEnv != null) {
       if (options.getAttachedMode()) {
-        JobExecutionResult jobExecutionResult = flinkBatchEnv.execute(jobName);
-        return createAttachedPipelineResult(jobExecutionResult);
+        try {
+          JobExecutionResult jobExecutionResult = flinkBatchEnv.execute(jobName);
+          return createAttachedPipelineResult(jobExecutionResult);
+        } catch (Exception e) {
+          LOG.error("Caught exception", e);
+        }
       } else {
         JobClient jobClient = flinkBatchEnv.executeAsync(jobName);
         return createDetachedPipelineResult(jobClient, options);
       }
     } else if (flinkStreamEnv != null) {
       if (options.getAttachedMode()) {
-        JobExecutionResult jobExecutionResult = flinkStreamEnv.execute(jobName);
-        return createAttachedPipelineResult(jobExecutionResult);
+        try {
+          JobExecutionResult jobExecutionResult = flinkStreamEnv.execute(jobName);
+          return createAttachedPipelineResult(jobExecutionResult);
+        } catch (Exception e) {
+          LOG.error("Caught exception", e);
+        }
       } else {
         JobClient jobClient = flinkStreamEnv.executeAsync(jobName);
         return createDetachedPipelineResult(jobClient, options);
