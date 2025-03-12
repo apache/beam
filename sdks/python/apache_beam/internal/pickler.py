@@ -69,7 +69,6 @@ def load_session(file_path):
 
 def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
-  selected_library = USE_CLOUDPICKLE
   global desired_pickle_lib
   # If switching to or from dill, update the pickler hook overrides.
   if (selected_library == USE_DILL) != (desired_pickle_lib == dill_pickler):
