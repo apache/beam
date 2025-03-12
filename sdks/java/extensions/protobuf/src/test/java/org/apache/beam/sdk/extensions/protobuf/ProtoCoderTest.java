@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.protobuf.Message;
 import java.io.ObjectStreamClass;
@@ -177,13 +179,30 @@ public class ProtoCoderTest {
   }
 
   @Test
-  public void testProtoCoderWithRawMessageInterfaceThrowsException() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.");
-
+  public void testProtoCoderFailsWithRawMessageInterface() {
+    // Simulate the user’s pipeline where T resolves to Message
     ProtoCoder<Message> coder = ProtoCoder.of(Message.class);
-    coder.getParser(); // Should throw IllegalArgumentException after fix
+    try {
+      coder.getParser(); // Triggers getDefaultInstance(), which throws NoSuchMethodException
+      fail("Expected IllegalArgumentException with NoSuchMethodException cause");
+    } catch (IllegalArgumentException e) {
+      // Check if the cause is NoSuchMethodException, as in the original code
+      assertTrue(e.getCause() instanceof NoSuchMethodException);
+    }
+  }
+
+  @Test
+  public void testProtoCoderHandlesRawMessageInterfaceGracefully() {
+    try {
+      // Simulate the user’s pipeline where T resolves to Message
+      ProtoCoder<Message> coder = ProtoCoder.of(Message.class);
+      coder.getParser(); // Triggers the new check in updated code
+      fail("Expected IllegalArgumentException for raw Message interface");
+    } catch (IllegalArgumentException e) {
+      assertEquals(
+          "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.",
+          e.getMessage());
+    }
   }
 
   @Test
@@ -198,14 +217,17 @@ public class ProtoCoderTest {
 
   @Test
   public void testProtoCoderWithAbstractClassThrowsException() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Class org.apache.beam.sdk.extensions.protobuf.ProtoCoderTest$1InvalidMessage lacks both getDefaultInstance() and a no-arg constructor. Ensure it is a concrete Protobuf-generated class.");
-
-    abstract class InvalidMessage implements Message {
-      // No implementation needed for test
+    try {
+      abstract class InvalidMessage implements Message {
+        // No implementation needed for test
+      }
+      ProtoCoder<InvalidMessage> coder = ProtoCoder.of(InvalidMessage.class);
+      coder.getParser();
+      fail("Expected IllegalArgumentException for abstract class");
+    } catch (IllegalArgumentException e) {
+      assertEquals(
+          "Class org.apache.beam.sdk.extensions.protobuf.ProtoCoderTest$1InvalidMessage lacks both getDefaultInstance() and a no-arg constructor. Ensure it is a concrete Protobuf-generated class.",
+          e.getMessage());
     }
-    ProtoCoder<InvalidMessage> coder = ProtoCoder.of(InvalidMessage.class);
-    coder.getParser(); // Should throw due to abstract class
   }
 }
