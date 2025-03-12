@@ -22,6 +22,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
@@ -59,6 +60,9 @@ class RecordWriter {
       throws IOException {
     this.table = table;
     this.fileFormat = fileFormat;
+
+    MetricsConfig metricsConfig = MetricsConfig.forTable(table);
+
     if (table.spec().isUnpartitioned()) {
       absoluteFilename =
           fileFormat.addExtension(table.locationProvider().newDataLocation(filename));
@@ -80,6 +84,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .metricsConfig(metricsConfig)
                 .overwrite()
                 .build();
         break;
@@ -90,6 +95,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .metricsConfig(metricsConfig)
                 .overwrite()
                 .build();
         break;
