@@ -147,6 +147,7 @@ class FlinkPipelineExecutionEnvironment {
           return createAttachedPipelineResult(jobExecutionResult);
         } catch (Exception e) {
           LOG.error("Caught exception", e);
+          throw new RuntimeException(e);
         }
       } else {
         JobClient jobClient = flinkBatchEnv.executeAsync(jobName);
@@ -159,6 +160,7 @@ class FlinkPipelineExecutionEnvironment {
           return createAttachedPipelineResult(jobExecutionResult);
         } catch (Exception e) {
           LOG.error("Caught exception", e);
+          throw new RuntimeException(e);
         }
       } else {
         JobClient jobClient = flinkStreamEnv.executeAsync(jobName);
