@@ -162,7 +162,6 @@ public class SparkStreamingPortablePipelineTranslator
     rddQueue.offer(emptyByteArrayRDD);
     JavaInputDStream<WindowedValue<byte[]>> emptyByteArrayStream =
         context.getStreamingContext().queueStream(rddQueue, true /* oneAtATime */);
-
     UnboundedDataset<byte[]> output =
         new UnboundedDataset<>(
             emptyByteArrayStream,
@@ -175,7 +174,6 @@ public class SparkStreamingPortablePipelineTranslator
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             context.getFirstTimestamp());
     GlobalWatermarkHolder.add(output.getStreamSources().get(0), sparkWatermark);
-
     context.pushDataset(getOutputId(transformNode), output);
   }
 
@@ -297,6 +295,7 @@ public class SparkStreamingPortablePipelineTranslator
     }
   }
 
+  @SuppressWarnings("unchecked")
   private static <T> void translateFlatten(
       PTransformNode transformNode,
       RunnerApi.Pipeline pipeline,

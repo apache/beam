@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -617,7 +618,7 @@ public class HadoopFormatIOReadTest {
     InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     Mockito.when(
             mockInputFormat.createRecordReader(
-                Mockito.any(InputSplit.class), Mockito.any(TaskAttemptContext.class)))
+                nullable(InputSplit.class), nullable(TaskAttemptContext.class)))
         .thenThrow(new IOException("Exception in creating RecordReader"));
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
         new HadoopInputFormatBoundedSource<>(

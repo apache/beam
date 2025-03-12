@@ -246,6 +246,21 @@ jobs:
   stage_docker:
     if:  ${{ fromJson(github.event.inputs.STAGE).docker_artifacts == 'yes'}}
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split up images to publish so that longer ones are able to run independently/finish faster, otherwise this takes >6 hours
+        # Any task which is skipped from a broader task must be explicitly included in this list to avoid accidentally missing new
+        # tasks as they are added.
+        images_to_publish: [
+          {"gradle_task": ":pushAllRunnersDockerImages", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:push39", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:push310", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:push311", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:pushAll", "skip_flags": "-Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images"},
+          {"gradle_task": ":pushAllSdkDockerImages", "skip_flags": "-Pskip-python-images"},
+          {"gradle_task": ":pushAllDockerImages", "skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
+        ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -276,7 +291,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
-        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
+        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
 
   beam_site_pr:
     if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
@@ -376,6 +391,7 @@ jobs:
             echo "............Copying generated yamldoc into beam-site.........."
             mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
             cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-examples.html yamldoc/${{ github.event.inputs.RELEASE }}/examples.html
             # Update current symlink to point to the latest release
             unlink yamldoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
@@ -425,7 +441,7 @@ jobs:
           fi
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549

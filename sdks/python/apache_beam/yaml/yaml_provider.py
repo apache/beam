@@ -61,6 +61,7 @@ from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 
@@ -1057,7 +1058,7 @@ class PypiExpansionService:
         # Ignore the exact path by which this package was referenced,
         # but do create a new environment if it changed.
         with open(package, 'rb') as fin:
-          return os.path.basename(package) + '-' + hashlib.file_digest(
+          return os.path.basename(package) + '-' + _file_digest(
               fin, 'sha256').hexdigest()
       else:
         # Assume urls and pypi identifiers are immutable.
@@ -1361,5 +1362,16 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
-      load_providers(
-          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
+      load_providers(yaml_utils.locate_data_file('standard_providers.yaml')))
+
+
+def _file_digest(fileobj, digest):
+  if hasattr(hashlib, 'file_digest'):  # Python 3.11+
+    return hashlib.file_digest(fileobj, digest)
+  else:
+    hasher = hashlib.new(digest)
+    data = fileobj.read(1 << 20)
+    while data:
+      hasher.update(data)
+      data = fileobj.read(1 << 20)
+    return hasher

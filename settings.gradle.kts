@@ -252,7 +252,7 @@ include(":sdks:java:io:rabbitmq")
 include(":sdks:java:io:redis")
 include(":sdks:java:io:rrio")
 include(":sdks:java:io:solr")
-include(":sdks:java:io:sparkreceiver:2")
+include(":sdks:java:io:sparkreceiver:3")
 include(":sdks:java:io:snowflake")
 include(":sdks:java:io:snowflake:expansion-service")
 include(":sdks:java:io:splunk")
@@ -361,3 +361,5 @@ include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
 include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
+include("it:clickhouse")
+findProject(":it:clickhouse")?.name = "clickhouse"

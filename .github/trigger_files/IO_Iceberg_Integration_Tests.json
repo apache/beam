@@ -1,5 +1,4 @@
 {
     "comment": "Modify this file in a trivial way to cause this test suite to run.",
-    "modification": 2,
-    "trigger": "Updated for PR #34021 to test Iceberg encryption implementation"
+    "modification": 3
 }

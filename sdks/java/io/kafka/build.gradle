@@ -52,6 +52,7 @@ dependencies {
   provided library.java.jackson_dataformat_csv
   permitUnusedDeclared library.java.jackson_dataformat_csv
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:core-java")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:protobuf")
@@ -99,8 +100,8 @@ dependencies {
   // For testing Cross-language transforms
   testImplementation library.java.avro
   testImplementation library.java.junit
-  testImplementation library.java.powermock
-  testImplementation library.java.powermock_mockito
+  testImplementation library.java.mockito_core
+  testRuntimeOnly library.java.mockito_inline
   testImplementation library.java.testcontainers_kafka
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

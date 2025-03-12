@@ -35,6 +35,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
@@ -53,12 +54,11 @@ except ImportError:
 
 @functools.lru_cache
 def pipeline_schema(strictness):
-  with open(os.path.join(os.path.dirname(__file__),
-                         'pipeline.schema.yaml')) as yaml_file:
+  with open(yaml_utils.locate_data_file('pipeline.schema.yaml')) as yaml_file:
     pipeline_schema = yaml.safe_load(yaml_file)
   if strictness == 'per_transform':
-    transform_schemas_path = os.path.join(
-        os.path.dirname(__file__), 'transforms.schema.yaml')
+    transform_schemas_path = yaml_utils.locate_data_file(
+        'transforms.schema.yaml')
     if not os.path.exists(transform_schemas_path):
       raise RuntimeError(
           "Please run "
@@ -304,6 +304,13 @@ class Scope(LightweightScope):
 
   # A method on scope as providers may be scoped...
   def create_ptransform(self, spec, input_pcolls):
+    def maybe_with_resource_hints(transform):
+      if 'resource_hints' in spec:
+        return transform.with_resource_hints(
+            **SafeLineLoader.strip_metadata(spec['resource_hints']))
+      else:
+        return transform
+
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
@@ -333,7 +340,7 @@ class Scope(LightweightScope):
                 for (key, value) in spec['output'].items()
             }
 
-      return _CompositeTransformStub()
+      return maybe_with_resource_hints(_CompositeTransformStub())
 
     if spec['type'] not in self.providers:
       raise ValueError(
@@ -368,8 +375,9 @@ class Scope(LightweightScope):
             spec['type'].rsplit('-', 1)[0], config, input_pcolls)
 
       # pylint: disable=undefined-loop-variable
-      ptransform = provider.create_transform(
-          spec['type'], config, self.create_ptransform)
+      ptransform = maybe_with_resource_hints(
+          provider.create_transform(
+              spec['type'], config, self.create_ptransform))
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = {
@@ -514,16 +522,21 @@ def expand_composite_transform(spec, scope):
             for (key, value) in spec['output'].items()
         }
 
+  transform = CompositePTransform()
+  if 'resource_hints' in spec:
+    transform = transform.with_resource_hints(
+        **SafeLineLoader.strip_metadata(spec['resource_hints']))
+
   if 'name' not in spec:
     spec['name'] = 'Composite'
   if spec['name'] is None:  # top-level pipeline, don't nest
-    return CompositePTransform.expand(None)
+    return transform.expand(None)
   else:
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
         key: scope.get_pcollection(value)
         for (key, value) in empty_if_explicitly_empty(spec['input']).items()
-    } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
+    } or scope.root) | scope.unique_name(spec, None) >> transform
 
 
 def expand_chain_transform(spec, scope):

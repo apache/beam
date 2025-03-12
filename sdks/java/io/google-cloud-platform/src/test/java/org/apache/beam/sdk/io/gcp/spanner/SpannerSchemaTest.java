@@ -41,10 +41,11 @@ public class SpannerSchemaTest {
             .addColumn("test", "protoVal", "PROTO<customer.app.TestMessage>")
             .addColumn("test", "enumVal", "ENUM<customer.app.TestEnum>")
             .addColumn("test", "tokens", "TOKENLIST")
+            .addColumn("test", "uuidCol", "UUID")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(7, schema.getColumns("test").size());
+    assertEquals(8, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
     assertEquals(
@@ -52,6 +53,7 @@ public class SpannerSchemaTest {
     assertEquals(
         Type.protoEnum("customer.app.TestEnum"), schema.getColumns("test").get(5).getType());
     assertEquals(Type.bytes(), schema.getColumns("test").get(6).getType());
+    assertEquals(Type.string(), schema.getColumns("test").get(7).getType());
   }
 
   @Test
@@ -84,12 +86,16 @@ public class SpannerSchemaTest {
             .addColumn("test", "numericVal", "numeric")
             .addColumn("test", "commitTime", "spanner.commit_timestamp")
             .addColumn("test", "jsonbCol", "jsonb")
+            .addColumn("test", "tokens", "spanner.tokenlist")
+            .addColumn("test", "uuidCol", "uuid")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(5, schema.getColumns("test").size());
+    assertEquals(7, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.timestamp(), schema.getColumns("test").get(3).getType());
+    assertEquals(Type.bytes(), schema.getColumns("test").get(5).getType());
+    assertEquals(Type.string(), schema.getColumns("test").get(6).getType());
   }
 
   @Test

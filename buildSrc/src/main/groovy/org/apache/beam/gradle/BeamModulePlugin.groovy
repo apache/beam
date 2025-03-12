@@ -629,19 +629,18 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.110.Final"
     def postgres_version = "42.2.16"
-    def powermock_version = "2.0.9"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.29.0"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
-    def slf4j_version = "1.7.30"
+    def slf4j_version = "2.0.16"
     def snakeyaml_engine_version = "2.6"
     def snakeyaml_version = "2.2"
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
-    def spark3_version = "3.2.2"
+    def spark3_version = "3.5.0"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
@@ -837,8 +836,10 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_core                                 : "org.apache.logging.log4j:log4j-core:$log4j2_version",
         log4j2_to_slf4j                             : "org.apache.logging.log4j:log4j-to-slf4j:$log4j2_version",
         log4j2_slf4j_impl                           : "org.apache.logging.log4j:log4j-slf4j-impl:$log4j2_version",
-        mockito_core                                : "org.mockito:mockito-core:3.7.7",
-        mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
+        log4j2_slf4j2_impl                          : "org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2_version",
+        log4j2_log4j12_api                          : "org.apache.logging.log4j:log4j-1.2-api:$log4j2_version",
+        mockito_core                                : "org.mockito:mockito-core:4.11.0",
+        mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
@@ -847,8 +848,6 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
-        powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
-        powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
@@ -2221,7 +2220,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.23.6"
+      project.ext.goVersion = "go1.24.0"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -3037,7 +3036,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             args '-c', "if [ -e ${activate} ]; then " +
-                ". ${activate} && cd ${pythonRootDir} && python setup.py clean; " +
+                ". ${activate} && cd ${pythonRootDir} && pip install pyyaml jinja2 && python setup.py clean; " +
                 "fi"
           }
           project.delete project.buildDir     // Gradle build directory

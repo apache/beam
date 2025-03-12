@@ -18,11 +18,11 @@
 -->
 # SparkReceiverIO
 
-SparkReceiverIO provides I/O transforms to read messages from an [Apache Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver` as an unbounded source.
+SparkReceiverIO provides I/O transforms to read messages from an [Apache Spark Receiver](https://spark.apache.org/docs/3.5.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver` as an unbounded source.
 
 ## Prerequistes
 
-SparkReceiverIO supports [Spark Receivers](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) (Spark version 2.4).
+SparkReceiverIO supports [Spark Receivers](https://spark.apache.org/docs/3.5.0/streaming-custom-receivers.html) (Spark version 3.x, tested on Spark version 3.5.0).
 1. Corresponding Spark Receiver should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
 2. Records should have the numeric field that represents record offset. *Example:* `RecordId` field for Salesforce and `vid` field for Hubspot Receivers.
    For more details please see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from CDAP plugins examples.
@@ -53,7 +53,7 @@ To learn more, please check out CDAP Streaming plugins [complete examples](https
 
 ## Dependencies
 
-To use SparkReceiverIO, add a dependency on `beam-sdks-java-io-sparkreceiver`.
+To use SparkReceiverIO, add a dependency on `beam-sdks-java-io-sparkreceiver-3`.
 
 ```maven
 <dependency>
