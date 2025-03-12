@@ -37,11 +37,10 @@ ext {
 
 def kafkaVersions = [
     '201': "2.0.1",
-    '211': "2.1.1",
-    '222': "2.2.2",
     '231': "2.3.1",
     '241': "2.4.1",
     '251': "2.5.1",
+    '282': "2.8.2",
     '312': "3.1.2",
     '390': "3.9.0",
 ]
@@ -139,14 +138,9 @@ task kafkaVersionsCompatibilityTest {
   description = 'Runs KafkaIO with different Kafka client APIs'
   def testNames = createTestList(kafkaVersions, "Test")
   dependsOn testNames
-  dependsOn (":sdks:java:io:kafka:kafka-201:kafkaVersion201BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-211:kafkaVersion211BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-222:kafkaVersion222BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-231:kafkaVersion231BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-241:kafkaVersion241BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-251:kafkaVersion251BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-312:kafkaVersion312BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-390:kafkaVersion390BatchIT")
+  kafkaVersions.keySet().each {
+    dependsOn (":sdks:java:io:kafka:kafka-${it}:kafkaVersion${it}BatchIT")
+  }
 }
 
 static def createTestList(Map<String, String> prefixMap, String suffix) {

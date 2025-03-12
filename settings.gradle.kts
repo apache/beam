@@ -339,16 +339,14 @@ include("sdks:java:io:kafka:kafka-390")
 findProject(":sdks:java:io:kafka:kafka-390")?.name = "kafka-390"
 include("sdks:java:io:kafka:kafka-312")
 findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
+include("sdks:java:io:kafka:kafka-282")
+findProject(":sdks:java:io:kafka:kafka-282")?.name = "kafka-282"
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
 include("sdks:java:io:kafka:kafka-241")
 findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
 include("sdks:java:io:kafka:kafka-231")
 findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
-include("sdks:java:io:kafka:kafka-222")
-findProject(":sdks:java:io:kafka:kafka-222")?.name = "kafka-222"
-include("sdks:java:io:kafka:kafka-211")
-findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
 include("sdks:java:io:kafka:kafka-201")
 findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
 include("sdks:java:managed")
