@@ -558,6 +558,18 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
+        KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+        kafkaResults.updateBacklogBytes(
+            kafkaSourceDescriptor.getTopic(),
+            kafkaSourceDescriptor.getPartition(),
+            (long)
+                (BigDecimal.valueOf(
+                            Preconditions.checkStateNotNull(
+                                offsetEstimatorCache.get(kafkaSourceDescriptor).estimate()))
+                        .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
+                        .doubleValue()
+                    * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
+        kafkaResults.flushBufferedMetrics();
       }
     }
   }

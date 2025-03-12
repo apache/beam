@@ -25,13 +25,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.GaugeCell;
+import org.apache.beam.runners.core.metrics.HistogramCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.metrics.Gauge;
-import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,9 +41,13 @@ import org.junit.runners.JUnit4;
 // TODO:Naireen - Refactor to remove duplicate code between the two sinks
 @RunWith(JUnit4.class)
 public class KafkaMetricsTest {
-  public static class TestHistogram implements Histogram {
+  public static class TestHistogramCell extends HistogramCell {
     public List<Double> values = Lists.newArrayList();
     private MetricName metricName = MetricName.named("KafkaSink", "name");
+
+    public TestHistogramCell(KV<MetricName, HistogramData.BucketType> kv) {
+      super(kv);
+    }
 
     @Override
     public void update(double value) {
@@ -57,11 +61,11 @@ public class KafkaMetricsTest {
   }
 
   public static class TestMetricsContainer extends MetricsContainerImpl {
-    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>
+    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>
         perWorkerHistograms =
-            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>();
+            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>();
 
-    public ConcurrentHashMap<MetricName, GaugeCell> perWorkerGauges =
+    public ConcurrentHashMap<MetricName, GaugeCell> gauges =
         new ConcurrentHashMap<MetricName, GaugeCell>();
 
     public TestMetricsContainer() {
@@ -69,22 +73,23 @@ public class KafkaMetricsTest {
     }
 
     @Override
-    public Histogram getPerWorkerHistogram(
+    public TestHistogramCell getPerWorkerHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
-      perWorkerHistograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogram());
+      perWorkerHistograms.computeIfAbsent(
+          KV.of(metricName, bucketType), kv -> new TestHistogramCell(kv));
       return perWorkerHistograms.get(KV.of(metricName, bucketType));
     }
 
     @Override
-    public Gauge getPerWorkerGauge(MetricName metricName) {
-      perWorkerGauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
-      return perWorkerGauges.get(metricName);
+    public GaugeCell getGauge(MetricName metricName) {
+      gauges.computeIfAbsent(metricName, name -> new GaugeCell(metricName));
+      return gauges.get(metricName);
     }
 
     @Override
     public void reset() {
       perWorkerHistograms.clear();
-      perWorkerGauges.clear();
+      gauges.clear();
     }
   }
 
@@ -96,10 +101,10 @@ public class KafkaMetricsTest {
     KafkaMetrics results = KafkaMetrics.NoOpKafkaMetrics.getInstance();
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
     results.updateBacklogBytes("test-topic", 0, 10);
-    results.updateKafkaMetrics();
+    results.flushBufferedMetrics();
 
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
-    assertThat(testContainer.perWorkerGauges.size(), equalTo(0));
+    assertThat(testContainer.gauges.size(), equalTo(0));
   }
 
   @Test
@@ -114,7 +119,7 @@ public class KafkaMetricsTest {
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
     results.updateBacklogBytes("test-topic", 0, 10);
 
-    results.updateKafkaMetrics();
+    results.flushBufferedMetrics();
     // RpcLatency*rpc_method:POLL;topic_name:test-topic
     MetricName histogramName =
         MetricName.named("KafkaSink", "RpcLatency*rpc_method:POLL;topic_name:test-topic;");
@@ -126,9 +131,12 @@ public class KafkaMetricsTest {
         containsInAnyOrder(Double.valueOf(10.0)));
 
     MetricName gaugeName =
-        MetricName.named("KafkaSink", "EstimatedBacklogSize*partition_id:0;topic_name:test-topic;");
-    assertThat(testContainer.perWorkerGauges.size(), equalTo(1));
-    assertThat(testContainer.perWorkerGauges.get(gaugeName).getCumulative().value(), equalTo(10L));
+        MetricName.named(
+            "KafkaSink",
+            "EstimatedBacklogSize*partition_id:0;topic_name:test-topic;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    assertThat(testContainer.gauges.size(), equalTo(1));
+    assertThat(testContainer.gauges.get(gaugeName).getCumulative().value(), equalTo(10L));
   }
 
   @Test
@@ -142,7 +150,7 @@ public class KafkaMetricsTest {
 
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
 
-    results.updateKafkaMetrics();
+    results.flushBufferedMetrics();
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
   }
 }

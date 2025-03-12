@@ -3036,7 +3036,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             args '-c', "if [ -e ${activate} ]; then " +
-                ". ${activate} && cd ${pythonRootDir} && python setup.py clean; " +
+                ". ${activate} && cd ${pythonRootDir} && pip install pyyaml jinja2 && python setup.py clean; " +
                 "fi"
           }
           project.delete project.buildDir     // Gradle build directory

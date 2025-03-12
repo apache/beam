@@ -228,12 +228,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
         rawSizes.update(recordSize);
 
-        kafkaResults.updateKafkaMetrics();
+        kafkaResults.flushBufferedMetrics();
         return true;
       } else { // -- (b)
         kafkaResults = KafkaSinkMetrics.kafkaMetrics();
         nextBatch();
-        kafkaResults.updateKafkaMetrics();
+        kafkaResults.flushBufferedMetrics();
         if (!curBatch.hasNext()) {
           return false;
         }

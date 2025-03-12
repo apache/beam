@@ -26,7 +26,9 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This static class fetches MonitoringInfo related values from metrics.proto. */
 public final class MonitoringInfoConstants {
@@ -56,6 +58,7 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_SET_STRING);
     public static final String USER_BOUNDED_TRIE =
         extractUrn(MonitoringInfoSpecs.Enum.USER_BOUNDED_TRIE);
+    public static final String USER_HISTOGRAM = extractUrn(MonitoringInfoSpecs.Enum.USER_HISTOGRAM);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);
@@ -109,6 +112,7 @@ public final class MonitoringInfoConstants {
     public static final String SPANNER_DATABASE_ID = "SPANNER_DATABASE_ID";
     public static final String SPANNER_INSTANCE_ID = "SPANNER_INSTANCE_ID";
     public static final String SPANNER_QUERY_NAME = "SPANNER_QUERY_NAME";
+    public static final String PER_WORKER_METRIC = "PER_WORKER_METRIC";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -150,6 +154,7 @@ public final class MonitoringInfoConstants {
           SPANNER_INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_INSTANCE_ID)));
       checkArgument(
           SPANNER_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.SPANNER_QUERY_NAME)));
+      checkArgument(PER_WORKER_METRIC.equals(extractLabel(MonitoringInfoLabels.PER_WORKER_METRIC)));
     }
   }
 
@@ -168,6 +173,7 @@ public final class MonitoringInfoConstants {
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
     public static final String SET_STRING_TYPE = "beam:metrics:set_string:v1";
     public static final String BOUNDED_TRIE_TYPE = "beam:metrics:bounded_trie:v1";
+    public static final String HISTOGRAM_TYPE = "beam:metrics:histogram_int64:v1";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -196,6 +202,7 @@ public final class MonitoringInfoConstants {
       checkArgument(SET_STRING_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SET_STRING_TYPE)));
       checkArgument(
           BOUNDED_TRIE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOUNDED_TRIE_TYPE)));
+      checkArgument(HISTOGRAM_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.HISTOGRAM)));
     }
   }
 
@@ -206,5 +213,14 @@ public final class MonitoringInfoConstants {
 
   private static String extractLabel(MonitoringInfo.MonitoringInfoLabels value) {
     return value.getValueDescriptor().getOptions().getExtension(labelProps).getName();
+  }
+
+  public static boolean isPerWorkerMetric(MetricName metricName) {
+    @Nullable
+    String value = metricName.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC);
+    if (value != null && value.equals("true")) {
+      return true;
+    }
+    return false;
   }
 }
