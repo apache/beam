@@ -153,6 +153,24 @@ class BundleBasedRunnerTest(unittest.TestCase):
       assert_that(p | beam.Impulse(), equal_to([b'']))
 
 
+# Global registry to track retry counts
+_retry_counts = {}
+
+
+class RetryTracker:
+  def __init__(self, id):
+    self.id = id
+    if id not in _retry_counts:
+      _retry_counts[id] = 0
+
+  def increment(self):
+    _retry_counts[self.id] += 1
+
+  @property
+  def count(self):
+    return _retry_counts[self.id]
+
+
 class DirectRunnerRetryTests(unittest.TestCase):
   def test_retry_fork_graph(self):
     # TODO(https://github.com/apache/beam/issues/18640): The FnApiRunner
@@ -160,17 +178,19 @@ class DirectRunnerRetryTests(unittest.TestCase):
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
     # TODO(mariagh): Remove the use of globals from the test.
-    global count_b, count_c  # pylint: disable=global-variable-undefined
-    count_b, count_c = 0, 0
+    # global count_b, count_c  # pylint: disable=global-variable-undefined
+    # count_b, count_c = Counter(), Counter()
+
+    # Create trackers with unique IDs
+    tracker_b = RetryTracker('b')
+    tracker_c = RetryTracker('c')
 
     def f_b(x):
-      global count_b  # pylint: disable=global-variable-undefined
-      count_b += 1
+      tracker_b.increment()
       raise Exception('exception in f_b')
 
     def f_c(x):
-      global count_c  # pylint: disable=global-variable-undefined
-      count_c += 1
+      tracker_c.increment()
       raise Exception('exception in f_c')
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
@@ -180,7 +200,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
-    assert count_b == count_c == 4
+    assert tracker_b.count == tracker_c.count == 4
 
   def test_no_partial_writeouts(self):
     class TestTransformEvaluator(_TransformEvaluator):
