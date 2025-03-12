@@ -33,7 +33,7 @@ import io
 import threading
 import zlib
 
-import cloudpickle
+from apache_beam.internal.cloudpickle import cloudpickle
 
 try:
   from absl import flags
