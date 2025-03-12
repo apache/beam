@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 /** Encapsulates Cloud Spanner Schema. */
 @AutoValue
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class SpannerSchema implements Serializable {
 
@@ -81,7 +81,8 @@ public abstract class SpannerSchema implements Serializable {
     /**
      * Adds a column to the schema for the specified table.
      *
-     * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+     * @param table The table name, optionally including the schema prefix (e.g.,
+     *     "my_schema.my_table").
      * @param name The column name.
      * @param type The Spanner type as a string (e.g., "INT64").
      */
@@ -93,10 +94,12 @@ public abstract class SpannerSchema implements Serializable {
     /**
      * Adds a column to the schema for the specified table with the number of cells mutated.
      *
-     * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+     * @param table The table name, optionally including the schema prefix (e.g.,
+     *     "my_schema.my_table").
      * @param name The column name.
      * @param type The Spanner type as a string (e.g., "INT64").
-     * @param cellsMutated The number of cells affected when this column is mutated (e.g., including indexes).
+     * @param cellsMutated The number of cells affected when this column is mutated (e.g., including
+     *     indexes).
      */
     public Builder addColumn(String table, String name, String type, long cellsMutated) {
       String tableLower = table.toLowerCase();
@@ -110,7 +113,8 @@ public abstract class SpannerSchema implements Serializable {
     /**
      * Adds a primary key part to the specified table.
      *
-     * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+     * @param table The table name, optionally including the schema prefix (e.g.,
+     *     "my_schema.my_table").
      * @param column The column name that is part of the primary key.
      * @param desc True if the key part is in descending order, false otherwise.
      */
@@ -143,7 +147,8 @@ public abstract class SpannerSchema implements Serializable {
   /**
    * Returns the list of columns for the specified table.
    *
-   * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+   * @param table The table name, optionally including the schema prefix (e.g.,
+   *     "my_schema.my_table").
    */
   public List<Column> getColumns(String table) {
     return columns().get(table.toLowerCase());
@@ -152,7 +157,8 @@ public abstract class SpannerSchema implements Serializable {
   /**
    * Returns the list of primary key parts for the specified table.
    *
-   * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+   * @param table The table name, optionally including the schema prefix (e.g.,
+   *     "my_schema.my_table").
    */
   public List<KeyPart> getKeyParts(String table) {
     return keyParts().get(table.toLowerCase());
@@ -161,7 +167,8 @@ public abstract class SpannerSchema implements Serializable {
   /**
    * Returns the total number of cells affected when the specified column is mutated.
    *
-   * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+   * @param table The table name, optionally including the schema prefix (e.g.,
+   *     "my_schema.my_table").
    * @param column The column name.
    */
   public long getCellsMutatedPerColumn(String table, String column) {
@@ -171,7 +178,8 @@ public abstract class SpannerSchema implements Serializable {
   /**
    * Returns the total number of cells affected when the given row is deleted.
    *
-   * @param table The table name, optionally including the schema prefix (e.g., "my_schema.my_table").
+   * @param table The table name, optionally including the schema prefix (e.g.,
+   *     "my_schema.my_table").
    */
   public long getCellsMutatedPerRow(String table) {
     return cellsMutatedPerRow().getOrDefault(table.toLowerCase(), 1L);

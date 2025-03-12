@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * SpannerSchema}.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
@@ -91,11 +91,11 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
       while (resultSet.next()) {
         String schemaName = resultSet.getString(0); // TABLE_SCHEMA
-        String tableName = resultSet.getString(1);  // TABLE_NAME
+        String tableName = resultSet.getString(1); // TABLE_NAME
         String fullTableName = schemaName.isEmpty() ? tableName : schemaName + "." + tableName;
         String columnName = resultSet.getString(2); // COLUMN_NAME
-        String type = resultSet.getString(3);       // SPANNER_TYPE
-        long cellsMutated = resultSet.getLong(4);   // CELLS_MUTATED
+        String type = resultSet.getString(3); // SPANNER_TYPE
+        long cellsMutated = resultSet.getLong(4); // CELLS_MUTATED
 
         // Apply allowedTableNames filter on full table name if specified
         if (allowedTableNames.size() > 0 && !allowedTableNames.contains(fullTableName)) {
@@ -107,10 +107,10 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
       resultSet = readPrimaryKeyInfo(tx, dialect);
       while (resultSet.next()) {
         String schemaName = resultSet.getString(0); // TABLE_SCHEMA
-        String tableName = resultSet.getString(1);  // TABLE_NAME
+        String tableName = resultSet.getString(1); // TABLE_NAME
         String fullTableName = schemaName.isEmpty() ? tableName : schemaName + "." + tableName;
         String columnName = resultSet.getString(2); // COLUMN_NAME
-        String ordering = resultSet.getString(3);   // COLUMN_ORDERING
+        String ordering = resultSet.getString(3); // COLUMN_ORDERING
 
         // Apply allowedTableNames filter on full table name if specified
         if (allowedTableNames.size() > 0 && !allowedTableNames.contains(fullTableName)) {

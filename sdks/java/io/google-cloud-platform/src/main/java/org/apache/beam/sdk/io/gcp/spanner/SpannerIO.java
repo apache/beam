@@ -52,6 +52,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
+import com.google.cloud.spanner.Value;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -68,8 +69,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.google.cloud.spanner.Value;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -1144,10 +1143,11 @@ public class SpannerIO {
 
   /**
    * A {@link PTransform} that writes {@link Mutation} objects to Google Cloud Spanner.
+   *
    * <p>Input {@link Mutation} objects should specify table names that include schema prefixes
-   * (e.g., "my_schema.my_table") when using named schemas. If unqualified names are provided
-   * (e.g., "my_table"), the transform will attempt to rewrite them to match the schema-qualified
-   * names retrieved from the database, but this may fail if the table is ambiguous or not found.
+   * (e.g., "my_schema.my_table") when using named schemas. If unqualified names are provided (e.g.,
+   * "my_table"), the transform will attempt to rewrite them to match the schema-qualified names
+   * retrieved from the database, but this may fail if the table is ambiguous or not found.
    *
    * @see SpannerIO
    */
@@ -1967,7 +1967,9 @@ public class SpannerIO {
         }
       }
 
-      c.output(MutationGroup.create(rewrittenMutations.get(0), rewrittenMutations.subList(1, rewrittenMutations.size())));
+      c.output(
+          MutationGroup.create(
+              rewrittenMutations.get(0), rewrittenMutations.subList(1, rewrittenMutations.size())));
     }
 
     private Mutation rewriteMutation(Mutation m, String newTableName) {
@@ -1982,7 +1984,8 @@ public class SpannerIO {
           setValues(updateBuilder, m.getColumns(), m.getValues());
           return updateBuilder.build();
         case INSERT_OR_UPDATE:
-          Mutation.WriteBuilder insertOrUpdateBuilder = Mutation.newInsertOrUpdateBuilder(newTableName);
+          Mutation.WriteBuilder insertOrUpdateBuilder =
+              Mutation.newInsertOrUpdateBuilder(newTableName);
           setValues(insertOrUpdateBuilder, m.getColumns(), m.getValues());
           return insertOrUpdateBuilder.build();
         case REPLACE:
@@ -1996,7 +1999,8 @@ public class SpannerIO {
       }
     }
 
-    private void setValues(Mutation.WriteBuilder builder, Iterable<String> columns, Iterable<Value> values) {
+    private void setValues(
+        Mutation.WriteBuilder builder, Iterable<String> columns, Iterable<Value> values) {
       Iterator<String> columnIter = columns.iterator();
       Iterator<Value> valueIter = values.iterator();
       while (columnIter.hasNext() && valueIter.hasNext()) {
@@ -2011,8 +2015,10 @@ public class SpannerIO {
 
     private String findQualifiedTableName(SpannerSchema schema, String tableName) {
       for (String fullTableName : schema.getTables()) {
-        if (fullTableName.equalsIgnoreCase(tableName) ||
-            fullTableName.substring(fullTableName.lastIndexOf('.') + 1).equalsIgnoreCase(tableName)) {
+        if (fullTableName.equalsIgnoreCase(tableName)
+            || fullTableName
+                .substring(fullTableName.lastIndexOf('.') + 1)
+                .equalsIgnoreCase(tableName)) {
           return fullTableName;
         }
       }
