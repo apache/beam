@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -128,12 +130,12 @@ class AppendFilesToTables
         BoundedWindow window)
         throws IOException {
       String tableStringIdentifier = element.getKey();
-      Iterable<FileWriteResult> fileWriteResults = element.getValue();
+      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
+      Iterable<FileWriteResult> fileWriteResults =
+          removeAlreadyCommittedFiles(table, element.getValue());
       if (!fileWriteResults.iterator().hasNext()) {
         return;
       }
-
-      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
 
       // vast majority of the time, we will simply append data files.
       // in the rare case we get a batch that contains multiple partition specs, we will group
@@ -210,6 +212,32 @@ class AppendFilesToTables
                   "%s/metadata/%s-%s-%s.manifest",
                   tableLocation, manifestFilePrefix, uuid, spec.specId()));
       return ManifestFiles.write(spec, io.newOutputFile(location));
+    }
+
+    // If bundle fails following a successful commit and gets retried, it may attempt to re-commit
+    // the same data.
+    // To mitigate, we check the files in this bundle and remove anything that was already
+    // committed in the last successful snapshot.
+    //
+    // TODO(ahmedabu98): This does not cover concurrent writes from other pipelines, where the
+    //  "last successful snapshot" might reflect commits from other sources. Ideally, we would make
+    //  this stateful, but that is update incompatible.
+    // TODO(ahmedabu98): add load test pipelines with intentional periodic crashing
+    private Iterable<FileWriteResult> removeAlreadyCommittedFiles(
+        Table table, Iterable<FileWriteResult> fileWriteResults) {
+      if (table.currentSnapshot() == null) {
+        return fileWriteResults;
+      }
+
+      List<String> committedFiles =
+          Streams.stream(table.currentSnapshot().addedDataFiles(table.io()))
+              .map(DataFile::path)
+              .map(CharSequence::toString)
+              .collect(Collectors.toList());
+
+      return Streams.stream(fileWriteResults)
+          .filter(f -> !committedFiles.contains(f.getSerializableDataFile().getPath()))
+          .collect(Collectors.toList());
     }
   }
 }
