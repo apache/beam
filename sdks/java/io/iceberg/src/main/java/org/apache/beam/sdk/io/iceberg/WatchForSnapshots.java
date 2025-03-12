@@ -72,8 +72,8 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
   private static class SnapshotPollFn extends Watch.Growth.PollFn<String, List<SnapshotInfo>> {
     private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
-    private final Counter totalSnapshotsObserved =
-        Metrics.counter(SnapshotPollFn.class, "numSnapshotsObserved");
+    private final Counter snapshotsObserved =
+        Metrics.counter(SnapshotPollFn.class, "snapshotsObserved");
     private final IcebergScanConfig scanConfig;
     private @Nullable Long fromSnapshotId;
 
@@ -121,7 +121,7 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
             "New poll fetched {} snapshots: {}",
             snapshots.size(),
             snapshots.stream().map(SnapshotInfo::getSnapshotId).collect(Collectors.toList()));
-        totalSnapshotsObserved.inc(snapshots.size());
+        snapshotsObserved.inc(snapshots.size());
       }
 
       return isComplete
