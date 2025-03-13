@@ -28,11 +28,13 @@ import logging
 import os
 from typing import Any
 from typing import ClassVar
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Protocol
 from typing import Type
 from typing import TypeVar
+from typing import Union
 from typing import runtime_checkable
 
 from typing_extensions import Self
@@ -99,7 +101,7 @@ class Spec():
   #: An optional dictionary of keyword arguments for the `__init__` method of
   #: the class. If None, when we materialize this Spec, we only return the
   #: class without instantiate any objects from it.
-  config: Optional[dict[str, Any]] = dataclasses.field(default_factory=dict)
+  config: Optional[Dict[str, Any]] = dataclasses.field(default_factory=dict)
 
 
 @runtime_checkable
@@ -128,7 +130,7 @@ class Specifiable(Protocol):
     return v
 
   @classmethod
-  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Self:
+  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Union[Self, type]:
     """Generate a `Specifiable` subclass object based on a spec.
 
     Args:
