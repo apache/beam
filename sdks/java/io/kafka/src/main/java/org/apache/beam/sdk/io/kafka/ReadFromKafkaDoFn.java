@@ -314,7 +314,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     TopicPartition partition = kafkaSourceDescriptor.getTopicPartition();
     LOG.info("Creating Kafka consumer for initial restriction for {}", kafkaSourceDescriptor);
     try (Consumer<byte[], byte[]> offsetConsumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      ConsumerSpEL.evaluateAssign(offsetConsumer, ImmutableList.of(partition));
+      offsetConsumer.assign(ImmutableList.of(partition));
       long startOffset;
       @Nullable Instant startReadTime = kafkaSourceDescriptor.getStartReadTime();
       if (kafkaSourceDescriptor.getStartReadOffset() != null) {
@@ -444,8 +444,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     LOG.info("Creating Kafka consumer for process continuation for {}", kafkaSourceDescriptor);
     try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      ConsumerSpEL.evaluateAssign(
-          consumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
+      consumer.assign(ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
       long expectedOffset = startOffset;
       consumer.seek(kafkaSourceDescriptor.getTopicPartition(), startOffset);
