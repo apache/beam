@@ -71,10 +71,11 @@ public class KafkaSinkMetrics {
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     nameBuilder.addLabel(TOPIC_LABEL, topic);
 
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
-    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
 
-    return new DelegatingHistogram(metricName, buckets, false, true);
+    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
+    return new DelegatingHistogram(metricName, buckets, false);
   }
 
   /**

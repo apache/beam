@@ -62,7 +62,7 @@ public class KafkaMetricsTest {
 
   public static class TestMetricsContainer extends MetricsContainerImpl {
     public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>
-        perWorkerHistograms =
+        histograms =
             new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogramCell>();
 
     public ConcurrentHashMap<MetricName, GaugeCell> gauges =
@@ -73,11 +73,10 @@ public class KafkaMetricsTest {
     }
 
     @Override
-    public TestHistogramCell getPerWorkerHistogram(
+    public TestHistogramCell getHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
-      perWorkerHistograms.computeIfAbsent(
-          KV.of(metricName, bucketType), kv -> new TestHistogramCell(kv));
-      return perWorkerHistograms.get(KV.of(metricName, bucketType));
+      histograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogramCell(kv));
+      return histograms.get(KV.of(metricName, bucketType));
     }
 
     @Override
@@ -88,7 +87,7 @@ public class KafkaMetricsTest {
 
     @Override
     public void reset() {
-      perWorkerHistograms.clear();
+      histograms.clear();
       gauges.clear();
     }
   }
@@ -103,7 +102,7 @@ public class KafkaMetricsTest {
     results.updateBacklogBytes("test-topic", 0, 10);
     results.flushBufferedMetrics();
 
-    assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
+    assertThat(testContainer.histograms.size(), equalTo(0));
     assertThat(testContainer.gauges.size(), equalTo(0));
   }
 
@@ -122,12 +121,15 @@ public class KafkaMetricsTest {
     results.flushBufferedMetrics();
     // RpcLatency*rpc_method:POLL;topic_name:test-topic
     MetricName histogramName =
-        MetricName.named("KafkaSink", "RpcLatency*rpc_method:POLL;topic_name:test-topic;");
+        MetricName.named(
+            "KafkaSink",
+            "RpcLatency*rpc_method:POLL;topic_name:test-topic;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 17);
 
-    assertThat(testContainer.perWorkerHistograms.size(), equalTo(1));
+    assertThat(testContainer.histograms.size(), equalTo(1));
     assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        testContainer.histograms.get(KV.of(histogramName, bucketType)).values,
         containsInAnyOrder(Double.valueOf(10.0)));
 
     MetricName gaugeName =
@@ -151,6 +153,6 @@ public class KafkaMetricsTest {
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
 
     results.flushBufferedMetrics();
-    assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
+    assertThat(testContainer.histograms.size(), equalTo(0));
   }
 }
