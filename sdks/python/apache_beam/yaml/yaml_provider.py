@@ -61,6 +61,7 @@ from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 
@@ -1361,8 +1362,7 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
-      load_providers(
-          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
+      load_providers(yaml_utils.locate_data_file('standard_providers.yaml')))
 
 
 def _file_digest(fileobj, digest):
