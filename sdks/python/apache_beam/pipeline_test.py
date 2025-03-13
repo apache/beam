@@ -288,7 +288,7 @@ class PipelineTest(unittest.TestCase):
 
     opts = PipelineOptions(["--auto_unique_labels"])
     with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
-      mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
+      mock_uuids = [mock.Mock(hex=f'UUID0{i}XXX') for i in range(1, 20)]
       mock_uuid_gen.side_effect = mock_uuids
       with TestPipeline(options=opts) as pipeline:
         pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
