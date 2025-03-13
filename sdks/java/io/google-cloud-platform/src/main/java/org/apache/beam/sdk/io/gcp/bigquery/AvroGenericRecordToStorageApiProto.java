@@ -311,6 +311,7 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
+  @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
