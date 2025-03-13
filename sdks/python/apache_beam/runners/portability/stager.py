@@ -293,7 +293,7 @@ class Stager(object):
                 tarball_file, WORKFLOW_TARBALL_FILE))
 
       if setup_options.files_to_stage is not None:
-        for file in setup_options.files_to_stage.split(','):
+        for file in setup_options.files_to_stage:
           resources.append(
               Stager._create_file_stage_to_artifact(
                   file, os.path.basename(file)))
