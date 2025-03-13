@@ -1887,7 +1887,7 @@ PCollection<Integer> sum = pc.apply(
 # The resulting PCollection, called result, contains one value: the sum of all
 # the elements in the input PCollection.
 pc = ...
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" global_sum >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
