@@ -250,6 +250,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private transient @Nullable LoadingCache<KafkaSourceDescriptor, AverageRecordSize>
       avgRecordSizeCache;
+  private @Nullable KafkaMetrics kafkaResults;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
@@ -454,7 +455,10 @@ abstract class ReadFromKafkaDoFn<K, V>
       final Stopwatch sw = Stopwatch.createStarted();
 
       while (true) {
+        kafkaResults = KafkaSinkMetrics.kafkaMetrics();
         rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
+        Preconditions.checkArgumentNotNull(kafkaResults);
+        kafkaResults.flushBufferedMetrics();
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
@@ -569,6 +573,7 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
+        Preconditions.checkArgumentNotNull(kafkaResults);
         kafkaResults.flushBufferedMetrics();
       }
     }
@@ -590,6 +595,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
     while (true) {
       final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
+      elapsed = sw.elapsed();
+      Preconditions.checkStateNotNull(kafkaResults);
+      kafkaResults.updateSuccessfulRpcMetrics(topicPartition.topic(), elapsed);
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
