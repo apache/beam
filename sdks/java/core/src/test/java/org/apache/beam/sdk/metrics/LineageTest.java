@@ -19,7 +19,6 @@ package org.apache.beam.sdk.metrics;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -51,21 +50,21 @@ public class LineageTest {
             .build();
     testCases.forEach(
         (key, value) -> {
-          Iterator<String> fqnPartsIterator =
+          Iterable<String> fqnPartsIterator =
               Lineage.getFQNParts("apache", null, ImmutableList.of(key), null);
           String fqnPartsString = getFqnPartsString(fqnPartsIterator);
           assertEquals("apache:" + value, fqnPartsString);
         });
     testCases.forEach(
         (key, value) -> {
-          Iterator<String> fqnPartsIterator =
+          Iterable<String> fqnPartsIterator =
               Lineage.getFQNParts("apache", "beam", ImmutableList.of(key), null);
           String fqnPartsString = getFqnPartsString(fqnPartsIterator);
           assertEquals("apache:beam:" + value, fqnPartsString);
         });
     testCases.forEach(
         (key, value) -> {
-          Iterator<String> fqnPartsIterator =
+          Iterable<String> fqnPartsIterator =
               Lineage.getFQNParts("apache", "beam", ImmutableList.of(key, key), null);
           String fqnPartsString = getFqnPartsString(fqnPartsIterator);
           assertEquals("apache:beam:" + value + "." + value, fqnPartsString);
@@ -74,28 +73,25 @@ public class LineageTest {
 
   @Test
   public void getFQNParts() {
-    Iterator<String> simpleFQN =
+    Iterable<String> simpleFQN =
         Lineage.getFQNParts("system", null, ImmutableList.of("project", "dataset", "table"), null);
     assertEquals("system:project.dataset.table", getFqnPartsString(simpleFQN));
 
-    Iterator<String> subTypeFQN =
+    Iterable<String> subTypeFQN =
         Lineage.getFQNParts("system", "topic", ImmutableList.of("project", "topicid"), null);
     assertEquals("system:topic:project.topicid", getFqnPartsString(subTypeFQN));
 
-    Iterator<String> pathFQN =
+    Iterable<String> pathFQN =
         Lineage.getFQNParts("system", null, ImmutableList.of("bucket", "dir1/dir2/file"), "/");
     assertEquals("system:bucket.dir1/dir2/file", getFqnPartsString(pathFQN));
 
-    Iterator<String> pathFQNReserved =
+    Iterable<String> pathFQNReserved =
         Lineage.getFQNParts("system", null, ImmutableList.of("bucket", "dir1/dir.2/file"), "/");
     assertEquals("system:bucket.`dir1/dir.2/file`", getFqnPartsString(pathFQNReserved));
   }
 
-  private static String getFqnPartsString(Iterator<String> fqnPartsIterator) {
-    return StreamSupport.stream(
-            java.util.Spliterators.spliteratorUnknownSize(
-                fqnPartsIterator, java.util.Spliterator.ORDERED),
-            false)
+  private static String getFqnPartsString(Iterable<String> fqnPartsIterable) {
+    return StreamSupport.stream(fqnPartsIterable.spliterator(), false)
         .collect(Collectors.joining(""));
   }
 }

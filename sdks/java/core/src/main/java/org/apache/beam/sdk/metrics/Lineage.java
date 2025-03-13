@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -56,10 +57,10 @@ public class Lineage {
   }
 
   @VisibleForTesting
-  static Iterator<String> getFQNParts(
+  static Iterable<String> getFQNParts(
       String system,
       @Nullable String subtype,
-      List<String> segments,
+      Iterable<String> segments,
       @Nullable String lastSegmentSep) {
 
     List<String> parts = new ArrayList<>();
@@ -67,23 +68,32 @@ public class Lineage {
     if (subtype != null) {
       parts.add(subtype + ":");
     }
-    if (segments != null && segments.size() > 0) {
-      for (int i = 0; i < segments.size() - 1; i++) {
-        parts.add(wrapSegment(segments.get(i)) + ".");
-      }
-      if (lastSegmentSep != null) {
-        List<String> subSegments =
-            Splitter.onPattern(lastSegmentSep)
-                .splitToList(wrapSegment(segments.get(segments.size() - 1)));
-        for (int i = 0; i < subSegments.size() - 1; i++) {
-          parts.add(subSegments.get(i) + lastSegmentSep);
+
+    if (segments != null) {
+      Iterator<String> iterator = segments.iterator();
+      String previousSegment = null;
+      while (iterator.hasNext()) {
+        if (previousSegment != null) {
+          parts.add(wrapSegment(previousSegment) + ".");
         }
-        parts.add(subSegments.get(subSegments.size() - 1));
-      } else {
-        parts.add(segments.get(segments.size() - 1));
+        previousSegment = iterator.next();
+      }
+
+      if (previousSegment != null) {
+        if (lastSegmentSep != null) {
+          List<String> subSegments =
+              Splitter.onPattern(lastSegmentSep).splitToList(wrapSegment(previousSegment));
+          for (int i = 0; i < subSegments.size() - 1; i++) {
+            parts.add(subSegments.get(i) + lastSegmentSep);
+          }
+          parts.add(subSegments.get(subSegments.size() - 1));
+        } else {
+          parts.add(wrapSegment(previousSegment));
+        }
       }
     }
-    return parts.iterator();
+
+    return parts;
   }
 
   /**
@@ -95,10 +105,7 @@ public class Lineage {
       @Nullable String subtype,
       Iterable<String> segments,
       @Nullable String lastSegmentSep) {
-    List<String> result = new ArrayList<String>();
-    segments.forEach(result::add);
-
-    add(getFQNParts(system, subtype, result, lastSegmentSep));
+    add(getFQNParts(system, subtype, segments, lastSegmentSep));
   }
 
   /**
@@ -125,9 +132,8 @@ public class Lineage {
    *     which is already escaped.
    *     <p>In particular, this means they will often have trailing delimiters.
    */
-  public void add(Iterator<String> rollupSegments) {
-    List<String> segments = new ArrayList<>();
-    rollupSegments.forEachRemaining(segments::add);
+  public void add(Iterable<String> rollupSegments) {
+    ImmutableList<String> segments = ImmutableList.copyOf(rollupSegments);
     this.metric.add(segments);
   }
 
