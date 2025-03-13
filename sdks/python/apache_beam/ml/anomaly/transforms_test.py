@@ -17,20 +17,38 @@
 
 import logging
 import math
+import os
+import pickle
+import shutil
+import tempfile
 import unittest
+from typing import Any
+from typing import Dict
 from typing import Iterable
+from typing import Optional
+from typing import Sequence
+
+import mock
+import numpy
+from sklearn.base import BaseEstimator
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.aggregations import AnyVote
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
+from apache_beam.ml.anomaly.detectors.custom import CustomDetector
 from apache_beam.ml.anomaly.detectors.zscore import ZScore
+from apache_beam.ml.anomaly.specifiable import Spec
+from apache_beam.ml.anomaly.specifiable import _spec_type_to_subspace
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.thresholds import FixedThreshold
 from apache_beam.ml.anomaly.thresholds import QuantileThreshold
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import _StatefulThresholdDoFn
 from apache_beam.ml.anomaly.transforms import _StatelessThresholdDoFn
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -251,6 +269,199 @@ class TestAnomalyDetection(unittest.TestCase):
               AnomalyResult(example=input[1], predictions=[prediction]))
                     for input,
                     prediction in zip(self._input, aggregated)]))
+
+
+class FakeNumpyModel():
+  def __init__(self):
+    self.total_predict_calls = 0
+
+  def predict(self, input_vector: numpy.ndarray):
+    self.total_predict_calls += 1
+    return [input_vector[0][0] * 10 - input_vector[0][1]]
+
+
+def alternate_numpy_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[numpy.ndarray],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  return [0]
+
+
+# Make model handlers into Specifiable
+SklearnModelHandlerNumpy = specifiable(SklearnModelHandlerNumpy)  # type: ignore
+
+
+class TestCustomDetector(unittest.TestCase):
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
+  def test_default_inference_fn(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakeNumpyModel(), file)
+
+    model_handler = SklearnModelHandlerNumpy(model_uri=temp_file_name)
+
+    input = [
+        (1, beam.Row(x=1, y=2)),
+        (1, beam.Row(x=2, y=4)),
+        (1, beam.Row(x=3, y=6)),
+    ]
+    expected_predictions = [
+        AnomalyPrediction(
+            model_id='CustomDetector',
+            score=8.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+        AnomalyPrediction(
+            model_id='CustomDetector',
+            score=16.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+        AnomalyPrediction(
+            model_id='CustomDetector',
+            score=24.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+    ]
+    detector = CustomDetector(model_handler=model_handler)
+
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create(input)
+          # TODO: get rid of this conversion between BeamSchema to beam.Row.
+          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
+          | AnomalyDetection(detector))
+
+      assert_that(
+          result,
+          equal_to([(
+              input[0],
+              AnomalyResult(example=input[1], predictions=[prediction]))
+                    for input,
+                    prediction in zip(input, expected_predictions)]))
+
+    expected_spec = Spec(
+        type='CustomDetector',
+        config={
+            'model_handler': Spec(
+                type='SklearnModelHandlerNumpy',
+                config={'model_uri': temp_file_name})
+        })
+    self.assertEqual(detector.to_spec(), expected_spec)
+    self.assertEqual(_spec_type_to_subspace('SklearnModelHandlerNumpy'), '*')
+
+  def test_alternate_inference_fn(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakeNumpyModel(), file)
+
+    model_handler = SklearnModelHandlerNumpy(
+        model_uri=temp_file_name, inference_fn=alternate_numpy_inference_fn)
+
+    input = [
+        (1, beam.Row(x=1, y=2)),
+        (1, beam.Row(x=2, y=4)),
+        (1, beam.Row(x=3, y=6)),
+    ]
+    expected_predictions = [
+        AnomalyPrediction(
+            model_id='CustomDetector',
+            score=0.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+        AnomalyPrediction(
+            model_id='CustomDetector',
+            score=0.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+        AnomalyPrediction(
+            model_id='CustomDetector',
+            score=0.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+    ]
+    detector = CustomDetector(model_handler=model_handler)
+
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create(input)
+          # TODO: get rid of this conversion between BeamSchema to beam.Row.
+          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
+          | AnomalyDetection(detector))
+
+      assert_that(
+          result,
+          equal_to([(
+              input[0],
+              AnomalyResult(example=input[1], predictions=[prediction]))
+                    for input,
+                    prediction in zip(input, expected_predictions)]))
+
+    expected_spec = Spec(
+        type='CustomDetector',
+        config={
+            'model_handler': Spec(
+                type='SklearnModelHandlerNumpy',
+                config={
+                    'model_uri': temp_file_name,
+                    'inference_fn': Spec(
+                        type='alternate_numpy_inference_fn', config=None)
+                })
+        })
+    self.assertEqual(detector.to_spec(), expected_spec)
+    self.assertEqual(_spec_type_to_subspace('SklearnModelHandlerNumpy'), '*')
+    self.assertEqual(
+        _spec_type_to_subspace('alternate_numpy_inference_fn'), '*')
+
+  def test_run_inference_args(self):
+    model_handler = SklearnModelHandlerNumpy(model_uri="unused")
+    detector = CustomDetector(
+        model_handler=model_handler,
+        run_inference_args={"inference_args": {
+            "multiplier": 10
+        }})
+
+    p = TestPipeline()
+
+    input = [
+        (1, beam.Row(x=1, y=2)),
+        (1, beam.Row(x=2, y=4)),
+        (1, beam.Row(x=3, y=6)),
+    ]
+
+    with mock.patch.object(RunInference, '__init__') as mock_run_inference_init:
+      try:
+        mock_run_inference_init.return_value = None
+        p = TestPipeline()
+        _ = (p | beam.Create(input) | AnomalyDetection(detector))
+      except:  # pylint: disable=bare-except
+        pass
+
+      call_args = mock_run_inference_init.call_args[1]
+      self.assertEqual(
+          call_args,
+          {
+              'inference_args': {
+                  'multiplier': 10
+              },
+              'model_identifier': 'CustomDetector'
+          })
 
 
 R = beam.Row(x=10, y=20)
