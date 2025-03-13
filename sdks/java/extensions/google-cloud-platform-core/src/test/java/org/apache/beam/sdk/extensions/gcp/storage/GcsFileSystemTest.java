@@ -250,7 +250,7 @@ public class GcsFileSystemTest {
     GcsResourceId path = GcsResourceId.fromGcsPath(GcsPath.fromUri(uri));
     Lineage mockLineage = mock(Lineage.class);
     gcsFileSystem.reportLineage(path, mockLineage);
-    verify(mockLineage, times(1)).add("gcs", expected);
+    verify(mockLineage, times(1)).add("gcs", expected, "/");
   }
 
   private StorageObject createStorageObject(String gcsFilename, long fileSize) {
