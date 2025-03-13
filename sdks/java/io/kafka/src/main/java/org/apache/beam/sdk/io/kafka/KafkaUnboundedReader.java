@@ -89,7 +89,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     this.consumer = consumer;
     List<TopicPartition> topicPartitions =
         Preconditions.checkStateNotNull(spec.getTopicPartitions());
-    ConsumerSpEL.evaluateAssign(consumer, topicPartitions);
+    consumer.assign(topicPartitions);
 
     keyDeserializerInstance =
         Preconditions.checkStateNotNull(spec.getKeyDeserializerProvider())
