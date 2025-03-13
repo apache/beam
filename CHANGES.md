@@ -129,7 +129,7 @@
 * [Dataflow Streaming] Enable Windmill GetWork Response Batching by default ([#33847](https://github.com/apache/beam/pull/33847)).
   * With this change user workers will request batched GetWork responses from backend and backend will send multiple WorkItems in the same response proto.
   * The feature can be disabled by passing `--windmillRequestBatchedGetWorkResponse=false`
-
+* Added supports for staging arbitrary files via `--files_to_stage` flag (Python) ([#34208](https://github.com/apache/beam/pull/34208))
 ## Breaking Changes
 
 * AWS V1 I/Os have been removed (Java). As part of this, x-lang Python Kinesis I/O has been updated to consume the V2 IO and it also no longer supports setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
