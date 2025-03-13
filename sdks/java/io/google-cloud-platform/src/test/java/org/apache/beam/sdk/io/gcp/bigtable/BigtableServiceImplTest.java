@@ -179,7 +179,8 @@ public class BigtableServiceImplTest {
             bigtableDataSettings.getInstanceId(),
             mockBigtableSource.getTableId().get(),
             mockBigtableSource.getRanges(),
-            null);
+            null,
+            BigtableReadOptions.builder().setTableId(mockBigtableSource.getTableId()).build());
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
@@ -227,13 +228,17 @@ public class BigtableServiceImplTest {
     when(mockBigtableDataClient.skipLargeRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderWithExperimentalOptions(
+        new BigtableServiceImpl.BigtableReaderImpl(
             mockBigtableDataClient,
             bigtableDataSettings.getProjectId(),
             bigtableDataSettings.getInstanceId(),
             mockBigtableSource.getTableId().get(),
             mockBigtableSource.getRanges(),
-            null);
+            null,
+            BigtableReadOptions.builder()
+                .setExperimentalSkipLargeRows(true)
+                .setTableId(mockBigtableSource.getTableId())
+                .build());
 
     int rowCount = 0;
     underTest.start();

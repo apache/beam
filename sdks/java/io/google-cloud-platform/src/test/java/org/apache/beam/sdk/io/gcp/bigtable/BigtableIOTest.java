@@ -236,7 +236,7 @@ public class BigtableIOTest {
     BigtableIO.Read read =
         BigtableIO.read()
             .withBigtableOptions(BIGTABLE_OPTIONS)
-            .withExperimentSkipLargeRows(true)
+            .withExperimentalSkipLargeRows(true)
             .withTableId("table")
             .withInstanceId("instance")
             .withProjectId("project")

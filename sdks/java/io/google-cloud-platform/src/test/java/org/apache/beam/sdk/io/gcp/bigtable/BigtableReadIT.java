@@ -121,6 +121,27 @@ public class BigtableReadIT {
   }
 
   @Test
+  public void testE2EBigtableReadWithSkippingLargeRows() {
+    BigtableOptions.Builder bigtableOptionsBuilder =
+        new BigtableOptions.Builder().setProjectId(project).setInstanceId(options.getInstanceId());
+
+    final String tableId = "BigtableReadTest";
+    final long numRows = 1000L;
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<Long> count =
+        p.apply(
+                BigtableIO.read()
+                    .withBigtableOptions(bigtableOptionsBuilder)
+                    .withTableId(tableId)
+                    .withExperimentalSkipLargeRows(true))
+            .apply(Count.globally());
+    PAssert.thatSingleton(count).isEqualTo(numRows);
+    PipelineResult r = p.run();
+    checkLineageSourceMetric(r, tableId);
+  }
+
+  @Test
   public void testE2EBigtableSegmentRead() {
     tableAdminClient.createTable(CreateTableRequest.of(tableId).addFamily(COLUMN_FAMILY_NAME));
 
