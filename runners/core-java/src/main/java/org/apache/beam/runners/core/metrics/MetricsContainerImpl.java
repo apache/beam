@@ -298,7 +298,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     builder.setType(typeUrn);
 
     MetricName metricName = metricKey.metricName();
-
     if (metricName instanceof MonitoringInfoMetricName) {
       MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
       // Represents a specific MonitoringInfo for a specific URN.
@@ -313,12 +312,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         return null;
       }
 
-      // Pass metric labels to MonitorintInfo
-      for (Map.Entry<String, String> entry : metricKey.metricName().getLabels().entrySet()) {
-        LOG.info("string key {} value {}", entry.getKey(), entry.getValue());
-        builder.setLabel(entry.getKey(), entry.getValue());
-      }
-
       builder
           .setUrn(userUrn)
           .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, metricKey.metricName().getNamespace())
@@ -328,9 +321,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
     // Add any metricKey labels to the monitoringInfoLabels.
     if (!metricName.getLabels().isEmpty()) {
-      for (Map.Entry<String, String> entry : metricName.getLabels().entrySet()) {
-        builder.setLabel(entry.getKey(), entry.getValue());
-      }
+      builder.setLabels(metricName.getLabels());
     }
     return builder;
   }

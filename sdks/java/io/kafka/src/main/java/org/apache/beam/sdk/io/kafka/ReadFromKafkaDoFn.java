@@ -450,8 +450,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       while (true) {
         // Fetch the record size accumulator.
         final MovingAvg avgRecordSize = avgRecordSizeCache.getUnchecked(kafkaSourceDescriptor);
+        KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
         rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
-        Preconditions.checkArgumentNotNull(kafkaResults);
         kafkaResults.flushBufferedMetrics();
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
@@ -554,8 +554,8 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.get()));
-        KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
-        kafkaResults.updateBacklogBytes(
+        kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
+        kafkaMetrics.updateBacklogBytes(
             kafkaSourceDescriptor.getTopic(),
             kafkaSourceDescriptor.getPartition(),
             (long)
@@ -565,7 +565,7 @@ abstract class ReadFromKafkaDoFn<K, V>
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.get()));
-        kafkaResults.flushBufferedMetrics();
+                kafkaMetrics.flushBufferedMetrics();
       }
     }
   }
@@ -579,7 +579,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   // see https://github.com/apache/beam/issues/25962
   private ConsumerRecords<byte[], byte[]> poll(
-      Consumer<byte[], byte[]> consumer, TopicPartition topicPartition) {
+      Consumer<byte[], byte[]> consumer, TopicPartition topicPartition, KafkaMetrics kafkaMetrics) {
     final Stopwatch sw = Stopwatch.createStarted();
     long previousPosition = -1;
     java.time.Duration elapsed = java.time.Duration.ZERO;
@@ -587,8 +587,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     while (true) {
       final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
       elapsed = sw.elapsed();
-      Preconditions.checkStateNotNull(kafkaResults);
-      kafkaResults.updateSuccessfulRpcMetrics(topicPartition.topic(), elapsed);
+      kafkaMetrics.updateSuccessfulRpcMetrics(topicPartition.topic(), elapsed);
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
