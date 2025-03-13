@@ -70,7 +70,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
@@ -159,13 +158,7 @@ public class SpannerIOReadTest implements Serializable {
                 .withQuery(QUERY_STATEMENT)
                 .withQueryName(QUERY_NAME)
                 .withTimestampBound(TIMESTAMP_BOUND));
-    assertThat(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(
-            Lineage.getFqName(
-                "spanner",
-                ImmutableList.of(
-                    PROJECT_ID, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SOURCE), hasItem(getFQN(PROJECT_ID)));
   }
 
   @Test
@@ -199,12 +192,7 @@ public class SpannerIOReadTest implements Serializable {
                 .withQueryName(QUERY_NAME)
                 .withTimestampBound(TIMESTAMP_BOUND));
     assertThat(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(
-            Lineage.getFqName(
-                "spanner",
-                ImmutableList.of(
-                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE), hasItem(getFQN(DEFAULT_PROJECT)));
   }
 
   @Test
@@ -223,12 +211,7 @@ public class SpannerIOReadTest implements Serializable {
                 .withTimestampBound(TIMESTAMP_BOUND));
 
     assertThat(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(
-            Lineage.getFqName(
-                "spanner",
-                ImmutableList.of(
-                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE), hasItem(getFQN(DEFAULT_PROJECT)));
   }
 
   @Test
@@ -315,13 +298,7 @@ public class SpannerIOReadTest implements Serializable {
                 .withQuery(QUERY_STATEMENT)
                 .withQueryName(QUERY_NAME)
                 .withTimestampBound(TIMESTAMP_BOUND));
-    assertThat(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(
-            Lineage.getFqName(
-                "spanner",
-                ImmutableList.of(
-                    PROJECT_ID, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SOURCE), hasItem(getFQN(PROJECT_ID)));
   }
 
   @Test
@@ -339,12 +316,7 @@ public class SpannerIOReadTest implements Serializable {
                 .withQueryName(QUERY_NAME)
                 .withTimestampBound(TIMESTAMP_BOUND));
     assertThat(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(
-            Lineage.getFqName(
-                "spanner",
-                ImmutableList.of(
-                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE), hasItem(getFQN(DEFAULT_PROJECT)));
   }
 
   @Test
@@ -362,12 +334,7 @@ public class SpannerIOReadTest implements Serializable {
                 .withQueryName(QUERY_NAME)
                 .withTimestampBound(TIMESTAMP_BOUND));
     assertThat(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        hasItem(
-            Lineage.getFqName(
-                "spanner",
-                ImmutableList.of(
-                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE), hasItem(getFQN(DEFAULT_PROJECT)));
   }
 
   @Test
@@ -922,5 +889,10 @@ public class SpannerIOReadTest implements Serializable {
     baseLabels.put(
         MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, config.getDatabaseId().get());
     return baseLabels;
+  }
+
+  private static String getFQN(String projectID) {
+    return String.format(
+        "spanner:%s.%s.%s.%s.%s", projectID, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users");
   }
 }
