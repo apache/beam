@@ -70,7 +70,6 @@ public class KafkaSinkMetrics {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_LATENCY);
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     nameBuilder.addLabel(TOPIC_LABEL, topic);
-
     nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
 

@@ -451,6 +451,8 @@ abstract class ReadFromKafkaDoFn<K, V>
         // Fetch the record size accumulator.
         final MovingAvg avgRecordSize = avgRecordSizeCache.getUnchecked(kafkaSourceDescriptor);
         rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
+        Preconditions.checkArgumentNotNull(kafkaResults);
+        kafkaResults.flushBufferedMetrics();
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
@@ -584,6 +586,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
     while (true) {
       final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
+      elapsed = sw.elapsed();
+      Preconditions.checkStateNotNull(kafkaResults);
+      kafkaResults.updateSuccessfulRpcMetrics(topicPartition.topic(), elapsed);
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
