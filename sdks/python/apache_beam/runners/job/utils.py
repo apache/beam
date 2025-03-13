@@ -18,17 +18,22 @@
 """Utility functions for efficiently processing with the job API
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import json
+import logging
 
 from google.protobuf import json_format
 from google.protobuf import struct_pb2
 
 
-def dict_to_struct(dict_obj):
-  return json_format.ParseDict(dict_obj, struct_pb2.Struct())
+def dict_to_struct(dict_obj: dict) -> struct_pb2.Struct:
+  try:
+    return json_format.ParseDict(dict_obj, struct_pb2.Struct())
+  except json_format.ParseError:
+    logging.error('Failed to parse dict %s', dict_obj)
+    raise
 
 
-def struct_to_dict(struct_obj):
+def struct_to_dict(struct_obj: struct_pb2.Struct) -> dict:
   return json.loads(json_format.MessageToJson(struct_obj))

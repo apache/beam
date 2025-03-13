@@ -21,8 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
@@ -30,6 +30,9 @@ import org.apache.beam.sdk.annotations.Internal;
  * <p>A utility function for merging overlapping {@link IntervalWindow IntervalWindows}.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MergeOverlappingIntervalWindows {
 
   /** Merge overlapping {@link IntervalWindow}s. */
@@ -60,7 +63,7 @@ public class MergeOverlappingIntervalWindows {
   }
 
   private static class MergeCandidate {
-    @Nullable private IntervalWindow union;
+    private @Nullable IntervalWindow union;
     private final List<IntervalWindow> parts;
 
     public MergeCandidate() {

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -75,22 +75,28 @@ public class SparkRunnerStreamingContextFactory implements Function0<JavaStreami
     Duration batchDuration = new Duration(options.getBatchIntervalMillis());
     LOG.info("Setting Spark streaming batchDuration to {} msec", batchDuration.milliseconds());
 
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-    JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
+    JavaSparkContext sparkCtx = SparkContextFactory.getSparkContext(options);
+    JavaStreamingContext streamingCtx = new JavaStreamingContext(sparkCtx, batchDuration);
 
     // We must first init accumulators since translators expect them to be instantiated.
-    SparkRunner.initAccumulators(options, jsc);
+    SparkRunner.initAccumulators(options, sparkCtx);
     // do not need to create a MetricsPusher instance here because if is called in SparkRunner.run()
 
-    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
+    EvaluationContext evalCtx = new EvaluationContext(sparkCtx, pipeline, options, streamingCtx);
     // update cache candidates
-    SparkRunner.updateCacheCandidates(pipeline, translator, ctxt);
-    pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
-    ctxt.computeOutputs();
+    SparkRunner.updateCacheCandidates(pipeline, translator, evalCtx);
+    try {
+      pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, evalCtx));
+    } catch (RuntimeException e) {
+      streamingCtx.stop(false, false);
+      SparkContextFactory.stopSparkContext(sparkCtx);
+      throw e;
+    }
+    evalCtx.computeOutputs();
 
-    checkpoint(jssc, checkpointDir);
+    checkpoint(streamingCtx, checkpointDir);
 
-    return jssc;
+    return streamingCtx;
   }
 
   private void checkpoint(JavaStreamingContext jssc, CheckpointDir checkpointDir) {

@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.fnexecution.logging;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -34,19 +35,22 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link GrpcLoggingService}. */
 @RunWith(JUnit4.class)
 public class GrpcLoggingServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Consumer<LogControl> messageDiscarder =
       item -> {
         // Ignore
@@ -62,7 +66,7 @@ public class GrpcLoggingServiceTest {
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
-        final int instructionReference = i;
+        final int instructionId = i;
         tasks.add(
             () -> {
               CountDownLatch waitForServerHangup = new CountDownLatch(1);
@@ -74,8 +78,7 @@ public class GrpcLoggingServiceTest {
                           TestStreams.withOnNext(messageDiscarder)
                               .withOnCompleted(new CountDown(waitForServerHangup))
                               .build());
-              outboundObserver.onNext(
-                  createLogsWithIds(instructionReference, -instructionReference));
+              outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
               outboundObserver.onCompleted();
               waitForServerHangup.await();
               return null;
@@ -103,12 +106,14 @@ public class GrpcLoggingServiceTest {
     try (GrpcFnServer<GrpcLoggingService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
+      CountDownLatch waitForTermination = new CountDownLatch(3);
+      final BlockingQueue<StreamObserver<LogEntry.List>> outboundObservers =
+          new LinkedBlockingQueue<>();
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
-        final int instructionReference = i;
+        final int instructionId = i;
         tasks.add(
             () -> {
-              CountDownLatch waitForTermination = new CountDownLatch(1);
               ManagedChannel channel =
                   InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
                       .build();
@@ -118,15 +123,18 @@ public class GrpcLoggingServiceTest {
                           TestStreams.withOnNext(messageDiscarder)
                               .withOnError(new CountDown(waitForTermination))
                               .build());
-              outboundObserver.onNext(
-                  createLogsWithIds(instructionReference, -instructionReference));
-              outboundObserver.onError(new RuntimeException("Client " + instructionReference));
-              waitForTermination.await();
+              outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
+              outboundObservers.add(outboundObserver);
               return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
+
+      for (int i = 1; i <= 3; ++i) {
+        outboundObservers.take().onError(new RuntimeException("Client " + i));
+      }
+      waitForTermination.await();
     }
   }
 
@@ -141,7 +149,7 @@ public class GrpcLoggingServiceTest {
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
       for (int i = 1; i <= 3; ++i) {
-        final long instructionReference = i;
+        final long instructionId = i;
         futures.add(
             executorService.submit(
                 () -> {
@@ -156,7 +164,7 @@ public class GrpcLoggingServiceTest {
                                 TestStreams.withOnNext(messageDiscarder)
                                     .withOnCompleted(new CountDown(waitForServerHangup))
                                     .build());
-                    outboundObserver.onNext(createLogsWithIds(instructionReference));
+                    outboundObserver.onNext(createLogsWithIds(instructionId));
                     waitForServerHangup.await();
                     return null;
                   }
@@ -181,7 +189,7 @@ public class GrpcLoggingServiceTest {
   }
 
   private BeamFnApi.LogEntry createLogWithId(long id) {
-    return BeamFnApi.LogEntry.newBuilder().setInstructionReference(Long.toString(id)).build();
+    return BeamFnApi.LogEntry.newBuilder().setInstructionId(Long.toString(id)).build();
   }
 
   private static class CollectionAppendingLogWriter implements LogWriter {

@@ -26,6 +26,9 @@ import org.apache.flink.core.io.InputSplit;
  * around in the input split because Sources simply split up into several Sources for sharding. This
  * is different to how Flink creates a separate InputSplit from an InputFormat.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SourceInputSplit<T> implements InputSplit {
 
   private Source<T> source;

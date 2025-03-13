@@ -20,18 +20,22 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.schema.FunctionParameter;
-import org.apache.calcite.schema.impl.ReflectiveFunctionBase;
-import org.apache.calcite.util.ReflectUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.ReflectiveFunctionBase;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ReflectUtil;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Beam-customized version from {@link ReflectiveFunctionBase}, to address BEAM-5921. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class UdfImplReflectiveFunctionBase implements Function {
   /** Method that implements the function. */
   public final Method method;
@@ -95,7 +99,10 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
     return new ParameterListBuilder();
   }
 
-  /** Helps build lists of {@link org.apache.calcite.schema.FunctionParameter}. */
+  /**
+   * Helps build lists of {@link
+   * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter}.
+   */
   public static class ParameterListBuilder {
     final List<FunctionParameter> builder = new ArrayList<>();
 
@@ -107,8 +114,7 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
       return add(type, name, false);
     }
 
-    public ParameterListBuilder add(
-        final Class<?> type, final String name, final boolean optional) {
+    public ParameterListBuilder add(final Type type, final String name, final boolean optional) {
       final int ordinal = builder.size();
       builder.add(
           new FunctionParameter() {
@@ -136,7 +142,7 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
     }
 
     public ParameterListBuilder addMethodParameters(Method method) {
-      final Class<?>[] types = method.getParameterTypes();
+      final Type[] types = method.getGenericParameterTypes();
       for (int i = 0; i < types.length; i++) {
         add(
             types[i],

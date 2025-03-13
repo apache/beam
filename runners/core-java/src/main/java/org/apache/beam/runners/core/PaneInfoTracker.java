@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -26,7 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 /**
@@ -35,6 +36,9 @@ import org.joda.time.Instant;
  * AfterWatermark} trigger firing, and the relation between the element's timestamp and the current
  * output watermark.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PaneInfoTracker {
   private TimerInternals timerInternals;
 
@@ -70,6 +74,8 @@ public class PaneInfoTracker {
 
     return new ReadableState<PaneInfo>() {
       @Override
+      @SuppressFBWarnings(
+          "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
       public ReadableState<PaneInfo> readLater() {
         previousPaneFuture.readLater();
         return this;

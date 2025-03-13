@@ -23,10 +23,11 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
@@ -34,7 +35,16 @@ var (
 	output = flag.String("output", "/tmp/pingpong/out.", "Prefix of output.")
 )
 
-// stitch constructs two composite PTranformations that provide input to each other. It
+func init() {
+	register.Function4x1(multiFn)
+	register.Function3x1(subsetFn)
+	register.Function2x0(extractFn)
+
+	register.Emitter1[string]()
+	register.Iter1[string]()
+}
+
+// stitch constructs two composite PTransforms that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
 func stitch(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
 	ping := s.Scope("ping")
@@ -62,7 +72,7 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 		size += len(w)
 	}
 	if count == 0 {
-		return errors.New("Empty sample")
+		return errors.New("empty sample")
 	}
 	avg := size / count
 
@@ -86,7 +96,7 @@ func subsetFn(_ []byte, a, b func(*string) bool) error {
 	}
 	for a(&elm) {
 		if !larger[elm] {
-			return fmt.Errorf("Extra element: %v", elm)
+			return fmt.Errorf("extra element: %v", elm)
 		}
 	}
 	return nil

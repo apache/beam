@@ -26,7 +26,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,6 +45,9 @@ import org.junit.runners.JUnit4;
  * ideas: https://beam.apache.org/documentation/pipelines/test-your-pipeline/
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class HourlyTeamScoreTest implements Serializable {
 
   static final String[] GAME_EVENTS_ARRAY =
@@ -87,7 +88,6 @@ public class HourlyTeamScoreTest implements Serializable {
 
   /** Test the filtering. */
   @Test
-  @Category(ValidatesRunner.class)
   public void testUserScoresFilter() throws Exception {
 
     final Instant startMinTimestamp = new Instant(1447965680000L);

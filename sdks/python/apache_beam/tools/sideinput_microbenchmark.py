@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """A microbenchmark for measuring performance of Side Inputs iterable.
 
 Runs side input iterable that fetches from multiple FakeSources, and
@@ -22,12 +23,10 @@ Run as
   python -m apache_beam.tools.sideinput_microbenchmark
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
+import logging
 import time
-from builtins import range
 
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import sideinputs
@@ -48,7 +47,7 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
   print("Sources:", num_sources)
 
   times = []
-  for i in range(num_runs):
+  for _ in range(num_runs):
     counter_factory = CounterFactory()
     state_sampler = statesampler.StateSampler('basic', counter_factory)
     state_sampler.start()
@@ -58,7 +57,8 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
       si_counter = opcounters.NoOpTransformIOCounter()
       sources = [
           FakeSource(long_generator(i, input_per_source))
-          for i in range(num_sources)]
+          for i in range(num_sources)
+      ]
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
       start = time.time()
@@ -71,11 +71,10 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
 
   avg_runtime = sum(times) / len(times)
   print("Average runtime:", avg_runtime)
-  print("Time per element:", avg_runtime / (input_per_source *
-                                            num_sources))
+  print("Time per element:", avg_runtime / (input_per_source * num_sources))
 
 
 if __name__ == '__main__':
-  utils.check_compiled(
-      'apache_beam.runners.worker.opcounters')
+  logging.basicConfig()
+  utils.check_compiled('apache_beam.runners.worker.opcounters')
   run_benchmark()

@@ -22,8 +22,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * Can be put on a constructor or a static method, in which case that constructor or method will be
@@ -69,6 +67,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.CONSTRUCTOR, ElementType.METHOD})
-@SuppressWarnings("rawtypes")
-@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public @interface SchemaCreate {}

@@ -22,11 +22,11 @@ import (
 
 	"encoding/base64"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // EncodeType encodes a type as a string. Unless registered, the decoded type
@@ -44,7 +44,7 @@ func EncodeType(t reflect.Type) (string, error) {
 // guaranteed to be isomorphic to the input with regard to data members.
 // The returned type will have no methods.
 func DecodeType(data string) (reflect.Type, error) {
-	var ref v1.Type
+	var ref v1pb.Type
 	if err := protox.DecodeBase64(data, &ref); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func EncodeFn(fn reflectx.Func) (string, error) {
 // DecodeFn encodes a function. The function symbol must be resolvable via the
 // runtime.GlobalSymbolResolver. The parameter types must be encodable.
 func DecodeFn(data string) (reflectx.Func, error) {
-	var ref v1.UserFn
+	var ref v1pb.UserFn
 	if err := protox.DecodeBase64(data, &ref); err != nil {
 		return nil, err
 	}

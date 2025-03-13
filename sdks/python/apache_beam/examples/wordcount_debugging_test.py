@@ -17,41 +17,46 @@
 
 """Test for the debugging wordcount example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import re
-import tempfile
 import unittest
+import uuid
+
+import pytest
 
 from apache_beam.examples import wordcount_debugging
-from apache_beam.testing.util import open_shards
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
-class WordCountTest(unittest.TestCase):
+@pytest.mark.examples_postcommit
+class WordCountDebuggingTest(unittest.TestCase):
 
   SAMPLE_TEXT = 'xx yy Flourish\n zz Flourish Flourish stomach\n aa\n bb cc dd'
 
-  def create_temp_file(self, contents):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents.encode('utf-8'))
-      return f.name
-
   def get_results(self, temp_path):
     results = []
-    with open_shards(temp_path + '.result-*-of-*') as result_file:
-      for line in result_file:
-        match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
-        if match is not None:
-          results.append((match.group(1), int(match.group(2))))
+    lines = read_files_from_pattern(temp_path + '.result*').splitlines()
+    for line in lines:
+      match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
+      if match is not None:
+        results.append((match.group(1), int(match.group(2))))
     return results
 
   def test_basics(self):
-    temp_path = self.create_temp_file(self.SAMPLE_TEXT)
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # Setup the files with expected content.
+    temp_location = test_pipeline.get_option('temp_location')
+    temp_path = '/'.join([temp_location, str(uuid.uuid4())])
+    input = create_file('/'.join([temp_path, 'input.txt']), self.SAMPLE_TEXT)
+    extra_opts = {'input': input, 'output': '%s.result' % temp_path}
     expected_words = [('Flourish', 3), ('stomach', 1)]
-    wordcount_debugging.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
+    wordcount_debugging.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
 
     # Parse result file and compare.
     results = self.get_results(temp_path)

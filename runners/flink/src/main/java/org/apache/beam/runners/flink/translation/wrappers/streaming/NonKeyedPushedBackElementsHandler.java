@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;

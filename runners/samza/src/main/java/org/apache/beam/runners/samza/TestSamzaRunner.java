@@ -17,8 +17,13 @@
  */
 package org.apache.beam.runners.samza;
 
+import static org.apache.samza.config.JobConfig.JOB_JMX_ENABLED;
+import static org.apache.samza.config.JobConfig.JOB_LOGGED_STORE_BASE_DIR;
+import static org.apache.samza.config.JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
-import java.nio.file.Paths;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
@@ -28,31 +33,26 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.commons.io.FileUtils;
-import org.apache.samza.config.JobConfig;
 
 /** Test {@link SamzaRunner}. */
 public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
+
   private final SamzaRunner delegate;
+  private final File storeDir;
 
   public static TestSamzaRunner fromOptions(PipelineOptions options) {
-    return new TestSamzaRunner(createSamzaPipelineOptions(options));
+    return new TestSamzaRunner(options);
   }
 
-  public static SamzaPipelineOptions createSamzaPipelineOptions(PipelineOptions options) {
+  public static SamzaPipelineOptions createSamzaPipelineOptions(
+      PipelineOptions options, File storeDir) {
     try {
       final SamzaPipelineOptions samzaOptions =
           PipelineOptionsValidator.validate(SamzaPipelineOptions.class, options);
       final Map<String, String> config = new HashMap<>(ConfigBuilder.localRunConfig());
-      final File storeDir =
-          Paths.get(System.getProperty("java.io.tmpdir"), "beam-samza-test").toFile();
-      //  Re-create the folder for test stores
-      FileUtils.deleteDirectory(storeDir);
-      if (!storeDir.mkdir()) {
-        // ignore
-      }
-
-      config.put(JobConfig.JOB_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
-      config.put(JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
+      config.put(JOB_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
+      config.put(JOB_NON_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
+      config.put(JOB_JMX_ENABLED, "false");
 
       if (samzaOptions.getConfigOverride() != null) {
         config.putAll(samzaOptions.getConfigOverride());
@@ -64,15 +64,26 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
     }
   }
 
-  public TestSamzaRunner(SamzaPipelineOptions options) {
-    this.delegate = SamzaRunner.fromOptions(options);
+  private static File createStoreDir() {
+    try {
+      return Files.createTempDirectory("beam-samza-test").toFile();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public TestSamzaRunner(PipelineOptions options) {
+    this.storeDir = createStoreDir();
+    this.delegate = SamzaRunner.fromOptions(createSamzaPipelineOptions(options, storeDir));
   }
 
   @Override
+  @SuppressFBWarnings(value = "DE_MIGHT_IGNORE")
   public PipelineResult run(Pipeline pipeline) {
     try {
       final PipelineResult result = delegate.run(pipeline);
       result.waitUntilFinish();
+
       return result;
     } catch (Throwable t) {
       // Search for AssertionError. If present use it as the cause of the pipeline failure.
@@ -86,6 +97,13 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
       }
 
       throw t;
+    } finally {
+      try {
+        //  delete the store folder
+        FileUtils.deleteDirectory(storeDir);
+      } catch (Exception ignore) {
+        // Ignore
+      }
     }
   }
 }

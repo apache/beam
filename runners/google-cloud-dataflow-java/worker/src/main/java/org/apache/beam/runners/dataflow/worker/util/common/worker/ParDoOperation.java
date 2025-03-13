@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A ParDo mapping function. */
 public class ParDoOperation extends ReceivingOperation {

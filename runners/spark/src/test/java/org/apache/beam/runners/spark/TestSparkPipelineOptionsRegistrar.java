@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A registrar for {@link TestSparkPipelineOptions} to temporarily work around some complexities in

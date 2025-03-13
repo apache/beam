@@ -21,8 +21,13 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 
-/** Accumulator of {@link MetricsContainerStepMap}. */
+/**
+ * Accumulator of {@link MetricsContainerStepMap}. This accumulator will only be reported to Flink
+ * when the job ends. This avoids the runtime overhead for accumulators which are continously sent
+ * to the job manager.
+ */
 public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerStepMap> {
+
   private MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
 
   @Override
@@ -46,6 +51,7 @@ public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerSte
   }
 
   @Override
+  @SuppressWarnings("ReturnValueIgnored")
   public Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> clone() {
     try {
       super.clone();

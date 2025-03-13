@@ -17,6 +17,25 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TrafficMaxLaneFlow
+//   description: An example that analyzes traffic sensor data using SlidingWindows. For each
+//     window, it finds the lane that had the highest flow recorded, for each sensor station.
+//     It writes those max values along with auxiliary info to a BigQuery table.
+//   multifile: true
+//   context_line: 402
+//   categories:
+//     - Combiners
+//     - Streaming
+//     - Options
+//     - Windowing
+//   complexity: ADVANCED
+//   tags:
+//     - windowing
+//     - timestamp
+//     - batch
+//     - streaming
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -30,8 +49,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
@@ -73,6 +92,9 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TrafficMaxLaneFlow {
 
   static final int WINDOW_DURATION = 60; // Default sliding window duration in minutes
@@ -380,7 +402,6 @@ public class TrafficMaxLaneFlow {
   public static void main(String[] args) throws IOException {
     TrafficMaxLaneFlowOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficMaxLaneFlowOptions.class);
-    options.setBigQuerySchema(FormatMaxesFn.getSchema());
 
     runTrafficMaxLaneFlow(options);
   }

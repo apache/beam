@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,11 +48,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -175,14 +175,12 @@ public class GroupAlsoByWindowProperties {
     TimestampedValue<KV<String, Iterable<String>>> item1 =
         getOnlyElementInWindow(result, window(0, 20));
     assertThat(item1.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    // Timestamp adjusted by WindowFn to exceed the end of the prior sliding window
-    assertThat(item1.getTimestamp(), equalTo(new Instant(10)));
+    assertThat(item1.getTimestamp(), equalTo(new Instant(5)));
 
     TimestampedValue<KV<String, Iterable<String>>> item2 =
         getOnlyElementInWindow(result, window(10, 30));
     assertThat(item2.getValue().getValue(), contains("v2"));
-    // Timestamp adjusted by WindowFn to exceed the end of the prior sliding window
-    assertThat(item2.getTimestamp(), equalTo(new Instant(20)));
+    assertThat(item2.getTimestamp(), equalTo(new Instant(15)));
   }
 
   /**
@@ -231,14 +229,12 @@ public class GroupAlsoByWindowProperties {
     TimestampedValue<KV<String, Long>> item1 = getOnlyElementInWindow(result, window(0, 20));
     assertThat(item1.getValue().getKey(), equalTo("k"));
     assertThat(item1.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L, 2L, 4L))));
-    // Timestamp adjusted by WindowFn to exceed the end of the prior sliding window
-    assertThat(item1.getTimestamp(), equalTo(new Instant(10L)));
+    assertThat(item1.getTimestamp(), equalTo(new Instant(5L)));
 
     TimestampedValue<KV<String, Long>> item2 = getOnlyElementInWindow(result, window(10, 30));
     assertThat(item2.getValue().getKey(), equalTo("k"));
     assertThat(item2.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(2L, 4L))));
-    // Timestamp adjusted by WindowFn to exceed the end of the prior sliding window
-    assertThat(item2.getTimestamp(), equalTo(new Instant(20L)));
+    assertThat(item2.getTimestamp(), equalTo(new Instant(15L)));
   }
 
   /**

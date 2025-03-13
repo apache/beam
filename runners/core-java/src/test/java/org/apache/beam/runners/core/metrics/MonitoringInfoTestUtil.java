@@ -23,6 +23,9 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 /**
  * Provides convenient one line factories for unit tests that need to generate test MonitoringInfos.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class MonitoringInfoTestUtil {
   /** @return A basic MonitoringInfoMetricName to test. */
   public static MonitoringInfoMetricName testElementCountName() {
@@ -38,7 +41,7 @@ public class MonitoringInfoTestUtil {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "testPCollection");
-    builder.setInt64Value(value);
+    builder.setInt64SumValue(value);
     return builder.build();
   }
 }

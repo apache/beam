@@ -22,9 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -38,8 +38,10 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -54,19 +56,23 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -77,6 +83,8 @@ public class FlattenTest implements Serializable {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   private static class ClassWithoutCoder {}
 
@@ -347,6 +355,77 @@ public class FlattenTest implements Serializable {
     p.run();
   }
 
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenWithDifferentInputAndOutputCoders() {
+    // This test exists to prevent a regression in Dataflow. It tests a
+    // GroupByKey preceded by a Flatten with an SDK-specific input coder.
+    PCollection<KV<String, String>> flattenInput =
+        p.apply(Create.of(LINES))
+            .apply(WithKeys.of("a"))
+            .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, String>>() {}));
+    PCollection<String> output =
+        PCollectionList.of(flattenInput)
+            .apply(Flatten.pCollections())
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(
+                FlatMapElements.into(TypeDescriptors.strings())
+                    .via((Iterable<String> values) -> values));
+    PAssert.that(output).containsInAnyOrder(LINES);
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenWithDifferentInputAndOutputCoders2() {
+    // This test exists to prevent a regression in Dataflow. It tests a
+    // GroupByKey followed by a Flatten with an SDK-specific output coder.
+    PCollection<KV<String, Iterable<String>>> flattenInput =
+        p.apply(Create.of(LINES))
+            .apply(WithKeys.of("a"))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(GroupByKey.create());
+    PCollection<String> output =
+        PCollectionList.of(flattenInput)
+            .apply(Flatten.pCollections())
+            .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, Iterable<String>>>() {}))
+            .apply(Values.create())
+            .setCoder(IterableCoder.of(StringUtf8Coder.of()))
+            .apply(
+                FlatMapElements.into(TypeDescriptors.strings())
+                    .via((Iterable<String> values) -> values));
+    PAssert.that(output).containsInAnyOrder(LINES);
+    p.run();
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlattenWithPCollection() {
+    PCollection<String> output =
+        p.apply(Create.of(LINES))
+            .apply("FlattenWithLines1", Flatten.with(p.apply("Create1", Create.of(LINES))))
+            .apply("FlattenWithLines2", Flatten.with(p.apply("Create2", Create.of(LINES2))));
+
+    PAssert.that(output).containsInAnyOrder(flattenLists(Arrays.asList(LINES, LINES2, LINES)));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlattenWithPTransform() {
+    PCollection<String> output =
+        p.apply(Create.of(LINES))
+            .apply("Create1", Flatten.with(Create.of(LINES)))
+            .apply("Create2", Flatten.with(Create.of(LINES2)));
+
+    PAssert.that(output).containsInAnyOrder(flattenLists(Arrays.asList(LINES, LINES2, LINES)));
+    p.run();
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   @Test
@@ -417,6 +496,7 @@ public class FlattenTest implements Serializable {
   public void testFlattenGetName() {
     Assert.assertEquals("Flatten.Iterables", Flatten.<String>iterables().getName());
     Assert.assertEquals("Flatten.PCollections", Flatten.<String>pCollections().getName());
+    Assert.assertEquals("Flatten.With", Flatten.<String>with((PCollection<String>) null).getName());
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -438,7 +518,7 @@ public class FlattenTest implements Serializable {
     List<PCollection<T>> pcs = new ArrayList<>();
     int index = 0;
     for (List<T> list : lists) {
-      PCollection<T> pc = p.apply("Create" + (index++), Create.of(list).withCoder(coder));
+      PCollection<T> pc = p.apply("Create" + index++, Create.of(list).withCoder(coder));
       pcs.add(pc);
     }
     return PCollectionList.of(pcs);

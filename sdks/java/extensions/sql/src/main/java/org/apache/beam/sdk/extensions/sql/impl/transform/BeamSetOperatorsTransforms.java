@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSetOperatorRelBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform Set operations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class BeamSetOperatorsTransforms {
   /** Transform a {@code BeamSqlRow} to a {@code KV<BeamSqlRow, BeamSqlRow>}. */
   public static class BeamSqlRow2KvFn extends SimpleFunction<Row, KV<Row, Row>> {
@@ -38,18 +38,15 @@ public abstract class BeamSetOperatorsTransforms {
   }
 
   /** Filter function used for Set operators. */
-  public static class SetOperatorFilteringDoFn extends DoFn<KV<Row, CoGbkResult>, Row> {
-    private TupleTag<Row> leftTag;
-    private TupleTag<Row> rightTag;
-    private BeamSetOperatorRelBase.OpType opType;
+  public static class SetOperatorFilteringDoFn extends DoFn<Row, Row> {
+    private final String leftTag;
+    private final String rightTag;
+    private final BeamSetOperatorRelBase.OpType opType;
     // ALL?
-    private boolean all;
+    private final boolean all;
 
     public SetOperatorFilteringDoFn(
-        TupleTag<Row> leftTag,
-        TupleTag<Row> rightTag,
-        BeamSetOperatorRelBase.OpType opType,
-        boolean all) {
+        String leftTag, String rightTag, BeamSetOperatorRelBase.OpType opType, boolean all) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;
       this.opType = opType;
@@ -57,42 +54,38 @@ public abstract class BeamSetOperatorsTransforms {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext ctx) {
-      CoGbkResult coGbkResult = ctx.element().getValue();
-      Iterable<Row> leftRows = coGbkResult.getAll(leftTag);
-      Iterable<Row> rightRows = coGbkResult.getAll(rightTag);
+    public void processElement(@Element Row element, OutputReceiver<Row> o) {
+      Row key = element.getRow("key");
+      long numLeftRows = 0;
+      long numRightRows = 0;
+      if (!Iterables.isEmpty(element.<Row>getIterable(leftTag))) {
+        numLeftRows = Iterables.size(element.<Row>getIterable(leftTag));
+      }
+      if (!Iterables.isEmpty(element.<Row>getIterable(rightTag))) {
+        numRightRows = Iterables.size(element.<Row>getIterable(rightTag));
+      }
+
       switch (opType) {
         case UNION:
           if (all) {
-            // output both left & right
-            Iterator<Row> iter = leftRows.iterator();
-            while (iter.hasNext()) {
-              ctx.output(iter.next());
-            }
-            iter = rightRows.iterator();
-            while (iter.hasNext()) {
-              ctx.output(iter.next());
+            for (int i = 0; i < numLeftRows + numRightRows; i++) {
+              o.output(key);
             }
           } else {
             // only output the key
-            ctx.output(ctx.element().getKey());
+            o.output(key);
           }
           break;
         case INTERSECT:
-          if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
+          if (numLeftRows > 0 && numRightRows > 0) {
             if (all) {
-              int leftCount = Iterators.size(leftRows.iterator());
-              int rightCount = Iterators.size(rightRows.iterator());
-
               // Say for Row R, there are m instances on left and n instances on right,
               // INTERSECT ALL outputs MIN(m, n) instances of R.
-              Iterator<Row> iter =
-                  (leftCount <= rightCount) ? leftRows.iterator() : rightRows.iterator();
-              while (iter.hasNext()) {
-                ctx.output(iter.next());
+              for (int i = 0; i < Math.min(numLeftRows, numRightRows); i++) {
+                o.output(key);
               }
             } else {
-              ctx.output(ctx.element().getKey());
+              o.output(key);
             }
           }
           break;
@@ -101,27 +94,23 @@ public abstract class BeamSetOperatorsTransforms {
           // - EXCEPT ALL outputs MAX(m - n, 0) instances of R.
           // - EXCEPT [DISTINCT] outputs a single instance of R if m > 0 and n == 0, else
           //   they output 0 instances.
-          if (leftRows.iterator().hasNext() && !rightRows.iterator().hasNext()) {
-            Iterator<Row> iter = leftRows.iterator();
+          if (numLeftRows > 0 && numRightRows == 0) {
             if (all) {
               // output all
-              while (iter.hasNext()) {
-                ctx.output(iter.next());
+              for (int i = 0; i < numLeftRows; i++) {
+                o.output(key);
               }
             } else {
               // only output one
-              ctx.output(iter.next());
+              o.output(key);
             }
-          } else if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
-            int leftCount = Iterators.size(leftRows.iterator());
-            int rightCount = Iterators.size(rightRows.iterator());
-
-            int outputCount = leftCount - rightCount;
+          } else if (numLeftRows > 0 && numRightRows > 0) {
+            long outputCount = numLeftRows - numRightRows;
             if (outputCount > 0) {
               if (all) {
                 while (outputCount > 0) {
                   outputCount--;
-                  ctx.output(ctx.element().getKey());
+                  o.output(key);
                 }
               }
               // Dont output any in DISTINCT (if (!all)) case

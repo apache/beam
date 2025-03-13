@@ -35,9 +35,9 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.NetworkBuilder;
 
 /**
  * Creates a directed bipartite network of {@link ParallelInstructionNode}s and {@link
@@ -55,6 +55,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder
  * <p>The outgoing edges of a {@link ParallelInstructionNode} with a {@link ParDoInstruction} are
  * {@link MultiOutputInfoEdge}s. All other edges are {@link DefaultEdge}s.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MapTaskToNetworkFunction implements Function<MapTask, MutableNetwork<Node, Edge>> {
   private static ParallelInstruction clone(JsonFactory factory, ParallelInstruction instruction) {
     try {

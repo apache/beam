@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is CoGroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -26,180 +27,118 @@ will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
 * input_options - options for Synthetic Sources,
-* co_input_options - options for  Synthetic Sources.
+* co_input_options - options for Synthetic Sources,
+* iterations - number of reiterations over per-key-grouped values to perform
+(default: 1).
 
-Example test run on DirectRunner:
+Example test run:
 
-python setup.py nosetests \
+python -m apache_beam.testing.load_tests.co_group_by_key_test \
     --test-pipeline-options="
       --project=big-query-project
+      --region=...
       --publish_to_big_query=true
       --metrics_dataset=python_load_tests
       --metrics_table=co_gbk
+      --iterations=1
       --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\":0}'
-        --co_input_options='{
-        \"num_records\": 1000,
-        \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\":0}'" \
-    --tests apache_beam.testing.load_tests.co_group_by_key_test
-
-or:
-
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=co_gbk
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-     --co_input_options=\'{
-        "num_records": 1,
-        "key_size": 1,
-        "value_size": 1,
-        "bundle_size_distribution_type": "const",
-        "bundle_size_distribution_param": 1,
-        "force_initial_num_bundles":0}\'
-    --runner=DirectRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.co_group_by_key_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
-To run test on other runner (ex. Dataflow):
-
-python setup.py nosetests \
-    --test-pipeline-options="
-        --runner=TestDataflowRunner
-        --project=...
-        --staging_location=gs://...
-        --temp_location=gs://...
-        --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=co_gbk
-        --input_options='{
-        \"num_records\": 1000,
-        \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\":0
+        \"value_size\": 15
         }'
-        --co_input_options='{
+      --co_input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\":0
-        }'" \
-    --tests apache_beam.testing.load_tests.co_group_by_key_test
+        \"value_size\": 15
+        }'"
 
 or:
 
-./gradlew -PloadTest.args='
+./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=co_gbk
-    --temp_location=gs://...
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --co_input_options=\'{
-      "num_records": 1,
-      "key_size": 1,
-      "value_size": 1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles":0}\'
-    --runner=TestDataflowRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.co_group_by_key_test \
--Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+    --iterations=1
+    --input_options='{
+      \"num_records\": 1,
+      \"key_size\": 1,
+      \"value_size\": 1}'
+    --co_input_options='{
+      \"num_records\": 1,
+      \"key_size\": 1,
+      \"value_size\": 1}'
+    --runner=DirectRunner" \
+-PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import json
 import logging
-import os
-import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 
-INPUT_TAG = 'pc1'
-CO_INPUT_TAG = 'pc2'
 
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
-
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class CoGroupByKeyTest(LoadTest):
-  def setUp(self):
-    super(CoGroupByKeyTest, self).setUp()
+  INPUT_TAG = 'pc1'
+  CO_INPUT_TAG = 'pc2'
+
+  def __init__(self):
+    super().__init__()
     self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))
+    self.iterations = self.get_option_or_default('iterations', 1)
 
-  class _Ungroup(beam.DoFn):
-    def process(self, element):
+  class _UngroupAndReiterate(beam.DoFn):
+    def __init__(self, input_tag, co_input_tag):
+      self.input_tag = input_tag
+      self.co_input_tag = co_input_tag
+
+    def process(self, element, iterations):
       values = element[1]
-      inputs = values.get(INPUT_TAG)
-      co_inputs = values.get(CO_INPUT_TAG)
-      for i in inputs:
-        yield i
-      for i in co_inputs:
-        yield i
+      inputs = values.get(self.input_tag)
+      co_inputs = values.get(self.co_input_tag)
+      for i in range(iterations):
+        for value in inputs:
+          if i == iterations - 1:
+            yield value
+        for value in co_inputs:
+          if i == iterations - 1:
+            yield value
 
-  def testCoGroupByKey(self):
-    pc1 = (self.pipeline
-           | 'Read ' + INPUT_TAG >> beam.io.Read(
-               synthetic_pipeline.SyntheticSource(
-                   self.parseTestPipelineOptions(self.input_options)))
-           | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
-           | 'Measure time: Start pc1' >> beam.ParDo(
-               MeasureTime(self.metrics_namespace))
-          )
+  def test(self):
+    pc1 = (
+        self.pipeline
+        | 'Read ' + self.INPUT_TAG >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(
+                self.parse_synthetic_source_options()))
+        | 'Measure time: Start pc1' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
-    pc2 = (self.pipeline
-           | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
-               synthetic_pipeline.SyntheticSource(
-                   self.parseTestPipelineOptions(self.co_input_options)))
-           | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(
-               lambda x: (x, x))
-           | 'Measure time: Start pc2' >> beam.ParDo(
-               MeasureTime(self.metrics_namespace))
-          )
+    pc2 = (
+        self.pipeline
+        | 'Read ' + self.CO_INPUT_TAG >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(
+                self.parse_synthetic_source_options(self.co_input_options)))
+        | 'Measure time: Start pc2' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned
-    ({INPUT_TAG: pc1, CO_INPUT_TAG: pc2}
-     | 'CoGroupByKey: ' >> beam.CoGroupByKey()
-     | 'Consume Joined Collections' >> beam.ParDo(self._Ungroup())
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+    ({
+        self.INPUT_TAG: pc1, self.CO_INPUT_TAG: pc2
+    }
+     | 'CoGroupByKey ' >> beam.CoGroupByKey()
+     | 'Consume Joined Collections' >> beam.ParDo(
+         self._UngroupAndReiterate(self.INPUT_TAG, self.CO_INPUT_TAG),
+         self.iterations)
+     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  CoGroupByKeyTest().run()

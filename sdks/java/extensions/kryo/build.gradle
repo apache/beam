@@ -19,10 +19,10 @@
 plugins { id 'org.apache.beam.module' }
 
 ext {
-    kryoVersion = '4.0.2'
+    kryoVersion = '5.5.0'
 }
 
-applyJavaNature(
+applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
     exportJavadoc: false,
     shadowClosure: {
     dependencies {
@@ -39,10 +39,13 @@ applyJavaNature(
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 
 dependencies {
-    compile "com.esotericsoftware:kryo:${kryoVersion}"
+    implementation library.java.jackson_annotations
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation "com.esotericsoftware:kryo:${kryoVersion}"
+    implementation "org.objenesis:objenesis:3.2"
     shadow project(path: ':sdks:java:core', configuration: 'shadow')
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
-    testRuntimeOnly project(':runners:direct-java')
+    testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
+    testRuntimeOnly project(path: ':runners:direct-java', configuration: 'shadow')
 }
 
 test {

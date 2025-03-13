@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.transforms;
 
 import java.lang.reflect.Method;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ProcessFunction} which is not a <i>functional interface</i>. Concrete subclasses allow
@@ -31,10 +31,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>See {@link SimpleFunction} for providing robust type information where a {@link
  * SerializableFunction} is required.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class InferableFunction<InputT, OutputT>
     implements ProcessFunction<InputT, OutputT>, HasDisplayData {
 
-  @Nullable private final ProcessFunction<InputT, OutputT> fn;
+  private final @Nullable ProcessFunction<InputT, OutputT> fn;
 
   protected InferableFunction() {
     this.fn = null;

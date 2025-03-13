@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -36,8 +37,8 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,11 @@ import org.slf4j.LoggerFactory;
  * Pushes additional work onto a {@link BundleProcessor} based on the fact that a pipeline has
  * quiesced.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "keyfor",
+  "nullness"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 class QuiescenceDriver implements ExecutionDriver {
   private static final Logger LOG = LoggerFactory.getLogger(QuiescenceDriver.class);
 
@@ -54,7 +60,7 @@ class QuiescenceDriver implements ExecutionDriver {
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver messageReceiver,
-      Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>> initialBundles) {
+      Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> initialBundles) {
     return new QuiescenceDriver(context, graph, bundleProcessor, messageReceiver, initialBundles);
   }
 
@@ -67,9 +73,14 @@ class QuiescenceDriver implements ExecutionDriver {
   private final CompletionCallback defaultCompletionCallback =
       new TimerIterableCompletionCallback(Collections.emptyList());
 
-  private final Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-      pendingRootBundles;
+  private final Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles;
   private final Queue<WorkUpdate> pendingWork = new ConcurrentLinkedQueue<>();
+  // We collect here bundles and AppliedPTransforms that have started to process bundle, but have
+  // not completed it yet. The reason for that is that the bundle processing might change output
+  // watermark of a PTransform before enqueuing the resulting bundle to pendingUpdates of downstream
+  // PTransform, which can lead to watermark being updated past the emitted elements.
+  private final Map<AppliedPTransform<?, ?, ?>, Collection<CommittedBundle<?>>> inflightBundles =
+      Maps.newHashMap();
 
   private final AtomicReference<ExecutorState> state =
       new AtomicReference<>(ExecutorState.QUIESCENT);
@@ -82,8 +93,7 @@ class QuiescenceDriver implements ExecutionDriver {
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
-      Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootBundles) {
+      Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles) {
     this.evaluationContext = evaluationContext;
     this.graph = graph;
     this.bundleProcessor = bundleProcessor;
@@ -137,8 +147,7 @@ class QuiescenceDriver implements ExecutionDriver {
           || (ExecutorState.PROCESSING == startingState && noWorkOutstanding)) {
         CommittedBundle<?> bundle = update.getBundle().get();
         for (AppliedPTransform<?, ?, ?> consumer : update.getConsumers()) {
-          outstandingWork.incrementAndGet();
-          bundleProcessor.process(bundle, consumer, defaultCompletionCallback);
+          processBundle(bundle, consumer);
         }
       } else {
         pendingWork.offer(update);
@@ -149,28 +158,52 @@ class QuiescenceDriver implements ExecutionDriver {
     }
   }
 
+  private void processBundle(CommittedBundle<?> bundle, AppliedPTransform<?, ?, ?> consumer) {
+    processBundle(bundle, consumer, defaultCompletionCallback);
+  }
+
+  private void processBundle(
+      CommittedBundle<?> bundle, AppliedPTransform<?, ?, ?> consumer, CompletionCallback callback) {
+    synchronized (inflightBundles) {
+      inflightBundles.compute(
+          consumer,
+          (k, v) -> {
+            if (v == null) {
+              v = new ArrayList<>();
+            }
+            v.add(bundle);
+            return v;
+          });
+    }
+    outstandingWork.incrementAndGet();
+    bundleProcessor.process(bundle, consumer, callback);
+  }
+
   /** Fires any available timers. */
   private void fireTimers() {
     try {
-      for (FiredTimers<AppliedPTransform<?, ?, ?>> transformTimers :
-          evaluationContext.extractFiredTimers()) {
-        Collection<TimerData> delivery = transformTimers.getTimers();
-        KeyedWorkItem<?, Object> work =
-            KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        CommittedBundle<?> bundle =
-            evaluationContext
-                .createKeyedBundle(
-                    transformTimers.getKey(),
-                    (PCollection)
-                        Iterables.getOnlyElement(
-                            transformTimers.getExecutable().getInputs().values()))
-                .add(WindowedValue.valueInGlobalWindow(work))
-                .commit(evaluationContext.now());
-        outstandingWork.incrementAndGet();
-        bundleProcessor.process(
-            bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
-        state.set(ExecutorState.ACTIVE);
+      synchronized (inflightBundles) {
+        for (FiredTimers<AppliedPTransform<?, ?, ?>> transformTimers :
+            evaluationContext.extractFiredTimers(inflightBundles.keySet())) {
+          Collection<TimerData> delivery = transformTimers.getTimers();
+          KeyedWorkItem<?, Object> work =
+              KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
+          @SuppressWarnings({"unchecked", "rawtypes"})
+          CommittedBundle<?> bundle =
+              evaluationContext
+                  .createKeyedBundle(
+                      transformTimers.getKey(),
+                      (PCollection)
+                          Iterables.getOnlyElement(
+                              transformTimers.getExecutable().getMainInputs().values()))
+                  .add(WindowedValue.valueInGlobalWindow(work))
+                  .commit(evaluationContext.now());
+          processBundle(
+              bundle,
+              transformTimers.getExecutable(),
+              new TimerIterableCompletionCallback(delivery));
+          state.set(ExecutorState.ACTIVE);
+        }
       }
     } catch (Exception e) {
       LOG.error("Internal Error while delivering timers", e);
@@ -187,20 +220,21 @@ class QuiescenceDriver implements ExecutionDriver {
   private void addWorkIfNecessary() {
     // If any timers have fired, they will add more work; We don't need to add more
     if (state.get() == ExecutorState.QUIESCENT) {
-      // All current TransformExecutors are blocked; add more work from the roots.
-      for (Map.Entry<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootEntry : pendingRootBundles.entrySet()) {
-        Collection<CommittedBundle<?>> bundles = new ArrayList<>();
-        // Pull all available work off of the queue, then schedule it all, so this loop
-        // terminates
-        while (!pendingRootEntry.getValue().isEmpty()) {
-          CommittedBundle<?> bundle = pendingRootEntry.getValue().poll();
-          bundles.add(bundle);
-        }
-        for (CommittedBundle<?> bundle : bundles) {
-          outstandingWork.incrementAndGet();
-          bundleProcessor.process(bundle, pendingRootEntry.getKey(), defaultCompletionCallback);
-          state.set(ExecutorState.ACTIVE);
+      synchronized (pendingRootBundles) {
+        // All current TransformExecutors are blocked; add more work from the roots.
+        for (Map.Entry<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootEntry :
+            pendingRootBundles.entrySet()) {
+          Collection<CommittedBundle<?>> bundles = new ArrayList<>();
+          // Pull all available work off of the queue, then schedule it all, so this loop
+          // terminates
+          while (!pendingRootEntry.getValue().isEmpty()) {
+            CommittedBundle<?> bundle = pendingRootEntry.getValue().poll();
+            bundles.add(bundle);
+          }
+          for (CommittedBundle<?> bundle : bundles) {
+            processBundle(bundle, pendingRootEntry.getKey());
+            state.set(ExecutorState.ACTIVE);
+          }
         }
       }
     }
@@ -249,6 +283,7 @@ class QuiescenceDriver implements ExecutionDriver {
    * Exception)}.
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
+
     private final Iterable<TimerData> timers;
 
     TimerIterableCompletionCallback(Iterable<TimerData> timers) {
@@ -258,8 +293,9 @@ class QuiescenceDriver implements ExecutionDriver {
     @Override
     public final CommittedResult handleResult(
         CommittedBundle<?> inputBundle, TransformResult<?> result) {
-      CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
-          evaluationContext.handleResult(inputBundle, timers, result);
+
+      final CommittedResult<AppliedPTransform<?, ?, ?>> committedResult;
+      committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         pendingWork.offer(
             WorkUpdate.fromBundle(
@@ -270,7 +306,9 @@ class QuiescenceDriver implements ExecutionDriver {
       if (unprocessedInputs.isPresent()) {
         if (inputBundle.getPCollection() == null) {
           // TODO: Split this logic out of an if statement
-          pendingRootBundles.get(result.getTransform()).offer(unprocessedInputs.get());
+          synchronized (pendingRootBundles) {
+            pendingRootBundles.get(result.getTransform()).offer(unprocessedInputs.get());
+          }
         } else {
           pendingWork.offer(
               WorkUpdate.fromBundle(
@@ -279,6 +317,14 @@ class QuiescenceDriver implements ExecutionDriver {
       }
       if (!committedResult.getProducedOutputTypes().isEmpty()) {
         state.set(ExecutorState.ACTIVE);
+      }
+      synchronized (inflightBundles) {
+        inflightBundles.compute(
+            result.getTransform(),
+            (k, v) -> {
+              v.remove(inputBundle);
+              return v.isEmpty() ? null : v;
+            });
       }
       outstandingWork.decrementAndGet();
       return committedResult;
@@ -311,12 +357,12 @@ class QuiescenceDriver implements ExecutionDriver {
     private static WorkUpdate fromBundle(
         CommittedBundle<?> bundle, Collection<AppliedPTransform<?, ?, ?>> consumers) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.of(bundle), consumers, Optional.absent());
+          Optional.of(bundle), consumers, Optional.empty());
     }
 
     private static WorkUpdate fromException(Exception e) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.absent(), Collections.emptyList(), Optional.of(e));
+          Optional.empty(), Collections.emptyList(), Optional.of(e));
     }
 
     /** Returns the bundle that produced this update. */

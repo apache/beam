@@ -22,11 +22,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -69,12 +69,14 @@ import org.joda.time.Instant;
  *       have fired at least once. An {@link AfterAll} trigger finishes after it fires once.
  * </ul>
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class Trigger implements Serializable {
 
-  @Nullable protected final List<Trigger> subTriggers;
+  protected final List<Trigger> subTriggers;
 
-  protected Trigger(@Nullable List<Trigger> subTriggers) {
+  protected Trigger(List<Trigger> subTriggers) {
     this.subTriggers = subTriggers;
   }
 
@@ -83,7 +85,7 @@ public abstract class Trigger implements Serializable {
   }
 
   public List<Trigger> subTriggers() {
-    return subTriggers;
+    return MoreObjects.firstNonNull(subTriggers, Collections.emptyList());
   }
 
   /**
@@ -112,12 +114,10 @@ public abstract class Trigger implements Serializable {
    * Trigger}. For convenience, this is provided the continuation trigger of each of the
    * sub-triggers in the same order as {@link #subTriggers}.
    *
-   * @param continuationTriggers {@code null} if {@link #subTriggers} is {@code null}, otherwise
-   *     contains the result of {@link #getContinuationTrigger()} on each of the subTriggers in the
-   *     same order.
+   * @param continuationTriggers contains the result of {@link #getContinuationTrigger()} on each of
+   *     the {@code subTriggers} in the same order.
    */
-  @Nullable
-  protected abstract Trigger getContinuationTrigger(@Nullable List<Trigger> continuationTriggers);
+  protected abstract Trigger getContinuationTrigger(List<Trigger> continuationTriggers);
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -133,6 +133,15 @@ public abstract class Trigger implements Serializable {
    */
   @Internal
   public abstract Instant getWatermarkThatGuaranteesFiring(BoundedWindow window);
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Indicates whether this trigger may "finish". A top level trigger that finishes can cause
+   * data loss, so is rejected by GroupByKey validation.
+   */
+  @Internal
+  public abstract boolean mayFinish();
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -176,7 +185,7 @@ public abstract class Trigger implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }
@@ -225,8 +234,13 @@ public abstract class Trigger implements Serializable {
    */
   @Internal
   public abstract static class OnceTrigger extends Trigger {
-    protected OnceTrigger(@Nullable List<Trigger> subTriggers) {
+    protected OnceTrigger(List<Trigger> subTriggers) {
       super(subTriggers);
+    }
+
+    @Override
+    public final boolean mayFinish() {
+      return true;
     }
 
     @Override

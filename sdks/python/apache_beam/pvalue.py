@@ -24,31 +24,49 @@ transform (of type PTransform), which describes how the value will be
 produced when the pipeline gets executed.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import collections
 import itertools
-import typing
-from builtins import hex
-from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import Generic
+from typing import Iterator
+from typing import Optional
+from typing import Sequence
+from typing import TypeVar
+from typing import Union
 
-from past.builtins import unicode
-
+from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 
+if TYPE_CHECKING:
+  from apache_beam.transforms import sideinputs
+  from apache_beam.transforms.core import ParDo
+  from apache_beam.transforms.core import Windowing
+  from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.runners.pipeline_context import PipelineContext
+
 __all__ = [
     'PCollection',
     'TaggedOutput',
+    'AsSideInput',
     'AsSingleton',
     'AsIter',
     'AsList',
     'AsDict',
+    'AsMultiMap',
     'EmptySideInput',
+    'Row',
 ]
+
+T = TypeVar('T')
 
 
 class PValue(object):
@@ -62,8 +80,14 @@ class PValue(object):
     (2) Has a transform that can compute the value if executed.
     (3) Has a value which is meaningful if the transform was executed.
   """
-
-  def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
+  def __init__(
+      self,
+      pipeline: 'Pipeline',
+      tag: Optional[str] = None,
+      element_type: Optional[Union[type, 'typehints.TypeConstraint']] = None,
+      windowing: Optional['Windowing'] = None,
+      is_bounded=True,
+  ):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -77,9 +101,11 @@ class PValue(object):
     # The AppliedPTransform instance for the application of the PTransform
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
-    self.producer = None
+    self.producer: Optional[AppliedPTransform] = None
+    self.is_bounded = is_bounded
     if windowing:
       self._windowing = windowing
+    self.requires_deterministic_key_coder = None
 
   def __str__(self):
     return self._str_internal()
@@ -88,9 +114,10 @@ class PValue(object):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return "%s[%s.%s]" % (self.__class__.__name__,
-                          self.producer.full_label if self.producer else None,
-                          self.tag)
+    return "%s[%s.%s]" % (
+        self.__class__.__name__,
+        self.producer.full_label if self.producer else None,
+        self.tag)
 
   def apply(self, *args, **kwargs):
     """Applies a transform or callable to a PValue.
@@ -111,27 +138,23 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
+class PCollection(PValue, Generic[T]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
   pipelines.
   """
-
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash((self.tag, self.producer))
 
   @property
-  def windowing(self):
+  def windowing(self) -> 'Windowing':
     if not hasattr(self, '_windowing'):
+      assert self.producer is not None and self.producer.transform is not None
       self._windowing = self.producer.transform.get_windowing(
           self.producer.inputs)
     return self._windowing
@@ -142,15 +165,28 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
     # of a closure).
     return _InvalidUnpickledPCollection, ()
 
-  def to_runner_api(self, context):
+  @staticmethod
+  def from_(pcoll: PValue, is_bounded: Optional[bool] = None) -> 'PCollection':
+    """Create a PCollection, using another PCollection as a starting point.
+
+    Transfers relevant attributes.
+    """
+    if is_bounded is None:
+      is_bounded = pcoll.is_bounded
+    return PCollection(pcoll.pipeline, is_bounded=is_bounded)
+
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.PCollection:
     return beam_runner_api_pb2.PCollection(
         unique_name=self._unique_name(),
-        coder_id=context.coder_id_from_element_type(self.element_type),
-        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
+        coder_id=context.coder_id_from_element_type(
+            self.element_type, self.requires_deterministic_key_coder),
+        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+        if self.is_bounded else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
 
-  def _unique_name(self):
+  def _unique_name(self) -> str:
     if self.producer:
       return '%d%s.%s' % (
           len(self.producer.full_label), self.producer.full_label, self.tag)
@@ -158,14 +194,21 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
       return 'PCollection%s' % id(self)
 
   @staticmethod
-  def from_runner_api(proto, context):
-    # Producer and tag will be filled in later, the key point is that the
-    # same object is returned for the same pcollection id.
+  def from_runner_api(
+      proto: beam_runner_api_pb2.PCollection,
+      context: 'PipelineContext') -> 'PCollection':
+    # Producer and tag will be filled in later, the key point is that the same
+    # object is returned for the same pcollection id.
+    # We pass None for the PCollection's Pipeline to avoid a cycle during
+    # deserialization.  It will be populated soon after this call, in
+    # Pipeline.from_runner_api(). This brief period is the only time that
+    # PCollection.pipeline is allowed to be None.
     return PCollection(
-        None,
+        None,  # type: ignore[arg-type]
         element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
-            proto.windowing_strategy_id))
+            proto.windowing_strategy_id),
+        is_bounded=proto.is_bounded == beam_runner_api_pb2.IsBounded.BOUNDED)
 
 
 class _InvalidUnpickledPCollection(object):
@@ -190,18 +233,26 @@ class PDone(PValue):
 
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
-
-  def __init__(self, pipeline, transform, tags, main_tag):
+  def __init__(
+      self,
+      pipeline: 'Pipeline',
+      transform: 'ParDo',
+      tags: Sequence[str],
+      main_tag: Optional[str],
+      allow_unknown_tags: Optional[bool] = None,
+  ):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
     self._transform = transform
+    self._allow_unknown_tags = (
+        not tags if allow_unknown_tags is None else allow_unknown_tags)
     # The ApplyPTransform instance for the application of the multi FlatMap
     # generating this value. The field gets initialized when a transform
     # gets applied.
-    self.producer = None
+    self.producer: Optional[AppliedPTransform] = None
     # Dictionary of PCollections already associated with tags.
-    self._pcolls = {}
+    self._pcolls: Dict[Optional[str], PCollection] = {}
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -213,21 +264,21 @@ class DoOutputsTuple(object):
     return '%s main_tag=%s tags=%s transform=%s' % (
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
-  def __iter__(self):
-    """Iterates over tags returning for each call a (tag, pvalue) pair."""
+  def __iter__(self) -> Iterator[PCollection]:
+    """Iterates over tags returning for each call a (tag, pcollection) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
     for tag in self._tags:
       yield self[tag]
 
-  def __getattr__(self, tag):
+  def __getattr__(self, tag: str) -> PCollection:
     # Special methods which may be accessed before the object is
     # fully constructed (e.g. in unpickling).
     if tag[:2] == tag[-2:] == '__':
-      return object.__getattr__(self, tag)
+      return object.__getattr__(self, tag)  # type: ignore
     return self[tag]
 
-  def __getitem__(self, tag):
+  def __getitem__(self, tag: Union[int, str, None]) -> PCollection:
     # Accept int tags so that we can look at Partition tags with the
     # same ints that we used in the partition function.
     # TODO(gildea): Consider requiring string-based tags everywhere.
@@ -236,18 +287,23 @@ class DoOutputsTuple(object):
       tag = str(tag)
     if tag == self._main_tag:
       tag = None
-    elif self._tags and tag not in self._tags:
+    elif self._tags and tag not in self._tags and not self._allow_unknown_tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
-          "nor any of the tags %s" % (
-              tag, self._main_tag, self._tags))
+          "nor any of the tags %s" % (tag, self._main_tag, self._tags))
     # Check if we accessed this tag before.
     if tag in self._pcolls:
       return self._pcolls[tag]
 
+    assert self.producer is not None
     if tag is not None:
       self._transform.output_tags.add(tag)
-      pcoll = PCollection(self._pipeline, tag=tag)
+      is_bounded = all(i.is_bounded for i in self.producer.main_inputs.values())
+      pcoll = PCollection(
+          self._pipeline,
+          tag=tag,
+          element_type=typehints.Any,
+          is_bounded=is_bounded)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
       pcoll.producer = self.producer.parts[0]
@@ -258,7 +314,10 @@ class DoOutputsTuple(object):
         self.producer.add_output(pcoll, tag)
     else:
       # Main output is output of inner ParDo.
-      pcoll = self.producer.parts[0].outputs[None]
+      pval = self.producer.parts[0].outputs[None]
+      assert isinstance(pval,
+                        PCollection), ("DoOutputsTuple should follow a ParDo.")
+      pcoll = pval
     self._pcolls[tag] = pcoll
     return pcoll
 
@@ -271,11 +330,11 @@ class TaggedOutput(object):
   if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
-
-  def __init__(self, tag, value):
-    if not isinstance(tag, (str, unicode)):
+  def __init__(self, tag: str, value: Any) -> None:
+    if not isinstance(tag, str):
       raise TypeError(
-          'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
+          'Attempting to create a TaggedOutput with non-string tag %s' %
+          (tag, ))
     self.tag = tag
     self.value = value
 
@@ -290,8 +349,7 @@ class AsSideInput(object):
   options, and should not be instantiated directly. (See instead AsSingleton,
   AsIter, etc.)
   """
-
-  def __init__(self, pcoll):
+  def __init__(self, pcoll: PCollection) -> None:
     from apache_beam.transforms import sideinputs
     self.pvalue = pcoll
     self._window_mapping_fn = sideinputs.default_window_mapping_fn(
@@ -305,15 +363,24 @@ class AsSideInput(object):
     Returns:
       Tuple of options for the given view.
     """
-    return {'window_mapping_fn': self._window_mapping_fn}
+    return {
+        'window_mapping_fn': self._window_mapping_fn,
+        'coder': self._windowed_coder(),
+    }
 
   @property
   def element_type(self):
     return typehints.Any
 
+  def _windowed_coder(self):
+    return coders.WindowedValueCoder(
+        coders.registry.get_coder(
+            self.pvalue.element_type or self.element_type),
+        self.pvalue.windowing.windowfn.get_window_coder())
+
   # TODO(robertwb): Get rid of _from_runtime_iterable and _view_options
   # in favor of _side_input_data().
-  def _side_input_data(self):
+  def _side_input_data(self) -> 'SideInputData':
     view_options = self._view_options()
     from_runtime_iterable = type(self)._from_runtime_iterable
     return SideInputData(
@@ -321,32 +388,48 @@ class AsSideInput(object):
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options))
 
-  def to_runner_api(self, context):
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.SideInput:
     return self._side_input_data().to_runner_api(context)
 
   @staticmethod
-  def from_runner_api(proto, context):
-    return _UnpickledSideInput(
-        SideInputData.from_runner_api(proto, context))
+  def from_runner_api(
+      proto: beam_runner_api_pb2.SideInput,
+      context: 'PipelineContext') -> '_UnpickledSideInput':
+    return _UnpickledSideInput(SideInputData.from_runner_api(proto, context))
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    raise NotImplementedError
 
   def requires_keyed_input(self):
     return False
 
 
 class _UnpickledSideInput(AsSideInput):
-  def __init__(self, side_input_data):
+  def __init__(self, side_input_data: 'SideInputData') -> None:
     self._data = side_input_data
     self._window_mapping_fn = side_input_data.window_mapping_fn
 
   @staticmethod
   def _from_runtime_iterable(it, options):
-    return options['data'].view_fn(it)
+    access_pattern = options['data'].access_pattern
+    if access_pattern == common_urns.side_inputs.ITERABLE.urn:
+      raw_view = it
+    elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
+      raw_view = collections.defaultdict(list)
+      for k, v in it:
+        raw_view[k].append(v)
+    else:
+      raise ValueError('Unknown access_pattern: %s' % access_pattern)
+    return options['data'].view_fn(raw_view)
 
   def _view_options(self):
     return {
         'data': self._data,
         # For non-fn-api runners.
         'window_mapping_fn': self._data.window_mapping_fn,
+        'coder': self._windowed_coder(),
     }
 
   def _side_input_data(self):
@@ -355,35 +438,38 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
-  def __init__(self, access_pattern, window_mapping_fn, view_fn):
+  def __init__(
+      self,
+      access_pattern: str,
+      window_mapping_fn: 'sideinputs.WindowMappingFn',
+      view_fn):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn
 
-  def to_runner_api(self, context):
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.SideInput:
     return beam_runner_api_pb2.SideInput(
         access_pattern=beam_runner_api_pb2.FunctionSpec(
             urn=self.access_pattern),
-        view_fn=beam_runner_api_pb2.SdkFunctionSpec(
-            environment_id=context.default_environment_id(),
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=python_urns.PICKLED_VIEWFN,
-                payload=pickler.dumps(self.view_fn))),
-        window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
-            environment_id=context.default_environment_id(),
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=python_urns.PICKLED_WINDOW_MAPPING_FN,
-                payload=pickler.dumps(self.window_mapping_fn))))
+        view_fn=beam_runner_api_pb2.FunctionSpec(
+            urn=python_urns.PICKLED_VIEWFN,
+            payload=pickler.dumps(self.view_fn)),
+        window_mapping_fn=beam_runner_api_pb2.FunctionSpec(
+            urn=python_urns.PICKLED_WINDOW_MAPPING_FN,
+            payload=pickler.dumps(self.window_mapping_fn)))
 
   @staticmethod
-  def from_runner_api(proto, unused_context):
-    assert proto.view_fn.spec.urn == python_urns.PICKLED_VIEWFN
-    assert (proto.window_mapping_fn.spec.urn ==
-            python_urns.PICKLED_WINDOW_MAPPING_FN)
+  def from_runner_api(
+      proto: beam_runner_api_pb2.SideInput,
+      unused_context: 'PipelineContext') -> 'SideInputData':
+    assert proto.view_fn.urn == python_urns.PICKLED_VIEWFN
+    assert (
+        proto.window_mapping_fn.urn == python_urns.PICKLED_WINDOW_MAPPING_FN)
     return SideInputData(
         proto.access_pattern.urn,
-        pickler.loads(proto.window_mapping_fn.spec.payload),
-        pickler.loads(proto.view_fn.spec.payload))
+        pickler.loads(proto.window_mapping_fn.payload),
+        pickler.loads(proto.view_fn.payload))
 
 
 class AsSingleton(AsSideInput):
@@ -404,15 +490,16 @@ class AsSingleton(AsSideInput):
   """
   _NO_DEFAULT = object()
 
-  def __init__(self, pcoll, default_value=_NO_DEFAULT):
-    super(AsSingleton, self).__init__(pcoll)
+  def __init__(
+      self, pcoll: PCollection, default_value: Any = _NO_DEFAULT) -> None:
+    super().__init__(pcoll)
     self.default_value = default_value
 
   def __repr__(self):
     return 'AsSingleton(%s)' % self.pvalue
 
   def _view_options(self):
-    base = super(AsSingleton, self)._view_options()
+    base = super()._view_options()
     if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
     return base
@@ -426,8 +513,8 @@ class AsSingleton(AsSideInput):
       return head[0]
     raise ValueError(
         'PCollection of size %d with more than one element accessed as a '
-        'singleton view. First two elements encountered are "%s", "%s".' % (
-            len(head), str(head[0]), str(head[1])))
+        'singleton view. First two elements encountered are "%s", "%s".' %
+        (len(head), str(head[0]), str(head[1])))
 
   @property
   def element_type(self):
@@ -447,7 +534,6 @@ class AsIter(AsSideInput):
   (e.g., data.apply('label', MyPTransform(), AsIter(my_side_input) ) selects the
   former behavor.
   """
-
   def __repr__(self):
     return 'AsIter(%s)' % self.pvalue
 
@@ -455,7 +541,7 @@ class AsIter(AsSideInput):
   def _from_runtime_iterable(it, options):
     return it
 
-  def _side_input_data(self):
+  def _side_input_data(self) -> SideInputData:
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
@@ -480,16 +566,13 @@ class AsList(AsSideInput):
     An AsList-wrapper around a PCollection whose one element is a list
     containing all elements in pcoll.
   """
-
   @staticmethod
   def _from_runtime_iterable(it, options):
     return list(it)
 
-  def _side_input_data(self):
+  def _side_input_data(self) -> SideInputData:
     return SideInputData(
-        common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        list)
+        common_urns.side_inputs.ITERABLE.urn, self._window_mapping_fn, list)
 
 
 class AsDict(AsSideInput):
@@ -507,16 +590,13 @@ class AsDict(AsSideInput):
     An AsDict-wrapper around a PCollection whose one element is a dict with
       entries for uniquely-keyed pairs in pcoll.
   """
-
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
 
-  def _side_input_data(self):
+  def _side_input_data(self) -> SideInputData:
     return SideInputData(
-        common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        dict)
+        common_urns.side_inputs.ITERABLE.urn, self._window_mapping_fn, dict)
 
 
 class AsMultiMap(AsSideInput):
@@ -529,7 +609,6 @@ class AsMultiMap(AsSideInput):
   AsSingleton and AsIter are used, but returns an interface that allows
   key lookup.
   """
-
   @staticmethod
   def _from_runtime_iterable(it, options):
     # Legacy implementation.
@@ -538,7 +617,7 @@ class AsMultiMap(AsSideInput):
       result[k].append(v)
     return result
 
-  def _side_input_data(self):
+  def _side_input_data(self) -> SideInputData:
     return SideInputData(
         common_urns.side_inputs.MULTIMAP.urn,
         self._window_mapping_fn,
@@ -559,3 +638,55 @@ class EmptySideInput(object):
   want to create new instances of this class themselves.
   """
   pass
+
+
+class Row(object):
+  """A dynamic schema'd row object.
+
+  This objects attributes are initialized from the keywords passed into its
+  constructor, e.g. Row(x=3, y=4) will create a Row with two attributes x and y.
+
+  More importantly, when a Row object is returned from a `Map`, `FlatMap`, or
+  `DoFn` type inference is able to deduce the schema of the resulting
+  PCollection, e.g.
+
+      pc | beam.Map(lambda x: Row(x=x, y=0.5 * x))
+
+  when applied to a PCollection of ints will produce a PCollection with schema
+  `(x=int, y=float)`.
+
+  Note that in Beam 2.30.0 and later, Row objects are sensitive to field order.
+  So `Row(x=3, y=4)` is not considered equal to `Row(y=4, x=3)`.
+  """
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def as_dict(self):
+    return dict(self.__dict__)
+
+  # For compatibility with named tuples.
+  _asdict = as_dict
+
+  def __iter__(self):
+    for _, value in self.__dict__.items():
+      yield value
+
+  def __repr__(self):
+    return 'Row(%s)' % ', '.join('%s=%r' % kv for kv in self.__dict__.items())
+
+  def __hash__(self):
+    return hash(self.__dict__.items())
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and
+        len(self.__dict__) == len(other.__dict__) and all(
+            s == o for s,
+            o in zip(self.__dict__.items(), other.__dict__.items())))
+
+  def __reduce__(self):
+    return _make_Row, tuple(self.__dict__.items())
+
+
+def _make_Row(*items):
+  return Row(**dict(items))

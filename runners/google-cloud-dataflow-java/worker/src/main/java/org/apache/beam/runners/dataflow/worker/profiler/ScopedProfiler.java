@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker.profiler;
 
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A wrapper around {@link Profiler} to support more idiomatic usage within Java. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ScopedProfiler {
 
   /** A thin wrapper around {@link Profiler} to allow mocking in tests. */

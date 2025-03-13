@@ -17,37 +17,37 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GABW_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GBKO_URN;
+import static org.apache.beam.runners.direct.DirectWriteViewVisitor.DIRECT_WRITE_VIEW_URN;
 import static org.apache.beam.runners.direct.MultiStepCombine.DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN;
 import static org.apache.beam.runners.direct.ParDoMultiOverrideFactory.DIRECT_STATEFUL_PAR_DO_URN;
 import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
-import static org.apache.beam.runners.direct.ViewOverrideFactory.DIRECT_WRITE_VIEW_URN;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.READ_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +55,10 @@ import org.slf4j.LoggerFactory;
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class TransformEvaluatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
 
@@ -95,6 +99,9 @@ class TransformEvaluatorRegistry {
             .put(
                 SPLITTABLE_PROCESS_URN,
                 new SplittableProcessElementsEvaluatorFactory<>(ctxt, options))
+
+            // Deprecated primitives already handled
+            .put(CREATE_VIEW_TRANSFORM_URN, new CreateViewNoopEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -119,30 +126,12 @@ class TransformEvaluatorRegistry {
               ParDoMultiOverrideFactory.StatefulParDo.class,
               TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_STATEFUL_PAR_DO_URN))
           .put(
-              ViewOverrideFactory.WriteView.class,
+              DirectWriteViewVisitor.WriteView.class,
               TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_WRITE_VIEW_URN))
           .put(
               DirectTestStream.class,
               TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_TEST_STREAM_URN))
-          .put(
-              SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
-    }
-  }
-
-  /**
-   * A translator just to vend the URN. This will need to be moved to runners-core-construction-java
-   * once SDF is reorganized appropriately.
-   */
-  private static class SplittableParDoProcessElementsTranslator
-      extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?>> {
-
-    private SplittableParDoProcessElementsTranslator() {}
-
-    @Override
-    public String getUrn(ProcessElements<?, ?, ?, ?> transform) {
-      return SPLITTABLE_PROCESS_URN;
     }
   }
 
@@ -157,7 +146,7 @@ class TransformEvaluatorRegistry {
     this.factories = factories;
   }
 
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");

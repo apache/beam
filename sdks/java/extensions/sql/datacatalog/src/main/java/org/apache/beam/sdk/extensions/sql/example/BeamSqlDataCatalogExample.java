@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog.DataCatalogPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog.DataCatalogTableProvider;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,15 +68,18 @@ public class BeamSqlDataCatalogExample {
 
     validateArgs(options);
 
-    pipeline
-        .apply(
-            "SQL Query",
-            SqlTransform.query(options.getQueryString())
-                .withDefaultTableProvider("datacatalog", DataCatalogTableProvider.create(options)))
-        .apply("Convert to Strings", rowsToStrings())
-        .apply("Write output", TextIO.write().to(options.getOutputFilePrefix()));
+    try (DataCatalogTableProvider tableProvider =
+        DataCatalogTableProvider.create(options.as(DataCatalogPipelineOptions.class))) {
+      pipeline
+          .apply(
+              "SQL Query",
+              SqlTransform.query(options.getQueryString())
+                  .withDefaultTableProvider("datacatalog", tableProvider))
+          .apply("Convert to Strings", rowsToStrings())
+          .apply("Write output", TextIO.write().to(options.getOutputFilePrefix()));
 
-    pipeline.run().waitUntilFinish();
+      pipeline.run().waitUntilFinish();
+    }
   }
 
   private static MapElements<Row, String> rowsToStrings() {

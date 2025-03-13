@@ -18,17 +18,12 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
-import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
 
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 public interface DataflowMapTaskExecutorFactory {
@@ -38,10 +33,6 @@ public interface DataflowMapTaskExecutorFactory {
    * the provided {@link ReaderFactory} as well as a wide variety of other contextual information.
    */
   DataflowMapTaskExecutor create(
-      InstructionRequestHandler instructionRequestHandler,
-      GrpcFnServer<GrpcDataService> grpcDataFnServer,
-      Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.client.http.AbstractInputStreamContent;
+import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -28,20 +30,31 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
+import com.google.protobuf.DescriptorProtos;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
+@Internal
 public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link JobService}. */
@@ -50,15 +63,25 @@ public interface BigQueryServices extends Serializable {
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
+  /** Returns a real, mock, or fake {@link WriteStreamService}. */
+  WriteStreamService getWriteStreamService(BigQueryOptions bqOptions);
+
   /** Returns a real, mock, or fake {@link StorageClient}. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
-  interface JobService {
+  public interface JobService extends AutoCloseable {
     /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
+
+    /** Start a BigQuery load job with stream content. */
+    void startLoadJob(
+        JobReference jobRef,
+        JobConfigurationLoad loadConfig,
+        AbstractInputStreamContent streamContent)
+        throws InterruptedException, IOException;
+
     /** Start a BigQuery extract job. */
     void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException;
@@ -79,7 +102,8 @@ public interface BigQueryServices extends Serializable {
     Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException;
 
     /** Dry runs the query in the given project. */
-    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)
+    JobStatistics dryRunQuery(
+        String projectId, JobConfigurationQuery queryConfig, @Nullable String location)
         throws InterruptedException, IOException;
 
     /**
@@ -91,7 +115,17 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
-  interface DatasetService {
+  interface DatasetService extends AutoCloseable {
+
+    // maps the values at
+    // https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/get#TableMetadataView
+    enum TableMetadataView {
+      TABLE_METADATA_VIEW_UNSPECIFIED,
+      BASIC,
+      STORAGE_STATS,
+      FULL;
+    };
+
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -102,6 +136,10 @@ public interface BigQueryServices extends Serializable {
 
     @Nullable
     Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws InterruptedException, IOException;
+
+    @Nullable
+    Table getTable(TableReference tableRef, List<String> selectedFields, TableMetadataView view)
         throws InterruptedException, IOException;
 
     /** Creates the specified table if it does not exist. */
@@ -152,18 +190,83 @@ public interface BigQueryServices extends Serializable {
      */
     <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnknownValues)
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+  }
+
+  /** An interface to get, create and flush Cloud BigQuery STORAGE API write streams. */
+  interface WriteStreamService extends AutoCloseable {
+    /** Create a Write Stream for use with the Storage Write API. */
+    WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
+        throws IOException, InterruptedException;
+
+    @Nullable
+    TableSchema getWriteStreamSchema(String writeStream);
+
+    /**
+     * Create an append client for a given Storage API write stream. The stream must be created
+     * first.
+     */
+    StreamAppendClient getStreamAppendClient(
+        String streamName,
+        DescriptorProtos.DescriptorProto descriptor,
+        boolean useConnectionPool,
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
+        throws Exception;
+
+    /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
+    ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)
+        throws IOException, InterruptedException;
+
+    /**
+     * Finalize a write stream. After finalization, no more records can be appended to the stream.
+     */
+    ApiFuture<FinalizeWriteStreamResponse> finalizeWriteStream(String streamName);
+
+    /** Commit write streams of type PENDING. The streams must be finalized before committing. */
+    ApiFuture<BatchCommitWriteStreamsResponse> commitWriteStreams(
+        String tableUrn, Iterable<String> writeStreamNames);
+  }
+
+  /** An interface for appending records to a Storage API write stream. */
+  interface StreamAppendClient extends AutoCloseable {
+    /** Append rows to a Storage API write stream at the given offset. */
+    ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
+
+    /** If the table schema has been updated, returns the new schema. Otherwise returns null. */
+    @Nullable
+    TableSchema getUpdatedSchema();
+
+    /**
+     * If the previous call to appendRows blocked due to flow control, returns how long the call
+     * blocked for.
+     */
+    default long getInflightWaitSeconds() {
+      return 0;
+    }
+
+    /**
+     * Pin this object. If close() is called before all pins are removed, the underlying resources
+     * will not be freed until all pins are removed.
+     */
+    void pin();
+
+    /**
+     * Unpin this object. If the object has been closed, this will release any underlying resources.
+     */
+    void unpin() throws Exception;
   }
 
   /**
@@ -180,15 +283,31 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   interface StorageClient extends AutoCloseable {
-    /** Create a new read session against an existing table. */
+    /**
+     * Create a new read session against an existing table. This method variant collects request
+     * count metric, table id in the request.
+     */
     ReadSession createReadSession(CreateReadSessionRequest request);
 
     /** Read rows in the context of a specific read stream. */
     BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
 
+    /* This method variant collects request count metric, using the fullTableID metadata. */
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request, String fullTableId);
+
     SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
+
+    /* This method variant collects request count metric, using the fullTableID metadata. */
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request, String fullTableId);
+
+    /**
+     * Call this method on Work Item thread to report outstanding metrics.
+     *
+     * <p>Because incrementing metrics is only supported on the execution thread, callback thread
+     * that has pending metrics cannot report it directly.
+     */
+    default void reportPendingMetrics() {}
 
     /**
      * Close the client object.

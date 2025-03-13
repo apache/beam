@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 import org.apache.qpid.proton.message.Message;
 import org.junit.Rule;
@@ -63,7 +63,7 @@ public class AmqpMessageCoderTest {
 
     AmqpMessageCoder coder = AmqpMessageCoder.of();
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, message);
+    CoderUtils.encodeToByteArray(coder, message);
   }
 
   @Test
@@ -78,6 +78,6 @@ public class AmqpMessageCoderTest {
 
     Message clone = CoderUtils.clone(coder, message);
 
-    clone.getBody().toString().equals(message.getBody().toString());
+    assertEquals(message.getBody().toString(), clone.getBody().toString());
   }
 }

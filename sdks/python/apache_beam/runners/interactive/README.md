@@ -27,38 +27,142 @@ exploration much faster and easier. It provides nice features including
 
 1.  Graphical representation
 
-    When a pipeline is executed on a Jupyter notebook, it instantly displays the
-    pipeline as a directed acyclic graph. Sampled PCollection results will be
-    added to the graph as the pipeline execution proceeds.
-
-2.  Fetching PCollections as list
-
-    PCollections can be fetched as a list from the pipeline result. This unique
-    feature of
-    [InteractiveRunner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/interactive_runner.py)
-    makes it much easier to integrate Beam pipeline into data analysis.
+    Visualize the Pipeline DAG:
 
     ```python
-    p = beam.Pipeline(interactive_runner.InteractiveRunner())
-    pcoll = p | SomePTransform | AnotherPTransform
-    result = p.run().wait_until_finish()
-    pcoll_list = result.get(pcoll)  # This returns a list!
+    import apache_beam.runners.interactive.interactive_beam as ib
+    from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+
+    p = beam.Pipeline(InteractiveRunner())
+    # ... add transforms
+    ib.show_graph(pipeline)
     ```
 
-3.  Faster re-execution
-
-    [InteractiveRunner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/interactive_runner.py)
-    caches PCollection results of pipeline executed previously and re-uses it
-    when the same pipeline is submitted again.
+    Visualize elements in a PCollection:
 
     ```python
-    p = beam.Pipeline(interactive_runner.InteractiveRunner())
-    pcoll = p | SomePTransform | AnotherPTransform
-    result = p.run().wait_until_finish()
-
-    pcoll2 = pcoll | YetAnotherPTransform
-    result = p.run().wait_until_finish()  # <- only executes YetAnotherPTransform
+    pcoll = p | beam.Create([1, 2, 3])
+    # include_window_info displays windowing information
+    # visualize_data visualizes data with https://pair-code.github.io/facets/
+    ib.show(pcoll, include_window_info=True, visualize_data=True)
     ```
+    More details see the docstrings of `interactive_beam` module.
+
+2.  Support of streaming record/replay and dynamic visualization
+
+    For streaming pipelines, Interactive Beam records a subset of unbounded
+    sources in the pipeline automatically so that they can be replayed for
+    pipeline changes during prototyping.
+
+    There are a few knobs to tune the source recording:
+
+    ```python
+    # Set the amount of time recording data from unbounded sources.
+    ib.options.recording_duration = '10m'
+
+    # Set the recording size limit to 1 GB.
+    ib.options.recording_size_limit = 1e9
+
+    # Visualization is dynamic as data streamed in real time.
+    # n=100 indicates that displays at most 100 elements.
+    # duration=60 indicates that displays at most 60 seconds worth of unbounded
+    # source generated data.
+    ib.show(pcoll, include_window_info=True, n=100, duration=60)
+
+    # duration can also be strings.
+    ib.show(pcoll, include_window_info=True, duration='1m')
+
+    # If neither n nor duration is provided, the display is indefinitely until
+    # the current machine's recording usage hits the threadshold set by
+    # ib.options.
+    ib.show(pcoll, include_window_info=True)
+    ```
+    More details see the docstrings of `interactive_beam` module.
+
+3.  Fetching PCollections as pandas.DataFrame
+
+    PCollections can be collected as a pandas.DataFrame:
+
+    ```python
+    pcoll_df = ib.collect(pcoll)  # This returns a pandas.DataFrame!
+    ```
+
+4.  Faster execution and re-execution
+
+    Interactive Beam analyzes the pipeline graph depending on what PCollection
+    you want to inspect and builds a pipeline fragment to only compute
+    necessary data.
+
+    ```python
+    pcoll = p | PTransformA | PTransformB
+    pcoll2 = p | PTransformC | PTransformD
+
+    ib.collect(pcoll)  # <- only executes PTransformA and PTransformB
+    ib.collect(pcoll2)  # <- only executes PTransformC and PTransformD
+    ```
+
+    Interactive Beam caches PCollection inspected previously and re-uses it
+    when the data is still in scope.
+
+    ```python
+    pcoll = p | PTransformA
+    # pcoll2 depends on pcoll
+    pcoll2 = pcoll | PTransformB
+    ib.collect(pcoll2)  # <- caches data for both pcoll and pcoll2
+
+    pcoll3 = pcoll2 | PTransformC
+    ib.collect(pcoll3)  # <- reuses data of pcoll2 and only executes PTransformC
+
+    pcoll4 = pcoll | PTransformD
+    ib.collect(pcoll4)  # <- reuses data of pcoll and only executes PTransformD
+    ```
+
+5. Supports global and local scopes
+
+   Interactive Beam automatically watches the `__main__` scope for pipeline and
+   PCollection definitions to implicitly do magic under the hood.
+
+   ```python
+   # In a script or in a notebook
+   p = beam.Pipeline(InteractiveRunner())
+   pcoll = beam | SomeTransform
+   pcoll2 = pcoll | SomeOtherTransform
+
+   # p, pcoll and pcoll2 are all known to Interactive Beam.
+   ib.collect(pcoll)
+   ib.collect(pcoll2)
+   ib.show_graph(p)
+   ```
+
+   You have to explicitly watch pipelines and PCollections in your local scope.
+   Otherwise, Interactive Beam doesn't know about them and won't handle them
+   with interactive features.
+
+   ```python
+   def a_func():
+     p = beam.Pipeline(InteractiveRunner())
+     pcoll = beam | SomeTransform
+     pcoll2 = pcoll | SomeOtherTransform
+
+     # Watch everything defined locally before this line.
+     ib.watch(locals())
+     # Or explicitly watch them.
+     ib.watch({
+         'p': p,
+         'pcoll': pcoll,
+         'pcoll2': pcoll2})
+
+     # p, pcoll and pcoll2 are all known to Interactive Beam.
+     ib.collect(pcoll)
+     ib.collect(pcoll2)
+     ib.show_graph(p)
+
+     return p, pcoll, pcoll2
+
+   # Or return them to main scope
+   p, pcoll, pcoll2 = a_func()
+   ib.collect(pcoll)  # Also works!
+   ```
 
 ## Status
 
@@ -68,7 +172,7 @@ exploration much faster and easier. It provides nice features including
     |                          | Caching locally | Caching on GCS |
     | ------------------------ | --------------- | -------------- |
     | Running on local machine | supported       | supported      |
-    | Running on Flink         | /               | supported      |
+    | Running on Flink         | supported       | supported      |
 
 ## Getting Started
 
@@ -84,23 +188,13 @@ a quick reference). For a more general and complete getting started guide, see
 *   Install [GraphViz](https://www.graphviz.org/download/) with your favorite
     system package manager.
 
--   Install [Jupyter](https://jupyter.org/). You can either use the one that's
-    included in [Anaconda](https://www.anaconda.com/download/) or
-
-    ```bash
-    $ pip2 install --upgrade jupyter
-    ```
-
-    Make sure you have **Python2 Jupyter** since Apache Beam only supports
-    Python 2 at the time being.
-
--   Install, create and activate your [virtualenv](https://virtualenv.pypa.io/).
+*   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
     (optional but recommended)
 
     ```bash
-    $ pip2 install --upgrade virtualenv
-    $ virtualenv -p python2 beam_venv_dir
-    $ source beam_venv_dir/bin/activate
+    python3 -m venv /path/to/beam_venv_dir
+    source /path/to/beam_venv_dir/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
 
     If you are using shells other than bash (e.g. fish, csh), check
@@ -110,34 +204,63 @@ a quick reference). For a more general and complete getting started guide, see
     **CHECK** that the virtual environment is activated by running
 
     ```bash
-    $ echo $VIRTUAL_ENV  # This should point to beam_venv_dir
-    # or
-    $ which python  # This sould point to beam_venv_dir/bin/python
+    which python  # This sould point to beam_venv_dir/bin/python
     ```
+
+*   Install [JupyterLab](https://jupyter.org/install.html). You can use
+    either **conda** or **pip**.
+
+    * conda
+        ```bash
+        conda install -c conda-forge jupyterlab
+        ```
+    * pip
+        ```bash
+        pip install jupyterlab
+        ```
 
 *   Set up Apache Beam Python. **Make sure the virtual environment is activated
     when you run `setup.py`**
 
 *   ```bash
-    $ git clone https://github.com/apache/beam
-    $ cd beam/sdks/python
-    $ python setup.py install
+    git clone https://github.com/apache/beam
+    cd beam/sdks/python
+    python setup.py install
     ```
 
--   Install a IPython kernel for the virtual environment you've just created.
+*   Install an IPython kernel for the virtual environment you've just created.
     **Make sure the virtual environment is activate when you do this.** You can
-    skip this step if not using virtualenv.
+    skip this step if not using venv.
 
     ```bash
-    $ python -m pip install ipykernel
-    $ python -m ipykernel install --user --name beam_venv_kernel --display-name "Python (beam_venv)"
+    pip install ipykernel
+    python -m ipykernel install --user --name beam_venv_kernel --display-name "Python3 (beam_venv)"
     ```
 
     **CHECK** that IPython kernel `beam_venv_kernel` is available for Jupyter to
     use.
 
     ```bash
-    $ jupyter kernelspec list
+    jupyter kernelspec list
+    ```
+
+*   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
+    from pre-lab jupyter notebooks.
+
+    All jupyter labextensions need nodejs
+
+    ```bash
+    # Homebrew users do
+    brew install node
+    # Or Conda users do
+    conda install -c conda-forge nodejs
+    ```
+
+    Enable ipywidgets
+
+    ```bash
+    pip install ipywidgets
+    jupyter labextension install @jupyter-widgets/jupyterlab-manager
     ```
 
 ### Start the notebook
@@ -145,19 +268,36 @@ a quick reference). For a more general and complete getting started guide, see
 To start the notebook, simply run
 
 ```bash
-$ jupyter notebook
+jupyter lab
 ```
 
+Optionally increase the iopub broadcast data rate limit of jupyterlab
+
+```bash
+jupyter lab --NotebookApp.iopub_data_rate_limit=10000000
+```
+
+
 This automatically opens your default web browser pointing to
-http://localhost:8888.
+http://localhost:8888/lab.
 
-You can create a new notebook file by clicking `New` > `Notebook: Python
-(beam_venv)`.
+You can create a new notebook file by clicking `Python3 (beam_venv)` from the launcher
+page of jupyterlab.
 
-Or after you've already opend a notebook, change the kernel by clicking
-`Kernel` > `Change Kernel` > `Python (beam_venv)`.
+Or after you've already opened a notebook, change the kernel by clicking
+`Kernel` > `Change Kernel` > `Python3 (beam_venv)`.
 
 Voila! You can now run Beam pipelines interactively in your Jupyter notebook!
+
+In the notebook, you can use `tab` key on the keyboard for auto-completion.
+To turn on greedy auto-completion, you can run such ipython magic
+
+```
+%config IPCompleter.greedy=True
+```
+
+You can also use `shift` + `tab` keys on the keyboard for a popup of docstrings at the
+current cursor position.
 
 **See [Interactive Beam Example.ipynb](examples/Interactive%20Beam%20Example.ipynb)
 for more examples.**
@@ -172,10 +312,12 @@ By default, the caches are kept on the local file system of the machine in
 You can specify the caching directory as follows
 
 ```python
-cache_dir = 'some/path/to/dir'
-runner = interactive_runner.InteractiveRunner(cache_dir=cache_dir)
-p = beam.Pipeline(runner=runner)
+ib.options.cache_root = 'some/path/to/dir'
 ```
+
+When using an `InteractiveRunner(underlying_runner=...)` that is running remotely
+and distributed, a distributed file system such as Cloud Storage
+(`ib.options.cache_root = gs://bucket/obj`) is necessary.
 
 #### Caching PCollection on Google Cloud Storage
 
@@ -202,10 +344,11 @@ credential settings.
 *   Make sure you have **read and write access to that bucket** when you specify
     to use that directory as caching directory.
 
+*   You may configure a cache directory to be used by all pipelines created afterward with
+    an `InteractiveRunner`.
+
 *   ```python
-    cache_dir = 'gs://bucket-name/dir'
-    runner = interactive_runner.InteractiveRunner(cache_dir=cache_dir)
-    p = beam.Pipeline(runner=runner)
+    ib.options.cache_root = 'gs://bucket-name/obj'
     ```
 
 ### Portability across Execution Platforms
@@ -219,48 +362,37 @@ as the underlying runner.
 
 You can choose to run Interactive Beam on Flink with the following settings.
 
-*   Install [docker](https://www.docker.com/).
-
-*   Build the SDK container and start the local FlinkService.
-
-    ```bash
-    $ ./gradlew -p sdks/python/container docker
-    $ ./gradlew beam-runners-flink_2.11-job-server:runShadow  # Blocking
-    ```
-
-*   Run `$ jupyter notebook` in another terminal.
-
 *   Use
-    [`portable_runner.PortableRunner()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/portable_runner.py)
-    as the underlying runner, while providing a
-    [`pipeline_options.PortableOptions()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)
-    to the pipeline as follows.
+    [`flink_runner.FlinkRunner()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/flink_runner.py)
+    as the underlying runner.
 
     ```python
-    options = pipeline_options.PipelineOptions()
-    options.view_as(pipeline_options.PortableOptions).job_endpoint = 'localhost:8099'
-    options.view_as(pipeline_options.SetupOptions).sdk_location = 'container'
-    options.view_as(pipeline_options.DebugOptions).experiments = 'beam_fn_api'
-
-    cache_dir = 'gs://bucket-name/dir'
-    underlying_runner = portable_runner.PortableRunner()
-    runner = interactive_runner.InteractiveRunner(underlying_runner=underlying_runner, cache_dir=cache_dir)
-    p = beam.Pipeline(runner=runner, options=options)
+    p = beam.Pipeline(interactive_runner.InteractiveRunner(underlying_runner=flink_runner.FlinkRunner()))
     ```
 
-**Note**: Python Flink Runner (combination of PortableRunner and FlinkService)
-is being actively developed now, so these setups and commands are subject to
-changes. This guide and
+*   Alternatively, if the runtime environment is configured with a Google Cloud project, you can run Interactive Beam with Flink on Cloud Dataproc. To do so, configure the pipeline with a Google Cloud project. If using dev versioned Beam built from source code, it is necessary to specify an `environment_config` option to configure a containerized Beam SDK (you can choose a released container or build one yourself).
+
+*   ```python
+    ib.options.cache_root = 'gs://bucket-name/obj'
+    options = PipelineOptions([
+    # The project can be attained simply from running the following commands:
+    # import google.auth
+    # project = google.auth.default()[1]
+    '--project={}'.format(project),
+    # The following environment_config only needs to be used when using a development kernel.
+    # Users do not need to use the 2.35.0 SDK, but the chosen release must be compatible with
+    # the Flink version used by the Dataproc image used by Interactive Beam. The current Flink
+    # version used is 1.12.5.
+    '--environment_config=apache/beam_python3.7_sdk:2.35.0',
+    ])
+    ```
+
+**Note**: This guide and
 [Interactive Beam Running on Flink.ipynb](examples/Interactive%20Beam%20Running%20on%20Flink.ipynb)
 capture the status of the world when it's last updated.
-
-## TL;DR;
-
-You can now interactively run Beam Python pipeline! Check out the Youtube demo
-
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/c5CjA1e3Cqw/0.jpg)](https://www.youtube.com/watch?v=c5CjA1e3Cqw)
 
 ## More Information
 
 *   [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)
-*   [Interactive Beam Design Doc](https://docs.google.com/document/d/10bTc97GN5Wk-nhwncqNq9_XkJFVVy0WLT4gPFqP6Kmw/edit?usp=sharing)
+*   [Interactive Beam Design Doc V2](https://docs.google.com/document/d/1DYWrT6GL_qDCXhRMoxpjinlVAfHeVilK5Mtf8gO6zxQ/edit?usp=sharing)
+*   [Interactive Beam Design Doc V1](https://docs.google.com/document/d/10bTc97GN5Wk-nhwncqNq9_XkJFVVy0WLT4gPFqP6Kmw/edit?usp=sharing)

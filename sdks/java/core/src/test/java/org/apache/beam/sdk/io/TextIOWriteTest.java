@@ -20,19 +20,26 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.io.fs.MatchResult.Status.NOT_FOUND;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -41,9 +48,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
@@ -57,6 +64,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -66,15 +74,16 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Functions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.commons.lang3.SystemUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,6 +98,10 @@ import org.junit.runners.JUnit4;
 public class TextIOWriteTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
+  private static final int CUSTOM_FILE_TRIGGERING_RECORD_COUNT = 50000;
+  private static final int CUSTOM_FILE_TRIGGERING_BYTE_COUNT = 32 * 1024 * 1024; // 32MiB
+  private static final Duration CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+      Duration.standardSeconds(4);
 
   @Rule public transient TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -120,9 +133,8 @@ public class TextIOWriteTest {
       return "";
     }
 
-    @Nullable
     @Override
-    public Coder<String> getDestinationCoder() {
+    public @Nullable Coder<String> getDestinationCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -207,7 +219,26 @@ public class TextIOWriteTest {
         DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
   }
 
-  @DefaultCoder(AvroCoder.class)
+  public static class UserWriteTypeCoder extends CustomCoder<UserWriteType> {
+
+    @Override
+    public void encode(UserWriteType value, OutputStream outStream)
+        throws CoderException, IOException {
+      DataOutputStream stream = new DataOutputStream(outStream);
+      StringUtf8Coder.of().encode(value.destination, stream);
+      StringUtf8Coder.of().encode(value.metadata, stream);
+    }
+
+    @Override
+    public UserWriteType decode(InputStream inStream) throws CoderException, IOException {
+      DataInputStream stream = new DataInputStream(inStream);
+      String dest = StringUtf8Coder.of().decode(stream);
+      String meta = StringUtf8Coder.of().decode(stream);
+      return new UserWriteType(dest, meta);
+    }
+  }
+
+  @DefaultCoder(UserWriteTypeCoder.class)
   private static class UserWriteType {
     String destination;
     String metadata;
@@ -277,6 +308,8 @@ public class TextIOWriteTest {
             new UserWriteType("baab", "fourth"),
             new UserWriteType("caaa", "fifth"),
             new UserWriteType("caab", "sixth"));
+
+    p.getCoderRegistry().registerCoderForClass(UserWriteType.class, new UserWriteTypeCoder());
     PCollection<UserWriteType> input = p.apply(Create.of(elements));
     input.apply(
         TextIO.<UserWriteType>writeCustomType()
@@ -366,6 +399,12 @@ public class TextIOWriteTest {
 
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
+    runTestWrite(elems, header, footer, numShards, false);
+  }
+
+  private void runTestWrite(
+      String[] elems, String header, String footer, int numShards, boolean skipIfEmpty)
+      throws Exception {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite");
     ResourceId baseFilename =
@@ -382,6 +421,9 @@ public class TextIOWriteTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
+    if (skipIfEmpty) {
+      write = write.skipIfEmpty();
+    }
 
     input.apply(write);
 
@@ -394,7 +436,8 @@ public class TextIOWriteTest {
         numShards,
         baseFilename,
         firstNonNull(
-            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
+            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE),
+        skipIfEmpty);
   }
 
   private static void assertOutputFiles(
@@ -405,8 +448,25 @@ public class TextIOWriteTest {
       ResourceId outputPrefix,
       String shardNameTemplate)
       throws Exception {
+    assertOutputFiles(elems, header, footer, numShards, outputPrefix, shardNameTemplate, false);
+  }
+
+  private static void assertOutputFiles(
+      String[] elems,
+      final String header,
+      final String footer,
+      int numShards,
+      ResourceId outputPrefix,
+      String shardNameTemplate,
+      boolean skipIfEmpty)
+      throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    if (numShards == 0) {
+    if (skipIfEmpty && elems.length == 0) {
+      String pattern = outputPrefix.toString() + "*";
+      MatchResult matches =
+          Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(pattern)));
+      assertEquals(NOT_FOUND, matches.status());
+    } else if (numShards == 0) {
       String pattern = outputPrefix.toString() + "*";
       List<MatchResult> matches = FileSystems.match(Collections.singletonList(pattern));
       for (Metadata expectedFile : Iterables.getOnlyElement(matches).metadata()) {
@@ -432,7 +492,7 @@ public class TextIOWriteTest {
     List<String> expectedElements = new ArrayList<>(elems.length);
     for (String elem : elems) {
       byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-      String line = new String(encodedElem, Charsets.UTF_8);
+      String line = new String(encodedElem, StandardCharsets.UTF_8);
       expectedElements.add(line);
     }
 
@@ -449,7 +509,7 @@ public class TextIOWriteTest {
 
   private static List<String> readLinesFromFile(File f) throws IOException {
     List<String> currentFile = new ArrayList<>();
-    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), Charsets.UTF_8)) {
+    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), StandardCharsets.UTF_8)) {
       while (true) {
         String line = reader.readLine();
         if (line == null) {
@@ -464,9 +524,8 @@ public class TextIOWriteTest {
   private static Function<List<String>, List<String>> removeHeaderAndFooter(
       final String header, final String footer) {
     return new Function<List<String>, List<String>>() {
-      @Nullable
       @Override
-      public List<String> apply(List<String> lines) {
+      public @Nullable List<String> apply(List<String> lines) {
         ArrayList<String> newLines = Lists.newArrayList(lines);
         if (header != null) {
           newLines.remove(0);
@@ -505,6 +564,12 @@ public class TextIOWriteTest {
   @Category(NeedsRunner.class)
   public void testWriteEmptyStrings() throws Exception {
     runTestWrite(NO_LINES_ARRAY);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteEmptyStringsSkipIfEmpty() throws Exception {
+    runTestWrite(NO_LINES_ARRAY, null, null, 0, true);
   }
 
   @Test
@@ -577,6 +642,8 @@ public class TextIOWriteTest {
 
   @Test
   public void testWriteDisplayData() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20467
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TextIO.Write write =
         TextIO.write()
             .to("/foo")
@@ -637,8 +704,48 @@ public class TextIOWriteTest {
   }
 
   @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWriteUnboundedWithCustomBatchParameters() throws Exception {
+    Coder<String> coder = StringUtf8Coder.of();
+    String outputName = "file.txt";
+    Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite");
+    ResourceId baseFilename =
+        FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
+
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))));
+
+    TextIO.Write write =
+        TextIO.write()
+            .to(baseFilename)
+            .withWindowedWrites()
+            .withShardNameTemplate(DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE)
+            .withBatchSize(CUSTOM_FILE_TRIGGERING_RECORD_COUNT)
+            .withBatchSizeBytes(CUSTOM_FILE_TRIGGERING_BYTE_COUNT)
+            .withBatchMaxBufferingDuration(CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION);
+
+    input.apply(write);
+    p.run();
+
+    assertOutputFiles(
+        LINES2_ARRAY,
+        null,
+        null,
+        3,
+        baseFilename,
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
+        false);
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testWindowedWritesWithOnceTrigger() throws Throwable {
+    p.enableAbandonedNodeEnforcement(false);
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Unsafe trigger");
+
     // Tests for https://issues.apache.org/jira/browse/BEAM-3169
     PCollection<String> data =
         p.apply(Create.of("0", "1", "2"))
@@ -651,26 +758,14 @@ public class TextIOWriteTest {
                     .triggering(AfterPane.elementCountAtLeast(3))
                     .withAllowedLateness(Duration.standardMinutes(1))
                     .discardingFiredPanes());
-    PCollection<String> filenames =
-        data.apply(
-                TextIO.write()
-                    .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
-                    .withNumShards(2)
-                    .withWindowedWrites()
-                    .<Void>withOutputFilenames())
-            .getPerDestinationOutputFilenames()
-            .apply(Values.create());
-
-    PAssert.that(
-            filenames
-                .apply(FileIO.matchAll())
-                .apply(FileIO.readMatches())
-                .apply(TextIO.readFiles()))
-        .containsInAnyOrder("0", "1", "2");
-
-    PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
-
-    p.run();
+    data.apply(
+            TextIO.write()
+                .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
+                .withNumShards(2)
+                .withWindowedWrites()
+                .<Void>withOutputFilenames())
+        .getPerDestinationOutputFilenames()
+        .apply(Values.create());
   }
 
   @Test
@@ -692,20 +787,6 @@ public class TextIOWriteTest {
                 .apply("Match All", FileIO.matchAll())
                 .apply("Read Matches", FileIO.readMatches())
                 .apply("Read Files", TextIO.readFiles()))
-        .containsInAnyOrder(data);
-
-    PAssert.that(
-            p.apply("Create Data ReadAll", Create.of(data))
-                .apply(
-                    "Write ReadAll",
-                    FileIO.<String>write()
-                        .to(tempFolder.getRoot().toString())
-                        .withSuffix(".txt")
-                        .via(TextIO.sink())
-                        .withIgnoreWindowing())
-                .getPerDestinationOutputFilenames()
-                .apply("Extract Values ReadAll", Values.create())
-                .apply("Read All", TextIO.readAll()))
         .containsInAnyOrder(data);
 
     p.run();

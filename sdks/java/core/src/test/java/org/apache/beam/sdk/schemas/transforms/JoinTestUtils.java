@@ -22,8 +22,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class JoinTestUtils {
   static List<Row> innerJoin(
       List<Row> inputs1, List<Row> inputs2, String[] keys1, String[] keys2, Schema expectedSchema) {

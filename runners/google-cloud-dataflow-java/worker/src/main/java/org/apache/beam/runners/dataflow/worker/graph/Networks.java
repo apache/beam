@@ -17,13 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,14 +33,17 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.EndpointPair;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.EndpointPair;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.Network;
 
 /** Static utility methods for {@link Network} instances that are directed. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Networks {
   /**
    * An abstract class that can be extended to apply a function in a type safe manner.
@@ -181,7 +185,7 @@ public class Networks {
   public static <N, E> String toDot(Network<N, E> network) {
     StringBuilder builder = new StringBuilder();
     builder.append("digraph network {\n");
-    Map<N, String> nodeName = Maps.newIdentityHashMap();
+    IdentityHashMap<N, String> nodeName = Maps.newIdentityHashMap();
     network.nodes().forEach(node -> nodeName.put(node, "n" + nodeName.size()));
     for (Entry<N, String> nodeEntry : nodeName.entrySet()) {
       builder.append(

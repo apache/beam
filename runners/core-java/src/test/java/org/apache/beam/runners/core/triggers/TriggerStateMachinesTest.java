@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -86,9 +86,6 @@ public class TriggerStateMachinesTest {
         RunnerApi.Trigger.newBuilder()
             .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.getDefaultInstance())
             .build();
-    AfterWatermarkStateMachine.FromEndOfWindow machine =
-        (AfterWatermarkStateMachine.FromEndOfWindow)
-            TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(
         TriggerStateMachines.stateMachineForTrigger(trigger),
@@ -113,8 +110,7 @@ public class TriggerStateMachinesTest {
         RunnerApi.Trigger.newBuilder()
             .setNever(RunnerApi.Trigger.Never.getDefaultInstance())
             .build();
-    NeverStateMachine machine =
-        (NeverStateMachine) checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
+    checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
     // No parameters, so if it doesn't crash, we win!
   }
 

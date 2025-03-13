@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
@@ -27,24 +27,25 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Projections;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB FindQuery object. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 @AutoValue
 public abstract class FindQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 
-  @Nullable
-  abstract BsonDocument filters();
+  @Pure
+  abstract @Nullable BsonDocument filters();
 
+  @Pure
   abstract int limit();
 
+  @Pure
   abstract List<String> projection();
 
   private static Builder builder() {

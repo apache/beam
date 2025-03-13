@@ -34,8 +34,9 @@ echo "Do you want to generate a new GPG key associated with your Apache account?
 read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "===============Generating new GPG key================"
-  sudo apt-get install rng-tools
+  sudo apt-get install rng-tools # Get more entropy for creating a GPG key.
   sudo rngd -r /dev/urandom
+  echo "NOTE: When creating the key, please select the type to be RSA and RSA (default), and the size to be 4096 bit long."
   gpg --full-generate-key
 fi
 
@@ -53,32 +54,34 @@ echo "It's required to append your key into KEYS file in dist.apache.org"
 echo "Have you put your key in KEYS? [y|N]"
 read confirmation
 if [[ $confirmation != "y" ]]; then
-  echo "Only PMC member can write into dist.apache.org. Are you a PMC member? [y|N]"
+  echo "Please input your name: "
+  read name
+  echo "======Starting updating KEYS file in dev repo===="
+  if [[ -d ${LOCAL_SVN_DIR} ]]; then
+    rm -rf ${LOCAL_SVN_DIR}
+  fi
+  mkdir ${LOCAL_SVN_DIR}
+  cd ${LOCAL_SVN_DIR}
+  svn co ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}
+  cd ${BEAM_REPO}
+  (gpg --list-sigs ${name} && gpg --armor --export ${name}) >> KEYS
+  svn status
+  echo "Please review all changes. Do you confirm to commit? [y|N]"
+  read commit_confirmation
+  if [[ $commit_confirmation = "y" ]]; then
+    svn commit --no-auth-cache KEYS
+  else
+    echo "Not commit new changes into ${ROOT_SVN_URL}${DEV_REPO}/${BEAM_REPO}/KEYS"
+  fi
+  cd ~
+  rm -rf ${LOCAL_SVN_DIR}/${BEAM_REPO}
+
+  echo "Only a PMC member can write into dist.apache.org's release KEYS. Are you a PMC member? [y|N]"
   read pmc_permission
   if [[ $pmc_permission != "y" ]]; then
     echo "Please ask a PMC member to help you add your key in dev@ list."
-    echo "Skip adding key into dist.apache.org/KEYS file."
+    echo "Skip adding key into ${ROOT_SVN_URL}${RELEASE_REPO}/${BEAM_REPO}/KEYS"
   else
-    echo "Please input your name: "
-    read name
-    echo "======Starting updating KEYS file in dev repo===="
-    if [[ -d ${LOCAL_SVN_DIR} ]]; then
-      rm -rf ${LOCAL_SVN_DIR}
-    fi
-    mkdir ${LOCAL_SVN_DIR}
-    cd ${LOCAL_SVN_DIR}
-    svn co ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}
-    cd ${BEAM_REPO}
-    (gpg --list-sigs ${name} && gpg --armor --export ${name}) >> KEYS
-    svn status
-    echo "Please review all changes. Do you confirm to commit? [y|N]"
-    read commit_confirmation
-    if [[ $commit_confirmation = "y" ]]; then
-      svn commit --no-auth-cache KEYS
-    else
-      echo "Not commit new changes into ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}${DEV_REPO}/KEYS"
-    fi
-
     cd ~/${LOCAL_SVN_DIR}
     echo "===Starting updating KEYS file in release repo==="
     svn co ${ROOT_SVN_URL}/${RELEASE_REPO}/${BEAM_REPO}
@@ -92,10 +95,10 @@ if [[ $confirmation != "y" ]]; then
     else
       echo "Not commit new changes into ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}${RELEASE_REPO}/KEYS"
     fi
-
-    cd ~
-    rm -rf ${LOCAL_SVN_DIR}
   fi
+
+  cd ~
+  rm -rf ${LOCAL_SVN_DIR}
 fi
 
 echo "================Setting up gpg agent================="

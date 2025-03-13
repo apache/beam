@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.util.Optional;
@@ -30,7 +30,7 @@ import org.joda.time.Instant;
 
 /**
  * An extendable factory to create a {@link TimestampPolicy} for each partition at runtime by
- * KafkaIO reader. Subclasses implement {@link #createTimestampPolicy}, which is invoked by the the
+ * KafkaIO reader. Subclasses implement {@link #createTimestampPolicy}, which is invoked by the
  * reader while starting or resuming from a checkpoint. Two commonly used policies are provided. See
  * {@link #withLogAppendTime()} and {@link #withProcessingTime()}.
  */

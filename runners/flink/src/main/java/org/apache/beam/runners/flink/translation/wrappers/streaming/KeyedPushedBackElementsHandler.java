@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -53,8 +54,8 @@ class KeyedPushedBackElementsHandler<K, T> implements PushedBackElementsHandler<
       KeyedStateBackend<K> backend,
       ListStateDescriptor<T> stateDescriptor)
       throws Exception {
-    this.keySelector = keySelector;
-    this.backend = backend;
+    this.keySelector = Objects.requireNonNull(keySelector);
+    this.backend = Objects.requireNonNull(backend);
     this.stateName = stateDescriptor.getName();
     // Eagerly retrieve the state to work around https://jira.apache.org/jira/browse/FLINK-12653
     this.state =

@@ -20,9 +20,14 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** A consumer of given type. */
+/**
+ * A consumer of given type.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface Consumer<T> extends Serializable {
 
   /**

@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.testing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 
@@ -48,11 +48,21 @@ public interface TestPipelineOptions extends PipelineOptions {
 
   void setOnSuccessMatcher(SerializableMatcher<PipelineResult> value);
 
-  @Default.Long(10 * 60)
+  @Default.Long(15 * 60)
   @Nullable
   Long getTestTimeoutSeconds();
 
   void setTestTimeoutSeconds(Long value);
+
+  @Default.Boolean(true)
+  @org.apache.beam.sdk.options.Description(
+      "If the pipeline should block awaiting completion of the pipeline. If set to true, "
+          + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
+          + "the Pipeline will execute asynchronously. If set to false, use "
+          + "PipelineResult#waitUntilFinish() to block until the Pipeline is complete.")
+  boolean isBlockOnRun();
+
+  void setBlockOnRun(boolean value);
 
   /** Factory for {@link PipelineResult} matchers which always pass. */
   class AlwaysPassMatcherFactory

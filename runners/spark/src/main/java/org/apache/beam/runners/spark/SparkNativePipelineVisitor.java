@@ -21,23 +21,27 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /**
  * Pipeline visitor for translating a Beam pipeline into equivalent Spark operations. Used for
  * debugging purposes using {@link SparkRunnerDebugger}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   private final List<NativeTransform> transforms;
   private final List<String> knownCompositesPackages =
@@ -141,10 +145,18 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           transformString = replaceFnString(transformClass, transformString, "windowFn");
         } else if (transformString.contains("<source>")) {
           String sourceName = "...";
-          if (transform instanceof Read.Bounded) {
-            sourceName = ((Read.Bounded<?>) transform).getSource().getClass().getName();
-          } else if (transform instanceof Read.Unbounded) {
-            sourceName = ((Read.Unbounded<?>) transform).getSource().getClass().getName();
+          if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
+            sourceName =
+                ((SplittableParDo.PrimitiveBoundedRead<?>) transform)
+                    .getSource()
+                    .getClass()
+                    .getName();
+          } else if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
+            sourceName =
+                ((SplittableParDo.PrimitiveUnboundedRead<?>) transform)
+                    .getSource()
+                    .getClass()
+                    .getName();
           }
           transformString = transformString.replace("<source>", sourceName);
         }
@@ -171,7 +183,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
       String doFnName;
       Class<?> enclosingClass = fnClass.getEnclosingClass();
       if (enclosingClass != null && enclosingClass.equals(MapElements.class)) {
-        Field parent = fnClass.getDeclaredField("this$0");
+        Field parent = fnClass.getSuperclass().getDeclaredField("outer");
         parent.setAccessible(true);
         Field fnField = enclosingClass.getDeclaredField(fnFieldName);
         fnField.setAccessible(true);

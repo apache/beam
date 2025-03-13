@@ -19,12 +19,12 @@ package org.apache.beam.runners.core;
 
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
  *
  * @param <StateT> The type of state being tagged.
  */
-@Experimental(Kind.STATE)
 public interface StateTag<StateT extends State> extends Serializable {
 
   /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
@@ -70,8 +69,9 @@ public interface StateTag<StateT extends State> extends Serializable {
   /**
    * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
    *
-   * @deprecated for migration only; runners should reference the top level {@link StateBinder} and
-   *     move towards {@link StateSpec} rather than {@link StateTag}.
+   * @deprecated for migration only; runners should reference the top level {@link
+   *     org.apache.beam.sdk.state.StateBinder} and move towards {@link StateSpec} rather than
+   *     {@link StateTag}.
    */
   @Deprecated
   public interface StateBinder {
@@ -85,6 +85,11 @@ public interface StateTag<StateT extends State> extends Serializable {
         StateTag<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder);
+
+    <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+        StateTag<MultimapState<KeyT, ValueT>> spec, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder);
+
+    <T> OrderedListState<T> bindOrderedList(StateTag<OrderedListState<T>> spec, Coder<T> elemCoder);
 
     <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
         StateTag<CombiningState<InputT, AccumT, OutputT>> spec,

@@ -38,9 +38,9 @@ def findDockerNetworkIP():
   return cmd_out.split(" ")[2]
 
 
-DB_HOST = findDockerNetworkIP()
+#DB_HOST = findDockerNetworkIP()
 
-# DB_HOST = os.environ['DB_HOST']
+DB_HOST = os.environ['DB_HOST']
 DB_PORT = os.environ['DB_PORT']
 DB_NAME = os.environ['DB_DBNAME']
 DB_USER_NAME = os.environ['DB_DBUSERNAME']
@@ -64,6 +64,21 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
   beam_reviewers varchar[] NOT NULL,
   mentioned varchar[] NOT NULL,
   reviewed_by varchar[] NOT NULL
+  )
+  """
+
+GH_ISSUES_TABLE_NAME = 'gh_issues'
+
+GH_ISSUES_CREATE_TABLE_QUERY = f"""
+  create table {GH_ISSUES_TABLE_NAME} (
+  issue_id integer NOT NULL PRIMARY KEY,
+  author varchar NOT NULL,
+  created_ts timestamp NOT NULL,
+  updated_ts timestamp NOT NULL,
+  closed_ts timestamp NULL,
+  title varchar NOT NULL,
+  assignees varchar[] NOT NULL,
+  labels varchar[] NOT NULL
   )
   """
 
@@ -103,16 +118,23 @@ def initDbTablesIfNeeded():
   connection = initDBConnection()
   cursor = connection.cursor()
 
-  buildsTableExists = tableExists(cursor, GH_PRS_TABLE_NAME)
-  print('PRs table exists', buildsTableExists)
-  if not buildsTableExists:
+  prsTableExists = tableExists(cursor, GH_PRS_TABLE_NAME)
+  print('PRs table exists', prsTableExists)
+  if not prsTableExists:
     cursor.execute(GH_PRS_CREATE_TABLE_QUERY)
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_PRS_TABLE_NAME}")
 
+  issuesTableExists = tableExists(cursor, GH_ISSUES_TABLE_NAME)
+  print('Issues table exists', issuesTableExists)
+  if not issuesTableExists:
+    cursor.execute(GH_ISSUES_CREATE_TABLE_QUERY)
+    if not bool(cursor.rowcount):
+      raise Exception(f"Failed to create table {GH_ISSUES_TABLE_NAME}")
+
   metadataTableExists = tableExists(cursor, GH_SYNC_METADATA_TABLE_NAME)
   print('Metadata table exists', metadataTableExists)
-  if not buildsTableExists:
+  if not metadataTableExists:
     cursor.execute(GH_SYNC_METADATA_TABLE_CREATE_QUERY)
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_SYNC_METADATA_TABLE_NAME}")
@@ -123,7 +145,8 @@ def initDbTablesIfNeeded():
   connection.close()
 
 
-def fetchLastSyncTimestamp(cursor):
+# TODO: Remove this logic once the gh_issue_sync row has been populated and update the fallback to datetime(year=1980, month=1, day=1)
+def fetchLastSyncTimestampFallback(cursor):
   '''Fetches last sync timestamp from metadata DB table.'''
   fetchQuery = f'''
   SELECT timestamp
@@ -138,14 +161,28 @@ def fetchLastSyncTimestamp(cursor):
   return defaultResult if queryResult is None else queryResult[0]
 
 
-def updateLastSyncTimestamp(timestamp):
+def fetchLastSyncTimestamp(cursor, name):
+  '''Fetches last sync timestamp from metadata DB table.'''
+  fetchQuery = f'''
+  SELECT timestamp
+  FROM {GH_SYNC_METADATA_TABLE_NAME}
+  WHERE name LIKE '{name}'
+  '''
+
+  cursor.execute(fetchQuery)
+  queryResult = cursor.fetchone()
+
+  return None if queryResult is None else queryResult[0]
+
+
+def updateLastSyncTimestamp(timestamp, name):
   '''Updates last sync timestamp in metadata DB table.'''
   connection = initDBConnection()
   cursor = connection.cursor()
 
   insertTimestampSqlQuery = f'''INSERT INTO {GH_SYNC_METADATA_TABLE_NAME}
                                   (name, timestamp)
-                                VALUES ('gh_sync', %s) 
+                                VALUES ('{name}', %s) 
                                 ON CONFLICT (name) DO UPDATE
                                   SET timestamp = excluded.timestamp
                                 '''
@@ -164,17 +201,22 @@ def executeGHGraphqlQuery(query):
   return r.json()
 
 
-def fetchGHData(timestamp):
+def fetchGHData(timestamp, ghQuery):
   '''Fetches GitHub data required for reporting Beam metrics'''
   tsString = ghutilities.datetimeToGHTimeStr(timestamp)
-  query = queries.MAIN_PR_QUERY.replace('<TemstampSubstitueLocation>', tsString)
+  query = ghQuery.replace('<TemstampSubstitueLocation>', tsString)
   return executeGHGraphqlQuery(query)
 
+def extractUserLogin(user):
+  # user could be missing
+  if not user:
+    return "Unknown"
+  return user.get("login", "Unknown")
 
 def extractRequestedReviewers(pr):
   reviewEdges = pr["reviewRequests"]["edges"]
   return list(
-      map(lambda x: x["node"]["requestedReviewer"]["login"], reviewEdges))
+      map(lambda x: extractUserLogin(x["node"]["requestedReviewer"]), reviewEdges))
 
 
 def extractMentions(pr):
@@ -201,24 +243,24 @@ def extractFirstNAActivity(pr):
   Returns timestamp and login of author on first activity on pull request done
   by non-author.
   '''
-  author = pr["author"]["login"]
+  author = extractUserLogin(pr["author"])
   commentEdges = None
   commentEdges = [
       edge for edge in pr["comments"]["edges"]
-      if edge["node"]["author"]["login"] != author
+      if extractUserLogin(edge["node"]["author"]) != author
   ]
   reviewEdges = [
       edge for edge in pr["reviews"]["edges"]
-      if edge["node"]["author"]["login"] != author
+      if extractUserLogin(edge["node"]["author"]) != author
   ]
   merged = pr["merged"]
   mergedAt = pr["mergedAt"]
-  mergedBy = None if not merged else pr["mergedBy"]["login"]
+  mergedBy = None if not merged else extractUserLogin(pr["mergedBy"])
   commentTimestamps = list(
-      map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
+      map(lambda x: (x["node"]["createdAt"], extractUserLogin(x["node"]["author"])),
           commentEdges))
   reviewTimestamps = list(
-      map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
+      map(lambda x: (x["node"]["createdAt"], extractUserLogin(x["node"]["author"])),
           reviewEdges))
   allTimestamps = commentTimestamps + reviewTimestamps
   if merged:
@@ -229,18 +271,18 @@ def extractFirstNAActivity(pr):
 
 def extractBeamReviewers(pr):
   '''Extract logins of users defined by Beam as reviewers.'''
-  author = pr['author']['login']
+  author = extractUserLogin(pr['author'])
 
   # All the direct GitHub indicators of reviewers
   reviewers = []
   for r in pr['assignees']['edges']:
-    reviewers.append(r['node']['login'])
+    reviewers.append(extractUserLogin(r['node']))
   for r in pr['reviewRequests']['edges']:
-    reviewers.append(r['node']['requestedReviewer']['login'])
+    reviewers.append(extractUserLogin(r['node']['requestedReviewer']))
 
   # GitHub users that have performed reviews.
   for r in pr['reviews']['edges']:
-    reviewers.append(r['node']['author']['login'])
+    reviewers.append(extractUserLogin(r['node']['author']))
 
   # @r1, @r2 ... look/PTAL/ptal?
   beam_reviewer_regex = r'(@\w+).*?(?:PTAL|ptal|look)'
@@ -266,7 +308,7 @@ def extractBeamReviewers(pr):
 
 def extractReviewers(pr):
   '''Extracts reviewers logins from PR.'''
-  return [edge["node"]["author"]["login"] for edge in pr["reviews"]["edges"]]
+  return [extractUserLogin(edge["node"]["author"]) for edge in pr["reviews"]["edges"]]
 
 
 def extractRowValuesFromPr(pr):
@@ -281,9 +323,29 @@ def extractRowValuesFromPr(pr):
   reviewedBy = extractReviewers(pr)
 
   result = [
-      pr["number"], pr["author"]["login"], pr["createdAt"], pr["updatedAt"],
+      pr["number"], extractUserLogin(pr["author"]), pr["createdAt"], pr["updatedAt"],
       pr["closedAt"], pr["merged"], firstNAActivity, firstNAAAuthor,
       requestedReviewers, mentions, beamReviewers, reviewedBy
+  ]
+
+  return result
+
+
+def extractRowValuesFromIssue(issue):
+  '''
+  Extracts row values required to fill Beam metrics table from PullRequest
+  GraphQL response.
+  '''
+  assignees = []
+  for a in issue['assignees']['edges']:
+    assignees.append(extractUserLogin(a['node']))
+  labels = []
+  for l in issue['labels']['edges']:
+    labels.append(l['node']['name'])
+
+  result = [
+      issue["number"], extractUserLogin(issue["author"]), issue["createdAt"], issue["updatedAt"],
+      issue["closedAt"], issue["title"], assignees, labels
   ]
 
   return result
@@ -322,63 +384,107 @@ def upsertIntoPRsTable(cursor, values):
   cursor.execute(upsertPRRowQuery, values)
 
 
+def upsertIntoIssuesTable(cursor, values):
+  upsertPRRowQuery = f'''INSERT INTO {GH_ISSUES_TABLE_NAME}
+                            (issue_id,
+                            author,
+                            created_ts,
+                            updated_ts,
+                            closed_ts,
+                            title,
+                            assignees,
+                            labels)
+                          VALUES
+                            (%s, %s, %s, %s, %s, %s, %s, %s)
+                          ON CONFLICT (issue_id) DO UPDATE
+                            SET
+                            issue_id=excluded.issue_id,
+                            author=excluded.author,
+                            created_ts=excluded.created_ts,
+                            updated_ts=excluded.updated_ts,
+                            closed_ts=excluded.closed_ts,
+                            title=excluded.title,
+                            assignees=excluded.assignees,
+                            labels=excluded.labels
+                          '''
+  cursor.execute(upsertPRRowQuery, values)
+
+
 def fetchNewData():
   '''
   Main workhorse method. Fetches data from GitHub and puts it in metrics table.
   '''
-  connection = initDBConnection()
-  cursor = connection.cursor()
-  lastSyncTimestamp = fetchLastSyncTimestamp(cursor)
-  cursor.close()
-  connection.close()
-
-  currTS = lastSyncTimestamp
-
-  resultsPresent = True
-  while resultsPresent:
-    print("Syncing data for: ", currTS)
-    jsonData = fetchGHData(currTS)
+  for i in range(2):
+    kind = 'issue'
+    if i == 0:
+      kind = 'pr'
 
     connection = initDBConnection()
     cursor = connection.cursor()
+    lastSyncTimestamp = fetchLastSyncTimestamp(cursor, f'gh_{kind}_sync')
+    cursor.close()
+    connection.close()
+    if lastSyncTimestamp is None:
+      if kind == 'pr':
+        connection = initDBConnection()
+        cursor = connection.cursor()
+        lastSyncTimestamp = fetchLastSyncTimestampFallback(cursor)
+        cursor.close()
+        connection.close()
+      else:
+        lastSyncTimestamp = datetime(year=1980, month=1, day=1)
 
-    if "errors" in jsonData:
-      print("Failed to fetch data, error:", jsonData)
-      return
+    currTS = lastSyncTimestamp
 
-    prs = None
-    try:
-      prs = jsonData["data"]["search"]["edges"]
-    except:
-      # TODO This means that API returned error.
-      # We might want to bring this to stderr or utilize other means of logging.
-      # Examples: we hit throttling, etc
-      print("Got bad json format: ", jsonData)
-      return
+    resultsPresent = True
+    while resultsPresent:
+      print(f'Syncing data for {kind}s: ', currTS)
+      query = queries.MAIN_PR_QUERY if kind == 'pr' else queries.MAIN_ISSUES_QUERY
+      jsonData = fetchGHData(currTS, query)
 
-    if not prs:
-      resultsPresent = False
+      connection = initDBConnection()
+      cursor = connection.cursor()
 
-    for edge in prs:
-      pr = edge["node"]
-      try:
-        rowValues = extractRowValuesFromPr(pr)
-      except Exception as e:
-        print("Failed to extract data. Exception: ", e, " PR: ", edge)
-        traceback.print_tb(e.__traceback__)
+      if "errors" in jsonData:
+        print("Failed to fetch data, error:", jsonData)
         return
 
-      upsertIntoPRsTable(cursor, rowValues)
+      data = None
+      try:
+        data = jsonData["data"]["search"]["edges"]
+      except:
+        # TODO This means that API returned error.
+        # We might want to bring this to stderr or utilize other means of logging.
+        # Examples: we hit throttling, etc
+        print("Got bad json format: ", jsonData)
+        return
 
-      prUpdateTime = ghutilities.datetimeFromGHTimeStr(pr["updatedAt"])
+      if not data:
+        resultsPresent = False
 
-      currTS = currTS if currTS > prUpdateTime else prUpdateTime
+      for edge in data:
+        node = edge["node"]
+        try:
+          rowValues = extractRowValuesFromPr(node) if kind == 'pr' else extractRowValuesFromIssue(node)
+        except Exception as e:
+          print("Failed to extract data. Exception: ", e, f" {kind}: ", edge)
+          traceback.print_tb(e.__traceback__)
+          return
 
-    cursor.close()
-    connection.commit()
-    connection.close()
+        if kind == 'pr':
+          upsertIntoPRsTable(cursor, rowValues)
+        else:
+          upsertIntoIssuesTable(cursor, rowValues)
 
-    updateLastSyncTimestamp(currTS)
+        updateTime = ghutilities.datetimeFromGHTimeStr(node["updatedAt"])
+
+        currTS = currTS if currTS > updateTime else updateTime
+
+      cursor.close()
+      connection.commit()
+      connection.close()
+
+      updateLastSyncTimestamp(currTS, f'gh_{kind}_sync')
 
 
 def probeGitHubIsUp():
@@ -404,7 +510,7 @@ if __name__ == '__main__':
   initDbTablesIfNeeded()
 
   while True:
-    print("Start PR fetching.")
+    print("Start PR and Issue fetching.")
     sys.stdout.flush()
 
     if not probeGitHubIsUp():

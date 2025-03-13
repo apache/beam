@@ -18,12 +18,9 @@
 package org.apache.beam.sdk.io;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.ShardedKey;
 
 /** Function for assigning {@link ShardedKey}s to input elements for sharded {@link WriteFiles}. */
-@Experimental(Kind.SOURCE_SINK)
 public interface ShardingFunction<UserT, DestinationT> extends Serializable {
 
   ShardedKey<Integer> assignShardKey(DestinationT destination, UserT element, int shardCount)

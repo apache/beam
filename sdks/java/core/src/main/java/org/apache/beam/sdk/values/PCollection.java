@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
@@ -43,10 +40,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollection PCollection&lt;T&gt;} is an immutable collection of values of type {@code
@@ -86,7 +84,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   private CoderOrFailure<T> coderOrFailure =
       new CoderOrFailure<>(null, "No Coder was specified, and Coder Inference did not occur");
 
-  @Nullable private TypeDescriptor<T> typeDescriptor;
+  private @Nullable TypeDescriptor<T> typeDescriptor;
 
   @Override
   public void finishSpecifyingOutput(
@@ -121,9 +119,14 @@ public class PCollection<T> extends PValueBase implements PValue {
    * {@code T}, if possible. May return {@code null} if no information is available. Subclasses may
    * override this to enable better {@code Coder} inference.
    */
-  @Nullable
-  public TypeDescriptor<T> getTypeDescriptor() {
-    return typeDescriptor;
+  public @Nullable TypeDescriptor<T> getTypeDescriptor() {
+    if (typeDescriptor != null) {
+      return typeDescriptor;
+    }
+    if (coderOrFailure.coder != null) {
+      return coderOrFailure.coder.getEncodedTypeDescriptor();
+    }
+    return null;
   }
 
   /**
@@ -158,6 +161,7 @@ public class PCollection<T> extends PValueBase implements PValue {
         SchemaCoder<T> schemaCoder =
             SchemaCoder.of(
                 schemaRegistry.getSchema(token),
+                token,
                 schemaRegistry.getToRowFunction(token),
                 schemaRegistry.getFromRowFunction(token));
         return new CoderOrFailure<>(schemaCoder, null);
@@ -275,8 +279,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    * @throws IllegalStateException if the {@link Coder} hasn't been set, and couldn't be inferred.
    */
   public Coder<T> getCoder() {
-    checkState(coderOrFailure.coder != null, coderOrFailure.failure);
-    return coderOrFailure.coder;
+    return Preconditions.checkStateNotNull(coderOrFailure.coder, coderOrFailure.failure);
   }
 
   /**
@@ -296,33 +299,27 @@ public class PCollection<T> extends PValueBase implements PValue {
   /**
    * Sets a schema on this PCollection.
    *
-   * <p>Can only be called on a {@link PCollection}.
+   * <p>Can only be called on a {@link PCollection<Row>}.
    */
-  @Experimental(Kind.SCHEMAS)
   public PCollection<T> setRowSchema(Schema schema) {
-    return setSchema(
-        schema,
-        (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
-        (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
+    return setCoder((SchemaCoder<T>) SchemaCoder.of(schema));
   }
 
   /** Sets a {@link Schema} on this {@link PCollection}. */
-  @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return setCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    return setCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
   }
 
   /** Returns whether this {@link PCollection} has an attached schema. */
-  @Experimental(Kind.SCHEMAS)
   public boolean hasSchema() {
     return coderOrFailure.coder != null && coderOrFailure.coder instanceof SchemaCoder;
   }
 
   /** Returns the attached schema. */
-  @Experimental(Kind.SCHEMAS)
   public Schema getSchema() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getSchema when there is no schema");
@@ -331,7 +328,6 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /** Returns the attached schema's toRowFunction. */
-  @Experimental(Kind.SCHEMAS)
   public SerializableFunction<T, Row> getToRowFunction() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getToRowFunction when there is no schema");
@@ -340,7 +336,6 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /** Returns the attached schema's fromRowFunction. */
-  @Experimental(Kind.SCHEMAS)
   public SerializableFunction<Row, T> getFromRowFunction() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getFromRowFunction when there is no schema");
@@ -465,8 +460,8 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   private static class CoderOrFailure<T> {
-    @Nullable private final Coder<T> coder;
-    @Nullable private final String failure;
+    private final @Nullable Coder<T> coder;
+    private final @Nullable String failure;
 
     public CoderOrFailure(@Nullable Coder<T> coder, @Nullable String failure) {
       this.coder = coder;

@@ -17,27 +17,21 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.fn.harness.AssignWindowsRunner.AssignWindowsMapFnFactory;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -51,8 +45,13 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -171,41 +170,39 @@ public class AssignWindowsRunnerTest implements Serializable {
             throw new UnsupportedOperationException();
           }
         };
-    Collection<WindowedValue<?>> outputs = new ArrayList<>();
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
-    pCollectionConsumerRegistry.register("output", "ptransform", outputs::add);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder().setUniqueName("input").setCoderId("coder-id").build();
+    RunnerApi.Coder coder = CoderTranslation.toProto(VarIntCoder.of()).getCoder();
+
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(
+                "ptransform",
+                PTransform.newBuilder()
+                    .putInputs("in", "input")
+                    .putOutputs("out", "output")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
+                            .setPayload(
+                                WindowIntoPayload.newBuilder()
+                                    .setWindowFn(
+                                        WindowingStrategyTranslation.toProto(windowFn, components))
+                                    .build()
+                                    .toByteString()))
+                    .build())
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(Collections.singletonMap("input", pCollection))
+                    .putAllCoders(Collections.singletonMap("coder-id", coder))
+                    .build())
+            .build();
+    Collection<WindowedValue<?>> outputs = new ArrayList<>();
+    context.addPCollectionConsumer("output", outputs::add);
+
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
-        .createRunnerForPTransform(
-            null /* pipelineOptions */,
-            null /* beamFnDataClient */,
-            null /* beamFnStateClient */,
-            null /* pTransformId */,
-            PTransform.newBuilder()
-                .putInputs("in", "input")
-                .putOutputs("out", "output")
-                .setSpec(
-                    FunctionSpec.newBuilder()
-                        .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
-                        .setPayload(
-                            WindowIntoPayload.newBuilder()
-                                .setWindowFn(
-                                    WindowingStrategyTranslation.toProto(windowFn, components))
-                                .build()
-                                .toByteString()))
-                .build(),
-            null /* processBundleInstructionId */,
-            null /* pCollections */,
-            null /* coders */,
-            null /* windowingStrategies */,
-            pCollectionConsumerRegistry,
-            null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null /* splitListener */);
+        .createRunnerForPTransform(context);
 
     WindowedValue<Integer> value =
         WindowedValue.of(
@@ -215,7 +212,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                 new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
                 new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    pCollectionConsumerRegistry.getMultiplexingConsumer("input").accept(value);
+    context.getPCollectionConsumer("input").accept(value);
     assertThat(
         outputs,
         containsInAnyOrder(

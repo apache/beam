@@ -33,6 +33,9 @@ import org.slf4j.LoggerFactory;
 /**
  * This is the process kernel which deals with exec of the subprocess. It also deals with all I/O.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SubProcessKernel {
 
   private static final Logger LOG = LoggerFactory.getLogger(SubProcessKernel.class);
@@ -231,8 +234,6 @@ public class SubProcessKernel {
    */
   private byte[] collectProcessResultsBytes(
       Process process, ProcessBuilder builder, SubProcessIOFiles outPutFiles) throws Exception {
-
-    Byte[] results;
 
     try {
 

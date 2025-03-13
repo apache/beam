@@ -15,24 +15,27 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-# cython: profile=True
-
 """Counters collect the progress of the Worker for reporting to the service."""
 
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import math
 import random
-from builtins import hex
-from builtins import object
+import sys
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Optional
 
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters
+from apache_beam.utils import windowed_value
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
-# This module is experimental. No backwards-compatibility guarantees.
+if TYPE_CHECKING:
+  from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.typehints.batch import BatchConverter
 
 
 class TransformIOCounter(object):
@@ -44,7 +47,6 @@ class TransformIOCounter(object):
 
   Some examples of IO can be side inputs, shuffle, or streaming state.
   """
-
   def __init__(self, counter_factory, state_sampler):
     """Create a new IO read counter.
 
@@ -91,9 +93,8 @@ class TransformIOCounter(object):
 
 class NoOpTransformIOCounter(TransformIOCounter):
   """All operations for IO tracking are no-ops."""
-
   def __init__(self):
-    super(NoOpTransformIOCounter, self).__init__(None, None)
+    super().__init__(None, None)
 
   def update_current_step(self):
     pass
@@ -122,8 +123,12 @@ class SideInputReadCounter(TransformIOCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler, declaring_step,
-               input_index):
+  def __init__(self,
+               counter_factory,
+               state_sampler,  # type: StateSampler
+               declaring_step,
+               input_index
+              ):
     """Create a side input read counter.
 
     Args:
@@ -139,7 +144,7 @@ class SideInputReadCounter(TransformIOCounter):
     side input, and input_index is the index of the PCollectionView within
     the list of inputs.
     """
-    super(SideInputReadCounter, self).__init__(counter_factory, state_sampler)
+    super().__init__(counter_factory, state_sampler)
     self.declaring_step = declaring_step
     self.input_index = input_index
 
@@ -150,9 +155,7 @@ class SideInputReadCounter(TransformIOCounter):
   def _update_counters_for_requesting_step(self, step_name):
     side_input_id = counters.side_input_id(step_name, self.input_index)
     self.scoped_state = self._state_sampler.scoped_state(
-        self.declaring_step,
-        'read-sideinput',
-        io_target=side_input_id)
+        self.declaring_step, 'read-sideinput', io_target=side_input_id)
     self.bytes_read_counter = self._counter_factory.get_counter(
         CounterName(
             'read-sideinput-byte-count',
@@ -163,7 +166,6 @@ class SideInputReadCounter(TransformIOCounter):
 
 class SumAccumulator(object):
   """Accumulator for collecting byte counts."""
-
   def __init__(self):
     self._value = 0
 
@@ -176,24 +178,49 @@ class SumAccumulator(object):
 
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
-
-  def __init__(self, counter_factory, step_name, coder, output_index):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      coder,
+      index,
+      suffix='out',
+      producer_type_hints=None,
+      producer_batch_converter=None, # type: Optional[BatchConverter]
+  ):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
-        '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
+        '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
-        '%s-out%s-MeanByteCount' % (step_name, output_index),
+        '%s-%s%s-MeanByteCount' % (step_name, suffix, index),
         Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
-    self.active_accumulator = None
-    self.current_size = None
+    self.active_accumulator = None  # type: Optional[SumAccumulator]
+    self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
+    self.output_type_constraints = producer_type_hints or {}
+    self.producer_batch_converter = producer_batch_converter
 
   def update_from(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
+
     """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
+
+  def update_from_batch(self, windowed_batch):
+    # type: (windowed_value.WindowedBatch) -> None
+    assert self.producer_batch_converter is not None
+    assert isinstance(windowed_batch, windowed_value.HomogeneousWindowedBatch)
+
+    batch_length = self.producer_batch_converter.get_length(
+        windowed_batch.values)
+    self.element_counter.update(batch_length)
+
+    mean_element_size = self.producer_batch_converter.estimate_byte_size(
+        windowed_batch.values) / batch_length
+    self.mean_byte_counter.update_n(mean_element_size, batch_length)
 
   def _observable_callback(self, inner_coder_impl, accumulator):
     def _observable_callback_inner(value, is_encoded=False):
@@ -207,11 +234,32 @@ class OperationCounters(object):
         accumulator.update(size)
       else:
         accumulator.update(inner_coder_impl.estimate_size(value))
+
     return _observable_callback_inner
 
+  def type_check(self, value):
+    # type: (Any, bool) -> None
+    for transform_label, type_constraint_tuple in (
+            self.output_type_constraints.items()):
+      parameter_name, constraint = type_constraint_tuple
+      try:
+        _check_instance_type(constraint, value, parameter_name, verbose=True)
+      except TypeCheckError as e:
+        # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
+        if not transform_label.startswith('ParDo'):
+          transform_label = 'ParDo(%s)' % transform_label
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (transform_label, e))
+        _, _, traceback = sys.exc_info()
+        raise TypeCheckError(error_msg).with_traceback(traceback)
+
   def do_sample(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
+    self.type_check(windowed_value.value)
+
     size, observables = (
-        self.coder_impl.get_estimated_size_and_observables(windowed_value))
+        self.coder_impl.get_estimated_size_and_observables(windowed_value))  # type: ignore[union-attr]
     if not observables:
       self.current_size = size
     else:
@@ -298,9 +346,9 @@ class OperationCounters(object):
     self._sample_counter = 0
 
   def __str__(self):
-    return '<%s [%s]>' % (self.__class__.__name__,
-                          ', '.join([str(x) for x in self.__iter__()]))
+    return '<%s [%s]>' % (
+        self.__class__.__name__, ', '.join([str(x) for x in self.__iter__()]))
 
   def __repr__(self):
-    return '<%s %s at %s>' % (self.__class__.__name__,
-                              [x for x in self.__iter__()], hex(id(self)))
+    return '<%s %s at %s>' % (
+        self.__class__.__name__, [x for x in self.__iter__()], hex(id(self)))

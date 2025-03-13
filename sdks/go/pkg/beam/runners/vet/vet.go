@@ -21,28 +21,29 @@
 // can use this as a sanity check on whether a given pipeline avoids known
 // performance bottlenecks.
 //
-// TODO(BEAM-7374): Add usage documentation.
+// TODO(https://github.com/apache/beam/issues/19402): Add usage documentation.
 package vet
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/util/shimx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/shimx"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 func init() {
@@ -54,25 +55,25 @@ func init() {
 type disabledResolver bool
 
 func (p disabledResolver) Sym2Addr(name string) (uintptr, error) {
-	return 0, errors.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
+	return 0, errors.Errorf("%v not found. Register DoFns and functions with the beam/register package.", name)
 }
 
 // Execute evaluates the pipeline on whether it can run without reflection.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	e, err := Evaluate(ctx, p)
 	if err != nil {
-		return errors.WithContext(err, "validating pipeline with vet runner")
+		return nil, errors.WithContext(err, "validating pipeline with vet runner")
 	}
 	if !e.Performant() {
 		e.summary()
 		e.Generate("main")
 		e.diag("*/\n")
-		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
+		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", e.d.String(), string(e.Bytes()))
 		err = errors.WithContext(err, "validating pipeline with vet runner")
-		return errors.SetTopLevelMsg(err, "pipeline is not performant")
+		return nil, errors.SetTopLevelMsg(err, "pipeline is not performant")
 	}
 	// Pipeline nas no further tasks.
-	return nil
+	return nil, nil
 }
 
 // Evaluate returns an object that can generate necessary shims and inits.
@@ -91,8 +92,8 @@ func Evaluate(_ context.Context, p *beam.Pipeline) (*Eval, error) {
 	e := newEval()
 
 	e.diag("/**\n")
-	e.extractFromMultiEdges(edges)
-	return e, nil
+	err = e.extractFromMultiEdges(edges)
+	return e, err
 }
 
 func newEval() *Eval {
@@ -133,22 +134,27 @@ type Eval struct {
 
 // extractFromMultiEdges audits the given pipeline edges so we can determine if
 // this pipeline will run without reflection.
-func (e *Eval) extractFromMultiEdges(edges []*graph.MultiEdge) {
+func (e *Eval) extractFromMultiEdges(edges []*graph.MultiEdge) error {
 	e.diag("PTransform Audit:\n")
 	for _, edge := range edges {
 		switch edge.Op {
 		case graph.ParDo:
 			// Gets the ParDo's identifier
 			e.diagf("pardo %s", edge.Name())
-			e.extractGraphFn((*graph.Fn)(edge.DoFn))
+			if err := e.extractGraphFn((*graph.Fn)(edge.DoFn)); err != nil {
+				return err
+			}
 		case graph.Combine:
 			e.diagf("combine %s", edge.Name())
-			e.extractGraphFn((*graph.Fn)(edge.CombineFn))
+			if err := e.extractGraphFn((*graph.Fn)(edge.CombineFn)); err != nil {
+				return err
+			}
 		default:
 			continue
 		}
 		e.diag("\n")
 	}
+	return nil
 }
 
 // Performant returns whether this pipeline needs additional registrations
@@ -466,7 +472,7 @@ func (e *Eval) diag(s string) {
 }
 
 // diag invokes fmt.Fprintf on the diagnostic buffer.
-func (e *Eval) diagf(f string, args ...interface{}) {
+func (e *Eval) diagf(f string, args ...any) {
 	fmt.Fprintf(&e.d, f, args...)
 }
 
@@ -476,7 +482,7 @@ func (e *Eval) Print(s string) {
 }
 
 // Printf invokes fmt.Fprintf on the Eval buffer.
-func (e *Eval) Printf(f string, args ...interface{}) {
+func (e *Eval) Printf(f string, args ...any) {
 	fmt.Fprintf(&e.w, f, args...)
 }
 
@@ -485,7 +491,74 @@ func (e *Eval) Bytes() []byte {
 	return e.w.Bytes()
 }
 
-// We need to take graph.Fns (which can be created from interface{} from graph.NewFn)
+// checkStructFieldsUTF8 recursively validates that all string fields in the
+// given value are UTF-8 compliant.
+// It handles structs, slices, arrays, maps, and individual strings while
+// avoiding infinite recursion on circular references.
+// The function skips validation for types that implement both json.Marshaler
+// and json.Unmarshaler interfaces.
+//
+// Parameters:
+//   - v: reflect.Value to check
+//   - seen: map tracking visited values to prevent infinite recursion
+//
+// Returns:
+//   - error if any string field contains invalid UTF-8 encoding, nil otherwise
+func (e *Eval) checkStructFieldsUTF8(v reflect.Value, seen map[reflect.Value]bool) error {
+	if !v.IsValid() || seen[v] {
+		return nil
+	}
+
+	// Track visited values to prevent infinite recursion on circular references.
+	seen[v] = true
+
+	t := v.Type()
+
+	// Skip if type implements JSON marshaling.
+	_, hasMarshaler := reflect.New(t).Interface().(json.Marshaler)
+	_, hasUnmarshaler := reflect.New(t).Interface().(json.Unmarshaler)
+	if hasMarshaler && hasUnmarshaler {
+		return nil
+	}
+
+	switch t.Kind() {
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			field := v.Field(i)
+			if !field.CanInterface() {
+				// Skip unexported fields.
+				continue
+			}
+			if err := e.checkStructFieldsUTF8(field, seen); err != nil {
+				return err
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			if err := e.checkStructFieldsUTF8(v.Index(i), seen); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		iter := v.MapRange()
+		for iter.Next() {
+			if err := e.checkStructFieldsUTF8(iter.Key(), seen); err != nil {
+				return err
+			}
+			if err := e.checkStructFieldsUTF8(iter.Value(), seen); err != nil {
+				return err
+			}
+		}
+	case reflect.String:
+		str := v.String()
+		if !utf8.ValidString(str) {
+			return fmt.Errorf("non-UTF8 compliant string found: %q", str)
+		}
+	}
+	return nil
+}
+
+// We need to take graph.Fns (which can be created from any from graph.NewFn)
 // and convert them to all needed function caller signatures,
 // and emitters.
 //
@@ -500,17 +573,29 @@ func (e *Eval) Bytes() []byte {
 
 // extractGraphFn does the analysis of the function and determines what things need generating.
 // A single line is used, unless it's a struct, at which point one line per implemented method
-// is used.
-func (e *Eval) extractGraphFn(fn *graph.Fn) {
+// is used. For structs, it also validates UTF-8 compliance of all exported string fields.
+func (e *Eval) extractGraphFn(fn *graph.Fn) error {
 	if fn.DynFn != nil {
-		// TODO(BEAM-7375) handle dynamics if necessary (probably not since it's got general function handling)
+		// TODO(https://github.com/apache/beam/issues/19401) handle dynamics if necessary (probably not since it's got general function handling)
 		e.diag(" dynamic function")
-		return
+		return nil
 	}
 	if fn.Recv != nil {
 		e.diagf(" struct[[%T]]", fn.Recv)
 
-		rt := reflectx.SkipPtr(reflect.TypeOf(fn.Recv)) // We need the value not the pointer that's used.
+		// We need the value not the pointer that's used.
+		rt := reflectx.SkipPtr(reflect.TypeOf(fn.Recv))
+		rv := reflect.ValueOf(fn.Recv)
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		}
+
+		// Add UTF-8 compliance check for struct fields.
+		seen := make(map[reflect.Value]bool)
+		if err := e.checkStructFieldsUTF8(rv, seen); err != nil {
+			return err
+		}
+
 		if tk, ok := runtime.TypeKey(rt); ok {
 			if t, found := runtime.LookupType(tk); !found {
 				e.needType(tk, rt)
@@ -532,6 +617,8 @@ func (e *Eval) extractGraphFn(fn *graph.Fn) {
 		}
 		e.extractFuncxFn(fn.Fn)
 	}
+
+	return nil
 }
 
 type mthd struct {

@@ -16,19 +16,59 @@
  * limitations under the License.
  */
 
+import java.util.stream.Collectors
+
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2102": "2.10.2",
+    "324": "3.2.4",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_20_0
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.slf4j_api
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testRuntimeOnly project(":runners:direct-java")
+  testImplementation library.java.mockito_core
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each{kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+  }
+}
+
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Sorter tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each {kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: 'Verification') {
+    description = "Runs Sorter tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
 }

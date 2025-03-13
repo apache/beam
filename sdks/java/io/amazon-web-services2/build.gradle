@@ -19,31 +19,82 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.aws2',
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
+def excludeNetty = {
+  exclude group: "io.netty", module: "*" // exclude more recent Netty version
+}
+
 dependencies {
-  compile library.java.vendored_guava_20_0
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.aws_java_sdk2_apache_client
-  compile library.java.aws_java_sdk2_auth
-  compile library.java.aws_java_sdk2_sdk_core
-  compile library.java.jackson_core
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile library.java.slf4j_api
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.error_prone_annotations
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.aws_java_sdk2_cloudwatch, excludeNetty
+  implementation library.java.aws_java_sdk2_dynamodb, excludeNetty
+  implementation library.java.aws_java_sdk2_kinesis, excludeNetty
+  implementation library.java.aws_java_sdk2_s3, excludeNetty
+  implementation library.java.aws_java_sdk2_sns, excludeNetty
+  implementation library.java.aws_java_sdk2_sqs, excludeNetty
+  implementation library.java.aws_java_sdk2_sts, excludeNetty
+  implementation library.java.aws_java_sdk2_aws_core, excludeNetty
+  implementation library.java.aws_java_sdk2_sdk_core, excludeNetty
+  implementation library.java.aws_java_sdk2_auth, excludeNetty
+  implementation library.java.aws_java_sdk2_regions, excludeNetty
+  implementation library.java.aws_java_sdk2_utils, excludeNetty
+  implementation library.java.aws_java_sdk2_profiles, excludeNetty
+  implementation library.java.aws_java_sdk2_http_client_spi, excludeNetty
+  implementation library.java.aws_java_sdk2_apache_client, excludeNetty
+  implementation library.java.aws_java_sdk2_netty_client, excludeNetty
+  implementation("software.amazon.kinesis:amazon-kinesis-client:3.0.1") {
+    // Note: The KCL client isn't used. However, unfortunately, some model classes of KCL leak into the
+    // KinesisIO API (KinesisClientRecord, InitialPositionInStream). Additionally, KinesisIO
+    // internally uses KCL utils to generate aggregated messages and de-aggregate them.
+
+    // Exclude unnecessary runtime dependencies of the client as these cause conflicts.
+    exclude group: "software.amazon.glue", module: "*"
+    exclude group: "software.amazon.awssdk", module: "*"
+    exclude group: "io.reactivex.rxjava3", module: "rxjava"
+  }
+  implementation library.java.netty_all // force version of netty used by Beam
+  implementation library.java.netty_transport
+  permitUnusedDeclared library.java.netty_all
+  implementation library.java.byte_buddy
+  implementation library.java.jackson_core
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.protobuf_java
+  implementation "commons-lang:commons-lang:2.6"
+  implementation "org.reactivestreams:reactive-streams:1.0.3"
+  implementation library.java.commons_lang3
+  implementation library.java.commons_codec
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation "io.findify:s3mock_2.12:0.2.6"
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:1.3.5'
+  testImplementation library.java.mockito_core
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation "org.assertj:assertj-core:3.11.1"
+  testImplementation library.java.testcontainers_localstack
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
 test {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-      '--region=us-west-2',
+      '--awsRegion=us-west-2',
       '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
+  maxParallelForks 4
 }

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
@@ -43,16 +42,18 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
  * using a trigger that accounts for late data. The default trigger, {@code
  * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires once when the watermark passes
- * the end of the window and then immediately therafter when any late data arrives, is one such
+ * the end of the window and then immediately thereafter when any late data arrives, is one such
  * example.
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
- * <p>Additionaly firings before or after the watermark can be requested by calling {@code
+ * <p>Additionally firings before or after the watermark can be requested by calling {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AfterWatermarkStateMachine {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
@@ -72,7 +73,7 @@ public class AfterWatermarkStateMachine {
     private static final int LATE_INDEX = 1;
 
     private final TriggerStateMachine earlyTrigger;
-    @Nullable private final TriggerStateMachine lateTrigger;
+    private final @Nullable TriggerStateMachine lateTrigger;
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(
@@ -94,6 +95,13 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+        subTrigger.invokePrefetchOnElement(c);
+      }
+    }
+
+    @Override
     public void onElement(OnElementContext c) throws Exception {
       if (!endOfWindowReached(c)) {
         c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
@@ -108,6 +116,13 @@ public class AfterWatermarkStateMachine {
         for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
           subTrigger.invokeOnElement(c);
         }
+      }
+    }
+
+    @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+        subTrigger.invokePrefetchOnMerge(c);
       }
     }
 
@@ -130,6 +145,9 @@ public class AfterWatermarkStateMachine {
         if (lateTrigger != null) {
           ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
           OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
+          // It is necessary to merge before clearing. Clearing with this context just clears the
+          // target window state not the source windows state.
+          lateSubtrigger.invokeOnMerge(lateContext);
           lateContext.trigger().setFinished(false);
           lateSubtrigger.invokeClear(lateContext);
         }
@@ -137,7 +155,9 @@ public class AfterWatermarkStateMachine {
         // Otherwise the early trigger and end-of-window bit is done for good.
         earlyContext.trigger().setFinished(true);
         if (lateTrigger != null) {
-          c.trigger().subTrigger(LATE_INDEX).invokeOnMerge(c);
+          ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
+          OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
+          lateSubtrigger.invokeOnMerge(lateContext);
         }
       }
     }
@@ -145,6 +165,13 @@ public class AfterWatermarkStateMachine {
     private boolean endOfWindowReached(TriggerStateMachine.TriggerContext context) {
       return context.currentEventTime() != null
           && context.currentEventTime().isAfter(context.window().maxTimestamp());
+    }
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+        subTrigger.invokePrefetchShouldFire(c);
+      }
     }
 
     @Override
@@ -256,6 +283,9 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(OnElementContext c) throws Exception {
       // We're interested in knowing when the input watermark passes the end of the window.
       // (It is possible this has already happened, in which case the timer will be fired
@@ -264,6 +294,9 @@ public class AfterWatermarkStateMachine {
         c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
       }
     }
+
+    @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
 
     @Override
     public void onMerge(OnMergeContext c) throws Exception {
@@ -290,7 +323,7 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof FromEndOfWindow;
     }
 
@@ -298,6 +331,9 @@ public class AfterWatermarkStateMachine {
     public int hashCode() {
       return Objects.hash(getClass());
     }
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {

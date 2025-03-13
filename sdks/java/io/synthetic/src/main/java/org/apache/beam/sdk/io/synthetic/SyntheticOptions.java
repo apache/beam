@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,8 +32,8 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.apache.commons.math3.distribution.ExponentialDistribution;
 import org.apache.commons.math3.distribution.IntegerDistribution;
@@ -46,6 +46,9 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
  * This {@link SyntheticOptions} class provides common parameterizable synthetic options that are
  * used by {@link SyntheticBoundedSource} and {@link SyntheticUnboundedSource}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
 

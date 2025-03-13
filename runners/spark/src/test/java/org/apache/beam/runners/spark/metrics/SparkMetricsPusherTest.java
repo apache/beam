@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -50,14 +50,13 @@ import org.slf4j.LoggerFactory;
 public class SparkMetricsPusherTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
-
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
+  private static final String COUNTER_NAME = "counter";
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private Duration batchDuration() {
     return Duration.millis(
-        (pipeline.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
+        pipeline.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
   }
 
   @Before
@@ -70,6 +69,8 @@ public class SparkMetricsPusherTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
+
     Instant instant = new Instant(0);
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
@@ -96,7 +97,7 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
@@ -115,13 +116,13 @@ public class SparkMetricsPusherTest {
 
   @Category(UsesMetricsPusher.class)
   @Test
-  public void testInSBatchMode() throws Exception {
+  public void testInBatchMode() throws Exception {
     pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));
 
     pipeline.run();
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 }

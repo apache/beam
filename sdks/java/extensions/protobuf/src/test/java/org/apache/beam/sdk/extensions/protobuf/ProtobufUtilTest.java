@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.checkProto2Syntax;
 import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
 import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.verifyDeterministic;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.protobuf.Duration;
 import com.google.protobuf.ExtensionRegistry;
@@ -36,8 +34,8 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageB;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageC;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWithMap;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.ReferencesMessageWithMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -111,35 +109,6 @@ public class ProtobufUtilTest {
   public void testRecursiveDescriptorsReferencesMessageWithMap() {
     assertThat(
         getRecursiveDescriptorFullNames(ReferencesMessageWithMap.class), equalTo(REFERS_MAP_ALL));
-  }
-
-  @Test
-  public void testVerifyProto2() {
-    checkProto2Syntax(MessageA.class, ExtensionRegistry.getEmptyRegistry());
-    checkProto2Syntax(MessageB.class, ExtensionRegistry.getEmptyRegistry());
-    checkProto2Syntax(MessageC.class, ExtensionRegistry.getEmptyRegistry());
-    checkProto2Syntax(MessageWithMap.class, ExtensionRegistry.getEmptyRegistry());
-    checkProto2Syntax(ReferencesMessageWithMap.class, ExtensionRegistry.getEmptyRegistry());
-  }
-
-  @Test
-  public void testAnyIsNotProto2() {
-    // Any is a core Protocol Buffers type that uses proto3 syntax.
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(Any.class.getCanonicalName());
-    thrown.expectMessage("in file " + Any.getDescriptor().getFile().getName());
-
-    checkProto2Syntax(Any.class, ExtensionRegistry.getEmptyRegistry());
-  }
-
-  @Test
-  public void testDurationIsNotProto2() {
-    // Duration is a core Protocol Buffers type that uses proto3 syntax.
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(Duration.class.getCanonicalName());
-    thrown.expectMessage("in file " + Duration.getDescriptor().getFile().getName());
-
-    checkProto2Syntax(Duration.class, ExtensionRegistry.getEmptyRegistry());
   }
 
   @Test

@@ -18,21 +18,20 @@
 package org.apache.beam.examples.subprocess.utils;
 
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 
 /** Contains the configuration for the external library. */
 @DefaultCoder(AvroCoder.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ExecutableFile {
 
   String fileName;
 
   private String sourceGCSLocation;
   private String destinationLocation;
-
-  static final Logger LOG = LoggerFactory.getLogger(ExecutableFile.class);
 
   public String getSourceGCSLocation() {
     return sourceGCSLocation;

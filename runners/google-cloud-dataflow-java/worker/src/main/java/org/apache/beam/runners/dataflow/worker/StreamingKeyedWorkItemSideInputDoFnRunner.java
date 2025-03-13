@@ -35,9 +35,9 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 
 /**
@@ -54,6 +54,9 @@ import org.joda.time.Instant;
  * @param <OutputT> output element type
  * @param <W> window type
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<KeyedWorkItem<K, InputT>, OutputT> {
   private final DoFnRunner<KeyedWorkItem<K, InputT>, OutputT> simpleDoFnRunner;
@@ -132,8 +135,14 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   }
 
   @Override
-  public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+  public <KeyT> void onTimer(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException(
         "Attempt to deliver a timer to a DoFn, but timers are not supported in Dataflow.");
   }
@@ -142,6 +151,11 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
     sideInputFetcher.persist();
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    simpleDoFnRunner.onWindowExpiration(window, timestamp, key);
   }
 
   ValueState<K> keyValue() {

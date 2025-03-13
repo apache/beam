@@ -20,15 +20,15 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/symtab"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/symtab"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var (
 	// Resolver is the accessible symbol resolver the runtime uses to find functions.
 	Resolver SymbolResolver
-	cache    = make(map[string]interface{})
+	cache    = make(map[string]any)
 	mu       sync.Mutex
 )
 
@@ -72,8 +72,8 @@ type SymbolResolver interface {
 // RegisterFunction allows function registration. It is beneficial for performance
 // and is needed for functions -- such as custom coders -- serialized during unit
 // tests, where the underlying symbol table is not available. It should be called
-// in init() only. Returns the external key for the function.
-func RegisterFunction(fn interface{}) {
+// in `init()` only.
+func RegisterFunction(fn any) {
 	if initialized {
 		panic("Init hooks have already run. Register function during init() instead.")
 	}
@@ -85,7 +85,7 @@ func RegisterFunction(fn interface{}) {
 
 // ResolveFunction resolves the runtime value of a given function by symbol name
 // and type.
-func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
+func ResolveFunction(name string, t reflect.Type) (any, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -105,5 +105,5 @@ func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
 type failResolver bool
 
 func (p failResolver) Sym2Addr(name string) (uintptr, error) {
-	return 0, errors.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
+	return 0, errors.Errorf("%v not found. Register DoFns and functions with the the beam/register package.", name)
 }

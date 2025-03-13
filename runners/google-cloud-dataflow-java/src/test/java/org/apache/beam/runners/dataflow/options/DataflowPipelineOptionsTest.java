@@ -19,22 +19,31 @@ package org.apache.beam.runners.dataflow.options;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
 
 /** Tests for {@link DataflowPipelineOptions}. */
 @RunWith(JUnit4.class)
@@ -198,5 +207,119 @@ public class DataflowPipelineOptionsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Error constructing default value for stagingLocation");
     options.getStagingLocation();
+  }
+
+  @Test
+  public void testDefaultGcpRegionUnset() {
+    try (MockedStatic<DefaultGcpRegionFactory> mocked = mockStatic(DefaultGcpRegionFactory.class)) {
+      mocked.when(DefaultGcpRegionFactory::getRegionFromEnvironment).thenReturn(null);
+      mocked.when(() -> DefaultGcpRegionFactory.getRegionFromGcloudCli(anyLong())).thenReturn("");
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("", options.getRegion());
+    }
+  }
+
+  @Test
+  public void testDefaultGcpRegionUnsetIgnoresGcloudException() {
+    try (MockedStatic<DefaultGcpRegionFactory> mocked = mockStatic(DefaultGcpRegionFactory.class)) {
+      mocked.when(DefaultGcpRegionFactory::getRegionFromEnvironment).thenReturn(null);
+      mocked
+          .when(() -> DefaultGcpRegionFactory.getRegionFromGcloudCli(anyLong()))
+          .thenThrow(new IOException());
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("", options.getRegion());
+    }
+  }
+
+  @Test
+  public void testDefaultGcpRegionFromEnvironment() {
+    try (MockedStatic<DefaultGcpRegionFactory> mocked = mockStatic(DefaultGcpRegionFactory.class)) {
+      mocked.when(DefaultGcpRegionFactory::getRegionFromEnvironment).thenReturn("us-west1");
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("us-west1", options.getRegion());
+    }
+  }
+
+  @Test
+  public void testDefaultGcpRegionFromGcloud() {
+    try (MockedStatic<DefaultGcpRegionFactory> mocked = mockStatic(DefaultGcpRegionFactory.class)) {
+      mocked.when(DefaultGcpRegionFactory::getRegionFromEnvironment).thenReturn(null);
+      mocked
+          .when(() -> DefaultGcpRegionFactory.getRegionFromGcloudCli(anyLong()))
+          .thenReturn("us-west1");
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("us-west1", options.getRegion());
+    }
+  }
+
+  /**
+   * If gcloud gets stuck, test that {@link DefaultGcpRegionFactory#getRegionFromGcloudCli(long)}
+   * times out instead of blocking forever.
+   */
+  @Test(timeout = 10000L)
+  public void testGetRegionFromGcloudCliTimeout() {
+    try (MockedStatic<DefaultGcpRegionFactory> mocked =
+        mockStatic(DefaultGcpRegionFactory.class, CALLS_REAL_METHODS)) {
+      mocked
+          .when(DefaultGcpRegionFactory::startGcloud)
+          .thenReturn(
+              new Process() {
+                @Override
+                public OutputStream getOutputStream() {
+                  return new OutputStream() {
+                    @Override
+                    public void write(int b) {
+                      // Do nothing.
+                    }
+                  };
+                }
+
+                @Override
+                public InputStream getInputStream() {
+                  return new InputStream() {
+                    @Override
+                    public int read() {
+                      // Return EOF immediately.
+                      return -1;
+                    }
+                  };
+                }
+
+                @Override
+                public InputStream getErrorStream() {
+                  return new InputStream() {
+                    @Override
+                    public int read() {
+                      // Never return EOF to create an infinite loop.
+                      try {
+                        // Sleep so we don't buffer too many bytes and run out of memory.
+                        Thread.sleep(1000);
+                      } catch (InterruptedException e) {
+                        // Ignore.
+                      }
+                      return 0;
+                    }
+                  };
+                }
+
+                @Override
+                public int waitFor() {
+                  // Unused.
+                  return 0;
+                }
+
+                @Override
+                public int exitValue() {
+                  throw new IllegalThreadStateException("This mock process never terminates.");
+                }
+
+                @Override
+                public void destroy() {
+                  // Do nothing.
+                }
+              });
+      assertThrows(
+          TimeoutException.class, () -> DefaultGcpRegionFactory.getRegionFromGcloudCli(1L));
+    }
   }
 }

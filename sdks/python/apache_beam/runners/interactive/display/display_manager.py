@@ -20,38 +20,44 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
 import collections
 import threading
 import time
+from typing import TYPE_CHECKING
 
 from apache_beam.runners.interactive.display import interactive_pipeline_graph
 
 try:
   import IPython  # pylint: disable=import-error
+  from IPython import get_ipython  # pylint: disable=import-error
+  from IPython.display import display as ip_display  # pylint: disable=import-error
   # _display_progress defines how outputs are printed on the frontend.
-  _display_progress = IPython.display.display
+  _display_progress = ip_display
 
-  def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
-    pp.text(string)
-  plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
-  plain.for_type(str, _formatter)
+  if not TYPE_CHECKING:
 
-# NameError is added here because get_ipython() throws "not defined" NameError
-# if not started with IPython.
-except (ImportError, NameError):
+    def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
+      pp.text(string)
+
+    if get_ipython():
+      plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
+      plain.for_type(str, _formatter)
+
+except ImportError:
   IPython = None
   _display_progress = print
 
 
 class DisplayManager(object):
   """Manages displaying pipeline graph and execution status on the frontend."""
-
-  def __init__(self, pipeline_proto, pipeline_analyzer, cache_manager,
-               pipeline_graph_renderer):
+  def __init__(
+      self,
+      pipeline_proto,
+      pipeline_analyzer,
+      cache_manager,
+      pipeline_graph_renderer):
     """Constructor of DisplayManager.
 
     Args:
@@ -80,14 +86,16 @@ class DisplayManager(object):
         'Using %s cached PCollections\nExecuting %s of %s '
         'transforms.') % (
             len(self._analyzer.caches_used()),
-            (len(self._analyzer.tl_required_trans_ids())
-             - len(self._analyzer.read_cache_ids())
-             - len(self._analyzer.write_cache_ids())),
-            len(pipeline_proto.components.transforms[
-                pipeline_proto.root_transform_ids[0]].subtransforms))
-    self._text_to_print.update({
-        pcoll_id: "" for pcoll_id
-        in self._analyzer.tl_referenced_pcoll_ids()})
+            (
+                len(self._analyzer.tl_required_trans_ids()) -
+                len(self._analyzer.read_cache_ids()) -
+                len(self._analyzer.write_cache_ids())),
+            len(
+                pipeline_proto.components.transforms[
+                    pipeline_proto.root_transform_ids[0]].subtransforms))
+    self._text_to_print.update(
+        {pcoll_id: ""
+         for pcoll_id in self._analyzer.tl_referenced_pcoll_ids()})
 
     # _pcollection_stats maps pcoll_id to
     # { 'cache_label': cache_label, version': version, 'sample': pcoll_in_list }
@@ -130,21 +138,23 @@ class DisplayManager(object):
         if force or not self._cache_manager.is_latest_version(
             version, 'sample', cache_label):
           pcoll_list, version = self._cache_manager.read('sample', cache_label)
-          stats['sample'] = pcoll_list
+          stats['sample'] = list(pcoll_list)
           stats['version'] = version
           stats_updated = True
 
           if pcoll_id in self._analyzer.tl_referenced_pcoll_ids():
-            self._text_to_print[pcoll_id] = (str(
-                '%s produced %s' % (
-                    self._producers[pcoll_id],
-                    interactive_pipeline_graph.format_sample(pcoll_list, 5))))
+            self._text_to_print[pcoll_id] = (
+                str(
+                    '%s produced %s' % (
+                        self._producers[pcoll_id],
+                        interactive_pipeline_graph.format_sample(pcoll_list,
+                                                                 5))))
 
       if force or stats_updated:
         self._pipeline_graph.update_pcollection_stats(self._pcollection_stats)
 
         if IPython:
-          from IPython.core import display
+          from IPython import display
           display.clear_output(True)
           rendered_graph = self._renderer.render_pipeline_graph(
               self._pipeline_graph)

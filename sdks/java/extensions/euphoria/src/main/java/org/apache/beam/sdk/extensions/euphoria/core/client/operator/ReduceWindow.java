@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
@@ -51,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -75,9 +74,16 @@ import org.joda.time.Duration;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, Byte, OutputT>
     implements TypeAware.Value<ValueT>, CompositeOperator<InputT, OutputT> {
@@ -240,7 +246,7 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
         CombinableBinaryFunction<AccT> mergeAccumulators,
         UnaryFunction<AccT, OutputT> outputFn,
         @Nullable TypeDescriptor<AccT> accumulatorDescriptor,
-        @Nullable TypeDescriptor<OutputT> outptuDescriptor);
+        @Nullable TypeDescriptor<OutputT> outputDescriptor);
   }
 
   /** Builder for 'valueBy' / 'reduceBy' step. */
@@ -333,20 +339,20 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
-    @Nullable private final ReduceFunctor<ValueT, OutputT> reducer;
-    @Nullable private final VoidFunction<AccT> accumulatorFactory;
-    @Nullable private final BinaryFunction<AccT, ValueT, AccT> accumulate;
-    @Nullable private final CombinableBinaryFunction<AccT> mergeAccumulators;
-    @Nullable private final UnaryFunction<AccT, OutputT> outputFn;
-    @Nullable private final TypeDescriptor<AccT> accumulatorType;
+    private final @Nullable String name;
+    private final @Nullable ReduceFunctor<ValueT, OutputT> reducer;
+    private final @Nullable VoidFunction<AccT> accumulatorFactory;
+    private final @Nullable BinaryFunction<AccT, ValueT, AccT> accumulate;
+    private final @Nullable CombinableBinaryFunction<AccT> mergeAccumulators;
+    private final @Nullable UnaryFunction<AccT, OutputT> outputFn;
+    private final @Nullable TypeDescriptor<AccT> accumulatorType;
 
     private PCollection<InputT> input;
-    @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
-    @Nullable private TypeDescriptor<ValueT> valueType;
+    private @Nullable UnaryFunction<InputT, ValueT> valueExtractor;
+    private @Nullable TypeDescriptor<ValueT> valueType;
 
-    @Nullable private TypeDescriptor<OutputT> outputType;
-    @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+    private @Nullable TypeDescriptor<OutputT> outputType;
+    private @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -496,7 +502,7 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     }
 
     @Override
-    public PCollection<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output() {
       final ReduceWindow<InputT, ValueT, ?, OutputT> rw;
       if (valueExtractor == null) {
         valueExtractor = identity();
@@ -545,8 +551,8 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
   private final @Nullable TypeDescriptor<AccT> accumulatorType;
 
   private final UnaryFunction<InputT, ValueT> valueExtractor;
-  @Nullable private final BinaryFunction<ValueT, ValueT, Integer> valueComparator;
-  @Nullable private final TypeDescriptor<ValueT> valueType;
+  private final @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+  private final @Nullable TypeDescriptor<ValueT> valueType;
 
   private ReduceWindow(
       @Nullable String name,

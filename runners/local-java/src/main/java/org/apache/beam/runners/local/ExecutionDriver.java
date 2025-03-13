@@ -33,7 +33,7 @@ public interface ExecutionDriver {
       this.terminal = terminal;
     }
 
-    public boolean isTermainal() {
+    public boolean isTerminal() {
       return terminal;
     }
   }

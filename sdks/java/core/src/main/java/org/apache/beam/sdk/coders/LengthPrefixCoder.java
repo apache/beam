@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,8 +25,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 /**
  * A {@link Coder} which is able to take any existing coder and wrap it such that it is only invoked
@@ -103,16 +103,8 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    */
   @Override
   protected long getEncodedElementByteSize(T value) throws Exception {
-    if (valueCoder instanceof StructuredCoder) {
-      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
-      // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(value);
-      return VarInt.getLength(valueSize) + valueSize;
-    }
-
-    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
-    // of encoding and counting the bytes. The encoding will include the length prefix.
-    return super.getEncodedElementByteSize(value);
+    long valueSize = valueCoder.getEncodedElementByteSize(value);
+    return VarInt.getLength(valueSize) + valueSize;
   }
 
   /**

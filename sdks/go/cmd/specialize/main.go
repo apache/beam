@@ -23,12 +23,15 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -100,7 +103,7 @@ var (
 	}
 
 	packageMacros = map[string][]string{
-		"typex": {"github.com/apache/beam/sdks/go/pkg/beam/core/typex"},
+		"typex": {"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"},
 	}
 )
 
@@ -157,7 +160,7 @@ func main() {
 	if err := tmpl.Funcs(funcMap).Execute(&buf, top); err != nil {
 		log.Fatalf("specialization failed: %v", err)
 	}
-	if err := ioutil.WriteFile(*output, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(*output, buf.Bytes(), 0644); err != nil {
 		log.Fatalf("write failed: %v", err)
 	}
 }
@@ -190,17 +193,23 @@ func makeName(t string) string {
 	t = strings.Replace(t, ".", "_", -1)
 	t = strings.Replace(t, "[", "_", -1)
 	t = strings.Replace(t, "]", "_", -1)
-	return strings.Title(t)
+	return cases.Title(language.Und, cases.NoLower).String(t)
 }
 
 // Useful template functions
 
-var funcMap template.FuncMap = map[string]interface{}{
-	"join":     strings.Join,
-	"upto":     upto,
-	"mkargs":   mkargs,
-	"mktuple":  mktuple,
-	"mktuplef": mktuplef,
+var funcMap template.FuncMap = map[string]any{
+	"join":                                   strings.Join,
+	"upto":                                   upto,
+	"mkargs":                                 mkargs,
+	"mktuple":                                mktuple,
+	"mktuplef":                               mktuplef,
+	"add":                                    add,
+	"mult":                                   mult,
+	"dict":                                   dict,
+	"list":                                   list,
+	"genericTypingRepresentation":            genericTypingRepresentation,
+	"possibleBundleLifecycleParameterCombos": possibleBundleLifecycleParameterCombos,
 }
 
 // mkargs(n, type) returns "<fmt.Sprintf(format, 0)>, .., <fmt.Sprintf(format, n-1)> type".
@@ -237,4 +246,93 @@ func upto(i int) []int {
 		ret = append(ret, k)
 	}
 	return ret
+}
+
+func add(i int, j int) int {
+	return i + j
+}
+
+func mult(i int, j int) int {
+	return i * j
+}
+
+func dict(values ...any) map[string]any {
+	dict := make(map[string]any, len(values)/2)
+	if len(values)%2 != 0 {
+		panic("Invalid dictionary call")
+	}
+	for i := 0; i < len(values); i += 2 {
+		dict[values[i].(string)] = values[i+1]
+	}
+
+	return dict
+}
+
+func list(values ...string) []string {
+	return values
+}
+
+func genericTypingRepresentation(in int, out int, includeType bool) string {
+	seenElements := false
+	typing := ""
+	if in > 0 {
+		typing += fmt.Sprintf("[I%v", 0)
+		for i := 1; i < in; i++ {
+			typing += fmt.Sprintf(", I%v", i)
+		}
+		seenElements = true
+	}
+	if out > 0 {
+		i := 0
+		if !seenElements {
+			typing += fmt.Sprintf("[R%v", 0)
+			i++
+		}
+		for i < out {
+			typing += fmt.Sprintf(", R%v", i)
+			i++
+		}
+		seenElements = true
+	}
+
+	if seenElements {
+		if includeType {
+			typing += " any"
+		}
+		typing += "]"
+	}
+
+	return typing
+}
+
+func possibleBundleLifecycleParameterCombos(numInInterface any, processElementInInterface any) [][]string {
+	numIn := numInInterface.(int)
+	processElementIn := processElementInInterface.(int)
+	orderedKnownParameterOptions := []string{"context.Context", "typex.PaneInfo", "[]typex.Window", "typex.EventTime", "typex.BundleFinalization"}
+	// Because of how Bundle lifecycle functions are invoked, all known parameters must precede unknown options and be in order.
+	// Once we hit an unknown options, all remaining unknown options must be included since all iters/emitters must be included
+	// Therefore, we can generate a powerset of the known options and fill out any remaining parameters with an ordered set of remaining unknown options
+	pSetSize := int(math.Pow(2, float64(len(orderedKnownParameterOptions))))
+	combos := make([][]string, 0, pSetSize)
+
+	for index := 0; index < pSetSize; index++ {
+		var subSet []string
+
+		for j, elem := range orderedKnownParameterOptions {
+			// And with the bit representation to get this iteration of the powerset.
+			if index&(1<<uint(j)) > 0 {
+				subSet = append(subSet, elem)
+			}
+		}
+		// Fill out any remaining parameter slots with consecutive parameters from ProcessElement if there are enough options
+		if len(subSet) <= numIn && numIn-len(subSet) <= processElementIn {
+			for len(subSet) < numIn {
+				nextElement := processElementIn - (numIn - len(subSet))
+				subSet = append(subSet, fmt.Sprintf("I%v", nextElement))
+			}
+			combos = append(combos, subSet)
+		}
+	}
+
+	return combos
 }

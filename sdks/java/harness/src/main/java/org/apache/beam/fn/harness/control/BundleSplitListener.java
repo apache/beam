@@ -17,19 +17,21 @@
  */
 package org.apache.beam.fn.harness.control;
 
+import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 
 /**
- * Listens to splits happening to a single bundle. See <a
+ * Listens to splits happening to a single bundle application. See <a
  * href="https://s.apache.org/beam-breaking-fusion">Breaking the Fusion Barrier</a> for a discussion
  * of the design.
  */
 public interface BundleSplitListener {
   /**
-   * Signals that the current bundle should be split into the given set of primary and residual
-   * roots.
+   * Signals that the current application should be split into the given primary and residual roots.
    *
    * <p>Primary roots are the new decomposition of the bundle's work into transform applications
    * that have happened or will happen as part of this bundle (modulo future splits). Residual roots
@@ -37,4 +39,29 @@ public interface BundleSplitListener {
    * it for someone else to execute.
    */
   void split(List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots);
+
+  /** A {@link BundleSplitListener} which gathers all splits produced and stores them in memory. */
+  @AutoValue
+  @NotThreadSafe
+  abstract class InMemory implements BundleSplitListener {
+    public static InMemory create() {
+      return new AutoValue_BundleSplitListener_InMemory(new ArrayList<>(), new ArrayList<>());
+    }
+
+    @Override
+    public void split(
+        List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots) {
+      getPrimaryRoots().addAll(primaryRoots);
+      getResidualRoots().addAll(residualRoots);
+    }
+
+    public void clear() {
+      getPrimaryRoots().clear();
+      getResidualRoots().clear();
+    }
+
+    public abstract List<BundleApplication> getPrimaryRoots();
+
+    public abstract List<DelayedBundleApplication> getResidualRoots();
+  }
 }

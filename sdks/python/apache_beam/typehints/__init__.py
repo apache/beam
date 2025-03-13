@@ -17,8 +17,22 @@
 
 """A package defining the syntax and decorator semantics for type-hints."""
 
-from __future__ import absolute_import
-
 # pylint: disable=wildcard-import
 from apache_beam.typehints.typehints import *
 from apache_beam.typehints.decorators import *
+from apache_beam.typehints.batch import *
+
+# pylint: disable=ungrouped-imports
+try:
+  import pandas as _
+except ImportError:
+  pass
+else:
+  from apache_beam.typehints.pandas_type_compatibility import *
+
+try:
+  import pyarrow as _
+except ImportError:
+  pass
+else:
+  from apache_beam.typehints.arrow_type_compatibility import *

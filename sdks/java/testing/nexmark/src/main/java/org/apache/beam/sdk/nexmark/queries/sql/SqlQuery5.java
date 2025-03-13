@@ -21,7 +21,6 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
@@ -33,7 +32,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /**
  * Query 5, 'Hot Items'. Which auctions have seen the most bids in the last hour (updated every
@@ -100,7 +99,7 @@ public class SqlQuery5 extends NexmarkQueryTransform<AuctionCount> {
     PCollection<Row> bids =
         allEvents
             .apply(Filter.by(NexmarkQueryUtil.IS_BID))
-            .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
+            .apply(getName() + ".SelectEvent", new SelectEvent(Event.Type.BID));
 
     return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
         .apply(query)

@@ -19,8 +19,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-	protobufw "github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/proto"
+	protobufw "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestProtoPackingInvertibility(t *testing.T) {
@@ -39,7 +39,7 @@ func TestProtoPackingInvertibility(t *testing.T) {
 	}
 
 	if !proto.Equal(&res, &buf) {
-		t.Errorf("Got %v, wanted %v", res, buf)
+		t.Errorf("Got %v, wanted %v", &res, &buf)
 	}
 
 }
@@ -60,7 +60,7 @@ func TestProto64PackingInvertibility(t *testing.T) {
 	}
 
 	if !proto.Equal(&res, &buf) {
-		t.Errorf("Got %v, wanted %v", res, buf)
+		t.Errorf("Got %v, wanted %v", &res, &buf)
 	}
 }
 

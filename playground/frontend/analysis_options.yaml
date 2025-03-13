@@ -1,0 +1,112 @@
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing,
+#  software distributed under the License is distributed on an
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#  KIND, either express or implied.  See the License for the
+#  specific language governing permissions and limitations
+#  under the License.
+
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+#
+# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
+# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
+# invoked from the command line by running `flutter analyze`.
+
+# The following line activates a set of recommended lints for Flutter apps,
+# packages, and plugins designed to encourage good coding practices.
+include: package:flutter_lints/flutter.yaml
+
+# exclude generated files
+analyzer:
+  exclude:
+    - build/**
+    - lib/**.g.dart
+    - lib/api/**
+    - lib/l10n/**.arb
+    - test/**.mocks.dart
+
+linter:
+  # The lint rules applied to this project can be customized in the
+  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
+  # included above or to enable additional rules. A list of all available lints
+  # and their documentation is published at
+  # https://dart-lang.github.io/linter/lints/index.html.
+  #
+  # Instead of disabling a lint rule for the entire project in the
+  # section below, it can also be suppressed for a single line of code
+  # or a specific dart file by using the `// ignore: name_of_lint` and
+  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
+  # producing the lint.
+  rules:
+    # Turn on those off by default:
+    always_put_control_body_on_new_line: true
+    avoid_bool_literals_in_conditional_expressions: true
+    avoid_catching_errors: true
+    avoid_double_and_int_checks: true
+    avoid_dynamic_calls: true
+    avoid_field_initializers_in_const_classes: true
+    avoid_implementing_value_types: true
+    avoid_js_rounded_ints: true
+    avoid_multiple_declarations_per_line: true
+    avoid_private_typedef_functions: true
+    avoid_returning_null_for_future: true
+    avoid_returning_this: true
+    avoid_setters_without_getters: true
+    avoid_slow_async_io: true
+    avoid_type_to_string: true
+    avoid_unused_constructor_parameters: true
+    cancel_subscriptions: true
+    close_sinks: true
+    comment_references: true
+    conditional_uri_does_not_exist: true
+    deprecated_consistency: true
+    do_not_use_environment: true
+    eol_at_end_of_file: true
+    invariant_booleans: true
+    leading_newlines_in_multiline_strings: true
+    literal_only_boolean_expressions: true
+    no_runtimeType_toString: true
+    noop_primitive_operations: true
+    one_member_abstracts: true
+    only_throw_errors: true
+    package_api_docs: true
+    parameter_assignments: true
+    prefer_asserts_in_initializer_lists: true
+    prefer_single_quotes: true
+    secure_pubspec_urls: true
+    sized_box_shrink_expand: true
+    sort_pub_dependencies: true
+    sort_unnamed_constructors_first: true
+    test_types_in_equals: true
+    tighten_type_of_initializing_formals: true
+    unnecessary_await_in_return: true
+    unnecessary_null_aware_operator_on_extension_on_nullable: true
+    unnecessary_null_checks: true
+    unnecessary_parenthesis: true
+    unnecessary_statements: true
+    unnecessary_to_list_in_spreads: true
+    unsafe_html: true
+    use_enums: true
+    use_if_null_to_convert_nulls_to_bools: true
+    use_is_even_rather_than_modulo: true
+    use_raw_strings: true
+    use_to_and_as_if_applicable: true
+
+    #Turn off those on by default:
+    avoid_web_libraries_in_flutter: false
+    avoid_print: false
+    prefer_interpolation_to_compose_strings: false
+    use_key_in_widget_constructors: false
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options

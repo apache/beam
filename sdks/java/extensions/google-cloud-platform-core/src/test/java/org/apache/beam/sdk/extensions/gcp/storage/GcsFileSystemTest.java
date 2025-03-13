@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.storage.model.Objects;
@@ -32,16 +35,17 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -153,17 +157,6 @@ public class GcsFileSystemTest {
     }
 
     {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
-      List<String> expectedFiles =
-          ImmutableList.of(
-              "gs://testbucket/testdirectory/file1name",
-              "gs://testbucket/testdirectory/file2name",
-              "gs://testbucket/testdirectory/file3name");
-
-      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
-    }
-
-    {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file[1-3]*");
       List<String> expectedFiles =
           ImmutableList.of(
@@ -244,6 +237,20 @@ public class GcsFileSystemTest {
     assertThat(
         ImmutableList.of("gs://testbucket/testdirectory/file4name"),
         contains(toFilenames(matchResults.get(4)).toArray()));
+  }
+
+  @Test
+  public void testReportLineageOnBucket() {
+    verifyLineage("gs://testbucket", ImmutableList.of("testbucket"));
+    verifyLineage("gs://testbucket/", ImmutableList.of("testbucket"));
+    verifyLineage("gs://testbucket/foo/bar.txt", ImmutableList.of("testbucket", "foo/bar.txt"));
+  }
+
+  private void verifyLineage(String uri, List<String> expected) {
+    GcsResourceId path = GcsResourceId.fromGcsPath(GcsPath.fromUri(uri));
+    Lineage mockLineage = mock(Lineage.class);
+    gcsFileSystem.reportLineage(path, mockLineage);
+    verify(mockLineage, times(1)).add("gcs", expected);
   }
 
   private StorageObject createStorageObject(String gcsFilename, long fileSize) {

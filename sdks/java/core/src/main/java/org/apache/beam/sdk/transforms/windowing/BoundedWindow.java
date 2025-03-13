@@ -83,4 +83,18 @@ public abstract class BoundedWindow {
         Long.parseLong(
             constant.getValueDescriptor().getOptions().getExtension(RunnerApi.beamConstant)));
   }
+
+  /**
+   * Validates that a given timestamp is within min and max bounds.
+   *
+   * @param timestamp timestamp to validate
+   */
+  public static void validateTimestampBounds(Instant timestamp) {
+    if (timestamp.isBefore(TIMESTAMP_MIN_VALUE) || timestamp.isAfter(TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Provided timestamp %s must be within bounds [%s, %s].",
+              timestamp, TIMESTAMP_MIN_VALUE, TIMESTAMP_MAX_VALUE));
+    }
+  }
 }

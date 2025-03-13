@@ -22,17 +22,25 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlParserImpl}. */
@@ -43,8 +51,8 @@ public class BeamDDLTest {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
-    JSONObject properties = new JSONObject();
-    JSONArray hello = new JSONArray();
+    ObjectNode properties = TableUtils.emptyProperties();
+    ArrayNode hello = TableUtils.getObjectMapper().createArrayNode();
     hello.add("james");
     hello.add("bond");
     properties.put("hello", hello);
@@ -61,6 +69,21 @@ public class BeamDDLTest {
     assertEquals(
         mockTable("person", "text", "person table", properties),
         tableProvider.getTables().get("person"));
+  }
+
+  @Test
+  public void testParseCreateExternalTable_WithComplexFields() {
+    TestTableProvider tableProvider = new TestTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+
+    env.executeDdl(
+        "CREATE EXTERNAL TABLE PersonDetails"
+            + " ( personInfo MAP<VARCHAR, ROW<field_1 INTEGER,field_2 VARCHAR>> , "
+            + " additionalInfo ROW<field_0 TIMESTAMP,field_1 INTEGER,field_2 TINYINT> )"
+            + " TYPE 'text'"
+            + " LOCATION '/home/admin/person'");
+
+    assertNotNull(tableProvider.getTables().get("PersonDetails"));
   }
 
   @Test(expected = ParseException.class)
@@ -93,8 +116,8 @@ public class BeamDDLTest {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
-    JSONObject properties = new JSONObject();
-    JSONArray hello = new JSONArray();
+    ObjectNode properties = TableUtils.emptyProperties();
+    ArrayNode hello = TableUtils.getObjectMapper().createArrayNode();
     hello.add("james");
     hello.add("bond");
     properties.put("hello", hello);
@@ -123,7 +146,7 @@ public class BeamDDLTest {
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n");
     assertEquals(
-        mockTable("person", "text", "person table", new JSONObject()),
+        mockTable("person", "text", "person table", TableUtils.emptyProperties()),
         tableProvider.getTables().get("person"));
   }
 
@@ -140,7 +163,7 @@ public class BeamDDLTest {
             + "COMMENT 'person table' \n");
 
     assertEquals(
-        mockTable("person", "text", "person table", new JSONObject(), null),
+        mockTable("person", "text", "person table", TableUtils.emptyProperties(), null),
         tableProvider.getTables().get("person"));
   }
 
@@ -158,7 +181,7 @@ public class BeamDDLTest {
             .schema(
                 Stream.of(Schema.Field.of("id", CalciteUtils.INTEGER).withNullable(true))
                     .collect(toSchema()))
-            .properties(new JSONObject())
+            .properties(TableUtils.emptyProperties())
             .build(),
         tableProvider.getTables().get("person"));
   }
@@ -198,12 +221,41 @@ public class BeamDDLTest {
     assertNull(tableProvider.getTables().get("person"));
   }
 
-  private static Table mockTable(String name, String type, String comment, JSONObject properties) {
+  @Test
+  public void unparseScalarFunction() {
+    SqlIdentifier name = new SqlIdentifier("foo", SqlParserPos.ZERO);
+    SqlNode jarPath = SqlLiteral.createCharString("path/to/udf.jar", SqlParserPos.ZERO);
+    SqlCreateFunction createFunction =
+        new SqlCreateFunction(SqlParserPos.ZERO, false, name, jarPath, false);
+    SqlWriter sqlWriter = new SqlPrettyWriter(BeamBigQuerySqlDialect.DEFAULT);
+
+    createFunction.unparse(sqlWriter, 0, 0);
+
+    assertEquals(
+        "CREATE FUNCTION foo USING JAR 'path/to/udf.jar'", sqlWriter.toSqlString().getSql());
+  }
+
+  @Test
+  public void unparseAggregateFunction() {
+    SqlIdentifier name = new SqlIdentifier("foo", SqlParserPos.ZERO);
+    SqlNode jarPath = SqlLiteral.createCharString("path/to/udf.jar", SqlParserPos.ZERO);
+    SqlCreateFunction createFunction =
+        new SqlCreateFunction(SqlParserPos.ZERO, false, name, jarPath, true);
+    SqlWriter sqlWriter = new SqlPrettyWriter(BeamBigQuerySqlDialect.DEFAULT);
+
+    createFunction.unparse(sqlWriter, 0, 0);
+
+    assertEquals(
+        "CREATE AGGREGATE FUNCTION foo USING JAR 'path/to/udf.jar'",
+        sqlWriter.toSqlString().getSql());
+  }
+
+  private static Table mockTable(String name, String type, String comment, ObjectNode properties) {
     return mockTable(name, type, comment, properties, "/home/admin/" + name);
   }
 
   private static Table mockTable(
-      String name, String type, String comment, JSONObject properties, String location) {
+      String name, String type, String comment, ObjectNode properties, String location) {
 
     return Table.builder()
         .name(name)

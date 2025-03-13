@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,7 +42,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 /**
@@ -76,6 +76,12 @@ import org.joda.time.Instant;
  * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
  * the same topic to which the Injector is publishing.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class StatefulTeamScore extends LeaderBoard {
 
   /** Options supported by {@link StatefulTeamScore}. */

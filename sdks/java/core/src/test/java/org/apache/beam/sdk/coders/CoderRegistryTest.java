@@ -44,7 +44,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -61,10 +61,6 @@ public class CoderRegistryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CoderRegistry.class);
-
-  private static class SerializableClass implements Serializable {}
-
-  private static class NotSerializableClass {}
 
   @Test
   public void testRegisterInstantiatedCoder() throws Exception {
@@ -292,7 +288,7 @@ public class CoderRegistryTest {
     @Override
     public PCollection<KV<String, MySerializableGeneric<String>>> expand(
         PCollection<String> input) {
-      return input.apply(ParDo.of(new OutputDoFn()));
+      return input.apply(ParDo.of(new PTransformOutputingMySerializableGeneric.OutputDoFn()));
     }
   }
 
@@ -467,7 +463,7 @@ public class CoderRegistryTest {
     CoderRegistry registry = CoderRegistry.createDefault();
 
     // DefaultCoder precedes CoderProviderRegistrar
-    assertEquals(AvroCoder.of(MyValueA.class), registry.getCoder(MyValueA.class));
+    assertEquals(MockDefaultCoder.of(MyValueA.class), registry.getCoder(MyValueA.class));
 
     // CoderProviderRegistrar precedes SerializableCoder
     assertEquals(MyValueBCoder.INSTANCE, registry.getCoder(MyValueB.class));
@@ -476,7 +472,7 @@ public class CoderRegistryTest {
     assertEquals(SerializableCoder.of(MyValueC.class), registry.getCoder(MyValueC.class));
   }
 
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(MockDefaultCoder.class)
   private static class MyValueA implements Serializable {}
 
   private static class MyValueB implements Serializable {}

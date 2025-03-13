@@ -27,11 +27,12 @@ from xml.etree import ElementTree
 # cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
 # host = cmd_out.split(" ")[2]
 
-host = os.environ['JENSYNC_HOST']
-port = os.environ['JENSYNC_PORT']
-dbname = os.environ['JENSYNC_DBNAME']
-dbusername = os.environ['JENSYNC_DBUSERNAME']
-dbpassword = os.environ['JENSYNC_DBPWD']
+host = os.environ['DB_HOST']
+port = os.environ['DB_PORT']
+dbname = os.environ['DB_DBNAME']
+dbusername = os.environ['DB_DBUSERNAME']
+dbpassword = os.environ['DB_DBPWD']
+
 
 jenkinsBuildsTableName = 'jenkins_builds'
 
@@ -58,10 +59,10 @@ primary key(job_name, build_id)
 """
 
 def fetchJobs():
-  url = ('https://builds.apache.org/view/A-D/view/Beam/view/All/api/json'
+  url = ('https://ci-beam.apache.org/api/json'
          '?tree=jobs[name,url,lastCompletedBuild[id]]&depth=1')
   r = requests.get(url)
-  jobs = r.json()[u'jobs']
+  jobs = r.json()['jobs']
   result = map(lambda x: (x['name'],
                           int(x['lastCompletedBuild']['id'])
                               if x['lastCompletedBuild'] is not None
@@ -121,31 +122,31 @@ def fetchBuildsForJob(jobUrl):
             f'estimatedDuration,fullDisplayName,actions[{durFields}]')
   url = f'{jobUrl}api/json?depth=1&tree=builds[{fields}]'
   r = requests.get(url)
-  return r.json()[u'builds']
+  return r.json()['builds']
 
 
 def buildRowValuesArray(jobName, build):
   timings = next((x
-                  for x in build[u'actions']
-                  if (u'_class' in x)
-                    and (x[u'_class'] == u'jenkins.metrics.impl.TimeInQueueAction')),
+                  for x in build['actions']
+                  if ('_class' in x)
+                    and (x['_class'] == 'jenkins.metrics.impl.TimeInQueueAction')),
                  None)
   values = [jobName,
-          int(build[u'id']),
-          build[u'url'],
-          build[u'result'],
-          datetime.fromtimestamp(build[u'timestamp'] / 1000),
-          build[u'builtOn'],
-          build[u'duration'],
-          build[u'estimatedDuration'],
-          build[u'fullDisplayName'],
-          timings[u'blockedDurationMillis'] if timings is not None else -1,
-          timings[u'buildableDurationMillis'] if timings is not None else -1,
-          timings[u'buildingDurationMillis'] if timings is not None else -1,
-          timings[u'executingTimeMillis'] if timings is not None else -1,
-          timings[u'queuingDurationMillis'] if timings is not None else -1,
-          timings[u'totalDurationMillis'] if timings is not None else -1,
-          timings[u'waitingDurationMillis'] if timings is not None else -1]
+          int(build['id']),
+          build['url'],
+          build['result'],
+          datetime.fromtimestamp(build['timestamp'] / 1000),
+          build['builtOn'],
+          build['duration'],
+          build['estimatedDuration'],
+          build['fullDisplayName'],
+          timings['blockedDurationMillis'] if timings is not None else -1,
+          timings['buildableDurationMillis'] if timings is not None else -1,
+          timings['buildingDurationMillis'] if timings is not None else -1,
+          timings['executingTimeMillis'] if timings is not None else -1,
+          timings['queuingDurationMillis'] if timings is not None else -1,
+          timings['totalDurationMillis'] if timings is not None else -1,
+          timings['waitingDurationMillis'] if timings is not None else -1]
   return values
 
 
@@ -167,16 +168,16 @@ def fetchNewData():
     syncedJobId = syncedJobs[newJobName] if newJobName in syncedJobs else -1
     if newJobLastBuildId > syncedJobId:
       builds = fetchBuildsForJob(newJobUrl)
-      builds = [x for x in builds if int(x[u'id']) > syncedJobId]
+      builds = [x for x in builds if int(x['id']) > syncedJobId]
 
       connection = initConnection()
       cursor = connection.cursor()
 
       for build in builds:
-        if build[u'building']:
+        if build['building']:
           continue;
         rowValues = buildRowValuesArray(newJobName, build)
-        print("inserting", newJobName, build[u'id'])
+        print("inserting", newJobName, build['id'])
         insertRow(cursor, rowValues)
 
       cursor.close()
@@ -185,7 +186,7 @@ def fetchNewData():
 
 def probeJenkinsIsUp():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  result = sock.connect_ex(('builds.apache.org', 443))
+  result = sock.connect_ex(('ci-beam.apache.org', 443))
   return True if result == 0 else False
 
 

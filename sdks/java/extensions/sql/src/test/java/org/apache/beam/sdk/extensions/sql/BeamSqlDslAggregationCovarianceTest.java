@@ -24,7 +24,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
@@ -59,11 +58,7 @@ public class BeamSqlDslAggregationCovarianceTest {
                 2.0, 6, 4, 0, 8.0, 4.0, 1.0, 8, 4, 0)
             .getRows();
 
-    boundedInput =
-        pipeline.apply(
-            Create.of(rowsInTableB)
-                .withSchema(
-                    schema, SerializableFunctions.identity(), SerializableFunctions.identity()));
+    boundedInput = pipeline.apply(Create.of(rowsInTableB).withRowSchema(schema));
   }
 
   @Test

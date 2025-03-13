@@ -17,21 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The union of at least two datasets of the same type.
@@ -64,9 +63,15 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *   <li>{@code of .......................} input datasets
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class Union<InputT> extends Operator<InputT> {
 
   /**
@@ -133,7 +138,7 @@ public class Union<InputT> extends Operator<InputT> {
 
   private static class Builder<InputT> extends OfBuilder implements Builders.Output<InputT> {
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private List<PCollection<InputT>> pCollections;
 
     Builder(@Nullable String name) {
@@ -149,7 +154,7 @@ public class Union<InputT> extends Operator<InputT> {
     }
 
     @Override
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       checkArgument(pCollections.size() > 1, "Union needs at least two data sets.");
       return OperatorTransform.apply(
           new Union<>(name, pCollections.get(0).getTypeDescriptor()),

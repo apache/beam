@@ -24,6 +24,9 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 /** Native library used to read from and write to a shuffle dataset. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class ShuffleLibrary {
   /** Loads the native shuffle library. */
   static void load() {

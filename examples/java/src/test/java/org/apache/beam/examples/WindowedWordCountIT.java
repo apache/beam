@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.ArrayList;
@@ -28,7 +29,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.common.WriteOneFilePerWindow.PerWindowFiles;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -45,9 +45,9 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.apache.beam.sdk.util.ShardedFile;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
@@ -73,6 +73,10 @@ public class WindowedWordCountIT {
       FluentBackoff.DEFAULT
           .withInitialBackoff(DEFAULT_SLEEP_DURATION)
           .withMaxRetries(MAX_READ_RETRIES);
+
+  public static WordCountsMatcher containsWordCounts(SortedMap<String, Long> expectedWordCounts) {
+    return new WordCountsMatcher(expectedWordCounts);
+  }
 
   /** Options for the {@link WindowedWordCount} Integration Test. */
   public interface WindowedWordCountITOptions
@@ -183,30 +187,27 @@ public class WindowedWordCountIT {
       }
     }
 
-    options.setOnSuccessMatcher(new WordCountsMatcher(expectedWordCounts, expectedOutputFiles));
-
     WindowedWordCount.runWindowedWordCount(options);
+
+    assertThat(expectedOutputFiles, containsWordCounts(expectedWordCounts));
   }
 
   /**
    * A matcher that bakes in expected word counts, so they can be read directly via some other
    * mechanism, and compares a sharded output file with the result.
    */
-  private static class WordCountsMatcher extends TypeSafeMatcher<PipelineResult>
-      implements SerializableMatcher<PipelineResult> {
+  private static class WordCountsMatcher extends TypeSafeMatcher<List<ShardedFile>>
+      implements SerializableMatcher<List<ShardedFile>> {
 
     private final SortedMap<String, Long> expectedWordCounts;
-    private final List<ShardedFile> outputFiles;
     private SortedMap<String, Long> actualCounts;
 
-    public WordCountsMatcher(
-        SortedMap<String, Long> expectedWordCounts, List<ShardedFile> outputFiles) {
+    private WordCountsMatcher(SortedMap<String, Long> expectedWordCounts) {
       this.expectedWordCounts = expectedWordCounts;
-      this.outputFiles = outputFiles;
     }
 
     @Override
-    public boolean matchesSafely(PipelineResult pipelineResult) {
+    public boolean matchesSafely(List<ShardedFile> outputFiles) {
       try {
         // Load output data
         List<String> outputLines = new ArrayList<>();
@@ -238,7 +239,7 @@ public class WindowedWordCountIT {
     }
 
     @Override
-    public void describeMismatchSafely(PipelineResult pResult, Description description) {
+    public void describeMismatchSafely(List<ShardedFile> shardedFiles, Description description) {
       equalTo(expectedWordCounts).describeMismatch(actualCounts, description);
     }
   }

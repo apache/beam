@@ -26,6 +26,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,7 +58,7 @@ public class CustomCoderTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof MyCustomCoder && key.equals(((MyCustomCoder) other).key);
     }
 

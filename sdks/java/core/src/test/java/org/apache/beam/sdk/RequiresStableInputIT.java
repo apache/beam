@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk;
 
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -28,8 +31,6 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
-import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -94,9 +95,9 @@ public class RequiresStableInputIT {
 
     public static void writeTextToFileSideEffect(String text, String filename) throws IOException {
       ResourceId rid = FileSystems.matchNewResource(filename, false);
-      WritableByteChannel chan = FileSystems.create(rid, "text/plain");
-      chan.write(ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8)));
-      chan.close();
+      try (WritableByteChannel chan = FileSystems.create(rid, "text/plain")) {
+        chan.write(ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8)));
+      }
     }
   }
 
@@ -137,13 +138,6 @@ public class RequiresStableInputIT {
             .resolve("key-", StandardResolveOptions.RESOLVE_FILE)
             .toString();
 
-    options.setOnSuccessMatcher(
-        SerializableMatchers.allOf(
-            new FileChecksumMatcher(
-                VALUE_CHECKSUM, new FilePatternMatchingShardedFile(singleOutputPrefix + "*")),
-            new FileChecksumMatcher(
-                VALUE_CHECKSUM, new FilePatternMatchingShardedFile(multiOutputPrefix + "*"))));
-
     Pipeline p = Pipeline.create(options);
 
     SerializableFunction<Void, Void> firstTime =
@@ -151,7 +145,7 @@ public class RequiresStableInputIT {
             value -> {
               throw new RuntimeException(
                   "Deliberate failure: should happen only once for each application of the DoFn"
-                      + "within the transform graph.");
+                      + " within the transform graph.");
             };
 
     PCollection<String> singleton = p.apply("CreatePCollectionOfOneValue", Create.of(VALUE));
@@ -168,5 +162,12 @@ public class RequiresStableInputIT {
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     p.run().waitUntilFinish();
+
+    assertThat(
+        new FilePatternMatchingShardedFile(singleOutputPrefix + "*"),
+        fileContentsHaveChecksum(VALUE_CHECKSUM));
+    assertThat(
+        new FilePatternMatchingShardedFile(multiOutputPrefix + "*"),
+        fileContentsHaveChecksum(VALUE_CHECKSUM));
   }
 }

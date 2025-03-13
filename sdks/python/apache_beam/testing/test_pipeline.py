@@ -17,12 +17,11 @@
 
 """Test Pipeline, a wrapper of Pipeline for test purpose"""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import argparse
 import shlex
-
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -31,7 +30,7 @@ from apache_beam.runners.runner import PipelineState
 
 __all__ = [
     'TestPipeline',
-    ]
+]
 
 
 class TestPipeline(Pipeline):
@@ -41,7 +40,7 @@ class TestPipeline(Pipeline):
   It has a functionality to parse arguments from command line and build pipeline
   options for tests who runs against a pipeline runner and utilizes resources
   of the pipeline runner. Those test functions are recommended to be tagged by
-  ``@attr("ValidatesRunner")`` annotation.
+  ``@pytest.mark.it_validatesrunner`` annotation.
 
   In order to configure the test with customized pipeline options from command
   line, system argument ``--test-pipeline-options`` can be used to obtains a
@@ -49,25 +48,30 @@ class TestPipeline(Pipeline):
 
   For example, use following command line to execute all ValidatesRunner tests::
 
-    python setup.py nosetests -a ValidatesRunner \\
+    pytest -m it_validatesrunner \\
         --test-pipeline-options="--runner=DirectRunner \\
                                  --job_name=myJobName \\
                                  --num_workers=1"
 
   For example, use assert_that for test validation::
 
-    pipeline = TestPipeline()
-    pcoll = ...
-    assert_that(pcoll, equal_to(...))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = ...
+      assert_that(pcoll, equal_to(...))
   """
+  # Command line options read in by pytest.
+  # If this is not None, will use as default value for --test-pipeline-options.
+  pytest_test_pipeline_options = None
 
-  def __init__(self,
-               runner=None,
-               options=None,
-               argv=None,
-               is_integration_test=False,
-               blocking=True):
+  def __init__(
+      self,
+      runner=None,
+      options=None,
+      argv=None,
+      is_integration_test=False,
+      blocking=True,
+      additional_pipeline_args=None,
+      display_data=None):
     """Initialize a pipeline object for test.
 
     Args:
@@ -88,29 +92,38 @@ class TestPipeline(Pipeline):
         test, :data:`False` otherwise.
       blocking (bool): Run method will wait until pipeline execution is
         completed.
+      additional_pipeline_args (List[str]): additional pipeline arguments to be
+        included when construction the pipeline options object.
+      display_data (Dict[str, Any]): a dictionary of static data associated
+        with this pipeline that can be displayed when it runs.
 
     Raises:
-      ~exceptions.ValueError: if either the runner or options argument is not
+      ValueError: if either the runner or options argument is not
         of the expected type.
     """
     self.is_integration_test = is_integration_test
     self.not_use_test_runner_api = False
-    self.options_list = self._parse_test_option_args(argv)
+    additional_pipeline_args = additional_pipeline_args or []
+    self.options_list = (
+        self._parse_test_option_args(argv) + additional_pipeline_args)
     self.blocking = blocking
     if options is None:
       options = PipelineOptions(self.options_list)
-    super(TestPipeline, self).__init__(runner, options)
+    super().__init__(runner, options, display_data=display_data)
 
   def run(self, test_runner_api=True):
-    result = super(TestPipeline, self).run(
-        test_runner_api=(False if self.not_use_test_runner_api
-                         else test_runner_api))
+    result = super().run(
+        test_runner_api=(
+            False if self.not_use_test_runner_api else test_runner_api))
     if self.blocking:
       state = result.wait_until_finish()
       assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
           "Pipeline execution failed."
 
     return result
+
+  def get_pipeline_options(self):
+    return self._options
 
   def _parse_test_option_args(self, argv):
     """Parse value of command line argument: --test-pipeline-options to get
@@ -125,26 +138,30 @@ class TestPipeline(Pipeline):
       build a pipeline option.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test-pipeline-options',
-                        type=str,
-                        action='store',
-                        help='only run tests providing service options')
-    parser.add_argument('--not-use-test-runner-api',
-                        action='store_true',
-                        default=False,
-                        help='whether not to use test-runner-api')
+    parser.add_argument(
+        '--test-pipeline-options',
+        type=str,
+        action='store',
+        help='only run tests providing service options')
+    parser.add_argument(
+        '--not-use-test-runner-api',
+        action='store_true',
+        default=False,
+        help='whether not to use test-runner-api')
     known, unused_argv = parser.parse_known_args(argv)
-
-    if self.is_integration_test and not known.test_pipeline_options:
+    test_pipeline_options = known.test_pipeline_options or \
+                            TestPipeline.pytest_test_pipeline_options
+    if self.is_integration_test and not test_pipeline_options:
       # Skip integration test when argument '--test-pipeline-options' is not
       # specified since nose calls integration tests when runs unit test by
       # 'setup.py test'.
-      raise SkipTest('IT is skipped because --test-pipeline-options '
-                     'is not specified')
+      raise SkipTest(
+          'IT is skipped because --test-pipeline-options '
+          'is not specified')
 
     self.not_use_test_runner_api = known.not_use_test_runner_api
-    return shlex.split(known.test_pipeline_options) \
-      if known.test_pipeline_options else []
+    return shlex.split(test_pipeline_options) \
+      if test_pipeline_options else []
 
   def get_full_options_as_args(self, **extra_opts):
     """Get full pipeline options as an argument list.
@@ -165,7 +182,7 @@ class TestPipeline(Pipeline):
         options.append('--%s=%s' % (k, v))
     return options
 
-  def get_option(self, opt_name):
+  def get_option(self, opt_name, bool_option=False):
     """Get a pipeline option value by name
 
     Args:
@@ -178,8 +195,9 @@ class TestPipeline(Pipeline):
     parser = argparse.ArgumentParser()
     opt_name = opt_name[:2] if opt_name[:2] == '--' else opt_name
     # Option name should start with '--' when it's used for parsing.
-    parser.add_argument('--' + opt_name,
-                        type=str,
-                        action='store')
+    if bool_option:
+      parser.add_argument('--' + opt_name, action='store_true')
+    else:
+      parser.add_argument('--' + opt_name, type=str, action='store')
     known, _ = parser.parse_known_args(self.options_list)
     return getattr(known, opt_name) if hasattr(known, opt_name) else None

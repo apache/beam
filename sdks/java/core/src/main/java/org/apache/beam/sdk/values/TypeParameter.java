@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import org.apache.beam.sdk.util.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Captures a free type variable that can be used in {@link TypeDescriptor#where}. For example:
@@ -39,6 +41,7 @@ public abstract class TypeParameter<T> {
   public TypeParameter() {
     Type superclass = getClass().getGenericSuperclass();
     checkArgument(superclass instanceof ParameterizedType, "%s isn't parameterized", superclass);
+    Preconditions.checkArgumentNotNull(superclass);
     typeVariable = (TypeVariable<?>) ((ParameterizedType) superclass).getActualTypeArguments()[0];
   }
 
@@ -48,7 +51,7 @@ public abstract class TypeParameter<T> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof TypeParameter)) {
       return false;
     }

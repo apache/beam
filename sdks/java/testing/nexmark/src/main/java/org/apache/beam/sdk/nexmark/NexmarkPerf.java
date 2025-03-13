@@ -23,8 +23,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.testutils.TestResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Summary of performance for a particular run of a configuration. */
 public class NexmarkPerf implements TestResult {
@@ -67,7 +67,7 @@ public class NexmarkPerf implements TestResult {
   }
 
   /** Progess snapshots. Null if not yet calculated. */
-  @JsonProperty @Nullable public List<ProgressSnapshot> snapshots = null;
+  @JsonProperty public @Nullable List<ProgressSnapshot> snapshots = null;
 
   /**
    * Effective runtime, in seconds. Measured from timestamp of first generated event to latest of
@@ -114,10 +114,10 @@ public class NexmarkPerf implements TestResult {
   @JsonProperty double timeDilation = -1.0;
 
   /** List of errors encountered during job execution. */
-  @JsonProperty @Nullable public List<String> errors = null;
+  @JsonProperty public @Nullable List<String> errors = null;
 
   /** The job id this perf was drawn from. Null if not known. */
-  @JsonProperty @Nullable public String jobId = null;
+  @JsonProperty public @Nullable String jobId = null;
 
   /** Return a JSON representation of performance. */
   @Override

@@ -16,21 +16,19 @@
 #
 
 """Unit tests for the range_trackers module."""
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import copy
 import logging
 import math
 import unittest
-
-from past.builtins import long
+from typing import Optional
+from typing import Union
 
 from apache_beam.io import range_trackers
 
 
 class OffsetRangeTrackerTest(unittest.TestCase):
-
   def test_try_return_record_simple_sparse(self):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertTrue(tracker.try_claim(110))
@@ -44,6 +42,32 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(4))
     self.assertTrue(tracker.try_claim(5))
     self.assertFalse(tracker.try_claim(6))
+
+  def test_try_claim_update_last_attempt(self):
+    tracker = range_trackers.OffsetRangeTracker(1, 2)
+    self.assertTrue(tracker.try_claim(1))
+    self.assertEqual(1, tracker.last_attempted_record_start)
+
+    self.assertFalse(tracker.try_claim(3))
+    self.assertEqual(3, tracker.last_attempted_record_start)
+
+    self.assertFalse(tracker.try_claim(6))
+    self.assertEqual(6, tracker.last_attempted_record_start)
+
+    with self.assertRaises(Exception):
+      tracker.try_claim(6)
+
+  def test_set_current_position(self):
+    tracker = range_trackers.OffsetRangeTracker(0, 6)
+    self.assertTrue(tracker.try_claim(2))
+    # Cannot set current position before successful claimed pos.
+    with self.assertRaises(Exception):
+      tracker.set_current_position(1)
+
+    self.assertFalse(tracker.try_claim(10))
+    tracker.set_current_position(11)
+    self.assertEqual(10, tracker.last_attempted_record_start)
+    self.assertEqual(11, tracker.last_record_start)
 
   def test_try_return_record_continuous_until_split_point(self):
     tracker = range_trackers.OffsetRangeTracker(9, 18)
@@ -93,7 +117,6 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertFalse(tracker.try_claim(150))
     self.assertFalse(tracker.try_claim(151))
     # Should accept non-splitpoint records starting after stop offset.
-    tracker.set_current_position(135)
     tracker.set_current_position(152)
     tracker.set_current_position(160)
     tracker.set_current_position(171)
@@ -103,8 +126,7 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(3, 6)
 
     # Position must be an integer type.
-    self.assertTrue(isinstance(tracker.position_at_fraction(0.0),
-                               (int, long)))
+    self.assertTrue(isinstance(tracker.position_at_fraction(0.0), int))
     # [3, 3) represents 0.0 of [3, 6)
     self.assertEqual(3, tracker.position_at_fraction(0.0))
     # [3, 4) represents up to 1/3 of [3, 6)
@@ -143,8 +165,7 @@ class OffsetRangeTrackerTest(unittest.TestCase):
 
   def test_everything_with_unbounded_range(self):
     tracker = range_trackers.OffsetRangeTracker(
-        100,
-        range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
+        100, range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(250))
     # get_position_for_fraction_consumed should fail for an unbounded range
@@ -169,32 +190,23 @@ class OffsetRangeTrackerTest(unittest.TestCase):
 
     tracker.set_split_points_unclaimed_callback(dummy_callback)
 
-    self.assertEqual(tracker.split_points(),
-                     (0, 81))
+    self.assertEqual(tracker.split_points(), (0, 81))
     self.assertTrue(tracker.try_claim(120))
-    self.assertEqual(tracker.split_points(),
-                     (0, 81))
+    self.assertEqual(tracker.split_points(), (0, 81))
     self.assertTrue(tracker.try_claim(140))
-    self.assertEqual(tracker.split_points(),
-                     (1, 81))
+    self.assertEqual(tracker.split_points(), (1, 81))
     tracker.try_split(200)
-    self.assertEqual(tracker.split_points(),
-                     (1, 41))
+    self.assertEqual(tracker.split_points(), (1, 41))
     self.assertTrue(tracker.try_claim(150))
-    self.assertEqual(tracker.split_points(),
-                     (2, 41))
+    self.assertEqual(tracker.split_points(), (2, 41))
     self.assertTrue(tracker.try_claim(180))
-    self.assertEqual(tracker.split_points(),
-                     (3, 41))
+    self.assertEqual(tracker.split_points(), (3, 41))
     self.assertFalse(tracker.try_claim(210))
-    self.assertEqual(tracker.split_points(),
-                     (3, 41))
+    self.assertEqual(tracker.split_points(), (3, 41))
 
 
 class OrderedPositionRangeTrackerTest(unittest.TestCase):
-
   class DoubleRangeTracker(range_trackers.OrderedPositionRangeTracker):
-
     @staticmethod
     def fraction_to_position(fraction, start, end):
       return start + (end - start) * fraction
@@ -247,30 +259,30 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
 
   def test_out_of_range(self):
     tracker = self.DoubleRangeTracker(10, 20)
+
     # Can't claim before range.
     with self.assertRaises(ValueError):
       tracker.try_claim(-5)
+
     # Can't split before range.
-    with self.assertRaises(ValueError):
-      tracker.try_split(-5)
+    self.assertFalse(tracker.try_split(-5))
+
     # Reject useless split at start position.
-    with self.assertRaises(ValueError):
-      tracker.try_split(10)
+    self.assertFalse(tracker.try_split(10))
+
     # Can't split after range.
-    with self.assertRaises(ValueError):
-      tracker.try_split(25)
+    self.assertFalse(tracker.try_split(25))
     tracker.try_split(15)
+
     # Can't split after modified range.
-    with self.assertRaises(ValueError):
-      tracker.try_split(17)
+    self.assertFalse(tracker.try_split(17))
+
     # Reject useless split at end position.
-    with self.assertRaises(ValueError):
-      tracker.try_split(15)
+    self.assertFalse(tracker.try_split(15))
     self.assertTrue(tracker.try_split(14))
 
 
 class UnsplittableRangeTrackerTest(unittest.TestCase):
-
   def test_try_claim(self):
     tracker = range_trackers.UnsplittableRangeTracker(
         range_trackers.OffsetRangeTracker(100, 200))
@@ -294,16 +306,20 @@ class UnsplittableRangeTrackerTest(unittest.TestCase):
 
 
 class LexicographicKeyRangeTrackerTest(unittest.TestCase):
-  """
-  Tests of LexicographicKeyRangeTracker.
-  """
+  """Tests of LexicographicKeyRangeTracker."""
 
   key_to_fraction = (
       range_trackers.LexicographicKeyRangeTracker.position_to_fraction)
   fraction_to_key = (
       range_trackers.LexicographicKeyRangeTracker.fraction_to_position)
 
-  def _check(self, fraction=None, key=None, start=None, end=None, delta=0):
+  def _check(
+      self,
+      fraction: Optional[float] = None,
+      key: Union[bytes, str] = None,
+      start: Union[bytes, str] = None,
+      end: Union[bytes, str] = None,
+      delta: float = 0.0):
     assert key is not None or fraction is not None
     if fraction is None:
       fraction = self.key_to_fraction(key, start, end)
@@ -318,95 +334,184 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     computed_key = self.fraction_to_key(fraction, start, end)
 
     if delta:
-      self.assertAlmostEqual(computed_fraction, fraction,
-                             delta=delta, places=None, msg=str(locals()))
+      self.assertAlmostEqual(
+          computed_fraction,
+          fraction,
+          delta=delta,
+          places=None,
+          msg=str(locals()))
     else:
       self.assertEqual(computed_fraction, fraction, str(locals()))
     self.assertEqual(computed_key, key, str(locals()))
 
   def test_key_to_fraction_no_endpoints(self):
-    self._check(key=b'\x07', fraction=7/256.)
-    self._check(key=b'\xFF', fraction=255/256.)
+    self._check(key=b'\x07', fraction=7 / 256.)
+    self._check(key=b'\xFF', fraction=255 / 256.)
+    self._check(key=b'\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
+    self._check(key=b'UUUUUUT', fraction=1 / 3)
+    self._check(key=b'3333334', fraction=1 / 5)
+    self._check(key=b'$\x92I$\x92I$', fraction=1 / 7, delta=1e-3)
     self._check(key=b'\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
 
   def test_key_to_fraction(self):
-    self._check(key=b'\x87', start=b'\x80', fraction=7/128.)
-    self._check(key=b'\x07', end=b'\x10', fraction=7/16.)
-    self._check(key=b'\x47', start=b'\x40', end=b'\x80', fraction=7/64.)
-    self._check(key=b'\x47\x80', start=b'\x40', end=b'\x80', fraction=15/128.)
+    # test no key, no start
+    self._check(end=b'eeeeee', fraction=0.0)
+    self._check(end='eeeeee', fraction=0.0)
+
+    # test no fraction
+    self._check(key=b'bbbbbb', start=b'aaaaaa', end=b'eeeeee')
+    self._check(key='bbbbbb', start='aaaaaa', end='eeeeee')
+
+    # test no start
+    self._check(key=b'eeeeee', end=b'eeeeee', fraction=1.0)
+    self._check(key='eeeeee', end='eeeeee', fraction=1.0)
+    self._check(key=b'\x19YYYYY@', end=b'eeeeee', fraction=0.25)
+    self._check(key=b'2\xb2\xb2\xb2\xb2\xb2\x80', end='eeeeee', fraction=0.5)
+    self._check(key=b'L\x0c\x0c\x0c\x0c\x0b\xc0', end=b'eeeeee', fraction=0.75)
+
+    # test bytes keys
+    self._check(key=b'\x87', start=b'\x80', fraction=7 / 128.)
+    self._check(key=b'\x07', end=b'\x10', fraction=7 / 16.)
+    self._check(key=b'\x47', start=b'\x40', end=b'\x80', fraction=7 / 64.)
+    self._check(key=b'\x47\x80', start=b'\x40', end=b'\x80', fraction=15 / 128.)
+
+    # test string keys
+    self._check(key='aaaaaa', start='aaaaaa', end='eeeeee', fraction=0.0)
+    self._check(key='bbbbbb', start='aaaaaa', end='eeeeee', fraction=0.25)
+    self._check(key='cccccc', start='aaaaaa', end='eeeeee', fraction=0.5)
+    self._check(key='dddddd', start='aaaaaa', end='eeeeee', fraction=0.75)
+    self._check(key='eeeeee', start='aaaaaa', end='eeeeee', fraction=1.0)
 
   def test_key_to_fraction_common_prefix(self):
+    # test bytes keys
     self._check(
-        key=b'a' * 100 + b'b', start=b'a' * 100 + b'a', end=b'a' * 100 + b'c',
+        key=b'a' * 100 + b'b',
+        start=b'a' * 100 + b'a',
+        end=b'a' * 100 + b'c',
         fraction=0.5)
     self._check(
-        key=b'a' * 100 + b'b', start=b'a' * 100 + b'a', end=b'a' * 100 + b'e',
+        key=b'a' * 100 + b'b',
+        start=b'a' * 100 + b'a',
+        end=b'a' * 100 + b'e',
         fraction=0.25)
     self._check(
-        key=b'\xFF' * 100 + b'\x40', start=b'\xFF' * 100, end=None,
+        key=b'\xFF' * 100 + b'\x40',
+        start=b'\xFF' * 100,
+        end=None,
         fraction=0.25)
-    self._check(key=b'foob',
-                start=b'fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
-                end=b'foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
-                fraction=0.5)
+    self._check(
+        key=b'foob',
+        start=b'fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
+        end=b'foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
+        fraction=0.5)
+
+    # test string keys
+    self._check(
+        key='a' * 100 + 'a',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.0)
+    self._check(
+        key='a' * 100 + 'b',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.25)
+    self._check(
+        key='a' * 100 + 'c',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.5)
+    self._check(
+        key='a' * 100 + 'd',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.75)
+    self._check(
+        key='a' * 100 + 'e',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=1.0)
 
   def test_tiny(self):
+    # test bytes keys
     self._check(fraction=.5**20, key=b'\0\0\x10')
     self._check(fraction=.5**20, start=b'a', end=b'b', key=b'a\0\0\x10')
     self._check(fraction=.5**20, start=b'a', end=b'c', key=b'a\0\0\x20')
-    self._check(fraction=.5**20, start=b'xy_a', end=b'xy_c',
-                key=b'xy_a\0\0\x20')
-    self._check(fraction=.5**20, start=b'\xFF\xFF\x80',
-                key=b'\xFF\xFF\x80\x00\x08')
-    self._check(fraction=.5**20 / 3,
-                start=b'xy_a',
-                end=b'xy_c',
-                key=b'xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
-                delta=1e-15)
+    self._check(
+        fraction=.5**20, start=b'xy_a', end=b'xy_c', key=b'xy_a\0\0\x20')
+    self._check(
+        fraction=.5**20, start=b'\xFF\xFF\x80', key=b'\xFF\xFF\x80\x00\x08')
+    self._check(
+        fraction=.5**20 / 3,
+        start=b'xy_a',
+        end=b'xy_c',
+        key=b'xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
+        delta=1e-15)
     self._check(fraction=.5**100, key=b'\0' * 12 + b'\x10')
 
+    # test string keys
+    self._check(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
+    self._check(fraction=.5**20, start='a', end='c', key='a\0\0\x20')
+    self._check(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
+
   def test_lots(self):
-    for fraction in (0, 1, .5, .75, 7./512, 1 - 7./4096):
+    for fraction in (0, 1, .5, .75, 7. / 512, 1 - 7. / 4096):
       self._check(fraction)
       self._check(fraction, start=b'\x01')
       self._check(fraction, end=b'\xF0')
       self._check(fraction, start=b'0x75', end=b'\x76')
       self._check(fraction, start=b'0x75', end=b'\x77')
       self._check(fraction, start=b'0x75', end=b'\x78')
-      self._check(fraction, start=b'a' * 100 + b'\x80',
-                  end=b'a' * 100 + b'\x81')
-      self._check(fraction, start=b'a' * 101 + b'\x80',
-                  end=b'a' * 101 + b'\x81')
-      self._check(fraction, start=b'a' * 102 + b'\x80',
-                  end=b'a' * 102 + b'\x81')
-    for fraction in (.3, 1/3., 1/math.e, .001, 1e-30, .99, .999999):
+      self._check(
+          fraction, start=b'a' * 100 + b'\x80', end=b'a' * 100 + b'\x81')
+      self._check(
+          fraction, start=b'a' * 101 + b'\x80', end=b'a' * 101 + b'\x81')
+      self._check(
+          fraction, start=b'a' * 102 + b'\x80', end=b'a' * 102 + b'\x81')
+    for fraction in (.3, 1 / 3., 1 / math.e, .001, 1e-30, .99, .999999):
       self._check(fraction, delta=1e-14)
       self._check(fraction, start=b'\x01', delta=1e-14)
       self._check(fraction, end=b'\xF0', delta=1e-14)
       self._check(fraction, start=b'0x75', end=b'\x76', delta=1e-14)
       self._check(fraction, start=b'0x75', end=b'\x77', delta=1e-14)
       self._check(fraction, start=b'0x75', end=b'\x78', delta=1e-14)
-      self._check(fraction, start=b'a' * 100 + b'\x80',
-                  end=b'a' * 100 + b'\x81', delta=1e-14)
+      self._check(
+          fraction,
+          start=b'a' * 100 + b'\x80',
+          end=b'a' * 100 + b'\x81',
+          delta=1e-14)
 
   def test_good_prec(self):
     # There should be about 7 characters (~53 bits) of precision
     # (beyond the common prefix of start and end).
-    self._check(1 / math.e, start=b'abc_abc', end=b'abc_xyz',
-                key=b'abc_i\xe0\xf4\x84\x86\x99\x96',
-                delta=1e-15)
+    self._check(
+        1 / math.e,
+        start='AAAAAAA',
+        end='zzzzzzz',
+        key='VNg/ot\x82',
+        delta=1e-14)
+    self._check(
+        1 / math.e,
+        start=b'abc_abc',
+        end=b'abc_xyz',
+        key=b'abc_i\xe0\xf4\x84\x86\x99\x96',
+        delta=1e-15)
     # This remains true even if the start and end keys are given to
     # high precision.
-    self._check(1 / math.e,
-                start=b'abcd_abc\0\0\0\0\0_______________abc',
-                end=b'abcd_xyz\0\0\0\0\0\0_______________abc',
-                key=b'abcd_i\xe0\xf4\x84\x86\x99\x96',
-                delta=1e-15)
+    self._check(
+        1 / math.e,
+        start=b'abcd_abc\0\0\0\0\0_______________abc',
+        end=b'abcd_xyz\0\0\0\0\0\0_______________abc',
+        key=b'abcd_i\xe0\xf4\x84\x86\x99\x96',
+        delta=1e-15)
     # For very small fractions, however, higher precision is used to
     # accurately represent small increments in the keyspace.
-    self._check(1e-20 / math.e, start=b'abcd_abc', end=b'abcd_xyz',
-                key=b'abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
-                delta=1e-35)
+    self._check(
+        1e-20 / math.e,
+        start=b'abcd_abc',
+        end=b'abcd_xyz',
+        key=b'abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
+        delta=1e-35)
 
 
 if __name__ == '__main__':

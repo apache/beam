@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -29,33 +30,60 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.commons.lang3.SystemUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -298,6 +326,8 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToString() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20485
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     proxy.setString("stringValue");
@@ -310,6 +340,8 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20474
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
@@ -328,6 +360,8 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20473
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
@@ -648,10 +682,10 @@ public class ProxyInvocationHandlerTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj != null
           && getClass().equals(obj.getClass())
-          && Objects.equals(doubleField, ((InnerType) obj).doubleField);
+          && doubleField == ((InnerType) obj).doubleField;
     }
   }
 
@@ -668,7 +702,7 @@ public class ProxyInvocationHandlerTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj != null
           && getClass().equals(obj.getClass())
           && Objects.equals(stringField, ((ComplexType) obj).stringField)
@@ -895,6 +929,24 @@ public class ProxyInvocationHandlerTest {
     void setValue(Object value);
   }
 
+  public interface PrimitiveIntOptions extends PipelineOptions {
+    int getInt();
+
+    void setInt(int value);
+  }
+
+  @Test
+  public void testPrimitiveIntegerFromJsonOptions() throws Exception {
+    String optionsJson =
+        "{\"options\":{\"appName\":\"ProxyInvocationHandlerTest\",\"optionsId\":1,\"int\":\"100\"},\"display_data\":[{\"namespace\":\"org.apache.beam.sdk.options.ProxyInvocationHandlerTest$DisplayDataOptions\",\"key\":\"int\",\"type\":\"INTEGER\",\"value\":100},{\"namespace\":\"org.apache.beam.sdk.options.ApplicationNameOptions\",\"key\":\"appName\",\"type\":\"STRING\",\"value\":\"ProxyInvocationHandlerTest\"}]}";
+
+    PrimitiveIntOptions options =
+        MAPPER.readValue(optionsJson, PipelineOptions.class).as(PrimitiveIntOptions.class);
+
+    int value = options.getInt();
+    assertEquals(100, value);
+  }
+
   @Test
   public void testDisplayDataInheritanceNamespace() {
     ExtendsBaseOptions options = PipelineOptionsFactory.as(ExtendsBaseOptions.class);
@@ -960,6 +1012,56 @@ public class ProxyInvocationHandlerTest {
     void setBar(String value);
   }
 
+  public static class JacksonObject {
+    String value;
+  }
+
+  public static class JacksonObjectSerializer extends StdSerializer<JacksonObject> {
+    public JacksonObjectSerializer() {
+      super(JacksonObject.class);
+    }
+
+    @Override
+    public void serialize(JacksonObject value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeString(value.value);
+    }
+  }
+
+  public static class JacksonObjectDeserializer extends StdDeserializer<JacksonObject> {
+    public JacksonObjectDeserializer() {
+      super(JacksonObject.class);
+    }
+
+    @Override
+    public JacksonObject deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      JacksonObject obj = new JacksonObject();
+      obj.value = p.getValueAsString();
+      return obj;
+    }
+  }
+
+  public interface JacksonOptions extends PipelineOptions {
+    @JsonSerialize(using = JacksonObjectSerializer.class)
+    @JsonDeserialize(using = JacksonObjectDeserializer.class)
+    JacksonObject getJacksonObject();
+
+    void setJacksonObject(JacksonObject value);
+  }
+
+  @Test
+  public void testJacksonSerializeAndDeserialize() throws Exception {
+    JacksonOptions options = PipelineOptionsFactory.as(JacksonOptions.class);
+    JacksonObject value = new JacksonObject();
+    value.value = "foo";
+
+    options.setJacksonObject(value);
+
+    JacksonOptions deserializedOptions = serializeDeserialize(JacksonOptions.class, options);
+    assertEquals(options.getJacksonObject().value, deserializedOptions.getJacksonObject().value);
+  }
+
   @Test
   public void testDisplayDataExcludesDefaultValues() {
     PipelineOptions options = PipelineOptionsFactory.as(HasDefaults.class);
@@ -983,6 +1085,23 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  @Test
+  public void testDisplayDataExcludesHiddenValues() {
+    HasHidden options = PipelineOptionsFactory.as(HasHidden.class);
+    options.setFoo("bar");
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  /** Test interface. */
+  public interface HasHidden extends PipelineOptions {
+    @Hidden
+    String getFoo();
+
+    void setFoo(String value);
   }
 
   @Test
@@ -1142,5 +1261,112 @@ public class ProxyInvocationHandlerTest {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     handler.as(BaseOptions.class);
     assertEquals("foo", handler.getOptionName(BaseOptions.class.getMethod("getFoo")));
+  }
+
+  private DynamicType.Unloaded<? extends PipelineOptions> spinNewInterface(int methodNumber) {
+    return new ByteBuddy()
+        .makeInterface(PipelineOptions.class)
+        .defineMethod("getDynamicMethod" + methodNumber, String.class, Visibility.PUBLIC)
+        .withoutCode()
+        .defineMethod("setDynamicMethod" + methodNumber, Void.TYPE, Visibility.PUBLIC)
+        .withParameters(String.class)
+        .withoutCode()
+        .make();
+  }
+
+  private Map<Integer, Class<? extends PipelineOptions>> loadAllInterfaces(
+      int numInterfaces, ClassLoader classLoader) {
+    List<DynamicType.Unloaded<? extends PipelineOptions>> dynamicInterfaces =
+        IntStream.range(0, numInterfaces)
+            .mapToObj(this::spinNewInterface)
+            .collect(Collectors.toList());
+
+    DynamicType.Loaded<Object> root =
+        new ByteBuddy().subclass(Object.class).make().include(dynamicInterfaces).load(classLoader);
+
+    Map<TypeDescription, Class<?>> loadedInterfaces = root.getLoadedAuxiliaryTypes();
+    Map<Integer, Class<? extends PipelineOptions>> result = Maps.newHashMap();
+
+    IntStream.range(0, numInterfaces)
+        .forEach(
+            i -> {
+              DynamicType.Unloaded<? extends PipelineOptions> iface = dynamicInterfaces.get(i);
+              Class<?> clazz = loadedInterfaces.get(iface.getTypeDescription());
+              result.put(i, (Class<? extends PipelineOptions>) clazz);
+            });
+
+    return result;
+  }
+
+  @Test
+  public void testConcurrency() throws Exception {
+    int numInterfaces = 100;
+    int numWorkers = 10;
+    int numReaders = 10;
+    int step = numInterfaces / numWorkers;
+
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
+    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+    Map<Integer, Class<? extends PipelineOptions>> ifaces = loadAllInterfaces(numInterfaces, cl);
+    CountDownLatch startWaiter = new CountDownLatch(1);
+    CountDownLatch done = new CountDownLatch(numWorkers);
+
+    ExecutorService executor = Executors.newFixedThreadPool(numWorkers + numReaders);
+    List<Future<?>> futs = Lists.newArrayList();
+
+    // launch `numWorkers` concurrent "writers" that will try to cast the proxy handler to various
+    // interfaces and set a value on them.
+    for (int start = 0; start < numInterfaces; start += step) {
+      final int s = start;
+      final int end = start + step;
+      Callable<Void> worker =
+          () -> {
+            startWaiter.await();
+            for (int i = s; i < end; i++) {
+              Class<? extends PipelineOptions> iface = ifaces.get(i);
+              Method setter = iface.getDeclaredMethod("setDynamicMethod" + i, String.class);
+              PipelineOptions opt1 = handler.as(iface);
+              setter.invoke(opt1, "test-" + i);
+            }
+            done.countDown();
+            return null;
+          };
+      futs.add(executor.submit(worker));
+    }
+
+    // launch concurrent readers that call `toString` and serializes the options, making sure they
+    // don't fail.
+    for (int i = 0; i < 10; i++) {
+      Callable<Void> worker =
+          () -> {
+            while (true) {
+              if (done.getCount() == 0) {
+                return null;
+              }
+              assertNotNull(handler.toString());
+              PipelineOptionsFactory.MAPPER.writeValue(
+                  ByteStreams.nullOutputStream(), handler.as(PipelineOptions.class));
+            }
+          };
+      futs.add(executor.submit(worker));
+    }
+
+    // wait for everything to finish
+    startWaiter.countDown();
+    for (Future<?> fut : futs) {
+      fut.get();
+    }
+
+    // ensure that the serialized json contains every value we set.
+    TokenBuffer tokenBuffer = new TokenBuffer(PipelineOptionsFactory.MAPPER, false);
+    PipelineOptionsFactory.MAPPER.writeValue(tokenBuffer, handler.as(PipelineOptions.class));
+
+    JsonNode tree = PipelineOptionsFactory.MAPPER.readTree(tokenBuffer.asParser());
+    JsonNode optionsNode = tree.get("options");
+    for (int i = 0; i < numInterfaces; i++) {
+      JsonNode methodNode = optionsNode.get("dynamicMethod" + i);
+      assertNotNull(methodNode);
+      assertEquals("test-" + i, methodNode.asText());
+    }
   }
 }

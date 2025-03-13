@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.state;
 
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A {@link ReadableState} cell containing a bag of values. Items can be added to the bag and the
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * @param <T> The type of elements in the bag.
  */
-@Experimental(Kind.STATE)
 public interface BagState<T> extends GroupingState<T, Iterable<T>> {
 
   @Override

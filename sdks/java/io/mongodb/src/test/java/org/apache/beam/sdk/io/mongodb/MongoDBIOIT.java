@@ -19,15 +19,18 @@ package org.apache.beam.sdk.io.mongodb;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
-import com.mongodb.MongoClient;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -41,13 +44,15 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.bson.Document;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -78,8 +83,12 @@ import org.junit.runners.JUnit4;
 public class MongoDBIOIT {
 
   private static final String NAMESPACE = MongoDBIOIT.class.getName();
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
+  private static String mongoUrl;
+  private static MongoClient mongoClient;
+  private static InfluxDBSettings settings;
+
+  private double initialCollectionSize;
+  private double finalCollectionSize;
 
   /** MongoDBIOIT options. */
   public interface MongoDBPipelineOptions extends IOTestPipelineOptions {
@@ -100,6 +109,20 @@ public class MongoDBIOIT {
     String getMongoDBDatabaseName();
 
     void setMongoDBDatabaseName(String name);
+
+    @Description("Username for mongodb server")
+    @Default.String("")
+    String getMongoDBUsername();
+
+    void setMongoDBUsername(String name);
+
+    // Note that passwords are not as secure an authentication as other methods, and used here for
+    // a test environment only.
+    @Description("Password for mongodb server")
+    @Default.String("")
+    String getMongoDBPassword();
+
+    void setMongoDBPassword(String value);
   }
 
   private static final Map<Integer, String> EXPECTED_HASHES =
@@ -119,8 +142,36 @@ public class MongoDBIOIT {
     PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
     collection = String.format("test_%s", new Date().getTime());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
+    if (StringUtils.isEmpty(options.getMongoDBUsername())) {
+      mongoUrl =
+          String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
+    } else if (StringUtils.isEmpty(options.getMongoDBPassword())) {
+      mongoUrl =
+          String.format(
+              "mongodb://%s@%s:%s",
+              options.getMongoDBUsername(), options.getMongoDBHostName(), options.getMongoDBPort());
+    } else {
+      mongoUrl =
+          String.format(
+              "mongodb://%s:%s@%s:%s",
+              options.getMongoDBUsername(),
+              options.getMongoDBPassword(),
+              options.getMongoDBHostName(),
+              options.getMongoDBPort());
+    }
+    mongoClient = MongoClients.create(mongoUrl);
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
+  }
+
+  @After
+  public void cleanUp() {
+    initialCollectionSize = -1d;
+    finalCollectionSize = -1d;
   }
 
   @AfterClass
@@ -128,16 +179,13 @@ public class MongoDBIOIT {
     executeWithRetry(MongoDBIOIT::dropDatabase);
   }
 
-  public static void dropDatabase() throws Exception {
-    new MongoClient(options.getMongoDBHostName())
-        .getDatabase(options.getMongoDBDatabaseName())
-        .drop();
+  public static void dropDatabase() {
+    mongoClient.getDatabase(options.getMongoDBDatabaseName()).drop();
   }
 
   @Test
   public void testWriteAndRead() {
-    final String mongoUrl =
-        String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
+    initialCollectionSize = getCollectionSizeInBytes(collection);
 
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(options.getNumberOfRecords()))
@@ -150,7 +198,9 @@ public class MongoDBIOIT {
                 .withDatabase(options.getMongoDBDatabaseName())
                 .withCollection(collection));
     PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+
+    finalCollectionSize = getCollectionSizeInBytes(collection);
 
     PCollection<String> consolidatedHashcode =
         readPipeline
@@ -168,13 +218,26 @@ public class MongoDBIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish();
     collectAndPublishMetrics(writeResult, readResult);
+
+    // Fail the test if pipeline failed.
+    assertNotEquals(writeState, PipelineResult.State.FAILED);
+    assertNotEquals(readState, PipelineResult.State.FAILED);
+  }
+
+  private double getCollectionSizeInBytes(final String collectionName) {
+    return mongoClient.getDatabase(options.getMongoDBDatabaseName())
+        .runCommand(new Document("collStats", collectionName)).entrySet().stream()
+        .filter(entry -> entry.getKey().equals("size"))
+        .map(entry -> Double.parseDouble(String.valueOf(entry.getValue())))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("Unable to retrieve collection stats"));
   }
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =
@@ -183,33 +246,40 @@ public class MongoDBIOIT {
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
     IOITMetrics writeMetrics =
         new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(bigQueryDataset, bigQueryTable);
-    writeMetrics.publish(bigQueryDataset, bigQueryTable);
+    readMetrics.publishToInflux(settings);
+    writeMetrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
-      String uuid, String timestamp) {
-    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+      final String uuid, final String timestamp) {
+    final Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, "write_time"));
     suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric("write_time");
-          long writeEnd = reader.getEndTimeMetric("write_time");
-          return NamedTestResult.create(
-              uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
-        });
+        reader -> NamedTestResult.create(uuid, timestamp, "data_size", getWrittenDataSize()));
     return suppliers;
+  }
+
+  private double getWrittenDataSize() {
+    if (initialCollectionSize == -1d || finalCollectionSize == -1d) {
+      throw new IllegalStateException("Collection size not fetched");
+    }
+    return finalCollectionSize - initialCollectionSize;
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-    suppliers.add(
-        reader -> {
-          long readStart = reader.getStartTimeMetric("read_time");
-          long readEnd = reader.getEndTimeMetric("read_time");
-          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
-        });
+    suppliers.add(getTimeMetric(uuid, timestamp, "read_time"));
     return suppliers;
+  }
+
+  private Function<MetricsReader, NamedTestResult> getTimeMetric(
+      final String uuid, final String timestamp, final String metricName) {
+    return reader -> {
+      long writeStart = reader.getStartTimeMetric(metricName);
+      long writeEnd = reader.getEndTimeMetric(metricName);
+      return NamedTestResult.create(uuid, timestamp, metricName, (writeEnd - writeStart) / 1e3);
+    };
   }
 
   private static class LongToDocumentFn extends SimpleFunction<Long, Document> {

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -46,9 +46,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -62,6 +64,9 @@ import org.joda.time.Instant;
  * the {@link Pipeline}. A {@link PipelineRunner} must ensure that no more progress can be made in
  * the {@link Pipeline} before advancing the state of the {@link TestStream}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final List<Event<T>> events;
   private final Coder<T> coder;
@@ -74,11 +79,16 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     return new Builder<>(coder);
   }
 
+  public static Builder<Row> create(Schema schema) {
+    return create(SchemaCoder.of(schema));
+  }
+
   public static <T> Builder<T> create(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return create(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    return create(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
   }
 
   private TestStream(Coder<T> coder, List<Event<T>> events) {
@@ -185,7 +195,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     public Builder<T> advanceProcessingTime(Duration amount) {
       checkArgument(
           amount.getMillis() > 0,
-          "Must advance the processing time by a positive amount. Got: ",
+          "Must advance the processing time by a positive amount. Got: %s",
           amount);
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()
@@ -297,7 +307,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof TestStream)) {
       return false;
     }

@@ -19,16 +19,23 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import static junit.framework.TestCase.assertEquals;
 
+import java.util.BitSet;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.RenameFields.RenamePair;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -257,5 +264,66 @@ public class RenameFieldsTest {
 
     PAssert.that(renamed).containsInAnyOrder(expectedRows);
     pipeline.run();
+  }
+
+  @Test
+  public void testRenameRow() {
+    Schema nestedSchema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+    Schema schema =
+        Schema.builder().addStringField("field1").addRowField("nested", nestedSchema).build();
+
+    Schema expectedNestedSchema =
+        Schema.builder().addStringField("bottom1").addInt32Field("bottom2").build();
+    Schema expectedSchema =
+        Schema.builder()
+            .addStringField("top1")
+            .addRowField("top_nested", expectedNestedSchema)
+            .build();
+
+    List<RenamePair> renames =
+        ImmutableList.of(
+                RenamePair.of(FieldAccessDescriptor.withFieldNames("field1"), "top1"),
+                RenamePair.of(FieldAccessDescriptor.withFieldNames("nested"), "top_nested"),
+                RenamePair.of(FieldAccessDescriptor.withFieldNames("nested.field1"), "bottom1"),
+                RenamePair.of(FieldAccessDescriptor.withFieldNames("nested.field2"), "bottom2"))
+            .stream()
+            .map(r -> r.resolve(schema))
+            .collect(Collectors.toList());
+
+    final Map<UUID, Schema> renamedSchemasMap = Maps.newHashMap();
+    final Map<UUID, BitSet> nestedFieldRenamedMap = Maps.newHashMap();
+    RenameFields.renameSchema(schema, renames, renamedSchemasMap, nestedFieldRenamedMap);
+
+    assertEquals(expectedSchema, renamedSchemasMap.get(schema.getUUID()));
+
+    Row row =
+        Row.withSchema(schema)
+            .withFieldValue("field1", "one")
+            .withFieldValue(
+                "nested",
+                Row.withSchema(nestedSchema)
+                    .withFieldValue("field1", "one")
+                    .withFieldValue("field2", 1)
+                    .build())
+            .build();
+    Row expectedRow =
+        Row.withSchema(expectedSchema)
+            .withFieldValue("top1", "one")
+            .withFieldValue(
+                "top_nested",
+                Row.withSchema(expectedNestedSchema)
+                    .withFieldValue("bottom1", "one")
+                    .withFieldValue("bottom2", 1)
+                    .build())
+            .build();
+
+    Row renamedRow =
+        RenameFields.renameRow(
+            row,
+            renamedSchemasMap.get(schema.getUUID()),
+            nestedFieldRenamedMap.get(schema.getUUID()),
+            renamedSchemasMap,
+            nestedFieldRenamedMap);
+    assertEquals(expectedRow, renamedRow);
   }
 }

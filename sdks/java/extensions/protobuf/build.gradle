@@ -17,20 +17,32 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(
+  generatedClassPatterns: [
+    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.PayloadMessages/,
+    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2CoderTestMessages/,
+    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2SchemaMessages/,
+    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto3SchemaMessages/,
+    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto3SchemaOptions/,
+  ],
+  automaticModuleName: 'org.apache.beam.sdk.extensions.protobuf',
+)
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
 ext.summary = "Add support to Apache Beam for Google Protobuf."
 
 dependencies {
-  compile library.java.vendored_guava_20_0
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.protobuf_java
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
+  implementation library.java.byte_buddy
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.commons_compress
+  implementation library.java.slf4j_api
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation("com.google.cloud:google-cloud-storage:2.32.1")
+  implementation library.java.protobuf_java
+  implementation("com.squareup.wire:wire-schema-jvm:4.9.3")
+  implementation("io.apicurio:apicurio-registry-protobuf-schema-utilities:3.0.0.M2")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
 }

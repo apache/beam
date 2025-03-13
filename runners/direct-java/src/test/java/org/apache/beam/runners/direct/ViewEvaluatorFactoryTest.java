@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,7 +61,7 @@ public class ViewEvaluatorFactoryTest {
             .apply(GroupByKey.create())
             .apply(Values.create());
     PCollection<Iterable<String>> view =
-        concat.apply(new ViewOverrideFactory.WriteView<>(pCollectionView));
+        concat.apply(new DirectWriteViewVisitor.WriteView<>(pCollectionView));
 
     EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();

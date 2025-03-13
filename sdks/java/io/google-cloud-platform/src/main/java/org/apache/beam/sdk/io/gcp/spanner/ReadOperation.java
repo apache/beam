@@ -24,10 +24,16 @@ import com.google.cloud.spanner.Statement;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a spanner read operation. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class ReadOperation implements Serializable {
 
   public static ReadOperation create() {
@@ -37,28 +43,26 @@ public abstract class ReadOperation implements Serializable {
         .build();
   }
 
-  @Nullable
-  public abstract Statement getQuery();
+  public abstract @Nullable Statement getQuery();
 
-  @Nullable
-  public abstract String getTable();
+  public abstract @Nullable String getQueryName();
 
-  @Nullable
-  public abstract String getIndex();
+  public abstract @Nullable String getTable();
 
-  @Nullable
-  public abstract List<String> getColumns();
+  public abstract @Nullable String getIndex();
 
-  @Nullable
-  public abstract KeySet getKeySet();
+  public abstract @Nullable List<String> getColumns();
 
-  @Nullable
-  abstract PartitionOptions getPartitionOptions();
+  public abstract @Nullable KeySet getKeySet();
+
+  abstract @Nullable PartitionOptions getPartitionOptions();
 
   @AutoValue.Builder
   abstract static class Builder {
 
     abstract Builder setQuery(Statement statement);
+
+    abstract Builder setQueryName(String queryName);
 
     abstract Builder setTable(String table);
 
@@ -68,6 +72,11 @@ public abstract class ReadOperation implements Serializable {
 
     abstract Builder setKeySet(KeySet keySet);
 
+    /**
+     * Note: {@link PartitionOptions} are currently ignored. See <a
+     * href="https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1#google.spanner.v1.PartitionOptions">
+     * PartitionOptions in RPC documents</a>
+     */
     abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
     abstract ReadOperation build();
@@ -95,6 +104,10 @@ public abstract class ReadOperation implements Serializable {
     return withQuery(Statement.of(sql));
   }
 
+  public ReadOperation withQueryName(String queryName) {
+    return toBuilder().setQueryName(queryName).build();
+  }
+
   public ReadOperation withKeySet(KeySet keySet) {
     return toBuilder().setKeySet(keySet).build();
   }
@@ -105,5 +118,28 @@ public abstract class ReadOperation implements Serializable {
 
   public ReadOperation withPartitionOptions(PartitionOptions partitionOptions) {
     return toBuilder().setPartitionOptions(partitionOptions).build();
+  }
+
+  private static final Pattern queryPattern =
+      Pattern.compile(
+          "SELECT\\s+.+FROM\\s+\\[?(?<table>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+  /**
+   * Get table name associated with this operation.
+   *
+   * <p>Currently only supports explicitly set table, and limited cases of set query. Return null
+   * for unsupported cases.
+   */
+  @Nullable
+  String tryGetTableName() {
+    if (!Strings.isNullOrEmpty(getTable())) {
+      return getTable();
+    } else if (getQuery() != null) {
+      String query = getQuery().getSql();
+      Matcher matcher = queryPattern.matcher(query);
+      if (matcher.find()) {
+        return matcher.group("table");
+      }
+    }
+    return null;
   }
 }

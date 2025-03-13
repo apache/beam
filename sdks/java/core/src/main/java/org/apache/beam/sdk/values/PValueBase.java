@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
@@ -80,7 +81,7 @@ public abstract class PValueBase implements PValue {
   }
 
   /** The name of this {@link PValueBase}, or {@code null} if not yet set. */
-  @Nullable private String name;
+  private @Nullable String name;
 
   /**
    * Whether this {@link PValueBase} has been finalized, and its core properties, e.g., name, can no
@@ -105,7 +106,12 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public String toString() {
-    return (name == null ? "<unnamed>" : getName()) + " [" + getKindString() + "]";
+    return (name == null ? "<unnamed>" : getName())
+        + " ["
+        + getKindString()
+        + "@"
+        + hashCode()
+        + "]";
   }
 
   /**
@@ -119,14 +125,13 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public Pipeline getPipeline() {
-    checkState(
-        pipeline != null,
+    return Preconditions.checkStateNotNull(
+        pipeline,
         "Pipeline was null for %s. "
             + "this probably means it was used as a %s after being deserialized, "
             + "which not unsupported.",
         getClass().getCanonicalName(),
         PValue.class.getSimpleName());
-    return pipeline;
   }
 
   @Override

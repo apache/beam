@@ -17,25 +17,26 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import java.util.Collections;
-import javax.annotation.Nullable;
+import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
 /** A set of group/combine functions to apply to Spark {@link org.apache.spark.rdd.RDD}s. */
@@ -52,24 +53,36 @@ public class GroupCombineFunctions {
       @Nullable Partitioner partitioner) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    JavaPairRDD<ByteArray, byte[]> pairRDD =
-        rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowedValue::getValue)
-            .mapToPair(TranslationUtils.toPairFunction())
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+    final JavaPairRDD<ByteArray, byte[]> pairRDD =
+        rdd.mapPartitionsToPair(
+            (Iterator<WindowedValue<KV<K, V>>> iter) ->
+                Iterators.transform(
+                    iter,
+                    (WindowedValue<KV<K, V>> wv) -> {
+                      final K key = wv.getValue().getKey();
+                      final WindowedValue<V> windowedValue = wv.withValue(wv.getValue().getValue());
+                      final ByteArray keyBytes =
+                          new ByteArray(CoderHelpers.toByteArray(key, keyCoder));
+                      final byte[] windowedValueBytes =
+                          CoderHelpers.toByteArray(windowedValue, wvCoder);
+                      return Tuple2.apply(keyBytes, windowedValueBytes);
+                    }));
 
-    // If no partitioner is passed, the default group by key operation is called
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
-        (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
+    final JavaPairRDD<ByteArray, List<byte[]>> combined =
+        GroupNonMergingWindowsFunctions.combineByKey(pairRDD, partitioner).cache();
 
-    // using mapPartitions allows to preserve the partitioner
-    // and avoid unnecessary shuffle downstream.
-    return groupedRDD
-        .mapPartitionsToPair(
-            TranslationUtils.pairFunctionToPairFlatMapFunction(
-                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
-            true)
-        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true);
+    return combined.mapPartitions(
+        (Iterator<Tuple2<ByteArray, List<byte[]>>> iter) ->
+            Iterators.transform(
+                iter,
+                (Tuple2<ByteArray, List<byte[]>> tuple) -> {
+                  final K key = CoderHelpers.fromByteArray(tuple._1().getValue(), keyCoder);
+                  final List<WindowedValue<V>> windowedValues =
+                      tuple._2().stream()
+                          .map(bytes -> CoderHelpers.fromByteArray(bytes, wvCoder))
+                          .collect(Collectors.toList());
+                  return KV.of(key, windowedValues);
+                }));
   }
 
   /**
@@ -84,7 +97,6 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
         rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
 
@@ -94,41 +106,41 @@ public class GroupCombineFunctions {
     return groupedRDD
         .mapValues(
             it -> Iterables.transform(it, new CoderHelpers.FromByteFunction<>(keyCoder, wvCoder)))
-        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction()))
+        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction<>()))
         .mapValues(
             it -> Iterables.transform(it, new TranslationUtils.ToKVByWindowInValueFunction<>()));
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
-  public static <InputT, AccumT> Optional<Iterable<WindowedValue<AccumT>>> combineGlobally(
-      JavaRDD<WindowedValue<InputT>> rdd,
-      final SparkGlobalCombineFn<InputT, AccumT, ?> sparkCombineFn,
-      final Coder<AccumT> aCoder,
-      final WindowingStrategy<?, ?> windowingStrategy) {
+  public static <InputT, OutputT, AccumT>
+      SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?> combineGlobally(
+          JavaRDD<WindowedValue<InputT>> rdd,
+          final SparkCombineFn<InputT, InputT, AccumT, OutputT> sparkCombineFn,
+          final Coder<AccumT> aCoder,
+          final WindowingStrategy<?, ?> windowingStrategy) {
 
-    final WindowedValue.FullWindowedValueCoder<AccumT> wvaCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            aCoder, windowingStrategy.getWindowFn().windowCoder());
-    final IterableCoder<WindowedValue<AccumT>> iterAccumCoder = IterableCoder.of(wvaCoder);
+    @SuppressWarnings("unchecked")
+    final Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
+    final SparkCombineFn.WindowedAccumulatorCoder<InputT, InputT, AccumT> waCoder =
+        sparkCombineFn.accumulatorCoder(windowCoder, aCoder, windowingStrategy);
 
-    ValueAndCoderLazySerializable<Iterable<WindowedValue<AccumT>>> accumulatedResult =
-        rdd.aggregate(
-            ValueAndCoderLazySerializable.of(Collections.emptyList(), iterAccumCoder),
-            (ab, ib) -> {
-              Iterable<WindowedValue<AccumT>> merged =
-                  sparkCombineFn.seqOp(ab.getOrDecode(iterAccumCoder), ib);
-              return ValueAndCoderLazySerializable.of(merged, iterAccumCoder);
-            },
-            (a1b, a2b) -> {
-              Iterable<WindowedValue<AccumT>> merged =
-                  sparkCombineFn.combOp(
-                      a1b.getOrDecode(iterAccumCoder), a2b.getOrDecode(iterAccumCoder));
-              return ValueAndCoderLazySerializable.of(merged, iterAccumCoder);
-            });
+    ValueAndCoderLazySerializable<SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?>>
+        accumulatedResult =
+            rdd.aggregate(
+                ValueAndCoderLazySerializable.of(sparkCombineFn.createCombiner(), waCoder),
+                (ab, ib) -> {
+                  SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?> merged =
+                      sparkCombineFn.mergeValue(ab.getOrDecode(waCoder), ib);
+                  return ValueAndCoderLazySerializable.of(merged, waCoder);
+                },
+                (a1b, a2b) -> {
+                  SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?> merged =
+                      sparkCombineFn.mergeCombiners(
+                          a1b.getOrDecode(waCoder), a2b.getOrDecode(waCoder));
+                  return ValueAndCoderLazySerializable.of(merged, waCoder);
+                });
 
-    final Iterable<WindowedValue<AccumT>> result = accumulatedResult.getOrDecode(iterAccumCoder);
-
-    return Iterables.isEmpty(result) ? Optional.absent() : Optional.of(result);
+    return accumulatedResult.getOrDecode(waCoder);
   }
 
   /**
@@ -139,18 +151,20 @@ public class GroupCombineFunctions {
    * streaming, this will be called from within a serialized context (DStream's transform callback),
    * so passed arguments need to be Serializable.
    */
-  public static <K, InputT, AccumT>
-      JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> combinePerKey(
-          JavaRDD<WindowedValue<KV<K, InputT>>> rdd,
-          final SparkKeyedCombineFn<K, InputT, AccumT, ?> sparkCombineFn,
+  public static <K, V, AccumT>
+      JavaPairRDD<K, SparkCombineFn.WindowedAccumulator<KV<K, V>, V, AccumT, ?>> combinePerKey(
+          JavaRDD<WindowedValue<KV<K, V>>> rdd,
+          final SparkCombineFn<KV<K, V>, V, AccumT, ?> sparkCombineFn,
           final Coder<K> keyCoder,
+          final Coder<V> valueCoder,
           final Coder<AccumT> aCoder,
           final WindowingStrategy<?, ?> windowingStrategy) {
 
-    final WindowedValue.FullWindowedValueCoder<KV<K, AccumT>> wkvaCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            KvCoder.of(keyCoder, aCoder), windowingStrategy.getWindowFn().windowCoder());
-    final IterableCoder<WindowedValue<KV<K, AccumT>>> iterAccumCoder = IterableCoder.of(wkvaCoder);
+    boolean mustBringWindowToKey = sparkCombineFn.mustBringWindowToKey();
+    @SuppressWarnings("unchecked")
+    Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
+    final SparkCombineFn.WindowedAccumulatorCoder<KV<K, V>, V, AccumT> waCoder =
+        sparkCombineFn.accumulatorCoder(windowCoder, aCoder, windowingStrategy);
 
     // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
     // since the functions passed to combineByKey don't receive the associated key of each
@@ -159,45 +173,44 @@ public class GroupCombineFunctions {
     // Once Spark provides a way to include keys in the arguments of combine/merge functions,
     // we won't need to duplicate the keys anymore.
     // Key has to bw windowed in order to group by window as well.
-    JavaPairRDD<ByteArray, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
-        rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
+    final JavaPairRDD<ByteArray, WindowedValue<KV<K, V>>> inRddDuplicatedKeyPair;
+    if (!mustBringWindowToKey) {
+      inRddDuplicatedKeyPair = rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
+    } else {
+      inRddDuplicatedKeyPair =
+          GroupNonMergingWindowsFunctions.bringWindowToKey(rdd, keyCoder, windowCoder);
+    }
 
-    JavaPairRDD<ByteArray, ValueAndCoderLazySerializable<Iterable<WindowedValue<KV<K, AccumT>>>>>
+    JavaPairRDD<
+            ByteArray,
+            ValueAndCoderLazySerializable<
+                SparkCombineFn.WindowedAccumulator<KV<K, V>, V, AccumT, ?>>>
         accumulatedResult =
             inRddDuplicatedKeyPair.combineByKey(
                 input ->
-                    ValueAndCoderLazySerializable.of(
-                        sparkCombineFn.createCombiner(input), iterAccumCoder),
+                    ValueAndCoderLazySerializable.of(sparkCombineFn.createCombiner(input), waCoder),
                 (acc, input) ->
                     ValueAndCoderLazySerializable.of(
-                        sparkCombineFn.mergeValue(input, acc.getOrDecode(iterAccumCoder)),
-                        iterAccumCoder),
+                        sparkCombineFn.mergeValue(acc.getOrDecode(waCoder), input), waCoder),
                 (acc1, acc2) ->
                     ValueAndCoderLazySerializable.of(
                         sparkCombineFn.mergeCombiners(
-                            acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
-                        iterAccumCoder));
+                            acc1.getOrDecode(waCoder), acc2.getOrDecode(waCoder)),
+                        waCoder));
 
     return accumulatedResult.mapToPair(
         i ->
             new Tuple2<>(
-                CoderHelpers.fromByteArray(i._1.getValue(), keyCoder),
-                i._2.getOrDecode(iterAccumCoder)));
+                CoderHelpers.fromByteArray(i._1.getValue(), keyCoder), i._2.getOrDecode(waCoder)));
   }
 
   /** An implementation of {@link Reshuffle} for the Spark runner. */
-  public static <K, V> JavaRDD<WindowedValue<KV<K, V>>> reshuffle(
-      JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
-
+  public static <T> JavaRDD<WindowedValue<T>> reshuffle(
+      JavaRDD<WindowedValue<T>> rdd, WindowedValueCoder<T> wvCoder) {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowedValue::getValue)
-        .mapToPair(TranslationUtils.toPairFunction())
-        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
-        .repartition(rdd.getNumPartitions())
-        .mapToPair(new CoderHelpers.FromByteFunction(keyCoder, wvCoder))
-        .map(new TranslationUtils.FromPairFunction())
-        .map(new TranslationUtils.ToKVByWindowInValueFunction<>());
+    return rdd.map(CoderHelpers.toByteFunction(wvCoder))
+        .repartition(Math.max(rdd.context().defaultParallelism(), rdd.getNumPartitions()))
+        .map(CoderHelpers.fromByteFunction(wvCoder));
   }
 }

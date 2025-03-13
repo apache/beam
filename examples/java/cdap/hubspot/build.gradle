@@ -1,0 +1,122 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins {
+    id 'java'
+    id 'org.apache.beam.module'
+    id 'com.github.johnrengelman.shadow'
+}
+
+applyJavaNature(
+        exportJavadoc: false,
+        automaticModuleName: 'org.apache.beam.examples.complete.cdap.hubspot',
+)
+
+description = "Apache Beam :: Examples :: Java :: CDAP :: Hubspot"
+ext.summary = """Apache Beam SDK provides a simple, Java-based
+interface for processing virtually any size data. This
+artifact includes CDAP Hubspot Apache Beam Java SDK examples."""
+
+/** Define the list of runners which execute a precommit test.
+ * Some runners are run from separate projects, see the preCommit task below
+ * for details.
+ */
+def preCommitRunners = ["directRunner", "flinkRunner"]
+for (String runner : preCommitRunners) {
+    configurations.create(runner + "PreCommit")
+}
+
+configurations.all {
+    // Ban certain dependencies to prevent a StackOverflow within Spark
+    // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+    exclude group: "org.slf4j", module: "jul-to-slf4j"
+    exclude group: "org.slf4j", module: "slf4j-jdk14"
+    exclude group: "org.slf4j", module: "slf4j-log4j12"
+    exclude group: "ch.qos.logback", module: "logback-classic"
+}
+
+dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":examples:java:cdap")
+    implementation project(":sdks:java:io:cdap")
+    implementation project(":sdks:java:io:hadoop-common")
+    implementation library.java.cdap_api
+    runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    implementation library.java.cdap_api_commons
+    permitUnusedDeclared library.java.cdap_api_commons
+    implementation library.java.cdap_etl_api
+    permitUnusedDeclared library.java.cdap_etl_api
+    implementation library.java.cdap_etl_api_spark
+    permitUnusedDeclared library.java.cdap_etl_api_spark
+    implementation library.java.cdap_hydrator_common
+    //TODO: modify to 'implementation library.java.cdap_plugin_hubspot',
+    // when new release with HasOffset interface will be published
+    implementation "com.akvelon:cdap-hubspot-plugins:1.1.0"
+    implementation library.java.google_code_gson
+    implementation library.java.hadoop_common
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_32_1_2_jre
+    runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+
+    // Add dependencies for the PreCommit configurations
+    // For each runner a project level dependency on the examples project.
+    for (String runner : preCommitRunners) {
+        delegate.add(runner + "PreCommit", project(":examples:java:cdap:hubspot"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:hubspot", configuration: "testRuntimeMigration"))
+    }
+    directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+    flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
+}
+
+/*
+ * Create a ${runner}PreCommit task for each runner which runs a set
+ * of integration tests for WordCount and WindowedWordCount.
+ */
+def preCommitRunnerClass = [
+        directRunner: "org.apache.beam.runners.direct.DirectRunner",
+        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner"
+]
+
+for (String runner : preCommitRunners) {
+    tasks.create(name: runner + "PreCommit", type: Test) {
+        def preCommitBeamTestPipelineOptions = [
+                "--runner=" + preCommitRunnerClass[runner],
+        ]
+        classpath = configurations."${runner}PreCommit"
+        forkEvery 1
+        maxParallelForks 4
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+    }
+}
+
+/* Define a common precommit task which depends on all the individual precommits. */
+task preCommit() {
+    for (String runner : preCommitRunners) {
+        dependsOn runner + "PreCommit"
+    }
+}
+
+task executeCdapHubspot (type:JavaExec) {
+    mainClass = System.getProperty("mainClass")
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args System.getProperty("exec.args", "").split()
+}

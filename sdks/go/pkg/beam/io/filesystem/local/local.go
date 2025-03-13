@@ -21,8 +21,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 )
 
 func init() {
@@ -32,7 +33,7 @@ func init() {
 type fs struct{}
 
 // New creates a new local filesystem.
-func New(ctx context.Context) filesystem.Interface {
+func New(_ context.Context) filesystem.Interface {
 	return &fs{}
 }
 
@@ -40,17 +41,73 @@ func (f *fs) Close() error {
 	return nil
 }
 
-func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
+func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 	return filepath.Glob(glob)
 }
 
-func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, error) {
+func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error) {
 	return os.Open(filename)
 }
 
-func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
+func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		return nil, err
 	}
 	return os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 }
+
+func (f *fs) Size(_ context.Context, filename string) (int64, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return -1, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return -1, err
+	}
+	return info.Size(), nil
+}
+
+// LastModified returns the time at which the file was last modified.
+func (f *fs) LastModified(_ context.Context, filename string) (time.Time, error) {
+	info, err := os.Stat(filename)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return info.ModTime(), nil
+}
+
+// Remove the named file from the filesystem.
+func (f *fs) Remove(_ context.Context, filename string) error {
+	return os.Remove(filename)
+}
+
+// Rename the old path to the new path.
+func (f *fs) Rename(_ context.Context, oldpath, newpath string) error {
+	return os.Rename(oldpath, newpath)
+}
+
+// Copy copies from oldpath to the newpath.
+func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
+	srcFile, err := os.Open(oldpath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+	destFile, err := os.Create(newpath)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+	_, err = io.Copy(destFile, srcFile)
+	return err
+}
+
+// Compile time check for interface implementations.
+var (
+	_ filesystem.LastModifiedGetter = ((*fs)(nil))
+	_ filesystem.Copier             = ((*fs)(nil))
+	_ filesystem.Remover            = ((*fs)(nil))
+	_ filesystem.Renamer            = ((*fs)(nil))
+)

@@ -21,16 +21,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.sdk.util.construction.SplittableParDo.PrimitiveUnboundedRead;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.joda.time.Duration;
 
 /**
  * Provides methods to determine if a record is a duplicate within the evaluation of a {@link
- * Unbounded} {@link PTransform}.
+ * PrimitiveUnboundedRead SplittableParDo.PrimitiveUnboundedRead} {@link PTransform}.
  */
 interface UnboundedReadDeduplicator {
   /**

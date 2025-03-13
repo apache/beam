@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 """A workflow demonstrating a DoFn with multiple outputs.
 
 DoFns may produce multiple outputs. Outputs that are not the default ("main")
@@ -39,6 +38,7 @@ To execute this pipeline using the Google Cloud Dataflow service, specify
 pipeline configuration:::
 
   --project YOUR_PROJECT_ID
+  --region GCE_REGION
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
@@ -49,7 +49,26 @@ and an output prefix on GCS:::
   --output gs://YOUR_OUTPUT_PREFIX
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
+
+# beam-playground:
+#   name: MultipleOutputPardo
+#   description: This is a slightly modified version
+#     of the basic wordcount example. In this example words
+#     are divided into 2 buckets as shorts
+#     words (3 characters in length or less) and words (other).
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   context_line: 172
+#   categories:
+#     - IO
+#     - Options
+#     - Multiple Outputs
+#   complexity: MEDIUM
+#   tags:
+#     - count
+#     - split
+#     - strings
 
 import argparse
 import logging
@@ -97,8 +116,7 @@ class SplitLinesToWordsFn(beam.DoFn):
     """
     # yield a count (integer) to the OUTPUT_TAG_CHARACTER_COUNT tagged
     # collection.
-    yield pvalue.TaggedOutput(
-        self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
+    yield pvalue.TaggedOutput(self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
 
     words = re.findall(r'[A-Za-z\']+', element)
     for word in words:
@@ -117,7 +135,6 @@ class CountWords(beam.PTransform):
   A PTransform that converts a PCollection containing words into a PCollection
   of "word: count" strings.
   """
-
   def expand(self, pcoll):
     def count_ones(word_ones):
       (word, ones) = word_ones
@@ -127,63 +144,69 @@ class CountWords(beam.PTransform):
       (word, count) = word_count
       return '%s: %s' % (word, count)
 
-    return (pcoll
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones)
-            | 'format' >> beam.Map(format_result))
+    return (
+        pcoll
+        | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+        | 'group' >> beam.GroupByKey()
+        | 'count' >> beam.Map(count_ones)
+        | 'format' >> beam.Map(format_result))
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Runs the workflow counting the long words and short words separately."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output prefix for files to write results to.')
+  parser.add_argument(
+      '--input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      required=True,
+      help='Output prefix for files to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   with beam.Pipeline(options=pipeline_options) as p:
 
     lines = p | ReadFromText(known_args.input)
 
     # with_outputs allows accessing the explicitly tagged outputs of a DoFn.
-    split_lines_result = (lines
-                          | beam.ParDo(SplitLinesToWordsFn()).with_outputs(
-                              SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS,
-                              SplitLinesToWordsFn.OUTPUT_TAG_CHARACTER_COUNT,
-                              main='words'))
+    split_lines_result = (
+        lines
+        | beam.ParDo(SplitLinesToWordsFn()).with_outputs(
+            SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS,
+            SplitLinesToWordsFn.OUTPUT_TAG_CHARACTER_COUNT,
+            main='words'))
 
     # split_lines_result is an object of type DoOutputsTuple. It supports
     # accessing result in alternative ways.
     words, _, _ = split_lines_result
-    short_words = split_lines_result[
-        SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS]
+    short_words = split_lines_result[SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS]
     character_count = split_lines_result.tag_character_count
 
     # pylint: disable=expression-not-assigned
-    (character_count
-     | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
-     | beam.GroupByKey()
-     | 'count chars' >> beam.Map(lambda char_counts: sum(char_counts[1]))
-     | 'write chars' >> WriteToText(known_args.output + '-chars'))
+    (
+        character_count
+        | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
+        | beam.GroupByKey()
+        | 'count chars' >> beam.Map(lambda char_counts: sum(char_counts[1]))
+        | 'write chars' >> WriteToText(known_args.output + '-chars'))
 
     # pylint: disable=expression-not-assigned
-    (short_words
-     | 'count short words' >> CountWords()
-     | 'write short words' >> WriteToText(
-         known_args.output + '-short-words'))
+    (
+        short_words
+        | 'count short words' >> CountWords()
+        |
+        'write short words' >> WriteToText(known_args.output + '-short-words'))
 
     # pylint: disable=expression-not-assigned
-    (words
-     | 'count words' >> CountWords()
-     | 'write words' >> WriteToText(known_args.output + '-words'))
+    (
+        words
+        | 'count words' >> CountWords()
+        | 'write words' >> WriteToText(known_args.output + '-words'))
 
 
 if __name__ == '__main__':

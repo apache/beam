@@ -21,23 +21,23 @@ import com.fasterxml.jackson.annotation.JsonFilter;
 import com.google.auto.value.AutoValue;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The results of a single current metric.
  *
  * <p>TODO(BEAM-6265): Decouple wire formats from internal formats, remove usage of MetricName.
  */
-@Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class MetricResult<T> {
   /** Return the name of the metric. */
   public MetricName getName() {
     return getKey().metricName();
-  };
+  }
 
   public abstract MetricKey getKey();
 
@@ -62,8 +62,7 @@ public abstract class MetricResult<T> {
   }
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
-  @Nullable
-  public abstract T getCommittedOrNull();
+  public abstract @Nullable T getCommittedOrNull();
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
   public abstract T getAttempted();

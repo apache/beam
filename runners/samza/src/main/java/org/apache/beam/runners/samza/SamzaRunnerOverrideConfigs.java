@@ -19,7 +19,14 @@ package org.apache.beam.runners.samza;
 
 import java.time.Duration;
 
+// TODO: can we get rid of this class? Right now the SamzaPipelineOptionsValidator would force
+// the pipeline option to be the type SamzaPipelineOption. Ideally, we should be able to keep
+// passing SamzaPortablePipelineOption. Alternative, we could merge portable and non-portable
+// pipeline option.
 /** A helper class for holding all the beam runner specific samza configs. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SamzaRunnerOverrideConfigs {
   public static final String BEAM_RUNNER_CONFIG_PREFIX = "beam.override.";
   // whether the job is in portable mode
@@ -30,6 +37,8 @@ public class SamzaRunnerOverrideConfigs {
   public static final String CONTROL_CLIENT_MAX_WAIT_TIME_MS = "controL.wait.time.ms";
   public static final long DEFAULT_CONTROL_CLIENT_MAX_WAIT_TIME_MS =
       Duration.ofMinutes(2).toMillis();
+  public static final String FS_TOKEN_PATH = BEAM_RUNNER_CONFIG_PREFIX + "fs.token.path";
+  public static final String DEFAULT_FS_TOKEN_PATH = null;
 
   private static boolean containsKey(SamzaPipelineOptions options, String configKey) {
     if (options == null || options.getConfigOverride() == null) {
@@ -62,6 +71,15 @@ public class SamzaRunnerOverrideConfigs {
       return Long.parseLong(options.getConfigOverride().get(CONTROL_CLIENT_MAX_WAIT_TIME_MS));
     } else {
       return DEFAULT_CONTROL_CLIENT_MAX_WAIT_TIME_MS;
+    }
+  }
+
+  /** Get fs token path for portable mode. */
+  public static String getFsTokenPath(SamzaPipelineOptions options) {
+    if (containsKey(options, FS_TOKEN_PATH)) {
+      return options.getConfigOverride().get(FS_TOKEN_PATH);
+    } else {
+      return DEFAULT_FS_TOKEN_PATH;
     }
   }
 }

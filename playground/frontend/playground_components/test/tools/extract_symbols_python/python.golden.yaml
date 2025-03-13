@@ -1,0 +1,9 @@
+Class1:
+  methods:
+  - visible_method_1
+  - visible_method_2
+  properties:
+  - visible_field_1
+  - visible_field_2
+Class2: {}
+Class3: {}

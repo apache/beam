@@ -1,0 +1,904 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "limit": 100,
+        "name": "Annotations & Alerts",
+        "showIn": 0,
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 11,
+      "links": [],
+      "options": {
+        "content": "This dashboard tracks Post-commit test reliability over-time.\n\n* [Post-commit test policies](https://beam.apache.org/contribute/postcommits-policies/)\n* [Existing test failure issues](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Atest-failures)\n* [File a new test failure issue](https://github.com/apache/beam/issues/new/choose)",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.2",
+      "title": "Dashboard guidelines",
+      "type": "text"
+    },
+    {
+      "alert": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                0.7
+              ],
+              "type": "lt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "min"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "frequency": "30m",
+        "handler": 1,
+        "name": "Post-commit reliability per week alert",
+        "noDataState": "keep_state",
+        "notifications": []
+      },
+      "datasource": "BeamPSQL",
+      "description": "Percent reliability of all post-commit job runs for a given week.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "% successful runs",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 6,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (((job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')) OR job_name like '%_Cron')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Post-commit reliability per week",
+      "type": "timeseries"
+    },
+    {
+      "alert": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                0.7
+              ],
+              "type": "lt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "min"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "frequency": "30m",
+        "handler": 1,
+        "name": "Post-commit reliability per day alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
+      "datasource": "BeamPSQL",
+      "description": "Percent reliability of all post-commit job runs per-day.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "% successful runs",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 15,
+        "x": 0,
+        "y": 11
+      },
+      "id": 9,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "hidden",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Post-commit reliability per day",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "description": "List of jobs which have failed. Click on the job to view it in Jenkins.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Time"
+              },
+              {
+                "id": "unit",
+                "value": "time: YYYY-MM-DD HH:mm:ss"
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_url"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Build Url"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Link to Jenkins job.",
+                    "url": "${__cell:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job_name"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Job Name"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "View Jenkins job: ${__cell_1}_${__cell_2}",
+                    "url": "${__cell_0:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_id"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Build ID"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "View Jenkins job: ${__cell_1}_${__cell_2}",
+                    "url": "${__cell_0:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_timestamp"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Start Time"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "unit",
+                "value": "time: MM/DD/YY h:mm:ss a"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "View Jenkins job: ${__cell_1}_${__cell_2}",
+                    "url": "${__cell_0:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 9,
+        "x": 15,
+        "y": 11
+      },
+      "hideTimeOverride": false,
+      "id": 8,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Beam Jenkins",
+          "url": "https://ci-beam.apache.org/"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT \n  build_url,\n  job_name,\n  build_id,\n  build_timestamp\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeShift": null,
+      "title": "Failed builds",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {
+            "reducers": []
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "description": "Execution time for each post-commit job",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Average job duration",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 15,
+        "x": 0,
+        "y": 23
+      },
+      "id": 5,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  time, job_name",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Post-commit job duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "description": "Tracks the count of test failure GitHub issues currently open.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "# of GitHub issues",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_open"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#eab839",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "currently_failing"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#bf1b00",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 23
+      },
+      "id": 14,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "GitHub issues",
+          "url": "https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Atest-failures"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day, count(*) as total_open\n                   FROM gh_issues, days\n                   WHERE gh_issues.created_ts < days.day AND (gh_issues.closed_ts > days.day OR gh_issues.closed_ts is null)\n                   GROUP BY days.day\n                   ORDER BY days.day)\nselect days.day as time, greatest(knowndays.total_open, 0) as total_open\nfrom days left outer join knowndays\non days.day = knowndays.day",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day, count(*) as currently_failing\n                   FROM gh_issues, days\n                   WHERE gh_issues.created_ts < days.day AND (gh_issues.closed_ts > days.day OR gh_issues.closed_ts is null) AND (gh_issues.labels @> ARRAY['currently-failing'])\n                   GROUP BY days.day\n                   ORDER BY days.day)\nselect days.day as time, greatest(knowndays.currently_failing, 0) as currently_failing\nfrom days left outer join knowndays\non days.day = knowndays.day",
+          "refId": "D",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Test Failure GitHub issues",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "",
+  "title": "Post-commit Test Reliability",
+  "uid": "D81lW0pmk",
+  "version": 2
+}

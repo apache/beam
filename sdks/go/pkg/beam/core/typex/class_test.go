@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // TestClassOf tests that the type classification is correct.
@@ -58,10 +58,10 @@ func TestClassOf(t *testing.T) {
 		{reflect.TypeOf([1]string{}), Concrete},
 		{reflect.TypeOf([0]string{}), Concrete},
 		{reflect.TypeOf([3]struct{ Q []string }{}), Concrete},
-		{reflect.TypeOf([0]interface{}{}), Concrete},
+		{reflect.TypeOf([0]any{}), Concrete},
 		{reflect.TypeOf([1]string{}), Concrete},
 		{reflect.TypeOf([0]string{}), Concrete},
-		{reflect.TypeOf([0]interface{}{}), Concrete},
+		{reflect.TypeOf([0]any{}), Concrete},
 		{reflect.PtrTo(reflectx.String), Concrete},
 		{reflect.PtrTo(reflectx.Uint32), Concrete},
 		{reflect.PtrTo(reflectx.Bool), Concrete},
@@ -92,6 +92,7 @@ func TestClassOf(t *testing.T) {
 
 		{EventTimeType, Invalid},                                     // special
 		{WindowType, Invalid},                                        // special
+		{BundleFinalizationType, Invalid},                            // special
 		{reflectx.Context, Invalid},                                  // special
 		{reflectx.Error, Invalid},                                    // special
 		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // special
@@ -100,7 +101,7 @@ func TestClassOf(t *testing.T) {
 		{CoGBKType, Composite},
 		{WindowedValueType, Composite},
 
-		{reflect.TypeOf((*interface{})(nil)).Elem(), Concrete}, // special
+		{reflect.TypeOf((*any)(nil)).Elem(), Concrete}, // special
 
 		{reflect.TypeOf(uintptr(0)), Invalid},          // uintptr
 		{reflect.TypeOf(func() {}), Invalid},           // function
@@ -160,6 +161,7 @@ func TestIsConcrete(t *testing.T) {
 		{reflect.TypeOf([][][]uint16{}), true},
 		{reflect.TypeOf([]Y{}), false},
 		{reflect.TypeOf([][][]Z{}), false},
+		{BundleFinalizationType, false},
 	}
 
 	for _, test := range tests {

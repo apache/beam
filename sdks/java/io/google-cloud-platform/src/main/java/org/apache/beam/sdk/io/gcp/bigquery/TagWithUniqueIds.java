@@ -20,10 +20,10 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.IOException;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.ShardedKey;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Fn that tags each table row with a unique id and destination table. To avoid calling
@@ -32,24 +32,42 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * sequential number.
  */
 @VisibleForTesting
-class TagWithUniqueIds<ElementT>
-    extends DoFn<KV<ShardedKey<String>, ElementT>, KV<ShardedKey<String>, TableRowInfo>> {
-  private transient String randomUUID;
+class TagWithUniqueIds<KeyT, ElementT>
+    extends DoFn<KV<KeyT, ElementT>, KV<KeyT, TableRowInfo<ElementT>>> {
+  private transient @Nullable String randomUUID = null;
   private transient long sequenceNo = 0L;
+
+  private final @Nullable SerializableFunction<ElementT, String> elementToId;
+
+  public TagWithUniqueIds() {
+    elementToId = null;
+  }
+
+  public TagWithUniqueIds(@Nullable SerializableFunction<ElementT, String> elementToId) {
+    this.elementToId = elementToId;
+  }
 
   @StartBundle
   public void startBundle() {
-    randomUUID = UUID.randomUUID().toString();
+    if (elementToId == null) {
+      randomUUID = UUID.randomUUID().toString();
+    }
   }
 
   /** Tag the input with a unique id. */
   @ProcessElement
-  public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
-    String uniqueId = randomUUID + sequenceNo++;
+  public void processElement(ProcessContext context) throws IOException {
+    String uniqueId;
+    if (elementToId == null) {
+      uniqueId = randomUUID + sequenceNo++;
+    } else {
+      uniqueId = elementToId.apply(context.element().getValue());
+    }
     // We output on keys 0-50 to ensure that there's enough batching for
     // BigQuery.
     context.output(
         KV.of(
-            context.element().getKey(), new TableRowInfo(context.element().getValue(), uniqueId)));
+            context.element().getKey(),
+            new TableRowInfo<>(context.element().getValue(), uniqueId)));
   }
 }

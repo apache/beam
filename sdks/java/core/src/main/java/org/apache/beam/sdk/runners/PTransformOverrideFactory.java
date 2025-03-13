@@ -20,13 +20,11 @@ package org.apache.beam.sdk.runners;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -37,7 +35,9 @@ import org.apache.beam.sdk.values.TupleTag;
  * provides mappings between original and replacement outputs.
  */
 @Internal
-@Experimental(Kind.CORE_RUNNERS_ONLY)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface PTransformOverrideFactory<
     InputT extends PInput,
     OutputT extends POutput,
@@ -53,7 +53,8 @@ public interface PTransformOverrideFactory<
    * Returns a {@link Map} from the expanded values in {@code newOutput} to the values produced by
    * the original transform.
    */
-  Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, OutputT newOutput);
+  Map<PCollection<?>, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs, OutputT newOutput);
 
   /**
    * A {@link PTransform} that replaces an {@link AppliedPTransform}, and the input required to do

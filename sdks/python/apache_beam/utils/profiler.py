@@ -15,14 +15,15 @@
 # limitations under the License.
 #
 
-"""A profiler context manager based on cProfile.Profile objects.
+"""A profiler context manager based on cProfile.Profile and guppy.hpy objects.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
+# mypy: check-untyped-defs
 
-import cProfile  # pylint: disable=bad-python3-import
+import cProfile
 import io
 import logging
 import os
@@ -30,58 +31,104 @@ import pstats
 import random
 import tempfile
 import time
-import warnings
-from builtins import object
-from threading import Timer
+from typing import Callable
+from typing import Optional
 
 from apache_beam.io import filesystems
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Profile(object):
-  """cProfile wrapper context for saving and logging profiler results."""
+  """cProfile and Heapy wrapper context for saving and logging profiler
+  results."""
 
   SORTBY = 'cumulative'
 
-  def __init__(self, profile_id, profile_location=None, log_results=False,
-               file_copy_fn=None, time_prefix='%Y-%m-%d_%H_%M_%S-'):
-    self.stats = None
+  profile_output: str
+  stats: pstats.Stats
+
+  def __init__(
+      self,
+      profile_id: str,
+      profile_location: Optional[str] = None,
+      log_results: bool = False,
+      file_copy_fn: Optional[Callable[[str, str], None]] = None,
+      time_prefix: str = '%Y-%m-%d_%H_%M_%S-',
+      enable_cpu_profiling: bool = False,
+      enable_memory_profiling: bool = False,
+  ):
+    """Creates a Profile object.
+
+    Args:
+      profile_id: Unique id of the profiling session.
+      profile_location: The file location where the profiling results will be
+        stored.
+      log_results: Log the result to console if true.
+      file_copy_fn: Lambda function for copying files.
+      time_prefix: Format of the timestamp prefix in profiling result files.
+      enable_cpu_profiling: CPU profiler will be enabled during the profiling
+        session.
+      enable_memory_profiling: Memory profiler will be enabled during the
+        profiling session, the profiler only records the newly allocated objects
+        in this session.
+    """
     self.profile_id = str(profile_id)
     self.profile_location = profile_location
     self.log_results = log_results
     self.file_copy_fn = file_copy_fn or self.default_file_copy_fn
     self.time_prefix = time_prefix
-    self.profile_output = None
+    self.enable_cpu_profiling = enable_cpu_profiling
+    self.enable_memory_profiling = enable_memory_profiling
 
   def __enter__(self):
-    logging.info('Start profiling: %s', self.profile_id)
-    self.profile = cProfile.Profile()
-    self.profile.enable()
+    _LOGGER.info('Start profiling: %s', self.profile_id)
+    if self.enable_cpu_profiling:
+      self.profile = cProfile.Profile()
+      self.profile.enable()
+    if self.enable_memory_profiling:
+      try:
+        from guppy import hpy
+        self.hpy = hpy()
+        self.hpy.setrelheap()
+      except ImportError:
+        _LOGGER.info("Unable to import guppy for memory profiling")
+        self.hpy = None
     return self
 
   def __exit__(self, *args):
-    self.profile.disable()
-    logging.info('Stop profiling: %s', self.profile_id)
+    _LOGGER.info('Stop profiling: %s', self.profile_id)
 
     if self.profile_location:
-      dump_location = os.path.join(
-          self.profile_location,
-          time.strftime(self.time_prefix + self.profile_id))
-      fd, filename = tempfile.mkstemp()
-      try:
-        os.close(fd)
-        self.profile.dump_stats(filename)
-        logging.info('Copying profiler data to: [%s]', dump_location)
-        self.file_copy_fn(filename, dump_location)
-      finally:
-        os.remove(filename)
-      self.profile_output = dump_location
+      if self.enable_cpu_profiling:
+        self.profile.create_stats()
+        self.profile_output = self._upload_profile_data(
+            # typing: seems stats attr is missing from typeshed
+            self.profile_location,
+            'cpu_profile',
+            self.profile.stats)
+
+      if self.enable_memory_profiling:
+        if not self.hpy:
+          pass
+        else:
+          h = self.hpy.heap()
+          heap_dump_data = '%s\n%s' % (h, h.more)
+          self._upload_profile_data(
+              self.profile_location,
+              'memory_profile',
+              heap_dump_data,
+              write_binary=False)
 
     if self.log_results:
-      s = io.StringIO()
-      self.stats = pstats.Stats(
-          self.profile, stream=s).sort_stats(Profile.SORTBY)
-      self.stats.print_stats()
-      logging.info('Profiler data: [%s]', s.getvalue())
+      if self.enable_cpu_profiling:
+        s = io.StringIO()
+        self.stats = pstats.Stats(
+            self.profile, stream=s).sort_stats(Profile.SORTBY)
+        self.stats.print_stats()
+        _LOGGER.info('Cpu profiler data: [%s]', s.getvalue())
+      if self.enable_memory_profiling and self.hpy:
+        _LOGGER.info('Memory profiler data: \n%s' % self.hpy.heap())
 
   @staticmethod
   def default_file_copy_fn(src, dest):
@@ -94,87 +141,40 @@ class Profile(object):
     filesystems.FileSystems.rename([dest + '.tmp'], [dest])
 
   @staticmethod
-  def factory_from_options(options):
-    if options.profile_cpu:
+  def factory_from_options(options) -> Optional[Callable[..., 'Profile']]:
+    if options.profile_cpu or options.profile_memory:
+
       def create_profiler(profile_id, **kwargs):
         if random.random() < options.profile_sample_rate:
-          return Profile(profile_id, options.profile_location, **kwargs)
+          return Profile(
+              profile_id,
+              options.profile_location,
+              enable_cpu_profiling=options.profile_cpu,
+              enable_memory_profiling=options.profile_memory,
+              **kwargs)
+
       return create_profiler
+    return None
 
-
-class MemoryReporter(object):
-  """A memory reporter that reports the memory usage and heap profile.
-  Usage:::
-
-    mr = MemoryReporter(interval_second=30.0)
-    mr.start()
-    while ...
-      <do something>
-      # this will report continuously with 30 seconds between reports.
-    mr.stop()
-
-  NOTE: A reporter with start() should always stop(), or the parent process can
-  never finish.
-
-  Or simply the following which does star() and stop():
-    with MemoryReporter(interval_second=100):
-      while ...
-        <do some thing>
-
-  Also it could report on demand without continuous reporting.::
-
-    mr = MemoryReporter()  # default interval 60s but not started.
-    <do something>
-    mr.report_once()
-  """
-
-  def __init__(self, interval_second=60.0):
-    # guppy might not have installed. http://pypi.python.org/pypi/guppy/0.1.10
-    # The reporter can be set up only when guppy is installed (and guppy cannot
-    # be added to the required packages in setup.py, since it's not available
-    # in all platforms).
+  def _upload_profile_data(
+      self, profile_location, dir, data, write_binary=True) -> str:
+    dump_location = os.path.join(
+        profile_location,
+        dir,
+        time.strftime(self.time_prefix + self.profile_id))
+    fd, filename = tempfile.mkstemp()
     try:
-      from guppy import hpy  # pylint: disable=import-error
-      self._hpy = hpy
-      self._interval_second = interval_second
-      self._timer = None
-    except ImportError:
-      warnings.warn('guppy is not installed; MemoryReporter not available.')
-      self._hpy = None
-    self._enabled = False
+      os.close(fd)
+      if write_binary:
+        with open(filename, 'wb') as fb:
+          import marshal
+          marshal.dump(data, fb)
+      else:
+        with open(filename, 'w') as f:
+          f.write(data)
+      _LOGGER.info('Copying profiler data to: [%s]', dump_location)
+      self.file_copy_fn(filename, dump_location)
+    finally:
+      os.remove(filename)
 
-  def __enter__(self):
-    self.start()
-    return self
-
-  def __exit__(self, *args):
-    self.stop()
-
-  def start(self):
-    if self._enabled or not self._hpy:
-      return
-    self._enabled = True
-
-    def report_with_interval():
-      if not self._enabled:
-        return
-      self.report_once()
-      self._timer = Timer(self._interval_second, report_with_interval)
-      self._timer.start()
-
-    self._timer = Timer(self._interval_second, report_with_interval)
-    self._timer.start()
-
-  def stop(self):
-    if not self._enabled:
-      return
-    self._timer.cancel()
-    self._enabled = False
-
-  def report_once(self):
-    if not self._hpy:
-      return
-    report_start_time = time.time()
-    heap_profile = self._hpy().heap()
-    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
-                 heap_profile, time.time() - report_start_time)
+    return dump_location

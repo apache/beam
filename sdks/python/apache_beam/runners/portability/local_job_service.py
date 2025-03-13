@@ -14,8 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
+# pytype: skip-file
 
+import concurrent.futures
+import itertools
 import logging
 import os
 import queue
@@ -25,32 +27,45 @@ import tempfile
 import threading
 import time
 import traceback
-import uuid
-from builtins import object
-from concurrent import futures
+from typing import Any
+from typing import List
+from typing import Mapping
+from typing import Optional
 
 import grpc
+from google.protobuf import json_format
+from google.protobuf import struct_pb2
 from google.protobuf import text_format
 
-from apache_beam.portability.api import beam_artifact_api_pb2
+from apache_beam import pipeline
+from apache_beam.metrics import monitoring_infos
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_provision_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners.job import utils as job_utils
+from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
-from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability.fn_api_runner import fn_runner
+from apache_beam.runners.portability.fn_api_runner import worker_handlers
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
+from apache_beam.transforms import environments
+from apache_beam.utils import thread_pool_executor
 
-TERMINAL_STATES = [
-    beam_job_api_pb2.JobState.DONE,
-    beam_job_api_pb2.JobState.STOPPED,
-    beam_job_api_pb2.JobState.FAILED,
-    beam_job_api_pb2.JobState.CANCELLED,
-]
+_LOGGER = logging.getLogger(__name__)
 
 
-class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
+def _iter_queue(q):
+  while True:
+    yield q.get(block=True)
+
+
+class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
   """Manages one or more pipelines, possibly concurrently.
     Experimental: No backward compatibility guaranteed.
     Servicer for the Beam Job API.
@@ -63,25 +78,73 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     inline calls rather than GRPC (for speed) or launch completely separate
     subprocesses for the runner and worker(s).
     """
-
-  def __init__(self, staging_dir=None):
-    self._jobs = {}
+  def __init__(self, staging_dir=None, beam_job_type=None):
+    super().__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
-    self._artifact_service = artifact_service.BeamFilesystemArtifactService(
-        self._staging_dir)
-    self._artifact_staging_endpoint = None
+    self._artifact_service = artifact_service.ArtifactStagingService(
+        artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
+    self._artifact_staging_endpoint: Optional[
+        endpoints_pb2.ApiServiceDescriptor] = None
+    self._beam_job_type = beam_job_type or BeamJob
+
+  def create_beam_job(self,
+                      preparation_id,  # stype: str
+                      job_name: str,
+                      pipeline: beam_runner_api_pb2.Pipeline,
+                      options: struct_pb2.Struct
+                     ) -> 'BeamJob':
+    self._artifact_service.register_job(
+        staging_token=preparation_id,
+        dependency_sets=_extract_dependency_sets(
+            pipeline.components.environments))
+    provision_info = fn_runner.ExtendedProvisionInfo(
+        beam_provision_api_pb2.ProvisionInfo(pipeline_options=options),
+        self._staging_dir,
+        job_name=job_name)
+    return self._beam_job_type(
+        preparation_id,
+        pipeline,
+        options,
+        provision_info,
+        self._artifact_staging_endpoint,
+        self._artifact_service)
+
+  def get_bind_address(self):
+    """Return the address used to open the port on the gRPC server.
+
+    This is often, but not always the same as the service address.  For
+    example, to make the service accessible to external machines, override this
+    to return '[::]' and override `get_service_address()` to return a publicly
+    accessible host name.
+    """
+    return self.get_service_address()
+
+  def get_service_address(self):
+    """Return the host name at which this server will be accessible.
+
+    In particular, this is provided to the client upon connection as the
+    artifact staging endpoint.
+    """
+    return 'localhost'
 
   def start_grpc_server(self, port=0):
-    self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
-    port = self._server.add_insecure_port('localhost:%d' % port)
+    options = [("grpc.max_receive_message_length", -1),
+               ("grpc.max_send_message_length", -1),
+               ("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
+    self._server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(), options=options)
+    port = self._server.add_insecure_port(
+        '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
+    hostname = self.get_service_address()
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%d' % port)
+        url='%s:%d' % (hostname, port))
     self._server.start()
-    logging.info('Grpc server started on port %s', port)
+    _LOGGER.info('Grpc server started at %s on port %d' % (hostname, port))
     return port
 
   def stop(self, timeout=1):
@@ -89,96 +152,49 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     if os.path.exists(self._staging_dir) and self._cleanup_staging_dir:
       shutil.rmtree(self._staging_dir, ignore_errors=True)
 
-  def Prepare(self, request, context=None):
-    # For now, just use the job name as the job id.
-    logging.debug('Got Prepare request.')
-    preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
-    provision_info = fn_api_runner.ExtendedProvisionInfo(
-        beam_provision_api_pb2.ProvisionInfo(
-            job_id=preparation_id,
-            job_name=request.job_name,
-            pipeline_options=request.pipeline_options,
-            retrieval_token=self._artifact_service.retrieval_token(
-                preparation_id)),
-        self._staging_dir)
-    self._jobs[preparation_id] = BeamJob(
-        preparation_id,
-        request.pipeline_options,
-        request.pipeline,
-        provision_info)
-    logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
-    # TODO(angoenka): Pass an appropriate staging_session_token. The token can
-    # be obtained in PutArtifactResponse from JobService
-    if not self._artifact_staging_endpoint:
-      # The front-end didn't try to stage anything, but the worker may
-      # request what's here so we should at least store an empty manifest.
-      self._artifact_service.CommitManifest(
-          beam_artifact_api_pb2.CommitManifestRequest(
-              staging_session_token=preparation_id,
-              manifest=beam_artifact_api_pb2.Manifest()))
-    return beam_job_api_pb2.PrepareJobResponse(
-        preparation_id=preparation_id,
-        artifact_staging_endpoint=self._artifact_staging_endpoint,
-        staging_session_token=preparation_id)
-
-  def Run(self, request, context=None):
-    job_id = request.preparation_id
-    logging.info("Runing job '%s'", job_id)
-    self._jobs[job_id].start()
-    return beam_job_api_pb2.RunJobResponse(job_id=job_id)
-
-  def GetState(self, request, context=None):
-    return beam_job_api_pb2.GetJobStateResponse(
-        state=self._jobs[request.job_id].state)
-
-  def GetPipeline(self, request, context=None):
-    return beam_job_api_pb2.GetJobPipelineResponse(
-        pipeline=self._jobs[request.job_id]._pipeline_proto)
-
-  def Cancel(self, request, context=None):
-    self._jobs[request.job_id].cancel()
-    return beam_job_api_pb2.CancelJobRequest(
-        state=self._jobs[request.job_id].state)
-
-  def GetStateStream(self, request, context=None):
-    """Yields state transitions since the stream started.
-      """
+  def GetJobMetrics(self, request, context=None):
     if request.job_id not in self._jobs:
       raise LookupError("Job {} does not exist".format(request.job_id))
 
-    job = self._jobs[request.job_id]
-    for state in job.get_state_stream():
-      yield beam_job_api_pb2.GetJobStateResponse(state=state)
+    result = self._jobs[request.job_id].result
+    if result is None:
+      monitoring_info_list = []
+    else:
+      monitoring_info_list = result.monitoring_infos()
 
-  def GetMessageStream(self, request, context=None):
-    """Yields messages since the stream started.
-      """
-    if request.job_id not in self._jobs:
-      raise LookupError("Job {} does not exist".format(request.job_id))
+    # Filter out system metrics
+    user_monitoring_info_list = [
+        x for x in monitoring_info_list
+        if monitoring_infos.is_user_monitoring_info(x)
+    ]
 
-    job = self._jobs[request.job_id]
-    for msg in job.get_message_stream():
-      if isinstance(msg, int):
-        resp = beam_job_api_pb2.JobMessagesResponse(
-            state_response=beam_job_api_pb2.GetJobStateResponse(state=msg))
-      else:
-        resp = beam_job_api_pb2.JobMessagesResponse(message_response=msg)
-      yield resp
-
-  def DescribePipelineOptions(self, request, context=None):
-    return beam_job_api_pb2.DescribePipelineOptionsResponse()
+    return beam_job_api_pb2.GetJobMetricsResponse(
+        metrics=beam_job_api_pb2.MetricResults(
+            committed=user_monitoring_info_list))
 
 
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
-    """
-
-  def __init__(self, worker_command_line, control_address):
-    self._worker_command_line = worker_command_line
+  """
+  def __init__(
+      self,
+      worker_command_line: bytes,
+      control_address,
+      provision_info,
+      worker_id=None):
+    # worker_command_line is of bytes type received from grpc. It was encoded in
+    # apache_beam.transforms.environments.SubprocessSDKEnvironment earlier.
+    # decode it back as subprocess.Popen does not support bytes args in win32.
+    self._worker_command_line = worker_command_line.decode('utf-8')
     self._control_address = control_address
+    self._provision_info = provision_info
+    self._worker_id = worker_id
 
   def run(self):
-    logging_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    options = [("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
+    logging_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     logging_port = logging_server.add_insecure_port('[::]:0')
     logging_server.start()
     logging_servicer = BeamFnLoggingServicer()
@@ -189,14 +205,20 @@ class SubprocessSdkWorker(object):
 
     control_descriptor = text_format.MessageToString(
         endpoints_pb2.ApiServiceDescriptor(url=self._control_address))
+    pipeline_options = json_format.MessageToJson(
+        self._provision_info.provision_info.pipeline_options)
 
-    p = subprocess.Popen(
-        self._worker_command_line,
-        shell=True,
-        env=dict(
-            os.environ,
-            CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
-            LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor))
+    env_dict = dict(
+        os.environ,
+        CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
+        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor,
+        PIPELINE_OPTIONS=pipeline_options)
+    # only add worker_id when it is set.
+    if self._worker_id:
+      env_dict['WORKER_ID'] = self._worker_id
+
+    with worker_handlers.SUBPROCESS_LOCK:
+      p = subprocess.Popen(self._worker_command_line, shell=True, env=env_dict)
     try:
       p.wait()
       if p.returncode:
@@ -208,69 +230,118 @@ class SubprocessSdkWorker(object):
       logging_server.stop(0)
 
 
-class BeamJob(threading.Thread):
+class BeamJob(abstract_job_service.AbstractBeamJob):
   """This class handles running and managing a single pipeline.
 
     The current state of the pipeline is available as self.state.
     """
-
-  def __init__(self,
-               job_id,
-               pipeline_options,
-               pipeline_proto,
-               provision_info):
-    super(BeamJob, self).__init__()
-    self._job_id = job_id
-    self._pipeline_options = pipeline_options
-    self._pipeline_proto = pipeline_proto
+  def __init__(
+      self,
+      job_id: str,
+      pipeline,
+      options,
+      provision_info: fn_runner.ExtendedProvisionInfo,
+      artifact_staging_endpoint: Optional[endpoints_pb2.ApiServiceDescriptor],
+      artifact_service: artifact_service.ArtifactStagingService,
+  ):
+    super().__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
-    self._state = None
-    self._state_queues = []
-    self._log_queues = []
-    self.state = beam_job_api_pb2.JobState.STARTING
+    self._artifact_staging_endpoint = artifact_staging_endpoint
+    self._artifact_service = artifact_service
+    self._state_queues: List[queue.Queue] = []
+    self._log_queues = JobLogQueues()
     self.daemon = True
+    self.result = None
 
-  @property
-  def state(self):
-    return self._state
+  def pipeline_options(self):
+    def from_urn(key):
+      assert key.startswith('beam:option:')
+      assert key.endswith(':v1')
+      return key[12:-3]
 
-  @state.setter
-  def state(self, new_state):
-    # Inform consumers of the new state.
-    for queue in self._state_queues:
-      queue.put(new_state)
-    self._state = new_state
+    return pipeline_options.PipelineOptions(
+        **{
+            from_urn(key): value
+            for (key, value
+                 ) in job_utils.struct_to_dict(self._pipeline_options).items()
+        })
+
+  def set_state(self, new_state):
+    """Set the latest state as an int enum and notify consumers"""
+    timestamp = super().set_state(new_state)
+    if timestamp is not None:
+      # Inform consumers of the new state.
+      for queue in self._state_queues:
+        queue.put((new_state, timestamp))
+
+  def prepare(self):
+    pass
+
+  def artifact_staging_endpoint(self):
+    return self._artifact_staging_endpoint
 
   def run(self):
-    with JobLogHandler(self._log_queues):
+    self.set_state(beam_job_api_pb2.JobState.STARTING)
+    self._run_thread = threading.Thread(target=self._run_job)
+    self._run_thread.start()
+
+  def _run_job(self):
+    with JobLogHandler(self._log_queues) as log_handler:
+      self._update_dependencies()
+      pipeline.Pipeline.merge_compatible_environments(self._pipeline_proto)
       try:
-        fn_api_runner.FnApiRunner(
-            provision_info=self._provision_info).run_via_runner_api(
-                self._pipeline_proto)
-        logging.info('Successfully completed job.')
-        self.state = beam_job_api_pb2.JobState.DONE
+        start = time.time()
+        self.result = self._invoke_runner()
+        self.result.wait_until_finish()
+        _LOGGER.info(
+            'Completed job in %s seconds with state %s.',
+            time.time() - start,
+            self.result.state)
+        self.set_state(
+            portable_runner.PipelineResult.pipeline_state_to_runner_api_state(
+                self.result.state))
       except:  # pylint: disable=bare-except
-        logging.exception('Error running pipeline.')
-        logging.exception(traceback)
-        self.state = beam_job_api_pb2.JobState.FAILED
+        self._log_queues.put(
+            beam_job_api_pb2.JobMessage(
+                message_id=log_handler._next_id(),
+                time=time.strftime('%Y-%m-%d %H:%M:%S.'),
+                importance=beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+                message_text=traceback.format_exc()))
+        _LOGGER.exception('Error running pipeline.')
+        self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
 
+  def _invoke_runner(self):
+    self.set_state(beam_job_api_pb2.JobState.RUNNING)
+    return fn_runner.FnApiRunner(
+        provision_info=self._provision_info).run_via_runner_api(
+            self._pipeline_proto, self.pipeline_options())
+
+  def _update_dependencies(self):
+    try:
+      _update_dependency_sets(
+          self._pipeline_proto.components.environments,
+          self._artifact_service.resolved_deps(self._job_id, timeout=0))
+      self._provision_info.provision_info.ClearField('retrieval_token')
+    except concurrent.futures.TimeoutError:
+      # TODO(https://github.com/apache/beam/issues/20267): Require this once
+      # all SDKs support it.
+      pass
+
   def cancel(self):
-    if self.state not in TERMINAL_STATES:
-      self.state = beam_job_api_pb2.JobState.CANCELLING
+    if not self.is_terminal_state(self.state):
+      self.set_state(beam_job_api_pb2.JobState.CANCELLING)
       # TODO(robertwb): Actually cancel...
-      self.state = beam_job_api_pb2.JobState.CANCELLED
+      self.set_state(beam_job_api_pb2.JobState.CANCELLED)
 
   def get_state_stream(self):
     # Register for any new state changes.
     state_queue = queue.Queue()
     self._state_queues.append(state_queue)
 
-    yield self.state
-    while True:
-      current_state = state_queue.get(block=True)
-      yield current_state
-      if current_state in TERMINAL_STATES:
+    for state, timestamp in self.with_state_history(_iter_queue(state_queue)):
+      yield state, timestamp
+      if self.is_terminal_state(state):
         break
 
   def get_message_stream(self):
@@ -279,22 +350,59 @@ class BeamJob(threading.Thread):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    current_state = self.state
-    yield current_state
-    while current_state not in TERMINAL_STATES:
-      msg = log_queue.get(block=True)
-      yield msg
-      if isinstance(msg, int):
-        current_state = msg
+    for msg in itertools.chain(self._log_queues.cache(),
+                               self.with_state_history(_iter_queue(log_queue))):
+      if isinstance(msg, tuple):
+        assert len(msg) == 2 and isinstance(msg[0], int)
+        current_state = msg[0]
+        yield msg
+        if self.is_terminal_state(current_state):
+          break
+      else:
+        yield msg
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
-        logging.info('Worker: %s', str(log_entry).replace('\n', ' '))
+        _LOGGER.log(
+            LOGENTRY_TO_LOG_LEVEL_MAP[log_entry.severity],
+            'Worker: %s',
+            str(log_entry).replace('\n', ' '))
     return iter([])
+
+
+class JobLogQueues(object):
+  def __init__(self):
+    self._queues: List[queue.Queue] = []
+    self._cache = []
+    self._cache_size = 10
+    self._lock = threading.Lock()
+
+  def cache(self):
+    with self._lock:
+      return list(self._cache)
+
+  def append(self, queue):
+    with self._lock:
+      self._queues.append(queue)
+
+  def put(self, msg):
+    with self._lock:
+      if len(self._cache) < self._cache_size:
+        self._cache.append(msg)
+      else:
+        min_level = min(m.importance for m in self._cache)
+        if msg.importance >= min_level:
+          self._cache.append(msg)
+          for ix, m in enumerate(self._cache):
+            if m.importance == min_level:
+              del self._cache[ix]
+              break
+
+      for queue in self._queues:
+        queue.put(msg)
 
 
 class JobLogHandler(logging.Handler):
@@ -313,7 +421,7 @@ class JobLogHandler(logging.Handler):
   }
 
   def __init__(self, log_queues):
-    super(JobLogHandler, self).__init__()
+    super().__init__()
     self._last_id = 0
     self._logged_thread = None
     self._log_queues = log_queues
@@ -323,6 +431,7 @@ class JobLogHandler(logging.Handler):
     # running pipelines (as Python log handlers are global).
     self._logged_thread = threading.current_thread()
     logging.getLogger().addHandler(self)
+    return self
 
   def __exit__(self, *args):
     self._logged_thread = None
@@ -336,11 +445,49 @@ class JobLogHandler(logging.Handler):
     if self._logged_thread is threading.current_thread():
       msg = beam_job_api_pb2.JobMessage(
           message_id=self._next_id(),
-          time=time.strftime('%Y-%m-%d %H:%M:%S.',
-                             time.localtime(record.created)),
+          time=time.strftime(
+              '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)),
           importance=self.LOG_LEVEL_MAP[record.levelno],
           message_text=self.format(record))
 
       # Inform all message consumers.
-      for queue in self._log_queues:
-        queue.put(msg)
+      self._log_queues.put(msg)
+
+
+def _extract_dependency_sets(
+    envs: Mapping[str, beam_runner_api_pb2.Environment]
+) -> Mapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]:
+  """Expands the set of environments into a mapping of (opaque) keys to
+  dependency sets.  This is not 1:1 in the case of AnyOf environments.
+
+  The values can then be resolved and the mapping passed back to
+  _update_dependency_sets to update the dependencies in the original protos.
+  """
+  def dependencies_iter():
+    for env_id, env in envs.items():
+      for ix, sub_env in enumerate(environments.expand_anyof_environments(env)):
+        yield (env_id, ix), sub_env.dependencies
+
+  return dict(dependencies_iter())
+
+
+def _update_dependency_sets(
+    envs: Mapping[str, beam_runner_api_pb2.Environment],
+    resolved_deps: Mapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]):
+  """Takes the mapping of beam Environments (originally passed to
+  `_extract_dependency_sets`) and a set of (key-wise) updated dependencies,
+  and updates the original environment protos to contain the updated
+  dependencies.
+  """
+  for env_id, env in envs.items():
+    new_envs = []
+    for ix, sub_env in enumerate(environments.expand_anyof_environments(env)):
+      # Slice assignment not supported for repeated fields.
+      del sub_env.dependencies[:]
+      sub_env.dependencies.extend(resolved_deps[env_id, ix])
+      new_envs.append(sub_env)
+    if len(new_envs) == 1:
+      envs[env_id].CopyFrom(new_envs[0])
+    else:
+      envs[env_id].CopyFrom(
+          environments.AnyOfEnvironment.create_proto(new_envs))

@@ -17,10 +17,22 @@
 package regression
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func init() {
+	register.Function1x1(directFn)
+	register.Function2x0(emitFn)
+	register.Function3x0(emit2Fn)
+	register.Function2x1(mixedFn)
+	register.Function2x2(directCountFn)
+	register.Function3x1(emitCountFn)
+	register.Emitter1[int]()
+	register.Iter1[int]()
+}
 
 func directFn(elm int) int {
 	return elm + 1
@@ -94,7 +106,7 @@ func directCountFn(_ int, values func(*int) bool) (int, error) {
 // DirectParDoAfterGBK generates a pipeline with a direct-form
 // ParDo after a GBK. See: BEAM-3978 and BEAM-4175.
 func DirectParDoAfterGBK() *beam.Pipeline {
-	p, s, col := ptest.Create([]interface{}{1, 2, 3, 4})
+	p, s, col := ptest.Create([]any{1, 2, 3, 4})
 
 	keyed := beam.GroupByKey(s, beam.AddFixedKey(s, col))
 	sum := beam.ParDo(s, directCountFn, keyed)
@@ -116,7 +128,7 @@ func emitCountFn(_ int, values func(*int) bool, emit func(int)) error {
 // EmitParDoAfterGBK generates a pipeline with a emit-form
 // ParDo after a GBK. See: BEAM-3978 and BEAM-4175.
 func EmitParDoAfterGBK() *beam.Pipeline {
-	p, s, col := ptest.Create([]interface{}{1, 2, 3, 4})
+	p, s, col := ptest.Create([]any{1, 2, 3, 4})
 
 	keyed := beam.GroupByKey(s, beam.AddFixedKey(s, col))
 	sum := beam.ParDo(s, emitCountFn, keyed)

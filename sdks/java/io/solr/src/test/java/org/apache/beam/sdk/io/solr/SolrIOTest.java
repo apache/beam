@@ -24,7 +24,7 @@ import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -66,6 +66,9 @@ import org.slf4j.LoggerFactory;
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
 @RunWith(RandomizedRunner.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SolrIOTest extends SolrCloudTestCase {
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 
@@ -108,7 +111,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     ZkStateReader zkStateReader = cluster.getSolrClient().getZkStateReader();
     zkStateReader
         .getZkClient()
-        .setData("/security.json", securityJson.getBytes(Charset.defaultCharset()), true);
+        .setData("/security.json", securityJson.getBytes(StandardCharsets.UTF_8), true);
     String zkAddress = cluster.getZkServer().getZkAddress();
     connectionConfiguration =
         SolrIO.ConnectionConfiguration.create(zkAddress).withBasicCredentials("solr", password);
@@ -151,6 +154,23 @@ public class SolrIOTest extends SolrCloudTestCase {
                 .withConnectionConfiguration(connectionConfiguration)
                 .from(SOLR_COLLECTION)
                 .withBatchSize(101));
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_DOCS);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadAll() throws Exception {
+    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+
+    PCollection<SolrDocument> output =
+        pipeline
+            .apply(
+                Create.of(
+                    SolrIO.read()
+                        .withConnectionConfiguration(connectionConfiguration)
+                        .from(SOLR_COLLECTION)
+                        .withBatchSize(101)))
+            .apply(SolrIO.readAll());
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_DOCS);
     pipeline.run();
   }
@@ -255,7 +275,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     try {
       pipeline.run();
     } catch (final Pipeline.PipelineExecutionException e) {
-      // Hack: await all worker threads completing (BEAM-4040)
+      // Hack: await all worker threads completing (https://github.com/apache/beam/issues/18893)
       int waitAttempts = 30; // defensive coding
       while (namedThreadIsAlive("direct-runner-worker") && waitAttempts-- >= 0) {
         LOG.info("Pausing to allow direct-runner-worker threads to finish");

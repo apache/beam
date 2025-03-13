@@ -18,8 +18,8 @@ package protox
 import (
 	"encoding/base64"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/golang/protobuf/proto"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/proto"
 )
 
 // MustEncodeBase64 encodes a proto wrapped in base64 and panics on failure.

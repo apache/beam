@@ -34,12 +34,18 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
  * {@link TimerInternals.TimerData} with key, used by {@link SamzaTimerInternalsFactory}. Implements
  * {@link Comparable} by first comparing the wrapped TimerData then the key.
  */
+@SuppressWarnings({
+  "keyfor",
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   private final byte[] keyBytes;
   private final K key;
@@ -98,7 +104,19 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public String toString() {
+    return "KeyedTimerData{"
+        + "key="
+        + key
+        + ", keyBytes="
+        + Arrays.toString(keyBytes)
+        + ", timerData="
+        + timerData
+        + '}';
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -120,9 +138,9 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   }
 
   /**
-   * Coder for {@link KeyedTimerData}. Note we don't use the {@link
-   * org.apache.beam.runners.core.TimerInternals.TimerDataCoder} here directly since we want to
-   * en/decode timestamp first so the timers will be sorted in the state.
+   * Coder for {@link KeyedTimerData}. Note we don't use the {@link TimerInternals.TimerDataCoderV2}
+   * here directly since we want to en/decode timestamp first so the timers will be sorted in the
+   * state.
    */
   public static class KeyedTimerDataCoder<K> extends StructuredCoder<KeyedTimerData<K>> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
@@ -141,7 +159,8 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
         throws CoderException, IOException {
 
       final TimerData timer = value.getTimerData();
-      // encode the timestamp first
+      // encode the timestamps first
+      // all new fields should be encoded at last
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
@@ -150,6 +169,9 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       if (keyCoder != null) {
         keyCoder.encode(value.key, outStream);
       }
+
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
     }
 
     @Override
@@ -160,7 +182,6 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       final StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer = TimerData.of(timerId, namespace, timestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;
@@ -176,7 +197,12 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
         keyBytes = baos.toByteArray();
       }
 
-      return new KeyedTimerData(keyBytes, key, timer);
+      final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
+      final Instant outputTimestamp =
+          inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
+      final TimerData timer =
+          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+      return new KeyedTimerData<>(keyBytes, key, timer);
     }
 
     @Override

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -45,8 +45,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -227,7 +227,7 @@ public class CoGroupByKeyTest implements Serializable {
         createInput("CreateClicks", p, idToClick, Arrays.asList(0L, 2L, 4L, 6L, 8L))
             .apply(
                 "WindowClicks",
-                Window.<KV<Integer, String>>into(FixedWindows.of(new Duration(4)))
+                Window.<KV<Integer, String>>into(FixedWindows.of(Duration.millis(4)))
                     .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, String>> purchasesTable =
@@ -238,7 +238,7 @@ public class CoGroupByKeyTest implements Serializable {
                 Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
             .apply(
                 "WindowPurchases",
-                Window.<KV<Integer, String>>into(FixedWindows.of(new Duration(4)))
+                Window.<KV<Integer, String>>into(FixedWindows.of(Duration.millis(4)))
                     .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =

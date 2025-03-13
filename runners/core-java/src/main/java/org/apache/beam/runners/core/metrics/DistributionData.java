@@ -22,8 +22,8 @@ import java.io.Serializable;
 import org.apache.beam.sdk.metrics.DistributionResult;
 
 /**
- * Data describing the the distribution. This should retain enough detail that it can be combined
- * with other {@link DistributionData}.
+ * Data describing the distribution. This should retain enough detail that it can be combined with
+ * other {@link DistributionData}.
  *
  * <p>This is kept distinct from {@link DistributionResult} since this may be extended to include
  * data necessary to approximate quantiles, etc. while {@link DistributionResult} would just include
@@ -48,6 +48,14 @@ public abstract class DistributionData implements Serializable {
 
   public static DistributionData singleton(long value) {
     return create(value, 1, value, value);
+  }
+
+  public DistributionData combine(long value) {
+    return create(sum() + value, count() + 1, Math.min(value, min()), Math.max(value, max()));
+  }
+
+  public DistributionData combine(long sum, long count, long min, long max) {
+    return create(sum() + sum, count() + count, Math.min(min, min()), Math.max(max, max()));
   }
 
   public DistributionData combine(DistributionData value) {

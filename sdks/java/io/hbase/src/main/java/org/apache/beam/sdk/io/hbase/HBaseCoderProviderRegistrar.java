@@ -23,7 +23,7 @@ import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hbase.client.Result;
 
 /** A {@link CoderProviderRegistrar} for standard types used with {@link HBaseIO}. */
@@ -33,7 +33,7 @@ public class HBaseCoderProviderRegistrar implements CoderProviderRegistrar {
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
         HBaseMutationCoder.getCoderProvider(),
-        CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()),
-        CoderProviders.forCoder(TypeDescriptor.of(HBaseQuery.class), HBaseQueryCoder.of()));
+        HBaseRowMutationsCoder.getCoderProvider(),
+        CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()));
   }
 }

@@ -21,11 +21,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,17 +38,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.linq4j.Enumerable;
-import org.apache.calcite.linq4j.Enumerator;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.prepare.RelOptTableImpl;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.RelOptTableImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableModify.Operation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -123,7 +124,7 @@ public class BeamEnumerableConverterTest {
       assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
     }
 
-    private static class FakeTable extends BaseBeamTable {
+    private static class FakeTable extends SchemaBaseBeamTable {
       public FakeTable() {
         super(null);
       }
@@ -164,7 +165,7 @@ public class BeamEnumerableConverterTest {
               RelOptTableImpl.create(null, type, ImmutableList.of(), null),
               null,
               new BeamValuesRel(cluster, type, tuples, null),
-              null,
+              Operation.INSERT,
               null,
               null,
               false,

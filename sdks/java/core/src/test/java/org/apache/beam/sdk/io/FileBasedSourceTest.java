@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -41,7 +41,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
-import javax.annotation.Nullable;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
@@ -51,11 +52,13 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -782,7 +785,25 @@ public class FileBasedSourceTest {
     File file = createFileWithData(fileName, data);
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
+
+    ExpectedLogs.LogSaver logSaver = new ExpectedLogs.LogSaver();
+    LogManager.getLogManager().getLogger("").addHandler(logSaver);
     assertEquals(file.length(), source.getEstimatedSizeBytes(null));
+    ExpectedLogs.verifyLogged(
+        ExpectedLogs.matcher(
+            Level.INFO, String.format("matched 1 files with total size %d", file.length())),
+        logSaver);
+    LogManager.getLogManager().getLogger("").removeHandler(logSaver);
+
+    logSaver = new ExpectedLogs.LogSaver();
+    LogManager.getLogManager().getLogger("").addHandler(logSaver);
+    assertEquals(file.length(), source.getEstimatedSizeBytes(null));
+    // Second call get result from cache and does not send match request
+    ExpectedLogs.verifyNotLogged(
+        ExpectedLogs.matcher(
+            Level.INFO, String.format("matched 1 files with total size %d", file.length())),
+        logSaver);
+    LogManager.getLogManager().getLogger("").removeHandler(logSaver);
   }
 
   @Test

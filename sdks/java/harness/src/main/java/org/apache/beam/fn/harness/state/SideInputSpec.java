@@ -24,20 +24,27 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 
 /**
- * A specification for side inputs containing a value {@link Coder}, the window {@link Coder},
- * {@link ViewFn}, and the {@link WindowMappingFn}.
+ * A specification for side inputs containing the access pattern, a value {@link Coder}, the window
+ * {@link Coder}, the {@link ViewFn}, and the {@link WindowMappingFn}.
  *
  * @param <W>
  */
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public abstract class SideInputSpec<W extends BoundedWindow> {
   public static <W extends BoundedWindow> SideInputSpec create(
+      String accessPattern,
       Coder<?> coder,
       Coder<W> windowCoder,
       ViewFn<?, ?> viewFn,
       WindowMappingFn<W> windowMappingFn) {
-    return new AutoValue_SideInputSpec<>(coder, windowCoder, viewFn, windowMappingFn);
+    return new AutoValue_SideInputSpec<>(
+        accessPattern, coder, windowCoder, viewFn, windowMappingFn);
   }
+
+  abstract String getAccessPattern();
 
   abstract Coder<?> getCoder();
 

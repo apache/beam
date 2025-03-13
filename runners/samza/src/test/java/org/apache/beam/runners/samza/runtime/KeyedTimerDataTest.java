@@ -25,18 +25,24 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for {@link KeyedTimerData}. */
 public class KeyedTimerDataTest {
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
+  private static final Instant TIMESTAMP =
+      new DateTime(2020, 8, 11, 13, 42, 9, DateTimeZone.UTC).toInstant();
+  // TODO: LISAMZA-19205 Test OUTPUT_TIMESTAMP after outputTimestamp is encoded
+  // private static final Instant OUTPUT_TIMESTAMP = TIMESTAMP.plus(Duration.standardSeconds(30));
 
   @Test
   public void testCoder() throws Exception {
     final TimerInternals.TimerData td =
         TimerInternals.TimerData.of(
-            "timer", StateNamespaces.global(), new Instant(), TimeDomain.EVENT_TIME);
+            "timer", StateNamespaces.global(), TIMESTAMP, TIMESTAMP, TimeDomain.EVENT_TIME);
 
     final String key = "timer-key";
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -47,6 +53,7 @@ public class KeyedTimerDataTest {
     final KeyedTimerData.KeyedTimerDataCoder<String> ktdCoder =
         new KeyedTimerData.KeyedTimerDataCoder<>(STRING_CODER, GlobalWindow.Coder.INSTANCE);
 
-    CoderProperties.coderDecodeEncodeEqual(ktdCoder, ktd);
+    // TODO: LISAMZA-19205: use CoderProperties.coderDecodeEncodeEqual
+    CoderProperties.coderDecodeEncodeEqualInContext(ktdCoder, Coder.Context.OUTER, ktd);
   }
 }

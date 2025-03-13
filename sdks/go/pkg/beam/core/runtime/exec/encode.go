@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // Encoder is a uniform custom encoder interface. It wraps various
 // forms of reflectx.Funcs.
 type Encoder interface {
 	// Encode encodes the given value (of the given type).
-	Encode(reflect.Type, interface{}) ([]byte, error)
+	Encode(reflect.Type, any) ([]byte, error)
 }
 
 func makeEncoder(fn reflectx.Func) Encoder {
@@ -65,7 +65,7 @@ type encoder1x1 struct {
 	fn reflectx.Func1x1
 }
 
-func (d *encoder1x1) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+func (d *encoder1x1) Encode(t reflect.Type, v any) ([]byte, error) {
 	return d.fn.Call1x1(v).([]byte), nil
 }
 
@@ -73,7 +73,7 @@ type encoder1x2 struct {
 	fn reflectx.Func1x2
 }
 
-func (d *encoder1x2) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+func (d *encoder1x2) Encode(t reflect.Type, v any) ([]byte, error) {
 	val, err := d.fn.Call1x2(v)
 	if err != nil {
 		return nil, err.(error)
@@ -85,7 +85,7 @@ type encoder2x1 struct {
 	fn reflectx.Func2x1
 }
 
-func (d *encoder2x1) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+func (d *encoder2x1) Encode(t reflect.Type, v any) ([]byte, error) {
 	return d.fn.Call2x1(t, v).([]byte), nil
 }
 
@@ -93,7 +93,7 @@ type encoder2x2 struct {
 	fn reflectx.Func2x2
 }
 
-func (d *encoder2x2) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+func (d *encoder2x2) Encode(t reflect.Type, v any) ([]byte, error) {
 	val, err := d.fn.Call2x2(t, v)
 	if err != nil {
 		return nil, err.(error)

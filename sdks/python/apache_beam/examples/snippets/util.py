@@ -15,30 +15,38 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-import argparse
+import ast
 import shlex
 import subprocess as sp
 
+import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
-def parse_example(argv=None):
-  """Parse the command line arguments and return it as a string function call.
 
-  Examples:
-    python path/to/snippets.py function_name
-    python path/to/snippets.py function_name arg1
-    python path/to/snippets.py function_name arg1 arg2 ... argN
+def assert_matches_stdout(
+    actual, expected_stdout, normalize_fn=lambda elem: elem, label=''):
+  """Asserts a PCollection of strings matches the expected stdout elements.
+
+  Args:
+    actual (beam.PCollection): A PCollection.
+    expected (List[str]): A list of stdout elements, one line per element.
+    normalize_fn (Function[any]): A function to normalize elements before
+        comparing them. Can be used to sort lists before comparing.
+    label (str): [optional] Label to make transform names unique.
   """
-  parser = argparse.ArgumentParser()
-  parser.add_argument('example', help='Name of the example to run.')
-  parser.add_argument('args', nargs=argparse.REMAINDER,
-                      help='Arguments for example.')
-  args = parser.parse_args(argv)
+  def stdout_to_python_object(elem_str):
+    try:
+      elem = ast.literal_eval(elem_str)
+    except (SyntaxError, ValueError):
+      elem = elem_str
+    return normalize_fn(elem)
 
-  # Return the example as a string representing the Python function call.
-  example_args = ', '.join([repr(arg) for arg in args.args])
-  return '{}({})'.format(args.example, example_args)
+  actual = actual | label >> beam.Map(stdout_to_python_object)
+  expected = list(map(stdout_to_python_object, expected_stdout))
+  assert_that(actual, equal_to(expected), 'assert ' + label)
 
 
 def run_shell_commands(commands, **kwargs):

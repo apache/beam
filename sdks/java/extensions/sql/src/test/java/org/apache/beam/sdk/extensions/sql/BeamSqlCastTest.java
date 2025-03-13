@@ -17,17 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
-import static org.joda.time.DateTimeZone.UTC;
-
+import java.time.LocalDate;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -46,13 +44,13 @@ public class BeamSqlCastTest {
     PCollection<Row> input =
         pipeline.apply(
             Create.of(Row.withSchema(INPUT_ROW_SCHEMA).addValues(1).addValue("20181018").build())
-                .withSchema(
-                    INPUT_ROW_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+                .withRowSchema(INPUT_ROW_SCHEMA));
 
     Schema resultType =
-        Schema.builder().addInt32Field("f_int").addNullableField("f_date", DATETIME).build();
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addNullableField("f_date", CalciteUtils.DATE)
+            .build();
 
     PCollection<Row> result =
         input.apply(
@@ -68,7 +66,7 @@ public class BeamSqlCastTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0, UTC)).build());
+            Row.withSchema(resultType).addValues(1, LocalDate.of(2018, 10, 18)).build());
 
     pipeline.run();
   }
@@ -78,12 +76,13 @@ public class BeamSqlCastTest {
     PCollection<Row> input =
         pipeline.apply(
             Create.of(Row.withSchema(INPUT_ROW_SCHEMA).addValues(1).addValue("20181018").build())
-                .withSchema(
-                    INPUT_ROW_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+                .withRowSchema(INPUT_ROW_SCHEMA));
 
-    Schema resultType = Schema.builder().addInt32Field("f_int").addDateTimeField("f_date").build();
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addLogicalTypeField("f_date", SqlTypes.DATE)
+            .build();
 
     PCollection<Row> result =
         input.apply(
@@ -103,7 +102,7 @@ public class BeamSqlCastTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0, UTC)).build());
+            Row.withSchema(resultType).addValues(1, LocalDate.of(2018, 10, 18)).build());
 
     pipeline.run();
   }

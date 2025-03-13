@@ -17,22 +17,23 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.IterableView;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -41,21 +42,30 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An in-process container for {@link PCollectionView PCollectionViews}, which provides methods for
  * constructing {@link SideInputReader SideInputReaders} which block until a side input is available
  * and writing to a {@link PCollectionView}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SideInputContainer {
+  private static final Set<String> SUPPORTED_MATERIALIZATIONS =
+      ImmutableSet.of(
+          Materializations.ITERABLE_MATERIALIZATION_URN,
+          Materializations.MULTIMAP_MATERIALIZATION_URN);
+
   private final Collection<PCollectionView<?>> containedViews;
   private final LoadingCache<
           PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
@@ -66,11 +76,11 @@ class SideInputContainer {
       final EvaluationContext context, Collection<PCollectionView<?>> containedViews) {
     for (PCollectionView<?> pCollectionView : containedViews) {
       checkArgument(
-          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+          SUPPORTED_MATERIALIZATIONS.contains(
               pCollectionView.getViewFn().getMaterialization().getUrn()),
           "This handler is only capable of dealing with %s materializations "
               + "but was asked to handle %s for PCollectionView with tag %s.",
-          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          SUPPORTED_MATERIALIZATIONS,
           pCollectionView.getViewFn().getMaterialization().getUrn(),
           pCollectionView.getTagInternal().getId());
     }
@@ -238,8 +248,7 @@ class SideInputContainer {
     }
 
     @Override
-    @Nullable
-    public <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
+    public @Nullable <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
       checkArgument(
           readerViews.contains(view), "call to get(PCollectionView) with unknown view: %s", view);
       checkArgument(
@@ -255,10 +264,25 @@ class SideInputContainer {
                   viewContents.getUnchecked(PCollectionViewWindow.of(view, window)).get(),
               WindowedValue::getValue);
 
-      ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-      Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-      return (T)
-          viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+      switch (view.getViewFn().getMaterialization().getUrn()) {
+        case Materializations.ITERABLE_MATERIALIZATION_URN:
+          {
+            ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) view.getViewFn();
+            return viewFn.apply(() -> elements);
+          }
+        case Materializations.MULTIMAP_MATERIALIZATION_URN:
+          {
+            ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+            Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+            return viewFn.apply(
+                InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+          }
+        default:
+          throw new IllegalStateException(
+              String.format(
+                  "Unknown side input materialization format requested '%s'",
+                  view.getViewFn().getMaterialization().getUrn()));
+      }
     }
 
     @Override
@@ -283,7 +307,7 @@ class SideInputContainer {
     @Override
     public Optional<? extends Iterable<? extends WindowedValue<?>>> load(
         PCollectionViewWindow<?> key) {
-      return Optional.fromNullable(viewByWindows.getUnchecked(key).get());
+      return Optional.ofNullable(viewByWindows.getUnchecked(key).get());
     }
   }
 }

@@ -17,17 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.implementation.Implementation;
@@ -42,17 +43,19 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodWithExtraParametersDelegation;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CharMatcher;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 
 /**
  * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
  * on a particular {@link DoFn}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
   @Override
@@ -77,6 +80,31 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
           String.format(
               "Unable to construct @%s invoker for %s",
               OnTimer.class.getSimpleName(), fn.getClass().getName()),
+          e);
+    }
+  }
+
+  public <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimerFamily(
+      DoFn<InputT, OutputT> fn, String timerId) {
+
+    @SuppressWarnings("unchecked")
+    Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
+    try {
+      OnTimerMethodSpecifier onTimerMethodSpecifier =
+          OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
+      Constructor<?> constructor = constructorTimerFamilyCache.get(onTimerMethodSpecifier);
+
+      return (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
+    } catch (InstantiationException
+        | IllegalAccessException
+        | IllegalArgumentException
+        | InvocationTargetException
+        | SecurityException
+        | ExecutionException e) {
+      throw new RuntimeException(
+          String.format(
+              "Unable to construct @%s invoker for %s",
+              DoFn.OnTimerFamily.class.getSimpleName(), fn.getClass().getName()),
           e);
     }
   }
@@ -120,6 +148,34 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
                   }
                 }
               });
+
+  /**
+   * A cache of constructors of generated {@link OnTimerInvoker} classes, keyed by {@link
+   * OnTimerMethodSpecifier}.
+   *
+   * <p>Needed because generating an invoker class is expensive, and to avoid generating an
+   * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
+   */
+  private final LoadingCache<OnTimerMethodSpecifier, Constructor<?>> constructorTimerFamilyCache =
+      CacheBuilder.newBuilder()
+          .build(
+              new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
+                @Override
+                public Constructor<?> load(final OnTimerMethodSpecifier onTimerMethodSpecifier)
+                    throws Exception {
+                  DoFnSignature signature =
+                      DoFnSignatures.getSignature(onTimerMethodSpecifier.fnClass());
+                  Class<? extends OnTimerInvoker<?, ?>> invokerClass =
+                      generateOnTimerFamilyInvokerClass(
+                          signature, onTimerMethodSpecifier.timerId());
+                  try {
+                    return invokerClass.getConstructor(signature.fnClass());
+                  } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+                    throw new RuntimeException(e);
+                  }
+                }
+              });
+
   /**
    * Generates a {@link OnTimerInvoker} class for the given {@link DoFnSignature} and {@link
    * TimerId}.
@@ -135,7 +191,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             "%s$%s$%s",
             OnTimerInvoker.class.getSimpleName(),
             CharMatcher.javaLetterOrDigit().retainFrom(timerId),
-            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(Charsets.UTF_8)));
+            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(StandardCharsets.UTF_8)));
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
@@ -169,9 +225,57 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
+                .getLoaded();
+    return res;
+  }
+
+  private static Class<? extends OnTimerInvoker<?, ?>> generateOnTimerFamilyInvokerClass(
+      DoFnSignature signature, String timerId) {
+    Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
+
+    final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
+
+    final String suffix =
+        String.format(
+            "%s$%s$%s",
+            OnTimerInvoker.class.getSimpleName(),
+            CharMatcher.javaLetterOrDigit().retainFrom(timerId),
+            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(StandardCharsets.UTF_8)));
+
+    DynamicType.Builder<?> builder =
+        new ByteBuddy()
+            // Create subclasses inside the target class, to have access to
+            // private and package-private bits
+            .with(StableInvokerNamingStrategy.forDoFnClass(fnClass).withSuffix(suffix))
+
+            // class <invoker class> implements OnTimerInvoker {
+            .subclass(OnTimerInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
+
+            //   private final <fn class> delegate;
+            .defineField(
+                FN_DELEGATE_FIELD_NAME, fnClass, Visibility.PRIVATE, FieldManifestation.FINAL)
+
+            //   <invoker class>(<fn class> delegate) { this.delegate = delegate; }
+            .defineConstructor(Visibility.PUBLIC)
+            .withParameter(fnClass)
+            .intercept(new InvokerConstructor())
+
+            //   public invokeOnTimer(DoFn.ArgumentProvider) {
+            //     this.delegate.<@OnTimer method>(... pass the right args ...)
+            //   }
+            .method(ElementMatchers.named("invokeOnTimer"))
+            .intercept(
+                new InvokeOnTimerFamilyDelegation(
+                    clazzDescription, signature.onTimerFamilyMethods().get(timerId)));
+
+    DynamicType.Unloaded<?> unloaded = builder.make();
+
+    @SuppressWarnings("unchecked")
+    Class<? extends OnTimerInvoker<?, ?>> res =
+        (Class<? extends OnTimerInvoker<?, ?>>)
+            unloaded
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
   }
@@ -180,14 +284,39 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    * An "invokeOnTimer" method implementation akin to @ProcessElement, but simpler because no
    * splitting-related parameters need to be handled.
    */
-  private static class InvokeOnTimerDelegation extends DoFnMethodWithExtraParametersDelegation {
+  private static class InvokeOnTimerFamilyDelegation
+      extends DoFnMethodWithExtraParametersDelegation {
 
-    private final DoFnSignature.OnTimerMethod signature;
+    public InvokeOnTimerFamilyDelegation(
+        TypeDescription clazzDescription, DoFnSignature.OnTimerFamilyMethod signature) {
+      super(clazzDescription, signature);
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      // Remember the field description of the instrumented type.
+      // Kind of a hack to set the protected value, because the instrumentedType
+      // is only available to prepare, while we need this information in
+      // beforeDelegation
+      delegateField =
+          instrumentedType
+              .getDeclaredFields() // the delegate is declared on the OnTimerInvoker
+              .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
+              .getOnly();
+      // Delegating the method call doesn't require any changes to the instrumented type.
+      return instrumentedType;
+    }
+  }
+
+  /**
+   * An "invokeOnTimer" method implementation akin to @ProcessElement, but simpler because no
+   * splitting-related parameters need to be handled.
+   */
+  private static class InvokeOnTimerDelegation extends DoFnMethodWithExtraParametersDelegation {
 
     public InvokeOnTimerDelegation(
         TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature) {
       super(clazzDescription, signature);
-      this.signature = signature;
     }
 
     @Override

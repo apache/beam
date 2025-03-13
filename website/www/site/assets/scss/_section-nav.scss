@@ -1,0 +1,143 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+.section-nav {
+	max-width: 250px;
+	width: 100%;
+	overflow-y: auto;
+	background-color: #fbfbfb;
+	border-radius: 8px;
+	.section-nav-list-main-title {
+		margin-top: 33px;
+	}
+	.section-nav-back {
+		padding: 23px 0 23px 31px;
+		background-color: #fbfbfb;
+		&:before {
+			height: 18px;
+			color: #ff6d00;
+		}
+	}
+	nav {
+		padding: 15px;
+		ul {
+			list-style: none;
+		}
+		li {
+			margin-bottom: 5px;
+			&:last-child {
+				margin-bottom: 0;
+			}
+		}
+		.section-nav-list {
+			padding-left: 16px;
+		}
+		a {
+			font-size: 12px;
+			color: #757575;
+			font-weight: 500;
+			line-height: 1.83;
+			letter-spacing: .43px;
+		}
+		.active {
+			text-decoration: underline;
+			border-radius: 8px;
+			background-color: #f2f2f2;
+		}
+	}
+	.expanded {
+		>span {
+			&:before {
+				transform: rotate(90deg);
+			}
+		}
+	}
+}
+.section-nav-back {
+	display: none;
+	padding: 15px;
+}
+.section-nav-list-title {
+	display: block;
+	font-size: 12px;
+	position: relative;
+	margin-bottom: 5px;
+	font-weight: 700;
+	line-height: 1.83;
+	letter-spacing: .43px;
+}
+.section-nav-list-title--collapsible {
+	cursor: pointer;
+}
+.section-nav-list-main-title {
+	display: block;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: normal;
+	letter-spacing: 1px;
+	margin-bottom: 32px;
+	text-transform: uppercase;
+}
+.section-nav-item--collapsible {
+	cursor: pointer;
+	.section-nav-list {
+		display: none;
+	}
+	span {
+		&:before {
+			content: "";
+			position: absolute;
+			top: 4px;
+			left: -16px;
+			border-style: solid;
+			border-width: 5px 0 5px 8px;
+			border-color: transparent transparent transparent #ff6d00;
+			transform: rotate(0deg);
+			transition: .3s;
+		}
+	}
+}
+@media (max-width:1024px) {
+	.section-nav {
+		nav {
+			background-color: #fff;
+			max-height: 100vh;
+			height: calc(100vh - 44px);
+			overflow-y: auto;
+		}
+		background-color: #f7f7f7;
+		bottom: 0;
+		right: 0;
+		max-width: 303px;
+		position: fixed;
+		top: 0;
+		transition: transform 100ms linear;
+		transition: transform 100ms linear, -webkit-transform 100ms linear, -o-transform 100ms linear;
+		width: calc(100% - 72px);
+		border-radius: 0;
+		z-index: 10000;
+		padding: 0;
+	}
+	.section-nav-back {
+		display: block;
+	}
+	.section-nav.closed {
+		transform: translateX(100%);
+	}
+	.section-nav.open {
+		transform: translateX(0);
+	}
+}

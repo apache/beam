@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isOneOf;
@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.isOneOf;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -34,7 +33,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -57,6 +56,9 @@ import org.slf4j.LoggerFactory;
  * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
  * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSparkRunner.class);
@@ -79,18 +81,19 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     TestSparkPipelineOptions testSparkOptions =
         PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
 
-    boolean isForceStreaming = testSparkOptions.isForceStreaming();
+    SparkRunner.detectTranslationMode(pipeline, testSparkOptions);
+    boolean isStreaming = testSparkOptions.isStreaming();
+
     SparkPipelineResult result = null;
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
-    AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
 
-    LOG.info("About to run test pipeline " + options.getJobName());
+    LOG.info("About to run test pipeline {}", options.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
-    if (isForceStreaming) {
+    if (isStreaming) {
       try {
         result = delegate.run(pipeline);
         awaitWatermarksOrTimeout(testSparkOptions, result);
@@ -103,8 +106,10 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             isOneOf(PipelineResult.State.STOPPED, PipelineResult.State.DONE));
       } finally {
         try {
-          // cleanup checkpoint dir.
-          FileUtils.deleteDirectory(new File(testSparkOptions.getCheckpointDir()));
+          if (testSparkOptions.isDeleteCheckpointDir()) {
+            // cleanup checkpoint dir.
+            FileUtils.deleteDirectory(new File(testSparkOptions.getCheckpointDir()));
+          }
         } catch (IOException e) {
           throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
         }

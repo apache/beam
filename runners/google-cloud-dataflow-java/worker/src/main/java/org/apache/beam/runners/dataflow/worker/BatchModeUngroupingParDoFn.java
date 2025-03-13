@@ -30,6 +30,9 @@ import org.joda.time.Instant;
  * <p>Each input element must be a {@link KV} where the value is an iterable of {@link WindowedValue
  * WindowedValues}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class BatchModeUngroupingParDoFn<K, V> implements ParDoFn {
 
   private final ParDoFn underlyingParDoFn;

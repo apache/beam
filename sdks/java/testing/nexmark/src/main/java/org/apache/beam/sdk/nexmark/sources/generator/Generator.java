@@ -20,7 +20,7 @@ package org.apache.beam.sdk.nexmark.sources.generator;
 import static org.apache.beam.sdk.nexmark.sources.generator.model.AuctionGenerator.nextAuction;
 import static org.apache.beam.sdk.nexmark.sources.generator.model.BidGenerator.nextBid;
 import static org.apache.beam.sdk.nexmark.sources.generator.model.PersonGenerator.nextPerson;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -29,6 +29,7 @@ import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -81,7 +82,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

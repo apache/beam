@@ -18,13 +18,21 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A collections of {@link TypeDescriptor} construction methods. */
+/**
+ * A collections of {@link TypeDescriptor} construction methods.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class TypeUtils {
 
   /**
@@ -38,8 +46,7 @@ public class TypeUtils {
    * @return {@link TypeDescriptor} of {@code <KV<K,V>} when {@code key} and {@code value} are not
    *     null, null otherwise
    */
-  @Nullable
-  public static <K, V> TypeDescriptor<KV<K, V>> keyValues(
+  public static @Nullable <K, V> TypeDescriptor<KV<K, V>> keyValues(
       TypeDescriptor<K> key, TypeDescriptor<V> value) {
 
     if (Objects.isNull(key) || Objects.isNull(value)) {
@@ -61,8 +68,7 @@ public class TypeUtils {
    * @return {@link TypeDescriptor} of {@code <KV<K,V>} when {@code key} and {@code value} are not
    *     null, null otherwise
    */
-  @Nullable
-  public static <K, V> TypeDescriptor<KV<K, V>> keyValues(Class<K> key, Class<V> value) {
+  public static @Nullable <K, V> TypeDescriptor<KV<K, V>> keyValues(Class<K> key, Class<V> value) {
 
     if (Objects.isNull(key) || Objects.isNull(value)) {
       return null;

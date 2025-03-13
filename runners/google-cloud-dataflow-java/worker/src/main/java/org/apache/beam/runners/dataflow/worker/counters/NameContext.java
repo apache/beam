@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.counters;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The {@link NameContext} represents the various names associated with a specific instruction in
@@ -31,8 +31,15 @@ public abstract class NameContext {
    * systemName} and a {@code userName}.
    */
   public static NameContext create(
-      String stageName, String originalName, String systemName, String userName) {
-    return new AutoValue_NameContext(stageName, originalName, systemName, userName);
+      String stageName,
+      @Nullable String originalName,
+      String systemName,
+      @Nullable String userName) {
+    return NameContext.newBuilder(stageName)
+        .setOriginalName(originalName)
+        .setSystemName(systemName)
+        .setUserName(userName)
+        .build();
   }
 
   /**
@@ -40,11 +47,18 @@ public abstract class NameContext {
    * specific steps..
    */
   public static NameContext forStage(String stageName) {
-    return new AutoValue_NameContext(stageName, null, null, null);
+    return newBuilder(stageName).build();
+  }
+
+  public static Builder newBuilder(String stageName) {
+    return new AutoValue_NameContext.Builder()
+        .setStageName(stageName)
+        .setUserName(null)
+        .setSystemName(null)
+        .setOriginalName(null);
   }
 
   /** Returns the name of the stage this instruction is executing in. */
-  @Nullable
   public abstract String stageName();
 
   /**
@@ -60,8 +74,7 @@ public abstract class NameContext {
    *
    * <p>Examples: "s2", "s4", "s8"
    */
-  @Nullable
-  public abstract String originalName();
+  public abstract @Nullable String originalName();
 
   /**
    * Returns the "system" name of this instruction. There may be multiple "system" names associated
@@ -73,8 +86,7 @@ public abstract class NameContext {
    *
    * <p>Examples: "s4", "s4-write-shuffle46", "s813-reify66", "partial-s89"
    */
-  @Nullable
-  public abstract String systemName();
+  public abstract @Nullable String systemName();
 
   /**
    * Returns the name given to this instruction by the SDK that created the workflow graph.
@@ -85,6 +97,18 @@ public abstract class NameContext {
    *
    * <p>Examples: "MapElements/Map", "BigShuffle.GroupByFirstNBytes/GroupByKey/Reify"
    */
-  @Nullable
-  public abstract String userName();
+  public abstract @Nullable String userName();
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setStageName(String value);
+
+    public abstract Builder setOriginalName(@Nullable String value);
+
+    public abstract Builder setSystemName(@Nullable String value);
+
+    public abstract Builder setUserName(@Nullable String value);
+
+    public abstract NameContext build();
+  }
 }

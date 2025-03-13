@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.List;
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@link ParDoFnFactory} that creates a system {@link ParDoFn} responsible for limiting the users
@@ -47,6 +47,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  * <p>This {@link ParDoFnFactory} is part of an expansion of steps required to materialize ISM
  * files. See <a href="go/dataflow-side-inputs">go/dataflow-side-inputs</a> for further details.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CreateIsmShardKeyAndSortKeyDoFnFactory implements ParDoFnFactory {
 
   @Override

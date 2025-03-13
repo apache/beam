@@ -17,16 +17,19 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -44,12 +47,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
@@ -67,7 +71,14 @@ import org.joda.time.Instant;
  * per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that can be
  * executed.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "keyfor",
+  "nullness"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 class EvaluationContext {
+  private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
+
   /** The graph representing this {@link Pipeline}. */
   private final DirectGraph graph;
 
@@ -92,8 +103,6 @@ class EvaluationContext {
 
   private final Set<PValue> keyedPValues;
 
-  private final ExecutorService executorService;
-
   public static EvaluationContext create(
       Clock clock,
       BundleFactory bundleFactory,
@@ -113,7 +122,6 @@ class EvaluationContext {
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
-    this.executorService = executorService;
 
     this.watermarkManager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
@@ -147,6 +155,7 @@ class EvaluationContext {
       CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       TransformResult<?> result) {
+
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
@@ -178,9 +187,18 @@ class EvaluationContext {
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
         committedResult.getExecutable(),
-        committedResult.getUnprocessedInputs().orNull(),
+        committedResult.getUnprocessedInputs().orElse(null),
         committedResult.getOutputs(),
         result.getWatermarkHold());
+
+    // Callback and requested bundle finalizations
+    for (InMemoryBundleFinalizer.Finalization finalization : result.getBundleFinalizations()) {
+      try {
+        finalization.getCallback().onBundleSuccess();
+      } catch (Exception e) {
+        LOG.warn("Failed to finalize {} for completed bundle {}", finalization, completedBundle, e);
+      }
+    }
     return committedResult;
   }
 
@@ -193,7 +211,7 @@ class EvaluationContext {
   private Optional<? extends CommittedBundle<?>> getUnprocessedInput(
       CommittedBundle<?> completedBundle, TransformResult<?> result) {
     if (completedBundle == null || Iterables.isEmpty(result.getUnprocessedElements())) {
-      return Optional.absent();
+      return Optional.empty();
     }
     CommittedBundle<?> residual =
         completedBundle.withElements((Iterable) result.getUnprocessedElements());
@@ -226,7 +244,11 @@ class EvaluationContext {
   private void fireAvailableCallbacks(AppliedPTransform<?, ?, ?> producingTransform) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
     Instant outputWatermark = watermarks.getOutputWatermark();
-    callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
+    try {
+      callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Create a {@link UncommittedBundle} for use by a source. */
@@ -363,15 +385,23 @@ class EvaluationContext {
     fireAllAvailableCallbacks();
   }
 
+  @VisibleForTesting
+  Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
+    return extractFiredTimers(Collections.emptyList());
+  }
+
   /**
-   * Extracts all timers that have been fired and have not already been extracted.
+   * Extracts all timers that have been fired and have not already been extracted. Do not extract
+   * timers for given ignored transforms.
    *
-   * <p>This is a destructive operation. Timers will only appear in the result of this method once
-   * for each time they are set.
+   * @param ignoredTransforms transforms that must be ignored and timers not extracted for them
+   *     <p>This is a destructive operation. Timers will only appear in the result of this method
+   *     once for each time they are set.
    */
-  public Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
+  Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers(
+      Collection<AppliedPTransform<?, ?, ?>> ignoredTransforms) {
     forceRefresh();
-    return watermarkManager.extractFiredTimers();
+    return watermarkManager.extractFiredTimers(ignoredTransforms);
   }
 
   /** Returns true if the step will not produce additional output. */

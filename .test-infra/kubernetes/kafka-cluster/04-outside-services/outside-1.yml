@@ -17,7 +17,6 @@ kind: Service
 apiVersion: v1
 metadata:
   name: outside-1
-  namespace: kafka
 spec:
   selector:
     app: kafka
@@ -25,6 +24,5 @@ spec:
   ports:
   - protocol: TCP
     targetPort: 9094
-    port: 32401
-    nodePort: 32401
+    port: 32400
   type: LoadBalancer

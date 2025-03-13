@@ -21,12 +21,17 @@ import java.util.Optional;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Utility methods related to type awareness. */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class TypeAwareness {
 
   private static final TypeDescriptor<Object> OBJECT_TYPE = new TypeDescriptor<Object>() {};
 
   @SuppressWarnings("unchecked")
   public static <T> TypeDescriptor<T> orObjects(Optional<TypeDescriptor<T>> maybeType) {
-    return maybeType.orElse((TypeDescriptor) OBJECT_TYPE);
+    if (maybeType.isPresent() && !maybeType.get().hasUnresolvedParameters()) {
+      return maybeType.get();
+    }
+    return (TypeDescriptor) OBJECT_TYPE;
   }
 }

@@ -24,7 +24,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Defines a coder for {@link TableRowInfo} objects. */
 @VisibleForTesting
@@ -35,8 +35,8 @@ class TableRowInfoCoder<ElementT> extends AtomicCoder<TableRowInfo<ElementT>> {
     this.elementCoder = elementCoder;
   }
 
-  public static <ElementT> TableRowInfoCoder of(Coder<ElementT> elementCoder) {
-    return new TableRowInfoCoder(elementCoder);
+  public static <ElementT> TableRowInfoCoder<ElementT> of(Coder<ElementT> elementCoder) {
+    return new TableRowInfoCoder<>(elementCoder);
   }
 
   @Override

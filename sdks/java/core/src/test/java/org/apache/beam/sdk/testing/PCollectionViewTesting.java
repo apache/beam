@@ -20,40 +20,50 @@ package org.apache.beam.sdk.testing;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadata;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /** Methods for testing {@link PCollectionView}s. */
 public final class PCollectionViewTesting {
   public static List<Object> materializeValuesFor(
-      PTransform<?, ? extends PCollectionView<?>> viewTransformClass, Object... values) {
+      PipelineOptions options,
+      PTransform<?, ? extends PCollectionView<?>> viewTransformClass,
+      Object... values) {
     List<Object> rval = new ArrayList<>();
-    // Currently all view materializations are the same where the data is shared underneath
-    // the void/null key. Once this changes, these materializations will differ but test code
-    // should not worry about what these look like if they are relying on the ViewFn to "undo"
-    // the conversion.
+    // Map values to the materialized format that is expected by each view type. These
+    // materializations will differ but test code should not worry about what these look like if
+    // they are relying on the ViewFn to "undo" the conversion.
+
     if (View.AsSingleton.class.equals(viewTransformClass.getClass())) {
       for (Object value : values) {
-        rval.add(KV.of(null, value));
+        rval.add(value);
       }
     } else if (View.AsIterable.class.equals(viewTransformClass.getClass())) {
       for (Object value : values) {
-        rval.add(KV.of(null, value));
+        rval.add(value);
       }
     } else if (View.AsList.class.equals(viewTransformClass.getClass())) {
-      for (Object value : values) {
-        rval.add(KV.of(null, value));
+      if (values.length > 0) {
+        rval.add(
+            KV.of(
+                Long.MIN_VALUE, ValueOrMetadata.createMetadata(new OffsetRange(0, values.length))));
+        for (int i = 0; i < values.length; ++i) {
+          rval.add(KV.of((long) i, ValueOrMetadata.create(values[i])));
+        }
       }
     } else if (View.AsMap.class.equals(viewTransformClass.getClass())) {
       for (Object value : values) {
-        rval.add(KV.of(null, value));
+        rval.add(value);
       }
     } else if (View.AsMultimap.class.equals(viewTransformClass.getClass())) {
       for (Object value : values) {
-        rval.add(KV.of(null, value));
+        rval.add(value);
       }
     } else {
       throw new IllegalArgumentException(

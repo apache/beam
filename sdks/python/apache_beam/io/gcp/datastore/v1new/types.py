@@ -17,35 +17,52 @@
 
 """
 Beam Datastore types.
-
-This module is experimental, no backwards compatibility guarantees.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import copy
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Union
 
 from google.cloud.datastore import entity
 from google.cloud.datastore import key
 from google.cloud.datastore import query
 
+from apache_beam.options.value_provider import ValueProvider
+
 __all__ = ['Query', 'Key', 'Entity']
 
 
 class Query(object):
-  def __init__(self, kind=None, project=None, namespace=None, ancestor=None,
-               filters=(), projection=(), order=(), distinct_on=(), limit=None):
+  def __init__(
+      self,
+      kind=None,
+      project=None,
+      namespace=None,
+      ancestor=None,
+      filters=(),
+      projection=(),
+      order=(),
+      distinct_on=(),
+      limit=None):
     """Represents a Datastore query.
 
     Args:
       kind: (str) The kind to query.
       project: (str) Required. Project associated with query.
-      namespace: (str) (Optional) Namespace to restrict results to.
+      namespace: (str, ValueProvider(str)) (Optional) Namespace to restrict
+        results to.
       ancestor: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
         (Optional) key of the ancestor to which this query's results are
         restricted.
-      filters: (sequence of tuple[str, str, str]) Property filters applied by
-        this query. The sequence is ``(property_name, operator, value)``.
+      filters: (sequence of tuple[str, str, str],
+        sequence of
+        tuple[ValueProvider(str), ValueProvider(str), ValueProvider(str)])
+        Property filters applied by this query.
+        The sequence is ``(property_name, operator, value)``.
       projection: (sequence of string) fields returned as part of query results.
       order: (sequence of string) field names used to order query results.
         Prepend ``-`` to a field name to sort it in descending order.
@@ -75,25 +92,72 @@ class Query(object):
     ancestor_client_key = None
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
+
+    # Resolve ValueProvider arguments.
+    self.filters = self._set_runtime_filters()
+    if isinstance(self.namespace, ValueProvider):
+      self.namespace = self.namespace.get()
+
     return query.Query(
-        client, kind=self.kind, project=self.project, namespace=self.namespace,
-        ancestor=ancestor_client_key, filters=self.filters,
-        projection=self.projection, order=self.order,
+        client,
+        kind=self.kind,
+        project=self.project,
+        namespace=self.namespace,
+        ancestor=ancestor_client_key,
+        filters=self.filters,
+        projection=self.projection,
+        order=self.order,
         distinct_on=self.distinct_on)
+
+  def _set_runtime_filters(self):
+    """
+    Extracts values from ValueProviders in `self.filters` if available
+    :param filters: sequence of tuple[str, str, str] or
+    sequence of tuple[ValueProvider, ValueProvider, ValueProvider]
+    :return: tuple[str, str, str]
+    """
+    runtime_filters = []
+    if not all(len(filter_tuple) == 3 for filter_tuple in self.filters):
+      raise TypeError(
+          '%s: filters must be a sequence of tuple with length=3'
+          ' got %r instead' % (self.__class__.__name__, self.filters))
+
+    for filter_type, filter_operator, filter_value in self.filters:
+      if isinstance(filter_type, ValueProvider):
+        filter_type = filter_type.get()
+      if isinstance(filter_operator, ValueProvider):
+        filter_operator = filter_operator.get()
+      if isinstance(filter_value, ValueProvider):
+        filter_value = filter_value.get()
+      runtime_filters.append((filter_type, filter_operator, filter_value))
+
+    return runtime_filters or ()
 
   def clone(self):
     return copy.copy(self)
 
   def __repr__(self):
-    return ('<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
-            'projection=%s, order=%s, distinct_on=%s, limit=%s)>' % (
-                self.kind, self.project, self.namespace, self.ancestor,
-                self.filters, self.projection, self.order, self.distinct_on,
-                self.limit))
+    return (
+        '<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
+        'projection=%s, order=%s, distinct_on=%s, limit=%s)>' % (
+            self.kind,
+            self.project,
+            self.namespace,
+            self.ancestor,
+            self.filters,
+            self.projection,
+            self.order,
+            self.distinct_on,
+            self.limit))
 
 
 class Key(object):
-  def __init__(self, path_elements, parent=None, project=None, namespace=None):
+  def __init__(
+      self,
+      path_elements: List[Union[str, int]],
+      parent: Optional['Key'] = None,
+      project: Optional[str] = None,
+      namespace: Optional[str] = None):
     """
     Represents a Datastore key.
 
@@ -121,8 +185,10 @@ class Key(object):
 
   @staticmethod
   def from_client_key(client_key):
-    return Key(client_key.flat_path, project=client_key.project,
-               namespace=client_key.namespace)
+    return Key(
+        client_key.flat_path,
+        project=client_key.project,
+        namespace=client_key.namespace)
 
   def to_client_key(self):
     """
@@ -132,29 +198,37 @@ class Key(object):
     parent = self.parent
     if parent is not None:
       parent = parent.to_client_key()
-    return key.Key(*self.path_elements, parent=parent, namespace=self.namespace,
-                   project=self.project)
+    return key.Key(
+        *self.path_elements,
+        parent=parent,
+        namespace=self.namespace,
+        project=self.project)
 
   def __eq__(self, other):
     if not isinstance(other, Key):
       return False
     if self.path_elements != other.path_elements:
       return False
+    if self.project != other.project:
+      return False
     if self.parent is not None and other.parent is not None:
       return self.parent == other.parent
 
     return self.parent is None and other.parent is None
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __repr__(self):
     return '<%s(%s, parent=%s, project=%s, namespace=%s)>' % (
-        self.__class__.__name__, str(self.path_elements), str(self.parent),
-        self.project, self.namespace)
+        self.__class__.__name__,
+        str(self.path_elements),
+        str(self.parent),
+        self.project,
+        self.namespace)
 
 
 class Entity(object):
-  def __init__(self, key, exclude_from_indexes=()):
+  def __init__(self, key: Key, exclude_from_indexes: Iterable[str] = ()):
     """
     Represents a Datastore entity.
 
@@ -181,33 +255,53 @@ class Entity(object):
 
   @staticmethod
   def from_client_entity(client_entity):
-    key = Key.from_client_key(client_entity.key)
-    entity = Entity(
-        key, exclude_from_indexes=set(client_entity.exclude_from_indexes))
-    entity.set_properties(client_entity)
-    return entity
+    res = Entity(
+        Key.from_client_key(client_entity.key),
+        exclude_from_indexes=set(client_entity.exclude_from_indexes))
+    for name, value in client_entity.items():
+      if isinstance(value, key.Key):
+        value = Key.from_client_key(value)
+      if isinstance(value, entity.Entity):
+        if value.key:
+          value = Entity.from_client_entity(value)
+        else:
+          value = {k: v for k, v in value.items()}
+      res.properties[name] = value
+    return res
 
   def to_client_entity(self):
     """
     Returns a :class:`google.cloud.datastore.entity.Entity` instance that
     represents this entity.
     """
-    key = self.key.to_client_key()
-    res = entity.Entity(key=key,
-                        exclude_from_indexes=tuple(self.exclude_from_indexes))
-    res.update(self.properties)
+    res = entity.Entity(
+        key=self.key.to_client_key(),
+        exclude_from_indexes=tuple(self.exclude_from_indexes))
+    for name, value in self.properties.items():
+      if isinstance(value, Key):
+        if not value.project:
+          value.project = self.key.project
+        value = value.to_client_key()
+      if isinstance(value, Entity):
+        if not value.key.project:
+          value.key.project = self.key.project
+        value = value.to_client_entity()
+      res[name] = value
     return res
 
   def __eq__(self, other):
     if not isinstance(other, Entity):
       return False
-    return (self.key == other.key and
-            self.exclude_from_indexes == other.exclude_from_indexes and
-            self.properties == other.properties)
+    return (
+        self.key == other.key and
+        self.exclude_from_indexes == other.exclude_from_indexes and
+        self.properties == other.properties)
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __repr__(self):
     return "<%s(key=%s, exclude_from_indexes=%s) properties=%s>" % (
-        self.__class__.__name__, str(self.key),
-        str(self.exclude_from_indexes), str(self.properties))
+        self.__class__.__name__,
+        str(self.key),
+        str(self.exclude_from_indexes),
+        str(self.properties))

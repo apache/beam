@@ -20,33 +20,68 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
+import InfluxDBCredentialsHelper
+import static PythonTestProperties.LOAD_TEST_PYTHON_VERSION
 
 class LoadTestsBuilder {
-  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode){
+  final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam-sdk'
+  final static String GO_SDK_CONTAINER = "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
+  final static String DOCKER_BEAM_SDK_IMAGE = "beam_python${LOAD_TEST_PYTHON_VERSION}_sdk:latest"
+  final static String DOCKER_BEAM_JOBSERVER = 'gcr.io/apache-beam-testing/beam_portability'
+
+  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode,
+      List<String> jobSpecificSwitches = null) {
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 720)
 
     for (testConfiguration in testConfigurations) {
-        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass)
+      loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions,
+          testConfiguration.test, jobSpecificSwitches)
     }
   }
 
 
-  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
+  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options,
+      String mainClass, List<String> jobSpecificSwitches = null, String requirementsTxtFile = null,
+      String pythonVersion = null) {
     options.put('runner', runner.option)
+    InfluxDBCredentialsHelper.useCredentials(context)
 
     context.steps {
-      shell("echo *** ${title} ***")
+      shell("echo \"*** ${title} ***\"")
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(getGradleTaskName(sdk))
+        setGradleTask(delegate, runner, sdk, options, mainClass,
+            jobSpecificSwitches, requirementsTxtFile, pythonVersion)
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-PloadTest.mainClass=\"${mainClass}\"")
-        switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
-        switches("-PloadTest.args=\"${parseOptions(options)}\"")
       }
     }
+  }
+
+  static String parseOptions(Map<String, ?> options) {
+    options.collect { entry ->
+
+      if (entry.key.matches(".*\\s.*")) {
+        throw new IllegalArgumentException("""
+          Encountered invalid option name '${entry.key}'. Names must not
+          contain whitespace.
+          """)
+      }
+
+      // Flags are indicated by null values
+      if (entry.value == null) {
+        "--${entry.key}"
+      } else if (entry.value.toString().matches(".*\\s.*") &&
+      !entry.value.toString().matches("'[^']*'")) {
+        throw new IllegalArgumentException("""
+          Option '${entry.key}' has an invalid value, '${entry.value}'. Values
+          must not contain whitespace, or they must be wrapped in singe quotes.
+          """)
+      } else {
+        "--${entry.key}=$entry.value".replace('\"', '\\\"').replace('\'', '\\\'')
+      }
+    }.join(' ')
   }
 
   static String getBigQueryDataset(String baseName, TriggeringContext triggeringContext) {
@@ -57,20 +92,43 @@ class LoadTestsBuilder {
     }
   }
 
-  private static String getGradleTaskName(SDK sdk) {
-    if (sdk == SDK.JAVA) {
-      return ':sdks:java:testing:load-tests:run'
-    } else if (sdk == SDK.PYTHON) {
-      return ':sdks:python:apache_beam:testing:load_tests:run'
-    } else {
-      throw new RuntimeException("No task name defined for SDK: $SDK")
+  private static void setGradleTask(context, Runner runner, SDK sdk, Map<String, ?> options,
+      String mainClass, List<String> jobSpecificSwitches, String requirementsTxtFile = null,
+      String pythonVersion = null) {
+    context.tasks(getGradleTaskName(sdk))
+    context.switches("-PloadTest.mainClass=\"${mainClass}\"")
+    context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")
+    context.switches("-PloadTest.args=\"${parseOptions(options)}\"")
+    if (requirementsTxtFile != null){
+      context.switches("-PloadTest.requirementsTxtFile=\"${requirementsTxtFile}\"")
+    }
+    if (jobSpecificSwitches != null) {
+      jobSpecificSwitches.each {
+        context.switches(it)
+      }
+    }
+
+    if (sdk == SDK.PYTHON) {
+      if (pythonVersion == null) {
+        context.switches("-PpythonVersion=${LOAD_TEST_PYTHON_VERSION}")
+      }
+      else {
+        context.switches("-PpythonVersion=${pythonVersion}")
+      }
     }
   }
 
-  private static String parseOptions(Map<String, ?> options) {
-    options.collect {
-      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
-    }.join(' ')
+  private static String getGradleTaskName(SDK sdk) {
+    switch (sdk) {
+      case SDK.JAVA:
+        return ':sdks:java:testing:load-tests:run'
+      case SDK.PYTHON:
+        return ':sdks:python:apache_beam:testing:load_tests:run'
+      case SDK.GO:
+        return ':sdks:go:test:load:run'
+      default:
+        throw new RuntimeException("No task name defined for SDK: $SDK")
+    }
   }
 }
 

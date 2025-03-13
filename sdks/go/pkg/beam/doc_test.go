@@ -23,9 +23,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 )
 
 func Example_gettingStarted() {
@@ -74,7 +74,7 @@ func Example_gettingStarted() {
 	// pipeline can be executed by a PipelineRunner.  The direct runner executes the
 	// transforms directly, sequentially, in this one process, which is useful for
 	// unit tests and simple experiments:
-	if err := direct.Execute(context.Background(), p); err != nil {
+	if _, err := direct.Execute(context.Background(), p); err != nil {
 		fmt.Printf("Pipeline failed: %v", err)
 	}
 }
@@ -128,9 +128,9 @@ func ExampleSeq() {
 	a := textio.Read(s, "...some file path...") // PCollection<string>
 
 	beam.Seq(s, a,
-		strconv.Atoi,                              // string to int
+		strconv.Atoi, // string to int
 		func(i int) float64 { return float64(i) }, // int to float64
-		math.Signbit,                              // float64 to bool
+		math.Signbit, // float64 to bool
 	) // PCollection<bool>
 }
 

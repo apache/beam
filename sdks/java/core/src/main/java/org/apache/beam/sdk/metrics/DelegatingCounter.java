@@ -17,17 +17,49 @@
  */
 package org.apache.beam.sdk.metrics;
 
-// Intentionally package private, this is meant to be used with Metrics.java and
-// LabeledMetrics.java
-
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 
 /** Implementation of {@link Counter} that delegates to the instance for the current context. */
+@Internal
 public class DelegatingCounter implements Metric, Counter, Serializable {
   private final MetricName name;
+  private final boolean processWideContainer;
+  private final boolean perWorkerCounter;
 
+  /**
+   * Create a {@code DelegatingCounter} with {@code perWorkerCounter} and {@code
+   * processWideContainer} set to false.
+   *
+   * @param name Metric name for this metric.
+   */
   public DelegatingCounter(MetricName name) {
+    this(name, false, false);
+  }
+
+  /**
+   * Create a {@code DelegatingCounter} with {@code perWorkerCounter} set to false.
+   *
+   * @param name Metric name for this metric.
+   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
+   *     current thread's container.
+   */
+  public DelegatingCounter(MetricName name, boolean processWideContainer) {
+    this(name, processWideContainer, false);
+  }
+
+  /**
+   * @param name Metric name for this metric.
+   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
+   *     current thread's container.
+   * @param perWorkerCounter Whether this Counter refers to a perWorker metric or not.
+   */
+  public DelegatingCounter(
+      MetricName name, boolean processWideContainer, boolean perWorkerCounter) {
     this.name = name;
+    this.processWideContainer = processWideContainer;
+    this.perWorkerCounter = perWorkerCounter;
   }
 
   /** Increment the counter. */
@@ -39,8 +71,19 @@ public class DelegatingCounter implements Metric, Counter, Serializable {
   /** Increment the counter by the given amount. */
   @Override
   public void inc(long n) {
-    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-    if (container != null) {
+    if (MetricsFlag.counterDisabled()) {
+      return;
+    }
+    MetricsContainer container =
+        this.processWideContainer
+            ? MetricsEnvironment.getProcessWideContainer()
+            : MetricsEnvironment.getCurrentContainer();
+    if (container == null) {
+      return;
+    }
+    if (perWorkerCounter) {
+      container.getPerWorkerCounter(name).inc(n);
+    } else {
       container.getCounter(name).inc(n);
     }
   }

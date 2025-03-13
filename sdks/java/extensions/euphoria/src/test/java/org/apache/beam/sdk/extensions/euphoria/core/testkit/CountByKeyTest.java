@@ -29,8 +29,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code CountByKey}. */
+@RunWith(JUnit4.class)
 public class CountByKeyTest extends AbstractOperatorTest {
 
   @Test

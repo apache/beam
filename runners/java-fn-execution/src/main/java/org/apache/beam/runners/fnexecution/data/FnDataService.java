@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.fnexecution.data;
 
-import org.apache.beam.sdk.coders.Coder;
+import java.util.function.Supplier;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * The {@link FnDataService} is able to forward inbound elements to a consumer and is also a
@@ -32,32 +31,43 @@ import org.apache.beam.sdk.util.WindowedValue;
 public interface FnDataService {
 
   /**
-   * Registers a receiver to be notified upon any incoming elements.
+   * Registers a receiver for the provided instruction id.
    *
-   * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
-   * the provided receiver.
+   * <p>The receiver is not required to be thread safe.
    *
-   * <p>Any failure during decoding or processing of the element will put the {@link
-   * InboundDataClient} into an error state such that {@link InboundDataClient#awaitCompletion()}
-   * will throw an exception.
+   * <p>Receivers for successfully processed bundles must be unregistered. See {@link
+   * #unregisterReceiver} for details.
    *
-   * <p>The provided receiver is not required to be thread safe.
+   * <p>Any failure during {@link FnDataReceiver#accept} will mark the provided {@code
+   * instructionId} as invalid and will ignore any future data. It is expected that if a bundle
+   * fails during processing then the failure will become visible to the {@link FnDataService}
+   * during a future {@link FnDataReceiver#accept} invocation.
    */
-  <T> InboundDataClient receive(
-      LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> listener);
+  void registerReceiver(String instructionId, CloseableFnDataReceiver<Elements> observer);
 
   /**
-   * Creates a receiver to which you can write data values and have them sent over this data plane
-   * service.
+   * Receivers are only expected to be unregistered when bundle processing has completed
+   * successfully.
    *
-   * <p>The provided coder is used to encode elements on the outbound stream.
-   *
-   * <p>Closing the returned receiver signals the end of the stream.
-   *
-   * <p>The returned receiver is not thread safe.
+   * <p>It is expected that if a bundle fails during processing then the failure will become visible
+   * to the {@link FnDataService} during a future {@link FnDataReceiver#accept} invocation.
    */
-  <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder);
+  void unregisterReceiver(String instructionId);
+
+  /**
+   * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
+   * timers over the data plane. It is important that {@link
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} is called on
+   * the returned BeamFnDataOutboundAggregator at the end of each bundle. If
+   * collectElementsIfNoFlushes is set to true, {@link
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} returns the
+   * buffered elements instead of sending it through the outbound StreamObserver if there's no
+   * previous flush.
+   *
+   * <p>Closing the returned aggregator signals the end of the streams.
+   *
+   * <p>The returned aggregator is not thread safe.
+   */
+  BeamFnDataOutboundAggregator createOutboundAggregator(
+      Supplier<String> processBundleRequestIdSupplier, boolean collectElementsIfNoFlushes);
 }

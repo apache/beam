@@ -1,0 +1,164 @@
+import java.util.stream.Collectors
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk.extensions.avro',
+    disableLintWarnings: ['rawtypes'], // Avro-generated test code has raw-type errors
+    publish: true,
+    exportJavadoc: true,
+)
+
+// generates avro 1.8.2 sources
+applyAvroNature()
+avro {
+  // keep consistency with avro-tools for other avro versions
+  stringType = "CharSequence"
+}
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
+
+// additional avro version (other than library.java.avro) to be tested
+def avroVersions = [
+    '182' : "1.8.2",
+    '192' : "1.9.2",
+    '1102': "1.10.2",
+]
+
+avroVersions.each { k, v ->
+  configurations {
+    create("avroVersion$k").extendsFrom(implementation)
+    create("avroVersion${k}Generate")
+  }
+}
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
+}
+
+dependencies {
+  implementation library.java.byte_buddy
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation(project(path: ":sdks:java:core", configuration: "shadow")) {
+    // Exclude Avro dependencies from "core" since Avro support moved to this extension
+    exclude group: "org.apache.avro", module: "avro"
+  }
+  implementation library.java.error_prone_annotations
+  implementation library.java.avro
+  implementation library.java.joda_time
+  testImplementation(project(path: ":sdks:java:core", configuration: "shadowTest")) {
+    // Exclude Avro dependencies from "core" since Avro support moved to this extension
+    exclude group: "org.apache.avro", module: "avro"
+  }
+  testImplementation library.java.avro_tests
+  testImplementation library.java.junit
+  testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testRuntimeOnly library.java.slf4j_jdk14
+  avroVersions.each { k,v ->
+    "avroVersion$k"(project(path: ":sdks:java:core", configuration: "shadowTest")) {
+      // Exclude Avro dependencies from "core" since Avro support moved to this extension
+      exclude group: "org.apache.avro", module: "avro"
+    }
+    "avroVersion$k" library.java.junit
+    "avroVersion$k" project(path: ":runners:direct-java", configuration: "shadow")
+    "avroVersion$k" library.java.slf4j_jdk14
+    "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
+    "avroVersion$k" library.java.zstd_jni // marked as optional in avro
+    "avroVersion$k" "org.apache.avro:avro:$v:tests"
+    "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
+  }
+}
+
+avroVersions.each { k, v ->
+  configurations."avroVersion$k" {
+    resolutionStrategy.force "org.apache.avro:avro:$v", "org.apache.avro:avro:$v:tests"
+  }
+
+  sourceSets {
+    "avro$k" {
+      java {
+        srcDirs "src/test/java", "build/generated/sources/avro$k/test/java"
+      }
+
+      // only use compileClasspath on purpose to not include generated test files
+      // will recompile with the proper generated sources
+      compileClasspath += sourceSets.main.output + configurations."avroVersion$k"
+      runtimeClasspath += sourceSets.main.output + configurations."avroVersion$k"
+    }
+  }
+
+  "compileAvro${k}Java" {
+    checkerFramework {
+      skipCheckerFramework = true
+    }
+  }
+
+  "spotbugsAvro$k" {
+    ignoreFailures = true
+  }
+
+  "generateAvro${k}AvroJava" {
+    dependsOn "generateAvroClasses$k"
+  }
+
+  task "avroVersion${k}Test"(type: Test) {
+    group = "Verification"
+    description = "Runs Avro extension tests with Avro version $v"
+    outputs.upToDateWhen { false }
+    classpath = sourceSets."avro$k".runtimeClasspath
+    systemProperty "beam.target.avro.version", v
+
+    include '**/*.class'
+    exclude '**/AvroIOTest$NeedsRunnerTests$*.class'
+
+    dependsOn "compileAvro${k}Java"
+  }
+
+  task "generateAvroClasses$k"(type: JavaExec) {
+    group = "build"
+    description = "Generate Avro classes for Avro version $v"
+    classpath = configurations."avroVersion${k}Generate"
+    main = "org.apache.avro.tool.Main"
+    args = [
+        "compile",
+        "schema",
+        "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
+        "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
+        "build/generated/sources/avro$k/test/java"
+    ]
+  }
+}
+
+task avroVersionsTest {
+  group = "Verification"
+  description = 'Runs Avro extension tests with different Avro API versions'
+  dependsOn createTaskNames(avroVersions, "Test")
+}
+
+static def createTaskNames(Map<String, String> prefixMap, String suffix) {
+  return prefixMap.keySet().stream()
+      .map { version -> "avroVersion${version}${suffix}" }
+      .collect(Collectors.toList())
+}

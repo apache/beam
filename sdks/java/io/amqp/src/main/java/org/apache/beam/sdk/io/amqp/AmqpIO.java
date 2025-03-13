@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.amqp;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -25,8 +25,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -38,10 +36,11 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.qpid.proton.message.Message;
 import org.apache.qpid.proton.messenger.Messenger;
 import org.apache.qpid.proton.messenger.Tracker;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -89,7 +88,9 @@ import org.joda.time.Instant;
  *
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AmqpIO {
 
   public static Read read() {
@@ -106,13 +107,11 @@ public class AmqpIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
 
-    @Nullable
-    abstract List<String> addresses();
+    abstract @Nullable List<String> addresses();
 
     abstract long maxNumRecords();
 
-    @Nullable
-    abstract Duration maxReadTime();
+    abstract @Nullable Duration maxReadTime();
 
     abstract Builder builder();
 
@@ -325,19 +324,15 @@ public class AmqpIO {
 
     @Override
     public PDone expand(PCollection<Message> input) {
-      input.apply(ParDo.of(new WriteFn(this)));
+      input.apply(ParDo.of(new WriteFn()));
       return PDone.in(input.getPipeline());
     }
 
     private static class WriteFn extends DoFn<Message, Void> {
 
-      private final Write spec;
-
       private transient Messenger messenger;
 
-      public WriteFn(Write spec) {
-        this.spec = spec;
-      }
+      public WriteFn() {}
 
       @Setup
       public void setup() throws Exception {

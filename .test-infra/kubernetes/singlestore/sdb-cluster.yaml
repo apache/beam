@@ -1,0 +1,54 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+apiVersion: memsql.com/v1alpha1
+kind: MemsqlCluster
+metadata:
+  name: sdb-cluster
+spec:
+  license: BGU3OTg5NmYxYTNiNTRkOGNiNDkwNzMyYTQ5ZTE1ZTAzAAAAAAAAAAAEAAAAAAAAAAwwNgIZALALmsXqagDEX93vkSHbvgzqrTfx5n6oTgIZAN3u0cviuZmqfYvFHGFfFy85cg2XSnrnHw==
+  adminHashedPassword: "*9177CC8207174BDBB5ED66B2140C75171283F15D"
+  nodeImage:
+    repository: singlestore/node
+    tag: latest
+
+  redundancyLevel: 1
+
+  serviceSpec:
+    objectMetaOverrides:
+      labels:
+        custom: label
+      annotations:
+        custom: annotations
+
+  aggregatorSpec:
+    count: 1
+    height: 0.5
+    storageGB: 16
+    storageClass: standard
+
+    objectMetaOverrides:
+      labels:
+        name: node-sdb-cluster-master
+
+  leafSpec:
+    count: 1
+    height: 0.5
+    storageGB: 32
+    storageClass: standard
+
+    objectMetaOverrides:
+      labels:
+        name: node-sdb-cluster-leaf

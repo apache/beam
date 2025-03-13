@@ -20,9 +20,12 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import java.io.Closeable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** A write operation. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WriteOperation extends ReceivingOperation {
   /** The Sink this operation writes to. */
   public final Sink<?> sink;

@@ -18,12 +18,12 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.math.RoundingMode;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -35,13 +35,17 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.math.DoubleMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Creates an {@link IsmSink} from a {@link CloudObject} spec. Note that it is invalid to use a non
  * {@link IsmRecordCoder} with this sink factory.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class IsmSinkFactory implements SinkFactory {
 
   /** A {@link SinkFactory.Registrar} for ISM sinks. */
@@ -63,11 +67,14 @@ public class IsmSinkFactory implements SinkFactory {
   @Override
   public Sink<?> create(
       CloudObject spec,
-      Coder<?> coder,
-      PipelineOptions options,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
       @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
+
+    options = checkArgumentNotNull(options);
+    coder = checkArgumentNotNull(coder);
 
     // The validity of this coder is checked in detail by the typed create, below
     @SuppressWarnings("unchecked")

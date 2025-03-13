@@ -17,32 +17,34 @@
  */
 package org.apache.beam.runners.fnexecution.provisioning;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoRequest;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoResponse;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Cpu;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Disk;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Memory;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceBlockingStub;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ListValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.NullValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Value;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ListValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.NullValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Value;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link StaticGrpcProvisionService}. */
 @RunWith(JUnit4.class)
 public class StaticGrpcProvisionServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   @Test
   public void returnsProvisionInfo() throws Exception {
     Struct options =
@@ -66,27 +68,18 @@ public class StaticGrpcProvisionServiceTest {
                             .build())
                     .build())
             .build();
-    Resources resourceLimits =
-        Resources.newBuilder()
-            .setCpu(Cpu.newBuilder().setShares(0.75F).buildPartial())
-            .setMemory(Memory.newBuilder().setSize(2L * 1024L * 1024L * 1024L).build())
-            .setSemiPersistentDisk(Disk.newBuilder().setSize(1024L * 1024L * 1024L * 1024L).build())
-            .build();
-    ProvisionInfo info =
-        ProvisionInfo.newBuilder()
-            .setJobId("id")
-            .setJobName("name")
-            .setWorkerId("worker")
-            .setPipelineOptions(options)
-            .setResourceLimits(resourceLimits)
-            .build();
+    ProvisionInfo info = ProvisionInfo.newBuilder().setPipelineOptions(options).build();
     GrpcFnServer<StaticGrpcProvisionService> server =
         GrpcFnServer.allocatePortAndCreateFor(
-            StaticGrpcProvisionService.create(info), InProcessServerFactory.create());
+            StaticGrpcProvisionService.create(
+                info, GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+            InProcessServerFactory.create());
 
     ProvisionServiceBlockingStub stub =
         ProvisionServiceGrpc.newBlockingStub(
-            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());
+            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                .intercept(AddHarnessIdInterceptor.create("test_worker"))
+                .build());
 
     GetProvisionInfoResponse provisionResponse =
         stub.getProvisionInfo(GetProvisionInfoRequest.getDefaultInstance());

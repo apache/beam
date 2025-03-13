@@ -19,12 +19,10 @@
 
 Concat Source, which reads the union of several other sources.
 """
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import bisect
 import threading
-from builtins import range
 
 from apache_beam.io import iobase
 
@@ -37,11 +35,11 @@ class ConcatSource(iobase.BoundedSource):
   Primarily for internal use, use the ``apache_beam.Flatten`` transform
   to create the union of several reads.
   """
-
   def __init__(self, sources):
-    self._source_bundles = [source if isinstance(source, iobase.SourceBundle)
-                            else iobase.SourceBundle(None, source, None, None)
-                            for source in sources]
+    self._source_bundles = [
+        source if isinstance(source, iobase.SourceBundle) else
+        iobase.SourceBundle(None, source, None, None) for source in sources
+    ]
 
   @property
   def sources(self):
@@ -62,8 +60,9 @@ class ConcatSource(iobase.BoundedSource):
       # We assume all sub-sources to produce bundles that specify weight using
       # the same unit. For example, all sub-sources may specify the size in
       # bytes as their weight.
-      for bundle in source.source.split(
-          desired_bundle_size, source.start_position, source.stop_position):
+      for bundle in source.source.split(desired_bundle_size,
+                                        source.start_position,
+                                        source.stop_position):
         yield bundle
 
   def get_range_tracker(self, start_position=None, stop_position=None):
@@ -92,14 +91,13 @@ class ConcatSource(iobase.BoundedSource):
       # to produce the same coder.
       return self._source_bundles[0].source.default_output_coder()
     else:
-      return super(ConcatSource, self).default_output_coder()
+      return super().default_output_coder()
 
 
 class ConcatRangeTracker(iobase.RangeTracker):
   """For internal use only; no backwards-compatibility guarantees.
 
   Range tracker for ConcatSource"""
-
   def __init__(self, start, end, source_bundles):
     """Initializes ``ConcatRangeTracker``
 
@@ -108,7 +106,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
       end: end position, a tuple of (source_index, source_position)
       source_bundles: the list of source bundles in the ConcatSource
     """
-    super(ConcatRangeTracker, self).__init__()
+    super().__init__()
     self._start = start
     self._end = end
     self._source_bundles = source_bundles
@@ -125,9 +123,9 @@ class ConcatRangeTracker(iobase.RangeTracker):
     # boundaries anyways.
     last = end[0] if end[1] is None else end[0] + 1
     self._cumulative_weights = (
-        [0] * start[0]
-        + self._compute_cumulative_weights(source_bundles[start[0]:last])
-        + [1] * (len(source_bundles) - last - start[0]))
+        [0] * start[0] +
+        self._compute_cumulative_weights(source_bundles[start[0]:last]) + [1] *
+        (len(source_bundles) - last - start[0]))
 
   @staticmethod
   def _compute_cumulative_weights(source_bundles):
@@ -149,8 +147,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
     total = float(sum(weights))
     running_total = [0]
     for w in weights:
-      running_total.append(
-          max(min_diff, min(1, running_total[-1] + w / total)))
+      running_total.append(max(min_diff, min(1, running_total[-1] + w / total)))
     running_total[-1] = 1  # In case of rounding error.
     # There are issues if, due to rouding error or greatly differing sizes,
     # two adjacent running total weights are equal. Normalize this things so
@@ -201,16 +198,16 @@ class ConcatRangeTracker(iobase.RangeTracker):
           ratio = self._cumulative_weights[source_ix]
         else:
           # Split the current subsource.
-          split = self.sub_range_tracker(source_ix).try_split(
-              source_pos)
+          split = self.sub_range_tracker(source_ix).try_split(source_pos)
           if not split:
             return None
           split_pos, frac = split
           ratio = self.local_to_global(source_ix, frac)
 
         self._end = source_ix, split_pos
-        self._cumulative_weights = [min(w / ratio, 1)
-                                    for w in self._cumulative_weights]
+        self._cumulative_weights = [
+            min(w / ratio, 1) for w in self._cumulative_weights
+        ]
         return (source_ix, split_pos), ratio
 
   def set_current_position(self, pos):
@@ -222,16 +219,18 @@ class ConcatRangeTracker(iobase.RangeTracker):
     if source_ix == last:
       return (source_ix, None)
     else:
-      return (source_ix,
-              self.sub_range_tracker(source_ix).position_at_fraction(
-                  source_frac))
+      return (
+          source_ix,
+          self.sub_range_tracker(source_ix).position_at_fraction(source_frac))
 
   def fraction_consumed(self):
     with self._lock:
-      return self.local_to_global(
-          self._claimed_source_ix,
-          self.sub_range_tracker(self._claimed_source_ix)
-          .fraction_consumed())
+      if self._claimed_source_ix == len(self._source_bundles):
+        return 1.0
+      else:
+        return self.local_to_global(
+            self._claimed_source_ix,
+            self.sub_range_tracker(self._claimed_source_ix).fraction_consumed())
 
   def local_to_global(self, source_ix, source_frac):
     cw = self._cumulative_weights
@@ -250,8 +249,9 @@ class ConcatRangeTracker(iobase.RangeTracker):
       # Return this source, converting what's left of frac after starting
       # this source into a value in [0.0, 1.0) representing how far we are
       # towards the next source.
-      return (source_ix,
-              (frac - cw[source_ix]) / (cw[source_ix + 1] - cw[source_ix]))
+      return (
+          source_ix,
+          (frac - cw[source_ix]) / (cw[source_ix + 1] - cw[source_ix]))
 
   def sub_range_tracker(self, source_ix):
     assert self._start[0] <= source_ix <= self._end[0]

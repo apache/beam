@@ -25,9 +25,9 @@ import org.apache.beam.sdk.values.PValue;
 /** Test utilities for the {@link DirectRunner}. */
 public final class DirectGraphs {
   public static void performDirectOverrides(Pipeline p) {
-    p.replaceAll(
-        DirectRunner.fromOptions(PipelineOptionsFactory.create().as(DirectOptions.class))
-            .defaultTransformOverrides());
+    DirectRunner runner =
+        DirectRunner.fromOptions(PipelineOptionsFactory.create().as(DirectOptions.class));
+    runner.performRewrites(p);
   }
 
   public static DirectGraph getGraph(Pipeline p) {

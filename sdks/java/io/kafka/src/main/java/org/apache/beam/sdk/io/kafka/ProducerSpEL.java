@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.AuthorizationException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * ProducerSpEL to handle newer versions Producer API. The API is updated in Kafka 0.11 to support
@@ -34,37 +34,79 @@ import org.apache.kafka.common.errors.AuthorizationException;
  */
 class ProducerSpEL {
 
-  private static boolean supportsTransactions;
+  private static class TransactionsImplementation {
+    private Method initTransactionsMethod;
+    private Method beginTransactionMethod;
+    private Method commitTransactionMethod;
+    private Method abortTransactionMethod;
+    private Method sendOffsetsToTransactionMethod;
+    private Class<?> producerFencedExceptionClass;
+    private Class<?> outOfOrderSequenceExceptionClass;
 
-  private static Method initTransactionsMethod;
-  private static Method beginTransactionMethod;
-  private static Method commitTransactionMethod;
-  private static Method abortTransactionMethod;
-  private static Method sendOffsetsToTransactionMethod;
-
-  static final String ENABLE_IDEMPOTENCE_CONFIG = "enable.idempotence";
-  static final String TRANSACTIONAL_ID_CONFIG = "transactional.id";
-
-  private static Class<?> producerFencedExceptionClass;
-  private static Class<?> outOfOrderSequenceExceptionClass;
-
-  static {
-    try {
+    private TransactionsImplementation() throws NoSuchMethodException, ClassNotFoundException {
       initTransactionsMethod = Producer.class.getMethod("initTransactions");
       beginTransactionMethod = Producer.class.getMethod("beginTransaction");
       commitTransactionMethod = Producer.class.getMethod("commitTransaction");
       abortTransactionMethod = Producer.class.getMethod("abortTransaction");
       sendOffsetsToTransactionMethod =
           Producer.class.getMethod("sendOffsetsToTransaction", Map.class, String.class);
-
       producerFencedExceptionClass =
           Class.forName("org.apache.kafka.common.errors.ProducerFencedException");
       outOfOrderSequenceExceptionClass =
           Class.forName("org.apache.kafka.common.errors.OutOfOrderSequenceException");
+    }
 
-      supportsTransactions = true;
+    private void initTransactions(Producer<?, ?> producer) {
+      invoke(initTransactionsMethod, producer);
+    }
+
+    private void beginTransaction(Producer<?, ?> producer) {
+      invoke(beginTransactionMethod, producer);
+    }
+
+    private void commitTransaction(Producer<?, ?> producer) {
+      invoke(commitTransactionMethod, producer);
+    }
+
+    private void abortTransaction(Producer<?, ?> producer) {
+      invoke(abortTransactionMethod, producer);
+    }
+
+    private void sendOffsetsToTransaction(
+        Producer<?, ?> producer,
+        Map<TopicPartition, OffsetAndMetadata> offsets,
+        @Nullable String consumerGroupId) {
+      invoke(sendOffsetsToTransactionMethod, producer, offsets, consumerGroupId);
+    }
+
+    private void invoke(Method method, Object obj, @Nullable Object... args) {
+      try {
+        @SuppressWarnings({"nullness", "unused"}) // JDK annotation does not allow the nulls
+        Object ignored = method.invoke(obj, args);
+      } catch (IllegalAccessException | InvocationTargetException e) {
+        throw new RuntimeException(e);
+      } catch (ApiException e) {
+        Class<?> eClass = e.getClass();
+        if (producerFencedExceptionClass.isAssignableFrom(eClass)
+            || outOfOrderSequenceExceptionClass.isAssignableFrom(eClass)
+            || AuthorizationException.class.isAssignableFrom(eClass)) {
+          throw new UnrecoverableProducerException(e);
+        }
+        throw e;
+      }
+    }
+  }
+
+  private static @Nullable TransactionsImplementation transactionsImplementation;
+
+  static final String ENABLE_IDEMPOTENCE_CONFIG = "enable.idempotence";
+  static final String TRANSACTIONAL_ID_CONFIG = "transactional.id";
+
+  static {
+    try {
+      transactionsImplementation = new TransactionsImplementation();
     } catch (ClassNotFoundException | NoSuchMethodException e) {
-      supportsTransactions = false;
+      transactionsImplementation = null;
     }
   }
 
@@ -80,57 +122,36 @@ class ProducerSpEL {
   }
 
   static boolean supportsTransactions() {
-    return supportsTransactions;
+    return transactionsImplementation != null;
   }
 
-  private static void ensureTransactionsSupport() {
-    checkArgument(
-        supportsTransactions(),
-        "This version of Kafka client library does not support transactions. ",
-        "Please used version 0.11 or later.");
-  }
-
-  private static void invoke(Method method, Object obj, Object... args) {
-    try {
-      method.invoke(obj, args);
-    } catch (IllegalAccessException | InvocationTargetException e) {
-      throw new RuntimeException(e);
-    } catch (ApiException e) {
-      Class<?> eClass = e.getClass();
-      if (producerFencedExceptionClass.isAssignableFrom(eClass)
-          || outOfOrderSequenceExceptionClass.isAssignableFrom(eClass)
-          || AuthorizationException.class.isAssignableFrom(eClass)) {
-        throw new UnrecoverableProducerException(e);
-      }
-      throw e;
-    }
+  private static TransactionsImplementation getTransactionsImplementation() {
+    return Preconditions.checkStateNotNull(
+        transactionsImplementation,
+        "This version of Kafka client library does not support transactions."
+            + " Please used version 0.11 or later.");
   }
 
   static void initTransactions(Producer<?, ?> producer) {
-    ensureTransactionsSupport();
-    invoke(initTransactionsMethod, producer);
+    getTransactionsImplementation().initTransactions(producer);
   }
 
   static void beginTransaction(Producer<?, ?> producer) {
-    ensureTransactionsSupport();
-    invoke(beginTransactionMethod, producer);
+    getTransactionsImplementation().beginTransaction(producer);
   }
 
   static void commitTransaction(Producer<?, ?> producer) {
-    ensureTransactionsSupport();
-    invoke(commitTransactionMethod, producer);
+    getTransactionsImplementation().commitTransaction(producer);
   }
 
   static void abortTransaction(Producer<?, ?> producer) {
-    ensureTransactionsSupport();
-    invoke(abortTransactionMethod, producer);
+    getTransactionsImplementation().abortTransaction(producer);
   }
 
   static void sendOffsetsToTransaction(
       Producer<?, ?> producer,
       Map<TopicPartition, OffsetAndMetadata> offsets,
-      String consumerGroupId) {
-    ensureTransactionsSupport();
-    invoke(sendOffsetsToTransactionMethod, producer, offsets, consumerGroupId);
+      @Nullable String consumerGroupId) {
+    getTransactionsImplementation().sendOffsetsToTransaction(producer, offsets, consumerGroupId);
   }
 }

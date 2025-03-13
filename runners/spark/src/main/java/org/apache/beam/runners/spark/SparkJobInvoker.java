@@ -18,18 +18,25 @@
 package org.apache.beam.runners.spark;
 
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.runners.jobsubmission.JobInvocation;
+import org.apache.beam.runners.jobsubmission.JobInvoker;
+import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
+import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Creates a job invocation to manage the Spark runner's execution of a portable pipeline. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobInvoker.class);
@@ -42,7 +49,7 @@ public class SparkJobInvoker extends JobInvoker {
   }
 
   private SparkJobInvoker(SparkJobServerDriver.SparkServerConfiguration configuration) {
-    super("spark-runner-job-invoker");
+    super("spark-runner-job-invoker-%d");
     this.configuration = configuration;
   }
 
@@ -88,7 +95,13 @@ public class SparkJobInvoker extends JobInvoker {
             sparkOptions.getJobName(),
             retrievalToken,
             PipelineOptionsTranslation.toProto(sparkOptions));
-    SparkPipelineRunner pipelineRunner = new SparkPipelineRunner(sparkOptions);
+    PortablePipelineRunner pipelineRunner;
+    if (Strings.isNullOrEmpty(
+        sparkOptions.as(PortablePipelineOptions.class).getOutputExecutablePath())) {
+      pipelineRunner = new SparkPipelineRunner(sparkOptions);
+    } else {
+      pipelineRunner = new PortablePipelineJarCreator(SparkPipelineRunner.class);
+    }
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
   }
 }

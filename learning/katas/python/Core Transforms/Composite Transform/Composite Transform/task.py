@@ -14,9 +14,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: CompositeTransform
+#   description: Task from katas to implement a composite transform "ExtractAndMultiplyNumbers"
+#     that extracts numbers from comma separated line and then multiplies each number by 10.
+#   multifile: false
+#   context_line: 43
+#   categories:
+#     - Flatten
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - strings
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 class ExtractAndMultiplyNumbers(beam.PTransform):
@@ -28,10 +40,8 @@ class ExtractAndMultiplyNumbers(beam.PTransform):
                 )
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
-   | ExtractAndMultiplyNumbers()
-   | LogElements())
-
-p.run()
+  (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
+     | ExtractAndMultiplyNumbers()
+     | beam.LogElements())

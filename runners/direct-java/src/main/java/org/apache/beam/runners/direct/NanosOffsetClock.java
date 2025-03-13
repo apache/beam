@@ -38,7 +38,7 @@ class NanosOffsetClock implements Clock {
   public Instant now() {
     return new Instant(
         baseMillis
-            + (TimeUnit.MILLISECONDS.convert(
-                System.nanoTime() - nanosAtBaseMillis, TimeUnit.NANOSECONDS)));
+            + TimeUnit.MILLISECONDS.convert(
+                System.nanoTime() - nanosAtBaseMillis, TimeUnit.NANOSECONDS));
   }
 }

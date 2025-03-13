@@ -18,6 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.logging;
 
 /** Mapped diagnostic context for the Dataflow worker. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowWorkerLoggingMDC {
   private static final InheritableThreadLocal<String> jobId = new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<String> stageName = new InheritableThreadLocal<>();

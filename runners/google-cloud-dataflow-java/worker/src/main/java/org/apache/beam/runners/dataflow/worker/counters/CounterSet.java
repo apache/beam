@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +35,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Thread-safe.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CounterSet extends CounterFactory {
   private static final Logger LOG = LoggerFactory.getLogger(CounterSet.class);
 

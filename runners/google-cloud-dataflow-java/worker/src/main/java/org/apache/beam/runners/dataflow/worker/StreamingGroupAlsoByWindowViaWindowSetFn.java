@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
@@ -25,13 +26,13 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.dataflow.worker.util.BatchGroupAlsoByWindowFn;
 import org.apache.beam.runners.dataflow.worker.util.StreamingGroupAlsoByWindowFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -52,6 +53,7 @@ public class StreamingGroupAlsoByWindowViaWindowSetFn<K, InputT, OutputT, W exte
   }
 
   private final WindowingStrategy<Object, W> windowingStrategy;
+  private final RunnerApi.Trigger triggerProto;
   private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
 
@@ -62,6 +64,7 @@ public class StreamingGroupAlsoByWindowViaWindowSetFn<K, InputT, OutputT, W exte
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
     this.windowingStrategy = noWildcard;
+    this.triggerProto = TriggerTranslation.toProto(windowingStrategy.getTrigger());
     this.reduceFn = reduceFn;
     this.stateInternalsFactory = stateInternalsFactory;
   }
@@ -82,8 +85,7 @@ public class StreamingGroupAlsoByWindowViaWindowSetFn<K, InputT, OutputT, W exte
             key,
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
-                TriggerStateMachines.stateMachineForTrigger(
-                    TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
+                TriggerStateMachines.stateMachineForTrigger(triggerProto)),
             stateInternals,
             stepContext.timerInternals(),
             output,

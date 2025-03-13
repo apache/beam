@@ -20,11 +20,11 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -57,14 +58,20 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -76,7 +83,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for Create. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("unchecked")
+@SuppressWarnings({
+  "unchecked",
+})
 public class CreateTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline p = TestPipeline.create();
@@ -190,7 +199,7 @@ public class CreateTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return myString.equals(((UnserializableRecord) o).myString);
     }
 
@@ -234,6 +243,22 @@ public class CreateTest {
     public void processElement(ProcessContext c) {
       c.output(c.element() + ":" + c.timestamp().getMillis());
     }
+  }
+
+  private static class FormatMetadata extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(
+        @Element String e,
+        @Timestamp Instant timestamp,
+        BoundedWindow w,
+        PaneInfo p,
+        OutputReceiver<String> o) {
+      o.output(formatMetadata(e, timestamp, w, p));
+    }
+  }
+
+  private static String formatMetadata(String s, Instant timestamp, BoundedWindow w, PaneInfo p) {
+    return s + ":" + timestamp.getMillis() + ":" + w + ":" + p;
   }
 
   @Test
@@ -315,6 +340,66 @@ public class CreateTest {
                 TimestampedValue.of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCreateWindowedValues() {
+    List<WindowedValue<String>> data =
+        Arrays.asList(
+            WindowedValue.of("a", new Instant(1L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValue.of("b", new Instant(2L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValue.of(
+                "c", new Instant(3L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+
+    // The easiest way to directly check the created PCollection with PAssert and without relying on
+    // other
+    // mechanisms than built-in DoFn processing is to dump it all to a string.
+    List<String> formattedData =
+        data.stream()
+            .flatMap(
+                (WindowedValue<String> windowedValue) ->
+                    windowedValue.getWindows().stream()
+                        .map(
+                            (BoundedWindow w) ->
+                                formatMetadata(
+                                    windowedValue.getValue(),
+                                    windowedValue.getTimestamp(),
+                                    w,
+                                    windowedValue.getPane())))
+            .collect(Collectors.toList());
+
+    PCollection<String> output =
+        p.apply(Create.windowedValues(data).withWindowCoder(GlobalWindow.Coder.INSTANCE))
+            .apply(ParDo.of(new FormatMetadata()));
+
+    PAssert.that(output).containsInAnyOrder(formattedData);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCreateWindowedValuesEmpty() {
+    PCollection<String> output =
+        p.apply(
+            Create.windowedValues(new ArrayList<WindowedValue<String>>())
+                .withCoder(StringUtf8Coder.of()));
+
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  public void testCreateWindowedValuesEmptyUnspecifiedCoder() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("determine a default Coder");
+    thrown.expectMessage("Create.empty(Coder)");
+    thrown.expectMessage("Create.empty(TypeDescriptor)");
+    thrown.expectMessage("withCoder(Coder)");
+    thrown.expectMessage("withType(TypeDescriptor)");
+    p.apply(Create.windowedValues(new ArrayList<>()));
   }
 
   @Test
@@ -418,6 +503,7 @@ public class CreateTest {
             Create.of("a", "b", "c", "d")
                 .withSchema(
                     STRING_SCHEMA,
+                    TypeDescriptors.strings(),
                     s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
                     r -> r.getString("field")));
     assertThat(out.getCoder(), instanceOf(SchemaCoder.class));

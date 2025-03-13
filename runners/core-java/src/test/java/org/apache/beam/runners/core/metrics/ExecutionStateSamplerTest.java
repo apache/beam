@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.io.Closeable;
@@ -121,6 +121,13 @@ public class ExecutionStateSamplerTest {
     }
 
     assertThat(step1act1.lullReported, equalTo(true));
+  }
+
+  @Test
+  public void testReset() throws Exception {
+    sampler.lastSampleTimeMillis = 100L;
+    sampler.reset();
+    assertThat(sampler.lastSampleTimeMillis, equalTo(0L));
   }
 
   private ExecutionStateTracker createTracker() {

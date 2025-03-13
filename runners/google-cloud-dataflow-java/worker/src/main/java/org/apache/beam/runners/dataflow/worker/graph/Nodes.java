@@ -17,34 +17,29 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonGenerator;
-import com.google.api.client.util.Charsets;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.auto.value.AutoValue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** Container class for different types of network nodes. All nodes only have reference equality. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Nodes {
   /** Base class for network nodes. All nodes only have reference equality. */
   public abstract static class Node {
@@ -64,7 +59,7 @@ public class Nodes {
       ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
       final JsonGenerator baseGenerator =
           MoreObjects.firstNonNull(json.getFactory(), Transport.getJsonFactory())
-              .createJsonGenerator(byteStream, Charsets.UTF_8);
+              .createJsonGenerator(byteStream, StandardCharsets.UTF_8);
       JsonGenerator generator =
           new JsonGenerator() {
             @Override
@@ -169,7 +164,7 @@ public class Nodes {
       generator.enablePrettyPrint();
       generator.serialize(json);
       generator.flush();
-      return byteStream.toString();
+      return byteStream.toString(StandardCharsets.UTF_8.name());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -196,7 +191,7 @@ public class Nodes {
     public abstract ParallelInstruction getParallelInstruction();
 
     @Override
-    public String toString() {
+    public final String toString() {
       return MoreObjects.toStringHelper(this)
           .add("parallelInstruction", toStringWithTrimmedLiterals(getParallelInstruction()))
           .add("executionLocation", getExecutionLocation().toString())
@@ -221,7 +216,7 @@ public class Nodes {
     public abstract String getPcollectionId();
 
     @Override
-    public String toString() {
+    public final String toString() {
       return MoreObjects.toStringHelper(this)
           .add("instructionOutput", toStringWithTrimmedLiterals(getInstructionOutput()))
           .add("pcollectionId", getPcollectionId())
@@ -255,112 +250,6 @@ public class Nodes {
     }
 
     public abstract Operation getOperation();
-  }
-
-  /** A node that stores {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort}s. */
-  @AutoValue
-  public abstract static class RemoteGrpcPortNode extends Node {
-    public static RemoteGrpcPortNode create(
-        BeamFnApi.RemoteGrpcPort port, String primitiveTransformId) {
-      checkNotNull(port);
-      return new AutoValue_Nodes_RemoteGrpcPortNode(port, primitiveTransformId);
-    }
-
-    public abstract BeamFnApi.RemoteGrpcPort getRemoteGrpcPort();
-
-    public abstract String getPrimitiveTransformId();
-  }
-
-  /** A node that stores {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest}s. */
-  @AutoValue
-  public abstract static class RegisterRequestNode extends Node {
-    public static RegisterRequestNode create(
-        BeamFnApi.RegisterRequest request,
-        Map<String, NameContext> ptransformIdToPartialNameContextMap,
-        Map<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfoMap,
-        Map<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViewMap,
-        Map<String, NameContext> pcollectionToPartialNameContextMap) {
-      checkNotNull(request);
-      checkNotNull(ptransformIdToPartialNameContextMap);
-      return new AutoValue_Nodes_RegisterRequestNode(
-          request,
-          ptransformIdToPartialNameContextMap,
-          ptransformIdToSideInputInfoMap,
-          ptransformIdToPCollectionViewMap,
-          pcollectionToPartialNameContextMap);
-    }
-
-    public abstract BeamFnApi.RegisterRequest getRegisterRequest();
-
-    public abstract Map<String, NameContext> getPTransformIdToPartialNameContextMap();
-
-    public abstract Map<String, Iterable<SideInputInfo>> getPTransformIdToSideInputInfoMap();
-
-    public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
-
-    public abstract Map<String, NameContext> getPCollectionToPartialNameContextMap();
-
-    @Override
-    public String toString() {
-      // The request may be very large.
-      return "RegisterRequestNode";
-    }
-  }
-
-  /** A node that stores {@link org.apache.beam.runners.core.construction.graph.ExecutableStage}. */
-  @AutoValue
-  public abstract static class ExecutableStageNode extends Node {
-    public static ExecutableStageNode create(
-        ExecutableStage executableStage,
-        Map<String, NameContext> ptransformIdToPartialNameContextMap,
-        Map<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfoMap,
-        Map<String, Iterable<PCollectionView<?>>> pTransformIdToPCollectionViewMap) {
-      checkNotNull(executableStage);
-      checkNotNull(ptransformIdToPartialNameContextMap);
-      return new AutoValue_Nodes_ExecutableStageNode(
-          executableStage,
-          ptransformIdToPartialNameContextMap,
-          ptransformIdToSideInputInfoMap,
-          pTransformIdToPCollectionViewMap);
-    }
-
-    public abstract ExecutableStage getExecutableStage();
-
-    public abstract Map<String, NameContext> getPTransformIdToPartialNameContextMap();
-
-    public abstract Map<String, Iterable<SideInputInfo>> getPTransformIdToSideInputInfoMap();
-
-    public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
-
-    @Override
-    public String toString() {
-      // The request may be very large.
-      return "ExecutableStageNode";
-    }
-  }
-
-  /**
-   * A node in the graph responsible for fetching side inputs that are ready and also filtering
-   * elements which are blocked after asking the SDK harness to perform any window mapping.
-   *
-   * <p>Note that this should only be used within streaming pipelines.
-   */
-  @AutoValue
-  public abstract static class FetchAndFilterStreamingSideInputsNode extends Node {
-    public static FetchAndFilterStreamingSideInputsNode create(
-        WindowingStrategy<?, ?> windowingStrategy,
-        Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewsToWindowMappingFns,
-        NameContext nameContext) {
-      return new AutoValue_Nodes_FetchAndFilterStreamingSideInputsNode(
-          windowingStrategy, pCollectionViewsToWindowMappingFns, nameContext);
-    }
-
-    public abstract WindowingStrategy<?, ?> getWindowingStrategy();
-
-    public abstract Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec>
-        getPCollectionViewsToWindowMappingFns();
-
-    public abstract NameContext getNameContext();
   }
 
   // Hide visibility to prevent instantiation

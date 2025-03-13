@@ -22,7 +22,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -35,6 +34,10 @@ public class BeamSqlDslNestedRowsTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptions = ExpectedException.none();
 
+  /**
+   * TODO([BEAM-9378]): This is a test of the incorrect behavior that should not work but does
+   * because calcite flattens the row.
+   */
   @Test
   public void testRowConstructorKeyword() {
     Schema nestedSchema =
@@ -44,40 +47,108 @@ public class BeamSqlDslNestedRowsTest {
             .addInt32Field("f_nestedIntPlusOne")
             .build();
 
-    Schema resultSchema =
-        Schema.builder()
-            .addInt32Field("f_int")
-            .addInt32Field("f_int2")
-            .addStringField("f_varchar")
-            .addInt32Field("f_int3")
-            .build();
-
-    Schema inputType =
+    Schema schema =
         Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
         pipeline.apply(
             Create.of(
-                    Row.withSchema(inputType)
+                    Row.withSchema(schema)
                         .addValues(
                             1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(schema));
+
+    PCollection<Row> result =
+        input.apply(
+            SqlTransform.query(
+                "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(1, Row.withSchema(nestedSchema).addValues(3, "BB", 2).build())
+                .build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRowAliasAsRow() {
+    Schema nestedSchema =
+        Schema.builder()
+            .addStringField("f_nestedString")
+            .addInt32Field("f_nestedInt")
+            .addInt32Field("f_nestedIntPlusOne")
+            .build();
+
+    Schema inputType =
+        Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
+    Schema outputType =
+        Schema.builder().addInt32Field("f_int").addRowField("f_row1", nestedSchema).build();
+
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .attachValues(1, Row.withSchema(nestedSchema).attachValues("CC", 312, 313)))
+                .withRowSchema(inputType));
+
+    PCollection<Row> result =
+        input
+            .apply(SqlTransform.query("SELECT 1 as `f_int`, f_row as `f_row1` FROM PCOLLECTION"))
+            .setRowSchema(outputType);
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(outputType)
+                .attachValues(1, Row.withSchema(nestedSchema).attachValues("CC", 312, 313)));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRowConstructorKeywordKeepAsRow() {
+    Schema nestedSchema =
+        Schema.builder()
+            .addStringField("f_nestedString")
+            .addInt32Field("f_nestedInt")
+            .addInt32Field("f_nestedIntPlusOne")
+            .build();
+
+    Schema inputType =
+        Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
+    Schema nestedOutput =
+        Schema.builder().addInt32Field("int_field").addStringField("str_field").build();
+    Schema outputType =
+        Schema.builder().addInt32Field("f_int1").addRowField("f_row1", nestedOutput).build();
+
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .attachValues(2, Row.withSchema(nestedSchema).attachValues("CC", 312, 313)))
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
             .apply(
                 SqlTransform.query(
-                    "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setRowSchema(resultSchema);
+                    "SELECT f_int as `f_int1`, (`PCOLLECTION`.`f_row`.`f_nestedInt`, `PCOLLECTION`.`f_row`.`f_nestedString`) as `f_row1` FROM PCOLLECTION"))
+            .setRowSchema(outputType);
 
     PAssert.that(result)
-        .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
+        .containsInAnyOrder(
+            Row.withSchema(outputType)
+                .attachValues(2, Row.withSchema(nestedOutput).attachValues(312, "CC")));
 
     pipeline.run();
   }
 
+  /**
+   * TODO([BEAM-9378] This is a test of the incorrect behavior that should not work but does because
+   * calcite flattens the row.
+   */
   @Test
   public void testRowConstructorBraces() {
 
@@ -88,36 +159,28 @@ public class BeamSqlDslNestedRowsTest {
             .addInt32Field("f_nestedIntPlusOne")
             .build();
 
-    Schema resultSchema =
-        Schema.builder()
-            .addInt32Field("f_int")
-            .addInt32Field("f_int2")
-            .addStringField("f_varchar")
-            .addInt32Field("f_int3")
-            .build();
-
-    Schema inputType =
+    Schema schema =
         Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
         pipeline.apply(
             Create.of(
-                    Row.withSchema(inputType)
+                    Row.withSchema(schema)
                         .addValues(
                             1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(schema));
 
     PCollection<Row> result =
-        input
-            .apply(
-                SqlTransform.query(
-                    "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setRowSchema(resultSchema);
+        input.apply(
+            SqlTransform.query(
+                "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"));
 
     PAssert.that(result)
-        .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(1, Row.withSchema(nestedSchema).addValues(3, "BB", 2).build())
+                .build());
 
     pipeline.run();
   }
@@ -148,8 +211,7 @@ public class BeamSqlDslNestedRowsTest {
                         .addValues(
                             2, Row.withSchema(nestedSchema).addValues(412, "DD", 413).build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -200,8 +262,7 @@ public class BeamSqlDslNestedRowsTest {
                                 .addValues(412, "DD", 413, Arrays.asList("three", "four"))
                                 .build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -251,8 +312,7 @@ public class BeamSqlDslNestedRowsTest {
                                 .addValues(412, "DD", 413, Arrays.asList("three", "four"))
                                 .build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input

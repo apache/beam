@@ -1,0 +1,238 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "hero-section" }}
+<div id="hero-desktop" class="hero-desktop">
+  <div class="hero-content">
+    <h3>{{ T "home-hero-title" }}</h3>
+    <h1>{{ T "home-hero-heading" }}</h1>
+    <h2>{{ T "home-hero-subheading" }}</h2>
+    <a href={{ "https://github.com/apache/beam" | relLangURL }}>
+    <button>
+      {{ with resources.Get "icons/install-button-icon.svg" }}
+      {{ .Content | safeHTML }}
+      {{ end }}
+      <span>{{ T "home-hero-button" }}</span>
+    </button>
+    </a>
+  </div>
+</div>
+<div id="hero-mobile" class="hero-mobile">
+  <div class="hero-content">
+    <h3>{{ T "home-hero-title" }}</h3>
+    <h1>{{ T "home-hero-heading" }}</h1>
+    <h2>{{ T "home-hero-subheading" }}</h2>
+  </div>
+</div>
+{{ end }}
+
+{{ define "pillars-section" }}
+  <div class="pillars">
+    <h2 class="pillars-title">
+      {{ T "home-pillars-title" }}
+    </h2>
+    <div class="pillars-content">
+      {{ $data := index $.Site.Data .Site.Language.Lang }}
+      {{ range $pillar := $data.pillars }}
+          {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
+      {{ end }}
+    </div>
+  </div>
+{{ end }}
+
+{{ define "playground-section" }}
+<div class="body__contained body__section-nav playground-section" tabindex="-1">
+  <h1>Try Beam Playground</h1>
+  <p>Beam Playground is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+    You can try the Apache Beam examples at <a href="https://play.beam.apache.org/">Beam Playground</a>.
+  </p>
+  <br>
+  <br>
+  <div class="playground_or_image">
+    <a class="playground__mobile" href="https://play.beam.apache.org/">
+      <img src="images/playground.png" alt="beam playground">
+    </a>
+
+    <div class="playground-wrapper">
+      <div class="playground-snippets">
+        <div class="language-java playground-snippet" data-sdk="java"></div>
+        <div class="language-py playground-snippet" data-sdk="python"></div>
+        <div class="language-go playground-snippet" data-sdk="go"></div>
+        <div class="language-scio playground-snippet" data-sdk="scio"></div>
+      </div>
+
+      {{ $javaDict := dict "sdk" "java" "path" "SDK_JAVA_MinimalWordCount" }}
+      {{ $pythonDict := dict "sdk" "python" "path" "SDK_PYTHON_WordCountWithMetrics" }}
+      {{ $goDict := dict "sdk" "go" "path" "SDK_GO_MinimalWordCount" }}
+      {{ $scioDict := dict "sdk" "scio" "path" "SDK_SCIO_MinimalWordCount" }}
+      {{ $examples := slice $javaDict $pythonDict $goDict $scioDict }}
+
+      <div
+        class="code-snippet code-snippet-playground"
+        data-src="https://play.beam.apache.org/embedded?examples={{ jsonify $examples }}"
+        data-width="100%"
+        data-height="700px"
+      ></div>
+      <div class="playground-iframe-overlay"></div>
+    </div>
+  </div>
+</div>
+{{ end }}
+
+{{ define "graphic-section" }}
+  <div class="graphic">
+    <div class="quotes">
+      <h2 class="margin">{{ T "home-model-title1" }}</h2>
+      <div class="margin section">
+        <img class="row-image" src="/images/graphic-background.png">
+        <div class="row">
+          {{ $data := index $.Site.Data .Site.Language.Lang }}
+          {{ range $item := $data.graphic }}
+            <div class="column">
+              <img src="{{ .icon }}" class='icon mobile'/>
+              <h4>{{ .title }}</h4>
+              <p>{{ .body }}</p>
+            </div>
+          {{ end }}
+        </div>
+      </div>
+    </div>
+  </div>
+{{ end }}
+
+{{ define "calendar-section" }}
+<div class="calendar">
+  <h2 class="calendar-title">
+    {{ T "home-calendar-title" }}
+  </h2>
+  <div class="calendar-content">
+    <div class="calendar-card-box post">
+      {{ range first 2 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog") }}
+      <a class="post-card" href="{{ .RelPermalink }}" data-categories="{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}"
+      >
+      <div class="post-info post-category">
+        <p>
+          {{ if .Params.categories }}
+          {{ delimit .Params.categories ", " " & " }}
+          {{ end }}
+        </p>
+        <p>{{ .Date.Format "2006/01/02" }}</p>
+      </div>
+      <div>
+        <p class="post-title">{{ .Title }}</p>
+        <p class="post-info">
+          {{ $authors := .Params.authors }}
+          {{ with $authors }}
+          {{ range $i, $item := $authors }}
+          {{ if not (isset $.Site.Data.authors $item) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $item }} {{end}}
+          {{ $author := index $.Site.Data.authors $item }}
+          {{ if eq $i (sub (len $authors) 1) }}
+          {{ $author.name }}
+          {{ else if eq $i (sub (len $authors) 2) }}
+          {{ $author.name }} &amp;
+          {{ else }}
+          {{ $author.name }},
+          {{ end }}
+          {{ end }}
+          {{ end }}
+        </p>
+      </div>
+      </a>
+      {{ end }}
+    </div>
+  </div>
+</div>
+{{ end }}
+
+{{ define "quotes-section" }}
+<div class="quotes">
+  <div class="quotes-inner">
+    <div class="quotes-title">
+      {{ T "home-quotes-title" }}
+    </div>
+
+    <div class="swiper-container">
+      <div class="swiper-button-prev-custom">
+        <img src="/images/swiper-button-prev.png" alt="previous button">
+      </div>
+      <div class="quotes-desktop swiper">
+        <div class="swiper-wrapper">
+          {{ $data := index $.Site.Data .Site.Language.Lang }}
+          {{ range $quote := $data.quotes }}
+            <div class="swiper-slide">
+              {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl "linkUrl" $quote.linkUrl "linkText" $quote.linkText) }}
+            </div>
+          {{ end }}
+        </div>
+        <div id="swiper-pagination-id" class="swiper-pagination"></div>
+      </div>
+      <div class="swiper-button-next-custom">
+        <img src="/images/swiper-button-next.png" alt="next button">
+      </div>
+    </div>
+
+  </div>
+</div>
+{{ end }}
+
+{{ define "logos-section" }}
+<div class="logos">
+  <div class="logos-title">
+    {{ T "home-logos-title" }}
+  </div>
+  <div class="logos-logos">
+    {{ range $logo := $.Site.Data.works_with }}
+    <div class="logos-logo">
+      <a href="{{ $logo.url }}"><img src="{{ $logo.image_url }}" alt="{{ $logo.title }}"></a>
+    </div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
+
+{{ define "ctas-section" }}
+<div class="ctas">
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/beam-overview/" | relLangURL }}><img src="images/info_icon.svg" /> {{ T "home-learn-more" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/quickstart-py/" | relLangURL }}>{{ T "home-python-quickstart" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "https://play.beam.apache.org" | relLangURL }}>{{ T "home-playground" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "https://tour.beam.apache.org" | relLangURL }}>{{ T "home-tour-of-beam" }}</a>
+  </div>
+</div>
+{{ end }}
+
+{{ define "pipelines-section" }}
+<div class="pipelines">
+  <div class="pipelines-title">
+    {{ T "home-pipelines-title" }}
+  </div>
+  <div class="pipelines-logos">
+    {{ range $pipeline := $.Site.Data.pipelines }}
+    <div class="pipelines-logo">
+      <a href="{{ $pipeline.url }}"><img src="{{ $pipeline.image_url }}" alt="{{ $pipeline.title }}"></a>
+    </div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}

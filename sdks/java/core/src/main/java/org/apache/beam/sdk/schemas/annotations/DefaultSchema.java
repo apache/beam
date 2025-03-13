@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.annotations;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.lang.annotation.Documented;
@@ -29,17 +29,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaProviderRegistrar;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The {@link DefaultSchema} annotation specifies a {@link SchemaProvider} class to handle obtaining
@@ -59,8 +57,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@SuppressWarnings("rawtypes")
-@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public @interface DefaultSchema {
 
   /** The schema provider implementation that knows how to vend schemas for the annotated class. */
@@ -85,8 +85,7 @@ public @interface DefaultSchema {
       }
     }
 
-    @Nullable
-    private ProviderAndDescriptor getSchemaProvider(TypeDescriptor<?> typeDescriptor) {
+    private @Nullable ProviderAndDescriptor getSchemaProvider(TypeDescriptor<?> typeDescriptor) {
       return cachedProviders.computeIfAbsent(
           typeDescriptor,
           type -> {
@@ -102,7 +101,7 @@ public @interface DefaultSchema {
                 try {
                   return new ProviderAndDescriptor(
                       providerClass.getDeclaredConstructor().newInstance(),
-                      TypeDescriptor.of(clazz));
+                      typeDescriptor.getSupertype((Class) clazz));
                 } catch (NoSuchMethodException
                     | InstantiationException
                     | IllegalAccessException
@@ -122,6 +121,24 @@ public @interface DefaultSchema {
             } while (clazz != null && !clazz.equals(Object.class));
             return null;
           });
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link TypeDescriptor}. If no
+     * provider is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(
+        TypeDescriptor<T> typeDescriptor) {
+      ProviderAndDescriptor providerAndDescriptor = getSchemaProvider(typeDescriptor);
+      return providerAndDescriptor != null ? providerAndDescriptor.schemaProvider : null;
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link Class}. If no provider
+     * is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(Class<T> clazz) {
+      return getUnderlyingSchemaProvider(TypeDescriptor.of(clazz));
     }
 
     @Override

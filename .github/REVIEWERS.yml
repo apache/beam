@@ -1,0 +1,97 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# If you would like to be excluded from consideration for reviewing a certain label,
+# add yourself to that label's exclusionList
+# FallbackReviewers is for reviewers who can review any area of the code base that might
+# not receive a label. These should generally be more experienced committers.
+labels:
+  - name: Go
+    reviewers:
+      - lostluck
+      - jrmccluskey
+    exclusionList:
+      - youngoli
+  - name: Python
+    reviewers:
+      - damccorm
+      - jrmccluskey
+      - tvalentyn
+      - liferoad
+      - shunping
+    exclusionList: []
+  - name: Java
+    reviewers:
+      - Abacn
+      - kennknowles
+      - robertwb
+      - m-trieu
+      - damondouglas
+    exclusionList: []
+  - name: IO
+    reviewers:
+      - chamikaramj
+      - johnjcasey
+      - Abacn
+      - ahmedabu98
+      - damondouglas
+      - shunping
+    exclusionList: []
+  - name: spanner
+    reviewers:
+      - nielm
+  - name: bigtable
+    reviewers:
+      - igorbernstein2
+      - mutianf
+      - djyau
+      - andre-sampaio
+      - meeral-k
+    exclusionList: []
+  - name: healthcare
+    reviewers:
+      - svetakvsundhar
+    exclusionList: []
+  - name: kafka
+    reviewers:
+      - johnjcasey
+      - fozzie15
+      - Dippatel98
+      - sjvanrossum
+  - name: Build
+    reviewers:
+      - damccorm
+      - Abacn
+    exclusionList: []
+  - name: website
+    reviewers:
+      - rszper
+      - melap
+      - damccorm
+      - liferoad
+      - kennknowles
+    exclusionList: []
+fallbackReviewers:
+  - Abacn
+  - chamikaramj
+  - damccorm
+  - damondouglas
+  - johnjcasey
+  - jrmccluskey
+  - kennknowles
+  - lostluck
+  - robertwb
+  - shunping
+  - tvalentyn

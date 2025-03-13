@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sketching;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.tdunning.math.stats.Centroid;
 import com.tdunning.math.stats.MergingDigest;
@@ -119,6 +119,7 @@ public class TDigestQuantilesTest {
     }
     TDigestQuantilesFn fn = TDigestQuantilesFn.create(100);
     MergingDigest res = fn.mergeAccumulators(accums);
+    Assert.assertEquals(3000, res.size());
   }
 
   private <T> boolean encodeDecodeEquals(MergingDigest tDigest) throws IOException {

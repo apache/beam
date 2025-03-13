@@ -17,19 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import com.google.cloud.pubsub.v1.AckReplyConsumer;
+import com.google.cloud.pubsub.v1.MessageReceiver;
+import com.google.cloud.pubsub.v1.Subscriber;
+import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
+import com.google.pubsub.v1.PushConfig;
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.state.BagState;
@@ -50,11 +54,13 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.Seconds;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -67,6 +73,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class TestPubsubSignal implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
   private static final String RESULT_TOPIC_NAME = "result";
@@ -74,13 +86,15 @@ public class TestPubsubSignal implements TestRule {
   private static final String START_TOPIC_NAME = "start";
   private static final String START_SIGNAL_MESSAGE = "START SIGNAL";
 
-  private static final String NO_ID_ATTRIBUTE = null;
-  private static final String NO_TIMESTAMP_ATTRIBUTE = null;
+  private final TestPubsubOptions pipelineOptions;
+  private final String pubsubEndpoint;
 
-  PubsubClient pubsub;
-  private TestPubsubOptions pipelineOptions;
+  private @Nullable TopicAdminClient topicAdmin = null;
+  private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath resultTopicPath = null;
   private @Nullable TopicPath startTopicPath = null;
+  private @Nullable SubscriptionPath resultSubscriptionPath = null;
+  private @Nullable SubscriptionPath startSubscriptionPath = null;
 
   /**
    * Creates an instance of this rule.
@@ -94,6 +108,7 @@ public class TestPubsubSignal implements TestRule {
 
   private TestPubsubSignal(TestPubsubOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
+    this.pubsubEndpoint = PubsubOptions.targetForRootUrl(this.pipelineOptions.getPubsubRootUrl());
   }
 
   @Override
@@ -101,7 +116,7 @@ public class TestPubsubSignal implements TestRule {
     return new Statement() {
       @Override
       public void evaluate() throws Throwable {
-        if (TestPubsubSignal.this.pubsub != null) {
+        if (topicAdmin != null || subscriptionAdmin != null) {
           throw new AssertionError(
               "Pubsub client was not shutdown in previous test. "
                   + "Topic path is'"
@@ -122,9 +137,18 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
-    pubsub =
-        PubsubGrpcClient.FACTORY.newClient(
-            NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
+    topicAdmin =
+        TopicAdminClient.create(
+            TopicAdminSettings.newBuilder()
+                .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setEndpoint(pubsubEndpoint)
+                .build());
+    subscriptionAdmin =
+        SubscriptionAdminClient.create(
+            SubscriptionAdminSettings.newBuilder()
+                .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setEndpoint(pubsubEndpoint)
+                .build());
 
     // Example topic name:
     //    integ-test-TestClassName-testMethodName-2018-12-11-23-32-333-<random-long>-result
@@ -134,29 +158,71 @@ public class TestPubsubSignal implements TestRule {
     TopicPath startTopicPathTmp =
         PubsubClient.topicPathFromName(
             pipelineOptions.getProject(), createTopicName(description, START_TOPIC_NAME));
+    SubscriptionPath resultSubscriptionPathTmp =
+        PubsubClient.subscriptionPathFromName(
+            pipelineOptions.getProject(),
+            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
+    SubscriptionPath startSubscriptionPathTmp =
+        PubsubClient.subscriptionPathFromName(
+            pipelineOptions.getProject(),
+            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
-    pubsub.createTopic(resultTopicPathTmp);
-    pubsub.createTopic(startTopicPathTmp);
-
-    // Set these after successful creation; this signals that they need teardown
+    // Set variables after successful creation; this signals that they need teardown
+    topicAdmin.createTopic(resultTopicPathTmp.getPath());
     resultTopicPath = resultTopicPathTmp;
+    topicAdmin.createTopic(startTopicPathTmp.getPath());
     startTopicPath = startTopicPathTmp;
+    subscriptionAdmin.createSubscription(
+        resultSubscriptionPathTmp.getPath(),
+        resultTopicPath.getPath(),
+        PushConfig.getDefaultInstance(),
+        600);
+    resultSubscriptionPath = resultSubscriptionPathTmp;
+    subscriptionAdmin.createSubscription(
+        startSubscriptionPathTmp.getPath(),
+        startTopicPath.getPath(),
+        PushConfig.getDefaultInstance(),
+        600);
+    startSubscriptionPath = startSubscriptionPathTmp;
   }
 
-  private void tearDown() throws IOException {
-    if (pubsub == null) {
+  private static void logIfThrows(ThrowingRunnable runnable) {
+    try {
+      runnable.run();
+    } catch (Exception e) {
+      LOG.error("Failed to clean up resource.", e);
+    }
+  }
+
+  private void tearDown() {
+    if (subscriptionAdmin == null || topicAdmin == null) {
       return;
     }
 
-    try {
-      if (resultTopicPath != null) {
-        pubsub.deleteTopic(resultTopicPath);
-      }
-    } finally {
-      pubsub.close();
-      pubsub = null;
-      resultTopicPath = null;
+    if (resultSubscriptionPath != null) {
+      logIfThrows(() -> subscriptionAdmin.deleteSubscription(resultSubscriptionPath.getPath()));
     }
+    if (startSubscriptionPath != null) {
+      logIfThrows(() -> subscriptionAdmin.deleteSubscription(startSubscriptionPath.getPath()));
+    }
+    if (resultTopicPath != null) {
+      logIfThrows(() -> topicAdmin.deleteTopic(resultTopicPath.getPath()));
+    }
+    if (startTopicPath != null) {
+      logIfThrows(() -> topicAdmin.deleteTopic(startTopicPath.getPath()));
+    }
+
+    logIfThrows(subscriptionAdmin::close);
+    logIfThrows(topicAdmin::close);
+
+    subscriptionAdmin = null;
+    topicAdmin = null;
+
+    resultTopicPath = null;
+    startTopicPath = null;
+
+    resultSubscriptionPath = null;
+    startSubscriptionPath = null;
   }
 
   /** Outputs a message that the pipeline has started. */
@@ -203,15 +269,7 @@ public class TestPubsubSignal implements TestRule {
    * <p>This future must be created before running the pipeline. A subscription must exist prior to
    * the start signal being published, which occurs immediately upon pipeline startup.
    */
-  public Supplier<Void> waitForStart(Duration duration) throws IOException {
-    SubscriptionPath startSubscriptionPath =
-        PubsubClient.subscriptionPathFromName(
-            pipelineOptions.getProject(),
-            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
-
-    pubsub.createSubscription(
-        startTopicPath, startSubscriptionPath, (int) duration.getStandardSeconds());
-
+  public Supplier<Void> waitForStart(Duration duration) {
     return Suppliers.memoize(
         () -> {
           try {
@@ -226,60 +284,58 @@ public class TestPubsubSignal implements TestRule {
 
   /** Wait for a success signal for {@code duration}. */
   public void waitForSuccess(Duration duration) throws IOException {
-    SubscriptionPath resultSubscriptionPath =
-        PubsubClient.subscriptionPathFromName(
-            pipelineOptions.getProject(),
-            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
-
-    pubsub.createSubscription(
-        resultTopicPath, resultSubscriptionPath, (int) duration.getStandardSeconds());
-
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
-
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);
     }
   }
 
   private String pollForResultForDuration(
-      SubscriptionPath signalSubscriptionPath, Duration duration) throws IOException {
+      SubscriptionPath signalSubscriptionPath, Duration timeoutDuration) throws IOException {
 
-    List<PubsubClient.IncomingMessage> signal = null;
-    DateTime endPolling = DateTime.now().plus(duration.getMillis());
+    AtomicReference<String> result = new AtomicReference<>(null);
 
-    do {
+    MessageReceiver receiver =
+        (com.google.pubsub.v1.PubsubMessage message, AckReplyConsumer replyConsumer) -> {
+          LOG.info("Received message: {}", message.getData().toStringUtf8());
+          // Ignore empty messages
+          if (message.getData().isEmpty()) {
+            replyConsumer.ack();
+          }
+          if (result.compareAndSet(null, message.getData().toStringUtf8())) {
+            replyConsumer.ack();
+          } else {
+            replyConsumer.nack();
+          }
+        };
+
+    Subscriber subscriber =
+        Subscriber.newBuilder(signalSubscriptionPath.getPath(), receiver)
+            .setCredentialsProvider(pipelineOptions::getGcpCredential)
+            .setEndpoint(pubsubEndpoint)
+            .build();
+    subscriber.startAsync();
+
+    DateTime startTime = new DateTime();
+    int timeoutSeconds = timeoutDuration.toStandardSeconds().getSeconds();
+    while (result.get() == null
+        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds() < timeoutSeconds) {
       try {
-        signal = pubsub.pull(DateTime.now().getMillis(), signalSubscriptionPath, 1, false);
-        pubsub.acknowledge(
-            signalSubscriptionPath, signal.stream().map(m -> m.ackId).collect(toList()));
-        break;
-      } catch (StatusRuntimeException e) {
-        if (!Status.DEADLINE_EXCEEDED.equals(e.getStatus())) {
-          LOG.warn(
-              "(Will retry) Error while polling {} for signal: {}",
-              signalSubscriptionPath,
-              e.getStatus());
-        }
-        sleep(500);
+        Thread.sleep(1000);
+      } catch (InterruptedException ignored) {
       }
-    } while (DateTime.now().isBefore(endPolling));
+    }
 
-    if (signal == null) {
+    subscriber.stopAsync();
+    subscriber.awaitTerminated();
+
+    if (result.get() == null) {
       throw new AssertionError(
           String.format(
               "Did not receive signal on %s in %ss",
-              signalSubscriptionPath, duration.getStandardSeconds()));
+              signalSubscriptionPath, timeoutDuration.getStandardSeconds()));
     }
-
-    return new String(signal.get(0).elementBytes, UTF_8);
-  }
-
-  private void sleep(long t) {
-    try {
-      Thread.sleep(t);
-    } catch (InterruptedException ex) {
-      throw new RuntimeException(ex);
-    }
+    return result.get();
   }
 
   /** {@link PTransform} that signals once when the pipeline has started. */
@@ -336,11 +392,10 @@ public class TestPubsubSignal implements TestRule {
    * Stateful {@link DoFn} which caches the elements it sees and checks whether they satisfy the
    * predicate.
    *
-   * <p>When predicate is satisfied outputs "SUCCESS". If predicate throws execption, outputs
+   * <p>When predicate is satisfied outputs "SUCCESS". If predicate throws exception, outputs
    * "FAILURE".
    */
   static class StatefulPredicateCheck<T> extends DoFn<KV<String, ? extends T>, String> {
-    private final SerializableFunction<T, String> formatter;
     private SerializableFunction<Set<T>, Boolean> successPredicate;
     // keep all events seen so far in the state cell
 
@@ -354,7 +409,6 @@ public class TestPubsubSignal implements TestRule {
         SerializableFunction<T, String> formatter,
         SerializableFunction<Set<T>, Boolean> successPredicate) {
       this.seenEvents = StateSpecs.bag(coder);
-      this.formatter = formatter;
       this.successPredicate = successPredicate;
     }
 
@@ -368,9 +422,11 @@ public class TestPubsubSignal implements TestRule {
       // check if all elements seen so far satisfy the success predicate
       try {
         if (successPredicate.apply(eventsSoFar)) {
+          LOG.info("Predicate has been satisfied. Sending SUCCESS message.");
           context.output("SUCCESS");
         }
       } catch (Throwable e) {
+        LOG.error("Error while applying predicate.", e);
         context.output("FAILURE: " + e.getMessage());
       }
     }

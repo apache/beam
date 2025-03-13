@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -43,6 +43,10 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>{@link #combineFn} can also be used manually, in combination with state and with the {@link
  * Combine} transform.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class Sample {
 
   /** Returns a {@link CombineFn} that computes a fixed-sized uniform sample of its inputs. */
@@ -56,6 +60,14 @@ public class Sample {
    */
   public static <T> CombineFn<T, ?, Iterable<T>> anyCombineFn(int sampleSize) {
     return new SampleAnyCombineFn<>(sampleSize);
+  }
+
+  /**
+   * Returns a {@link CombineFn} that computes a single and potentially non-uniform sample value of
+   * its inputs.
+   */
+  public static <T> CombineFn<T, ?, T> anyValueCombineFn() {
+    return new AnyValueCombineFn<>();
   }
 
   /**
@@ -243,6 +255,36 @@ public class Sample {
     @Override
     public Iterable<T> extractOutput(List<T> accumulator) {
       return accumulator;
+    }
+  }
+
+  /** A {@link CombineFn} that combines into a single element. */
+  private static class AnyValueCombineFn<T> extends CombineFn<T, List<T>, T> {
+    private SampleAnyCombineFn internal;
+
+    private AnyValueCombineFn() {
+      internal = new SampleAnyCombineFn<>(1);
+    }
+
+    @Override
+    public List<T> createAccumulator() {
+      return internal.createAccumulator();
+    }
+
+    @Override
+    public List<T> addInput(List<T> accumulator, T input) {
+      return internal.addInput(accumulator, input);
+    }
+
+    @Override
+    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
+      return internal.mergeAccumulators(accumulators);
+    }
+
+    @Override
+    public T extractOutput(List<T> accumulator) {
+      Iterator<T> it = internal.extractOutput(accumulator).iterator();
+      return it.hasNext() ? it.next() : null;
     }
   }
 

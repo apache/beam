@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Operator working on some context. */
 @Audience(Audience.Type.INTERNAL)
@@ -31,8 +31,8 @@ public abstract class ShuffleOperator<InputT, KeyT, OutputT> extends Operator<Ou
     implements TypeAware.Key<KeyT>, WindowAware<InputT> {
 
   private final UnaryFunction<InputT, KeyT> keyExtractor;
-  @Nullable private final TypeDescriptor<KeyT> keyType;
-  @Nullable private final Window<InputT> window;
+  private final @Nullable TypeDescriptor<KeyT> keyType;
+  private final @Nullable Window<InputT> window;
 
   protected ShuffleOperator(
       @Nullable String name,

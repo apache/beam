@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -30,6 +30,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.state.StateSpec;
@@ -39,7 +42,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -49,17 +51,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationImpl;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollationImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Sort;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
@@ -88,6 +92,13 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *       make much sense to use ORDER BY with WINDOW.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
   private List<Boolean> orientation = new ArrayList<>();
@@ -101,11 +112,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       RelTraitSet traits,
       RelNode child,
       RelCollation collation,
-      RexNode offset,
-      RexNode fetch) {
+      @Nullable RexNode offset,
+      @Nullable RexNode fetch) {
     super(cluster, traits, child, collation, offset, fetch);
 
-    List<RexNode> fieldExps = getChildExps();
+    // https://issues.apache.org/jira/browse/CALCITE-4079?focusedCommentId=17165904&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-17165904
+    List<RexNode> fieldExps = getSortExps();
     RelCollationImpl collationImpl = (RelCollationImpl) collation;
     List<RelFieldCollation> collations = collationImpl.getFieldCollations();
     for (int i = 0; i < fieldExps.size(); i++) {
@@ -132,6 +144,22 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       RexLiteral offsetLiteral = (RexLiteral) offset;
       startIndex = ((BigDecimal) offsetLiteral.getValue()).intValue();
     }
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
+    // Sorting does not change rate or row count of the input.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
+    NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
+
+    final double rowSize = getRowType().getFieldCount();
+    final double cpu = inputEstimates.getRowCount() * inputEstimates.getRowCount() * rowSize;
+    final double cpuRate = inputEstimates.getRate() * inputEstimates.getWindow() * rowSize;
+    return BeamCostModel.FACTORY.makeCost(cpu, cpuRate);
   }
 
   public boolean isLimitOnly() {
@@ -164,7 +192,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       //    works only on bounded data.
       //  - Just LIMIT operates on unbounded data, but across windows.
       if (fieldIndices.isEmpty()) {
-        // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
+        // TODO(https://github.com/apache/beam/issues/19075)
         // Figure out which operations are per-window and which are not.
 
         return upstream
@@ -204,10 +232,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
         return rawStream
             .apply("flatten", Flatten.iterables())
-            .setSchema(
-                CalciteUtils.toSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
       }
     }
   }
@@ -288,7 +313,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
+  public static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
@@ -329,8 +354,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case VARCHAR:
             case DATE:
             case TIMESTAMP:
-              Comparable v1 = (Comparable) row1.getValue(fieldIndex);
-              Comparable v2 = (Comparable) row2.getValue(fieldIndex);
+              Comparable v1 = row1.getBaseValue(fieldIndex, Comparable.class);
+              Comparable v2 = row2.getBaseValue(fieldIndex, Comparable.class);
               fieldRet = v1.compareTo(v2);
               break;
             default:

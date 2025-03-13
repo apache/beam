@@ -20,9 +20,10 @@ package org.apache.beam.runners.samza.runtime;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 class SamzaAssignContext<InT, W extends BoundedWindow> extends WindowFn<InT, W>.AssignContext {
   private final WindowedValue<InT> value;
 

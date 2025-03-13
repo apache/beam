@@ -1,5 +1,3 @@
-import groovy.json.JsonOutput
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,45 +16,32 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+import java.util.stream.Collectors
+
 plugins {
   id 'org.apache.beam.module'
-  id 'ca.coglinc.javacc'
+  id 'org.javacc.javacc'
 }
 applyJavaNature(
+  generatedClassPatterns: [
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
+  ],
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
+  classesTriggerCheckerBugs: [
+    // TODO(https://github.com/apache/beam/issues/21068): This currently crashes with checkerframework 3.10.0
+    // when compiling :sdks:java:extensions:sql:compileJava with:
+    // message: class file for com.google.datastore.v1.Entity not found
+    // ; The Checker Framework crashed.  Please report the crash.
+    // Compilation unit: /usr/local/google/home/lcwik/git/beam/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider/datastore/DataStoreV1TableProvider.java
+    // Last visited tree at line 49 column 1:
+    // @AutoService(TableProvider.class)
+    // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found
+    'DataStoreV1TableProvider': 'TODO(https://github.com/apache/beam/issues/21068): Report the crash if still occurring on newest version',
+  ],
   // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'],
-  testShadowJar: true,
-  enableStrictDependencies: true,
-  shadowClosure: {
-    dependencies {
-      include(dependency(library.java.guava))
-      include(dependency(library.java.protobuf_java))
-      include(dependency(library.java.protobuf_java_util))
-      include(dependency("org.apache.calcite:.*"))
-      include(dependency("org.apache.calcite.avatica:.*"))
-      include(dependency("org.codehaus.janino:.*"))
-    }
-    // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
-      // com.google.common is too generic, need to exclude guava-testlib
-      exclude "com.google.common.collect.testing.**"
-      exclude "com.google.common.escape.testing.**"
-      exclude "com.google.common.testing.**"
-      exclude "com.google.common.util.concurrent.testing.**"
-    }
-    relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
-
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-
-  // Looking up the compiler factory in Calcite depends on having a properties
-  // file in the right location. We package one that is shading compatible
-  // in src/main/resources. Note that if this shaded path changes, that
-  // files name and contents need to be updated as well. TODO, swap to use
-  // getJavaRelocatedPath once the Maven build is no longer also shading this
-  // module.
-  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
-})
+  disableLintWarnings: ['dep-ann', 'rawtypes'],
+)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
@@ -69,56 +54,94 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.19.0"
-def avatica_version = "1.15.0"
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2102": "2.10.2",
+    "324": "3.2.4",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
+  // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
+  provided "org.immutables:value:2.8.8"
+  permitUnusedDeclared "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
-  fmppTask "org.freemarker:freemarker:2.3.28"
-  fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
-  shadow library.java.vendored_guava_20_0 // Internal use
-  compile library.java.guava // Interfaces with Calcite use this
-  compile "org.apache.calcite:calcite-core:$calcite_version"
-  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
-  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(":sdks:java:extensions:join-library")
-  shadow library.java.slf4j_api
-  shadow library.java.commons_codec
-  shadow library.java.commons_csv
-  shadow library.java.commons_lang3
-  shadow library.java.jackson_databind
-  shadow library.java.jackson_dataformat_yaml
-  shadow library.java.joda_time
-  shadow "com.alibaba:fastjson:1.2.49"
-  shadow "com.jayway.jsonpath:json-path:2.4.0"
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  fmppTask "org.freemarker:freemarker:2.3.31"
+  fmppTemplates library.java.vendored_calcite_1_28_0
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:avro")
+  implementation project(":sdks:java:extensions:join-library")
+  permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
+  implementation project(":sdks:java:extensions:sql:udf")
+  implementation project(path: ":runners:direct-java", configuration: "shadow")
+  implementation library.java.commons_codec
+  implementation library.java.commons_csv
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.vendored_calcite_1_28_0
+  implementation "org.codehaus.janino:janino:3.0.11"
+  implementation "org.codehaus.janino:commons-compiler:3.0.11"
+  implementation library.java.jackson_core
+  implementation library.java.mongo_java_driver
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_32_1_2_jre
   provided project(":sdks:java:io:kafka")
-  provided project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.proto_google_cloud_bigtable_v2
+  implementation library.java.google_api_services_bigquery
+  permitUnusedDeclared library.java.google_api_services_bigquery
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  implementation library.java.google_cloud_pubsublite
+  implementation project(":sdks:java:io:mongodb")
+  implementation library.java.avro
+  implementation library.java.protobuf_java
+  implementation library.java.protobuf_java_util
+  provided project(":sdks:java:io:parquet")
+  provided library.java.jackson_dataformat_xml
+  permitUnusedDeclared library.java.jackson_dataformat_xml
+  provided library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.quickcheck_core
-  shadowTestRuntimeClasspath library.java.slf4j_jdk14
-
-  // Dependencies that we don't directly reference
-  permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
-  permitUnusedDeclared library.java.jackson_dataformat_yaml
-
-  // Dependencies that are bundled in when we bundle Calcite
-  permitUsedUndeclared "org.codehaus.janino:janino:3.0.11"
-  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.11"
-
-  // Dependencies where one or the other appears "used" depending on classpath,
-  // but it doesn't matter which is used
-  permitUsedUndeclared "com.google.code.findbugs:jsr305:3.0.2"
-  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
+  testImplementation library.java.vendored_calcite_1_28_0
+  testImplementation library.java.vendored_guava_32_1_2_jre
+  testImplementation library.java.junit
+  testImplementation library.java.quickcheck_core
+  testImplementation library.java.testcontainers_kafka
+  testImplementation library.java.google_cloud_bigtable
+  testImplementation library.java.google_cloud_bigtable_client_core_config
+  testImplementation library.java.google_cloud_bigtable_emulator
+  testImplementation library.java.proto_google_cloud_bigtable_admin_v2
+  testImplementation library.java.proto_google_cloud_datastore_v1
+  testImplementation library.java.google_cloud_datastore_v1_proto_client
+  testImplementation library.java.kafka_clients
+  testImplementation project(":sdks:java:io:kafka")
+  testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
+  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
+  testRuntimeOnly library.java.slf4j_jdk14
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+  }
 }
 
-// Copy Caclcite templates and our own template into the build directory
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+    }
+  }
+}
+
+// Copy Calcite templates and our own template into the build directory
 // so we have one location for the FMPP task to parse.
 task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
@@ -127,11 +150,19 @@ task copyFmppTemplatesFromSrc(type: Copy) {
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
   File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
-    it.name.startsWith("calcite-core")
+    it.name.startsWith("beam-vendor-calcite")
   }.singleFile
   from zipTree(calciteCoreJar)
   include "**/Parser.jj"
   into "${project.buildDir}/templates-fmpp"
+  filter{
+    line ->
+      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
+  }
+  filter{
+    line ->
+      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
+  }
 }
 
 // Generate the FMPP sources from the FMPP templates.
@@ -171,7 +202,7 @@ idea {
 // Run basic SQL example
 task runBasicExample(type: JavaExec) {
   description = "Run basic SQL example"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }
@@ -179,13 +210,12 @@ task runBasicExample(type: JavaExec) {
 // Run SQL example on POJO inputs
 task runPojoExample(type: JavaExec) {
   description = "Run SQL example for PCollections of POJOs"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }
 
 task integrationTest(type: Test) {
-  group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
@@ -200,6 +230,7 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
+
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
           .sourceSets
@@ -209,8 +240,53 @@ task integrationTest(type: Test) {
   useJUnit { }
 }
 
+task preCommit {
+  dependsOn build
+  dependsOn runBasicExample
+  dependsOn runPojoExample
+
+  if (project.hasProperty("testJavaVersion")) {
+    var testVer = project.property("testJavaVersion")
+    dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
+  }
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests"
   dependsOn integrationTest
+}
+
+task emptyJar(type: Jar) {
+  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  from fileTree(dir: getTemporaryDir().createNewFile().toString())
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs SQL tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs SQL tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+    dependsOn emptyJar
+    // Pass jars used by Java UDF tests via system properties.
+    evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+    systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+    systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
+  }
+}
+
+test {
+  dependsOn emptyJar
+  // Pass jars used by Java UDF tests via system properties.
+  evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
 }

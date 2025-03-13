@@ -34,8 +34,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ThreadLeakTracker;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.LinkedListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -56,7 +56,7 @@ public class ExecutorServiceParallelExecutorTest {
   @Rule public final TestName testName = new TestName();
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+  @Ignore("https://github.com/apache/beam/issues/18950 Test reliably fails.")
   public void ensureMetricsThreadDoesntLeak() throws ExecutionException, InterruptedException {
     final DirectGraph graph =
         DirectGraph.create(
@@ -95,7 +95,7 @@ public class ExecutorServiceParallelExecutorTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+  @Ignore("https://github.com/apache/beam/issues/18950 Test reliably fails.")
   public void testNoThreadsLeakInPipelineExecution() {
     pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();

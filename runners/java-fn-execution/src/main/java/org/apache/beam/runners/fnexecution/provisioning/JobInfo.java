@@ -20,7 +20,7 @@ package org.apache.beam.runners.fnexecution.provisioning;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 
 /**
  * A subset of {@link org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo} that
@@ -43,8 +43,6 @@ public abstract class JobInfo implements Serializable {
 
   public ProvisionApi.ProvisionInfo toProvisionInfo() {
     return ProvisionApi.ProvisionInfo.newBuilder()
-        .setJobId(jobId())
-        .setJobName(jobName())
         .setRetrievalToken(retrievalToken())
         .setPipelineOptions(pipelineOptions())
         .build();

@@ -21,7 +21,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Class is the type "class" of data as distinguished by the runtime. The class
@@ -91,41 +92,64 @@ func ClassOf(t reflect.Type) Class {
 // data must be fully serializable. Functions and channels are examples of invalid
 // types. Aggregate types with no universals are considered concrete here.
 func IsConcrete(t reflect.Type) bool {
-	return isConcrete(t, make(map[uintptr]bool))
+	err := isConcrete(t, make(map[reflect.Type]bool))
+	return err == nil
 }
 
-func isConcrete(t reflect.Type, visited map[uintptr]bool) bool {
+// CheckConcrete returns true iff the given type is a valid "concrete" data type and if not,
+// returns false along with an error indicating why the type is not concrete. Concrete
+// data must be fully serializable. Functions and channels are examples of invalid
+// types. Aggregate types with no universals are considered concrete here.
+func CheckConcrete(t reflect.Type) (bool, error) {
+	err := isConcrete(t, make(map[reflect.Type]bool))
+	return err == nil, err
+}
+
+func isConcrete(t reflect.Type, visited map[reflect.Type]bool) error {
 	// Check that we haven't hit a recursive loop.
-	key := reflect.ValueOf(t).Pointer()
 	// If there's an invalid field in a recursive type
 	// then the layer above will find it.
-	if visited[key] {
-		return true
+	if visited[t] {
+		return nil
 	}
-	visited[key] = true
+	visited[t] = true
 
 	// Handle special types.
 	if t == nil ||
 		t == EventTimeType ||
 		t.Implements(WindowType) ||
+		t == PaneInfoType ||
+		t == TimersType ||
+		t == BundleFinalizationType ||
 		t == reflectx.Error ||
 		t == reflectx.Context ||
 		IsUniversal(t) {
-		return false
+		return errors.Errorf("Special type \"%v\" not permitted in concrete types", t)
 	}
 
 	switch t.Kind() {
 	case reflect.Invalid, reflect.UnsafePointer, reflect.Uintptr:
-		return false // no unmanageable types
+		return errors.Errorf("Type \"%v\" of kind \"%v\" not permitted in concrete types. All types must be manageable.", t, t.Kind()) // no unmanageable types
 
 	case reflect.Chan, reflect.Func:
-		return false // no unserializable types
+		return errors.Errorf("Type \"%v\" of kind \"%v\" not permitted in concrete types. All types must be serializable.", t, t.Kind()) // no unserializable types
 
 	case reflect.Map:
-		return isConcrete(t.Elem(), visited) && isConcrete(t.Key(), visited)
+		err := isConcrete(t.Elem(), visited)
+		if err == nil {
+			err = isConcrete(t.Key(), visited)
+		}
+		if err != nil {
+			err = errors.Wrapf(err, "Nested type in map \"%v\" not permitted in concrete types.", t)
+		}
+		return err
 
 	case reflect.Array, reflect.Slice, reflect.Ptr:
-		return isConcrete(t.Elem(), visited)
+		err := isConcrete(t.Elem(), visited)
+		if err != nil {
+			err = errors.Wrapf(err, "Nested type in %v \"%v\" not permitted in concrete types.", t.Kind(), t)
+		}
+		return err
 
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
@@ -137,34 +161,37 @@ func isConcrete(t reflect.Type, visited map[uintptr]bool) bool {
 			f := t.Field(i)
 			if len(f.Name) > 0 {
 				r, _ := utf8.DecodeRuneInString(f.Name)
-				if unicode.IsUpper(r) && !isConcrete(f.Type, visited) {
-					return false
+				if unicode.IsUpper(r) {
+					err := isConcrete(f.Type, visited)
+					if err != nil {
+						return errors.Wrapf(err, "Nested type in struct \"%v\" not permitted in concrete types.", t)
+					}
 				}
 			}
 		}
-		return true
+		return nil
 
 	case reflect.Interface:
 		// Interface types must fail at construction time if no coder is registered for them.
-		return true
+		return nil
 
 	case reflect.Bool:
-		return true
+		return nil
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return true
+		return nil
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return true
+		return nil
 
 	case reflect.Float32, reflect.Float64:
-		return true
+		return nil
 
 	case reflect.Complex64, reflect.Complex128:
-		return true
+		return nil
 
 	case reflect.String:
-		return true
+		return nil
 
 	default:
 		panic(fmt.Sprintf("Unexpected type kind: %v", t))
@@ -207,7 +234,7 @@ func IsUniversal(t reflect.Type) bool {
 // Composite marker types: KV, CoGBK or WindowedValue.
 func IsComposite(t reflect.Type) bool {
 	switch t {
-	case KVType, CoGBKType, WindowedValueType:
+	case KVType, CoGBKType, WindowedValueType, TimersType:
 		return true
 	default:
 		return false

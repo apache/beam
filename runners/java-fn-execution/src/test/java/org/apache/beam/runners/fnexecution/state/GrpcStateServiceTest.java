@@ -18,8 +18,8 @@
 package org.apache.beam.runners.fnexecution.state;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,10 +31,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -43,7 +45,11 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link org.apache.beam.runners.fnexecution.state.GrpcStateService}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class GrpcStateServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final long TIMEOUT_MS = 30 * 1000;
 
   private GrpcStateService stateService;
@@ -75,7 +81,7 @@ public class GrpcStateServiceTest {
 
     // send state request
     BeamFnApi.StateRequest request =
-        BeamFnApi.StateRequest.newBuilder().setInstructionReference(bundleInstructionId).build();
+        BeamFnApi.StateRequest.newBuilder().setInstructionId(bundleInstructionId).build();
     requestObserver.onNext(request);
 
     // assert behavior
@@ -113,7 +119,7 @@ public class GrpcStateServiceTest {
 
     // send state request
     BeamFnApi.StateRequest request =
-        BeamFnApi.StateRequest.newBuilder().setInstructionReference(bundleInstructionId).build();
+        BeamFnApi.StateRequest.newBuilder().setInstructionId(bundleInstructionId).build();
     requestObserver.onNext(request);
 
     // wait for response

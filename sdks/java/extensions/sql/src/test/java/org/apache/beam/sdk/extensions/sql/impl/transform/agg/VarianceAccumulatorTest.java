@@ -100,7 +100,9 @@ public class VarianceAccumulatorTest {
     //   var(combine(x,y)) = 15 + 16 + increment() = 31.011904762
     VarianceAccumulator expectedCombined =
         newVarianceAccumulator(
-            FIFTEEN.add(SIXTEEN).add(new BigDecimal(0.011904762)), THREE.add(FOUR), FOUR.add(FIVE));
+            FIFTEEN.add(SIXTEEN).add(new BigDecimal("0.011904762")),
+            THREE.add(FOUR),
+            FOUR.add(FIVE));
 
     VarianceAccumulator combined1 = accumulator1.combineWith(accumulator2);
     VarianceAccumulator combined2 = accumulator2.combineWith(accumulator1);

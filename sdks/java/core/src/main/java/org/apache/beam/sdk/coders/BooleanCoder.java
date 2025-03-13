@@ -39,7 +39,13 @@ public class BooleanCoder extends AtomicCoder<Boolean> {
 
   @Override
   public Boolean decode(InputStream is) throws IOException {
-    return BYTE_CODER.decode(is) == 1;
+    Byte value = BYTE_CODER.decode(is);
+    if (value == 0) {
+      return false;
+    } else if (value == 1) {
+      return true;
+    }
+    throw new IOException(String.format("Expected 0 or 1, got %d", value));
   }
 
   @Override

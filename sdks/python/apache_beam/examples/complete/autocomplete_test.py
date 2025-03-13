@@ -17,11 +17,11 @@
 
 """Test for the autocomplete example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
@@ -36,6 +36,15 @@ class AutocompleteTest(unittest.TestCase):
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
   KINGLEAR_HASH_SUM = 268011785062540
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
+  EXPECTED_PREFIXES = [
+      ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
+      ('to', ((3, 'to'), )),
+      ('th', ((2, 'this'), (1, 'that'))),
+      ('thi', ((2, 'this'), )),
+      ('this', ((2, 'this'), )),
+      ('tha', ((1, 'that'), )),
+      ('that', ((1, 'that'), )),
+  ]
 
   def test_top_prefixes(self):
     with TestPipeline() as p:
@@ -43,28 +52,20 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(5)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      assert_that(result, equal_to(
-          [
-              ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
-              ('to', ((3, 'to'), )),
-              ('th', ((2, 'this'), (1, 'that'))),
-              ('thi', ((2, 'this'), )),
-              ('this', ((2, 'this'), )),
-              ('tha', ((1, 'that'), )),
-              ('that', ((1, 'that'), )),
-          ]))
+      assert_that(result, equal_to(self.EXPECTED_PREFIXES))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_autocomplete_it(self):
     with TestPipeline(is_integration_test=True) as p:
       words = p | beam.io.ReadFromText(self.KINGLEAR_INPUT)
       result = words | autocomplete.TopPerPrefix(10)
       # values must be hashable for now
-      result = result | beam.Map(lambda k_vs: [k_vs[0],
-                                               k_vs[1][0][0], k_vs[1][0][1]])
-      checksum = (result
-                  | beam.Map(lambda x: int(compute_hash(x)[:8], 16))
-                  | beam.CombineGlobally(sum))
+      result = result | beam.Map(
+          lambda k_vs: [k_vs[0], k_vs[1][0][0], k_vs[1][0][1]])
+      checksum = (
+          result
+          | beam.Map(lambda x: int(compute_hash(x)[:8], 16))
+          | beam.CombineGlobally(sum))
 
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
 

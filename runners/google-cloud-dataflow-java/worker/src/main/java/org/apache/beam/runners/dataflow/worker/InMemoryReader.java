@@ -18,23 +18,23 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +43,9 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> the type of the elements read from the source
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class InMemoryReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryReader.class);
 
@@ -76,7 +79,7 @@ public class InMemoryReader<T> extends NativeReader<T> {
   /** A ReaderIterator that yields an in-memory list of elements. */
   class InMemoryReaderIterator extends NativeReaderIterator<T> {
     @VisibleForTesting OffsetRangeTracker tracker;
-    @Nullable private Integer lastReturnedIndex;
+    private @Nullable Integer lastReturnedIndex;
     private Optional<T> current;
 
     public InMemoryReaderIterator() {
@@ -170,9 +173,8 @@ public class InMemoryReader<T> extends NativeReader<T> {
           SourceTranslationUtils.cloudPositionToReaderPosition(splitPosition));
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() {
+    public @Nullable DynamicSplitResult requestCheckpoint() {
       if (!tracker.trySplitAtPosition(lastReturnedIndex + 1)) {
         return null;
       }

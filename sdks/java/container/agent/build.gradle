@@ -1,0 +1,81 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'org.apache.beam.module'
+}
+
+// the order is intended here
+// Overwrite javaVersion global property if corresponding project property specified
+if (project.hasProperty('java11Home')) {
+    javaVersion = "1.11"
+} else if (project.hasProperty('java17Home')) {
+    javaVersion = "1.17"
+} else if (project.hasProperty('java21Home')) {
+    javaVersion = "1.21"
+} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+    // Otherwise, compile the project with java11 spec
+    javaVersion = "1.11"
+}
+
+applyJavaNature(
+    exportJavadoc: false,
+    publish: false
+)
+
+description = "Apache Beam :: SDKs :: Java :: Container :: Agent"
+
+jar {
+    manifest {
+        attributes("Agent-Class": "org.apache.beam.agent.OpenModuleAgent",
+                "Can-Redefine-Classes": true,
+                "Can-Retransform-Classes": true,
+                "Premain-Class": "org.apache.beam.agent.OpenModuleAgent")
+    }
+}
+
+// the order is intended here
+if (project.hasProperty('java11Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '11')
+    }
+} else if (project.hasProperty('java17Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '17')
+
+        checkerFramework {
+            skipCheckerFramework = true
+        }
+    }
+} else if (project.hasProperty('java21Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '21')
+
+        checkerFramework {
+            skipCheckerFramework = true
+        }
+    }
+}
+
+// Module classes requires JDK > 8
+project.tasks.each {
+    it.onlyIf {
+        project.hasProperty('java11Home') || project.hasProperty('java17Home') || project.hasProperty('java21Home')
+                || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
+    }
+}

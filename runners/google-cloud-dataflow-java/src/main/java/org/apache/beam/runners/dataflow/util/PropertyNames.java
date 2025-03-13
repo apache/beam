@@ -46,22 +46,31 @@ public class PropertyNames {
   public static final String PARALLEL_INPUT = "parallel_input";
   public static final String PUBSUB_ID_ATTRIBUTE = "pubsub_id_label";
   public static final String PUBSUB_SERIALIZED_ATTRIBUTES_FN = "pubsub_serialized_attributes_fn";
+
   public static final String PUBSUB_SUBSCRIPTION = "pubsub_subscription";
   public static final String PUBSUB_SUBSCRIPTION_OVERRIDE = "pubsub_subscription_runtime_override";
   public static final String PUBSUB_TIMESTAMP_ATTRIBUTE = "pubsub_timestamp_label";
   public static final String PUBSUB_TOPIC = "pubsub_topic";
   public static final String PUBSUB_TOPIC_OVERRIDE = "pubsub_topic_runtime_override";
+
+  public static final String PUBSUB_DYNAMIC_DESTINATIONS = "pubsub_with_dynamic_destinations";
+
   public static final String SCALAR_FIELD_NAME = "value";
   public static final String SERIALIZED_FN = "serialized_fn";
+  public static final String SERIALIZED_TEST_STREAM = "serialized_test_stream";
   public static final String SORT_VALUES = "sort_values";
   public static final String TUPLE_TAGS = "tuple_tags";
   public static final String USE_INDEXED_FORMAT = "use_indexed_format";
   public static final String USER_FN = "user_fn";
   public static final String USER_NAME = "user_name";
   public static final String USES_KEYED_STATE = "uses_keyed_state";
+  public static final String ALLOWS_SHARDABLE_STATE = "allows_shardable_state";
   public static final String VALUE = "value";
   public static final String WINDOWING_STRATEGY = "windowing_strategy";
   public static final String DISPLAY_DATA = "display_data";
+  public static final String RESOURCE_HINTS = "resource_hints";
+  public static final String PRESERVES_KEYS = "preserves_keys";
+  public static final String ALLOW_DUPLICATES = "allow_duplicates";
   /**
    * @deprecated Uses the incorrect terminology. {@link #RESTRICTION_ENCODING}. Should be removed
    *     once non FnAPI SplittableDoFn expansion for Dataflow is removed.

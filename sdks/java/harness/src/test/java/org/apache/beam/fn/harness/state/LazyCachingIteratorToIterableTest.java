@@ -25,8 +25,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterators;
+import org.apache.beam.sdk.fn.stream.PrefetchableIteratorsTest.ReadyAfterPrefetch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,7 +43,8 @@ public class LazyCachingIteratorToIterableTest {
 
   @Test
   public void testEmptyIterator() {
-    Iterable<Object> iterable = new LazyCachingIteratorToIterable<>(Iterators.forArray());
+    Iterable<Object> iterable =
+        new LazyCachingIteratorToIterable<>(PrefetchableIterators.emptyIterator());
     assertArrayEquals(new Object[0], Iterables.toArray(iterable, Object.class));
     // iterate multiple times
     assertArrayEquals(new Object[0], Iterables.toArray(iterable, Object.class));
@@ -52,7 +56,7 @@ public class LazyCachingIteratorToIterableTest {
   @Test
   public void testInterleavedIteration() {
     Iterable<String> iterable =
-        new LazyCachingIteratorToIterable<>(Iterators.forArray("A", "B", "C"));
+        new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray("A", "B", "C"));
 
     Iterator<String> iterator1 = iterable.iterator();
     assertTrue(iterator1.hasNext());
@@ -77,14 +81,45 @@ public class LazyCachingIteratorToIterableTest {
 
   @Test
   public void testEqualsAndHashCode() {
-    Iterable<String> iterA = new LazyCachingIteratorToIterable<>(Iterators.forArray("A", "B", "C"));
-    Iterable<String> iterB = new LazyCachingIteratorToIterable<>(Iterators.forArray("A", "B", "C"));
-    Iterable<String> iterC = new LazyCachingIteratorToIterable<>(Iterators.forArray());
-    Iterable<String> iterD = new LazyCachingIteratorToIterable<>(Iterators.forArray());
+    Iterable<String> iterA =
+        new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray("A", "B", "C"));
+    Iterable<String> iterB =
+        new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray("A", "B", "C"));
+    Iterable<String> iterC = new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray());
+    Iterable<String> iterD = new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray());
     assertEquals(iterA, iterB);
     assertEquals(iterC, iterD);
     assertNotEquals(iterA, iterC);
     assertEquals(iterA.hashCode(), iterB.hashCode());
     assertEquals(iterC.hashCode(), iterD.hashCode());
+  }
+
+  @Test
+  public void testPrefetch() {
+    ReadyAfterPrefetch<String> underlying =
+        new ReadyAfterPrefetch<>(PrefetchableIterators.fromArray("A", "B", "C"));
+    PrefetchableIterable<String> iterable = new LazyCachingIteratorToIterable<>(underlying);
+    PrefetchableIterator<String> iterator1 = iterable.iterator();
+    PrefetchableIterator<String> iterator2 = iterable.iterator();
+
+    // Check that the lazy iterable doesn't do any prefetch/access on instantiation
+    assertFalse(underlying.isReady());
+    assertFalse(iterator1.isReady());
+    assertFalse(iterator2.isReady());
+
+    // Check that if both iterators prefetch there is only one prefetch for the underlying iterator
+    // iterator.
+    iterator1.prefetch();
+    assertEquals(1, underlying.getNumPrefetchCalls());
+    iterator2.prefetch();
+    assertEquals(1, underlying.getNumPrefetchCalls());
+
+    // Check that if that one iterator has advanced, the second doesn't perform any prefetch since
+    // the element is now cached.
+    iterator1.next();
+    iterator1.next();
+    iterator2.next();
+    iterator2.prefetch();
+    assertEquals(1, underlying.getNumPrefetchCalls());
   }
 }

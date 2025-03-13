@@ -31,12 +31,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /** DoFnRunner decorator which registers {@link MetricsContainerImpl}. */
-class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> delegate;
   private final String stepName;
   private final MetricsContainerStepMapAccumulator metricsAccum;
 
-  DoFnRunnerWithMetrics(
+  public DoFnRunnerWithMetrics(
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
       MetricsContainerStepMapAccumulator metricsAccum) {
@@ -69,13 +69,16 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       final String timerId,
+      final String timerFamilyId,
+      final KeyT key,
       final BoundedWindow window,
       final Instant timestamp,
+      final Instant outputTimestamp,
       final TimeDomain timeDomain) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
-      delegate.onTimer(timerId, window, timestamp, timeDomain);
+      delegate.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -88,6 +91,11 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    delegate.onWindowExpiration(window, timestamp, key);
   }
 
   private MetricsContainer metricsContainer() {

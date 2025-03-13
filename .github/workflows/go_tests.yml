@@ -1,0 +1,69 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Go tests
+
+on:
+  schedule:
+    - cron: '10 2 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*', '.github/workflows/go_test.yml']
+  workflow_dispatch:
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    name: Go Build
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          go-version: default
+      - name: Delete old coverage
+        run: "cd sdks && rm -rf .coverage.txt || :"
+      - name: Run coverage
+        run: cd sdks && go test -timeout=25m -coverprofile=coverage.txt -covermode=atomic ./go/pkg/... ./go/container/... ./java/container/... ./python/container/... ./typescript/container/...
+      - uses: codecov/codecov-action@v3
+        with:
+          flags: go 
+          files: ./sdks/coverage.txt
+          name: go-unittests
+      - name: Run fmt
+        run: cd sdks/go/pkg/beam && go fmt ./...; git diff-index --quiet HEAD || (echo "Run go fmt before checking in changes" && exit 1)
+      - name: Run vet
+        run: | 
+          cd sdks/go/pkg/beam 
+          go vet --copylocks=false --unsafeptr=false ./...
+      - name: Run Staticcheck
+        run: |
+          go install "honnef.co/go/tools/cmd/staticcheck@2025.1.1"
+          cd sdks/go/pkg/beam
+          $(go env GOPATH)/bin/staticcheck ./...

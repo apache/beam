@@ -1,0 +1,132 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+$padding: 24px;
+.table-wrapper {
+  margin-top: 64px;
+
+  table {
+    @extend .table;
+    max-width: 853px;
+  }
+  th:nth-child(1) {
+    @media (max-width: $mobile) {
+      padding-left: 0 !important;
+      width: 115px;
+    }
+    padding-left: 67px + $padding !important;
+    width: 491px;
+  }
+  th:nth-child(2) {
+    @media (max-width: $mobile) {
+      width: 111px;
+    }
+    width: 181px;
+  }
+  th {
+    padding: 14px 14px 17px 14px !important;
+    border: none !important;
+    border-bottom: 1px solid #ff6d05 !important;
+    letter-spacing: 2px;
+    line-height: normal !important;
+    text-transform: uppercase;
+  }
+  td {
+    @media (max-width: $mobile) {
+      padding: $padding/4 !important;
+    }
+    padding: $padding !important;
+    border-bottom: 1px solid rgba(255, 109, 5, 0.24);
+    div {
+      display: flex;
+      position: relative;
+    }
+    img,
+    svg {
+      @media (max-width: $mobile) {
+        display: none;
+      }
+      position: absolute;
+      top: 50%;
+      transform: translateY(-60%);
+    }
+    .just-copy {
+      img {
+        @media (max-width: $mobile) {
+          display: block;
+        }
+        top: 5px;
+        right: 5px;
+        transform: none;
+      }
+    }
+    p {
+      @media (max-width: $mobile) {
+        margin: 0;
+      }
+      margin-left: 67px;
+      font-size: 14px;
+      line-height: 1.57;
+    }
+  }
+  td:nth-child(3) {
+    @media (max-width: $mobile) {
+      padding: $padding/3 !important;
+      padding-left: $padding/4 !important;
+    }
+    padding: $padding/3 !important;
+    padding-left: $padding !important;
+    div {
+      flex-direction: column;
+    }
+    a {
+      text-decoration: underline;
+      line-height: 2;
+      letter-spacing: 0.43px;
+    }
+  }
+  td:nth-child(2) {
+    background-color: rgba(255, 109, 0, 0.04);
+    padding-left: $padding/2 !important;
+    padding-right: 0 !important;
+    line-height: 1.57;
+    letter-spacing: 0.43px;
+  }
+  a {
+    color: #f26628;
+  }
+}
+
+.table-bordered-wrapper {
+  table {
+    @extend .table-bordered;
+  }
+}
+
+.table-wrapper--equal-p {
+   td:nth-child(n) {
+     @media (max-width: $mobile) {
+       padding: $padding/4 !important;
+     }
+     padding: $padding !important;
+   }
+}
+
+.table-wrapper--pr {
+  td, th {
+    padding-right: $padding/1.5;
+  }
+}

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -30,39 +31,52 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.zip.GZIPOutputStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -74,6 +88,8 @@ public class FileIOTest implements Serializable {
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   @Test
   @Category(NeedsRunner.class)
@@ -113,7 +129,7 @@ public class FileIOTest implements Serializable {
                 FileIO.match()
                     .filepattern(tmpFolder.getRoot().getAbsolutePath() + "/blah")
                     .withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW)))
-        .containsInAnyOrder();
+        .empty();
     PAssert.that(
             p.apply(
                     "Create non-existing",
@@ -121,7 +137,7 @@ public class FileIOTest implements Serializable {
                 .apply(
                     "MatchAll non-existing ALLOW",
                     FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW)))
-        .containsInAnyOrder();
+        .empty();
 
     PAssert.that(
             p.apply(
@@ -129,7 +145,7 @@ public class FileIOTest implements Serializable {
                 FileIO.match()
                     .filepattern(tmpFolder.getRoot().getAbsolutePath() + "/blah*")
                     .withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)))
-        .containsInAnyOrder();
+        .empty();
     PAssert.that(
             p.apply(
                     "Create non-existing wildcard + explicit",
@@ -138,13 +154,13 @@ public class FileIOTest implements Serializable {
                     "MatchAll non-existing ALLOW_IF_WILDCARD",
                     FileIO.matchAll()
                         .withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)))
-        .containsInAnyOrder();
+        .empty();
     PAssert.that(
             p.apply(
                     "Create non-existing wildcard + default",
                     Create.of(tmpFolder.getRoot().getAbsolutePath() + "/blah*"))
                 .apply("MatchAll non-existing default", FileIO.matchAll()))
-        .containsInAnyOrder();
+        .empty();
 
     p.run();
   }
@@ -200,6 +216,48 @@ public class FileIOTest implements Serializable {
     p.run();
   }
 
+  /** DoFn that copy test files from source to watch path. */
+  private static class CopyFilesFn
+      extends DoFn<KV<String, MatchResult.Metadata>, MatchResult.Metadata> {
+    public CopyFilesFn(Path sourcePath, Path watchPath) {
+      this.sourcePathStr = sourcePath.toString();
+      this.watchPathStr = watchPath.toString();
+    }
+
+    @StateId("count")
+    @SuppressWarnings("unused")
+    private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value(VarIntCoder.of());
+
+    @ProcessElement
+    public void processElement(ProcessContext context, @StateId("count") ValueState<Integer> count)
+        throws IOException, InterruptedException {
+      int current = firstNonNull(count.read(), 0);
+      // unpack value as output
+      context.output(Objects.requireNonNull(context.element()).getValue());
+
+      CopyOption[] cpOptions = {StandardCopyOption.COPY_ATTRIBUTES};
+      CopyOption[] updOptions = {StandardCopyOption.REPLACE_EXISTING};
+      final Path sourcePath = Paths.get(sourcePathStr);
+      final Path watchPath = Paths.get(watchPathStr);
+
+      if (0 == current) {
+        Thread.sleep(100);
+        Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
+        Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), cpOptions);
+      } else if (1 == current) {
+        Thread.sleep(100);
+        Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
+        Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), updOptions);
+        Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), cpOptions);
+      }
+      count.write(current + 1);
+    }
+
+    // Member variables need to be serializable.
+    private final String sourcePathStr;
+    private final String watchPathStr;
+  }
+
   @Test
   @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
@@ -215,43 +273,64 @@ public class FileIOTest implements Serializable {
     watchPath.toFile().mkdir();
     PCollection<MatchResult.Metadata> matchMetadata =
         p.apply(
+            "match filename through match",
             FileIO.match()
                 .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
-        p.apply(Create.of(watchPath.resolve("*").toString()))
+        p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
             .apply(
+                "match filename through matchAll",
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+    PCollection<MatchResult.Metadata> matchUpdatedMetadata =
+        p.apply(
+            "match updated",
+            FileIO.match()
+                .filepattern(watchPath.resolve("first").toString())
+                .continuously(
+                    Duration.millis(100),
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                    true));
+    PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
+        p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
+            .apply(
+                "matchAll updated",
+                FileIO.matchAll()
+                    .continuously(
+                        Duration.millis(100),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                        true));
+
+    // write one file at the beginning. This will trigger the first output for matchAll
+    Files.copy(
+        sourcePath.resolve("first"),
+        watchPath.resolve("first"),
+        new StandardCopyOption[] {StandardCopyOption.COPY_ATTRIBUTES});
+
+    // using matchMetadata outputs to trigger file copy on-the-fly
+    matchMetadata =
+        matchMetadata
+            .apply(
+                MapElements.into(
+                        TypeDescriptors.kvs(
+                            TypeDescriptors.strings(),
+                            TypeDescriptor.of(MatchResult.Metadata.class)))
+                    .via((metadata) -> KV.of("dumb key", metadata)))
+            .apply(ParDo.of(new CopyFilesFn(sourcePath, watchPath)));
+
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
-
-    // Copy the files to the "watch" directory, preserving the lastModifiedTime;
-    // the COPY_ATTRIBUTES option ensures that we will at a minimum copy lastModifiedTime.
-    CopyOption[] copyOptions = {StandardCopyOption.COPY_ATTRIBUTES};
-    Thread writer =
-        new Thread(
-            () -> {
-              try {
-                Thread.sleep(1000);
-                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), copyOptions);
-                Thread.sleep(300);
-                Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), copyOptions);
-                Thread.sleep(300);
-                Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), copyOptions);
-              } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-            });
-    writer.start();
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchUpdatedMetadata.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllUpdatedMetadata.isBounded());
 
     // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
     // with the writer thread.
-    List<MatchResult.Metadata> expected =
+    List<MatchResult.Metadata> expectedMatchNew =
         Arrays.asList(
             metadata(
                 watchPath.resolve("first"), 42, lastModifiedMillis(sourcePath.resolve("first"))),
@@ -259,11 +338,29 @@ public class FileIOTest implements Serializable {
                 watchPath.resolve("second"), 37, lastModifiedMillis(sourcePath.resolve("second"))),
             metadata(
                 watchPath.resolve("third"), 99, lastModifiedMillis(sourcePath.resolve("third"))));
-    PAssert.that(matchMetadata).containsInAnyOrder(expected);
-    PAssert.that(matchAllMetadata).containsInAnyOrder(expected);
-    p.run();
+    PAssert.that(matchMetadata).containsInAnyOrder(expectedMatchNew);
+    PAssert.that(matchAllMetadata).containsInAnyOrder(expectedMatchNew);
 
-    writer.join();
+    List<String> expectedMatchUpdated = Arrays.asList("first", "first", "first");
+    PCollection<String> matchUpdatedCount =
+        matchUpdatedMetadata.apply(
+            "pick up match file name",
+            MapElements.into(TypeDescriptors.strings())
+                .via((metadata) -> metadata.resourceId().getFilename()));
+    PAssert.that(matchUpdatedCount).containsInAnyOrder(expectedMatchUpdated);
+
+    // Check watch for file updates. Compare only filename since modified time of copied files are
+    // uncontrolled.
+    List<String> expectedMatchAllUpdated =
+        Arrays.asList("first", "first", "first", "second", "second", "third");
+    PCollection<String> matchAllUpdatedCount =
+        matchAllUpdatedMetadata.apply(
+            "pick up matchAll file names",
+            MapElements.into(TypeDescriptors.strings())
+                .via((metadata) -> metadata.resourceId().getFilename()));
+    PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
+
+    p.run();
   }
 
   @Test
@@ -271,10 +368,10 @@ public class FileIOTest implements Serializable {
   public void testRead() throws IOException {
     final String path = tmpFolder.newFile("file").getAbsolutePath();
     final String pathGZ = tmpFolder.newFile("file.gz").getAbsolutePath();
-    Files.write(new File(path).toPath(), "Hello world".getBytes(Charsets.UTF_8));
+    Files.write(new File(path).toPath(), "Hello world".getBytes(StandardCharsets.UTF_8));
     try (Writer writer =
         new OutputStreamWriter(
-            new GZIPOutputStream(new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
+            new GZIPOutputStream(new FileOutputStream(pathGZ)), StandardCharsets.UTF_8)) {
       writer.write("Hello world");
     }
 

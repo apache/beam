@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -33,20 +33,23 @@ interface BigQuerySourceDef extends Serializable {
    *
    * @param stepUuid Job UUID
    * @param coder Coder
-   * @param parseFn Parse function
+   * @param readerFactory Reader factory
+   * @param useAvroLogicalTypes Use avro logical types i.e DATE, TIME
    * @param <T> Type of the resulting PCollection
    * @return An implementation of {@link BigQuerySourceBase}
    */
   <T> BigQuerySourceBase<T> toSource(
-      String stepUuid, Coder<T> coder, SerializableFunction<SchemaAndRecord, T> parseFn);
+      String stepUuid,
+      Coder<T> coder,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      boolean useAvroLogicalTypes);
 
   /**
-   * Extract the Beam {@link Schema} corresponding to this source.
+   * Extract the {@link TableSchema} corresponding to this source.
    *
    * @param bqOptions BigQueryOptions
-   * @return Beam schema of the source
+   * @return table schema of the source
    * @throws BigQuerySchemaRetrievalException if schema retrieval fails
    */
-  @Experimental(Experimental.Kind.SCHEMAS)
-  Schema getBeamSchema(BigQueryOptions bqOptions);
+  TableSchema getTableSchema(BigQueryOptions bqOptions);
 }

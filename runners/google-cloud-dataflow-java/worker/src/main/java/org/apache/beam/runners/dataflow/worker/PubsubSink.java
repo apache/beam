@@ -19,11 +19,11 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -33,17 +33,23 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A sink that writes to Pubsub, via a Windmill server.
  *
  * @param <T> the type of the elements written to the sink
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class PubsubSink<T> extends Sink<WindowedValue<T>> {
   private final String topic;
   private final String timestampLabel;
@@ -136,6 +142,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
   /** The SinkWriter for a PubsubSink. */
   class PubsubWriter implements SinkWriter<WindowedValue<T>> {
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
+    private ByteStringOutputStream stream; // Kept across adds for buffer reuse.
 
     private PubsubWriter(String topic) {
       outputBuilder =
@@ -144,25 +151,28 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
               .setTimestampLabel(timestampLabel)
               .setIdLabel(idLabel)
               .setWithAttributes(withAttributes);
+      stream = new ByteStringOutputStream();
     }
 
     @Override
     public long add(WindowedValue<T> data) throws IOException {
+      checkState(
+          stream.size() == 0,
+          "Expected output stream to be empty but had %s",
+          stream.toByteString());
       ByteString byteString = null;
       if (formatFn != null) {
         PubsubMessage formatted = formatFn.apply(data.getValue());
-        Pubsub.PubsubMessage pubsubMessage =
-            Pubsub.PubsubMessage.newBuilder()
-                .setData(ByteString.copyFrom(formatted.getPayload()))
-                .putAllAttributes(formatted.getAttributeMap())
-                .build();
-        ByteString.Output output = ByteString.newOutput();
-        pubsubMessage.writeTo(output);
-        byteString = output.toByteString();
+        Pubsub.PubsubMessage.Builder pubsubMessageBuilder =
+            Pubsub.PubsubMessage.newBuilder().setData(ByteString.copyFrom(formatted.getPayload()));
+        if (formatted.getAttributeMap() != null) {
+          pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
+        }
+        pubsubMessageBuilder.build().writeTo(stream);
+        byteString = stream.toByteStringAndReset();
       } else {
-        ByteString.Output stream = ByteString.newOutput();
         coder.encode(data.getValue(), stream, Coder.Context.OUTER);
-        byteString = stream.toByteString();
+        byteString = stream.toByteStringAndReset();
       }
 
       outputBuilder.addMessages(

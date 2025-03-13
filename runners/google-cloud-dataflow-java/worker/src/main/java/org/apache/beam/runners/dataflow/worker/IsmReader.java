@@ -26,13 +26,16 @@ import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /**
  * A {@link NativeReader} that reads Ism files.
  *
  * @param <V> the type of the value written to the sink
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class IsmReader<V> extends NativeReader<WindowedValue<IsmRecord<V>>> {
   private static final ThreadLocal<SideInputReadCounter> CURRENT_SIDE_INPUT_COUNTERS =
       new ThreadLocal<>();

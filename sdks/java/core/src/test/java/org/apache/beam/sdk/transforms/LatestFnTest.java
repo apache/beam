@@ -29,7 +29,8 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,9 +46,9 @@ public class LatestFnTest {
 
   private static final TimestampedValue<Long> TV = TimestampedValue.of(VALUE, INSTANT);
   private static final TimestampedValue<Long> TV_MINUS_TEN =
-      TimestampedValue.of(VALUE - 10, INSTANT.minus(10));
+      TimestampedValue.of(VALUE - 10, INSTANT.minus(Duration.millis(10)));
   private static final TimestampedValue<Long> TV_PLUS_TEN =
-      TimestampedValue.of(VALUE + 10, INSTANT.plus(10));
+      TimestampedValue.of(VALUE + 10, INSTANT.plus(Duration.millis(10)));
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -113,7 +114,7 @@ public class LatestFnTest {
 
   @Test
   public void testAddInputNullValue() {
-    TimestampedValue<Long> input = TimestampedValue.of(null, INSTANT.plus(10));
+    TimestampedValue<Long> input = TimestampedValue.of(null, INSTANT.plus(Duration.millis(10)));
     assertEquals("Null values are allowed", input, fn.addInput(TV, input));
   }
 

@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -37,19 +36,25 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.TransformInputs;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The EvaluationContext allows us to define pipeline instructions and translate between {@code
  * PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class EvaluationContext {
   private final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
@@ -57,10 +62,13 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
+  private final Map<PCollection<?>, Integer> pCollectionConsumptionMap = new HashMap<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
   private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
+  private final Map<GroupByKey<?, ?>, String> groupByKeyCandidatesForMemoryOptimizedTranslation =
+      new HashMap<>();
   private final PipelineOptions options;
   private final SerializablePipelineOptions serializableOptions;
 
@@ -112,7 +120,7 @@ public class EvaluationContext {
     return input;
   }
 
-  public <T> Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
+  public <T> Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
     checkArgument(
         currentTransform.getTransform() == transform, "can only be called with current transform");
@@ -125,7 +133,7 @@ public class EvaluationContext {
     return output;
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
     checkArgument(
         currentTransform.getTransform() == transform, "can only be called with current transform");
@@ -276,6 +284,68 @@ public class EvaluationContext {
    */
   public Map<PCollection, Long> getCacheCandidates() {
     return this.cacheCandidates;
+  }
+
+  /**
+   * Get the map of GBK transforms to their full names, which are candidates for group by key and
+   * window translation which aims to reduce memory usage.
+   *
+   * @return The current {@link Map} of candidates
+   */
+  public Map<GroupByKey<?, ?>, String> getCandidatesForGroupByKeyAndWindowTranslation() {
+    return this.groupByKeyCandidatesForMemoryOptimizedTranslation;
+  }
+
+  /**
+   * Returns if given GBK transform can be considered as candidate for group by key and window
+   * translation aiming to reduce memory usage.
+   *
+   * @param transform to evaluate
+   * @return true if given transform is a candidate; false otherwise
+   * @param <K> type of GBK key
+   * @param <V> type of GBK value
+   */
+  public <K, V> boolean isCandidateForGroupByKeyAndWindow(GroupByKey<K, V> transform) {
+    return groupByKeyCandidatesForMemoryOptimizedTranslation.containsKey(transform);
+  }
+
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionConsumed(PCollection<?> pCollection) {
+    int count = this.pCollectionConsumptionMap.getOrDefault(pCollection, 0);
+    this.pCollectionConsumptionMap.put(pCollection, count + 1);
+  }
+
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionProduced(PCollection<?> pCollection) {
+    this.pCollectionConsumptionMap.computeIfAbsent(pCollection, k -> 0);
+  }
+
+  /**
+   * Get the map of {@link PCollection} to the number of {@link PTransform} consuming it.
+   *
+   * @return
+   */
+  public Map<PCollection<?>, Integer> getPCollectionConsumptionMap() {
+    return Collections.unmodifiableMap(pCollectionConsumptionMap);
+  }
+
+  /**
+   * Check if given {@link PCollection} is a leaf or not. {@link PCollection} is a leaf when there
+   * is no other {@link PTransform} consuming it / depending on it.
+   *
+   * @param pCollection to be checked if it is a leaf
+   * @return true if pCollection is leaf; otherwise false
+   */
+  public boolean isLeaf(PCollection<?> pCollection) {
+    return this.pCollectionConsumptionMap.get(pCollection) == 0;
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {

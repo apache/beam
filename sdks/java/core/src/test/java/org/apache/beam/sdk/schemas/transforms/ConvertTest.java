@@ -29,13 +29,13 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -61,7 +61,7 @@ public class ConvertTest {
             "second", new POJO1Nested());
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -91,7 +91,7 @@ public class ConvertTest {
     public long yard2 = 43;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -122,6 +122,7 @@ public class ConvertTest {
 
   private static final Row EXPECTED_ROW1_NESTED =
       Row.withSchema(EXPECTED_SCHEMA1_NESTED).addValues("yard2", 43L).build();
+
   private static final Row EXPECTED_ROW1 =
       Row.withSchema(EXPECTED_SCHEMA1)
           .addValue("field1")
@@ -144,7 +145,7 @@ public class ConvertTest {
     public String field1 = "field1";
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -174,7 +175,7 @@ public class ConvertTest {
     public String yard1 = "yard2";
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -204,12 +205,7 @@ public class ConvertTest {
   public void testFromRows() {
     PCollection<POJO1> pojos =
         pipeline
-            .apply(
-                Create.of(EXPECTED_ROW1)
-                    .withSchema(
-                        EXPECTED_SCHEMA1,
-                        SerializableFunctions.identity(),
-                        SerializableFunctions.identity()))
+            .apply(Create.of(EXPECTED_ROW1).withRowSchema(EXPECTED_SCHEMA1))
             .apply(Convert.fromRows(POJO1.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO1());
     pipeline.run();

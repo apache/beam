@@ -31,11 +31,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Coder using Kryo as (de)serialization mechanism. See {@link KryoCoderProvider} to get more
@@ -43,7 +43,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
  *
  * @param <T> type of element coder can handle
  */
-@Experimental
 public class KryoCoder<T> extends CustomCoder<T> {
 
   /**
@@ -200,17 +199,20 @@ public class KryoCoder<T> extends CustomCoder<T> {
     outputChunked.setOutputStream(outStream);
     try {
       kryoState.getKryo().writeClassAndObject(outputChunked, value);
-      outputChunked.endChunks();
+      outputChunked.endChunk();
       outputChunked.flush();
     } catch (KryoException e) {
-      outputChunked.clear();
+      outputChunked.reset();
       if (e.getCause() instanceof EOFException) {
         throw (EOFException) e.getCause();
       }
       throw new CoderException("Cannot encode given object of type [" + value.getClass() + "].", e);
     } catch (IllegalArgumentException e) {
-      if (e.getMessage().startsWith("Class is not registered")) {
-        throw new CoderException(e.getMessage());
+      String message = e.getMessage();
+      if (message != null) {
+        if (message.startsWith("Class is not registered")) {
+          throw new CoderException(message);
+        }
       }
       throw e;
     }
@@ -280,9 +282,9 @@ public class KryoCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other != null && getClass().equals(other.getClass())) {
-      return instanceId.equals(((KryoCoder) other).instanceId);
+      return instanceId.equals(((KryoCoder<?>) other).instanceId);
     }
     return false;
   }

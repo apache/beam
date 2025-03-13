@@ -23,21 +23,21 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.lang.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.bson.BsonDocument;
 import org.bson.Document;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB AggregateIterable object. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 @AutoValue
 public abstract class AggregationQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 
+  @Pure
   abstract List<BsonDocument> mongoDbPipeline();
 
-  @Nullable
-  abstract BsonDocument bucket();
+  @Pure
+  abstract @Nullable BsonDocument bucket();
 
   private static Builder builder() {
     return new AutoValue_AggregationQuery.Builder().setMongoDbPipeline(new ArrayList<>());
@@ -53,8 +53,10 @@ public abstract class AggregationQuery
   abstract static class Builder {
     abstract Builder setMongoDbPipeline(List<BsonDocument> mongoDbPipeline);
 
+    @Pure
     abstract Builder setBucket(BsonDocument bucket);
 
+    @Pure
     abstract AggregationQuery build();
   }
 

@@ -17,25 +17,28 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
-import com.google.protobuf.UnknownFieldSet;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.ReadStream;
 import java.io.IOException;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,10 +46,9 @@ import org.slf4j.LoggerFactory;
  * A base class for {@link BoundedSource} implementations which read from BigQuery using the
  * BigQuery storage API.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
 
   /**
    * The maximum number of streams which will be requested when creating a read session, regardless
@@ -61,17 +63,23 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    */
   private static final int MIN_SPLIT_COUNT = 10;
 
-  protected final TableReadOptions tableReadOptions;
+  protected final @Nullable DataFormat format;
+  protected final @Nullable ValueProvider<List<String>> selectedFieldsProvider;
+  protected final @Nullable ValueProvider<String> rowRestrictionProvider;
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
 
   BigQueryStorageSourceBase(
-      @Nullable TableReadOptions tableReadOptions,
+      @Nullable DataFormat format,
+      @Nullable ValueProvider<List<String>> selectedFieldsProvider,
+      @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    this.tableReadOptions = tableReadOptions;
+    this.format = format;
+    this.selectedFieldsProvider = selectedFieldsProvider;
+    this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     this.bqServices = checkNotNull(bqServices, "bqServices");
@@ -81,7 +89,9 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    * Returns the table to read from at split time. This is currently never an anonymous table, but
    * it can be a named table which was created to hold the results of a query.
    */
-  protected abstract Table getTargetTable(BigQueryOptions options) throws Exception;
+  protected abstract @Nullable Table getTargetTable(BigQueryOptions options) throws Exception;
+
+  protected abstract @Nullable String getTargetTableId(BigQueryOptions options) throws Exception;
 
   @Override
   public Coder<T> getOutputCoder() {
@@ -92,51 +102,94 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   public List<BigQueryStorageStreamSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    Table targetTable = getTargetTable(bqOptions);
+    @Nullable Table targetTable = getTargetTable(bqOptions);
+
+    ReadSession.Builder readSessionBuilder = ReadSession.newBuilder();
+    Lineage lineage = Lineage.getSources();
+    if (targetTable != null) {
+      TableReference tableReference = targetTable.getTableReference();
+      readSessionBuilder.setTable(BigQueryHelpers.toTableResourceName(tableReference));
+      // register the table as lineage source
+      lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
+    } else {
+      // If the table does not exist targetTable will be null.
+      // Construct the table id if we can generate it. For error recording/logging.
+      @Nullable String tableReferenceId = getTargetTableId(bqOptions);
+      if (tableReferenceId != null) {
+        readSessionBuilder.setTable(tableReferenceId);
+        // register the table as lineage source
+        TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
+        lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
+      }
+    }
+
+    ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =
+        ReadSession.TableReadOptions.newBuilder();
+    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+      tableReadOptionsBuilder.addAllSelectedFields(selectedFieldsProvider.get());
+    }
+    if (rowRestrictionProvider != null && rowRestrictionProvider.isAccessible()) {
+      tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
+    }
+    readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
+
+    if (format != null) {
+      readSessionBuilder.setDataFormat(format);
+    }
+
+    // Setting the  requested max stream count to 0, implies that the Read API backend will select
+    // an appropriate number of streams for the Session to produce reasonable throughput.
+    // This is required when using the Read API Source V2.
     int streamCount = 0;
-    if (desiredBundleSizeBytes > 0) {
-      long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
-      streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
+    if (!bqOptions.getEnableStorageReadApiV2()) {
+      if (desiredBundleSizeBytes > 0) {
+        long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
+        streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
+      }
+
+      streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
     }
 
-    streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
-
-    CreateReadSessionRequest.Builder requestBuilder =
+    CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
-            .setParent("projects/" + bqOptions.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(targetTable.getTableReference()))
-            .setRequestedStreams(streamCount)
-            // TODO(aryann): Once we rebuild the generated client code, we should change this to
-            // use setShardingStrategy().
-            .setUnknownFields(
-                UnknownFieldSet.newBuilder()
-                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
-                    .build());
-
-    if (tableReadOptions != null) {
-      requestBuilder.setReadOptions(tableReadOptions);
-    }
+            .setParent(
+                BigQueryHelpers.toProjectResourceName(
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
+                        : bqOptions.getBigQueryProject()))
+            .setReadSession(readSessionBuilder)
+            .setMaxStreamCount(streamCount)
+            .build();
 
     ReadSession readSession;
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
-      CreateReadSessionRequest request = requestBuilder.build();
-      readSession = client.createReadSession(request);
-      LOGGER.info(
+      readSession = client.createReadSession(createReadSessionRequest);
+      LOG.info(
           "Sent BigQuery Storage API CreateReadSession request '{}'; received response '{}'.",
-          request,
+          createReadSessionRequest,
           readSession);
     }
 
     if (readSession.getStreamsList().isEmpty()) {
-      // The underlying table is empty or all rows have been pruned.
+      LOG.info(
+          "Returned stream list is empty. The underlying table is empty or all rows have been pruned.");
       return ImmutableList.of();
+    } else {
+      LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
+    }
+
+    // TODO: this is inconsistent with method above, where it can be null
+    Preconditions.checkStateNotNull(targetTable);
+    TableSchema tableSchema = targetTable.getSchema();
+    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+      tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFieldsProvider.get());
     }
 
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
-    for (Stream stream : readSession.getStreamsList()) {
+    for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, stream, targetTable.getSchema(), parseFn, outputCoder, bqServices));
+              readSession, readStream, tableSchema, parseFn, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);

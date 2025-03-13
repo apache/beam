@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -27,13 +28,13 @@ import org.apache.beam.sdk.values.Row;
  * {@code BeamPCollectionTable} converts a {@code PCollection<Row>} as a virtual table, then a
  * downstream query can query directly.
  */
-public class BeamPCollectionTable<InputT> extends BaseBeamTable {
+public class BeamPCollectionTable<InputT> extends SchemaBaseBeamTable {
   private transient PCollection<InputT> upstream;
 
   public BeamPCollectionTable(PCollection<InputT> upstream) {
     super(upstream.getSchema());
     if (!upstream.hasSchema()) {
-      throw new RuntimeException("SQL can only run over PCollections that have schemas.");
+      throw new IllegalArgumentException("SQL can only run over PCollections that have schemas.");
     }
     this.upstream = upstream;
   }

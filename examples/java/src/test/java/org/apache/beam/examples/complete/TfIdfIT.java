@@ -17,15 +17,18 @@
  */
 package org.apache.beam.examples.complete;
 
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.util.Date;
 import java.util.regex.Pattern;
 import org.apache.beam.examples.complete.TfIdf.Options;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -49,7 +52,7 @@ public class TfIdfIT {
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(TfIdfITOptions.class);
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test
@@ -64,10 +67,10 @@ public class TfIdfIT {
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)
             .toString());
-    options.setOnSuccessMatcher(
-        new FileChecksumMatcher(
-            EXPECTED_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*.csv", DEFAULT_SHARD_TEMPLATE));
-
     TfIdf.runTfIdf(options);
+
+    assertThat(
+        new NumberedShardedFile(options.getOutput() + "*-of-*.csv", DEFAULT_SHARD_TEMPLATE),
+        fileContentsHaveChecksum(EXPECTED_OUTPUT_CHECKSUM));
   }
 }

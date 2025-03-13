@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.tika;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -53,7 +53,7 @@ public class TikaIOTest implements Serializable {
           + "in most known formats.\n\n\n\n\n\n\n";
 
   private static final String ODT_FILE =
-      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+      "\n\n\n\n\n\n\n"
           + "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\nthe content from the"
           + " files\nin most known formats.\n";
 

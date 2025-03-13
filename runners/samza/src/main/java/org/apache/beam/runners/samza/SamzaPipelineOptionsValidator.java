@@ -17,18 +17,38 @@
  */
 package org.apache.beam.runners.samza;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.samza.config.JobConfig;
+import org.apache.samza.config.MapConfig;
 
 /** Validates that the {@link SamzaPipelineOptions} conforms to all the criteria. */
 public class SamzaPipelineOptionsValidator {
-  public static SamzaPipelineOptions validate(PipelineOptions opts) {
-    final SamzaPipelineOptions samzaOptions =
-        PipelineOptionsValidator.validate(SamzaPipelineOptions.class, opts);
+  public static void validate(SamzaPipelineOptions opts) {
+    checkArgument(opts.getMaxSourceParallelism() >= 1);
+    validateBundlingRelatedOptions(opts);
+  }
 
-    checkArgument(samzaOptions.getMaxSourceParallelism() >= 1);
-    return samzaOptions;
+  /*
+   * Perform some bundling related validation for pipeline option.
+   * Visible for testing.
+   */
+  static void validateBundlingRelatedOptions(SamzaPipelineOptions pipelineOptions) {
+    if (pipelineOptions.getMaxBundleSize() > 1) {
+      final Map<String, String> configs =
+          pipelineOptions.getConfigOverride() == null
+              ? new HashMap<>()
+              : pipelineOptions.getConfigOverride();
+      final JobConfig jobConfig = new JobConfig(new MapConfig(configs));
+
+      // Validate that the threadPoolSize is not override in the code
+      checkArgument(
+          jobConfig.getThreadPoolSize() <= 1,
+          JOB_CONTAINER_THREAD_POOL_SIZE
+              + " config should be replaced with SamzaPipelineOptions.numThreadsForProcessElement");
+    }
   }
 }

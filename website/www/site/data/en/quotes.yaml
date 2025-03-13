@@ -1,0 +1,88 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#Cards with quotes will be displayed by the order listed, e.g., first card will display the first quote
+- text: Apache Beam fuels LinkedIn's streaming infrastructure, processing 4 trillion events daily through 3K+ pipelines in near-real time. Beam enabled unified pipelines, yielding 2x cost savings and remarkable improvements for many use cases.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/linkedin.png
+  linkUrl: case-studies/linkedin/index.html
+  linkText: Learn more
+- text: With Apache Beam, OCTO accelerated the migration of one of France’s largest grocery retailers to streaming processing for transactional data, achieving 5x reduced infrastructure costs and 4x improved performance.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/octo.png
+  linkUrl: case-studies/octo/index.html
+  linkText: Learn more
+- text: HSBC leveraged Apache Beam as a computational platform and a risk engine that enabled 100x scaling, 2x faster performance, and simplified data distribution for assessing and managing XVA and counterparty credit risk at HSBC’s global scale.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/hsbc.png
+  linkUrl: case-studies/hsbc/index.html
+  linkText: Learn more
+- text: Apache Beam supports Project Shield's mission to protect freedom of speech and make the web a safer space by enabling ~2x streaming efficiency at >10,000 QPS and real-time visibility into attack data for their >3K customers.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/project_shield.png
+  linkUrl: case-studies/projectshield/index.html
+  linkText: Learn more
+- text: Apache Beam powers the Booking.com global ad bidding for performance marketing and scans 2PB+ of data daily, accelerating processing by an eye-opening 36x and expediting time-to-market by as much as 4x.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/booking.png
+  linkUrl: case-studies/booking/index.html
+  linkText: Learn more
+- text: Apache Beam has future-proofed Credit Karma’s data and ML platform for scalability and efficiency, enabling MLOps with unified pipelines, processing 5-10 TB daily at 5K events per second, and managing 20K+ ML features.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/credit-karma.png
+  linkUrl: case-studies/creditkarma/index.html
+  linkText: Learn more
+- text: Apache Beam is a central component to Intuit's Stream Processing Platform, which has driven 3x faster time-to-production for authoring a stream processing pipeline.
+  icon: icons/quote-icon.svg
+  logoUrl: images/case-study/intuit/intuit-quote.png
+  linkUrl: case-studies/intuit/index.html
+  linkText: Learn more
+- text: Apache Beam enabled real-time ML streaming feature generation and model execution playing a pivotal role in optimizing Lyft’s Marketplace ML predictions, processing ~4mil events per minute to generate ~100 features.
+  icon: icons/quote-icon.svg
+  logoUrl: images/case-study/lyft/lyft-quote.png
+  linkUrl: case-studies/lyft/index.html
+  linkText: Learn more
+- text: Seznam, a Czech search engine, has been an early contributor and adopter of Apache Beam, and they migrated several petabyte-scale workloads to Apache Beam pipelines.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/seznam.png
+  linkUrl: case-studies/seznam/index.html
+  linkText: Learn more
+- text: Palo Alto Networks, Inc. is a global cybersecurity leader that uses Apache Beam to process ~10 millions of security log events per second for their real-time streaming infrastructure.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/paloalto.png
+  linkUrl: case-studies/paloalto/index.html
+  linkText: Learn more
+- text: Apache Beam provides Ricardo, a leading Swiss second hand marketplace, with a scalable and reliable data processing framework that supports fundamental business scenarios and enables real-time and ML data processing.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/ricardo.png
+  linkUrl: case-studies/ricardo/index.html
+  linkText: Learn more
+- text: Apache Hop, an open-source data orchestration platform, uses Apache Beam to "design once, run anywhere" and creates a value-add for Apache Beam users by enabling visual pipeline development and lifecycle management.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/hop.png
+  linkUrl: case-studies/hop/index.html
+  linkText: Learn more
+- text: At Yelp, Apache Beam allows teams to create custom streaming pipelines using Python, eliminating the need to switch to Scala or Java.
+  icon: icons/quote-icon.svg
+  logoUrl: /images/logos/powered-by/yelp.png
+  linkUrl: case-studies/yelp_streaming/index.html
+  linkText: Learn more
+- text: Accenture Baltics uses Apache Beam on Google Cloud to build a robust data processing infrastructure for a sustainable energy leader.They use Beam to democratize data access, process data in real-time, and handle complex ETL tasks.
+  icon: icons/quote-icon.svg
+  logoUrl: /images/logos/powered-by/accenture.png
+  linkUrl: case-studies/accenture_baltics/index.html
+  linkText: Learn more
+- text: Have a story to share? Your logo could be here.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/blank.jpg
+  linkUrl:  mailto:dev@beam.apache.org?subject=Beam
+  linkText: Share your story

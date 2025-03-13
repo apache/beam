@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
 /**
  * Utility functions for dealing with key encoding. Beam requires keys to be compared in binary
@@ -44,7 +45,7 @@ public class FlinkKeyUtils {
     checkNotNull(keyCoder, "Provided coder must not be null");
     final byte[] keyBytes;
     try {
-      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
+      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key, Coder.Context.NESTED);
     } catch (Exception e) {
       throw new RuntimeException(String.format(Locale.ENGLISH, "Failed to encode key: %s", key), e);
     }
@@ -52,20 +53,24 @@ public class FlinkKeyUtils {
   }
 
   /** Decodes a key from a ByteBuffer containing a byte array. */
-  static <K> K decodeKey(ByteBuffer byteBuffer, Coder<K> keyCoder) {
+  public static <K> K decodeKey(ByteBuffer byteBuffer, Coder<K> keyCoder) {
     checkNotNull(byteBuffer, "Provided ByteBuffer must not be null");
     checkNotNull(keyCoder, "Provided coder must not be null");
     checkState(byteBuffer.hasArray(), "ByteBuffer key must contain an array.");
     @SuppressWarnings("ByteBufferBackingArray")
     final byte[] keyBytes = byteBuffer.array();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes);
+      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes, Coder.Context.NESTED);
     } catch (Exception e) {
       throw new RuntimeException(
           String.format(
               Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(keyBytes)),
           e);
     }
+  }
+
+  static ByteBuffer fromEncodedKey(ByteString encodedKey) {
+    return ByteBuffer.wrap(encodedKey.toByteArray());
   }
 
   /** The Coder for the Runner's encoded representation of a key. */

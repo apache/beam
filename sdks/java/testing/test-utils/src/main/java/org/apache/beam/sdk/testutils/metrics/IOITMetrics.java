@@ -22,8 +22,9 @@ import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 
 /**
  * Contains a flexible mechanism of publishing metrics to BQ and console using suppliers provided in
@@ -34,8 +35,8 @@ public class IOITMetrics {
   private final Set<Function<MetricsReader, NamedTestResult>> metricSuppliers;
   private final PipelineResult result;
   private final String namespace;
-  private String uuid;
-  private String timestamp;
+  private final String uuid;
+  private final String timestamp;
 
   public IOITMetrics(
       Set<Function<MetricsReader, NamedTestResult>> metricSuppliers,
@@ -50,13 +51,20 @@ public class IOITMetrics {
     this.timestamp = timestamp;
   }
 
-  public void publish(String bigQueryDataset, String bigQueryTable) {
+  public void publishToInflux(final InfluxDBSettings settings) {
     MetricsReader reader = new MetricsReader(result, namespace);
     Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
-    if (bigQueryDataset != null && bigQueryTable != null) {
-      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-          .publish(namedTestResults, bigQueryTable);
-    }
-    ConsoleResultPublisher.publish(namedTestResults, uuid, timestamp);
+
+    publishToInflux(uuid, timestamp, namedTestResults, settings);
+  }
+
+  public static void publishToInflux(
+      final String uuid,
+      final String timestamp,
+      final Collection<NamedTestResult> results,
+      final InfluxDBSettings settings) {
+
+    ConsoleResultPublisher.publish(results, uuid, timestamp);
+    InfluxDBPublisher.publishWithSettings(results, settings);
   }
 }

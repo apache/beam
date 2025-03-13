@@ -18,13 +18,13 @@
 package org.apache.beam.runners.dataflow.worker.status;
 
 import static org.apache.beam.runners.dataflow.worker.status.ThreadzServlet.Stack;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;

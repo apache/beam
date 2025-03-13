@@ -24,9 +24,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 /**
  * Functor of single argument. Functor can produce zero or more elements in return to a call, for
  * which it uses a collector.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface UnaryFunctor<InputT, OutputT> extends Serializable {
 
   /**

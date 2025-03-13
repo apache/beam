@@ -17,17 +17,15 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RegexMatcher;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,25 +33,21 @@ import org.junit.rules.ExpectedException;
 /** A test suite for the propagation of watermarks in the Spark runner. */
 public class GlobalWatermarkHolderTest {
 
+  // Watermark holder requires valid SparkEnv
+  @ClassRule public static SparkContextRule contextRule = new SparkContextRule();
+
   @Rule public ClearWatermarksRule clearWatermarksRule = new ClearWatermarksRule();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
-
-  @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
-
-  // only needed in-order to get context from the SparkContextFactory.
-  private static final SparkPipelineOptions options =
-      PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
 
   private static final String INSTANT_PATTERN =
       "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z";
 
   @Test
   public void testLowHighWatermarksAdvance() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
     // low == high.
+
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(
@@ -96,9 +90,8 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testSynchronizedTimeMonotonic() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
+
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(
@@ -118,9 +111,8 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testMultiSource() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
+
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(

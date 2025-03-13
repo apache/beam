@@ -19,16 +19,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func TestBind(t *testing.T) {
 	tests := []struct {
 		In  []typex.FullType // Incoming Node type
-		Fn  interface{}
+		Fn  any
 		Out []typex.FullType // Outgoing Node type; nil == cannot bind
 	}{
 		{ // Direct
@@ -91,10 +91,20 @@ func TestBind(t *testing.T) {
 			func(int8, []int16, func(*int32) bool, func(int8, []int16)) {},
 			[]typex.FullType{typex.NewKV(typex.New(reflectx.Int8), typex.New(reflect.SliceOf(reflectx.Int16)))},
 		},
+		{ // MultiMap side input w/ emitter
+			[]typex.FullType{typex.New(reflectx.String), typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int))},
+			func(string, func(string) func(*int) bool, func(int)) {},
+			[]typex.FullType{typex.New(reflectx.Int)},
+		},
 		{ // Generic side input (as iter and re-iter)
 			[]typex.FullType{typex.New(reflectx.Int8), typex.New(reflectx.Int16), typex.New(reflectx.Int32)},
 			func(typex.X, func(*typex.Y) bool, func() func(*typex.T) bool, func(typex.X, []typex.Y)) {},
 			[]typex.FullType{typex.NewKV(typex.New(reflectx.Int8), typex.New(reflect.SliceOf(reflectx.Int16)))},
+		},
+		{ // Generic side input (as multimap)
+			[]typex.FullType{typex.New(reflectx.String), typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int))},
+			func(typex.X, func(typex.X) func(*typex.Y) bool, func(typex.X, []typex.Y)) {},
+			[]typex.FullType{typex.NewKV(typex.New(reflectx.String), typex.New(reflect.SliceOf(reflectx.Int)))},
 		},
 		{ // Generic side output
 			[]typex.FullType{typex.New(reflectx.Int8), typex.New(reflectx.Int16), typex.New(reflectx.Int32)},
@@ -163,7 +173,7 @@ func TestBindWithTypedefs(t *testing.T) {
 	tests := []struct {
 		In      []typex.FullType // Incoming Node type
 		Typedef map[string]reflect.Type
-		Fn      interface{}
+		Fn      any
 		Out     []typex.FullType // Outgoing Node type; nil == cannot bind
 	}{
 		{ // Typedefs are ignored, if not used

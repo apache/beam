@@ -16,19 +16,20 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"path"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
 
 // Combine is a Combine executor. Combiners do not have side inputs (or output).
@@ -49,7 +50,9 @@ type Combine struct {
 	// reusable invokers
 	createAccumInv, addInputInv, mergeInv, extractOutputInv *invoker
 	// cached value converter for add input.
-	aiValConvert func(interface{}) interface{}
+	aiValConvert func(any) any
+
+	states *metrics.PTransformState
 }
 
 // GetPID returns the PTransformID for this CombineFn.
@@ -69,7 +72,9 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
+	n.states = metrics.NewPTransformState(n.PID)
+
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -95,14 +100,14 @@ func (n *Combine) optimizeMergeFn() {
 	}
 }
 
-func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (interface{}, error) {
+func (n *Combine) mergeAccumulators(ctx context.Context, a, b any) (any, error) {
 	if n.binaryMergeFn != nil {
 		// Fast path for binary MergeAccumulatorsFn
 		return n.binaryMergeFn.Call2x1(a, b), nil
 	}
 
 	in := &MainInput{Key: FullValue{Elm: a}}
-	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, b)
+	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, nil, nil, nil, nil, b)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking MergeAccumulators"))
 	}
@@ -120,6 +125,8 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataContext) 
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
+
+	n.states.Set(n.ctx, metrics.StartBundle)
 
 	if err := n.Out.StartBundle(n.ctx, id, data); err != nil {
 		return n.fail(err)
@@ -177,6 +184,9 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 	n.status = Up
+
+	n.states.Set(n.ctx, metrics.FinishBundle)
+
 	if n.createAccumInv != nil {
 		n.createAccumInv.Reset()
 	}
@@ -203,13 +213,13 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil, nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
 }
 
-func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, error) {
+func (n *Combine) newAccum(ctx context.Context, key any) (any, error) {
 	fn := n.Fn.CreateAccumulatorFn()
 	if fn == nil {
 		return reflect.Zero(n.Fn.MergeAccumulatorsFn().Ret[0].T).Interface(), nil
@@ -220,14 +230,14 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
-	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt)
+	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt, nil, nil, nil, nil)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking CreateAccumulator"))
 	}
 	return val.Elm, nil
 }
 
-func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, timestamp typex.EventTime, first bool) (interface{}, error) {
+func (n *Combine) addInput(ctx context.Context, accum, key, value any, timestamp typex.EventTime, first bool) (any, error) {
 	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
 	fn := n.Fn.AddInputFn()
@@ -263,21 +273,21 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	}
 	v := n.aiValConvert(value)
 
-	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, v)
+	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, nil, nil, nil, nil, v)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking AddInput"))
 	}
 	return val.Elm, err
 }
 
-func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, error) {
+func (n *Combine) extract(ctx context.Context, accum any) (any, error) {
 	fn := n.Fn.ExtractOutputFn()
 	if fn == nil {
 		// Merge function only. Accumulator type is the output type.
 		return accum, nil
 	}
 
-	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, accum)
+	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, nil, nil, nil, nil, accum)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking ExtractOutput"))
 	}
@@ -286,8 +296,17 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 
 func (n *Combine) fail(err error) error {
 	n.status = Broken
-	n.err.TrySetError(err)
-	return err
+	if err2, ok := err.(*doFnError); ok {
+		return err2
+	}
+	combineError := &doFnError{
+		doFn: n.Fn.Name(),
+		err:  err,
+		uid:  n.UID,
+		pid:  n.PID,
+	}
+	n.err.TrySetError(combineError)
+	return combineError
 }
 
 func (n *Combine) String() string {
@@ -303,10 +322,10 @@ func (n *Combine) String() string {
 // FinishBundle step.
 type LiftedCombine struct {
 	*Combine
-	KeyCoder *coder.Coder
+	KeyCoder    *coder.Coder
+	WindowCoder *coder.WindowCoder
 
-	keyHash elementHasher
-	cache   map[uint64]FullValue
+	cache *liftingCache
 }
 
 func (n *LiftedCombine) String() string {
@@ -318,7 +337,11 @@ func (n *LiftedCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	n.keyHash = makeElementHasher(n.KeyCoder)
+	// TODO(https://github.com/apache/beam/issues/18944): replace with some better implementation
+	// once adding dependencies is easier.
+	// Arbitrary limit until a broader improvement can be demonstrated.
+	const cacheMax = 2000
+	n.cache = newLiftingCache(cacheMax, n.KeyCoder, n.WindowCoder)
 	return nil
 }
 
@@ -327,7 +350,7 @@ func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
-	n.cache = make(map[uint64]FullValue)
+	n.cache.start()
 	return nil
 }
 
@@ -339,15 +362,25 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 		return errors.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
 	}
 
-	key, err := n.keyHash.Hash(value.Elm)
+	n.Combine.states.Set(n.Combine.ctx, metrics.ProcessBundle)
+
+	// The cache layer in lifted combines implicitly observes windows. Process each individually.
+	for _, w := range value.Windows {
+		err := n.processElementPerWindow(ctx, value, w)
+		if err != nil {
+			return n.fail(err)
+		}
+	}
+	return nil
+}
+
+func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *FullValue, w typex.Window) error {
+	key, afv, notfirst, err := n.cache.lookup(value, w)
 	if err != nil {
 		return n.fail(err)
 	}
-	// Value is a KV so Elm & Elm2 are populated.
-	// Check the cache for an already present accumulator
 
-	afv, notfirst := n.cache[key]
-	var a interface{}
+	var a any
 	if notfirst {
 		a = afv.Elm2
 	} else {
@@ -362,37 +395,12 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	if err != nil {
 		return n.fail(err)
 	}
-
-	// TODO(BEAM-4468): replace with some better implementation
-	// once adding dependencies is easier.
-	// Arbitrary limit until a broader improvement can be demonstrated.
-	const cacheMax = 2000
-	if len(n.cache) > cacheMax {
-		// Use Go's random map iteration to have a basic
-		// random eviction policy.
-		for k, a := range n.cache {
-			// Never evict and send out the current working key.
-			// We've already combined this contribution with the
-			// accumulator and we'd be repeating the contributions
-			// of older elements.
-			if k == key {
-				continue
-			}
-			if err := n.Out.ProcessElement(n.Combine.ctx, &a); err != nil {
-				return err
-			}
-			delete(n.cache, k)
-			// Having the check be on strict greater than and
-			// strict less than allows at least 2 keys to be
-			// processed before evicting again.
-			if len(n.cache) < cacheMax {
-				break
-			}
-		}
+	if err := n.cache.compact(n.Combine.ctx, key, n.Out.ProcessElement); err != nil {
+		// Downstream failures are marked failed in their Node, no need to do so here.
+		return err
 	}
-
-	// Cache the accumulator with the key
-	n.cache[key] = FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
+	// Update the cached value for subsequent lookups or emits.
+	*afv = FullValue{Windows: []typex.Window{w}, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
 
 	return nil
 }
@@ -400,17 +408,12 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 // FinishBundle iterates through the cached (key, accumulator) pairs, and then
 // processes the value in the bundle as normal.
 func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
+	n.Combine.states.Set(n.Combine.ctx, metrics.FinishBundle)
 	// Need to run n.Out.ProcessElement for all the cached precombined KVs, and
 	// then finally Finish bundle as normal.
-	for _, a := range n.cache {
-		if err := n.Out.ProcessElement(n.Combine.ctx, &a); err != nil {
-			return err
-		}
+	if err := n.cache.emitAll(n.Combine.ctx, n.Out.ProcessElement); err != nil {
+		return err
 	}
-	// Clear the cache now since all elements have been output.
-	// Down isn't guaranteed to be called.
-	n.cache = nil
-
 	return n.Combine.FinishBundle(n.Combine.ctx)
 }
 
@@ -419,7 +422,142 @@ func (n *LiftedCombine) Down(ctx context.Context) error {
 	if err := n.Combine.Down(ctx); err != nil {
 		return err
 	}
-	n.cache = nil
+	n.cache.down()
+	return nil
+}
+
+type cacheVal struct {
+	fv       FullValue
+	overflow *cacheVal
+}
+
+// liftingCache is a convenience type for the cache behavior,
+// making it easier to test and benchmark independently.
+type liftingCache struct {
+	cap      int
+	cache    map[uint64]*cacheVal
+	bufNew   bytes.Buffer
+	bufEntry bytes.Buffer
+	fv       FullValue
+
+	keyHash  elementHasher
+	keyCoder ElementEncoder
+	winCoder WindowEncoder
+}
+
+func newLiftingCache(max int, kc *coder.Coder, wc *coder.WindowCoder) *liftingCache {
+	return &liftingCache{
+		cap:      max,
+		keyHash:  makeElementHasher(kc, wc),
+		keyCoder: MakeElementEncoder(kc),
+		winCoder: MakeWindowEncoder(wc),
+	}
+}
+
+func (c *liftingCache) start() {
+	c.cache = make(map[uint64]*cacheVal)
+}
+
+func (c *liftingCache) down() {
+	c.cache = nil
+}
+
+// lookup extracts the value from the cache, looking into overflow buckets as necessary,
+// returning the current hash key, a pre-inserted FullValue to be written to, and whether
+// the value is initialized, and an error if needed.
+func (c *liftingCache) lookup(value *FullValue, w typex.Window) (uint64, *FullValue, bool, error) {
+	key, err := c.keyHash.Hash(value.Elm, w)
+	if err != nil {
+		return 0, nil, false, err
+	}
+	// Value is a KV so Elm & Elm2 are populated.
+	// Check the cache for an already present accumulator
+
+	ce, notfirst := c.cache[key]
+	// If this is not the first one, lets be sure about it.
+	if notfirst {
+		// Encode the test value & window.
+		codeit := func(fv *FullValue, w typex.Window, buf *bytes.Buffer) {
+			buf.Reset()
+			c.fv.Elm = fv.Elm
+			c.keyCoder.Encode(&c.fv, buf)
+			c.winCoder.EncodeSingle(w, buf)
+		}
+		codeit(value, w, &c.bufNew)
+		codeit(&ce.fv, ce.fv.Windows[0], &c.bufEntry)
+		for !bytes.Equal(c.bufNew.Bytes(), c.bufEntry.Bytes()) {
+			if ce.overflow == nil {
+				// We haven't found anything that matches, so we overflow.
+				ce.overflow = &cacheVal{}
+				notfirst = false
+				ce = ce.overflow
+				break
+			}
+			ce = ce.overflow
+			codeit(&ce.fv, ce.fv.Windows[0], &c.bufEntry)
+		}
+		// This means we have a valid value!
+	} else {
+		// Ensure we have a valid cacheVal in the cache for later...
+		ce = &cacheVal{}
+		c.cache[key] = ce
+	}
+	return key, &ce.fv, notfirst, nil
+}
+
+// compact reduces the liftingCache down to it's cap, emitting values
+// downstream. Accepts the current working key to avoid evicting the
+// most recent key.
+func (c *liftingCache) compact(ctx context.Context, currentKey uint64, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+	if len(c.cache) <= c.cap {
+		return nil
+	}
+	// Use Go's random map iteration to have a basic
+	// random eviction policy.
+	for k, ce := range c.cache {
+		// Never evict and send out the current working key.
+		// We've already combined this contribution with the
+		// accumulator and we'd be repeating the contributions
+		// of older elements.
+		if k == currentKey {
+			continue
+		}
+		if err := c.emit(ctx, ce, ProcessElement); err != nil {
+			return err
+		}
+		delete(c.cache, k)
+		// Having the check be on strict greater than and
+		// strict less than allows at least 2 keys to be
+		// processed before evicting again.
+		if len(c.cache) < c.cap {
+			break
+		}
+	}
+	return nil
+}
+
+// emit the value, and it's related overflows downstream.
+func (*liftingCache) emit(ctx context.Context, ce *cacheVal, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+	for ce.overflow != nil {
+		if err := ProcessElement(ctx, &ce.fv); err != nil {
+			return err
+		}
+		ce = ce.overflow
+	}
+	if err := ProcessElement(ctx, &ce.fv); err != nil {
+		return err
+	}
+	return nil
+}
+
+// emitAll values in the cache, and nil the map.
+func (c *liftingCache) emitAll(ctx context.Context, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+	for _, a := range c.cache {
+		if err := c.emit(ctx, a, ProcessElement); err != nil {
+			return err
+		}
+	}
+	c.cache = nil
 	return nil
 }
 
@@ -438,6 +576,7 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value *FullValue
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine merge %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.ProcessBundle)
 	a, err := n.newAccum(n.Combine.ctx, value.Elm)
 	if err != nil {
 		return n.fail(err)
@@ -493,9 +632,38 @@ func (n *ExtractOutput) ProcessElement(ctx context.Context, value *FullValue, va
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine extract %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.StartBundle)
 	out, err := n.extract(n.Combine.ctx, value.Elm2)
 	if err != nil {
 		return n.fail(err)
 	}
 	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
+}
+
+// ConvertToAccumulators is an executor for converting an input value to an accumulator value.
+type ConvertToAccumulators struct {
+	*Combine
+}
+
+func (n *ConvertToAccumulators) String() string {
+	return fmt.Sprintf("ConvertToAccumulators[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// ProcessElement accepts an input value and returns an accumulator containing that one value.
+func (n *ConvertToAccumulators) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return errors.Errorf("invalid status for combine convert %v: %v", n.UID, n.status)
+	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.StartBundle)
+	a, err := n.newAccum(n.Combine.ctx, value.Elm)
+	if err != nil {
+		return n.fail(err)
+	}
+
+	first := true
+	a, err = n.addInput(n.Combine.ctx, a, value.Elm, value.Elm2, value.Timestamp, first)
+	if err != nil {
+		return n.fail(err)
+	}
+	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp})
 }

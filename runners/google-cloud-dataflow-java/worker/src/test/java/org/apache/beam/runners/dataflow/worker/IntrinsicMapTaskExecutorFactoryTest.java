@@ -24,15 +24,15 @@ import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getO
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -51,9 +51,9 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -99,11 +99,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.Network;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -114,6 +115,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link IntrinsicMapTaskExecutorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "DoNotMock", // TODO: Use NetworkBuilder to create a real instance
+})
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";
 
@@ -175,10 +180,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     try (DataflowMapTaskExecutor executor =
         mapTaskExecutorFactory.create(
-            null /* beamFnControlClientHandler */,
-            null /* GrpcFnServer<GrpcDataService> */,
-            null /* ApiServiceDescriptor */,
-            null, /* GrpcFnServer<GrpcStateService> */
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -188,7 +189,10 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             counterSet,
             idGenerator)) {
       // Safe covariant cast not expressible without rawtypes.
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+        "unchecked"
+      })
       List<Object> operations = (List) executor.operations;
       assertThat(
           operations,
@@ -266,10 +270,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     try (DataflowMapTaskExecutor executor =
         mapTaskExecutorFactory.create(
-            null /* beamFnControlClientHandler */,
-            null /* beamFnDataService */,
-            null /* beamFnStateService */,
-            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -484,7 +484,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                     null /* side input views */,
                     null /* input coder */,
                     new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-                    DoFnSchemaInformation.create())));
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);

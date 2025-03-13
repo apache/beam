@@ -17,33 +17,39 @@
 
 """A word-counting workflow."""
 
-from __future__ import absolute_import
+# pytype: skip-file
+
+# beam-playground:
+#   name: WordCount
+#   description: An example that counts words in Shakespeare's works.
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   context_line: 87
+#   categories:
+#     - Combiners
+#     - Options
+#     - Quickstart
+#   complexity: MEDIUM
+#   tags:
+#     - options
+#     - count
+#     - combine
+#     - strings
 
 import argparse
 import logging
 import re
 
-from past.builtins import unicode
-
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
-from apache_beam.metrics import Metrics
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
-
-  def __init__(self):
-    self.words_counter = Metrics.counter(self.__class__, 'words')
-    self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
-    self.word_lengths_dist = Metrics.distribution(
-        self.__class__, 'word_len_dist')
-    self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
-
   def process(self, element):
     """Returns an iterator over the words of this element.
 
@@ -55,79 +61,54 @@ class WordExtractingDoFn(beam.DoFn):
     Returns:
       The processed element.
     """
-    text_line = element.strip()
-    if not text_line:
-      self.empty_line_counter.inc(1)
-    words = re.findall(r'[\w\']+', text_line, re.UNICODE)
-    for w in words:
-      self.words_counter.inc()
-      self.word_lengths_counter.inc(len(w))
-      self.word_lengths_dist.update(len(w))
-    return words
+    return re.findall(r'[\w\']+', element, re.UNICODE)
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True) -> PipelineResult:
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+
+  pipeline = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> ReadFromText(known_args.input)
+  lines = pipeline | 'Read' >> ReadFromText(known_args.input)
 
-  # Count the occurrences of each word.
-  def count_ones(word_ones):
-    (word, ones) = word_ones
-    return (word, sum(ones))
-
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
+  counts = (
+      lines
+      | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
+      | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+      | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
   # Format the counts into a PCollection of strings.
-  def format_result(word_count):
-    (word, count) = word_count
+  def format_result(word, count):
     return '%s: %d' % (word, count)
 
-  output = counts | 'format' >> beam.Map(format_result)
+  output = counts | 'Format' >> beam.MapTuple(format_result)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(known_args.output)
+  output | 'Write' >> WriteToText(known_args.output)
 
-  result = p.run()
+  # Execute the pipeline and return the result.
+  result = pipeline.run()
   result.wait_until_finish()
-
-  # Do not query metrics when creating a template which doesn't run
-  if (not hasattr(result, 'has_job')    # direct runner
-      or result.has_job):               # not just a template creation
-    empty_lines_filter = MetricsFilter().with_name('empty_lines')
-    query_result = result.metrics().query(empty_lines_filter)
-    if query_result['counters']:
-      empty_lines_counter = query_result['counters'][0]
-      logging.info('number of empty lines: %d', empty_lines_counter.result)
-
-    word_lengths_filter = MetricsFilter().with_name('word_len_dist')
-    query_result = result.metrics().query(word_lengths_filter)
-    if query_result['distributions']:
-      word_lengths_dist = query_result['distributions'][0]
-      logging.info('average word length: %d', word_lengths_dist.result.mean)
+  return result
 
 
 if __name__ == '__main__':

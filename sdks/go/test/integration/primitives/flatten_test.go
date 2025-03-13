@@ -18,17 +18,16 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestFlatten(t *testing.T) {
-	if err := ptest.Run(Flatten()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, Flatten)
 }
 
 func TestFlattenDup(t *testing.T) {
-	if err := ptest.Run(FlattenDup()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, FlattenDup)
 }

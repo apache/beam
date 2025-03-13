@@ -20,11 +20,11 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 var (
-	structFuncs   = make(map[string]func(interface{}) map[string]Func)
+	structFuncs   = make(map[string]func(any) map[string]Func)
 	structFuncsMu sync.Mutex
 )
 
@@ -35,7 +35,7 @@ var (
 //
 // The goal is to avoid the implicit reflective method invocation penalty
 // that occurs when passing a method through the reflect package.
-func RegisterStructWrapper(t reflect.Type, wrapper func(interface{}) map[string]Func) {
+func RegisterStructWrapper(t reflect.Type, wrapper func(any) map[string]Func) {
 	structFuncsMu.Lock()
 	defer structFuncsMu.Unlock()
 
@@ -44,7 +44,7 @@ func RegisterStructWrapper(t reflect.Type, wrapper func(interface{}) map[string]
 	}
 
 	key := t.String()
-	if _, exists := funcs[key]; exists {
+	if _, exists := structFuncs[key]; exists {
 		log.Warnf(context.Background(), "StructWrapper for %v already registered. Overwriting.", key)
 	}
 	structFuncs[key] = wrapper
@@ -52,12 +52,12 @@ func RegisterStructWrapper(t reflect.Type, wrapper func(interface{}) map[string]
 
 // WrapMethods takes in a struct value as an interface, and returns a map of
 // method names to Funcs of those methods wrapped in a closure for the struct instance.
-func WrapMethods(fn interface{}) (map[string]Func, bool) {
+func WrapMethods(fn any) (map[string]Func, bool) {
 	return wrapMethodsKeyed(reflect.TypeOf(fn), fn)
 }
 
 // WrapMethodsKeyed takes in a struct value as an interface
-func wrapMethodsKeyed(t reflect.Type, fn interface{}) (map[string]Func, bool) {
+func wrapMethodsKeyed(t reflect.Type, fn any) (map[string]Func, bool) {
 	structFuncsMu.Lock()
 	defer structFuncsMu.Unlock()
 	// Registering happens on the value, not the proto type.

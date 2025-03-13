@@ -17,66 +17,80 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.ParDoTranslation.registerCoderOrThrow;
+import static org.apache.beam.sdk.util.construction.ParDoTranslation.translateTimeDomain;
+import static org.apache.beam.sdk.util.construction.ParDoTranslation.translateTimerFamilySpec;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DisplayData;
-import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.ForwardingPTransform;
+import org.apache.beam.sdk.util.construction.PTransformReplacements;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation.ParDoLikeTimerFamilySpecs;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
  * A {@link PTransformOverrideFactory} that produces {@link ParDoSingle} instances from {@link
  * ParDo.SingleOutput} instances. {@link ParDoSingle} is a primitive {@link PTransform}, to ensure
  * that {@link DisplayData} appears on all {@link ParDo ParDos} in the {@link DataflowRunner}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>> {
+        PCollection<? extends InputT>, PCollection<OutputT>, SingleOutput<InputT, OutputT>> {
   @Override
-  public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
+  public PTransformOverrideFactory.PTransformReplacement<
+          PCollection<? extends InputT>, PCollection<OutputT>>
       getReplacementTransform(
           AppliedPTransform<
                   PCollection<? extends InputT>,
                   PCollection<OutputT>,
                   SingleOutput<InputT, OutputT>>
               transform) {
-    return PTransformReplacement.of(
+    return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
         new ParDoSingle<>(
             transform.getTransform(),
@@ -118,13 +132,13 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       return onlyOutputTag;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return original.getSideInputs();
     }
 
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(getSideInputs());
+      return PCollectionViews.toAdditionalInputs(getSideInputs().values());
     }
 
     @Override
@@ -143,7 +157,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     private PayloadTranslator() {}
 
     @Override
-    public String getUrn(ParDoSingle<?, ?> transform) {
+    public String getUrn() {
       return PAR_DO_TRANSFORM_URN;
     }
 
@@ -166,7 +180,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-      if (!hasExperiment(transform.getPipeline().getOptions(), "beam_fn_api")) {
+      if (!DataflowRunner.useUnifiedWorker(
+          transform.getPipeline().getOptions().as(DataflowPipelineOptions.class))) {
         checkArgument(
             !signature.processElement().isSplittable(),
             String.format(
@@ -178,14 +193,26 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       Set<String> allInputs =
           transform.getInputs().keySet().stream().map(TupleTag::getId).collect(Collectors.toSet());
       Set<String> sideInputs =
-          parDo.getSideInputs().stream()
+          parDo.getSideInputs().values().stream()
               .map(s -> s.getTagInternal().getId())
               .collect(Collectors.toSet());
-      Set<String> timerInputs = signature.timerDeclarations().keySet();
-      String mainInputName =
-          Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
+      String mainInputName = Iterables.getOnlyElement(Sets.difference(allInputs, sideInputs));
       PCollection<?> mainInput =
           (PCollection<?>) transform.getInputs().get(new TupleTag<>(mainInputName));
+
+      Coder<BoundedWindow> windowCoder =
+          (Coder<BoundedWindow>) mainInput.getWindowingStrategy().getWindowFn().windowCoder();
+      Coder<?> keyCoder;
+      if (signature.usesState() || signature.usesTimers()) {
+        checkArgument(
+            mainInput.getCoder() instanceof KvCoder,
+            "DoFn's that use state or timers must have an input PCollection with a KvCoder but"
+                + " received %s",
+            mainInput.getCoder());
+        keyCoder = ((KvCoder) mainInput.getCoder()).getKeyCoder();
+      } else {
+        keyCoder = null;
+      }
 
       final DoFnSchemaInformation doFnSchemaInformation =
           ParDo.getDoFnSchemaInformation(doFn, mainInput);
@@ -193,20 +220,19 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       return ParDoTranslation.payloadForParDoLike(
           new ParDoTranslation.ParDoLike() {
             @Override
-            public RunnerApi.SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+            public RunnerApi.FunctionSpec translateDoFn(SdkComponents newComponents) {
               return ParDoTranslation.translateDoFn(
-                  parDo.getFn(), parDo.getMainOutputTag(), doFnSchemaInformation, newComponents);
-            }
-
-            @Override
-            public List<RunnerApi.Parameter> translateParameters() {
-              return ParDoTranslation.translateParameters(
-                  signature.processElement().extraParameters());
+                  parDo.getFn(),
+                  parDo.getMainOutputTag(),
+                  parDo.getSideInputs(),
+                  doFnSchemaInformation,
+                  newComponents);
             }
 
             @Override
             public Map<String, RunnerApi.SideInput> translateSideInputs(SdkComponents components) {
-              return ParDoTranslation.translateSideInputs(parDo.getSideInputs(), components);
+              return ParDoTranslation.translateSideInputs(
+                  parDo.getSideInputs().values().stream().collect(Collectors.toList()), components);
             }
 
             @Override
@@ -224,16 +250,59 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(
+            public ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(
                 SdkComponents newComponents) {
-              Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
-              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
+              Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
+
+              for (Map.Entry<String, TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
-                RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
-                timerSpecs.put(timer.getKey(), spec);
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerSpecOrThrow(timer.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
+                timerFamilySpecs.put(timer.getKey(), spec);
               }
-              return timerSpecs;
+
+              for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
+                  signature.timerFamilyDeclarations().entrySet()) {
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        DoFnSignatures.getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
+                timerFamilySpecs.put(timerFamily.getKey(), spec);
+              }
+
+              String onWindowExpirationTimerFamilySpec = null;
+              if (signature.onWindowExpiration() != null) {
+                RunnerApi.TimerFamilySpec spec =
+                    RunnerApi.TimerFamilySpec.newBuilder()
+                        .setTimeDomain(translateTimeDomain(TimeDomain.EVENT_TIME))
+                        .setTimerFamilyCoderId(
+                            registerCoderOrThrow(components, Timer.Coder.of(keyCoder, windowCoder)))
+                        .build();
+                for (int i = 0; i < Integer.MAX_VALUE; ++i) {
+                  onWindowExpirationTimerFamilySpec = "onWindowExpiration" + i;
+                  if (!timerFamilySpecs.containsKey(onWindowExpirationTimerFamilySpec)) {
+                    break;
+                  }
+                }
+                timerFamilySpecs.put(onWindowExpirationTimerFamilySpec, spec);
+              }
+
+              return ParDoLikeTimerFamilySpecs.create(
+                  timerFamilySpecs, onWindowExpirationTimerFamilySpec);
+            }
+
+            @Override
+            public boolean isStateful() {
+              return !signature.stateDeclarations().isEmpty()
+                  || !signature.timerDeclarations().isEmpty()
+                  || !signature.timerFamilyDeclarations().isEmpty()
+                  || signature.onWindowExpiration() != null;
             }
 
             @Override
@@ -242,13 +311,46 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
+            public boolean isRequiresStableInput() {
+              return signature.processElement().requiresStableInput();
+            }
+
+            @Override
+            public boolean isRequiresTimeSortedInput() {
+              return signature.processElement().requiresTimeSortedInput();
+            }
+
+            @Override
+            public boolean requestsFinalization() {
+              return (signature.startBundle() != null
+                      && signature
+                          .startBundle()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()))
+                  || (signature.processElement() != null
+                      && signature
+                          .processElement()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()))
+                  || (signature.finishBundle() != null
+                      && signature
+                          .finishBundle()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()));
+            }
+
+            @Override
             public String translateRestrictionCoderId(SdkComponents newComponents) {
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(doFn)
-                        .invokeGetRestrictionCoder(transform.getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+                final Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            transform.getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            transform.getPipeline().getCoderRegistry()));
                 try {
-                  return newComponents.registerCoder(restrictionCoder);
+                  return newComponents.registerCoder(restrictionAndWatermarkStateCoder);
                 } catch (IOException e) {
                   throw new IllegalStateException(
                       String.format(

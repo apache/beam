@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
 import java.io.Closeable;
@@ -29,16 +29,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
-class PubsubTestClient extends PubsubClient implements Serializable {
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class PubsubTestClient extends PubsubClient implements Serializable {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
    *
@@ -50,6 +54,8 @@ class PubsubTestClient extends PubsubClient implements Serializable {
   private static class State {
     /** True if has been primed for a test but not yet validated. */
     boolean isActive;
+
+    boolean isPublish;
 
     /** Publish mode only: Only publish calls for this topic are allowed. */
     @Nullable TopicPath expectedTopic;
@@ -83,29 +89,44 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
     /** Pull mode only: When above messages are due to have their ACK deadlines expire. */
     @Nullable Map<String, Long> ackDeadline;
+
+    /** The Pub/Sub schema resource path. */
+    @Nullable SchemaPath expectedSchemaPath;
+
+    /** Expected Pub/sub mapped Beam Schema. */
+    @Nullable Schema expectedSchema;
   }
 
   private static final State STATE = new State();
 
   /** Closing the factory will validate all expected messages were processed. */
-  public interface PubsubTestClientFactory extends PubsubClientFactory, Closeable, Serializable {}
+  public interface PubsubTestClientFactory extends PubsubClientFactory, Closeable, Serializable {
+    default <T> PubsubIO.Read<T> setClock(PubsubIO.Read<T> readTransform, Clock clock) {
+      return readTransform.withClock(clock);
+    }
+  }
 
   /**
    * Return a factory for testing publishers. Only one factory may be in-flight at a time. The
    * factory must be closed when the test is complete, at which point final validation will occur.
    */
-  static PubsubTestClientFactory createFactoryForPublish(
-      final TopicPath expectedTopic,
+  public static PubsubTestClientFactory createFactoryForPublish(
+      final @Nullable TopicPath expectedTopic,
       final Iterable<OutgoingMessage> expectedOutgoingMessages,
       final Iterable<OutgoingMessage> failingOutgoingMessages) {
-    synchronized (STATE) {
-      checkState(!STATE.isActive, "Test still in flight");
-      STATE.expectedTopic = expectedTopic;
-      STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
-      STATE.remainingFailingOutgoingMessages = Sets.newHashSet(failingOutgoingMessages);
-      STATE.isActive = true;
-    }
+    activate(
+        () -> setPublishState(expectedTopic, expectedOutgoingMessages, failingOutgoingMessages));
     return new PubsubTestClientFactory() {
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
       @Override
       public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
@@ -120,15 +141,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public void close() {
-        synchronized (STATE) {
-          checkState(STATE.isActive, "No test still in flight");
-          checkState(
-              STATE.remainingExpectedOutgoingMessages.isEmpty(),
-              "Still waiting for %s messages to be published",
-              STATE.remainingExpectedOutgoingMessages.size());
-          STATE.isActive = false;
-          STATE.remainingExpectedOutgoingMessages = null;
-        }
+        deactivate(PubsubTestClient::performFinalPublishStateChecks);
       }
     };
   }
@@ -142,17 +155,19 @@ class PubsubTestClient extends PubsubClient implements Serializable {
       final SubscriptionPath expectedSubscription,
       final int ackTimeoutSec,
       final Iterable<IncomingMessage> expectedIncomingMessages) {
-    synchronized (STATE) {
-      checkState(!STATE.isActive, "Test still in flight");
-      STATE.clock = clock;
-      STATE.expectedSubscription = expectedSubscription;
-      STATE.ackTimeoutSec = ackTimeoutSec;
-      STATE.remainingPendingIncomingMessages = Lists.newArrayList(expectedIncomingMessages);
-      STATE.pendingAckIncomingMessages = new HashMap<>();
-      STATE.ackDeadline = new HashMap<>();
-      STATE.isActive = true;
-    }
+    activate(
+        () -> setPullState(expectedSubscription, clock, ackTimeoutSec, expectedIncomingMessages));
     return new PubsubTestClientFactory() {
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
       @Override
       public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
@@ -167,27 +182,194 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public void close() {
-        synchronized (STATE) {
-          checkState(STATE.isActive, "No test still in flight");
-          checkState(
-              STATE.remainingPendingIncomingMessages.isEmpty(),
-              "Still waiting for %s messages to be pulled",
-              STATE.remainingPendingIncomingMessages.size());
-          checkState(
-              STATE.pendingAckIncomingMessages.isEmpty(),
-              "Still waiting for %s messages to be ACKed",
-              STATE.pendingAckIncomingMessages.size());
-          checkState(
-              STATE.ackDeadline.isEmpty(),
-              "Still waiting for %s messages to be ACKed",
-              STATE.ackDeadline.size());
-          STATE.isActive = false;
-          STATE.remainingPendingIncomingMessages = null;
-          STATE.pendingAckIncomingMessages = null;
-          STATE.ackDeadline = null;
-        }
+        deactivate(PubsubTestClient::performFinalPullStateChecks);
       }
     };
+  }
+
+  /**
+   * Returns a factory for a test that is expected to both publish and pull messages over the course
+   * of the test.
+   */
+  public static PubsubTestClientFactory createFactoryForPullAndPublish(
+      final SubscriptionPath pullSubscription,
+      final TopicPath publishTopicPath,
+      final Clock pullClock,
+      final int pullAckTimeoutSec,
+      final Iterable<IncomingMessage> expectedIncomingMessages,
+      final Iterable<OutgoingMessage> expectedOutgoingMessages,
+      final Iterable<OutgoingMessage> failingOutgoingMessages) {
+    activate(
+        () -> {
+          setPublishState(publishTopicPath, expectedOutgoingMessages, failingOutgoingMessages);
+          setPullState(pullSubscription, pullClock, pullAckTimeoutSec, expectedIncomingMessages);
+        });
+    return new PubsubTestClientFactory() {
+      @Override
+      public void close() throws IOException {
+        deactivate(
+            () -> {
+              performFinalPublishStateChecks();
+              performFinalPullStateChecks();
+            });
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          throws IOException {
+        return new PubsubTestClient();
+      }
+
+      @Override
+      public String getKind() {
+        return "PublishAndPullTest";
+      }
+    };
+  }
+
+  public static PubsubTestClientFactory createFactoryForGetSchema(
+      TopicPath expectedTopic,
+      @Nullable SchemaPath expectedSchemaPath,
+      @Nullable Schema expectedSchema) {
+    return new PubsubTestClientFactory() {
+      @Override
+      public void close() {
+        deactivate(() -> {});
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride) {
+        activate(
+            () -> {
+              setSchemaState(expectedTopic, expectedSchemaPath, expectedSchema);
+            });
+        return new PubsubTestClient();
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options, null);
+      }
+
+      @Override
+      public String getKind() {
+        return "GetSchemaTest";
+      }
+    };
+  }
+
+  /**
+   * Activates {@link PubsubTestClientFactory} state for the test. This can only be called once per
+   * test.
+   *
+   * <p>It is not necessary to set {@code STATE.isActive}. That will be set regardless.
+   *
+   * @param setStateValues a {@link Runnable} that sets all the desired values.
+   */
+  private static void activate(Runnable setStateValues) {
+    synchronized (STATE) {
+      checkState(!STATE.isActive, "Test still in flight");
+      setStateValues.run();
+      STATE.isActive = true;
+    }
+  }
+
+  /**
+   * Deactivates {@link PubsubTestClientFactory} state for use in other tests. This can only be
+   * called once per test.
+   *
+   * <p>It is not necessary to check or set {@code STATE.isActivate}. That will be handled by this
+   * method.
+   *
+   * @param runFinalChecks a {@link Runnable} to handle any final state checking before marking
+   *     {@code STATE} as no longer active
+   */
+  private static void deactivate(Runnable runFinalChecks) {
+    synchronized (STATE) {
+      checkState(STATE.isActive, "No test still in flight");
+      runFinalChecks.run();
+      STATE.remainingExpectedOutgoingMessages = null;
+      STATE.remainingPendingIncomingMessages = null;
+      STATE.pendingAckIncomingMessages = null;
+      STATE.ackDeadline = null;
+      STATE.isActive = false;
+    }
+  }
+
+  /** Handles setting {@code STATE} values for a publishing client. */
+  private static void setPublishState(
+      final @Nullable TopicPath expectedTopic,
+      final Iterable<OutgoingMessage> expectedOutgoingMessages,
+      final Iterable<OutgoingMessage> failingOutgoingMessages) {
+    STATE.isPublish = true;
+    STATE.expectedTopic = expectedTopic;
+    STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
+    STATE.remainingFailingOutgoingMessages = Sets.newHashSet(failingOutgoingMessages);
+  }
+
+  /** Handles setting {@code STATE} values for a pulling client. */
+  private static void setPullState(
+      final SubscriptionPath expectedSubscription,
+      final Clock clock,
+      final int ackTimeoutSec,
+      final Iterable<IncomingMessage> expectedIncomingMessages) {
+    STATE.clock = clock;
+    STATE.expectedSubscription = expectedSubscription;
+    STATE.ackTimeoutSec = ackTimeoutSec;
+    STATE.remainingPendingIncomingMessages = Lists.newArrayList(expectedIncomingMessages);
+    STATE.pendingAckIncomingMessages = new HashMap<>();
+    STATE.ackDeadline = new HashMap<>();
+  }
+
+  private static void setSchemaState(
+      TopicPath expectedTopic,
+      @Nullable SchemaPath expectedSchemaPath,
+      @Nullable Schema expectedSchema) {
+    STATE.expectedTopic = expectedTopic;
+    STATE.expectedSchemaPath = expectedSchemaPath;
+    STATE.expectedSchema = expectedSchema;
+  }
+
+  /** Handles verifying {@code STATE} at end of publish test. */
+  private static void performFinalPublishStateChecks() {
+    checkState(STATE.isActive, "No test still in flight");
+    checkState(
+        STATE.remainingExpectedOutgoingMessages.isEmpty(),
+        "Still waiting for %s messages to be published",
+        STATE.remainingExpectedOutgoingMessages.size());
+  }
+
+  /** Handles verifying {@code STATE} at end of pull test. */
+  private static void performFinalPullStateChecks() {
+    checkState(
+        STATE.remainingPendingIncomingMessages.isEmpty(),
+        "Still waiting for %s messages to be pulled",
+        STATE.remainingPendingIncomingMessages.size());
+    checkState(
+        STATE.pendingAckIncomingMessages.isEmpty(),
+        "Still waiting for %s messages to be ACKed",
+        STATE.pendingAckIncomingMessages.size());
+    checkState(
+        STATE.ackDeadline.isEmpty(),
+        "Still waiting for %s messages to be ACKed",
+        STATE.ackDeadline.size());
   }
 
   public static PubsubTestClientFactory createFactoryForCreateSubscription() {
@@ -198,6 +380,16 @@ class PubsubTestClient extends PubsubClient implements Serializable {
       public void close() throws IOException {
         checkState(
             numCalls == 1, "Expected exactly one subscription to be created, got %s", numCalls);
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
       }
 
       @Override
@@ -231,7 +423,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
   /** Return true if in publish mode. */
   private boolean inPublishMode() {
     checkState(STATE.isActive, "No test is active");
-    return STATE.expectedTopic != null;
+    return STATE.isPublish;
   }
 
   /**
@@ -261,12 +453,20 @@ class PubsubTestClient extends PubsubClient implements Serializable {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     synchronized (STATE) {
       checkState(inPublishMode(), "Can only publish in publish mode");
-      checkState(
-          topic.equals(STATE.expectedTopic),
-          "Topic %s does not match expected %s",
-          topic,
-          STATE.expectedTopic);
+      boolean isDynamic = STATE.expectedTopic == null;
+      if (!isDynamic) {
+        checkState(
+            topic.equals(STATE.expectedTopic),
+            "Topic %s does not match expected %s",
+            topic,
+            STATE.expectedTopic);
+      }
       for (OutgoingMessage outgoingMessage : outgoingMessages) {
+        if (isDynamic) {
+          checkState(outgoingMessage.topic().equals(topic.getPath()));
+        } else {
+          checkState(outgoingMessage.topic() == null);
+        }
         if (STATE.remainingFailingOutgoingMessages.remove(outgoingMessage)) {
           throw new RuntimeException("Simulating failure for " + outgoingMessage);
         }
@@ -307,12 +507,17 @@ class PubsubTestClient extends PubsubClient implements Serializable {
         IncomingMessage incomingMessage = pendItr.next();
         pendItr.remove();
         IncomingMessage incomingMessageWithRequestTime =
-            incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
+            IncomingMessage.of(
+                incomingMessage.message(),
+                incomingMessage.timestampMsSinceEpoch(),
+                requestTimeMsSinceEpoch,
+                incomingMessage.ackId(),
+                incomingMessage.recordId());
         incomingMessages.add(incomingMessageWithRequestTime);
         STATE.pendingAckIncomingMessages.put(
-            incomingMessageWithRequestTime.ackId, incomingMessageWithRequestTime);
+            incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
         STATE.ackDeadline.put(
-            incomingMessageWithRequestTime.ackId,
+            incomingMessageWithRequestTime.ackId(),
             requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000);
         if (incomingMessages.size() >= batchSize) {
           break;
@@ -386,6 +591,11 @@ class PubsubTestClient extends PubsubClient implements Serializable {
   }
 
   @Override
+  public void createTopic(TopicPath topic, SchemaPath schema) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteTopic(TopicPath topic) throws IOException {
     throw new UnsupportedOperationException();
   }
@@ -393,6 +603,12 @@ class PubsubTestClient extends PubsubClient implements Serializable {
   @Override
   public List<TopicPath> listTopics(ProjectPath project) throws IOException {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean isTopicExists(TopicPath topic) throws IOException {
+    // Always return true for testing purposes.
+    return true;
   }
 
   @Override
@@ -425,5 +641,28 @@ class PubsubTestClient extends PubsubClient implements Serializable {
       checkState(inPullMode(), "Can only check EOF in pull mode");
       return STATE.remainingPendingIncomingMessages.isEmpty();
     }
+  }
+
+  @Override
+  public void createSchema(
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Delete {@link SchemaPath}. */
+  @Override
+  public void deleteSchema(SchemaPath schemaPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+    return STATE.expectedSchemaPath;
+  }
+
+  @Override
+  public Schema getSchema(SchemaPath schemaPath) throws IOException {
+    return STATE.expectedSchema;
   }
 }

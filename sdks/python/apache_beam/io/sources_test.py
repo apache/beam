@@ -16,11 +16,10 @@
 #
 
 """Unit tests for the sources framework."""
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import os
-import sys
 import tempfile
 import unittest
 
@@ -50,46 +49,46 @@ class LineSource(iobase.BoundedSource):
         start -= 1
         start += len(f.readline())
       current = start
-      for line in f:
-        if not range_tracker.try_claim(current):
+      line = f.readline()
+      while range_tracker.try_claim(current):
+        if not line:
           return
         yield line.rstrip(b'\n')
         current += len(line)
+        line = f.readline()
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     assert start_position is None
     assert stop_position is None
-    with open(self._file_name, 'rb') as f:
-      f.seek(0, os.SEEK_END)
-      size = f.tell()
+    size = self.estimate_size()
 
     bundle_start = 0
     while bundle_start < size:
       bundle_stop = min(bundle_start + LineSource.TEST_BUNDLE_SIZE, size)
-      yield iobase.SourceBundle(1, self, bundle_start, bundle_stop)
+      yield iobase.SourceBundle(
+          bundle_stop - bundle_start, self, bundle_start, bundle_stop)
       bundle_start = bundle_stop
 
   def get_range_tracker(self, start_position, stop_position):
     if start_position is None:
       start_position = 0
     if stop_position is None:
-      with open(self._file_name, 'rb') as f:
-        f.seek(0, os.SEEK_END)
-        stop_position = f.tell()
+      stop_position = self._get_file_size()
     return range_trackers.OffsetRangeTracker(start_position, stop_position)
 
   def default_output_coder(self):
     return coders.BytesCoder()
 
+  def estimate_size(self):
+    return self._get_file_size()
+
+  def _get_file_size(self):
+    with open(self._file_name, 'rb') as f:
+      f.seek(0, os.SEEK_END)
+      return f.tell()
+
 
 class SourcesTest(unittest.TestCase):
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def _create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)
@@ -103,14 +102,21 @@ class SourcesTest(unittest.TestCase):
     result = [line for line in source.read(range_tracker)]
 
     self.assertCountEqual([b'aaaa', b'bbbb', b'cccc', b'dddd'], result)
+    self.assertTrue(
+        range_tracker.last_attempted_record_start >=
+        range_tracker.stop_position())
+
+  def test_source_estimated_size(self):
+    file_name = self._create_temp_file(b'aaaa\n')
+
+    source = LineSource(file_name)
+    self.assertEqual(5, source.estimate_size())
 
   def test_run_direct(self):
     file_name = self._create_temp_file(b'aaaa\nbbbb\ncccc\ndddd')
-    pipeline = TestPipeline()
-    pcoll = pipeline | beam.io.Read(LineSource(file_name))
-    assert_that(pcoll, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
-
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.io.Read(LineSource(file_name))
+      assert_that(pcoll, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
 
 
 if __name__ == '__main__':

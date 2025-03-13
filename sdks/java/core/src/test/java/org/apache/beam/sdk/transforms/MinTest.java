@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,6 +54,22 @@ public class MinTest {
   @Test
   public void testMinDoubleFn() {
     testCombineFn(Min.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, 4.0), 1.0);
+  }
+
+  @Test
+  public void testMinDoubleFnInfinity() {
+    testCombineFn(
+        Min.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.NEGATIVE_INFINITY);
+  }
+
+  @Test
+  public void testMinDoubleFnNan() {
+    testCombineFn(
+        Min.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.NaN),
+        Double.NaN);
   }
 
   @Test

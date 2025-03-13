@@ -1,0 +1,66 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+.about-graph-container
+  display: flex
+  justify-content: center
+
+  .about-graph-img-desktop
+    display: block
+    @media (max-width: $ak-breakpoint-md)
+      display: none
+
+  .about-graph-img-mobile
+    display: none
+    @media (max-width: $ak-breakpoint-md)
+      display: block
+
+.about-cards-container
+
+  .about-card-container
+    display: flex
+    position: relative
+
+    &:not(:last-child):before
+      content: ""
+      display: block
+      position: absolute
+      z-index: 1
+      left: 13px
+      top: 0
+      bottom: 0
+      border: 1px solid #DADADA
+      border-width: 0 0 0 1px
+      z-index: 1
+
+    .about-card-img-container
+      margin-right: 20px
+      z-index: 10
+
+      .about-card-img
+        width: 15px
+        height: 15px
+        box-sizing: content-box
+        background-color: #E74D1A
+        border-radius: 50%
+        border: 6px solid #FFFFFF
+        z-index: 10
+
+    .about-card-text
+      position: relative
+      padding-bottom: 10px
+

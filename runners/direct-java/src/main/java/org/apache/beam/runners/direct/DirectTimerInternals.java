@@ -17,20 +17,30 @@
  */
 package org.apache.beam.runners.direct;
 
-import javax.annotation.Nullable;
+import java.util.Map;
+import java.util.NavigableSet;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} where all relevant data exists in memory. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;
   private final TimerUpdateBuilder timerUpdateBuilder;
+  private final Map<TimeDomain, NavigableSet<TimerData>> modifiedTimers;
+  private final Map<String, TimerData> modifiedTimerIds;
 
   public static DirectTimerInternals create(
       Clock clock, TransformWatermarks watermarks, TimerUpdateBuilder timerUpdateBuilder) {
@@ -42,42 +52,78 @@ class DirectTimerInternals implements TimerInternals {
     this.processingTimeClock = clock;
     this.watermarks = watermarks;
     this.timerUpdateBuilder = timerUpdateBuilder;
+    this.modifiedTimers = Maps.newHashMap();
+    this.modifiedTimers.put(TimeDomain.EVENT_TIME, Sets.newTreeSet());
+    this.modifiedTimers.put(TimeDomain.PROCESSING_TIME, Sets.newTreeSet());
+    this.modifiedTimers.put(TimeDomain.SYNCHRONIZED_PROCESSING_TIME, Sets.newTreeSet());
+    this.modifiedTimerIds = Maps.newHashMap();
   }
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-    timerUpdateBuilder.setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+   *     TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
     timerUpdateBuilder.setTimer(timerData);
+    getModifiedTimersOrdered(timerData.getDomain()).add(timerData);
+    modifiedTimerIds.put(timerData.stringKey(), timerData);
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+  public void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+    deleteTimer(
+        TimerData.of(
+            timerId,
+            timerFamilyId,
+            namespace,
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            timeDomain));
+  }
+
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  @Deprecated
+  @Override
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
-    throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
-  }
-
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
-  @Deprecated
-  @Override
-  public void deleteTimer(TimerData timerKey) {
-    timerUpdateBuilder.deletedTimer(timerKey);
+  public void deleteTimer(TimerData timerData) {
+    timerUpdateBuilder.deletedTimer(timerData);
+    modifiedTimerIds.put(timerData.stringKey(), timerData.deleted());
   }
 
   public TimerUpdate getTimerUpdate() {
     return timerUpdateBuilder.build();
+  }
+
+  public NavigableSet<TimerData> getModifiedTimersOrdered(TimeDomain timeDomain) {
+    NavigableSet<TimerData> modified = modifiedTimers.get(timeDomain);
+    if (modified == null) {
+      throw new IllegalStateException("Unexpected time domain " + timeDomain);
+    }
+    return modified;
+  }
+
+  public Map<String, TimerData> getModifiedTimerIds() {
+    return modifiedTimerIds;
   }
 
   @Override
@@ -86,8 +132,7 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
-  @Nullable
-  public Instant currentSynchronizedProcessingTime() {
+  public @Nullable Instant currentSynchronizedProcessingTime() {
     return watermarks.getSynchronizedProcessingInputTime();
   }
 
@@ -97,8 +142,7 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
-  @Nullable
-  public Instant currentOutputWatermarkTime() {
+  public @Nullable Instant currentOutputWatermarkTime() {
     return watermarks.getOutputWatermark();
   }
 }

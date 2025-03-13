@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffer messages used for kafka table provider tests
+ */
+
+syntax = "proto3";
+
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+message TestMessage {
+  int64 f_long = 1;
+  int32 f_int = 2;
+  double f_double = 3;
+  string f_string = 4;
+  repeated float f_float_array = 5;
+}
+
+message ItMessage {
+  int64 f_long = 1;
+  int32 f_int = 2;
+  string f_string = 3;
+}
+
+message SimpleMessage {
+  int32 id = 1;
+  string name = 2;
+}
+
+message NameMessage {
+  string name = 1;
+
+  enum NameType {
+    FIRST = 0;
+    MIDDLE = 1;
+    LAST = 2;
+    SECOND_LAST = 3;
+  }
+  repeated NameType name_array = 2;
+}
+
+message NameHeightMessage {
+  string name = 1;
+  int32 height = 2;
+}
+
+message NameHeightKnowsJSMessage {
+  string name = 1;
+  int32 height = 2;
+  bool knows_javascript = 3;
+}

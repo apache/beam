@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collections;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -27,17 +31,21 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Uncollect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Uncollect;
 
 /** {@link BeamRelNode} to implement an uncorrelated {@link Uncollect}, aka UNNEST. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
   public BeamUncollectRel(
       RelOptCluster cluster, RelTraitSet traitSet, RelNode input, boolean withOrdinality) {
-    super(cluster, traitSet, input, withOrdinality);
+    super(cluster, traitSet, input, withOrdinality, Collections.emptyList());
   }
 
   @Override
@@ -72,6 +80,20 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
     }
   }
 
+  @Override
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
+    // We estimate the average length of each array by a constant.
+    // We might be able to get an estimate of the length by making a MetadataHandler for this
+    // purpose, and get the estimate by reading the first couple of the rows in the source.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq).multiply(2);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
+    NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
+  }
+
   private static class UncollectDoFn extends DoFn<Row, Row> {
 
     private final Schema schema;
@@ -83,7 +105,12 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
     @ProcessElement
     public void process(@Element Row inputRow, OutputReceiver<Row> output) {
       for (Object element : inputRow.getArray(0)) {
-        output.output(Row.withSchema(schema).addValue(element).build());
+        if (element instanceof Row) {
+          Row nestedRow = (Row) element;
+          output.output(Row.withSchema(schema).addValues(nestedRow.getBaseValues()).build());
+        } else {
+          output.output(Row.withSchema(schema).addValue(element).build());
+        }
       }
     }
   }

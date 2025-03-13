@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.state;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.util.function.Function;
+import javax.annotation.Nullable;
 
 /**
  * A {@link ReadableState} cell mapping keys to values.
@@ -30,7 +30,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-@Experimental(Kind.STATE)
 public interface MapState<K, V> extends State {
 
   /**
@@ -55,7 +54,24 @@ public interface MapState<K, V> extends State {
    * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
    * {@link #values}, and {@link #entries}).
    */
-  ReadableState<V> putIfAbsent(K key, V value);
+  default ReadableState<V> putIfAbsent(K key, V value) {
+    return computeIfAbsent(key, k -> value);
+  }
+
+  /**
+   * A deferred read-followed-by-write.
+   *
+   * <p>When {@code read()} is called on the result or state is committed, it forces a read of the
+   * map and reconciliation with any pending modifications.
+   *
+   * <p>If the specified key is not already associated with a value (or is mapped to {@code null})
+   * associates it with the computed and returns {@code null}, else returns the current value.
+   *
+   * <p>Changes will not be reflected in the results returned by previous calls to {@link
+   * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
+   * {@link #values}, and {@link #entries}).
+   */
+  ReadableState<V> computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction);
 
   /**
    * Remove the mapping for a key from this map if it is present.
@@ -67,7 +83,7 @@ public interface MapState<K, V> extends State {
   void remove(K key);
 
   /**
-   * A deferred lookup.
+   * A deferred lookup, using null values if the item is not found.
    *
    * <p>A user is encouraged to call {@code get} for all relevant keys and call {@code readLater()}
    * on the results.
@@ -77,6 +93,17 @@ public interface MapState<K, V> extends State {
    */
   ReadableState<V> get(K key);
 
+  /**
+   * A deferred lookup.
+   *
+   * <p>A user is encouraged to call {@code get} for all relevant keys and call {@code readLater()}
+   * on the results.
+   *
+   * <p>When {@code read()} is called, a particular state implementation is encouraged to perform
+   * all pending reads in a single batch.
+   */
+  ReadableState<V> getOrDefault(K key, @Nullable V defaultValue);
+
   /** Returns an {@link Iterable} over the keys contained in this map. */
   ReadableState<Iterable<K>> keys();
 
@@ -85,4 +112,10 @@ public interface MapState<K, V> extends State {
 
   /** Returns an {@link Iterable} over the key-value pairs contained in this map. */
   ReadableState<Iterable<Map.Entry<K, V>>> entries();
+
+  /**
+   * Returns a {@link ReadableState} whose {@link ReadableState#read} method will return true if
+   * this state is empty at the point when that {@link ReadableState#read} call returns.
+   */
+  ReadableState<Boolean> isEmpty();
 }

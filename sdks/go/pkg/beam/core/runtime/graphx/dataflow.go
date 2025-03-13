@@ -16,11 +16,15 @@
 package graphx
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"reflect"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 // TODO(herohde) 7/17/2018: move CoderRef to dataflowlib once Dataflow
@@ -29,26 +33,32 @@ import (
 // CoderRef defines the (structured) Coder in serializable form. It is
 // an artifact of the CloudObject encoding.
 type CoderRef struct {
-	Type         string      `json:"@type,omitempty"`
-	Components   []*CoderRef `json:"component_encodings,omitempty"`
-	IsWrapper    bool        `json:"is_wrapper,omitempty"`
-	IsPairLike   bool        `json:"is_pair_like,omitempty"`
-	IsStreamLike bool        `json:"is_stream_like,omitempty"`
+	Type                 string      `json:"@type,omitempty"`
+	Components           []*CoderRef `json:"component_encodings,omitempty"`
+	IsWrapper            bool        `json:"is_wrapper,omitempty"`
+	IsPairLike           bool        `json:"is_pair_like,omitempty"`
+	IsStreamLike         bool        `json:"is_stream_like,omitempty"`
+	PipelineProtoCoderID string      `json:"pipeline_proto_coder_id,omitempty"`
 }
 
 // Exported types are used for translation lookup.
 const (
 	windowedValueType = "kind:windowed_value"
 	bytesType         = "kind:bytes"
+	boolType          = "kind:bool"
 	varIntType        = "kind:varint"
+	doubleType        = "kind:double"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
+	nullableType      = "kind:nullable"
 	lengthPrefixType  = "kind:length_prefix"
+	rowType           = "kind:row"
 
 	globalWindowType   = "kind:global_window"
 	intervalWindowType = "kind:interval_window"
 
 	cogbklistType = "kind:cogbklist" // CoGBK representation. Not a coder.
+	stringType    = "kind:string"    // Not a classical Dataflow kind.
 )
 
 // WrapIterable adds an iterable (stream) coder for Dataflow side input.
@@ -57,12 +67,12 @@ func WrapIterable(c *CoderRef) *CoderRef {
 }
 
 // WrapWindowed adds a windowed coder for Dataflow collections.
-func WrapWindowed(c *CoderRef, wc *coder.WindowCoder) *CoderRef {
+func WrapWindowed(c *CoderRef, wc *coder.WindowCoder) (*CoderRef, error) {
 	w, err := encodeWindowCoder(wc)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c, w}, IsWrapper: true}
+	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c, w}, IsWrapper: true}, nil
 }
 
 // EncodeCoderRefs returns the encoded forms understood by the runner.
@@ -90,7 +100,10 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{{Type: data}}}, nil
+		return &CoderRef{
+			Type:       lengthPrefixType,
+			Components: []*CoderRef{{Type: data, PipelineProtoCoderID: c.Custom.ID}},
+		}, nil
 
 	case coder.KV:
 		if len(c.Components) != 2 {
@@ -107,6 +120,26 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
 
+	case coder.Nullable:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad N: %v", c)
+		}
+		innerref, err := EncodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{Type: nullableType, Components: []*CoderRef{innerref}}, nil
+
+	case coder.Iterable:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad I: %v", c)
+		}
+		innerref, err := EncodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{Type: streamType, Components: []*CoderRef{innerref}}, nil
+
 	case coder.CoGBK:
 		if len(c.Components) < 2 {
 			return nil, errors.Errorf("bad CoGBK: %v", c)
@@ -119,7 +152,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 		value := refs[1]
 		if len(c.Components) > 2 {
-			// TODO(BEAM-490): don't inject union coder for CoGBK.
+			// TODO(https://github.com/apache/beam/issues/18032): don't inject union coder for CoGBK.
 
 			union := &CoderRef{Type: cogbklistType, Components: refs[1:]}
 			value = &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{union}}
@@ -143,12 +176,40 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
 
+	case coder.IW:
+		return &CoderRef{Type: intervalWindowType}, nil
+
 	case coder.Bytes:
-		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
 		return &CoderRef{Type: bytesType}, nil
+
+	case coder.Bool:
+		return &CoderRef{Type: boolType}, nil
 
 	case coder.VarInt:
 		return &CoderRef{Type: varIntType}, nil
+
+	case coder.Double:
+		return &CoderRef{Type: doubleType}, nil
+
+	case coder.String:
+		return &CoderRef{
+			Type:       lengthPrefixType,
+			Components: []*CoderRef{{Type: stringType, PipelineProtoCoderID: c.ID}},
+		}, nil
+
+	case coder.Row:
+		schm, err := schema.FromType(c.T.Type())
+		if err != nil {
+			return nil, err
+		}
+		data, err := protox.EncodeBase64(schm)
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{
+			Type:       rowType,
+			Components: []*CoderRef{{Type: data}},
+		}, nil
 
 	default:
 		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
@@ -174,8 +235,17 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	case bytesType:
 		return coder.NewBytes(), nil
 
+	case boolType:
+		return coder.NewBool(), nil
+
 	case varIntType:
 		return coder.NewVarInt(), nil
+
+	case doubleType:
+		return coder.NewDouble(), nil
+
+	case stringType:
+		return coder.NewString(), nil
 
 	case pairType:
 		if len(c.Components) != 2 {
@@ -188,27 +258,19 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		}
 
 		elm := c.Components[1]
-		kind := coder.KV
-		root := typex.KVType
-
-		isGBK := elm.Type == streamType
-		if isGBK {
-			elm = elm.Components[0]
-			kind = coder.CoGBK
-			root = typex.CoGBKType
-
-			// TODO(BEAM-490): If CoGBK with > 1 input, handle as special GBK. We expect
+		if elm.Type == streamType {
+			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<Union<V,W,..>>. Remove this handling once
 			// CoGBK has a first-class representation.
 
-			if refs, ok := isCoGBKList(elm); ok {
+			if refs, ok := isCoGBKList(elm.Components[0]); ok {
 				values, err := DecodeCoderRefs(refs)
 				if err != nil {
 					return nil, err
 				}
 
-				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
-				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
+				t := typex.New(typex.CoGBKType, append([]typex.FullType{key.T}, coder.Types(values)...)...)
+				return &coder.Coder{Kind: coder.CoGBK, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
 			}
 		}
 
@@ -217,24 +279,37 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 			return nil, err
 		}
 
-		t := typex.New(root, key.T, value.T)
-		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
+		t := typex.New(typex.KVType, key.T, value.T)
+		return &coder.Coder{Kind: coder.KV, T: t, Components: []*coder.Coder{key, value}}, nil
+
+	case nullableType:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad nullable: %+v", c)
+		}
+
+		inner, err := DecodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+
+		t := typex.New(typex.NullableType, inner.T)
+		return &coder.Coder{Kind: coder.Nullable, T: t, Components: []*coder.Coder{inner}}, nil
 
 	case lengthPrefixType:
 		if len(c.Components) != 1 {
 			return nil, errors.Errorf("bad length prefix: %+v", c)
 		}
 
-		var ref v1.CustomCoder
-		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
-			return nil, errors.Wrapf(err, "base64 decode for %v failed", c.Components[0].Type)
+		subC := c.Components[0]
+		switch subC.Type {
+		case stringType: // Needs special handling if wrapped by dataflow.
+			return coder.NewString(), nil
+		default:
+			return decodeDataflowCustomCoder(subC.Type)
 		}
-		custom, err := decodeCustomCoder(&ref)
-		if err != nil {
-			return nil, err
-		}
-		t := typex.New(custom.Type)
-		return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
+
+	case intervalWindowType:
+		return coder.NewIntervalWindowCoder(), nil
 
 	case windowedValueType:
 		if len(c.Components) != 2 {
@@ -254,11 +329,46 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
 
 	case streamType:
-		return nil, errors.Errorf("stream must be pair value: %+v", c)
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad iterable/stream: %+v", c)
+		}
+
+		inner, err := DecodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+
+		t := typex.New(reflect.SliceOf(inner.T.Type()), inner.T)
+		return &coder.Coder{Kind: coder.Iterable, T: t, Components: []*coder.Coder{inner}}, nil
+
+	case rowType:
+		subC := c.Components[0]
+		schm := &pipepb.Schema{}
+		if err := protox.DecodeBase64(subC.Type, schm); err != nil {
+			return nil, err
+		}
+		t, err := schema.ToType(schm)
+		if err != nil {
+			return nil, err
+		}
+		return &coder.Coder{Kind: coder.Row, T: typex.New(t)}, nil
 
 	default:
 		return nil, errors.Errorf("custom coders must be length prefixed: %+v", c)
 	}
+}
+
+func decodeDataflowCustomCoder(payload string) (*coder.Coder, error) {
+	var ref v1pb.CustomCoder
+	if err := protox.DecodeBase64(payload, &ref); err != nil {
+		return nil, errors.Wrapf(err, "base64 decode for %v failed", payload)
+	}
+	custom, err := decodeCustomCoder(&ref)
+	if err != nil {
+		return nil, err
+	}
+	t := typex.New(custom.Type)
+	return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
 }
 
 func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {

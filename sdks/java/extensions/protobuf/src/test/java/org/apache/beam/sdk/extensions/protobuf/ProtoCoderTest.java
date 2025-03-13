@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.protobuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import java.io.ObjectStreamClass;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWi
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -166,5 +167,11 @@ public class ProtoCoderTest {
     // Assert the encoded messages are not equal.
     Coder<MessageWithMap> coder = ProtoCoder.of(MessageWithMap.class);
     assertNotEquals(CoderUtils.encodeToBase64(coder, msg2), CoderUtils.encodeToBase64(coder, msg1));
+  }
+
+  @Test
+  public void testSerialVersionID() {
+    long serialVersionID = ObjectStreamClass.lookup(ProtoCoder.class).getSerialVersionUID();
+    assertEquals(-5043999806040629525L, serialVersionID);
   }
 }

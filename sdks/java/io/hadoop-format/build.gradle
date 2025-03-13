@@ -17,51 +17,61 @@
  */
 
 import groovy.json.JsonOutput
+import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
-def log4j_version = "2.6.2"
-def elastic_search_version = "5.0.0"
+def hadoopVersions = [
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    // "341": "3.4.1", // tests already exercised on the default version
+]
 
-configurations.create("sparkRunner")
-configurations.sparkRunner {
-  // Ban certain dependencies to prevent a StackOverflow within Spark
-  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
-  exclude group: "org.slf4j", module: "jul-to-slf4j"
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
-}
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
+def elastic_search_version = "7.12.0"
 
 // Ban dependencies from the test runtime classpath
 configurations.testRuntimeClasspath {
   // Prevent a StackOverflow because of wiring LOG4J -> SLF4J -> LOG4J
   exclude group: "org.slf4j", module: "log4j-over-slf4j"
+
+  // Force use the old version of JAMM that cassandra relies on
+  resolutionStrategy.force 'com.github.jbellis:jamm:0.3.0'
+  // Pin snakeyaml version due to cassandra-all does not support 2.x
+  resolutionStrategy.force 'org.yaml:snakeyaml:1.33'
 }
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_20_0
-  compile library.java.slf4j_api
-  compile project(":sdks:java:io:hadoop-common")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.slf4j_api
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.joda_time
   provided library.java.hadoop_common
   provided library.java.hadoop_hdfs
+  permitUnusedDeclared library.java.hadoop_hdfs
+  provided library.java.hadoop_hdfs_client
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile project(":sdks:java:io:jdbc")
-  testCompile project(path: ":examples:java", configuration: "testRuntime")
-
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile "org.elasticsearch.client:transport:$elastic_search_version"
-  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
+  testImplementation project(":sdks:java:io:jdbc")
+  testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testImplementation library.java.testcontainers_elasticsearch
+  testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
+  testImplementation "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testImplementation ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
     // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
     // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
     exclude group: "cascading", module: "cascading-local"
@@ -73,26 +83,54 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
-  testCompile library.java.cassandra_driver_core
-  testCompile library.java.cassandra_driver_mapping
-  testCompile "org.apache.cassandra:cassandra-all:3.11.3"
-  testCompile library.java.postgres
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  testImplementation "org.apache.httpcomponents:httpclient:4.5.13"
+  testImplementation library.java.commons_lang3
+  testImplementation library.java.commons_io
+  testImplementation library.java.cassandra_driver_core
+  testImplementation library.java.cassandra_driver_mapping
+  // TODO(yathu) bump to cassandra-5.x which uses newer jamm when released & beam runs test on Java11
+  testImplementation "org.apache.cassandra:cassandra-all:3.11.10"
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_hdfs
+  testImplementation library.java.hadoop_mapreduce_client_core
+  testImplementation library.java.postgres
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation library.java.testcontainers_postgresql
+  testImplementation library.java.netty_all
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
-  compile library.java.commons_io_2x
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
-  delegate.add("sparkRunner", project(":sdks:java:io:hadoop-format"))
-  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.httpcomponents:httpclient:4.5.13"
+  }
+}
 
-  sparkRunner project(path: ":examples:java", configuration: "testRuntime")
-  sparkRunner project(":runners:spark")
-  sparkRunner project(":sdks:java:io:hadoop-file-system")
-  sparkRunner library.java.spark_streaming
-  sparkRunner library.java.spark_core
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+      force "org.apache.hadoop:hadoop-hdfs:$kv.value"
+      // without forcing httpclient httpcore gets below 4.4.9 which has incompatible API
+      force "org.apache.httpcomponents:httpclient:4.5.13"
+    }
+  }
+}
+
+// Hadoop dependencies require old version of Guava (BEAM-11626)
+configurations.all (Configuration it) -> {
+  // error-prone requires newer guava, don't override for annotation processing
+  // https://github.com/google/error-prone/issues/2745
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+    return
+  }
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
 }
 
 // The cassandra.yaml file currently assumes "target/..." exists.
@@ -102,31 +140,65 @@ dependencies {
 task createTargetDirectoryForCassandra() {
   doLast {
     if (!project.file("target").exists()) {
-      project.file("target").mkdirs();
+      project.file("target").mkdirs()
     }
   }
 }
 test.dependsOn createTargetDirectoryForCassandra
 
-def runnerClass = "org.apache.beam.runners.spark.TestSparkRunner"
-task sparkRunner(type: Test) {
-  group = "Verification"
-  def beamTestPipelineOptions = [
-          "--project=hadoop-format",
-          "--tempRoot=/tmp/hadoop-format/",
-          "--streaming=false",
-          "--runner=" + runnerClass,
-          "--enableSparkMetricSinks=false",
-  ]
-  classpath = configurations.sparkRunner
-  include "**/HadoopFormatIOSequenceFileTest.class"
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Hadoop format tests with different Hadoop versions"
+  dependsOn createTaskNames(hadoopVersions, "Test")
+  dependsOn createTaskNames(hadoopVersions, "IT")
+  dependsOn createTaskNames(hadoopVersions, "ElasticIT")
+}
+
+hadoopVersions.each {kv ->
+  task "runHadoopFormatIO${kv.key}ElasticIT"(type: Test, group: "Verification") {
+    description = "Runs HadoopFormatIOElasticIT with Hadoop '${kv.value}'"
+    outputs.upToDateWhen { false }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    def pipelineOptions = JsonOutput.toJson(["--withTestcontainers=true"])
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    include '**/HadoopFormatIOElasticIT.class'
   }
-  forkEvery 1
-  maxParallelForks 4
-  systemProperty "spark.ui.enabled", "false"
-  systemProperty "spark.ui.showConsoleProgress", "false"
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+}
+
+hadoopVersions.each {kv ->
+  task "runHadoopFormatIO${kv.key}IT"(type: Test, group: "Verification") {
+    description = "Runs HadoopFormatIOIT with Hadoop '${kv.value}'"
+    outputs.upToDateWhen { false }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+
+    def pipelineOptions = JsonOutput.toJson([
+        "--postgresServerName=dummy_value",
+        "--postgresUsername=postgres",
+        "--postgresDatabaseName=postgres",
+        "--postgresPassword=postgres",
+        "--numberOfRecords=1000",
+        "--withTestcontainers=true",
+        "--postgresSsl=false",
+    ])
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    include '**/HadoopFormatIOIT.class'
+  }
+}
+
+hadoopVersions.each{kv ->
+  task "runHadoopFormatIO${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs HadoopFormatIO tests with Hadoop '${kv.value}'"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    outputs.upToDateWhen { false }
+    include '**/*Test.class'
+    // Cassandra test cannot run in parallel
+    exclude '**/HadoopFormatIOCassandraTest.class'
+  }
+}
+
+static def createTaskNames(Map<String, String> hadoopVersions, String suffix) {
+  return hadoopVersions.keySet().stream()
+      .map{num -> "runHadoopFormatIO$num$suffix"}
+      .collect(Collectors.toList())
 }

@@ -37,14 +37,18 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 
 /**
  * A sink that writes to a shuffle dataset.
  *
  * @param <T> the type of the elements written to the sink
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   enum ShuffleKind {
     UNGROUPED,
@@ -62,7 +66,6 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
 
   final PipelineOptions options;
 
-  private final BatchModeExecutionContext executionContext;
   private final DataflowOperationContext operationContext;
   private ExecutionStateTracker tracker;
   private ExecutionState writeState;
@@ -98,7 +101,6 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     this.shuffleWriterConfig = shuffleWriterConfig;
     this.shuffleKind = shuffleKind;
     this.options = options;
-    this.executionContext = executionContext;
     this.operationContext = operationContext;
     this.writeState = operationContext.newExecutionState("write-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
@@ -326,9 +328,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       // Move forward enough bytes so we can prefix the size on after performing the write
       int initialChunkSize = chunk.size();
       chunk.resetTo(initialChunkSize + Ints.BYTES);
+
       coder.encode(value, chunk.asOutputStream(), Context.OUTER);
       int elementSize = chunk.size() - initialChunkSize - Ints.BYTES;
-
       byte[] internalBytes = chunk.array();
       internalBytes[initialChunkSize] = (byte) ((elementSize >>> 24) & 0xFF);
       internalBytes[initialChunkSize + 1] = (byte) ((elementSize >>> 16) & 0xFF);

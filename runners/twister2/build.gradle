@@ -1,0 +1,112 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.twister2',
+)
+
+evaluationDependsOn(":sdks:java:core")
+configurations {
+    validatesRunner
+}
+description = "Apache Beam :: Runners :: Twister2"
+def twister2_version = '0.6.0'
+dependencies {
+    implementation library.java.vendored_guava_32_1_2_jre
+
+    implementation(project(path: ":runners:core-java")){
+        exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
+    }
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.jackson_annotations
+    implementation library.java.joda_time
+    implementation library.java.vendored_grpc_1_69_0
+    implementation library.java.slf4j_api
+    implementation "org.mortbay.jetty:jetty-util:6.1.26"
+    implementation "org.twister2:comms-api-java:$twister2_version"
+    implementation "org.twister2:config-api-java:$twister2_version"
+    implementation "org.twister2:dataset-api-java:$twister2_version"
+    implementation "org.twister2:driver-api-java:$twister2_version"
+    implementation "org.twister2:exceptions-java:$twister2_version"
+    implementation "org.twister2:scheduler-api-java:$twister2_version"
+    implementation "org.twister2:task-api-java:$twister2_version"
+    implementation "org.twister2:api-java:$twister2_version"
+    implementation "org.twister2:tset-api-java:$twister2_version"
+    implementation "org.twister2:tset-java:$twister2_version"
+    implementation "org.twister2:resource-scheduler-java:$twister2_version"
+    implementation "org.twister2:local-runner-java:$twister2_version"
+    testImplementation library.java.junit
+    validatesRunner (project(path: ":sdks:java:core", configuration: "shadowTest")){
+        exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
+    }
+    validatesRunner (project(path: ":runners:core-java", configuration: "testRuntimeMigration")){
+        exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
+    }
+    validatesRunner (project(project.path)){
+        exclude group: 'asm', module: 'asm'
+    }
+}
+
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
+    group = "Verification"
+    def pipelineOptions = JsonOutput.toJson([
+            "--runner=Twister2TestRunner",
+    ])
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    classpath = configurations.validatesRunner
+    testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
+    forkEvery 1
+    useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        // Feature unsupported by this runner
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+    }
+
+    maxHeapSize = '6g'
+}
+
+tasks.register("validatesRunner") {
+    group = "Verification"
+    description "Validates Twister2 Runner"
+    dependsOn validatesRunnerBatch
+}
+
+// Generates :runners:twister2:runQuickstartJavaTwister2
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Twister2')

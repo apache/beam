@@ -21,9 +21,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -35,13 +32,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.construction.PTransformReplacements;
+import org.apache.beam.sdk.util.construction.ReplacementOutputs;
+import org.apache.beam.sdk.util.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
 /**
  * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles} {@link PTransform
@@ -81,8 +80,8 @@ class WriteWithShardingFactory<InputT, DestinationT>
   }
 
   @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+  public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs, WriteFilesResult<DestinationT> newOutput) {
     // We must connect the new output from WriteFilesResult to the outputs provided by the original
     // transform.
     return ReplacementOutputs.tagged(outputs, newOutput);

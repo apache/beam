@@ -21,7 +21,7 @@
 # Usage: Invoke with no arguments from any working directory.
 
 # The directory of this script. Assumes root of the maven-archetypes module.
-HERE="$( dirname "$0" )"
+HERE=${HERE-"$( dirname "$0" )"}
 
 # The directory of the examples-java module
 EXAMPLES_ROOT="${HERE}/../../../../examples/java"
@@ -29,11 +29,13 @@ EXAMPLES_ROOT="${HERE}/../../../../examples/java"
 # The root of the examples archetype
 ARCHETYPE_ROOT="${HERE}/src/main/resources/archetype-resources"
 
+SAMPLE_FILE="${HERE}/sample.txt"
+
 mkdir -p "${ARCHETYPE_ROOT}/src/main/java"
 mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 
 #
-# Copy the Java subset of the examples project verbatim. 
+# Copy the Java subset of the examples project verbatim.
 #
 rsync -a --exclude cookbook --exclude complete --exclude snippets  \
     "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/     \
@@ -44,6 +46,15 @@ rsync -a --exclude cookbook --exclude complete --exclude snippets --exclude '*IT
     "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/                          \
     "${ARCHETYPE_ROOT}/src/test/java"                                                   \
     --delete
+
+#
+# Copy sample.txt from this dir to archetype root.
+#
+if [ -f "$SAMPLE_FILE" ]; then
+    rsync -a                \
+        "${SAMPLE_FILE}"    \
+        "${ARCHETYPE_ROOT}"
+fi
 
 mkdir -p "${ARCHETYPE_ROOT}/src/main/java/complete/game"
 mkdir -p "${ARCHETYPE_ROOT}/src/test/java/complete/game"
@@ -58,6 +69,16 @@ rsync -a                                                                      \
 rsync -a                                                                      \
     "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/complete/game/  \
     "${ARCHETYPE_ROOT}/src/test/java/complete/game"
+
+#
+# Copy the Java multi-language examples.
+#
+
+mkdir -p "${ARCHETYPE_ROOT}/src/test/java/multilanguage/"
+
+rsync -a                                                                      \
+    "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/multilanguage/  \
+    "${ARCHETYPE_ROOT}/src/main/java/multilanguage"
 
 #
 # Replace 'package org.apache.beam.examples' with 'package ${package}' in all Java code
@@ -78,7 +99,7 @@ find "${ARCHETYPE_ROOT}/src/test/java" -name '*.java' -print0 \
     | xargs -0 sed -i.bak 's/^import org\.apache\.beam\.examples/import ${package}/g'
 
 #
-# The use of -i.bak is necessary for the above to work with both GNU and BSD sed. 
+# The use of -i.bak is necessary for the above to work with both GNU and BSD sed.
 # Delete the files now.
 #
 find "${ARCHETYPE_ROOT}/src" -name '*.bak' -delete

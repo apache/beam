@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import com.google.auto.service.AutoService;
+import java.util.List;
+import java.util.ServiceLoader;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -35,12 +39,6 @@ package org.apache.beam.sdk.schemas;
  * limitations under the License.
  */
 
-import com.google.auto.service.AutoService;
-import java.util.List;
-import java.util.ServiceLoader;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
  * {@link SchemaProvider} creators have the ability to automatically have their {@link
  * SchemaProvider schemaProvider} registered with this SDK by creating a {@link ServiceLoader} entry
@@ -49,7 +47,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <p>It is optional but recommended to use one of the many build time tools such as {@link
  * AutoService} to generate the necessary META-INF files automatically.
  */
-@Experimental(Kind.SCHEMAS)
 public interface SchemaProviderRegistrar {
   /**
    * Returns a list of {@link SchemaProvider schema providers} which will be registered by default

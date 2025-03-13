@@ -17,44 +17,46 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import com.clickhouse.client.ClickHouseRequest;
+import com.clickhouse.data.ClickHouseFormat;
+import com.clickhouse.jdbc.ClickHouseConnection;
+import com.clickhouse.jdbc.ClickHouseDataSource;
+import com.clickhouse.jdbc.ClickHouseStatement;
 import com.google.auto.value.AutoValue;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.yandex.clickhouse.ClickHouseConnection;
-import ru.yandex.clickhouse.ClickHouseDataSource;
-import ru.yandex.clickhouse.ClickHouseStatement;
-import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 
 /**
  * An IO to write to ClickHouse.
@@ -93,7 +95,7 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * <tr><th>ClickHouse</th> <th>Beam</th></tr>
  * <tr><td>{@link TableSchema.TypeName#FLOAT32}</td> <td>{@link Schema.TypeName#FLOAT}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#FLOAT64}</td> <td>{@link Schema.TypeName#DOUBLE}</td></tr>
- * <tr><td>{@link TableSchema.TypeName#FIXEDSTRING}</td> <td>{@link LogicalTypes.FixedBytes}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#FIXEDSTRING}</td> <td>{@link FixedBytes}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#INT8}</td> <td>{@link Schema.TypeName#BYTE}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#INT16}</td> <td>{@link Schema.TypeName#INT16}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#INT32}</td> <td>{@link Schema.TypeName#INT32}</td></tr>
@@ -108,15 +110,19 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM8}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM16}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#BOOL}</td> <td>{@link Schema.TypeName#BOOLEAN}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
  *
- * Nullable row columns are supported through Nullable type in ClickHouse.
+ * Nullable row columns are supported through Nullable type in ClickHouse. Low cardinality hint is
+ * supported through LowCardinality DataType in ClickHouse.
  *
- * <p>Nested rows should be unnested using {@link org.apache.beam.sdk.schemas.transforms.Unnest}.
- * Type casting should be done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before
- * {@link ClickHouseIO}.
+ * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
+ * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ClickHouseIO {
 
   public static final long DEFAULT_MAX_INSERT_BLOCK_SIZE = 1000000;
@@ -156,26 +162,33 @@ public class ClickHouseIO {
 
     public abstract Duration initialBackoff();
 
-    @Nullable
-    public abstract Boolean insertDistributedSync();
+    public abstract @Nullable TableSchema tableSchema();
 
-    @Nullable
-    public abstract Long insertQuorum();
+    public abstract @Nullable Boolean insertDistributedSync();
 
-    @Nullable
-    public abstract Boolean insertDeduplicate();
+    public abstract @Nullable Long insertQuorum();
+
+    public abstract @Nullable Boolean insertDeduplicate();
 
     abstract Builder<T> toBuilder();
 
     @Override
     public PDone expand(PCollection<T> input) {
-      TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
+      TableSchema tableSchema = tableSchema();
+      if (tableSchema == null) {
+        tableSchema = getTableSchema(jdbcUrl(), table());
+      }
+
+      String sdkVersion = ReleaseInfo.getReleaseInfo().getSdkVersion();
+      String userAgent = String.format("Apache Beam/%s", sdkVersion);
+
       Properties properties = properties();
 
-      set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
-      set(properties, ClickHouseQueryParam.INSERT_QUORUM, insertQuorum());
+      set(properties, "max_insert_block_size", maxInsertBlockSize());
+      set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
+      set(properties, "product_name", userAgent);
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
@@ -282,6 +295,16 @@ public class ClickHouseIO {
       return toBuilder().initialBackoff(value).build();
     }
 
+    /**
+     * Set TableSchema. If not set, then TableSchema will be fetched from clickhouse server itself
+     *
+     * @param tableSchema schema of Table in which rows are going to be inserted
+     * @return a {@link PTransform} writing data to ClickHouse
+     */
+    public Write<T> withTableSchema(@Nullable TableSchema tableSchema) {
+      return toBuilder().tableSchema(tableSchema).build();
+    }
+
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {
@@ -291,6 +314,8 @@ public class ClickHouseIO {
       public abstract Builder<T> table(String table);
 
       public abstract Builder<T> maxInsertBlockSize(long maxInsertBlockSize);
+
+      public abstract Builder<T> tableSchema(TableSchema tableSchema);
 
       public abstract Builder<T> insertDistributedSync(Boolean insertDistributedSync);
 
@@ -309,22 +334,6 @@ public class ClickHouseIO {
       public abstract Write<T> build();
     }
 
-    private static void set(Properties properties, ClickHouseQueryParam param, Object value) {
-      if (value != null) {
-        Preconditions.checkArgument(
-            param.getClazz().isInstance(value),
-            "Unexpected value '"
-                + value
-                + "' for "
-                + param.getKey()
-                + " got "
-                + value.getClass().getName()
-                + ", expected "
-                + param.getClazz().getName());
-        properties.put(param, value);
-      }
-    }
-
     private static void set(Properties properties, String param, Object value) {
       if (value != null) {
         properties.put(param, value);
@@ -337,7 +346,7 @@ public class ClickHouseIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
     private static final String RETRY_ATTEMPT_LOG =
-        "Error writing to ClickHouse. Retry attempt[%d]";
+        "Error writing to ClickHouse. Retry attempt[{}]";
 
     private ClickHouseConnection connection;
     private FluentBackoff retryBackoff;
@@ -347,7 +356,7 @@ public class ClickHouseIO {
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
-    // Once BEAM-4457 is fixed, fix this.
+    // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
     @FieldAccess("filterFields")
     final FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
 
@@ -379,6 +388,7 @@ public class ClickHouseIO {
 
     @Setup
     public void setup() throws SQLException {
+
       connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
 
       retryBackoff =
@@ -421,16 +431,20 @@ public class ClickHouseIO {
       }
 
       batchSize.update(buffer.size());
-
       while (true) {
         try (ClickHouseStatement statement = connection.createStatement()) {
-          statement.sendRowBinaryStream(
-              insertSql(schema(), table()),
-              stream -> {
-                for (Row row : buffer) {
-                  ClickHouseWriter.writeRow(stream, schema(), row);
-                }
-              });
+          statement
+              .unwrap(ClickHouseRequest.class)
+              .write()
+              .table(table())
+              .format(ClickHouseFormat.RowBinary)
+              .data(
+                  out -> {
+                    for (Row row : buffer) {
+                      ClickHouseWriter.writeRow(out, schema(), row);
+                    }
+                  })
+              .executeAndWait(); // query happens in a separate thread
           buffer.clear();
           break;
         } catch (SQLException e) {
@@ -438,7 +452,7 @@ public class ClickHouseIO {
             throw e;
           } else {
             retries.inc();
-            LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), e);
+            LOG.warn(RETRY_ATTEMPT_LOG, attempt, e);
             attempt++;
           }
         }
@@ -468,6 +482,15 @@ public class ClickHouseIO {
     }
   }
 
+  private static String tuplePreprocessing(String payload) {
+    List<String> l =
+        Arrays.stream(payload.trim().split(","))
+            .map(s -> s.trim().replaceAll(" +", "' "))
+            .collect(Collectors.toList());
+    String content =
+        String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
+    return content;
+  }
   /**
    * Returns {@link TableSchema} for a given table.
    *
@@ -491,7 +514,13 @@ public class ClickHouseIO {
           String defaultTypeStr = rs.getString("default_type");
           String defaultExpression = rs.getString("default_expression");
 
-          ColumnType columnType = ColumnType.parse(type);
+          ColumnType columnType = null;
+          if (type.toLowerCase().trim().startsWith("tuple(")) {
+            String content = tuplePreprocessing(type);
+            columnType = ColumnType.parse(content);
+          } else {
+            columnType = ColumnType.parse(type);
+          }
           DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
 
           Object defaultValue;

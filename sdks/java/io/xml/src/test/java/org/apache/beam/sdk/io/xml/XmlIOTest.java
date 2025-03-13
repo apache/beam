@@ -35,8 +35,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.junit.Assert;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -183,11 +183,11 @@ public class XmlIOTest {
                 .withMinBundleSize(1234)
                 .withRecordClass(Integer.class));
 
-    Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
-    Assert.assertThat(displayData, hasDisplayItem("rootElement", "bird"));
-    Assert.assertThat(displayData, hasDisplayItem("recordElement", "cat"));
-    Assert.assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
-    Assert.assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
+    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
+    assertThat(displayData, hasDisplayItem("recordElement", "cat"));
+    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
+    assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
   }
 
   @Test
@@ -233,7 +233,7 @@ public class XmlIOTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

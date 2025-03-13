@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -25,8 +27,12 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.hive.hcatalog.data.HCatRecord;
+import org.joda.time.Instant;
 
 /** Utilities to convert {@link HCatRecord HCatRecords} to {@link Row Rows}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HCatToRow {
 
   /**
@@ -68,8 +74,20 @@ public class HCatToRow {
    * <p>Gets all values from the records, uses them to create a row. Values/schema are validated in
    * the row builder.
    */
-  static class HCatToRowFn extends DoFn<HCatRecord, Row> {
+  private static class HCatToRowFn extends DoFn<HCatRecord, Row> {
     private final Schema schema;
+
+    private Object maybeCastHDate(Object obj) {
+      if (obj instanceof org.apache.hadoop.hive.common.type.Date) {
+        return new Instant(((org.apache.hadoop.hive.common.type.Date) obj).toEpochMilli());
+      }
+      return obj;
+    }
+
+    /** Cast objects of the types that aren't supported by {@link Row}. */
+    private List<Object> castTypes(List<Object> values) {
+      return values.stream().map(this::maybeCastHDate).collect(Collectors.toList());
+    }
 
     HCatToRowFn(Schema schema) {
       this.schema = schema;
@@ -78,7 +96,7 @@ public class HCatToRow {
     @ProcessElement
     public void processElement(ProcessContext c) {
       HCatRecord hCatRecord = c.element();
-      c.output(Row.withSchema(schema).addValues(hCatRecord.getAll()).build());
+      c.output(Row.withSchema(schema).addValues(castTypes(hCatRecord.getAll())).build());
     }
   }
 }

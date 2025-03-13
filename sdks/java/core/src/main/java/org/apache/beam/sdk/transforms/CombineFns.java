@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -42,14 +41,20 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods that create combine function instances. */
+@SuppressWarnings({
+  "initialization",
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class CombineFns {
 
   /**
@@ -192,8 +197,7 @@ public class CombineFns {
      * <p>It is an error to request a non-exist tuple tag from the {@link CoCombineResult}.
      */
     @SuppressWarnings("unchecked")
-    @Nullable
-    public <V> V get(TupleTag<V> tag) {
+    public @Nullable <V> V get(TupleTag<V> tag) {
       checkArgument(
           valuesMap.keySet().contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");
       Object value = valuesMap.get(tag);
@@ -205,7 +209,7 @@ public class CombineFns {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -470,7 +474,10 @@ public class CombineFns {
       this.extractInputFns = castedExtractInputFns;
       this.combineInputCoders = combineInputCoders;
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+        "unchecked"
+      })
       List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts =
           (List) combineFnWithContexts;
       this.combineFnWithContexts = castedCombineFnWithContexts;
@@ -529,7 +536,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] createAccumulator(Context c) {
+    public Object[] createAccumulator(CombineWithContext.Context c) {
       Object[] accumsArray = new Object[combineFnCount];
       for (int i = 0; i < combineFnCount; ++i) {
         accumsArray[i] = combineFnWithContexts.get(i).createAccumulator(c);
@@ -538,7 +545,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] addInput(Object[] accumulator, DataT value, Context c) {
+    public Object[] addInput(Object[] accumulator, DataT value, CombineWithContext.Context c) {
       for (int i = 0; i < combineFnCount; ++i) {
         Object input = extractInputFns.get(i).apply(value);
         accumulator[i] = combineFnWithContexts.get(i).addInput(accumulator[i], input, c);
@@ -547,7 +554,8 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] mergeAccumulators(Iterable<Object[]> accumulators, Context c) {
+    public Object[] mergeAccumulators(
+        Iterable<Object[]> accumulators, CombineWithContext.Context c) {
       Iterator<Object[]> iter = accumulators.iterator();
       if (!iter.hasNext()) {
         return createAccumulator(c);
@@ -567,7 +575,7 @@ public class CombineFns {
     }
 
     @Override
-    public CoCombineResult extractOutput(Object[] accumulator, Context c) {
+    public CoCombineResult extractOutput(Object[] accumulator, CombineWithContext.Context c) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
         valuesMap.put(
@@ -577,7 +585,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] compact(Object[] accumulator, Context c) {
+    public Object[] compact(Object[] accumulator, CombineWithContext.Context c) {
       for (int i = 0; i < combineFnCount; ++i) {
         accumulator[i] = combineFnWithContexts.get(i).compact(accumulator[i], c);
       }
@@ -653,7 +661,7 @@ public class CombineFns {
     }
 
     @Override
-    public void encode(Object[] value, OutputStream outStream, Context context)
+    public void encode(Object[] value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       checkArgument(value.length == codersCount);
       if (value.length == 0) {
@@ -667,12 +675,25 @@ public class CombineFns {
     }
 
     @Override
+    public long getEncodedElementByteSize(Object[] values) throws Exception {
+      if (values.length == 0) {
+        return 0;
+      }
+      long size = 0;
+      for (int i = 0; i < values.length; ++i) {
+        Coder<Object> objectCoder = coders.get(i);
+        size += Coder.getEncodedElementByteSizeUsingCoder(objectCoder, values[i]);
+      }
+      return size;
+    }
+
+    @Override
     public Object[] decode(InputStream inStream) throws CoderException, IOException {
       return decode(inStream, Context.NESTED);
     }
 
     @Override
-    public Object[] decode(InputStream inStream, Context context)
+    public Object[] decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       Object[] ret = new Object[codersCount];
       if (codersCount == 0) {

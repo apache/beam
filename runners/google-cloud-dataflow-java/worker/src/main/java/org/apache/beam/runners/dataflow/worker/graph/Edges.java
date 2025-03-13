@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.auto.value.AutoValue;
 
 /** Container class for different types of graph edges. All edges only have reference equality. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Edges {
   /** Base class for graph edges. All edges only have reference equality. */
   public abstract static class Edge implements Cloneable {

@@ -19,12 +19,16 @@ package org.apache.beam.runners.dataflow.util;
 
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowTemplateJob extends DataflowPipelineJob {
   private static final String ERROR = "The result of template creation should not be used.";
 
@@ -47,8 +51,13 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
     throw new UnsupportedOperationException(ERROR);
   }
 
-  @Nullable
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException(ERROR);
+  }
+
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,

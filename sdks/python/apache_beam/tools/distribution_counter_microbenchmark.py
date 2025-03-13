@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """A microbenchmark for measuring DistributionAccumulator performance
 
 This runs a sequence of distribution.update for random input value to calculate
@@ -23,14 +24,12 @@ Run as
   python -m apache_beam.tools.distribution_counter_microbenchmark
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
+import logging
 import random
 import sys
 import time
-from builtins import range
 
 from apache_beam.tools import utils
 
@@ -59,12 +58,13 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
     start = time.time()
     counter.add_inputs_for_test(inputs)
     time_cost = time.time() - start
-    print("Run %d: Total time cost %g sec" % (i+1, time_cost))
+    print("Run %d: Total time cost %g sec" % (i + 1, time_cost))
     total_time += time_cost / num_input
   print("Per element update time cost:", total_time / num_runs)
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled(
       'apache_beam.transforms.cy_dataflow_distribution_counter')
   run_benchmark()

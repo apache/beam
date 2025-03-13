@@ -1,0 +1,48 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.pulsar')
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Pulsar"
+ext.summary = "IO to read and write to Pulsar"
+
+def pulsar_version = '2.8.2'
+
+
+dependencies {
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation library.java.slf4j_api
+    implementation library.java.joda_time
+
+    implementation "org.apache.pulsar:pulsar-client:$pulsar_version"
+    implementation "org.apache.pulsar:pulsar-client-admin:$pulsar_version"
+    permitUnusedDeclared "org.apache.pulsar:pulsar-client:$pulsar_version"
+    permitUnusedDeclared "org.apache.pulsar:pulsar-client-admin:$pulsar_version"
+    permitUsedUndeclared "org.apache.pulsar:pulsar-client-api:$pulsar_version"
+    permitUsedUndeclared "org.apache.pulsar:pulsar-client-admin-api:$pulsar_version"
+
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+
+    testImplementation library.java.jupiter_api
+    testRuntimeOnly library.java.jupiter_engine
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation "org.testcontainers:pulsar:1.15.3"
+    testImplementation "org.assertj:assertj-core:2.9.1"
+
+}

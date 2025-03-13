@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
@@ -54,8 +54,11 @@ import org.slf4j.LoggerFactory;
  * at large scale).
  *
  * <p>See also <a href="https://issues.apache.org/jira/browse/BEAM-2671">BEAM-2671</a>, <a
- * href="https://issues.apache.org/jira/browse/BEAM-2789">BEAM-2789</a>.
+ * href="https://github.com/apache/beam/issues/18426">Issue #18426</a>.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
 
   private static final Logger LOG =
@@ -111,8 +114,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     final long batchTime = validTime.milliseconds();
 
     LOG.trace(
-        "BEFORE waiting for watermark sync, "
-            + "LastWatermarkedBatchTime: {}, current batch time: {}",
+        "BEFORE waiting for watermark sync, LastWatermarkedBatchTime: {}, current batch time: {}",
         GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
         batchTime);
 
@@ -130,8 +132,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     LOG.info("Watermarks are now: {}", GlobalWatermarkHolder.get(batchDuration));
 
     LOG.trace(
-        "AFTER waiting for watermark sync, "
-            + "LastWatermarkedBatchTime: {}, current batch time: {}",
+        "AFTER waiting for watermark sync, LastWatermarkedBatchTime: {}, current batch time: {}",
         GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
         batchTime);
 

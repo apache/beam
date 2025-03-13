@@ -43,12 +43,17 @@ import java.io.ObjectStreamClass;
  * https://issues.apache.org/jira/browse/GROOVY-1627
  * https://github.com/spring-projects/spring-loaded/issues/107
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class StatelessJavaSerializer extends Serializer {
 
   // Since Kryo uses reflection to sequentially look for constructor signatures, starting
   // with this particular signature spares exploring further ones, which involves
   // NoSuchMethodException(s) being thrown as part of the exploration process and may slow
   // things down, see Kryo#newSerializer(), see https://goo.gl/Jn425G
+  @SuppressWarnings("unused")
   private StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
 
   public StatelessJavaSerializer() {

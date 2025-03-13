@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="37" height="48" fill="none" viewBox="0 0 37 48">
+    <rect width="12.453" height="12.453" x="2.189" y="20.35" stroke="#FF6D00" stroke-width="2.75" rx="1"/>
+    <path stroke="#FF6D00" stroke-width="2.75" d="M26.644 15.209c.385-.667 1.347-.667 1.732 0l5.817 10.076c.385.666-.096 1.5-.866 1.5H21.693c-.77 0-1.251-.834-.866-1.5l5.817-10.076z"/>
+    <ellipse cx="25.85" cy="39.444" stroke="#FF6D00" stroke-width="2.75" rx="7.057" ry="6.642"/>
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M23.775 7.066l-4.98-4.98-4.982 4.98M18.793 13.709V2.086"/>
+</svg>

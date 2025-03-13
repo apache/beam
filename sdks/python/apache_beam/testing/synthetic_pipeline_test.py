@@ -17,7 +17,7 @@
 
 """Tests for apache_beam.testing.synthetic_pipeline."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import glob
 import json
@@ -28,138 +28,158 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.io import source_test_utils
+from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import numpy as np
+  import numpy  # pylint: disable=unused-import
 except ImportError:
-  np = None
+  NP_INSTALLED = False
+else:
+  NP_INSTALLED = True
 
 
-def input_spec(num_records, key_size, value_size,
-               bundle_size_distribution_type='const',
-               bundle_size_distribution_param=0,
-               force_initial_num_bundles=0):
+def input_spec(
+    num_records,
+    key_size,
+    value_size,
+    bundle_size_distribution_type='const',
+    bundle_size_distribution_param=0,
+    force_initial_num_bundles=0):
   return {
       'numRecords': num_records,
       'keySizeBytes': key_size,
       'valueSizeBytes': value_size,
-      'bundleSizeDistribution': {'type': bundle_size_distribution_type,
-                                 'param': bundle_size_distribution_param},
+      'bundleSizeDistribution': {
+          'type': bundle_size_distribution_type,
+          'param': bundle_size_distribution_param
+      },
       'forceNumInitialBundles': force_initial_num_bundles,
   }
 
 
-@unittest.skipIf(np is None, 'Synthetic source dependencies are not installed')
+@unittest.skipIf(
+    not NP_INSTALLED, 'Synthetic source dependencies are not installed')
 class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
 
-  def test_synthetic_step(self):
-    start = time.time()
+  def test_synthetic_step_multiplies_output_elements_count(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
+          synthetic_pipeline.SyntheticStep(0, 0, 10))
+      assert_that(pcoll | beam.combiners.Count.Globally(), equal_to([100]))
+
+  def test_minimal_runtime_with_synthetic_step_delay(self):
+    start = time.time()
+    with beam.Pipeline() as p:
+      p | beam.Create(list(range(10))) | beam.ParDo(
           synthetic_pipeline.SyntheticStep(0, 0.5, 10))
-      assert_that(
-          pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
     elapsed = time.time() - start
-    # TODO(chamikaramj): Fix the flaky time based bounds.
-    self.assertTrue(0.5 <= elapsed <= 3, elapsed)
+    self.assertGreaterEqual(elapsed, 0.5, elapsed)
 
-  def test_synthetic_sdf_step(self):
-    start = time.time()
+  def test_synthetic_sdf_step_multiplies_output_elements_count(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
+          synthetic_pipeline.get_synthetic_sdf_step(0, 0, 10))
+      assert_that(pcoll | beam.combiners.Count.Globally(), equal_to([100]))
+
+  def test_minimal_runtime_with_synthetic_sdf_step_bundle_delay(self):
+    start = time.time()
+    with beam.Pipeline() as p:
+      p | beam.Create(list(range(10))) | beam.ParDo(
           synthetic_pipeline.get_synthetic_sdf_step(0, 0.5, 10))
-      assert_that(
-          pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
     elapsed = time.time() - start
-    # TODO(chamikaramj): Fix the flaky time based bounds.
-    self.assertTrue(0.5 <= elapsed <= 3, elapsed)
+    self.assertGreaterEqual(elapsed, 0.5, elapsed)
 
   def test_synthetic_step_split_provider(self):
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 2, False, False, None)
 
     self.assertEqual(
-        list(provider.split('ab', (2, 15))), [(2, 8), (8, 15)])
+        list(provider.split('ab', OffsetRange(2, 15))),
+        [OffsetRange(2, 8), OffsetRange(8, 15)])
     self.assertEqual(
-        list(provider.split('ab', (0, 8))), [(0, 4), (4, 8)])
+        list(provider.split('ab', OffsetRange(0, 8))),
+        [OffsetRange(0, 4), OffsetRange(4, 8)])
+    self.assertEqual(list(provider.split('ab', OffsetRange(0, 0))), [])
     self.assertEqual(
-        list(provider.split('ab', (0, 0))), [])
-    self.assertEqual(
-        list(provider.split('ab', (2, 3))), [(2, 3)])
+        list(provider.split('ab', OffsetRange(2, 3))), [OffsetRange(2, 3)])
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 1, False, False, None)
-    self.assertEqual(list(provider.split('ab', (1, 10))), [(1, 10)])
-    self.assertEqual(provider.restriction_size('ab', (1, 10)), 9 * 2)
+    self.assertEqual(
+        list(provider.split('ab', OffsetRange(1, 10))), [OffsetRange(1, 10)])
+    self.assertEqual(provider.restriction_size('ab', OffsetRange(1, 10)), 9 * 2)
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 3, False, False, None)
-    self.assertEqual(list(provider.split('ab', (1, 10))),
-                     [(1, 4), (4, 7), (7, 10)])
-    self.assertEqual(provider.initial_restriction('a'), (0, 10))
+    self.assertEqual(
+        list(provider.split('ab', OffsetRange(1, 10))),
+        [OffsetRange(1, 4), OffsetRange(4, 7), OffsetRange(7, 10)])
+    self.assertEqual(provider.initial_restriction('a'), OffsetRange(0, 10))
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 3, False, False, 45)
-    self.assertEqual(provider.restriction_size('ab', (1, 3)), 45)
+    self.assertEqual(provider.restriction_size('ab', OffsetRange(1, 3)), 45)
 
-    tracker = provider.create_tracker((1, 6))
+    tracker = provider.create_tracker(OffsetRange(1, 6))
     tracker.try_claim(1)  # Claim to allow splitting.
-    self.assertEqual(tracker.try_split(.5), ((1, 3), (3, 6)))
+    self.assertEqual(
+        tracker.try_split(.5), (OffsetRange(1, 3), OffsetRange(3, 6)))
 
-  def verify_random_splits(self, provider, start, stop, bundles):
-    ranges = list(provider.split('ab', (start, stop)))
+  def verify_random_splits(self, provider, restriction, bundles):
+    ranges = list(provider.split('ab', restriction))
 
-    prior_stop = start
+    prior_stop = restriction.start
     for r in ranges:
-      self.assertEqual(r[0], prior_stop)
-      prior_stop = r[1]
-    self.assertEqual(prior_stop, stop)
+      self.assertEqual(r.start, prior_stop)
+      prior_stop = r.stop
+    self.assertEqual(prior_stop, restriction.stop)
     self.assertEqual(len(ranges), bundles)
 
   def testSyntheticStepSplitProviderUnevenChunks(self):
     bundles = 4
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, bundles, True, False, None)
-    self.verify_random_splits(provider, 4, 10, bundles)
-    self.verify_random_splits(provider, 4, 4, 0)
-    self.verify_random_splits(provider, 0, 1, 1)
-    self.verify_random_splits(provider, 0, bundles - 2, bundles)
+    self.verify_random_splits(provider, OffsetRange(4, 10), bundles)
+    self.verify_random_splits(provider, OffsetRange(4, 4), 0)
+    self.verify_random_splits(provider, OffsetRange(0, 1), 1)
+    self.verify_random_splits(provider, OffsetRange(0, bundles - 2), bundles)
 
   def test_synthetic_step_split_provider_no_liquid_sharding(self):
     # Verify Liquid Sharding Works
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 5, True, False, None)
-    tracker = provider.create_tracker((1, 6))
+    tracker = provider.create_tracker(OffsetRange(1, 6))
     tracker.try_claim(2)
-    self.assertEqual(tracker.try_split(.5), ((1, 4), (4, 6)))
+    self.assertEqual(
+        tracker.try_split(.5), (OffsetRange(1, 4), OffsetRange(4, 6)))
 
     # Verify No Liquid Sharding
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 5, True, True, None)
-    tracker = provider.create_tracker((1, 6))
+    tracker = provider.create_tracker(OffsetRange(1, 6))
     tracker.try_claim(2)
     self.assertEqual(tracker.try_split(3), None)
 
   def test_synthetic_source(self):
     def assert_size(element, expected_size):
       assert len(element) == expected_size
+
     with beam.Pipeline() as p:
       pcoll = (
           p | beam.io.Read(
               synthetic_pipeline.SyntheticSource(input_spec(300, 5, 15))))
-      (pcoll
-       | beam.Map(lambda elm: elm[0]) | 'key' >> beam.Map(assert_size, 5))
-      (pcoll
-       | beam.Map(lambda elm: elm[1]) | 'value' >> beam.Map(assert_size, 15))
-      assert_that(pcoll | beam.combiners.Count.Globally(),
-                  equal_to([300]))
+      (pcoll | beam.Map(lambda elm: elm[0]) | 'key' >> beam.Map(assert_size, 5))
+      (
+          pcoll
+          | beam.Map(lambda elm: elm[1]) | 'value' >> beam.Map(assert_size, 15))
+      assert_that(pcoll | beam.combiners.Count.Globally(), equal_to([300]))
 
   def test_synthetic_source_split_even(self):
     source = synthetic_pipeline.SyntheticSource(
@@ -192,17 +212,19 @@ class SyntheticPipelineTest(unittest.TestCase):
     steps = [{
         'per_element_delay': 1
     }, {
-        'per_element_delay': 1,
-        'splittable': True
+        'per_element_delay': 1, 'splittable': True
     }]
-    args = ['--barrier=%s' % barrier, '--runner=DirectRunner',
-            '--steps=%s' % json.dumps(steps),
-            '--input=%s' % json.dumps(input_spec(10, 1, 1))]
+    args = [
+        '--barrier=%s' % barrier,
+        '--runner=DirectRunner',
+        '--steps=%s' % json.dumps(steps),
+        '--input=%s' % json.dumps(input_spec(10, 1, 1))
+    ]
     if writes_output:
       output_location = tempfile.NamedTemporaryFile().name
       args.append('--output=%s' % output_location)
 
-    synthetic_pipeline.run(args)
+    synthetic_pipeline.run(args, save_main_session=False)
 
     # Verify output
     if writes_output:

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -53,9 +52,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -83,6 +83,11 @@ import org.joda.time.Instant;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness",
+  "keyfor"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   /**
@@ -252,7 +257,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private ActiveWindowSet<W> createActiveWindowSet() {
-    return windowingStrategy.getWindowFn().isNonMerging()
+    return !windowingStrategy.needsMerge()
         ? new NonMergingActiveWindowSet<>()
         : new MergingActiveWindowSet<>(windowingStrategy.getWindowFn(), stateInternals);
   }
@@ -343,18 +348,18 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     // All windows that are open before element processing may need to fire.
     Set<W> windowsToConsider = windowsThatAreOpen(windows);
+    // Prefetch state necessary to determine if the triggers should fire. This is done before
+    // user processing so it may fetch with user desired state.
+    for (W mergedWindow : windowsToConsider) {
+      triggerRunner.prefetchShouldFire(
+          mergedWindow, contextFactory.base(mergedWindow, StateStyle.DIRECT).state());
+    }
 
     // Process each element, using the updated activeWindows determined by mergeWindows.
     for (WindowedValue<InputT> value : values) {
       processElement(windowToMergeResult, value);
     }
 
-    // Now that we've processed the elements, see if any of the windows need to fire.
-    // Prefetch state necessary to determine if the triggers should fire.
-    for (W mergedWindow : windowsToConsider) {
-      triggerRunner.prefetchShouldFire(
-          mergedWindow, contextFactory.base(mergedWindow, StateStyle.DIRECT).state());
-    }
     // Filter to windows that are firing.
     Collection<W> windowsToFire = windowsThatShouldFire(windowsToConsider);
     // Prefetch windows that are firing.
@@ -693,9 +698,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       W window = windowNamespace.getWindow();
 
       WindowTracing.debug(
-          "{}: Received timer key:{}; window:{}; data:{} with "
+          "ReduceFnRunner: Received timer key:{}; window:{}; data:{} with "
               + "inputWatermark:{}; outputWatermark:{}",
-          ReduceFnRunner.class.getSimpleName(),
           key,
           window,
           timer,
@@ -751,8 +755,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
-            "{}: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
-            ReduceFnRunner.class.getSimpleName(),
+            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
             key,
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
@@ -875,7 +878,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // - A pane has fired.
       // - But the trigger is not (yet) closed.
       if (windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES
-          && !windowingStrategy.getWindowFn().isNonMerging()) {
+          && windowingStrategy.needsMerge()) {
         watermarkHold.clearHolds(directContext);
       }
     }
@@ -903,7 +906,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
-    triggerRunner.prefetchOnFire(directContext.window(), directContext.state());
     triggerRunner.prefetchIsClosed(directContext.state());
     prefetchOnTrigger(directContext, renamedContext);
   }
@@ -981,8 +983,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    *
    * @return output watermark hold added, or {@literal null} if none.
    */
-  @Nullable
-  private Instant onTrigger(
+  private @Nullable Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       final boolean isFinished,

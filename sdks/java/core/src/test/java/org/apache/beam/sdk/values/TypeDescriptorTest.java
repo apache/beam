@@ -23,7 +23,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.TypeVariable;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeToken;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

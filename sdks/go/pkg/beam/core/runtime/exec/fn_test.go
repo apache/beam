@@ -17,28 +17,39 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-type testInt int32
+var errGeneric = errors.New("generic error")
 
-// TestInvoke verifies the the various forms of input to Invoke are handled correctly.
+func continuationsEqual(first, second sdf.ProcessContinuation) bool {
+	if first.ShouldResume() {
+		return first.ShouldResume() == second.ShouldResume() && first.ResumeDelay() == second.ResumeDelay()
+	}
+	return first.ShouldResume() == second.ShouldResume()
+}
+
+// TestInvoke verifies the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
-		Fn                  interface{}
-		Opt                 *MainInput
-		Args                []interface{}
-		Expected, Expected2 interface{}
-		ExpectedTime        typex.EventTime
+		Fn                   any
+		Opt                  *MainInput
+		Args                 []any
+		Expected, Expected2  any
+		ExpectedTime         typex.EventTime
+		ExpectedContinuation sdf.ProcessContinuation
+		ExpectedError        error
 	}{
 		{
 			// Void function
@@ -51,25 +62,25 @@ func TestInvoke(t *testing.T) {
 		{
 			// Sum
 			Fn:       func(a, b, c int) int { return a + b + c },
-			Args:     []interface{}{1, 2, 3},
+			Args:     []any{1, 2, 3},
 			Expected: 6,
 		},
 		{
 			// Concat
 			Fn:       func(a, b, c string) string { return a + b + c },
-			Args:     []interface{}{"a", "b", "c"},
+			Args:     []any{"a", "b", "c"},
 			Expected: "abc",
 		},
 		{
 			// Length (slice type)
 			Fn:       func(list []int) (int, error) { return len(list), nil },
-			Args:     []interface{}{[]int{1, 2, 3}},
+			Args:     []any{[]int{1, 2, 3}},
 			Expected: 3,
 		},
 		{
 			// Emitter
 			Fn:   func(emit func(int)) { emit(1) },
-			Args: []interface{}{func(int) {}},
+			Args: []any{func(int) {}},
 		},
 		{
 			// Side input
@@ -80,21 +91,34 @@ func TestInvoke(t *testing.T) {
 				}
 				return ret
 			},
-			Args:     []interface{}{1, func(out *int) bool { *out = 2; return true }},
+			Args:     []any{1, func(out *int) bool { *out = 2; return true }},
+			Expected: 2,
+		},
+		{
+			// Multimap side input
+			Fn: func(a int, get func(int) func(*int) bool) int {
+				var ret int
+				iter := get(a)
+				if !iter(&ret) {
+					return a
+				}
+				return ret
+			},
+			Args:     []any{1, func(_ int) func(*int) bool { return func(out *int) bool { *out = 2; return true } }},
 			Expected: 2,
 		},
 		{
 			// Sum as Main
 			Fn:       func(a, b, c int) int { return a + b + c },
 			Opt:      &MainInput{Key: FullValue{Elm: 1}},
-			Args:     []interface{}{2, 3},
+			Args:     []any{2, 3},
 			Expected: 6,
 		},
 		{
 			// Sum as Main KV
 			Fn:       func(a, b, c int) int { return a + b + c },
 			Opt:      &MainInput{Key: FullValue{Elm: 1, Elm2: 2}},
-			Args:     []interface{}{3},
+			Args:     []any{3},
 			Expected: 6,
 		},
 		{
@@ -110,6 +134,12 @@ func TestInvoke(t *testing.T) {
 			Expected: mtime.EndOfGlobalWindowTime.Milliseconds(),
 		},
 		{
+			// (Return check) ProcessContinuation
+			Fn:                   func(a string) sdf.ProcessContinuation { return sdf.ResumeProcessingIn(1 * time.Second) },
+			Opt:                  &MainInput{Key: FullValue{Elm: "some string"}},
+			ExpectedContinuation: sdf.ResumeProcessingIn(1 * time.Second),
+		},
+		{
 			// (Return check) K, V
 			Fn:        func(a int) (int64, int) { return int64(a), 2 * a },
 			Opt:       &MainInput{Key: FullValue{Elm: 1}},
@@ -117,11 +147,26 @@ func TestInvoke(t *testing.T) {
 			Expected2: 2,
 		},
 		{
+			// (Return check) V, ProcessContinuation
+			Fn:                   func(a int) (int, sdf.ProcessContinuation) { return 2 * a, sdf.StopProcessing() },
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             2,
+			ExpectedContinuation: sdf.StopProcessing(),
+		},
+		{
 			// (Return check)  K, V, Error
 			Fn:        func(a int) (int64, int, error) { return int64(a), 2 * a, nil },
 			Opt:       &MainInput{Key: FullValue{Elm: 1}},
 			Expected:  int64(1),
 			Expected2: 2,
+		},
+		{
+			// (Return check) K, V, ProcessContinuation
+			Fn:                   func(a int) (int64, int, sdf.ProcessContinuation) { return int64(a), 2 * a, sdf.StopProcessing() },
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             int64(1),
+			Expected2:            2,
+			ExpectedContinuation: sdf.StopProcessing(),
 		},
 		{
 			// (Return check) EventTime, K, V
@@ -132,6 +177,17 @@ func TestInvoke(t *testing.T) {
 			ExpectedTime: 42,
 		},
 		{
+			// (Return check) EventTime, K, V, ProcessContinuation
+			Fn: func(a int) (typex.EventTime, int64, int, sdf.ProcessContinuation) {
+				return 42, int64(a), 3 * a, sdf.StopProcessing()
+			},
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             int64(1),
+			Expected2:            3,
+			ExpectedTime:         42,
+			ExpectedContinuation: sdf.StopProcessing(),
+		},
+		{
 			// (Return check) EventTime, K, V, Error
 			Fn:           func(a int) (typex.EventTime, int64, int, error) { return 47, int64(a), 3 * a, nil },
 			Opt:          &MainInput{Key: FullValue{Elm: 1}},
@@ -140,10 +196,67 @@ func TestInvoke(t *testing.T) {
 			ExpectedTime: 47,
 		},
 		{
+			// (Return check) EventTime, K, V, ProcessContinuation, Error
+			Fn: func(a int) (typex.EventTime, int64, int, sdf.ProcessContinuation, error) {
+				return 47, int64(a), 3 * a, sdf.StopProcessing(), nil
+			},
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             int64(1),
+			Expected2:            3,
+			ExpectedTime:         47,
+			ExpectedContinuation: sdf.StopProcessing(),
+		},
+		{
+			// (Return check) EventTime, V, Error
+			Fn:           func(a int) (typex.EventTime, int, error) { return 10, 3 * a, nil },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 10,
+		},
+		{
+			// (Return check) EventTime, V
+			Fn:           func(a int) (typex.EventTime, int) { return 102, 3 * a },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 102,
+		},
+		{
 			// Check ConvertFn is invoked
 			Fn:       func(a string, b []int) (string, int) { return a, len(b) },
 			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
 			Expected: "basketball", Expected2: 1,
+		},
+		{
+			// ret1() error check
+			Fn:            func(a int) error { return errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret2() error check
+			Fn:            func(a int) (int, error) { return 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret3() error check
+			Fn:            func(a int) (typex.EventTime, int, error) { return 0, 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret4() error check
+			Fn:            func(a int) (typex.EventTime, string, int, error) { return 0, "", 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret5() error check
+			Fn: func(a int) (typex.EventTime, string, int, sdf.ProcessContinuation, error) {
+				return 0, "", 0, nil, errGeneric
+			},
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
 		},
 	}
 
@@ -165,20 +278,80 @@ func TestInvoke(t *testing.T) {
 				test.ExpectedTime = ts
 			}
 
-			val, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
-			if err != nil {
-				t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
-			}
-			if val != nil && val.Elm != test.Expected {
-				t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
-			}
-			if val != nil && val.Elm2 != test.Expected2 {
-				t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
-			}
-			if val != nil && val.Timestamp != test.ExpectedTime {
-				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, nil, nil, nil, test.Args...)
+
+			if test.ExpectedError != nil {
+				if err == nil {
+					t.Fatalf("Invoke(%v, %v) succeeded when it should have failed, want %v", fn.Fn.Name(), test.Args, test.ExpectedError)
+				}
+				if err != test.ExpectedError {
+					t.Errorf("Invoke(%v, %v) returned unexpected error, got %v, want %v", fn.Fn.Name(), test.Args, err, test.ExpectedError)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
+				}
+				if val != nil && val.Elm != test.Expected {
+					t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
+				}
+				if val != nil && val.Elm2 != test.Expected2 {
+					t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
+				}
+				if val != nil && val.Timestamp != test.ExpectedTime {
+					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+				}
+				if val != nil && test.ExpectedContinuation != nil && !continuationsEqual(val.Continuation, test.ExpectedContinuation) {
+					t.Errorf("Continuation: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Continuation, test.ExpectedContinuation)
+				}
 			}
 		})
+	}
+}
+
+func TestRegisterCallback(t *testing.T) {
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	testVar := 0
+	bf.RegisterCallback(500*time.Minute, func() error {
+		testVar += 5
+		return nil
+	})
+	bf.RegisterCallback(2*time.Minute, func() error {
+		testVar = 25
+		return nil
+	})
+	callbackErr := errors.New("Callback error")
+	bf.RegisterCallback(2*time.Minute, func() error {
+		return callbackErr
+	})
+
+	// We can't do exact equality since this relies on real time, we'll give it a broad range
+	if bf.lastValidCallback.Before(time.Now().Add(400*time.Minute)) || bf.lastValidCallback.After(time.Now().Add(600*time.Minute)) {
+		t.Errorf("RegisterCallback() lastValidCallback set to %v, want about 500 minutes", bf.lastValidCallback)
+	}
+	if got, want := len(bf.callbacks), 3; got != want {
+		t.Fatalf("Callbacks in bundleFinalizer does not match number of calls to RegisterCallback(), got %v callbacks, want %v", got, want)
+	}
+
+	callbackIdx := 0
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned unexpected error: %v", callbackIdx, err)
+	}
+	if got, want := testVar, 5; got != want {
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
+	}
+	callbackIdx = 1
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want nil", callbackIdx, err)
+	}
+	if got, want := testVar, 25; got != want {
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
+	}
+	callbackIdx = 2
+	if err := bf.callbacks[2].callback(); err != callbackErr {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want %v", callbackIdx, err, callbackErr)
 	}
 }
 
@@ -216,10 +389,10 @@ func TestInvoke(t *testing.T) {
 func BenchmarkInvoke(b *testing.B) {
 	tests := []struct {
 		Name     string
-		Fn       interface{}
+		Fn       any
 		Opt      *MainInput
-		Args     []interface{}
-		Expected interface{}
+		Args     []any
+		Expected any
 	}{
 		{
 			Name: "Void function",
@@ -232,25 +405,25 @@ func BenchmarkInvoke(b *testing.B) {
 		{
 			Name:     "Sum",
 			Fn:       func(a, b, c int) int { return a + b + c },
-			Args:     []interface{}{1, 2, 3},
+			Args:     []any{1, 2, 3},
 			Expected: 6,
 		},
 		{
 			Name:     "Concat",
 			Fn:       func(a, b, c string) string { return a + b + c },
-			Args:     []interface{}{"a", "b", "c"},
+			Args:     []any{"a", "b", "c"},
 			Expected: "abc",
 		},
 		{
 			Name:     "Length (slice type)",
 			Fn:       func(list []int) (int, error) { return len(list), nil },
-			Args:     []interface{}{[]int{1, 2, 3}},
+			Args:     []any{[]int{1, 2, 3}},
 			Expected: 3,
 		},
 		{
 			Name: "Emitter",
 			Fn:   func(emit func(int)) { emit(1) },
-			Args: []interface{}{func(int) {}},
+			Args: []any{func(int) {}},
 		},
 		{
 			Name: "Side input",
@@ -261,21 +434,21 @@ func BenchmarkInvoke(b *testing.B) {
 				}
 				return ret
 			},
-			Args:     []interface{}{1, func(out *int) bool { *out = 2; return true }},
+			Args:     []any{1, func(out *int) bool { *out = 2; return true }},
 			Expected: 2,
 		},
 		{
 			Name:     "Sum as Main",
 			Fn:       func(a, b, c int) int { return a + b + c },
 			Opt:      &MainInput{Key: FullValue{Elm: 1}},
-			Args:     []interface{}{2, 3},
+			Args:     []any{2, 3},
 			Expected: 6,
 		},
 		{
 			Name:     "Sum as Main KV",
 			Fn:       func(a, b, c int) int { return a + b + c },
 			Opt:      &MainInput{Key: FullValue{Elm: 1, Elm2: 2}},
-			Args:     []interface{}{3},
+			Args:     []any{3},
 			Expected: 6,
 		},
 		{
@@ -301,7 +474,7 @@ func BenchmarkInvoke(b *testing.B) {
 		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
 		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, nil, nil, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -310,7 +483,7 @@ func BenchmarkInvoke(b *testing.B) {
 		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
 			inv := newInvoker(fn)
 			for i := 0; i < b.N; i++ {
-				_, err := inv.Invoke(context.Background(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
+				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, nil, nil, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -380,7 +553,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
-		args := make([]reflect.Value, 1, 1)
+		args := make([]reflect.Value, 1)
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
@@ -390,7 +563,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
-	args := make([]reflect.Value, 1, 1)
+	args := make([]reflect.Value, 1)
 	for i := 0; i < b.N; i++ {
 		args[0] = n
 		n = fn.Call(args)[0]
@@ -403,7 +576,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil, nil, nil, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -414,7 +587,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, nil, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -440,7 +613,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil, nil, nil, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -451,7 +624,7 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, nil, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -478,7 +651,7 @@ type callerFooRInt struct {
 	fn func(*Foo, int) int
 }
 
-func funcMakerFooRInt(fn interface{}) reflectx.Func {
+func funcMakerFooRInt(fn any) reflectx.Func {
 	f := fn.(func(*Foo, int) int)
 	return &callerFooRInt{fn: f}
 }
@@ -491,13 +664,13 @@ func (c *callerFooRInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerFooRInt) Call(args []interface{}) []interface{} {
+func (c *callerFooRInt) Call(args []any) []any {
 	a := c.fn(args[0].(*Foo), args[1].(int))
-	return []interface{}{a}
+	return []any{a}
 }
 
 // To satisfy reflectx.Func2x1
-func (c *callerFooRInt) Call2x1(a1, a2 interface{}) interface{} {
+func (c *callerFooRInt) Call2x1(a1, a2 any) any {
 	return c.fn(a1.(*Foo), a2.(int))
 }
 
@@ -506,7 +679,7 @@ type callerInt struct {
 	fn func(int) int
 }
 
-func funcMakerInt(fn interface{}) reflectx.Func {
+func funcMakerInt(fn any) reflectx.Func {
 	f := fn.(func(int) int)
 	return &callerInt{fn: f}
 }
@@ -519,12 +692,12 @@ func (c *callerInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerInt) Call(args []interface{}) []interface{} {
+func (c *callerInt) Call(args []any) []any {
 	a := c.fn(args[0].(int))
-	return []interface{}{a}
+	return []any{a}
 }
 
-func (c *callerInt) Call1x1(a0 interface{}) interface{} {
+func (c *callerInt) Call1x1(a0 any) any {
 	return c.fn(a0.(int))
 }
 
@@ -535,11 +708,11 @@ func (c *callerInt) Call1x1(a0 interface{}) interface{} {
 // * Implicit or Explicit method Receiver
 // * Pre-wrapped values and pre-allocated slices.
 // * Invocations along the following ways
-//   * Indirect via extracting from a reflect.Value.Interface()
-//   * Reflect Package (reflect.Value.Call())
-//   * Beam's reflectx.Func, and reflectx.FuncNxM interfaces
-//       * Beam's default reflection based reflectx.Func shim
-//       * A Type assertion specialized reflectx.Func shim
+//   - Indirect via extracting from a reflect.Value.Interface()
+//   - Reflect Package (reflect.Value.Call())
+//   - Beam's reflectx.Func, and reflectx.FuncNxM interfaces
+//   - Beam's default reflection based reflectx.Func shim
+//   - A Type assertion specialized reflectx.Func shim
 //
 // The Implicit or Explicit method receiver difference exists because
 // Go's reflect package treats the two cases different, and there are
@@ -553,7 +726,7 @@ func (c *callerInt) Call1x1(a0 interface{}) interface{} {
 // Interface() method.
 func BenchmarkMethodCalls(b *testing.B) {
 	f := &Foo{A: 3}
-	var gi interface{}
+	var gi any
 	g := &Foo{A: 42}
 	gi = g
 	gV := reflect.ValueOf(g)
@@ -589,12 +762,12 @@ func BenchmarkMethodCalls(b *testing.B) {
 
 	// Parameters
 	var a int
-	var ai interface{} = a
+	var ai any = a
 	aV := reflect.ValueOf(a)
 	rvSlice := []reflect.Value{aV}
 	grvSlice := []reflect.Value{gV, aV}
-	efaceSlice := []interface{}{a}
-	gEfaceSlice := []interface{}{g, a}
+	efaceSlice := []any{a}
+	gEfaceSlice := []any{g, a}
 
 	tests := []struct {
 		name string
@@ -612,11 +785,11 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"ReflectCallImplicit-NoWrap", func() { a = impRF.Call([]reflect.Value{aV})[0].Interface().(int) }},
 		{"ReflectCallImplicit-NoReallocSlice", func() { a = impRF.Call(rvSlice)[0].Interface().(int) }},
 
-		{"ReflectXCallImplicit", func() { a = impRxF.Call([]interface{}{a})[0].(int) }},
+		{"ReflectXCallImplicit", func() { a = impRxF.Call([]any{a})[0].(int) }},
 		{"ReflectXCallImplicit-NoReallocSlice", func() { a = impRxF.Call(efaceSlice)[0].(int) }},
 		{"ReflectXCall1x1Implicit", func() { a = impRx1x1F.Call1x1(a).(int) }}, // Measures the default shimfunc overhead.
 
-		{"ShimedCallImplicit", func() { a = impRShimF.Call([]interface{}{a})[0].(int) }},          // What we're currently using for invoking methods
+		{"ShimedCallImplicit", func() { a = impRShimF.Call([]any{a})[0].(int) }},                  // What we're currently using for invoking methods
 		{"ShimedCallImplicit-NoReallocSlice", func() { a = impRShimF.Call(efaceSlice)[0].(int) }}, // Closer to what we're using now.
 		{"ShimedCall1x1Implicit", func() { a = impRShim1x1F.Call1x1(a).(int) }},
 
@@ -628,11 +801,11 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"ReflectCallExplicit-NoWrap", func() { a = expRF.Call([]reflect.Value{gV, aV})[0].Interface().(int) }},
 		{"ReflectCallExplicit-NoReallocSlice", func() { a = expRF.Call(grvSlice)[0].Interface().(int) }},
 
-		{"ReflectXCallExplicit", func() { a = expRxF.Call([]interface{}{g, a})[0].(int) }},
+		{"ReflectXCallExplicit", func() { a = expRxF.Call([]any{g, a})[0].(int) }},
 		{"ReflectXCallExplicit-NoReallocSlice", func() { a = expRxF.Call(gEfaceSlice)[0].(int) }},
 		{"ReflectXCall2x1Explicit", func() { a = expRx2c1F.Call2x1(g, a).(int) }},
 
-		{"ShimedCallExplicit", func() { a = expRShimF.Call([]interface{}{g, a})[0].(int) }},
+		{"ShimedCallExplicit", func() { a = expRShimF.Call([]any{g, a})[0].(int) }},
 		{"ShimedCallExplicit-NoReallocSlice", func() { a = expRShimF.Call(gEfaceSlice)[0].(int) }},
 		{"ShimedCall2x1Explicit", func() { a = expRShim2x1F.Call2x1(g, a).(int) }},
 
@@ -644,11 +817,11 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"ReflectCallClosured-NoWrap", func() { a = clsrRF.Call([]reflect.Value{aV})[0].Interface().(int) }},
 		{"ReflectCallClosured-NoReallocSlice", func() { a = clsrRF.Call(rvSlice)[0].Interface().(int) }},
 
-		{"ReflectXCallClosured", func() { a = clsrRxF.Call([]interface{}{a})[0].(int) }},
+		{"ReflectXCallClosured", func() { a = clsrRxF.Call([]any{a})[0].(int) }},
 		{"ReflectXCallClosured-NoReallocSlice", func() { a = clsrRxF.Call(efaceSlice)[0].(int) }},
 		{"ReflectXCall1x1Closured", func() { a = clsrRx1x1F.Call1x1(a).(int) }}, // Measures the default shimfunc overhead.
 
-		{"ShimedCallClosured", func() { a = clsrRShimF.Call([]interface{}{a})[0].(int) }},          // What we're currently using for invoking methods
+		{"ShimedCallClosured", func() { a = clsrRShimF.Call([]any{a})[0].(int) }},                  // What we're currently using for invoking methods
 		{"ShimedCallClosured-NoReallocSlice", func() { a = clsrRShimF.Call(efaceSlice)[0].(int) }}, // Closer to what we're using now.
 		{"ShimedCall1x1Closured", func() { a = clsrRShim1x1F.Call1x1(a).(int) }},
 	}

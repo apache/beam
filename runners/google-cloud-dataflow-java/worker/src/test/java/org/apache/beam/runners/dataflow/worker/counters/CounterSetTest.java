@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -46,8 +46,8 @@ public class CounterSetTest {
 
   @Test
   public void testAddWithDifferentNamesAddsAll() {
-    Counter<?, ?> c1 = counterSet.longSum(name1);
-    Counter<?, ?> c2 = counterSet.intMax(name2);
+    counterSet.longSum(name1);
+    counterSet.intMax(name2);
 
     assertThat(counterSet.size(), equalTo(2L));
   }

@@ -18,8 +18,6 @@
 package org.apache.beam.sdk;
 
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
@@ -75,7 +73,7 @@ public interface PipelineResult {
    */
   enum State {
 
-    /** The job state could not be obtained or was not specified. */
+    /** The job state was not specified or unknown to a runner. */
     UNKNOWN(false, false),
 
     /** The job has been paused, or has not yet started. */
@@ -94,7 +92,10 @@ public interface PipelineResult {
     CANCELLED(true, false),
 
     /** The job has been updated. */
-    UPDATED(true, true);
+    UPDATED(true, true),
+
+    /** The job state reported by a runner cannot be interpreted by the SDK. */
+    UNRECOGNIZED(false, false);
 
     private final boolean terminal;
 
@@ -121,6 +122,5 @@ public interface PipelineResult {
    *
    * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
    */
-  @Experimental(Kind.METRICS)
   MetricResults metrics();
 }

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.RangeTracker;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,16 +35,19 @@ import org.slf4j.LoggerFactory;
  * considered a split point (because it is the first to be returned when reading a position range
  * starting at this position), others are not.
  */
-// Likely real bugs - https://issues.apache.org/jira/browse/BEAM-6563
+// Likely real bugs - https://github.com/apache/beam/issues/19272
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GroupingShuffleRangeTracker implements RangeTracker<ShufflePosition> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleRangeTracker.class);
 
   // null means "no limit": read from the beginning of the data.
-  @Nullable private final ShufflePosition startPosition;
+  private final @Nullable ShufflePosition startPosition;
 
   // null means "no limit": read until the end of the data.
-  @Nullable private ShufflePosition stopPosition;
+  private @Nullable ShufflePosition stopPosition;
 
   private ShufflePosition lastGroupStart = null;
   private boolean lastGroupWasAtSplitPoint = false;

@@ -31,6 +31,8 @@ Dockerfile text
 # git repository
 .gitignore export-ignore
 .gitattributes export-ignore
-gradlew export-ignore
-gradlew.bat export-ignore
-/gradle export-ignore
+/gradlew* export-ignore
+**/gradle export-ignore
+
+# Website is not part of archive
+/website export-ignore

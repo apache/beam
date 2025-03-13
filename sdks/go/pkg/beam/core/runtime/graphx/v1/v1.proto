@@ -24,7 +24,9 @@
  */
 syntax = "proto3";
 
-package v1;
+package org.apache.beam.sdks.go.pkg.beam.core.runtime.graphx.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1;v1";
 
 // Type represents a serializable reflect.Type.
 message Type {
@@ -109,6 +111,12 @@ message Type {
         KV = 11;
         COGBK = 13;
         WINDOWEDVALUE = 14;
+
+        BUNDLEFINALIZATION = 23;
+
+        STATEPROVIDER = 24;
+
+        TIMERPROVIDER = 25;
 
         T = 15;
         U = 16;
@@ -232,6 +240,14 @@ message InjectPayload {
     int32 n = 1;
 }
 
+// ReshufflePayload is the payload for the built-in reshuffle function.
+message ReshufflePayload {
+    // the root coder id for the reshuffle element
+    string coder_id = 1;
+    // local coder ids to their serialized pipeline_v1.Coder messages.
+    map<string, bytes> coder_payloads = 2;
+}
+
 // TransformPayload represents the full payload for transforms, both
 // user defined and built-in.
 message TransformPayload {
@@ -241,4 +257,5 @@ message TransformPayload {
 
     MultiEdge edge = 2;
     InjectPayload inject = 3;
+    ReshufflePayload reshuffle = 4;
 }

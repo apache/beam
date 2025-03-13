@@ -23,18 +23,22 @@ import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimest
 
 import java.math.BigDecimal;
 import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -85,9 +89,13 @@ public class BeamSqlDslBase {
             .addFloatField("f_float")
             .addDoubleField("f_double")
             .addStringField("f_string")
+            .addField("f_date", FieldType.logicalType(SqlTypes.DATE))
+            .addField("f_time", FieldType.logicalType(SqlTypes.TIME))
+            .addField("f_datetime", FieldType.logicalType(SqlTypes.DATETIME))
             .addDateTimeField("f_timestamp")
             .addInt32Field("f_int2")
             .addDecimalField("f_decimal")
+            .addIterableField("f_iterable", FieldType.STRING)
             .build();
 
     rowsInTableA =
@@ -100,9 +108,13 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 1, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 1, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
                 0,
-                new BigDecimal(1))
+                new BigDecimal(1),
+                Lists.newArrayList("s1", "s2"))
             .addRows(
                 2,
                 2000L,
@@ -111,9 +123,13 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 2, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 2, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 01:02:03"),
                 0,
-                new BigDecimal(2))
+                new BigDecimal(2),
+                Lists.newArrayList("s1", "s2"))
             .addRows(
                 3,
                 3000L,
@@ -122,9 +138,13 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 6, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 6, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 01:06:03"),
                 0,
-                new BigDecimal(3))
+                new BigDecimal(3),
+                Lists.newArrayList("s1", "s2"))
             .addRows(
                 4,
                 4000L,
@@ -133,9 +153,13 @@ public class BeamSqlDslBase {
                 4.0f,
                 4.0d,
                 "第四行",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(2, 4, 3),
+                LocalDateTime.of(2017, 1, 1, 2, 4, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
                 0,
-                new BigDecimal(4))
+                new BigDecimal(4),
+                Lists.newArrayList("s1", "s2"))
             .getRows();
 
     monthlyRowsInTableA =
@@ -148,9 +172,13 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 1, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 1, 3),
                 parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"),
                 0,
-                new BigDecimal(1))
+                new BigDecimal(1),
+                Lists.newArrayList("s1", "s2"))
             .addRows(
                 2,
                 2000L,
@@ -159,9 +187,13 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 2, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 2, 3),
                 parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"),
                 0,
-                new BigDecimal(2))
+                new BigDecimal(2),
+                Lists.newArrayList("s1", "s2"))
             .addRows(
                 3,
                 3000L,
@@ -170,9 +202,13 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 6, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 6, 3),
                 parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"),
                 0,
-                new BigDecimal(3))
+                new BigDecimal(3),
+                Lists.newArrayList("s1", "s2"))
             .getRows();
 
     schemaFloatDouble =
@@ -214,6 +250,12 @@ public class BeamSqlDslBase {
                 "TO_HEX",
                 "abcABC".getBytes(UTF_8),
                 "TO_HEX",
+                "abcABCжщфЖЩФ".getBytes(UTF_8),
+                "HashingFn",
+                "foobar".getBytes(UTF_8),
+                "HashingFn",
+                " ".getBytes(UTF_8),
+                "HashingFn",
                 "abcABCжщфЖЩФ".getBytes(UTF_8))
             .getRows();
 
@@ -256,66 +298,34 @@ public class BeamSqlDslBase {
   @Before
   public void preparePCollections() {
     boundedInput1 =
-        pipeline.apply(
-            "boundedInput1",
-            Create.of(rowsInTableA)
-                .withSchema(
-                    schemaInTableA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput1", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
 
     boundedInput2 =
         pipeline.apply(
-            "boundedInput2",
-            Create.of(rowsInTableA.get(0))
-                .withSchema(
-                    schemaInTableA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            "boundedInput2", Create.of(rowsInTableA.get(0)).withRowSchema(schemaInTableA));
 
     boundedInputFloatDouble =
         pipeline.apply(
             "boundedInputFloatDouble",
-            Create.of(rowsOfFloatDouble)
-                .withSchema(
-                    schemaFloatDouble,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.of(rowsOfFloatDouble).withRowSchema(schemaFloatDouble));
 
     boundedInputBytes =
-        pipeline.apply(
-            "boundedInputBytes",
-            Create.of(rowsOfBytes)
-                .withSchema(
-                    schemaBytes,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInputBytes", Create.of(rowsOfBytes).withRowSchema(schemaBytes));
 
     boundedInputBytesPaddingTest =
         pipeline.apply(
             "boundedInputBytesPaddingTest",
-            Create.of(rowsOfBytesPaddingTest)
-                .withSchema(
-                    schemaBytesPaddingTest,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.of(rowsOfBytesPaddingTest).withRowSchema(schemaBytesPaddingTest));
     boundedInputMonthly =
         pipeline.apply(
-            "boundedInputMonthly",
-            Create.of(monthlyRowsInTableA)
-                .withSchema(
-                    schemaInTableA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            "boundedInputMonthly", Create.of(monthlyRowsInTableA).withRowSchema(schemaInTableA));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
   private PCollection<Row> prepareUnboundedPCollection1() {
-    TestStream.Builder<Row> values =
-        TestStream.create(
-            schemaInTableA, SerializableFunctions.identity(), SerializableFunctions.identity());
+    TestStream.Builder<Row> values = TestStream.create(schemaInTableA);
 
     for (Row row : rowsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
@@ -330,9 +340,7 @@ public class BeamSqlDslBase {
   }
 
   private PCollection<Row> prepareUnboundedPCollection2() {
-    TestStream.Builder<Row> values =
-        TestStream.create(
-            schemaInTableA, SerializableFunctions.identity(), SerializableFunctions.identity());
+    TestStream.Builder<Row> values = TestStream.create(schemaInTableA);
 
     Row row = rowsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));

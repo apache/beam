@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -30,9 +30,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -60,9 +57,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MultiStepCombineTest implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
-
-  private transient KvCoder<String, Long> combinedCoder =
-      KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of());
 
   @Test
   public void testMultiStepCombine() {
@@ -123,7 +117,6 @@ public class MultiStepCombineTest implements Serializable {
   @Test
   public void testMultiStepCombineTimestampCombiner() {
     TimestampCombiner combiner = TimestampCombiner.LATEST;
-    combinedCoder = KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of());
     PCollection<KV<String, Long>> combined =
         pipeline
             .apply(

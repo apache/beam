@@ -29,12 +29,15 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.IdNameReserve;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query8}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Query8Model extends NexmarkQueryModel<IdNameReserve> implements Serializable {
   /** Simulator for query 8. */
   private class Simulator extends AbstractSimulator<Event, IdNameReserve> {

@@ -18,12 +18,17 @@
 package org.apache.beam.sdk.util;
 
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Static methods for creating and working with {@link MutationDetector}. */
+@Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MutationDetectors {
   private static final Logger LOG = LoggerFactory.getLogger(MutationDetectors.class);
 

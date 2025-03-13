@@ -17,17 +17,37 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-import abc
+# TODO(https://github.com/apache/beam/issues/18399): Issue with dill + local
+# classes + abc metaclass
+# import abc
 import inspect
-from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import TypeVar
+from typing import Union
+from typing import overload
 
 from google.protobuf import message
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
+
+if TYPE_CHECKING:
+  from apache_beam.runners.pipeline_context import PipelineContext
+
+T = TypeVar('T')
+RunnerApiFnT = TypeVar('RunnerApiFnT', bound='RunnerApiFn')
+ConstructorFn = Callable[[Union['message.Message', bytes], 'PipelineContext'],
+                         Any]
 
 
 class RunnerApiFn(object):
@@ -35,23 +55,69 @@ class RunnerApiFn(object):
 
   A class that inherits from this class will get a registration-based
   from_runner_api and to_runner_api method that convert to and from
-  beam_runner_api_pb2.SdkFunctionSpec.
+  beam_runner_api_pb2.FunctionSpec.
 
   Additionally, register_pickle_urn can be called from the body of a class
   to register serialization via pickling.
   """
 
-  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+  # TODO(https://github.com/apache/beam/issues/18399): Issue with dill + local
+  # classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
-  _known_urns = {}
+  _known_urns: Dict[str, Tuple[Optional[type], ConstructorFn]] = {}
 
-  @abc.abstractmethod
-  def to_runner_api_parameter(self, unused_context):
+  # @abc.abstractmethod is disabled here to avoid an error with mypy. mypy
+  # performs abc.abtractmethod/property checks even if a class does
+  # not use abc.ABCMeta, however, functions like `register_pickle_urn`
+  # dynamically patch `to_runner_api_parameter`, which mypy cannot track, so
+  # mypy incorrectly infers that this method has not been overridden with a
+  # concrete implementation.
+  # @abc.abstractmethod
+  def to_runner_api_parameter(
+      self, unused_context: 'PipelineContext') -> Tuple[str, Any]:
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
     """
+    raise NotImplementedError
+
+  @classmethod
+  @overload
+  def register_urn(
+      cls,
+      urn: str,
+      parameter_type: Type[T],
+  ) -> Callable[[Callable[[T, 'PipelineContext'], Any]],
+                Callable[[T, 'PipelineContext'], Any]]:
+    pass
+
+  @classmethod
+  @overload
+  def register_urn(
+      cls,
+      urn: str,
+      parameter_type: None,
+  ) -> Callable[[Callable[[bytes, 'PipelineContext'], Any]],
+                Callable[[bytes, 'PipelineContext'], Any]]:
+    pass
+
+  @classmethod
+  @overload
+  def register_urn(
+      cls,
+      urn: str,
+      parameter_type: Type[T],
+      fn: Callable[[T, 'PipelineContext'], Any]) -> None:
+    pass
+
+  @classmethod
+  @overload
+  def register_urn(
+      cls,
+      urn: str,
+      parameter_type: None,
+      fn: Callable[[bytes, 'PipelineContext'], Any]) -> None:
     pass
 
   @classmethod
@@ -69,7 +135,8 @@ class RunnerApiFn(object):
     """
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
-      return staticmethod(fn)
+      return fn
+
     if fn:
       # Used as a statement.
       register(fn)
@@ -82,35 +149,36 @@ class RunnerApiFn(object):
     """Registers and implements the given urn via pickling.
     """
     inspect.currentframe().f_back.f_locals['to_runner_api_parameter'] = (
-        lambda self, context: (
-            pickle_urn, wrappers_pb2.BytesValue(value=pickler.dumps(self))))
+        lambda self,
+        context:
+        (pickle_urn, wrappers_pb2.BytesValue(value=pickler.dumps(self))))
     cls.register_urn(
         pickle_urn,
         wrappers_pb2.BytesValue,
-        lambda proto, unused_context: pickler.loads(proto.value))
+        lambda proto,
+        unused_context: pickler.loads(proto.value))
 
-  def to_runner_api(self, context):
-    """Returns an SdkFunctionSpec encoding this Fn.
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.FunctionSpec:
+    """Returns an FunctionSpec encoding this Fn.
 
     Prefer overriding self.to_runner_api_parameter.
     """
-    from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
-    return beam_runner_api_pb2.SdkFunctionSpec(
-        environment_id=context.default_environment_id(),
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=urn,
-            payload=typed_param.SerializeToString()
-            if isinstance(typed_param, message.Message)
-            else typed_param))
+    return beam_runner_api_pb2.FunctionSpec(
+        urn=urn,
+        payload=typed_param.SerializeToString() if isinstance(
+            typed_param, message.Message) else typed_param)
 
   @classmethod
-  def from_runner_api(cls, fn_proto, context):
-    """Converts from an SdkFunctionSpec to a Fn object.
+  def from_runner_api(
+      cls: Type[RunnerApiFnT],
+      fn_proto: beam_runner_api_pb2.FunctionSpec,
+      context: 'PipelineContext') -> RunnerApiFnT:
+    """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
+    parameter_type, constructor = cls._known_urns[fn_proto.urn]
     return constructor(
-        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
-        context)
+        proto_utils.parse_Bytes(fn_proto.payload, parameter_type), context)

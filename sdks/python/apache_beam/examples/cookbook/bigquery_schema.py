@@ -22,7 +22,7 @@ fields. Also, shows how to generate data to be written to a BigQuery table with
 nested and repeated fields.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import argparse
 import logging
@@ -37,9 +37,9 @@ def run(argv=None):
   parser.add_argument(
       '--output',
       required=True,
-      help=
-      ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
-       'or DATASET.TABLE.'))
+      help=(
+          'Output BigQuery table for results specified as: '
+          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
@@ -100,15 +100,21 @@ def run(argv=None):
     table_schema.fields.append(children_schema)
 
     def create_random_record(record_id):
-      return {'kind': 'kind' + record_id, 'fullName': 'fullName'+record_id,
-              'age': int(record_id) * 10, 'gender': 'male',
-              'phoneNumber': {
-                  'areaCode': int(record_id) * 100,
-                  'number': int(record_id) * 100000},
-              'children': ['child' + record_id + '1',
-                           'child' + record_id + '2',
-                           'child' + record_id + '3']
-             }
+      return {
+          'kind': 'kind' + record_id,
+          'fullName': 'fullName' + record_id,
+          'age': int(record_id) * 10,
+          'gender': 'male',
+          'phoneNumber': {
+              'areaCode': int(record_id) * 100,
+              'number': int(record_id) * 100000
+          },
+          'children': [
+              'child' + record_id + '1',
+              'child' + record_id + '2',
+              'child' + record_id + '3'
+          ]
+      }
 
     # pylint: disable=expression-not-assigned
     record_ids = p | 'CreateIDs' >> beam.Create(['1', '2', '3', '4', '5'])

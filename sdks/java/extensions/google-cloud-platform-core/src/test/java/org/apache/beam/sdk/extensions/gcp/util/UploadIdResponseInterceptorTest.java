@@ -39,7 +39,7 @@ public class UploadIdResponseInterceptorTest {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(UploadIdResponseInterceptor.class);
 
   /**
-   * Builds a HttpResponse with the given string response.
+   * Builds an HttpResponse with the given string response.
    *
    * @param header header value to provide or null if none.
    * @param uploadId upload id to provide in the url upload id param or null if none.

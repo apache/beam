@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // This file contains support for side input.
@@ -32,7 +32,8 @@ const iterableSideInputKey = ""
 // SideInputAdapter provides a concrete ReStream from a low-level side input reader. It
 // encapsulates StreamID and coding as needed.
 type SideInputAdapter interface {
-	NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error)
+	NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error)
+	NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey any) (ReStream, error)
 }
 
 type sideInputAdapter struct {
@@ -41,43 +42,105 @@ type sideInputAdapter struct {
 	wc          WindowEncoder
 	kc          ElementEncoder
 	ec          ElementDecoder
+	wm          WindowMapper
+	c           *coder.Coder
 }
 
 // NewSideInputAdapter returns a side input adapter for the given StreamID and coder.
-// It expects a W<KV<K,V>> coder, because the protocol supports MultiSet access only.
-func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder) SideInputAdapter {
-	if !coder.IsW(c) || !coder.IsKV(coder.SkipW(c)) {
-		panic(fmt.Sprintf("expected WKV coder for side input %v: %v", sid, c))
+// It expects a W<V> or W<KV<K,V>> coder, because the protocol requires windowing information.
+func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm WindowMapper) SideInputAdapter {
+	if !coder.IsW(c) {
+		panic(fmt.Sprintf("expected WV coder for side input %v: %v", sid, c))
 	}
 
 	wc := MakeWindowEncoder(c.Window)
-	kc := MakeElementEncoder(coder.SkipW(c).Components[0])
-	ec := MakeElementDecoder(coder.SkipW(c).Components[1])
-	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec}
+	var kc ElementEncoder
+	var ec ElementDecoder
+	if coder.IsKV(coder.SkipW(c)) {
+		kc = MakeElementEncoder(coder.SkipW(c).Components[0])
+		ec = MakeElementDecoder(coder.SkipW(c).Components[1])
+	} else {
+		ec = MakeElementDecoder(coder.SkipW(c))
+	}
+	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec, wm: wm, c: c}
 }
 
-func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error) {
-	key, err := EncodeElement(s.kc, []byte(iterableSideInputKey))
+// NewIterable returns a ReStream of an iterable side input from the runner, either by getting the ReStream from
+// the side input cache or by opening a new stream and reading it in.
+func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
+	key := []byte(iterableSideInputKey)
+
+	// Catch if iterable values themselves are KV encoded, update element decoder.
+	if s.kc != nil {
+		s.ec = MakeElementDecoder(coder.SkipW(s.c))
+	}
+
+	mw, err := s.wm.MapWindow(w)
 	if err != nil {
 		return nil, err
 	}
-	win, err := EncodeWindow(s.wc, w)
+	win, err := EncodeWindow(s.wc, mw)
 	if err != nil {
 		return nil, err
 	}
-	return &proxyReStream{
+	cache := reader.GetSideInputCache()
+	// Cache hit
+	if r := cache.QueryCache(ctx, s.sid.PtransformID, s.sideInputID, win, key); r != nil {
+		return r, nil
+	}
+
+	// Cache miss, build new ReStream
+	r := &proxyReStream{
 		open: func() (Stream, error) {
-			r, err := reader.Open(ctx, s.sid, s.sideInputID, key, win)
+			r, err := reader.OpenIterableSideInput(ctx, s.sid, s.sideInputID, win)
 			if err != nil {
 				return nil, err
 			}
 			return &elementStream{r: r, ec: s.ec}, nil
 		},
-	}, nil
+	}
+	return cache.SetCache(ctx, s.sid.PtransformID, s.sideInputID, win, key, r), nil
+}
+
+// NewKeyedIterable returns a ReStream of a multimap side input from the runner, either by getting the ReStream from
+// the side input cache or by opening a new stream and reading it in.
+func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey any) (ReStream, error) {
+	if s.kc == nil {
+		return nil, fmt.Errorf("cannot make a keyed iterable for an unkeyed side input %v", s.sideInputID)
+	}
+	key, err := EncodeElement(s.kc, iterKey)
+	if err != nil {
+		return nil, err
+	}
+	mw, err := s.wm.MapWindow(w)
+	if err != nil {
+		return nil, err
+	}
+	win, err := EncodeWindow(s.wc, mw)
+	if err != nil {
+		return nil, err
+	}
+	cache := reader.GetSideInputCache()
+	// Cache hit
+	if r := cache.QueryCache(ctx, s.sid.PtransformID, s.sideInputID, win, key); r != nil {
+		return r, nil
+	}
+
+	// Cache miss, build new ReStream
+	r := &proxyReStream{
+		open: func() (Stream, error) {
+			r, err := reader.OpenMultiMapSideInput(ctx, s.sid, s.sideInputID, key, win)
+			if err != nil {
+				return nil, err
+			}
+			return &elementStream{r: r, ec: s.ec}, nil
+		},
+	}
+	return cache.SetCache(ctx, s.sid.PtransformID, s.sideInputID, win, key, r), nil
 }
 
 func (s *sideInputAdapter) String() string {
-	return fmt.Sprintf("SideInputAdapter[%v, %v]", s.sid, s.sideInputID)
+	return fmt.Sprintf("SideInputAdapter[%v, %v] - Coder %v", s.sid, s.sideInputID, s.c)
 }
 
 // proxyReStream is a simple wrapper of an open function.
@@ -109,7 +172,7 @@ type FixedKey struct {
 	// UID is the unit identifier.
 	UID UnitID
 	// Key is the given key
-	Key interface{}
+	Key any
 	// Out is the successor node.
 	Out Node
 }

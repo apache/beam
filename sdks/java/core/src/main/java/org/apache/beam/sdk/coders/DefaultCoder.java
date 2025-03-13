@@ -26,9 +26,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import javax.annotation.CheckForNull;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,9 +50,12 @@ import org.slf4j.LoggerFactory;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+})
 public @interface DefaultCoder {
   @CheckForNull
+  @SuppressWarnings("rawtypes") // this is deliberate, as the user will pass FooCoder.class
   Class<? extends Coder> value();
 
   /**
@@ -70,7 +74,7 @@ public @interface DefaultCoder {
      * A {@link CoderProvider} that uses the {@code @DefaultCoder} annotation to provide {@link
      * CoderProvider coder providers} that create {@link Coder}s.
      */
-    static class DefaultCoderProvider extends CoderProvider {
+    public static class DefaultCoderProvider extends CoderProvider {
       private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderProvider.class);
 
       /**
@@ -85,10 +89,19 @@ public @interface DefaultCoder {
         Class<?> clazz = typeDescriptor.getRawType();
         DefaultCoder defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
         if (defaultAnnotation == null) {
+          // check if the superclass has DefaultCoder annotation if the class is generated using
+          // AutoValue
+          if (clazz.getName().contains("AutoValue_")) {
+            clazz = clazz.getSuperclass();
+            defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
+          }
+        }
+        if (defaultAnnotation == null) {
           throw new CannotProvideCoderException(
               String.format("Class %s does not have a @DefaultCoder annotation.", clazz.getName()));
         }
 
+        @SuppressWarnings("rawtypes") // this is deliberate, as the user will pass FooCoder.class
         Class<? extends Coder> defaultAnnotationValue = defaultAnnotation.value();
         if (defaultAnnotationValue == null) {
           throw new CannotProvideCoderException(
@@ -112,7 +125,9 @@ public @interface DefaultCoder {
 
         CoderProvider coderProvider;
         try {
-          coderProvider = (CoderProvider) coderProviderMethod.invoke(null);
+          coderProvider =
+              Preconditions.checkStateNotNull(
+                  (CoderProvider) coderProviderMethod.invoke(clazz /* ignored */));
         } catch (IllegalAccessException
             | IllegalArgumentException
             | InvocationTargetException

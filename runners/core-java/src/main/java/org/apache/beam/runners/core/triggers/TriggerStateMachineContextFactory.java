@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.triggers;
 
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ActiveWindowSet;
 import org.apache.beam.runners.core.MergingStateAccessor;
 import org.apache.beam.runners.core.StateAccessor;
@@ -35,9 +34,10 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -46,6 +46,7 @@ import org.joda.time.Instant;
  * <p>These contexts are highly interdependent and share many fields; it is inadvisable to create
  * them via any means other than this factory class.
  */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
   private final WindowFn<?, W> windowFn;
@@ -86,13 +87,14 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
 
-  public StateAccessor<?> createStateAccessor(W window, ExecutableTriggerStateMachine trigger) {
-    return new StateAccessorImpl(window, trigger);
+  public TriggerStateMachine.PrefetchContext createPrefetchContext(
+      W window, ExecutableTriggerStateMachine trigger) {
+    return new PrefetchContextImpl(window, trigger);
   }
 
-  public MergingStateAccessor<?, W> createMergingStateAccessor(
-      W mergeResult, Collection<W> mergingWindows, ExecutableTriggerStateMachine trigger) {
-    return new MergingStateAccessorImpl(trigger, mergingWindows, mergeResult);
+  public TriggerStateMachine.MergingPrefetchContext createMergingPrefetchContext(
+      W window, Collection<W> mergingWindows, ExecutableTriggerStateMachine trigger) {
+    return new MergingPrefetchContextImpl(window, mergingWindows, trigger);
   }
 
   private class TriggerInfoImpl implements TriggerStateMachine.TriggerInfo {
@@ -189,6 +191,11 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
+    public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
+      timers.setTimer(timestamp, outputTimestamp, timeDomain);
+    }
+
+    @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       if (timeDomain == TimeDomain.EVENT_TIME && timestamp.equals(window.maxTimestamp())) {
         // Don't allow triggers to unset the at-max-timestamp timer. This is necessary for on-time
@@ -204,8 +211,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
@@ -316,6 +322,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public TriggerStateMachine.TriggerContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (this.triggerInfo.trigger == trigger) {
+        return this;
+      }
       return new TriggerContextImpl(window, timers, trigger, triggerInfo.finishedSet);
     }
 
@@ -345,14 +354,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
     @Override
-    @Nullable
-    public Instant currentEventTime() {
+    public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
     }
   }
@@ -385,6 +392,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public TriggerStateMachine.OnElementContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (this.triggerInfo.trigger == trigger) {
+        return this;
+      }
       return new OnElementContextImpl(
           window, timers, trigger, triggerInfo.finishedSet, eventTimestamp);
     }
@@ -420,14 +430,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
     @Override
-    @Nullable
-    public Instant currentEventTime() {
+    public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
     }
   }
@@ -454,6 +462,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public TriggerStateMachine.OnMergeContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (this.triggerInfo.trigger == trigger) {
+        return this;
+      }
       return new OnMergeContextImpl(
           window, timers, trigger, triggerInfo.finishedSet, triggerInfo.finishedSets);
     }
@@ -480,7 +491,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain domain) {
-      timers.setTimer(timestamp, domain);
+      timers.deleteTimer(timestamp, domain);
     }
 
     @Override
@@ -489,15 +500,85 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
     @Override
-    @Nullable
-    public Instant currentEventTime() {
+    public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
+    }
+  }
+
+  private class PrefetchContextImpl extends TriggerStateMachine.PrefetchContext {
+    private final StateAccessor<?> state;
+    private final W window;
+    private final ExecutableTriggerStateMachine trigger;
+
+    private PrefetchContextImpl(W window, ExecutableTriggerStateMachine trigger) {
+      this.window = window;
+      this.trigger = trigger;
+      this.state = new StateAccessorImpl(window, trigger);
+    }
+
+    @Override
+    public StateAccessor<?> state() {
+      return state;
+    }
+
+    @Override
+    public ExecutableTriggerStateMachine trigger() {
+      return trigger;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public TriggerStateMachine.PrefetchContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (trigger == this.trigger) {
+        return this;
+      }
+      return new PrefetchContextImpl(window, trigger);
+    }
+  }
+
+  private class MergingPrefetchContextImpl extends TriggerStateMachine.MergingPrefetchContext {
+    private final MergingStateAccessorImpl state;
+    private final W window;
+    private final ExecutableTriggerStateMachine trigger;
+
+    private MergingPrefetchContextImpl(
+        W window, Collection<W> mergingWindows, ExecutableTriggerStateMachine trigger) {
+      this.window = window;
+      this.trigger = trigger;
+      this.state = new MergingStateAccessorImpl(trigger, mergingWindows, window);
+    }
+
+    @Override
+    public MergingStateAccessor<?, W> state() {
+      return state;
+    }
+
+    @Override
+    public ExecutableTriggerStateMachine trigger() {
+      return trigger;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public TriggerStateMachine.MergingPrefetchContext forTrigger(
+        ExecutableTriggerStateMachine trigger) {
+      if (trigger == this.trigger) {
+        return this;
+      }
+      return new MergingPrefetchContextImpl(window, state.activeToBeMerged, trigger);
     }
   }
 }

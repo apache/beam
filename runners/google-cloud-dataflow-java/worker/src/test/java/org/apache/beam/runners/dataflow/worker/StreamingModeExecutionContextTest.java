@@ -19,11 +19,12 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -46,14 +47,26 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -61,45 +74,54 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingModeExecutionContext}. */
 @RunWith(JUnit4.class)
 public class StreamingModeExecutionContextTest {
-
-  @Mock private StateFetcher stateFetcher;
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
 
-  private StreamingModeExecutionStateRegistry executionStateRegistry =
-      new StreamingModeExecutionStateRegistry(null);
+  private static final String COMPUTATION_ID = "computationId";
+
+  private final StreamingModeExecutionStateRegistry executionStateRegistry =
+      new StreamingModeExecutionStateRegistry();
   private StreamingModeExecutionContext executionContext;
+  DataflowWorkerHarnessOptions options;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    StreamingGlobalConfigHandle globalConfigHandle =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
         new StreamingModeExecutionContext(
             counterSet,
-            "computationId",
-            new ReaderCache(),
+            COMPUTATION_ID,
+            new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
             stateNameMap,
-            new WindmillStateCache().forComputation("comp"),
+            WindmillStateCache.builder()
+                .setSizeMb(options.getWorkerCacheMb())
+                .build()
+                .forComputation("comp"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -109,12 +131,19 @@ public class StreamingModeExecutionContextTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
   }
 
-  // Helper to aid type inference
-  private static TupleTag<Iterable<WindowedValue<String>>> newStringTag() {
-    return new TupleTag<>();
+  private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
+    return Work.create(
+        workItem,
+        workItem.getSerializedSize(),
+        watermarks,
+        Work.createProcessingContext(
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+        Instant::now);
   }
 
   @Test
@@ -126,20 +155,24 @@ public class StreamingModeExecutionContextTest {
         executionContext.createOperationContext(nameContext);
     StreamingModeExecutionContext.StepContext stepContext =
         executionContext.getStepContext(operationContext);
+
     executionContext.start(
         "key",
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-        new Instant(1000), // input watermark
-        null, // output watermark
-        null, // synchronized processing time
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
-        stateFetcher,
+        sideInputStateFetcher,
         outputBuilder);
 
     TimerInternals timerInternals = stepContext.timerInternals();
 
     timerInternals.setTimer(
-        TimerData.of(new StateNamespaceForTest("key"), new Instant(5000), TimeDomain.EVENT_TIME));
+        TimerData.of(
+            new StateNamespaceForTest("key"),
+            new Instant(5000),
+            new Instant(5000),
+            TimeDomain.EVENT_TIME));
     executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
@@ -166,7 +199,7 @@ public class StreamingModeExecutionContextTest {
     // still fire.
     Instant now = Instant.now();
     long offsetMillis = 60 * 1000;
-    Instant timerTimestamp = now.plus(offsetMillis);
+    Instant timerTimestamp = now.plus(Duration.millis(offsetMillis));
     timerBuilder
         .setTag(ByteString.copyFromUtf8("a"))
         .setTimestamp(timerTimestamp.getMillis() * 1000)
@@ -174,12 +207,11 @@ public class StreamingModeExecutionContextTest {
 
     executionContext.start(
         "key",
-        workItemBuilder.build(),
-        new Instant(1000), // input watermark
-        null, // output watermark
-        null, // synchronized processing time
+        createMockWork(
+            workItemBuilder.build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
-        stateFetcher,
+        sideInputStateFetcher,
         outputBuilder);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
@@ -215,8 +247,8 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void extractMsecCounters() {
-    MetricsContainer metricsContainer = Mockito.mock(MetricsContainer.class);
-    ProfileScope profileScope = Mockito.mock(ProfileScope.class);
+    MetricsContainer metricsContainer = mock(MetricsContainer.class);
+    ProfileScope profileScope = mock(ProfileScope.class);
     ExecutionState start1 =
         executionContext.executionStateRegistry.getState(
             NameContext.create("stage", "original-1", "system-1", "user-1"),
@@ -278,7 +310,7 @@ public class StreamingModeExecutionContextTest {
                         .setName(counterName)
                         .setOriginalStepName(originalStepName)
                         .setExecutionStepName(stageName))
-                .setMetadata(new CounterMetadata().setKind("SUM")))
+                .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
         .setCumulative(false)
         .setInteger(longToSplitInt(value));
   }
@@ -292,7 +324,7 @@ public class StreamingModeExecutionContextTest {
                         .setOrigin("SYSTEM")
                         .setName(counterName)
                         .setExecutionStepName(stageName))
-                .setMetadata(new CounterMetadata().setKind("SUM")))
+                .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
         .setCumulative(false)
         .setInteger(longToSplitInt(value));
   }
@@ -307,11 +339,7 @@ public class StreamingModeExecutionContextTest {
 
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(),
-            "testState",
-            null,
-            NoopProfileScope.NOOP,
-            null);
+            NameContextsForTests.nameContextForTest(), "testState", null, NoopProfileScope.NOOP);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     AtomicBoolean doneWriting = new AtomicBoolean(false);
 
@@ -350,11 +378,7 @@ public class StreamingModeExecutionContextTest {
     // reach the reading thread.
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(),
-            "testState",
-            null,
-            NoopProfileScope.NOOP,
-            null);
+            NameContextsForTests.nameContextForTest(), "testState", null, NoopProfileScope.NOOP);
     ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
     try {
       sampler.start();

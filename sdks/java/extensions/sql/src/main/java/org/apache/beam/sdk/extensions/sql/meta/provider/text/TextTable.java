@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.TextRowCountEstimator;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,23 +36,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link TextTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable} that reads text
- * files and converts them according to the specified format.
+ * {@link TextTable} is a {@link BeamSqlTable} that reads text files and converts them according to
+ * the specified format.
  *
  * <p>Support formats are {@code "csv"} and {@code "lines"}.
  *
  * <p>{@link CSVFormat} itself has many dialects, check its javadoc for more info.
  */
 @Internal
-public class TextTable extends BaseBeamTable {
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class TextTable extends SchemaBaseBeamTable {
 
   private final PTransform<PCollection<String>, PCollection<Row>> readConverter;
   private final PTransform<PCollection<Row>, PCollection<String>> writeConverter;
   private static final TextRowCountEstimator.SamplingStrategy DEFAULT_SAMPLING_STRATEGY =
       new TextRowCountEstimator.LimitNumberOfTotalBytes(1024 * 1024L);
   private final String filePattern;
-  private BeamRowCountStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(TextTable.class);
+  private BeamTableStatistics rowCountStatistics = null;
+  private static final Logger LOG = LoggerFactory.getLogger(TextTable.class);
 
   /** Text table with the specified read and write transforms. */
   public TextTable(
@@ -71,7 +74,7 @@ public class TextTable extends BaseBeamTable {
   }
 
   @Override
-  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     if (rowCountStatistics == null) {
       rowCountStatistics = getTextRowEstimate(options, getFilePattern());
     }
@@ -79,7 +82,7 @@ public class TextTable extends BaseBeamTable {
     return rowCountStatistics;
   }
 
-  private static BeamRowCountStatistics getTextRowEstimate(
+  private static BeamTableStatistics getTextRowEstimate(
       PipelineOptions options, String filePattern) {
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder()
@@ -87,12 +90,12 @@ public class TextTable extends BaseBeamTable {
             .setSamplingStrategy(DEFAULT_SAMPLING_STRATEGY)
             .build();
     try {
-      Long rows = textRowCountEstimator.estimateRowCount(options);
-      return BeamRowCountStatistics.createBoundedTableStatistics(BigInteger.valueOf(rows));
+      Double rows = textRowCountEstimator.estimateRowCount(options);
+      return BeamTableStatistics.createBoundedTableStatistics(rows);
     } catch (IOException | TextRowCountEstimator.NoEstimationException e) {
-      LOGGER.warn("Could not get the row count for the text table " + filePattern, e);
+      LOG.warn("Could not get the row count for the text table " + filePattern, e);
     }
-    return BeamRowCountStatistics.UNKNOWN;
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 
   @Override

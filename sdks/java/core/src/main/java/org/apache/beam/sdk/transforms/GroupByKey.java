@@ -17,21 +17,28 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
+import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>}, groups the values by key and
@@ -151,32 +158,76 @@ public class GroupByKey<K, V>
         && windowingStrategy.getTrigger() instanceof DefaultTrigger
         && input.isBounded() != IsBounded.BOUNDED) {
       throw new IllegalStateException(
-          "GroupByKey cannot be applied to non-bounded PCollection in "
-              + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
-              + "prior to GroupByKey.");
+          "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without a"
+              + " trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
     }
 
-    // Validate the window merge function.
-    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
-      throw new IllegalStateException(
-          "GroupByKey must have a valid Window merge function.  " + "Invalid because: " + cause);
+    // Validate that the trigger does not finish before garbage collection time
+    if (!triggerIsSafe(windowingStrategy)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsafe trigger '%s' may lose data, did you mean to wrap it in"
+                  + "`Repeatedly.forever(...)`?%nSee "
+                  + "https://s.apache.org/finishing-triggers-drop-data "
+                  + "for details.",
+              windowingStrategy.getTrigger()));
     }
   }
 
-  public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
-    WindowFn<?, ?> inputWindowFn = inputStrategy.getWindowFn();
-    if (!inputWindowFn.isNonMerging()) {
-      // Prevent merging windows again, without explicit user
-      // involvement, e.g., by Window.into() or Window.remerge().
-      inputWindowFn =
-          new InvalidWindows<>(
-              "WindowFn has already been consumed by previous GroupByKey", inputWindowFn);
+  @Override
+  public void validate(
+      @Nullable PipelineOptions options,
+      Map<TupleTag<?>, PCollection<?>> inputs,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
+    PCollection<?> input = Iterables.getOnlyElement(inputs.values());
+    KvCoder<K, V> inputCoder = getInputKvCoder(input.getCoder());
+
+    // Ensure that the output coder key and value types aren't different.
+    Coder<?> outputCoder = Iterables.getOnlyElement(outputs.values()).getCoder();
+    KvCoder<?, ?> expectedOutputCoder = getOutputKvCoder(inputCoder);
+    if (!expectedOutputCoder.equals(outputCoder)) {
+      throw new IllegalStateException(
+          String.format(
+              "the GroupByKey requires its output coder to be %s but found %s.",
+              expectedOutputCoder, outputCoder));
+    }
+  }
+
+  // Note that Never trigger finishes *at* GC time so it is OK, and
+  // AfterWatermark.fromEndOfWindow() finishes at end-of-window time so it is
+  // OK if there is no allowed lateness.
+  private static boolean triggerIsSafe(WindowingStrategy<?, ?> windowingStrategy) {
+    if (!windowingStrategy.getTrigger().mayFinish()) {
+      return true;
     }
 
-    // We also switch to the continuation trigger associated with the current trigger.
+    if (windowingStrategy.getTrigger() instanceof NeverTrigger) {
+      return true;
+    }
+
+    if (windowingStrategy.getTrigger() instanceof FromEndOfWindow
+        && windowingStrategy.getAllowedLateness().getMillis() == 0) {
+      return true;
+    }
+
+    if (windowingStrategy.getTrigger() instanceof AfterWatermarkEarlyAndLate
+        && windowingStrategy.getAllowedLateness().getMillis() == 0) {
+      return true;
+    }
+
+    if (windowingStrategy.getTrigger() instanceof AfterWatermarkEarlyAndLate
+        && ((AfterWatermarkEarlyAndLate) windowingStrategy.getTrigger()).getLateTrigger() != null) {
+      return true;
+    }
+
+    return false;
+  }
+
+  public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
+    // If the WindowFn was merging, set the bit to indicate it is already merged.
+    // Switch to the continuation trigger associated with the current trigger.
     return inputStrategy
-        .withWindowFn(inputWindowFn)
+        .withAlreadyMerged(!inputStrategy.getWindowFn().isNonMerging())
         .withTrigger(inputStrategy.getTrigger().getContinuationTrigger());
   }
 
@@ -208,7 +259,7 @@ public class GroupByKey<K, V>
    * Returns the {@code Coder} of the input to this transform, which should be a {@code KvCoder}.
    */
   @SuppressWarnings("unchecked")
-  static <K, V> KvCoder<K, V> getInputKvCoder(Coder<KV<K, V>> inputCoder) {
+  static <K, V> KvCoder<K, V> getInputKvCoder(Coder<?> inputCoder) {
     if (!(inputCoder instanceof KvCoder)) {
       throw new IllegalStateException("GroupByKey requires its input to use KvCoder");
     }
@@ -222,12 +273,12 @@ public class GroupByKey<K, V>
    * {@code Coder} of the keys of the output of this transform.
    */
   public static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
-    return getInputKvCoder(inputCoder).getKeyCoder();
+    return GroupByKey.<K, V>getInputKvCoder(inputCoder).getKeyCoder();
   }
 
   /** Returns the {@code Coder} of the values of the input to this transform. */
   public static <K, V> Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
-    return getInputKvCoder(inputCoder).getValueCoder();
+    return GroupByKey.<K, V>getInputKvCoder(inputCoder).getValueCoder();
   }
 
   /** Returns the {@code Coder} of the {@code Iterable} values of the output of this transform. */

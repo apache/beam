@@ -17,20 +17,23 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SortedSetMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SortedSetMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
 
 /** Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PipelineOptionsValidator {
   /**
    * Validates that the passed {@link PipelineOptions} conforms to all the validation criteria from
@@ -110,7 +113,7 @@ public class PipelineOptionsValidator {
                 + requiredGroup
                 + "]. At least one of the following properties "
                 + Collections2.transform(
-                    requiredGroups.get(requiredGroup), ReflectHelpers.METHOD_FORMATTER)
+                    requiredGroups.get(requiredGroup), ReflectHelpers::formatMethod)
                 + " required. Run with --help="
                 + klass.getSimpleName()
                 + " for more information.");

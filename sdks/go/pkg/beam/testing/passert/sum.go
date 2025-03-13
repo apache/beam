@@ -18,16 +18,18 @@ package passert
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-// Sum validates that the incoming PCollection<int> is a singleton
-// with the given value. Specialized version of Equals that avoids
-// a lot of machinery for testing.
+// Sum validates that the sum and count of elements in the incoming PCollection<int> is
+// the same as the given sum and count, under coder equality. Sum is a specialized version of Equals
+// that avoids a lot of machinery for testing.
 func Sum(s beam.Scope, col beam.PCollection, name string, size, value int) {
 	s = s.Scope(fmt.Sprintf("passert.Sum(%v)", name))
-
+	if size > 0 {
+		NonEmpty(s, col)
+	}
 	keyed := beam.AddFixedKey(s, col)
 	grouped := beam.GroupByKey(s, keyed)
 	beam.ParDo0(s, &sumFn{Name: name, Size: size, Sum: value}, grouped)

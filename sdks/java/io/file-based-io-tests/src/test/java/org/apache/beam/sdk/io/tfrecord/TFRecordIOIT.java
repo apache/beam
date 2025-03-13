@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
+import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -65,6 +66,8 @@ import org.junit.runners.JUnit4;
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
+ *  "--datasetSize=12345",
+ *  "--expectedHash=99f23ab",
  *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
@@ -79,11 +82,18 @@ import org.junit.runners.JUnit4;
 public class TFRecordIOIT {
   private static final String TFRECORD_NAMESPACE = TFRecordIOIT.class.getName();
 
+  // Metric names
+  private static final String WRITE_TIME = "write_time";
+  private static final String READ_TIME = "read_time";
+  private static final String DATASET_SIZE = "dataset_size";
+  private static final String RUN_TIME = "run_time";
+
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
+  private static Integer datasetSize;
+  private static String expectedHash;
   private static Compression compressionType;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -92,12 +102,17 @@ public class TFRecordIOIT {
   @BeforeClass
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
-
+    datasetSize = options.getDatasetSize();
+    expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   private static String createFilenamePattern() {
@@ -107,7 +122,7 @@ public class TFRecordIOIT {
   // TODO: There are two pipelines due to: https://issues.apache.org/jira/browse/BEAM-3267
   @Test
   public void writeThenReadAll() {
-    TFRecordIO.Write writeTransform =
+    final TFRecordIO.Write writeTransform =
         TFRecordIO.write()
             .to(filenamePrefix)
             .withCompression(compressionType)
@@ -121,10 +136,11 @@ public class TFRecordIOIT {
         .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
         .apply(
             "Record time before writing",
-            ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "writeTime")))
+            ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, WRITE_TIME)))
         .apply("Write content to files", writeTransform);
 
-    writePipeline.run().waitUntilFinish();
+    final PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
 
     String filenamePattern = createFilenamePattern();
     PCollection<String> consolidatedHashcode =
@@ -132,12 +148,11 @@ public class TFRecordIOIT {
             .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
             .apply(
                 "Record time after reading",
-                ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "readTime")))
+                ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, READ_TIME)))
             .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()))
             .apply(Reshuffle.viaRandomKey());
 
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline
@@ -146,49 +161,63 @@ public class TFRecordIOIT {
             "Delete test files",
             ParDo.of(new DeleteFileFn())
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
-    PipelineResult result = readPipeline.run();
-    result.waitUntilFinish();
-    collectAndPublishMetrics(result);
+    final PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState = readResult.waitUntilFinish();
+    collectAndPublishMetrics(writeResult, readResult);
+    // Fail the test if pipeline failed.
+    assertNotEquals(writeState, PipelineResult.State.FAILED);
+    assertNotEquals(readState, PipelineResult.State.FAILED);
   }
 
-  private void collectAndPublishMetrics(PipelineResult result) {
-    String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+  private void collectAndPublishMetrics(
+      final PipelineResult writeResults, final PipelineResult readResults) {
+    final String uuid = UUID.randomUUID().toString();
+    final String timestamp = Instant.now().toString();
+    final Set<NamedTestResult> results = new HashSet<>();
 
-    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
-        fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, TFRECORD_NAMESPACE, uuid, timestamp)
-        .publish(bigQueryDataset, bigQueryTable);
+    results.add(
+        NamedTestResult.create(uuid, timestamp, RUN_TIME, getRunTime(writeResults, readResults)));
+    results.addAll(
+        MetricsReader.ofResults(writeResults, TFRECORD_NAMESPACE)
+            .readAll(getWriteMetricSuppliers(uuid, timestamp)));
+    results.addAll(
+        MetricsReader.ofResults(readResults, TFRECORD_NAMESPACE)
+            .readAll(getReadMetricSuppliers(uuid, timestamp)));
+
+    IOITMetrics.publishToInflux(uuid, timestamp, results, settings);
   }
 
-  private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
-      String uuid, String timestamp) {
-    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-    suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric("writeTime");
-          long writeEnd = reader.getEndTimeMetric("writeTime");
-          double writeTime = (writeEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
-        });
-
-    suppliers.add(
-        reader -> {
-          long readStart = reader.getStartTimeMetric("readTime");
-          long readEnd = reader.getEndTimeMetric("readTime");
-          double readTime = (readEnd - readStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
-        });
-
-    suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric("writeTime");
-          long readEnd = reader.getEndTimeMetric("readTime");
-          double runTime = (readEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
-        });
-
+  private static Set<Function<MetricsReader, NamedTestResult>> getWriteMetricSuppliers(
+      final String uuid, final String timestamp) {
+    final Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, WRITE_TIME));
+    suppliers.add(ignored -> NamedTestResult.create(uuid, timestamp, DATASET_SIZE, datasetSize));
     return suppliers;
+  }
+
+  private static Set<Function<MetricsReader, NamedTestResult>> getReadMetricSuppliers(
+      final String uuid, final String timestamp) {
+    final Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, READ_TIME));
+    return suppliers;
+  }
+
+  private static Function<MetricsReader, NamedTestResult> getTimeMetric(
+      final String uuid, final String timestamp, final String metricName) {
+    return reader -> {
+      final long startTime = reader.getStartTimeMetric(metricName);
+      final long endTime = reader.getEndTimeMetric(metricName);
+      return NamedTestResult.create(uuid, timestamp, metricName, (endTime - startTime) / 1e3);
+    };
+  }
+
+  private static double getRunTime(
+      final PipelineResult writeResults, final PipelineResult readResult) {
+    final long startTime =
+        MetricsReader.ofResults(writeResults, TFRECORD_NAMESPACE).getStartTimeMetric(WRITE_TIME);
+    final long endTime =
+        MetricsReader.ofResults(readResult, TFRECORD_NAMESPACE).getEndTimeMetric(READ_TIME);
+    return (endTime - startTime) / 1e3;
   }
 
   static class StringToByteArray extends SimpleFunction<String, byte[]> {

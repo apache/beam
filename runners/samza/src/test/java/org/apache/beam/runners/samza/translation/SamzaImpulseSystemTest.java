@@ -34,6 +34,9 @@ import org.junit.Test;
  * Tests for {@link
  * org.apache.beam.runners.samza.translation.SamzaImpulseSystemFactory.SamzaImpulseSystemConsumer}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SamzaImpulseSystemTest {
   @Test
   public void testSamzaImpulseSystemConsumer() throws Exception {

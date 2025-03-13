@@ -17,22 +17,20 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
+import org.apache.beam.runners.spark.SparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -46,19 +44,19 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 /**
  * A test suite that tests tracking of the streaming sources created an {@link
  * org.apache.beam.runners.spark.translation.streaming.UnboundedDataset}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class TrackStreamingSourcesTest {
 
-  @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
-
-  private static final transient SparkPipelineOptions options =
-      PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+  @ClassRule public static SparkContextRule sparkContext = new SparkContextRule();
 
   @Before
   public void before() {
@@ -67,8 +65,9 @@ public class TrackStreamingSourcesTest {
 
   @Test
   public void testTrackSingle() {
+    SparkPipelineOptions options = sparkContext.createPipelineOptions();
     options.setRunner(SparkRunner.class);
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
+    JavaSparkContext jsc = sparkContext.getSparkContext();
     JavaStreamingContext jssc =
         new JavaStreamingContext(
             jsc, new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
@@ -87,8 +86,9 @@ public class TrackStreamingSourcesTest {
 
   @Test
   public void testTrackFlattened() {
+    SparkPipelineOptions options = sparkContext.createPipelineOptions();
     options.setRunner(SparkRunner.class);
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
+    JavaSparkContext jsc = sparkContext.getSparkContext();
     JavaStreamingContext jssc =
         new JavaStreamingContext(
             jsc, new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
@@ -132,7 +132,7 @@ public class TrackStreamingSourcesTest {
         Pipeline pipeline,
         Class<? extends PTransform> transformClassToAssert,
         Integer... expected) {
-      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, options, jssc);
+      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, pipeline.getOptions(), jssc);
       this.evaluator =
           new SparkRunner.Evaluator(
               new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()),

@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 import org.apache.avro.reflect.AvroIgnore;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /**
  * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id, and
@@ -39,7 +41,10 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   @AvroIgnore
   private Optional<KafkaUnboundedReader<?, ?>> reader; // Present when offsets need to be committed.
 
+  @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private KafkaCheckpointMark() {} // for Avro
+
+  private static final long OFFSET_DEDUP_PARTITIONS_PER_SPLIT = 1;
 
   public KafkaCheckpointMark(
       List<PartitionMark> partitions, Optional<KafkaUnboundedReader<?, ?>> reader) {
@@ -65,6 +70,23 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
     return "KafkaCheckpointMark{partitions=" + Joiner.on(",").join(partitions) + '}';
   }
 
+  @Override
+  public byte[] getOffsetLimit() {
+    if (!reader.isPresent()) {
+      throw new RuntimeException(
+          "KafkaCheckpointMark reader is not present while calling getOffsetLimit().");
+    }
+    if (!reader.get().offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException(
+          "Unexpected getOffsetLimit() called while KafkaUnboundedReader not configured for offset deduplication.");
+    }
+
+    // KafkaUnboundedSource.split() must produce a 1:1 partition to split ratio.
+    checkState(partitions.size() == OFFSET_DEDUP_PARTITIONS_PER_SPLIT);
+    PartitionMark partition = partitions.get(/* index= */ 0);
+    return KafkaIOUtils.OffsetBasedDeduplication.encodeOffset(partition.getNextOffset());
+  }
+
   /**
    * A tuple to hold topic, partition, and offset that comprise the checkpoint for a single
    * partition.
@@ -77,6 +99,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
     private long nextOffset;
     private long watermarkMillis = MIN_WATERMARK_MILLIS;
 
+    @SuppressWarnings("initialization")
     private PartitionMark() {} // for Avro
 
     public PartitionMark(String topic, int partition, long offset, long watermarkMillis) {

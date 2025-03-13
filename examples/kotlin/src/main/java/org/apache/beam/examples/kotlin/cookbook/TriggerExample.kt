@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema
 import com.google.api.services.bigquery.model.TableReference
 import com.google.api.services.bigquery.model.TableRow
 import com.google.api.services.bigquery.model.TableSchema
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.apache.beam.examples.kotlin.common.ExampleBigQueryTableOptions
 import org.apache.beam.examples.kotlin.common.ExampleOptions
 import org.apache.beam.examples.kotlin.common.ExampleUtils
@@ -98,7 +99,7 @@ import java.util.concurrent.TimeUnit
  * "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time`
  *
  *
- * To see the the difference between accumulation mode and discarding mode, `SELECT * FROM
+ * To see the difference between accumulation mode and discarding mode, `SELECT * FROM
  * <enter_table_name> WHERE (timing = "LATE" or timing = "ON_TIME") AND (trigger_type =
  * "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY window DESC,
  * processing_time`
@@ -351,6 +352,7 @@ object TriggerExample {
      * Calculate total flow and number of records for each freeway and format the results to TableRow
      * objects, to save to BigQuery.
      */
+    @SuppressFBWarnings("NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION") // kotlin-specific spotbugs false positive
     internal class TotalFlow(private val triggerType: String) : PTransform<PCollection<KV<String, Int>>, PCollection<TableRow>>() {
 
         override fun expand(flowInfo: PCollection<KV<String, Int>>): PCollection<TableRow> {

@@ -17,16 +17,16 @@
  */
 package org.apache.beam.fn.harness.stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.fn.stream.BufferingStreamObserver;
 import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
 import org.apache.beam.sdk.fn.stream.ForwardingClientResponseObserver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

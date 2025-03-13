@@ -17,20 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.DataflowRunnerInfo;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.Hidden;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options that are used to configure the Dataflow pipeline worker pool. */
 @Description("Options that are used to configure the Dataflow pipeline worker pool.")
-public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
+public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagingOptions {
   /**
    * Number of workers to use when executing the Dataflow job. Note that selection of an autoscaling
    * algorithm other then {@code NONE} will affect the size of the worker pool. If left unspecified,
@@ -46,7 +41,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setNumWorkers(int value);
 
   /** Type of autoscaling algorithm to use. */
-  @Experimental(Experimental.Kind.AUTOSCALING)
   enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
@@ -71,7 +65,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   }
 
   /**
-   * [Experimental] The autoscaling algorithm to use for the workerpool.
+   * The autoscaling algorithm to use for the workerpool.
    *
    * <ul>
    *   <li>NONE: does not change the size of the worker pool.
@@ -80,12 +74,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * </ul>
    */
   @Description(
-      "[Experimental] The autoscaling algorithm to use for the workerpool. "
+      "The autoscaling algorithm to use for the workerpool. "
           + "NONE: does not change the size of the worker pool. "
           + "BASIC (deprecated): autoscale the worker pool size up to maxNumWorkers until the job "
           + "completes. "
           + "THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).")
-  @Experimental(Experimental.Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
 
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
@@ -110,30 +103,32 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
   void setDiskSizeGb(int value);
 
-  /**
-   * Docker container image that executes Dataflow worker harness, residing in Google Container
-   * Registry.
-   */
-  @Default.InstanceFactory(WorkerHarnessContainerImageFactory.class)
+  /** Container image used as Dataflow worker harness image. */
+  /** @deprecated Use {@link #getSdkContainerImage} instead. */
   @Description(
-      "Docker container image that executes Dataflow worker harness, residing in Google "
-          + " Container Registry.")
+      "Container image used to configure a Dataflow worker. "
+          + "Can only be used for official Dataflow container images. "
+          + "Prefer using sdkContainerImage instead.")
+  @Deprecated
   @Hidden
   String getWorkerHarnessContainerImage();
 
+  /** @deprecated Use {@link #setSdkContainerImage} instead. */
+  @Deprecated
+  @Hidden
   void setWorkerHarnessContainerImage(String value);
 
   /**
-   * Returns the default Docker container image that executes Dataflow worker harness, residing in
-   * Google Container Registry.
+   * Container image used to configure SDK execution environment on worker. Used for custom
+   * containers on portable pipelines only.
    */
-  class WorkerHarnessContainerImageFactory implements DefaultValueFactory<String> {
-    @Override
-    public String create(PipelineOptions options) {
-      String containerVersion = DataflowRunnerInfo.getDataflowRunnerInfo().getContainerVersion();
-      return String.format("gcr.io/cloud-dataflow/v1beta3/IMAGE:%s", containerVersion);
-    }
-  }
+  @Description(
+      "Container image used to configure the SDK execution environment of "
+          + "pipeline code on a worker. For non-portable pipelines, can only be "
+          + "used for official Dataflow container images.")
+  String getSdkContainerImage();
+
+  void setSdkContainerImage(String value);
 
   /**
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
@@ -167,20 +162,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setSubnetwork(String value);
 
   /**
-   * GCE <a href="https://developers.google.com/compute/docs/zones" >availability zone</a> for
-   * launching workers.
-   *
-   * <p>Default is up to the Dataflow service.
-   */
-  @Description(
-      "GCE availability zone for launching workers. See "
-          + "https://developers.google.com/compute/docs/zones for a list of valid options. "
-          + "Default is up to the Dataflow service.")
-  String getZone();
-
-  void setZone(String value);
-
-  /**
    * Machine type to create Dataflow worker VMs as.
    *
    * <p>See <a href="https://cloud.google.com/compute/docs/machine-types">GCE machine types</a> for
@@ -195,21 +176,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   String getWorkerMachineType();
 
   void setWorkerMachineType(String value);
-
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Files are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Files to stage on GCS and make available to workers. "
-          + "Files are placed on the worker's classpath. "
-          + "The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
 
   /**
    * Specifies what type of persistent disk is used. The value is a full disk type resource, e.g.,
@@ -230,13 +196,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * Specifies whether worker pools should be started with public IP addresses.
    *
-   * <p>WARNING: This feature is experimental. You must be whitelisted to use it.
+   * <p>WARNING: This feature is available only through allowlist.
    */
   @Description(
       "Specifies whether worker pools should be started with public IP addresses. WARNING:"
-          + "This feature is experimental. You must be whitelisted to use it.")
-  @Experimental
-  @JsonIgnore
+          + "This feature is available only through allowlist.")
   @Nullable
   Boolean getUsePublicIps();
 

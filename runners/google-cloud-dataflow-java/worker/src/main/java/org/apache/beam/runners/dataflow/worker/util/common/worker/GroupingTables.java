@@ -23,9 +23,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GroupingTables {
   /** Returns a {@link GroupingTable} that groups inputs into a {@link List}. */
   public static <K, V> GroupingTable<K, V, List<V>> buffering(
@@ -59,9 +62,10 @@ public class GroupingTables {
       PairInfo pairInfo,
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super V> valueSizer,
-      double sizeEstimatorSampleRate) {
+      double sizeEstimatorSampleRate,
+      long maxSizeBytes) {
     return new BufferingGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES,
+        maxSizeBytes,
         groupingKeyCreator,
         pairInfo,
         new SamplingSizeEstimator<>(keySizer, sizeEstimatorSampleRate, 1.0),
@@ -94,9 +98,10 @@ public class GroupingTables {
       Combiner<? super K, InputT, AccumT, ?> combineFn,
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super AccumT> accumulatorSizer,
-      double sizeEstimatorSampleRate) {
+      double sizeEstimatorSampleRate,
+      long maxSizeBytes) {
     return new CombiningGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES,
+        maxSizeBytes,
         groupingKeyCreator,
         pairInfo,
         combineFn,
@@ -415,7 +420,7 @@ public class GroupingTables {
      * The degree of confidence required in our expected value predictions before we allow
      * under-sampling.
      *
-     * <p>The value of 3.0 is a confidence interval of about 99.7% for a a high-degree-of-freedom
+     * <p>The value of 3.0 is a confidence interval of about 99.7% for a high-degree-of-freedom
      * t-distribution.
      */
     public static final double CONFIDENCE_INTERVAL_SIGMA = 3;

@@ -30,8 +30,8 @@ type Option interface {
 type SideInput struct {
 	Input PCollection
 
-	// WindowFn interface{}
-	// ViewFn   interface{}
+	// WindowFn any
+	// ViewFn   any
 }
 
 func (s SideInput) private() {}
@@ -54,11 +54,11 @@ func parseOpts(opts []Option) ([]SideInput, []TypeDefinition) {
 	var infer []TypeDefinition
 
 	for _, opt := range opts {
-		switch opt.(type) {
+		switch opt := opt.(type) {
 		case SideInput:
-			side = append(side, opt.(SideInput))
+			side = append(side, opt)
 		case TypeDefinition:
-			infer = append(infer, opt.(TypeDefinition))
+			infer = append(infer, opt)
 		default:
 			panic(fmt.Sprintf("Unexpected opt: %v", opt))
 		}

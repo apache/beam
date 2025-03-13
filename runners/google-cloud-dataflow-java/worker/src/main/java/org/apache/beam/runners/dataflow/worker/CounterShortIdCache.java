@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -28,10 +28,8 @@ import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Mapping from counter names to short IDs.
@@ -40,8 +38,12 @@ import org.slf4j.LoggerFactory;
  * fine because the total number of unique counters is expected to be small and limited by the
  * backend.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CounterShortIdCache {
-  private static final Logger LOG = LoggerFactory.getLogger(CounterShortIdCache.class);
+
   private Cache cache = new Cache();
 
   /**
@@ -85,7 +87,7 @@ public class CounterShortIdCache {
   /**
    * If any aggregates match a short id in the table, replace their name and type with the short id.
    */
-  public void shortenIdsIfAvailable(@Nullable java.util.List<CounterUpdate> counters) {
+  public void shortenIdsIfAvailable(java.util.@Nullable List<CounterUpdate> counters) {
     if (counters == null) {
       return;
     }

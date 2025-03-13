@@ -1,3 +1,5 @@
+import java.util.stream.Collectors
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,27 +19,69 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.parquet',
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."
 
-def parquet_version = "1.10.0"
+def hadoopVersions = [
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
+def parquet_version = "1.13.1"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.slf4j_api
-  compile "org.apache.parquet:parquet-avro:$parquet_version"
-  compile "org.apache.parquet:parquet-common:$parquet_version"
-  compile "org.apache.parquet:parquet-hadoop:$parquet_version"
-  compile library.java.avro
-  compile library.java.hadoop_client
-  compile library.java.hadoop_common
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:avro")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation "org.apache.parquet:parquet-avro:$parquet_version"
+  implementation "org.apache.parquet:parquet-column:$parquet_version"
+  implementation "org.apache.parquet:parquet-common:$parquet_version"
+  implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
+  implementation library.java.avro
+  provided library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
+  provided library.java.hadoop_common
+  testImplementation library.java.hadoop_client
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro")
+  testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+  }
+}
+
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Parquet tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs Parquet tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
 }

@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build !linux
 // +build !linux
 
 package syscallx
@@ -25,4 +26,9 @@ func PhysicalMemorySize() (uint64, error) {
 // FreeDiskSpace returns the free disk space for a given path.
 func FreeDiskSpace(path string) (uint64, error) {
 	return 0, ErrUnsupported
+}
+
+// SetProcessMemoryCeiling sets current and max process memory limit.
+func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
+	return ErrUnsupported
 }

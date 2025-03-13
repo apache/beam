@@ -28,11 +28,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-func combine(s beam.Scope, makeCombineFn func(reflect.Type) interface{}, col beam.PCollection) beam.PCollection {
+func combine(s beam.Scope, makeCombineFn func(reflect.Type) any, col beam.PCollection) beam.PCollection {
 	t := beam.ValidateNonCompositeType(col)
 	validateNonComplexNumber(t.Type())
 
@@ -41,7 +41,7 @@ func combine(s beam.Scope, makeCombineFn func(reflect.Type) interface{}, col bea
 	return beam.Combine(s, makeCombineFn(t.Type()), col)
 }
 
-func combinePerKey(s beam.Scope, makeCombineFn func(reflect.Type) interface{}, col beam.PCollection) beam.PCollection {
+func combinePerKey(s beam.Scope, makeCombineFn func(reflect.Type) any, col beam.PCollection) beam.PCollection {
 	_, t := beam.ValidateKVType(col)
 	validateNonComplexNumber(t.Type())
 

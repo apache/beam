@@ -30,14 +30,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,24 +42,12 @@ import org.slf4j.LoggerFactory;
 /** A helper class for monitoring jobs submitted to the service. */
 public class MonitoringUtil {
 
+  private static final Logger LOG = LoggerFactory.getLogger(MonitoringUtil.class);
+
   private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud dataflow";
   private static final String ENDPOINT_OVERRIDE_ENV_VAR =
       "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW";
 
-  private static final Map<String, State> DATAFLOW_STATE_TO_JOB_STATE =
-      ImmutableMap.<String, State>builder()
-          .put("JOB_STATE_UNKNOWN", State.UNKNOWN)
-          .put("JOB_STATE_STOPPED", State.STOPPED)
-          .put("JOB_STATE_RUNNING", State.RUNNING)
-          .put("JOB_STATE_DONE", State.DONE)
-          .put("JOB_STATE_FAILED", State.FAILED)
-          .put("JOB_STATE_CANCELLED", State.CANCELLED)
-          .put("JOB_STATE_UPDATED", State.UPDATED)
-          // A DRAINING job is still running - the closest mapping is RUNNING.
-          .put("JOB_STATE_DRAINING", State.RUNNING)
-          // A DRAINED job has successfully terminated - the closest mapping is DONE.
-          .put("JOB_STATE_DRAINED", State.DONE)
-          .build();
   private static final String JOB_MESSAGE_ERROR = "JOB_MESSAGE_ERROR";
   private static final String JOB_MESSAGE_WARNING = "JOB_MESSAGE_WARNING";
   private static final String JOB_MESSAGE_BASIC = "JOB_MESSAGE_BASIC";
@@ -189,7 +174,7 @@ public class MonitoringUtil {
       // Project name is allowed in place of the project id: the user will be redirected to a URL
       // that has the project name replaced with project id.
       return String.format(
-          "https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s?project=%s",
+          "https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s",
           URLEncoder.encode(regionId, StandardCharsets.UTF_8.name()),
           URLEncoder.encode(jobId, StandardCharsets.UTF_8.name()),
           URLEncoder.encode(projectName, StandardCharsets.UTF_8.name()));
@@ -218,7 +203,39 @@ public class MonitoringUtil {
         jobId);
   }
 
-  public static State toState(String stateName) {
-    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNKNOWN);
+  public static State toState(@Nullable String stateName) {
+    if (stateName == null) {
+      return State.UNRECOGNIZED;
+    }
+
+    switch (stateName) {
+      case "JOB_STATE_UNKNOWN":
+        return State.UNKNOWN;
+      case "JOB_STATE_STOPPED":
+        return State.STOPPED;
+      case "JOB_STATE_FAILED":
+        return State.FAILED;
+      case "JOB_STATE_CANCELLED":
+        return State.CANCELLED;
+      case "JOB_STATE_UPDATED":
+        return State.UPDATED;
+
+      case "JOB_STATE_RUNNING":
+      case "JOB_STATE_PENDING": // Job has not yet started; closest mapping is RUNNING
+      case "JOB_STATE_DRAINING": // Job is still active; the closest mapping is RUNNING
+      case "JOB_STATE_CANCELLING": // Job is still active; the closest mapping is RUNNING
+      case "JOB_STATE_RESOURCE_CLEANING_UP": // Job is still active; the closest mapping is RUNNING
+        return State.RUNNING;
+
+      case "JOB_STATE_DONE":
+      case "JOB_STATE_DRAINED": // Job has successfully terminated; closest mapping is DONE
+        return State.DONE;
+      default:
+        LOG.warn(
+            "Unrecognized state from Dataflow service: {}."
+                + " This is likely due to using an older version of Beam.",
+            stateName);
+        return State.UNRECOGNIZED;
+    }
   }
 }

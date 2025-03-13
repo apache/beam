@@ -19,10 +19,10 @@ package org.apache.beam.sdk.extensions.sql.meta.store;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A {@link MetaStore} which stores the meta info in memory.
@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * which created, you need to create again every time you launch the {@link
  * org.apache.beam.sdk.extensions.sql.BeamSqlCli}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class InMemoryMetaStore implements MetaStore {
   private Map<String, Table> tables = new HashMap<>();
   private Map<String, TableProvider> providers = new HashMap<>();

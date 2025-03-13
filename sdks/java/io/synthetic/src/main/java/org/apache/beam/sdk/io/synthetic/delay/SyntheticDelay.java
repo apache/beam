@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.synthetic.delay;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 
 /** Utility functions used in {@link org.apache.beam.sdk.io.synthetic}. */
@@ -62,9 +62,9 @@ public class SyntheticDelay {
         long sleepMillis = 0;
         for (long i = 0; i < delay.getMillis(); i++) {
           if (rnd.nextDouble() < cpuUtilizationInMixedDelay) {
-            delay(new Duration(1), 0.0, SyntheticOptions.DelayType.CPU, rnd);
+            delay(Duration.millis(1), 0.0, SyntheticOptions.DelayType.CPU, rnd);
           } else {
-            sleepMillis += delay(new Duration(1), 0.0, SyntheticOptions.DelayType.SLEEP, rnd);
+            sleepMillis += delay(Duration.millis(1), 0.0, SyntheticOptions.DelayType.SLEEP, rnd);
           }
         }
         return sleepMillis;

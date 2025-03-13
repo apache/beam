@@ -57,8 +57,12 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
-apache_beam/portability/api/*pb2*.py
 )
+
+# more portable than shopt -s globstar
+while IFS= read -d $'\0' -r file ; do
+    EXCLUDED_GENERATED_FILES+=("$file")
+done < <(find apache_beam/portability/api -type f -name "*pb2*.py" -print0)
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
@@ -67,17 +71,17 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
     else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
   fi
 done
-echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
-echo "Running pylint for module $MODULE:"
+echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
+echo -e "Linting modules:\n${MODULE}"
+
+echo "Running pylint..."
 pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running pycodestyle for module $MODULE:"
-pycodestyle ${MODULE} --exclude="$FILES_TO_IGNORE"
-echo "Running flake8 for module $MODULE:"
-# TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
-flake8 ${MODULE} --count --select=E9,F822,F823 --show-source --statistics
+echo "Running flake8..."
+flake8 ${MODULE} --count --select=E9,F821,F822,F823 --show-source --statistics \
+  --exclude="${FILES_TO_IGNORE}"
 
-echo "Running isort for module $MODULE:"
+echo "Running isort..."
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
   "apiclient.py"
@@ -88,7 +92,15 @@ ISORT_EXCLUDED=(
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
-  "vcfio.py"
+  "tfdv_analyze_and_validate.py"
+  "preprocess.py"
+  "model.py"
+  "taxi.py"
+  "process_tfma.py"
+  "doctests_test.py"
+  "render_test.py"
+  "yaml/main.py"
+  "main_test.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
@@ -100,8 +112,13 @@ done
 isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
     --combine-star --force-single-line-imports --diff --recursive ${SKIP_PARAM}
 
-echo "Checking unittest.main for module ${MODULE}:"
-TESTS_MISSING_MAIN=$(find ${MODULE} | grep '\.py$' | xargs grep -l '^import unittest$' | xargs grep -L unittest.main)
+echo "Checking unittest.main..."
+TESTS_MISSING_MAIN=$(
+    find ${MODULE} \
+    | grep '\.py$' \
+    | xargs grep -l '^import unittest$' \
+    | xargs grep -L unittest.main \
+    || true)
 if [ -n "${TESTS_MISSING_MAIN}" ]; then
   echo -e "\nThe following files are missing a call to unittest.main():"
   for FILE in ${TESTS_MISSING_MAIN}; do

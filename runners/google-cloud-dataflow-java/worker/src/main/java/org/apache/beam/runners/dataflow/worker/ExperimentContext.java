@@ -21,8 +21,8 @@ import java.util.EnumSet;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
  * A convenient class to provide fast lookup of enabled experiments in the worker code.
@@ -32,6 +32,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
  * <p>To determine if an experiment is enabled, instantiate an {@link ExperimentContext} with the
  * {@link PipelineOptions} and call {@link #isEnabled} to test if it is enabled.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ExperimentContext {
 
   /** Enumeration of all known experiments. */
@@ -41,8 +44,7 @@ public class ExperimentContext {
      * operations for some IO connectors.
      */
     EnableConscryptSecurityProvider("enable_conscrypt_security_provider"),
-    IntertransformIO("intertransform_io"), // Intertransform metrics for Shuffle IO (insights)
-    SideInputIOMetrics("sideinput_io_metrics"); // Intertransform metrics for Side Input IO
+    IntertransformIO("intertransform_io"); // Intertransform metrics for Shuffle IO (insights)
 
     private final String name;
 

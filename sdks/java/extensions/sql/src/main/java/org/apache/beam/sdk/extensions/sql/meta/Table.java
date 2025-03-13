@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta;
 
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents the metadata of a {@code BeamSqlTable}. */
 @AutoValue
@@ -33,18 +34,16 @@ public abstract class Table implements Serializable {
 
   public abstract Schema getSchema();
 
-  @Nullable
-  public abstract String getComment();
+  public abstract @Nullable String getComment();
 
-  @Nullable
-  public abstract String getLocation();
+  public abstract @Nullable String getLocation();
 
-  public abstract JSONObject getProperties();
+  public abstract ObjectNode getProperties();
 
   public abstract Builder toBuilder();
 
   public static Builder builder() {
-    return new AutoValue_Table.Builder().properties(new JSONObject());
+    return new AutoValue_Table.Builder().properties(TableUtils.emptyProperties());
   }
 
   /** Builder class for {@link Table}. */
@@ -60,7 +59,7 @@ public abstract class Table implements Serializable {
 
     public abstract Builder location(String location);
 
-    public abstract Builder properties(JSONObject properties);
+    public abstract Builder properties(ObjectNode properties);
 
     public abstract Table build();
   }

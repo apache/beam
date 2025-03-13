@@ -17,16 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Some timestamp conversion helpers for working with Windmill. */
 public class WindmillTimeUtils {
   /** Convert a Windmill watermark to a harness watermark. */
-  @Nullable
-  public static Instant windmillToHarnessWatermark(long watermarkUs) {
+  public static @Nullable Instant windmillToHarnessWatermark(long watermarkUs) {
     if (watermarkUs == Long.MIN_VALUE) {
       // Not yet known.
       return null;
@@ -46,6 +45,9 @@ public class WindmillTimeUtils {
     // Windmill should never send us an unknown timestamp.
     Preconditions.checkArgument(timestampUs != Long.MIN_VALUE);
     Instant result = new Instant(divideAndRoundDown(timestampUs, 1000));
+    if (result.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
     if (result.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       // End of time.
       return BoundedWindow.TIMESTAMP_MAX_VALUE;

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Assert;
@@ -61,7 +61,7 @@ public class GaugeCellTest {
     Assert.assertNotEquals(gaugeCell, new Object());
 
     GaugeCell differentDirty = new GaugeCell(MetricName.named("namespace", "name"));
-    differentDirty.getDirty().beforeCommit();
+    differentDirty.getDirty().afterModification();
     Assert.assertNotEquals(gaugeCell, differentDirty);
     Assert.assertNotEquals(gaugeCell.hashCode(), differentDirty.hashCode());
 
@@ -73,5 +73,17 @@ public class GaugeCellTest {
     GaugeCell differentName = new GaugeCell(MetricName.named("DIFFERENT", "DIFFERENT"));
     Assert.assertNotEquals(gaugeCell, differentName);
     Assert.assertNotEquals(gaugeCell.hashCode(), differentName.hashCode());
+  }
+
+  @Test
+  public void testReset() {
+    GaugeCell gaugeCell = new GaugeCell(MetricName.named("namespace", "name"));
+    gaugeCell.set(2);
+    Assert.assertNotEquals(gaugeCell.getDirty(), new DirtyState());
+    assertThat(gaugeCell.getCumulative().value(), equalTo(GaugeData.create(2).value()));
+
+    gaugeCell.reset();
+    assertThat(gaugeCell.getCumulative(), equalTo(GaugeData.empty()));
+    assertThat(gaugeCell.getDirty(), equalTo(new DirtyState()));
   }
 }

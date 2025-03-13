@@ -15,13 +15,17 @@
 
 package pipelinex
 
-import pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-import "github.com/golang/protobuf/proto"
+import (
+	"sort"
+
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"google.golang.org/protobuf/proto"
+)
 
 // Bounded returns true iff all PCollections are bounded.
-func Bounded(p *pb.Pipeline) bool {
+func Bounded(p *pipepb.Pipeline) bool {
 	for _, col := range p.GetComponents().GetPcollections() {
-		if col.IsBounded == pb.IsBounded_UNBOUNDED {
+		if col.IsBounded == pipepb.IsBounded_UNBOUNDED {
 			return false
 		}
 	}
@@ -30,11 +34,12 @@ func Bounded(p *pb.Pipeline) bool {
 
 // ContainerImages returns the set of container images used
 // in the given pipeline.
-func ContainerImages(p *pb.Pipeline) []string {
+//
+// Deprecated: Expand manually from pipeline.environments instead.
+func ContainerImages(p *pipepb.Pipeline) []string {
 	var ret []string
 	for _, t := range p.GetComponents().GetEnvironments() {
-		// TODO(angoenka) 09/14/2018 Check t.Urn before parsing the payload.
-		var payload pb.DockerPayload
+		var payload pipepb.DockerPayload
 		proto.Unmarshal(t.GetPayload(), &payload)
 		ret = append(ret, payload.ContainerImage)
 	}
@@ -43,7 +48,7 @@ func ContainerImages(p *pb.Pipeline) []string {
 
 // TopologicalSort returns a topologically sorted list of the given
 // ids, generally from the same scope/composite. Assumes acyclic graph.
-func TopologicalSort(xforms map[string]*pb.PTransform, ids []string) []string {
+func TopologicalSort(xforms map[string]*pipepb.PTransform, ids []string) []string {
 	if len(ids) == 0 {
 		return ids
 	}
@@ -62,9 +67,9 @@ type visiter struct {
 	next   map[string][]string // collection -> transforms
 }
 
-func newVisiter(xforms map[string]*pb.PTransform, ids []string) *visiter {
+func newVisiter(xforms map[string]*pipepb.PTransform, ids []string) *visiter {
 	ret := &visiter{
-		output: make([]string, len(ids), len(ids)),
+		output: make([]string, len(ids)),
 		index:  len(ids) - 1,
 		seen:   make(map[string]bool),
 		next:   make(map[string][]string),
@@ -74,20 +79,37 @@ func newVisiter(xforms map[string]*pb.PTransform, ids []string) *visiter {
 			ret.next[in] = append(ret.next[in], id)
 		}
 	}
+	for _, ns := range ret.next {
+		sort.Strings(ns)
+	}
 	return ret
 }
 
-func (v *visiter) visit(xforms map[string]*pb.PTransform, id string) {
+func (v *visiter) visit(xforms map[string]*pipepb.PTransform, id string) {
 	if v.seen[id] {
 		return
 	}
 	v.seen[id] = true
-	for _, out := range xforms[id].Outputs {
+	// Deterministically iterate through the output keys.
+	outputKeys := make([]string, 0, len(xforms[id].Outputs))
+	for _, k := range xforms[id].Outputs {
+		outputKeys = append(outputKeys, k)
+	}
+	sort.Strings(outputKeys)
+
+	for _, out := range outputKeys {
 		for _, next := range v.next[out] {
 			v.visit(xforms, next)
 		}
 	}
-
 	v.output[v.index] = id
 	v.index--
+}
+
+// BoolToBounded is a convenience function to get an IsBounded enum value.
+func BoolToBounded(bounded bool) pipepb.IsBounded_Enum {
+	if bounded {
+		return pipepb.IsBounded_BOUNDED
+	}
+	return pipepb.IsBounded_UNBOUNDED
 }

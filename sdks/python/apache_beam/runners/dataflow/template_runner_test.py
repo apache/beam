@@ -17,7 +17,7 @@
 
 """Unit tests for templated pipelines."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import json
 import tempfile
@@ -33,14 +33,13 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class TemplatingDataflowRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
-
   def test_full_completion(self):
     # Create dummy file and close it.  Note that we need to do this because
     # Windows does not allow NamedTemporaryFiles to be reopened elsewhere
@@ -52,46 +51,28 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_file_name,
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=' + dummy_dir,
-                            '--temp_location=/dev/null',
-                            '--template_location=' + dummy_file_name,
-                            '--no_auth=True']))
+    options = PipelineOptions([
+        '--sdk_location=' + dummy_file_name,
+        '--job_name=test-job',
+        '--project=apache-beam-testing',
+        '--region=us-central1',
+        '--staging_location=gs://apache-beam-testing-stg/stg/',
+        '--temp_location=gs://apache-beam-testing-temp/tmp',
+        '--template_location=' + dummy_file_name
+    ])
+    with Pipeline(remote_runner, options) as pipeline:
+      pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
 
-    pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
     with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
-          saved_job_dict['environment']['sdkPipelineOptions']
-          ['options']['project'], 'test-project')
+          saved_job_dict['environment']['sdkPipelineOptions']['options']
+          ['project'],
+          'apache-beam-testing')
       self.assertEqual(
-          saved_job_dict['environment']['sdkPipelineOptions']
-          ['options']['job_name'], 'test-job')
-
-  def test_bad_path(self):
-    dummy_sdk_file = tempfile.NamedTemporaryFile()
-    remote_runner = DataflowRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_sdk_file.name,
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=ignored',
-                            '--temp_location=/dev/null',
-                            '--template_location=/bad/path',
-                            '--no_auth=True']))
-    remote_runner.job = apiclient.Job(pipeline._options,
-                                      pipeline.to_runner_api())
-
-    with self.assertRaises(IOError):
-      pipeline.run().wait_until_finish()
+          saved_job_dict['environment']['sdkPipelineOptions']['options']
+          ['job_name'],
+          'test-job')
 
 
 if __name__ == '__main__':

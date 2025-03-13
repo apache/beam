@@ -26,9 +26,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
  *
  * @param <InputT> the type of the element processed
  * @param <OutputT> the type of the result applying element to the function
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface UnaryFunctionEnv<InputT, OutputT> extends Serializable {
 
   /**

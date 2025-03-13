@@ -18,34 +18,33 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    publish: false,
     archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-common'
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
 
-def jna_version = "4.1.0"
-def log4j_version = "2.6.2"
+def elastic_search_version = "7.17.22"
 
 dependencies {
-  testCompile library.java.jackson_databind
-  testCompile "org.apache.httpcomponents:httpasyncclient:4.1.4"
-  testCompile "org.apache.httpcomponents:httpcore-nio:4.4.10"
-  testCompile "org.apache.httpcomponents:httpcore:4.4.10"
-  testCompile "org.apache.httpcomponents:httpclient:4.5.6"
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.http_core
+  implementation library.java.testcontainers_base
+  implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:elasticsearch")
+  implementation library.java.slf4j_api
+  implementation library.java.hamcrest
+  implementation library.java.junit
+  implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  implementation library.java.testcontainers_elasticsearch
 
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(":sdks:java:io:elasticsearch")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.commons_io_1x
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
-  testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  runtimeOnly library.java.log4j2_api
+  runtimeOnly library.java.log4j2_core
+  runtimeOnly library.java.slf4j_jdk14
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

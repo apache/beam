@@ -22,8 +22,8 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -37,8 +37,11 @@ import org.slf4j.LoggerFactory;
  * For resilience, {@link AccumulatorV2 Accumulators} are required to be wrapped in a Singleton.
  *
  * @see <a
- *     href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/AccumulatorV2.html">accumulatorsV2</a>
+ *     href="https://spark.apache.org/docs/2.4.4/streaming-programming-guide.html#accumulators-broadcast-variables-and-checkpoints">accumulatorsV2</a>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MetricsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);
 
@@ -58,10 +61,9 @@ public class MetricsAccumulator {
               opts.isStreaming()
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
-          MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+          MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
-          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
 
           if (maybeCheckpointDir.isPresent()) {
             Optional<MetricsContainerStepMap> maybeRecoveredValue =
@@ -70,10 +72,13 @@ public class MetricsAccumulator {
               accumulator = new MetricsContainerStepMapAccumulator(maybeRecoveredValue.get());
             }
           }
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
           instance = accumulator;
         }
       }
-      LOG.info("Instantiated metrics accumulator: " + instance.value());
+      LOG.info("Instantiated metrics accumulator: {}", instance.value());
+    } else {
+      instance.reset();
     }
   }
 
@@ -91,7 +96,7 @@ public class MetricsAccumulator {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
       fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
-      MetricsContainerStepMap recoveredValue =
+      SparkMetricsContainerStepMap recoveredValue =
           Checkpoint.readObject(fileSystem, checkpointFilePath);
       if (recoveredValue != null) {
         LOG.info("Recovered metrics from checkpoint.");

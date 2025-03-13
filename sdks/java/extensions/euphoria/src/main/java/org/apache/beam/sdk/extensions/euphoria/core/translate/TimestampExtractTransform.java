@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform for extracting stamp and applying a user-defined transform on the extracted
@@ -32,7 +32,12 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *
  * @param <InputT> input type
  * @param <OutputT> output type
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class TimestampExtractTransform<InputT, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
@@ -80,14 +85,6 @@ public class TimestampExtractTransform<InputT, OutputT>
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(KV.of(ctx.timestamp().getMillis(), ctx.element()));
-    }
-  }
-
-  private static class Unwrap<T> extends DoFn<KV<Long, T>, T> {
-
-    @ProcessElement
-    public void processElement(ProcessContext ctx) {
-      ctx.output(ctx.element().getValue());
     }
   }
 

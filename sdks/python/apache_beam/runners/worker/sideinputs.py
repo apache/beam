@@ -17,23 +17,19 @@
 
 """Utilities for handling side inputs."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-import collections
 import logging
 import queue
 import threading
 import traceback
-from builtins import object
-from builtins import range
+from collections import abc
 
 from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
-
-# This module is experimental. No backwards-compatibility guarantees.
-
+from apache_beam.utils.sentinel import Sentinel
 
 # Maximum number of reader threads for reading side input sources, per side
 # input.
@@ -47,19 +43,22 @@ MAX_SOURCE_READER_THREADS = 15
 ELEMENT_QUEUE_SIZE = 10
 
 # Special element value sentinel for signaling reader state.
-READER_THREAD_IS_DONE_SENTINEL = object()
+READER_THREAD_IS_DONE_SENTINEL = Sentinel.sentinel
 
 # Used to efficiently window the values of non-windowed side inputs.
 _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
-
-  def __init__(self,
-               sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS,
-               read_counter=None):
+  def __init__(
+      self,
+      sources,
+      max_reader_threads=MAX_SOURCE_READER_THREADS,
+      read_counter=None,
+      element_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
@@ -77,6 +76,7 @@ class PrefetchingSourceSetIterable(object):
     self.has_errored = False
 
     self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
+    self.element_counter = element_counter
     self.reader_threads = []
     self._start_reader_threads()
 
@@ -136,8 +136,10 @@ class PrefetchingSourceSetIterable(object):
         except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
-      logging.error('Encountered exception in PrefetchingSourceSetIterable '
-                    'reader thread: %s', traceback.format_exc())
+      _LOGGER.error(
+          'Encountered exception in PrefetchingSourceSetIterable '
+          'reader thread: %s',
+          traceback.format_exc())
       self.reader_exceptions.put(e)
       self.has_errored = True
     finally:
@@ -165,7 +167,12 @@ class PrefetchingSourceSetIterable(object):
             if num_readers_finished == self.num_reader_threads:
               return
           else:
-            yield element
+            if self.element_counter:
+              self.element_counter.update_from(element)
+              yield element
+              self.element_counter.update_collect()
+            else:
+              yield element
         finally:
           if self.has_errored:
             raise self.reader_exceptions.get()
@@ -181,23 +188,25 @@ class PrefetchingSourceSetIterable(object):
         t.join()
 
 
-def get_iterator_fn_for_sources(sources,
-                                max_reader_threads=MAX_SOURCE_READER_THREADS,
-                                read_counter=None):
+def get_iterator_fn_for_sources(
+    sources,
+    max_reader_threads=MAX_SOURCE_READER_THREADS,
+    read_counter=None,
+    element_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
     return iter(
         PrefetchingSourceSetIterable(
             sources,
             max_reader_threads=max_reader_threads,
-            read_counter=read_counter))
+            read_counter=read_counter,
+            element_counter=element_counter))
 
   return _inner
 
 
-class EmulatedIterable(collections.Iterable):
+class EmulatedIterable(abc.Iterable):
   """Emulates an iterable for a side input."""
-
   def __init__(self, iterator_fn):
     self.iterator_fn = iterator_fn
 

@@ -19,11 +19,14 @@ package org.apache.beam.sdk.testing;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.junit.experimental.categories.Category;
 
 /** A utility class for querying annotations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class Annotations {
 
   /** Annotation predicates. */

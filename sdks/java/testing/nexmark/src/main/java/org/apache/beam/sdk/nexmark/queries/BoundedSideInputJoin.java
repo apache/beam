@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
@@ -38,6 +38,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * WHERE bid.id = sideInput.id
  * </pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final NexmarkConfiguration configuration;
 

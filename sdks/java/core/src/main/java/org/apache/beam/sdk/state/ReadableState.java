@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
  * A {@link State} that can be read via {@link #read()}.
  *
@@ -29,7 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * @param <T> The type of value returned by {@link #read}.
  */
-@Experimental(Kind.STATE)
 public interface ReadableState<T> {
   /**
    * Read the current value, blocking until it is available.
@@ -42,7 +37,6 @@ public interface ReadableState<T> {
    * of the returned object should not modify state without going through the appropriate state
    * interface, and modification to the state should not be mirrored in the returned object.
    */
-  @Nullable
   T read();
 
   /**

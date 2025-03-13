@@ -25,7 +25,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -40,7 +39,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 
 /**
  * {@code PTransform}s to compute the estimate frequency of each element in a stream.
@@ -173,11 +172,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
  * {@literal    .<MyObject>}create(new MyObjectCoder())
  *              .withAccuracy(eps, conf)));
  * </code></pre>
- *
- * <p><b>Warning: this class is experimental.</b> <br>
- * Its API is subject to change in future versions of Beam.
  */
-@Experimental
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public final class SketchFrequencies {
 
   /**

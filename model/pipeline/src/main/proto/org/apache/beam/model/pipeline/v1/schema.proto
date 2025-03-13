@@ -1,0 +1,239 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Protocol Buffers describing Beam Schemas, a portable representation for
+// complex types.
+//
+// The primary application of Schema is as the payload for the standard coder
+// "beam:coder:row:v1", defined in beam_runner_api.proto
+
+syntax = "proto3";
+
+package org.apache.beam.model.pipeline.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1;pipeline_v1";
+option java_package = "org.apache.beam.model.pipeline.v1";
+option java_outer_classname = "SchemaApi";
+
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+
+message Schema {
+  // List of fields for this schema. Two fields may not share a name.
+  repeated Field fields = 1;
+  // REQUIRED. An RFC 4122 UUID.
+  string id = 2;
+  repeated Option options = 3;
+  // Indicates that encoding positions have been overridden.
+  bool encoding_positions_set = 4;
+}
+
+message Field {
+  // REQUIRED. Name of this field within the schema.
+  string name = 1;
+  // OPTIONAL. Human readable description of this field, such as the query that generated it.
+  string description = 2;
+  FieldType type = 3;
+  
+  int32 id = 4;
+   // OPTIONAL. The position of this field's data when encoded, e.g. with beam:coder:row:v1.
+   // Either no fields in a given row are have encoding position populated,
+   // or all of them are. Used to support backwards compatibility with schema
+   // changes.
+   // If no fields have encoding position populated the order of encoding is the same as the order in the Schema.
+  // If this Field is part of a Schema where encoding_positions_set is True then encoding_position must be
+  // defined, otherwise this field is ignored.
+  int32 encoding_position = 5;
+  repeated Option options = 6;
+}
+
+message FieldType {
+  bool nullable = 1;
+  oneof type_info {
+    AtomicType atomic_type = 2;
+    ArrayType array_type = 3;
+    IterableType iterable_type = 4;
+    MapType map_type = 5;
+    RowType row_type = 6;
+    LogicalType logical_type = 7;
+  }
+}
+
+enum AtomicType {
+  UNSPECIFIED = 0;
+  BYTE = 1;
+  INT16 = 2;
+  INT32 = 3;
+  INT64 = 4;
+  FLOAT = 5;
+  DOUBLE = 6;
+  STRING = 7;
+  BOOLEAN = 8;
+  BYTES = 9;
+}
+
+message ArrayType {
+  FieldType element_type = 1;
+}
+
+message IterableType {
+  FieldType element_type = 1;
+}
+
+message MapType {
+  FieldType key_type = 1;
+  FieldType value_type = 2;
+}
+
+message RowType {
+  Schema schema = 1;
+}
+
+message LogicalType {
+  string urn = 1;
+  bytes payload = 2;
+  FieldType representation = 3;
+  FieldType argument_type = 4;
+  FieldValue argument = 5;
+}
+
+// Universally defined Logical types for Row schemas.
+// These logical types are supposed to be understood by all SDKs.
+message LogicalTypes {
+  enum Enum {
+    // A URN for Python Callable logical type
+    //   - Representation type: STRING
+    //   - Language type: In Python SDK, PythonCallableWithSource.
+    //     In any other SDKs, a wrapper object for a string which
+    //     can be evaluated to a Python Callable object.
+    PYTHON_CALLABLE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:logical_type:python_callable:v1"];
+
+    // A URN for MicrosInstant type
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timestamp without a timezone where seconds + micros represents the
+    //     amount of time since the epoch.
+    MICROS_INSTANT  = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:logical_type:micros_instant:v1"];
+
+    // A URN for MillisInstant type
+    //   - Representation type: INT64
+    //   - A timestamp without a timezone represented by the number of
+    //     milliseconds since the epoch. The INT64 value is encoded with
+    //     big-endian shifted such that lexicographic ordering of the bytes
+    //     corresponds to chronological order.
+    MILLIS_INSTANT = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:millis_instant:v1"];
+
+    // A URN for Decimal type
+    //   - Representation type: BYTES
+    //   - A decimal number with variable scale. Its BYTES
+    //     representation consists of an integer (INT32) scale followed by a
+    //     two's complement encoded big integer.
+    DECIMAL = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:decimal:v1"];
+
+    // A URN for FixedLengthBytes type
+    //   - Representation type: BYTES
+    //   - Argument type: INT32.
+    //     A fixed-length bytes with its length as the argument.
+    FIXED_BYTES = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:fixed_bytes:v1"];
+
+    // A URN for VariableLengthBytes type
+    //   - Representation type: BYTES
+    //   - Argument type: INT32.
+    //     A variable-length bytes with its maximum length as the argument.
+    VAR_BYTES = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:var_bytes:v1"];
+
+    // A URN for FixedLengthString type
+    //   - Representation type: STRING
+    //   - Argument type: INT32.
+    //     A fixed-length string with its length as the argument.
+    FIXED_CHAR = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:fixed_char:v1"];
+
+    // A URN for VariableLengthString type
+    //   - Representation type: STRING
+    //   - Argument type: INT32.
+    //     A variable-length string with its maximum length as the argument.
+    VAR_CHAR = 7 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:var_char:v1"];
+  }
+}
+
+message Option {
+  // REQUIRED. Identifier for the option.
+  string name = 1;
+  // REQUIRED. Type specifier for the structure of value.
+  // Conventionally, options that don't require additional configuration should
+  // use a boolean type, with the value set to true.
+  FieldType type = 2;
+  FieldValue value = 3;
+}
+
+message Row {
+  repeated FieldValue values = 1;
+}
+
+message FieldValue {
+  // If none of these are set, value is considered null.
+  oneof field_value {
+    AtomicTypeValue atomic_value = 1;
+    ArrayTypeValue array_value = 2;
+    IterableTypeValue iterable_value = 3;
+    MapTypeValue map_value = 4;
+    Row row_value = 5;
+    LogicalTypeValue logical_type_value = 6;
+  }
+}
+
+message AtomicTypeValue {
+  oneof value {
+    int32 byte = 1;
+    int32 int16 = 2;
+    int32 int32 = 3;
+    int64 int64 = 4;
+    float float = 5;
+    double double = 6;
+    string string = 7;
+    bool boolean = 8;
+    bytes bytes = 9;
+  }
+}
+
+message ArrayTypeValue {
+  repeated FieldValue element = 1;
+}
+
+message IterableTypeValue {
+  repeated FieldValue element = 1;
+}
+
+message MapTypeValue {
+  repeated MapTypeEntry entries = 1;
+}
+
+message MapTypeEntry {
+  FieldValue key = 1;
+  FieldValue value = 2;
+}
+
+message LogicalTypeValue {
+  FieldValue value = 1;
+}

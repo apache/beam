@@ -182,14 +182,7 @@ public class RepeatedlyStateMachineTest {
   @Test
   public void testToString() {
     TriggerStateMachine trigger =
-        RepeatedlyStateMachine.forever(
-            new StubTriggerStateMachine() {
-              @Override
-              public String toString() {
-                return "innerTrigger";
-              }
-            });
-
+        RepeatedlyStateMachine.forever(StubTriggerStateMachine.named("innerTrigger"));
     assertEquals("Repeatedly.forever(innerTrigger)", trigger.toString());
   }
 }

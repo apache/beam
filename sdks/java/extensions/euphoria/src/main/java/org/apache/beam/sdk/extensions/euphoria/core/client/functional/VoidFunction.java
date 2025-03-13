@@ -20,9 +20,14 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** Function taking zero arguments. */
+/**
+ * Function taking zero arguments.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface VoidFunction<T> extends Serializable {
 
   T apply();

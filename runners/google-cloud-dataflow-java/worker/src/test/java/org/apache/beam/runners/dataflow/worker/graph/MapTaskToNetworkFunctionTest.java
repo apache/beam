@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.collection.IsEmptyCollection.emptyCollectionOf;
@@ -24,7 +25,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.FlattenInstruction;
@@ -46,9 +46,9 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.Network;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -281,7 +281,7 @@ public class MapTaskToNetworkFunctionTest {
     InstructionOutputNode pgbkOutputNode = getOnlySuccessor(network, pgbkNode);
     assertEquals(pgbkOutput, pgbkOutputNode.getInstructionOutput());
 
-    ParallelInstructionNode writeNode = getOnlySuccessor(network, pgbkOutputNode);
+    getOnlySuccessor(network, pgbkOutputNode);
     assertNotNull(write);
   }
 

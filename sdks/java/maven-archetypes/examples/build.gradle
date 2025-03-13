@@ -17,25 +17,28 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.examples')
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 ext.summary = """A Maven Archetype to create a project containing all the
 example pipelines from the Apache Beam Java SDK."""
 
 processResources {
+  dependsOn 'generateSources'
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'project.version':  version,
     'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
-    'google-clients.version': dependencies.create(project.library.java.google_api_client).getVersion(),
+    'google-api-client.version': dependencies.create(project.library.java.google_api_client).getVersion(),
     'guava.version': dependencies.create(project.library.java.guava).getVersion(),
-    'hamcrest.version': dependencies.create(project.library.java.hamcrest_library).getVersion(),
+    'hamcrest.version': dependencies.create(project.library.java.hamcrest).getVersion(),
     'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
     'joda.version': dependencies.create(project.library.java.joda_time).getVersion(),
     'junit.version': dependencies.create(project.library.java.junit).getVersion(),
+    'kafka.version': dependencies.create(project.library.java.kafka_clients).getVersion(),
+    'libraries-bom.version': dependencies.create(project.library.java.google_cloud_platform_libraries_bom).getVersion(),
     'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
     'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
-    'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
+    'spark.version': dependencies.create(project.library.java.spark3_core).getVersion(),
     'nemo.version': dependencies.create(project.library.java.nemo_compiler_frontend_beam).getVersion(),
     'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
     'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),
@@ -44,7 +47,7 @@ processResources {
     'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),
     'maven-shade-plugin.version': dependencies.create(project.library.maven.maven_shade_plugin).getVersion(),
     'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
-    'flink.artifact.name': 'beam-runners-flink-'.concat(project(":runners:flink:1.8").getName()),
+    'flink.artifact.name': 'beam-runners-flink-'.concat(project(":runners:flink:${project.ext.latestFlinkVersion}").getName()),
   ]
 }
 
@@ -56,19 +59,28 @@ processResources {
 evaluationDependsOn(':examples:java')
 
 task generateSources(type: Exec) {
-  inputs.file './generate-sources.sh'
-  inputs.files project(':examples:java').sourceSets.main.allSource
-  inputs.files project(':examples:java').sourceSets.test.allSource
-  outputs.dir('src/main/resources/archetype-resources/src')  
+  inputs.file('./generate-sources.sh')
+      .withPropertyName('generate-sources.sh')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(project(':examples:java').sourceSets.main.allSource)
+      .withPropertyName('sourcesMain')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(project(':examples:java').sourceSets.test.allSource)
+      .withPropertyName('sourcesTest')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  outputs.dir('src/main/resources/archetype-resources/src')
   commandLine './generate-sources.sh'
+}
+
+// add dependency BeamModulePlugin defined custom tasks
+// they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+def sourcesJar = project.tasks.findByName('sourcesJar')
+if (sourcesJar != null) {
+  sourcesJar.dependsOn generateSources
 }
 
 sourceSets {
  main {
   output.dir('src', builtBy: 'generateSources')
  }
-}
-
-dependencies {
-  compile project(":examples:java")
 }

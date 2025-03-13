@@ -20,8 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.mockito.Mockito.mockStatic;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,12 +35,11 @@ import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
 
 /** Tests for {@link ProducerRecordCoder}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ConsumerSpEL.class)
+@RunWith(JUnit4.class)
 public class ProducerRecordCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
@@ -58,7 +56,7 @@ public class ProducerRecordCoderTest {
 
   @Test
   public void testProducerRecordSerializableWithoutHeaders() throws IOException {
-    ConsumerRecord consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
+    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
     verifySerialization(consumerRecord.headers(), 0, System.currentTimeMillis());
   }
 
@@ -93,14 +91,14 @@ public class ProducerRecordCoderTest {
   public void testProducerRecordStructuralValueWithHeadersApi() throws IOException {
     RecordHeaders headers = new RecordHeaders();
     headers.add("headerKey", "headerVal".getBytes(UTF_8));
-    ProducerRecordCoder producerRecordCoder =
+    ProducerRecordCoder<byte[], byte[]> producerRecordCoder =
         ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of());
     ProducerRecord<byte[], byte[]> producerRecord =
         new ProducerRecord<>(
             "topic", 1, null, "key".getBytes(UTF_8), "value".getBytes(UTF_8), headers);
 
-    ProducerRecord testProducerRecord =
-        (ProducerRecord) producerRecordCoder.structuralValue(producerRecord);
+    ProducerRecord<byte[], byte[]> testProducerRecord =
+        (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
     assertEquals(testProducerRecord.headers(), headers);
   }
 
@@ -108,16 +106,18 @@ public class ProducerRecordCoderTest {
   public void testProducerRecordStructuralValueWithoutHeadersApi() throws IOException {
     RecordHeaders headers = new RecordHeaders();
     headers.add("headerKey", "headerVal".getBytes(UTF_8));
-    ProducerRecordCoder producerRecordCoder =
+    ProducerRecordCoder<byte[], byte[]> producerRecordCoder =
         ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of());
     ProducerRecord<byte[], byte[]> producerRecord =
         new ProducerRecord<>(
             "topic", 1, null, "key".getBytes(UTF_8), "value".getBytes(UTF_8), headers);
-    mockStatic(ConsumerSpEL.class);
-    when(ConsumerSpEL.hasHeaders()).thenReturn(false);
-    ProducerRecord testProducerRecord =
-        (ProducerRecord) producerRecordCoder.structuralValue(producerRecord);
-    assertEquals(testProducerRecord.headers(), new RecordHeaders());
+    try (MockedStatic<ConsumerSpEL> staticMock = mockStatic(ConsumerSpEL.class)) {
+      staticMock.when(ConsumerSpEL::hasHeaders).thenReturn(false);
+      ProducerRecord<byte[], byte[]> testProducerRecord =
+          (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
+
+      assertEquals(testProducerRecord.headers(), new RecordHeaders());
+    }
   }
 
   private ProducerRecord<String, String> verifySerialization(Integer partition, Long timestamp)
@@ -131,7 +131,7 @@ public class ProducerRecordCoderTest {
         new ProducerRecord<>("topic", partition, timestamp, "key", "value", headers);
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    ProducerRecordCoder producerRecordCoder =
+    ProducerRecordCoder<String, String> producerRecordCoder =
         ProducerRecordCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     producerRecordCoder.encode(producerRecord, outputStream);

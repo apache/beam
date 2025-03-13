@@ -19,14 +19,14 @@ package org.apache.beam.runners.dataflow;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
@@ -38,7 +38,9 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link TransformTranslator} knows how to translate a particular subclass of {@link PTransform}
  * for the Cloud Dataflow service. It does so by mutating the {@link TranslationContext}.
  */
-@Internal
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface TransformTranslator<TransformT extends PTransform> {
   void translate(TransformT transform, TranslationContext context);
 
@@ -47,21 +49,25 @@ public interface TransformTranslator<TransformT extends PTransform> {
    * including reading and writing the values of {@link PCollection}s and side inputs.
    */
   interface TranslationContext {
-    default boolean isFnApi() {
+    default boolean isStreamingEngine() {
       List<String> experiments = getPipelineOptions().getExperiments();
-      return experiments != null && experiments.contains("beam_fn_api");
+      return experiments != null
+          && experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+          && experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
     }
 
     /** Returns the configured pipeline options. */
     DataflowPipelineOptions getPipelineOptions();
 
     /** Returns the input of the currently being translated transform. */
-    <InputT extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<InputT, ?> transform);
+    <InputT extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(
+        PTransform<InputT, ?> transform);
 
     <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform);
 
     /** Returns the output of the currently being translated transform. */
-    <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(PTransform<?, OutputT> transform);
+    <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
+        PTransform<?, OutputT> transform);
 
     <OutputT extends PValue> OutputT getOutput(PTransform<?, OutputT> transform);
 

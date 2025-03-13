@@ -17,23 +17,30 @@
  */
 package org.apache.beam.runners.spark.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
+import org.joda.time.Instant;
 import scala.Tuple2;
 
 /** Serialization utility class. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class CoderHelpers {
   private CoderHelpers() {}
 
@@ -49,6 +56,29 @@ public final class CoderHelpers {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
       coder.encode(value, baos);
+    } catch (IOException e) {
+      throw new IllegalStateException("Error encoding value: " + value, e);
+    }
+    return baos.toByteArray();
+  }
+
+  /**
+   * Utility method for serializing an object using the specified coder, appending timestamp
+   * representation. This is useful when sorting by timestamp
+   *
+   * @param value Value to serialize.
+   * @param coder Coder to serialize with.
+   * @param timestamp timestamp to be bundled into key's ByteArray representation
+   * @param <T> type of value that is serialized
+   * @return Byte array representing serialized object.
+   */
+  public static <T> byte[] toByteArrayWithTs(T value, Coder<T> coder, Instant timestamp) {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    try {
+      coder.encode(value, baos);
+      ByteBuffer buf = ByteBuffer.allocate(8);
+      buf.asLongBuffer().put(timestamp.getMillis());
+      baos.write(buf.array());
     } catch (IOException e) {
       throw new IllegalStateException("Error encoding value: " + value, e);
     }
@@ -142,6 +172,28 @@ public final class CoderHelpers {
   }
 
   /**
+   * A function wrapper for converting a key-value pair to a byte array pair, where the key in
+   * resulting ByteArray contains (key, timestamp).
+   *
+   * @param keyCoder Coder to serialize keys.
+   * @param valueCoder Coder to serialize values.
+   * @param timestamp timestamp of the input Tuple2
+   * @param <K> The type of the key being serialized.
+   * @param <V> The type of the value being serialized.
+   * @return A function that accepts a key-value pair and returns a pair of byte arrays.
+   */
+  public static <K, V> PairFunction<Tuple2<K, V>, ByteArray, byte[]> toByteFunctionWithTs(
+      final Coder<K> keyCoder,
+      final Coder<V> valueCoder,
+      Function<Tuple2<K, V>, Instant> timestamp) {
+
+    return kv ->
+        new Tuple2<>(
+            new ByteArray(toByteArrayWithTs(kv._1(), keyCoder, timestamp.call(kv))),
+            toByteArray(kv._2(), valueCoder));
+  }
+
+  /**
    * A function for converting a byte array pair to a key-value pair.
    *
    * @param <K> The type of the key being deserialized.
@@ -149,7 +201,7 @@ public final class CoderHelpers {
    */
   public static class FromByteFunction<K, V>
       implements PairFunction<Tuple2<ByteArray, byte[]>, K, V>,
-          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+          org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function<
               Tuple2<ByteArray, byte[]>, Tuple2<K, V>> {
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
@@ -169,8 +221,11 @@ public final class CoderHelpers {
           fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Tuple2<K, V> apply(Tuple2<ByteArray, byte[]> tuple) {
+    public Tuple2<K, V> apply(@Nonnull Tuple2<ByteArray, byte[]> tuple) {
       return call(tuple);
     }
   }

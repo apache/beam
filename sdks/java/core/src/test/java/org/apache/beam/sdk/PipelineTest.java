@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk;
 
-import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,11 +64,10 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -76,16 +75,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for Pipeline. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class PipelineTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(Pipeline.class);
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   // Mock class that throws a user code exception during the call to
   // Pipeline.run().
@@ -114,6 +118,27 @@ public class PipelineTest {
     public PipelineResult run(Pipeline pipeline) {
       throw new IllegalStateException("SDK exception");
     }
+  }
+
+  @Test
+  public void testPipelineOptionsImplException() {
+    PipelineOptions pipelineOptions = mock(PipelineOptions.class);
+
+    // Check pipeline run correctly throws exception
+    // since it doesn't accept user-implemented PipelineOptions.
+    thrown.expect(IllegalArgumentException.class);
+    Pipeline.create(pipelineOptions).run();
+  }
+
+  @Test
+  public void testPipelineOptionsImplExceptionRunOverride() {
+    PipelineOptions pipelineOptions = mock(PipelineOptions.class);
+
+    // Check pipeline run correctly throws exception
+    // since it doesn't accept user-implemented PipelineOptions.
+    // Same as testPipelineOptionsImplException, but verify we check the options set in run()
+    thrown.expect(IllegalArgumentException.class);
+    Pipeline.create().run(pipelineOptions);
   }
 
   @Test
@@ -383,13 +408,9 @@ public class PipelineTest {
         new PipelineVisitor.Defaults() {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (!node.isRootNode()) {
-              assertThat(
-                  node.getTransform().getClass(),
-                  not(
-                      anyOf(
-                          Matchers.equalTo(GenerateSequence.class),
-                          Matchers.equalTo(Create.Values.class))));
+            String fullName = node.getFullName();
+            if (fullName.equals("unbounded") || fullName.equals("bounded")) {
+              assertThat(node.getTransform(), Matchers.instanceOf(EmptyFlatten.class));
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
@@ -397,7 +418,7 @@ public class PipelineTest {
   }
 
   /**
-   * Tests that {@link Pipeline#replaceAll(List)} throws when one of the PTransformOverride still
+   * Tests that {@link Pipeline#replaceAll(List)} succeeds when one of the PTransformOverride still
    * matches.
    */
   @Test
@@ -405,8 +426,7 @@ public class PipelineTest {
     pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.apply(GenerateSequence.from(0));
 
-    // The order is such that the output of the second will match the first, which is not permitted
-    thrown.expect(IllegalStateException.class);
+    // The order is such that the output of the second will match the first, which is permitted.
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
@@ -448,8 +468,8 @@ public class PipelineTest {
       }
 
       @Override
-      public Map<PValue, ReplacementOutput> mapOutputs(
-          Map<TupleTag<?>, PValue> outputs, PCollection<Integer> newOutput) {
+      public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+          Map<TupleTag<?>, PCollection<?>> outputs, PCollection<Integer> newOutput) {
         return Collections.singletonMap(
             newOutput,
             ReplacementOutput.of(
@@ -501,11 +521,12 @@ public class PipelineTest {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
-      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
-      Map.Entry<TupleTag<?>, PValue> replacement =
-          Iterables.getOnlyElement(newOutput.expand().entrySet());
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PCollection<?>> original =
+          Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PCollection<?>> replacement =
+          (Map.Entry) Iterables.getOnlyElement(newOutput.expand().entrySet());
       return Collections.singletonMap(
           newOutput,
           ReplacementOutput.of(
@@ -532,11 +553,12 @@ public class PipelineTest {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
-      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
-      Map.Entry<TupleTag<?>, PValue> replacement =
-          Iterables.getOnlyElement(newOutput.expand().entrySet());
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      Map.Entry<TupleTag<?>, PCollection<?>> original =
+          Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PCollection<?>> replacement =
+          (Map.Entry) Iterables.getOnlyElement(newOutput.expand().entrySet());
       return Collections.singletonMap(
           newOutput,
           ReplacementOutput.of(

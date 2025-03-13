@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -29,8 +30,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -68,17 +68,14 @@ public class BigQueryIOReadIT {
     void setNumRecords(long numRecords);
   }
 
-  private void setupTestEnvironment(String recordSize, boolean enableCustomBigquery) {
+  private void setupTestEnvironment(String recordSize) {
     PipelineOptionsFactory.register(BigQueryIOReadOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOReadOptions.class);
     options.setNumRecords(numOfRecords.get(recordSize));
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     options.setInputTable(project + ":" + datasetId + "." + tablePrefix + recordSize);
-    if (enableCustomBigquery) {
-      options.setExperiments(
-          ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
-    }
   }
 
   private void runBigQueryIOReadPipeline() {
@@ -93,37 +90,25 @@ public class BigQueryIOReadIT {
 
   @Test
   public void testBigQueryReadEmpty() throws Exception {
-    setupTestEnvironment("empty", false);
+    setupTestEnvironment("empty");
     runBigQueryIOReadPipeline();
   }
 
   @Test
   public void testBigQueryRead1M() throws Exception {
-    setupTestEnvironment("1M", false);
+    setupTestEnvironment("1M");
     runBigQueryIOReadPipeline();
   }
 
   @Test
   public void testBigQueryRead1G() throws Exception {
-    setupTestEnvironment("1G", false);
+    setupTestEnvironment("1G");
     runBigQueryIOReadPipeline();
   }
 
   @Test
   public void testBigQueryRead1T() throws Exception {
-    setupTestEnvironment("1T", false);
-    runBigQueryIOReadPipeline();
-  }
-
-  @Test
-  public void testBigQueryReadEmptyCustom() throws Exception {
-    setupTestEnvironment("empty", true);
-    runBigQueryIOReadPipeline();
-  }
-
-  @Test
-  public void testBigQueryRead1TCustom() throws Exception {
-    setupTestEnvironment("1T", true);
+    setupTestEnvironment("1T");
     runBigQueryIOReadPipeline();
   }
 }

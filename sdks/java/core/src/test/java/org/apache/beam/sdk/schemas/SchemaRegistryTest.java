@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
 import java.util.List;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
@@ -31,12 +33,15 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link SchemaRegistry}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SchemaRegistryTest {
   static final Schema EMPTY_SCHEMA = Schema.builder().build();
   static final Schema STRING_SCHEMA = Schema.builder().addStringField("string").build();
@@ -224,5 +229,72 @@ public class SchemaRegistryTest {
     registry.registerJavaBean(SimpleBean.class);
     Schema schema = registry.getSchema(SimpleBean.class);
     assertTrue(SIMPLE_BEAN_SCHEMA.equivalent(schema));
+  }
+
+  @Test
+  public void testGetSchemaCoder() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    registry.registerJavaBean(SimpleBean.class);
+
+    Schema schema = registry.getSchema(SimpleBean.class);
+    SerializableFunction<SimpleBean, Row> toRowFunction =
+        registry.getToRowFunction(SimpleBean.class);
+    SerializableFunction<Row, SimpleBean> fromRowFunction =
+        registry.getFromRowFunction(SimpleBean.class);
+    SchemaCoder schemaCoder = registry.getSchemaCoder(SimpleBean.class);
+
+    assertTrue(schema.equivalent(schemaCoder.getSchema()));
+    assertTrue(toRowFunction.equals(schemaCoder.getToRowFunction()));
+    assertTrue(fromRowFunction.equals(schemaCoder.getFromRowFunction()));
+
+    thrown.expect(NoSuchSchemaException.class);
+    registry.getSchemaCoder(Double.class);
+  }
+
+  @Test
+  public void testGetSchemaProvider() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    SchemaProvider testDefaultSchemaProvider =
+        registry.getSchemaProvider(TestDefaultSchemaClass.class);
+    assertEquals(DefaultSchemaProvider.class, testDefaultSchemaProvider.getClass());
+    assertEquals(
+        TestDefaultSchemaProvider.class,
+        ((DefaultSchemaProvider) testDefaultSchemaProvider)
+            .getUnderlyingSchemaProvider(TestDefaultSchemaClass.class)
+            .getClass());
+
+    SchemaProvider autoValueSchemaProvider = registry.getSchemaProvider(TestAutoValue.class);
+    assertEquals(DefaultSchemaProvider.class, autoValueSchemaProvider.getClass());
+    assertEquals(
+        AutoValueSchema.class,
+        ((DefaultSchemaProvider) autoValueSchemaProvider)
+            .getUnderlyingSchemaProvider(TestAutoValue.class)
+            .getClass());
+
+    SchemaProvider simpleBeanSchemaProvider = registry.getSchemaProvider(SimpleBean.class);
+    assertEquals(DefaultSchemaProvider.class, simpleBeanSchemaProvider.getClass());
+    assertEquals(
+        JavaBeanSchema.class,
+        ((DefaultSchemaProvider) simpleBeanSchemaProvider)
+            .getUnderlyingSchemaProvider(SimpleBean.class)
+            .getClass());
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class TestAutoValue {
+    public static Builder builder() {
+      return new AutoValue_SchemaRegistryTest_TestAutoValue.Builder();
+    }
+
+    public abstract String getStr();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setStr(String str);
+
+      public abstract TestAutoValue build();
+    }
   }
 }

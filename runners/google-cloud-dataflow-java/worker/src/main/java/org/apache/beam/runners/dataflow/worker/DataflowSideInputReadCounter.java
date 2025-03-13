@@ -25,7 +25,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /**
  * This class tracks time and bytes spent when consuming side inputs.
@@ -79,6 +79,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
  * input, and the AnotherParDo may be the one that actually manipulates that Iterable. This is
  * possible because both ParDos will be fused, so they will simply exchange objects in memory.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowSideInputReadCounter implements SideInputReadCounter {
   private final DataflowExecutionContext executionContext;
 

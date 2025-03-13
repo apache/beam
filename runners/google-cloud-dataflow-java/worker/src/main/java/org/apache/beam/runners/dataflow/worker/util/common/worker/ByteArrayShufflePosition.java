@@ -20,21 +20,24 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 
-import java.util.Arrays;
-import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.UnsafeByteOperations;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents a position of a {@code GroupingShuffleReader} as an opaque array of bytes, encoded in
  * a way such that lexicographic ordering of the bytes is consistent with the inherent ordering of
  * {@code GroupingShuffleReader} positions.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, ShufflePosition {
-  private final byte[] position;
+  private static final ByteString ZERO = ByteString.copyFrom(new byte[] {0});
+  private final ByteString position;
 
-  public ByteArrayShufflePosition(byte[] position) {
+  public ByteArrayShufflePosition(ByteString position) {
     this.position = position;
   }
 
@@ -43,6 +46,13 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
   }
 
   public static ByteArrayShufflePosition of(byte[] position) {
+    if (position == null) {
+      return null;
+    }
+    return new ByteArrayShufflePosition(UnsafeByteOperations.unsafeWrap(position));
+  }
+
+  public static ByteArrayShufflePosition of(ByteString position) {
     if (position == null) {
       return null;
     }
@@ -55,15 +65,15 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
     }
     Preconditions.checkArgument(shufflePosition instanceof ByteArrayShufflePosition);
     ByteArrayShufflePosition adapter = (ByteArrayShufflePosition) shufflePosition;
-    return adapter.getPosition();
+    return adapter.getPosition().toByteArray();
   }
 
-  public byte[] getPosition() {
+  public ByteString getPosition() {
     return position;
   }
 
   public String encodeBase64() {
-    return encodeBase64URLSafeString(position);
+    return encodeBase64URLSafeString(position.toByteArray());
   }
 
   /**
@@ -72,24 +82,24 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
    * successor.
    */
   public ByteArrayShufflePosition immediateSuccessor() {
-    return new ByteArrayShufflePosition(Bytes.concat(position, new byte[] {0}));
+    return new ByteArrayShufflePosition(position.concat(ZERO));
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
     if (o instanceof ByteArrayShufflePosition) {
       ByteArrayShufflePosition that = (ByteArrayShufflePosition) o;
-      return Arrays.equals(this.position, that.position);
+      return this.position.equals(that.position);
     }
     return false;
   }
 
   @Override
   public int hashCode() {
-    return Arrays.hashCode(position);
+    return position.hashCode();
   }
 
   @Override
@@ -104,6 +114,6 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
       return 0;
     }
     ByteArrayShufflePosition other = (ByteArrayShufflePosition) o;
-    return UnsignedBytes.lexicographicalComparator().compare(position, other.position);
+    return ByteString.unsignedLexicographicalComparator().compare(position, other.position);
   }
 }

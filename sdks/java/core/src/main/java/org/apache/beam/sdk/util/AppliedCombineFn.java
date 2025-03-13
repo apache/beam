@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -25,7 +26,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link GlobalCombineFn} with a fixed accumulator coder. This is created from a specific
@@ -39,6 +40,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * @param <AccumT> type of mutable accumulator values
  * @param <OutputT> type of output values
  */
+@Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializable {
 
   private final GlobalCombineFn<InputT, AccumT, OutputT> fn;

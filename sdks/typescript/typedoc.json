@@ -1,0 +1,24 @@
+{
+  "entryPoints": [
+    "src/apache_beam",
+    "src/apache_beam/io",
+    "src/apache_beam/transforms",
+    "src/apache_beam/pvalue",
+    "src/apache_beam/runners",
+    "src/apache_beam/serialization",
+    "src/apache_beam/testing",
+    "src/apache_beam/values"
+  ],
+  "entryPointStrategy": "expand",
+  "exclude": [
+    "**/examples/**/*.*",
+    "**/internal/**/*.*",
+    "**/proto/**/*.*",
+    "**/runners/artifacts.ts",
+    "**/worker/**/*.*",
+    "**/utils/utils.ts",
+    "**/version.ts"
+  ],
+  "excludeInternal": true,
+  "out": "docs/"
+}

@@ -17,7 +17,7 @@
 
 """Unit test for the TestPipeline class"""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import unittest
@@ -39,16 +39,16 @@ class SimpleMatcher(BaseMatcher):
 
 class TestPipelineTest(unittest.TestCase):
 
-  TEST_CASE = {'options':
-                   ['--test-pipeline-options', '--job=mockJob --male --age=1'],
-               'expected_list': ['--job=mockJob', '--male', '--age=1'],
-               'expected_dict': {'job': 'mockJob',
-                                 'male': True,
-                                 'age': 1}}
+  TEST_CASE = {
+      'options': ['--test-pipeline-options', '--job=mockJob --male --age=1'],
+      'expected_list': ['--job=mockJob', '--male', '--age=1'],
+      'expected_dict': {
+          'job': 'mockJob', 'male': True, 'age': 1
+      }
+  }
 
   # Used for testing pipeline option creation.
   class TestParsingOptions(PipelineOptions):
-
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--job', action='store', help='mock job')
@@ -63,25 +63,34 @@ class TestPipelineTest(unittest.TestCase):
 
   def test_empty_option_args_parsing(self):
     test_pipeline = TestPipeline()
-    self.assertListEqual([],
-                         test_pipeline.get_full_options_as_args())
+    self.assertListEqual([], test_pipeline.get_full_options_as_args())
 
   def test_create_test_pipeline_options(self):
     test_pipeline = TestPipeline(argv=self.TEST_CASE['options'])
     test_options = PipelineOptions(test_pipeline.get_full_options_as_args())
-    self.assertDictContainsSubset(self.TEST_CASE['expected_dict'],
-                                  test_options.get_all_options())
+    self.assertLessEqual(
+        self.TEST_CASE['expected_dict'].items(),
+        test_options.get_all_options().items())
 
-  EXTRA_OPT_CASES = [
-      {'options': {'name': 'Mark'},
-       'expected': ['--name=Mark']},
-      {'options': {'student': True},
-       'expected': ['--student']},
-      {'options': {'student': False},
-       'expected': []},
-      {'options': {'name': 'Mark', 'student': True},
-       'expected': ['--name=Mark', '--student']}
-  ]
+  EXTRA_OPT_CASES = [{
+      'options': {
+          'name': 'Mark'
+      }, 'expected': ['--name=Mark']
+  }, {
+      'options': {
+          'student': True
+      }, 'expected': ['--student']
+  }, {
+      'options': {
+          'student': False
+      }, 'expected': []
+  },
+                     {
+                         'options': {
+                             'name': 'Mark', 'student': True
+                         },
+                         'expected': ['--name=Mark', '--student']
+                     }]
 
   def test_append_extra_options(self):
     test_pipeline = TestPipeline()
@@ -104,16 +113,16 @@ class TestPipelineTest(unittest.TestCase):
     self.assertEqual(test_pipeline.get_option(name), value)
 
   def test_skip_IT(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    test_pipeline.run()
-    # Note that this will never be reached since it should be skipped above.
+    with TestPipeline(is_integration_test=True) as _:
+      # Note that this will never be reached since it should be skipped above.
+      pass
     self.fail()
 
   @mock.patch('apache_beam.testing.test_pipeline.Pipeline.run', autospec=True)
   def test_not_use_test_runner_api(self, mock_run):
-    test_pipeline = TestPipeline(argv=['--not-use-test-runner-api'],
-                                 blocking=False)
-    test_pipeline.run()
+    with TestPipeline(argv=['--not-use-test-runner-api'],
+                      blocking=False) as test_pipeline:
+      pass
     mock_run.assert_called_once_with(test_pipeline, test_runner_api=False)
 
 

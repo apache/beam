@@ -14,16 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Factory to create grpc channel."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
 import grpc
 
 
 class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
-  DEFAULT_OPTIONS = [("grpc.keepalive_time_ms", 20000)]
+  DEFAULT_OPTIONS = [
+      ("grpc.keepalive_time_ms", 20000),
+      ("grpc.keepalive_timeout_ms", 300000),
+  ]
 
   def __init__(self):
     pass
@@ -40,5 +42,6 @@ class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
     if options is None:
       options = []
     return grpc.secure_channel(
-        target, credentials,
+        target,
+        credentials,
         options=options + GRPCChannelFactory.DEFAULT_OPTIONS)

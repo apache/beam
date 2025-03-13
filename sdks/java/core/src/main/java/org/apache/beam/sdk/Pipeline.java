@@ -17,16 +17,18 @@
  */
 package org.apache.beam.sdk;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.transform;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.transform;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -42,22 +44,30 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SetMultimap;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SetMultimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +124,9 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
   /**
@@ -198,9 +211,6 @@ public class Pipeline {
    *
    * <p>Replaces all nodes that match a {@link PTransformOverride} in this pipeline. Overrides are
    * applied in the order they are present within the list.
-   *
-   * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
-   * overrides.
    */
   @Internal
   public void replaceAll(List<PTransformOverride> overrides) {
@@ -229,9 +239,10 @@ public class Pipeline {
 
           @Override
           public void leaveCompositeTransform(Node node) {
-            if (node.isRootNode()) {
-              checkState(
-                  matched.isEmpty(), "Found nodes that matched overrides. Matches: %s", matched);
+            if (node.isRootNode() && !matched.isEmpty()) {
+              LOG.info(
+                  "Found nodes that matched overrides. Matches: {}. The match usually should be empty unless there are runner specific replacement transforms.",
+                  matched);
             }
           }
 
@@ -310,6 +321,7 @@ public class Pipeline {
     LOG.debug("Running {} via {}", this, runner);
     try {
       validate(options);
+      validateErrorHandlers();
       return runner.run(this);
     } catch (UserCodeException e) {
       // This serves to replace the stack with one that ends here and
@@ -333,6 +345,13 @@ public class Pipeline {
       schemaRegistry = SchemaRegistry.createDefault();
     }
     return schemaRegistry;
+  }
+
+  public <OutputT extends POutput> BadRecordErrorHandler<OutputT> registerBadRecordErrorHandler(
+      PTransform<PCollection<BadRecord>, OutputT> sinkTransform) {
+    BadRecordErrorHandler<OutputT> errorHandler = new BadRecordErrorHandler<>(sinkTransform, this);
+    errorHandlers.add(errorHandler);
+    return errorHandler;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -402,7 +421,7 @@ public class Pipeline {
      */
     class Defaults implements PipelineVisitor {
 
-      @Nullable private Pipeline pipeline;
+      private @Nullable Pipeline pipeline;
 
       protected Pipeline getPipeline() {
         if (pipeline == null) {
@@ -495,21 +514,24 @@ public class Pipeline {
   private Set<String> usedFullNames = new HashSet<>();
 
   /** Lazily initialized; access via {@link #getCoderRegistry()}. */
-  @Nullable private CoderRegistry coderRegistry;
+  private @Nullable CoderRegistry coderRegistry;
 
   /** Lazily initialized; access via {@link #getSchemaRegistry()}. */
-  @Nullable private SchemaRegistry schemaRegistry;
+  private @Nullable SchemaRegistry schemaRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final PipelineOptions defaultOptions;
 
+  private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
+
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+    CoderTranslation.verifyModelCodersRegistered();
     this.transforms = transforms;
     this.defaultOptions = options;
   }
 
   protected Pipeline(PipelineOptions options) {
-    this(new TransformHierarchy(), options);
+    this(new TransformHierarchy(ResourceHints.fromOptions(options)), options);
   }
 
   @Override
@@ -557,16 +579,26 @@ public class Pipeline {
       return;
     }
     InputT originalInput = replacement.getInput();
+    Map<TupleTag<?>, PCollection<?>> originalOutputs = original.getOutputs();
 
     LOG.debug("Replacing {} with {}", original, replacement);
     transforms.replaceNode(original, originalInput, replacement.getTransform());
     try {
       OutputT newOutput = replacement.getTransform().expand(originalInput);
-      Map<PValue, ReplacementOutput> originalToReplacement =
+      Map<PCollection<?>, ReplacementOutput> originalToReplacement =
           replacementFactory.mapOutputs(original.getOutputs(), newOutput);
       // Ensure the internal TransformHierarchy data structures are consistent.
       transforms.setOutput(newOutput);
       transforms.replaceOutputs(originalToReplacement);
+      checkState(
+          ImmutableSet.copyOf(originalOutputs.values())
+              .equals(ImmutableSet.copyOf(transforms.getCurrent().getOutputs().values())),
+          "After replacing %s with %s, outputs were not rewired correctly:"
+              + " Original outputs %s became %s.",
+          original,
+          transforms.getCurrent(),
+          originalOutputs,
+          transforms.getCurrent().getOutputs());
     } finally {
       transforms.popNode();
     }
@@ -589,8 +621,8 @@ public class Pipeline {
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
-                      "Pipeline update will not be possible"
-                          + " because the following transforms do not have stable unique names: %s.",
+                      "Pipeline update will not be possible because the following transforms do"
+                          + " not have stable unique names: %s.",
                       Joiner.on(", ").join(transform(errors, new KeysExtractor())))
                   + "\n\n"
                   + "Conflicting instances:\n"
@@ -638,14 +670,14 @@ public class Pipeline {
     @Override
     public CompositeBehavior enterCompositeTransform(Node node) {
       if (node.getTransform() != null) {
-        node.getTransform().validate(options);
+        node.getTransform().validate(options, node.getInputs(), node.getOutputs());
       }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
     public void visitPrimitiveTransform(Node node) {
-      node.getTransform().validate(options);
+      node.getTransform().validate(options, node.getInputs(), node.getOutputs());
     }
   }
 
@@ -664,8 +696,11 @@ public class Pipeline {
       this.instances = instancePerName;
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       final Collection<PTransform<?, ?>> values = instances.get(input.getKey());
       return "- name="
           + input.getKey()
@@ -676,16 +711,32 @@ public class Pipeline {
 
   private static class KeysExtractor
       implements Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       return input.getKey();
     }
   }
 
   private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public boolean apply(final Map.Entry<K, Collection<V>> input) {
+    public boolean apply(@Nonnull final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;
+    }
+  }
+
+  private void validateErrorHandlers() {
+    for (ErrorHandler<?, ?> errorHandler : errorHandlers) {
+      if (!errorHandler.isClosed()) {
+        throw new IllegalStateException(
+            "One or more ErrorHandlers aren't closed, and this pipeline "
+                + "cannot be run. See the ErrorHandler documentation for expected usage");
+      }
     }
   }
 }

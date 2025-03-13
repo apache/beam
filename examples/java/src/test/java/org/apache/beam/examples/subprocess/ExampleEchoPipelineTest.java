@@ -44,7 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,8 +62,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class ExampleEchoPipelineTest {
-
-  static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipelineTest.class);
 
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
@@ -128,7 +126,7 @@ public class ExampleEchoPipelineTest {
   @SuppressWarnings("serial")
   private static class EchoInputDoFn extends DoFn<KV<String, String>, KV<String, String>> {
 
-    static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
 
     private SubProcessConfiguration configuration;
     private String binaryName;

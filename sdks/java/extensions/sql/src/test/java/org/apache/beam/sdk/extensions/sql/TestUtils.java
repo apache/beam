@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +27,6 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -40,8 +39,8 @@ public class TestUtils {
   /** A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}. */
   public static class BeamSqlRow2StringDoFn extends DoFn<Row, String> {
     @ProcessElement
-    public void processElement(ProcessContext ctx) {
-      ctx.output(ctx.element().toString());
+    public void processElement(@Element Row row, OutputReceiver<String> o) {
+      o.output(row.toString(false));
     }
   }
 
@@ -49,7 +48,7 @@ public class TestUtils {
   public static List<String> beamSqlRows2Strings(List<Row> rows) {
     List<String> strs = new ArrayList<>();
     for (Row row : rows) {
-      strs.add(row.toString());
+      strs.add(row.toString(false));
     }
 
     return strs;
@@ -98,6 +97,14 @@ public class TestUtils {
      */
     public static RowsBuilder of(final Object... args) {
       Schema beamSQLSchema = TestTableUtils.buildBeamSqlSchema(args);
+      RowsBuilder builder = new RowsBuilder();
+      builder.type = beamSQLSchema;
+
+      return builder;
+    }
+
+    public static RowsBuilder ofNullable(final Object... args) {
+      Schema beamSQLSchema = TestTableUtils.buildBeamSqlNullableSchema(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLSchema;
 
@@ -201,9 +208,7 @@ public class TestUtils {
         type = rows.get(0).getSchema();
       }
 
-      TestStream.Builder<Row> values =
-          TestStream.create(
-              type, SerializableFunctions.identity(), SerializableFunctions.identity());
+      TestStream.Builder<Row> values = TestStream.create(type);
 
       for (Row row : rows) {
         if (timestampField != null) {

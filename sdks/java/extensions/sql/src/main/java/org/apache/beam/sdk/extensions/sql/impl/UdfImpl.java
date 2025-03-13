@@ -18,17 +18,21 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.lang.reflect.Method;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.schema.TranslatableTable;
-import org.apache.calcite.schema.impl.TableMacroImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.TranslatableTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.TableMacroImpl;
 
 /** Beam-customized facade behind {@link Function} to address BEAM-5921. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class UdfImpl {
 
   private UdfImpl() {}
 
   /**
-   * Creates {@link org.apache.calcite.schema.Function} from given class.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function} from
+   * given class.
    *
    * <p>If a method of the given name is not found or it does not suit, returns {@code null}.
    *
@@ -45,7 +49,8 @@ class UdfImpl {
   }
 
   /**
-   * Creates {@link org.apache.calcite.schema.Function} from given method.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function} from
+   * given method.
    *
    * @param method method that is used to implement the function
    * @return created {@link Function} or null

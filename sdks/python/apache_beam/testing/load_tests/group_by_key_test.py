@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is GroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -30,11 +31,12 @@ will be stored,
 will be stored,
 * input_options - options for Synthetic Sources.
 
-Example test run on DirectRunner:
+Example test run:
 
-python setup.py nosetests \
+python -m apache_beam.testing.load_tests.group_by_key_test \
     --test-pipeline-options="
     --project=big-query-project
+    --region=...
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
@@ -43,140 +45,74 @@ python setup.py nosetests \
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
-    \"value_size\":15,
-    \"bundle_size_distribution_type\": \"const\",
-    \"bundle_size_distribution_param\": 1,
-    \"force_initial_num_bundles\": 0
-    }'" \
-    --tests apache_beam.testing.load_tests.group_by_key_test
+    \"value_size\": 15
+    }'"
 
 or:
 
-./gradlew -PloadTest.args='
+./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
     --fanout=1
     --iterations=1
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.group_by_key_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
-To run test on other runner (ex. Dataflow):
-
-python setup.py nosetests \
-    --test-pipeline-options="
-        --runner=TestDataflowRunner
-        --project=...
-        --staging_location=gs://...
-        --temp_location=gs://...
-        --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=gbk
-        --fanout=1
-        --iterations=1
-        --input_options='{
-        \"num_records\": 1000,
-        \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\": 0
-        }'" \
-    --tests apache_beam.testing.load_tests.group_by_key_test
-
-or:
-
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=gbk
-    --temp_location=gs://...
-    --fanout=1
-    --iterations=1
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=TestDataflowRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.group_by_key_test \
--Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+    --input_options='{
+      \"num_records\": 1,
+      \"key_size\": 1,
+      \"value_size\": 1}'
+    --runner=DirectRunner" \
+-PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
-import os
-import unittest
 
 import apache_beam as beam
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureLatency
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class GroupByKeyTest(LoadTest):
-  def setUp(self):
-    super(GroupByKeyTest, self).setUp()
-    self.fanout = self.pipeline.get_option('fanout')
-    if self.fanout is None:
-      self.fanout = 1
-    else:
-      self.fanout = int(self.fanout)
+  def __init__(self):
+    super().__init__()
+    self.fanout = self.get_option_or_default('fanout', 1)
+    self.iterations = self.get_option_or_default('iterations', 1)
 
-    self.iterations = self.pipeline.get_option('iterations')
-    if self.iterations is None:
-      self.iterations = 1
-    else:
-      self.iterations = int(self.iterations)
+  @staticmethod
+  def ungroup_and_reiterate(element, iterations):
+    key, value = element
+    for i in range(iterations):
+      for v in value:
+        if i == iterations - 1:
+          return key, v
 
-  class _UngroupAndReiterate(beam.DoFn):
-    def process(self, element, iterations):
-      key, value = element
-      for i in range(iterations):
-        for v in value:
-          if i == iterations - 1:
-            return (key, v)
-
-  def testGroupByKey(self):
-    input = (self.pipeline
-             | beam.io.Read(synthetic_pipeline.SyntheticSource(
-                 self.parseTestPipelineOptions()))
-             | 'Measure time: Start' >> beam.ParDo(
-                 MeasureTime(self.metrics_namespace))
-            )
+  def test(self):
+    pc = (
+        self.pipeline
+        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace))
+        | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
 
     for branch in range(self.fanout):
-      # pylint: disable=expression-not-assigned
-      (input
-       | 'GroupByKey %i' % branch >> beam.GroupByKey()
-       | 'Ungroup %i' % branch >> beam.ParDo(
-           self._UngroupAndReiterate(), self.iterations)
-       | 'Measure time: End %i' % branch >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-      )
+      (  # pylint: disable=expression-not-assigned
+          pc
+          | 'GroupByKey %i' % branch >> beam.GroupByKey()
+          | 'Ungroup %i' % branch >> beam.Map(self.ungroup_and_reiterate,
+                                              self.iterations)
+          | 'Measure latency %i' % branch >> beam.ParDo(
+              MeasureLatency(self.metrics_namespace))
+          | 'Measure time: End %i' % branch >> beam.ParDo(
+              MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  GroupByKeyTest().run()

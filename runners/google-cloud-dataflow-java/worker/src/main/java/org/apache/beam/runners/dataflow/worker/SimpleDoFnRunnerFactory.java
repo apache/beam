@@ -32,6 +32,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<InputT, OutputT> {
   public static final SimpleDoFnRunnerFactory INSTANCE = new SimpleDoFnRunnerFactory();
 
@@ -49,7 +52,8 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
       OutputManager outputManager,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     DoFnRunner<InputT, OutputT> fnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -62,7 +66,8 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
     boolean hasStreamingSideInput =
         options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
     if (hasStreamingSideInput) {

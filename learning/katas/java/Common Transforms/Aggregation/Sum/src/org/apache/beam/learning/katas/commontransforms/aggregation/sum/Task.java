@@ -18,13 +18,25 @@
 
 package org.apache.beam.learning.katas.commontransforms.aggregation.sum;
 
+// beam-playground:
+//   name: AggregationSum
+//   description: Task from katas to compute the sum of all elements.
+//   multifile: false
+//   context_line: 43
+//   categories:
+//     - Combiners
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - numbers
+
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
-import util.Log;
 
 public class Task {
 

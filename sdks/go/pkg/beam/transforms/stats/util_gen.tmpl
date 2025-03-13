@@ -19,8 +19,8 @@ package stats
 // so that their generated functions exist when this one is run.
 // `go generate` executes go:generate commands in lexical file order, top to bottom.
 
-//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 {{- with $x := .X }}
-//go:generate starcgen --package=stats --identifiers=mapFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
+//go:generate starcgen --package=stats --identifiers=countFn,keyedCountFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
 {{end}}
-
+//go:generate gofmt -w stats.shims.go

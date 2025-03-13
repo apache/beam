@@ -22,17 +22,18 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.UserCodeException;
 
 /** Test Flink runner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private FlinkRunner delegate;
 
   private TestFlinkRunner(FlinkPipelineOptions options) {
     options.setRunner(TestFlinkRunner.class);
-    options.setShutdownSourcesOnFinalWatermark(true);
     if (options.getParallelism() == -1) {
       // Limit parallelism to avoid too much memory consumption during local execution
       options.setParallelism(1);
@@ -46,7 +47,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   public static TestFlinkRunner create(boolean streaming) {
-    FlinkPipelineOptions flinkOptions = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions flinkOptions = FlinkPipelineOptions.defaults();
     flinkOptions.setStreaming(streaming);
     return TestFlinkRunner.fromOptions(flinkOptions);
   }

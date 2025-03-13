@@ -80,6 +80,7 @@ function verify_userscore_dataflow() {
   output_file_name="$USERSCORE_OUTPUT_PREFIX-dataflow-runner.txt"
   python -m apache_beam.examples.complete.game.user_score \
     --project=$PROJECT_ID \
+    --region=$REGION_ID \
     --runner=DataflowRunner \
     --temp_location=gs://$BUCKET_NAME/temp/ \
     --sdk_location=$BEAM_PYTHON_SDK \
@@ -99,11 +100,15 @@ function verify_userscore_dataflow() {
 #######################################
 function verify_hourlyteamscore_direct() {
   print_separator "Running HourlyTeamScore example with DirectRunner"
+  # Clean up old bq tables
+  cleanup_hourly_team_score "direct"
+
   python -m apache_beam.examples.complete.game.hourly_team_score \
     --project=$PROJECT_ID \
     --dataset=$DATASET \
     --input=$GAME_INPUT_DATA \
-    --table="hourly_team_score_python_direct"
+    --temp_location=gs://$BUCKET_NAME/temp/ \
+    --table="${HOURLY_TEAM_SCORE_TABLE_PREFIX}_direct"
 
   verify_hourly_team_score "direct"
 }
@@ -119,14 +124,18 @@ function verify_hourlyteamscore_direct() {
 #######################################
 function verify_hourlyteamscore_dataflow() {
   print_separator "Running HourlyTeamScore example with DataflowRunner"
+  # Clean up old bq tables
+  cleanup_hourly_team_score "dataflow"
+
   python -m apache_beam.examples.complete.game.hourly_team_score \
     --project=$PROJECT_ID \
+    --region=$REGION_ID \
     --dataset=$DATASET \
     --runner=DataflowRunner \
     --temp_location=gs://$BUCKET_NAME/temp/ \
     --sdk_location $BEAM_PYTHON_SDK \
     --input=$GAME_INPUT_DATA \
-    --table="hourly_team_score_python_dataflow"
+    --table="${HOURLY_TEAM_SCORE_TABLE_PREFIX}_dataflow"
 
   verify_hourly_team_score "dataflow"
 }
@@ -144,7 +153,7 @@ function verify_hourlyteamscore_dataflow() {
 #   VERSION
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
-#   $2 - python interpreter version: [python2.7, python3.5, ...]
+#   $2 - python interpreter version: [python3.7, python3.8, ...]
 #######################################
 function run_release_candidate_python_mobile_gaming() {
   print_separator "Start Mobile Gaming Examples"

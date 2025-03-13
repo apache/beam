@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -26,7 +25,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A {@link FloatCoder} encodes {@link Float} values in 8 bytes using Java serialization. */
+/** A {@link FloatCoder} encodes {@link Float} values in 4 bytes using Java serialization. */
 public class FloatCoder extends AtomicCoder<Float> {
 
   public static FloatCoder of() {
@@ -51,7 +50,7 @@ public class FloatCoder extends AtomicCoder<Float> {
   @Override
   public Float decode(InputStream inStream) throws IOException, CoderException {
     try {
-      return new DataInputStream(inStream).readFloat();
+      return Float.intBitsToFloat(BitConverters.readBigEndianInt(inStream));
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.

@@ -17,31 +17,36 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
-import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.sdk.fn.server.FnService;
+import org.apache.beam.sdk.fn.server.HeaderAccessor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A Fn API control service which adds incoming SDK harness connections to a sink. */
 public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements FnService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final Object lock = new Object();
   private final ControlClientPool.Sink clientSink;
   private final HeaderAccessor headerAccessor;
+  private final ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
+      new ConcurrentHashMap<>();
 
   @GuardedBy("lock")
-  private final Collection<FnApiControlClient> vendedClients = new ArrayList<>();
+  private final Map<String, FnApiControlClient> vendedClients = new HashMap<>();
 
   @GuardedBy("lock")
   private boolean closed = false;
@@ -76,13 +81,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   public StreamObserver<BeamFnApi.InstructionResponse> control(
       StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
     final String workerId = headerAccessor.getSdkWorkerId();
-    if (Strings.isNullOrEmpty(workerId)) {
-      // TODO(BEAM-4149): Enforce proper worker id.
-      LOGGER.warn("No worker_id header provided in control request");
-    }
-
-    LOGGER.info("Beam Fn Control client connected with id {}", workerId);
-    FnApiControlClient newClient = FnApiControlClient.forRequestObserver(workerId, requestObserver);
+    LOG.info("Beam Fn Control client connected with id {}", workerId);
+    FnApiControlClient newClient =
+        FnApiControlClient.forRequestObserver(workerId, requestObserver, processBundleDescriptors);
     try {
       // Add the client to the pool of vended clients before making it available - we should close
       // the client when we close even if no one has picked it up yet. This can occur after the
@@ -92,16 +93,13 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       synchronized (lock) {
         checkState(
             !closed, "%s already closed", FnApiControlClientPoolService.class.getSimpleName());
-        // TODO: https://issues.apache.org/jira/browse/BEAM-4151: Prevent stale client references
+        // TODO: https://github.com/apache/beam/issues/18790: Prevent stale client references
         // from leaking.
-        vendedClients.add(newClient);
+        vendedClients.put(workerId, newClient);
       }
       // We do not attempt to transactionally add the client to our internal list and offer it to
       // the sink.
       clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -109,11 +107,29 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   }
 
   @Override
+  public void getProcessBundleDescriptor(
+      BeamFnApi.GetProcessBundleDescriptorRequest request,
+      StreamObserver<BeamFnApi.ProcessBundleDescriptor> responseObserver) {
+    String bundleDescriptorId = request.getProcessBundleDescriptorId();
+    LOG.info("getProcessBundleDescriptor request with id {}", bundleDescriptorId);
+    BeamFnApi.ProcessBundleDescriptor descriptor = processBundleDescriptors.get(bundleDescriptorId);
+    if (descriptor == null) {
+      String msg =
+          String.format("ProcessBundleDescriptor with id %s not found", bundleDescriptorId);
+      responseObserver.onError(new StatusException(Status.NOT_FOUND.withDescription(msg)));
+      LOG.error(msg);
+    } else {
+      responseObserver.onNext(descriptor);
+      responseObserver.onCompleted();
+    }
+  }
+
+  @Override
   public void close() {
     synchronized (lock) {
       if (!closed) {
         closed = true;
-        for (FnApiControlClient vended : vendedClients) {
+        for (FnApiControlClient vended : vendedClients.values()) {
           vended.close();
         }
       }

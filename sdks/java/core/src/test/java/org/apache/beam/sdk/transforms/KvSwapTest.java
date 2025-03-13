@@ -36,7 +36,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for KvSwap transform. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "unchecked",
+})
 public class KvSwapTest {
   private static final KV<String, Integer>[] TABLE =
       new KV[] {

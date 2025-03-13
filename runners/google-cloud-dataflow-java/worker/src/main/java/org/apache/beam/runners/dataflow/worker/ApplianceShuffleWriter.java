@@ -27,6 +27,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationConte
  * <p>It is a JNI wrapper of an equivalent C++ class.
  */
 @ThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ApplianceShuffleWriter implements ShuffleWriter {
   static {
     ShuffleLibrary.load();

@@ -17,10 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A representation used by {@link com.google.api.services.dataflow.model.Step}s to reference the
@@ -28,6 +31,7 @@ import com.google.api.client.util.Key;
  */
 public final class OutputReference extends GenericJson {
   @Key("@type")
+  @SuppressFBWarnings("SS_SHOULD_BE_STATIC") // read via reflection so must be Field just like this
   public final String type = "OutputReference";
 
   @Key("step_name")
@@ -39,5 +43,22 @@ public final class OutputReference extends GenericJson {
   public OutputReference(String stepName, String outputName) {
     this.stepName = checkNotNull(stepName);
     this.outputName = checkNotNull(outputName);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object otherObject) {
+    if (!(otherObject instanceof OutputReference)) {
+      return false;
+    }
+    OutputReference other = (OutputReference) otherObject;
+    return Objects.equals(type, other.type)
+        && Objects.equals(stepName, other.stepName)
+        && Objects.equals(outputName, other.outputName)
+        && super.equals(other);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(type, stepName, outputName, super.hashCode());
   }
 }

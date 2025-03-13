@@ -21,12 +21,9 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
+import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -40,10 +37,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -59,6 +58,9 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator}.
  */
 @RunWith(Parameterized.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class PortableStateExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableStateExecutionTest.class);
@@ -95,12 +97,11 @@ public class PortableStateExecutionTest implements Serializable {
 
   @Test(timeout = 120_000)
   public void testExecution() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
+    PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
     options.as(FlinkPipelineOptions.class).setParallelism(2);
-    options.as(FlinkPipelineOptions.class).setShutdownSourcesOnFinalWatermark(true);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
@@ -132,6 +133,7 @@ public class PortableStateExecutionTest implements Serializable {
                 "statefulDoFn",
                 ParDo.of(
                     new DoFn<KV<String, Integer>, KV<String, String>>() {
+
                       @StateId("valueState")
                       private final StateSpec<ValueState<Integer>> valueStateSpec =
                           StateSpecs.value(VarIntCoder.of());
@@ -189,25 +191,22 @@ public class PortableStateExecutionTest implements Serializable {
             KV.of("bla2", "64"),
             KV.of("clearedState", "null"));
 
-    // This is line below required to convert the PAssert's read to an impulse, which is expected
-    // by the GreedyPipelineFuser.
-    p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
-
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
     JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
-            "id",
-            "none",
-            flinkJobExecutor,
-            pipelineProto,
-            options.as(FlinkPipelineOptions.class),
-            null,
-            Collections.emptyList());
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "id",
+                "none",
+                flinkJobExecutor,
+                pipelineProto,
+                options.as(FlinkPipelineOptions.class),
+                new FlinkPipelineRunner(
+                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
 
     jobInvocation.start();
 
-    while (jobInvocation.getState() != Enum.DONE) {
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
     }
   }

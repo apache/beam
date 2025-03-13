@@ -17,25 +17,32 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.RenameFields;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.prepare.Prepare;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableModify;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.Prepare;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableModify;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** BeamRelNode to replace a {@code TableModify} node. */
 public class BeamIOSinkRel extends TableModify
@@ -51,8 +58,8 @@ public class BeamIOSinkRel extends TableModify
       Prepare.CatalogReader catalogReader,
       RelNode child,
       Operation operation,
-      List<String> updateColumnList,
-      List<RexNode> sourceExpressionList,
+      @Nullable List<String> updateColumnList,
+      @Nullable List<RexNode> sourceExpressionList,
       boolean flattened,
       BeamSqlTable sqlTable,
       Map<String, String> pipelineOptions) {
@@ -68,6 +75,17 @@ public class BeamIOSinkRel extends TableModify
         flattened);
     this.sqlTable = sqlTable;
     this.pipelineOptions = pipelineOptions;
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
+    NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    return BeamCostModel.FACTORY.makeCost(inputEstimates.getRowCount(), inputEstimates.getRate());
   }
 
   @Override
@@ -118,7 +136,8 @@ public class BeamIOSinkRel extends TableModify
           "Wrong number of inputs for %s: %s",
           BeamIOSinkRel.class.getSimpleName(),
           pinput);
-      PCollection<Row> input = pinput.get(0);
+      Schema schema = CalciteUtils.toSchema(getExpectedInputRowType(0));
+      PCollection<Row> input = pinput.get(0).apply(RenameFields.<Row>create()).setRowSchema(schema);
 
       sqlTable.buildIOWriter(input);
 

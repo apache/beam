@@ -15,55 +15,94 @@
 # limitations under the License.
 #
 
-"""User-facing interfaces for the Beam State and Timer APIs.
+"""User-facing interfaces for the Beam State and Timer APIs."""
 
-Experimental; no backwards-compatibility guarantees.
-"""
+# pytype: skip-file
+# mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
-import itertools
+import collections
 import types
-from builtins import object
+from collections.abc import Callable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import NamedTuple
+from typing import Optional
+from typing import TypeVar
 
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
+from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import Timestamp
+
+if TYPE_CHECKING:
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms.core import DoFn
+
+CallableT = TypeVar('CallableT', bound=Callable)
 
 
 class StateSpec(object):
   """Specification for a user DoFn state cell."""
+  def __init__(self, name: str, coder: Coder) -> None:
+    if not isinstance(name, str):
+      raise TypeError("name is not a string")
+    if not isinstance(coder, Coder):
+      raise TypeError("coder is not of type Coder")
+    self.name = name
+    self.coder = coder
 
-  def __init__(self):
-    raise NotImplementedError
-
-  def __repr__(self):
+  def __repr__(self) -> str:
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context):
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     raise NotImplementedError
+
+
+class ReadModifyWriteStateSpec(StateSpec):
+  """Specification for a user DoFn value state cell."""
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
+    return beam_runner_api_pb2.StateSpec(
+        read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
+            coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
-
-  def __init__(self, name, coder):
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
-    self.name = name
-    self.coder = coder
-
-  def to_runner_api(self, context):
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
-            element_coder_id=context.coders.get_id(self.coder)))
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
+
+
+class SetStateSpec(StateSpec):
+  """Specification for a user DoFn Set State cell"""
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
+    return beam_runner_api_pb2.StateSpec(
+        set_spec=beam_runner_api_pb2.SetStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
-
-  def __init__(self, name, coder=None, combine_fn=None):
+  def __init__(
+      self,
+      name: str,
+      coder: Optional[Coder] = None,
+      combine_fn: Any = None) -> None:
     """Initialize the specification for CombiningValue state.
 
     CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
@@ -92,43 +131,72 @@ class CombiningValueStateSpec(StateSpec):
       else:
         coder, combine_fn = None, coder
     self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
+    # The coder here should be for the accumulator type of the given CombineFn.
     if coder is None:
       coder = self.combine_fn.get_accumulator_coder()
 
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
-    self.name = name
-    # The coder here should be for the accumulator type of the given CombineFn.
-    self.coder = coder
+    super().__init__(name, coder)
 
-  def to_runner_api(self, context):
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
-            accumulator_coder_id=context.coders.get_id(self.coder)))
+            accumulator_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
+class OrderedListStateSpec(StateSpec):
+  """Specification for a user DoFn ordered list state cell."""
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
+    return beam_runner_api_pb2.StateSpec(
+        ordered_list_spec=beam_runner_api_pb2.OrderedListStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.ORDERED_LIST.urn))
+
+
+# TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
+Timer = NamedTuple(
+    'Timer',
+    [
+        ('user_key', Any),
+        ('dynamic_timer_tag', str),
+        ('windows', tuple['windowed_value.BoundedWindow', ...]),
+        ('clear_bit', bool),
+        ('fire_timestamp', Optional['Timestamp']),
+        ('hold_timestamp', Optional['Timestamp']),
+        ('paneinfo', Optional['windowed_value.PaneInfo']),
+    ])
+
+
+# TODO(BEAM-9562): Plumb through actual key_coder and window_coder.
 class TimerSpec(object):
   """Specification for a user stateful DoFn timer."""
+  prefix = "ts-"
 
-  def __init__(self, name, time_domain):
-    self.name = name
+  def __init__(self, name: str, time_domain: str) -> None:
+    self.name = self.prefix + name
     if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
-      raise ValueError('Unsupported TimeDomain: %r.' % (time_domain,))
+      raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
     self.time_domain = time_domain
-    self._attached_callback = None
+    self._attached_callback: Optional[Callable] = None
 
-  def __repr__(self):
+  def __repr__(self) -> str:
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context):
-    return beam_runner_api_pb2.TimerSpec(
+  def to_runner_api(
+      self, context: 'PipelineContext', key_coder: Coder,
+      window_coder: Coder) -> beam_runner_api_pb2.TimerFamilySpec:
+    return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
-        timer_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+        timer_family_coder_id=context.coders.get_id(
+            coders._TimerCoder(key_coder, window_coder)))
 
 
-def on_timer(timer_spec):
+def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -145,7 +213,7 @@ def on_timer(timer_spec):
   if not isinstance(timer_spec, TimerSpec):
     raise ValueError('@on_timer decorator expected TimerSpec.')
 
-  def _inner(method):
+  def _inner(method: CallableT) -> CallableT:
     if not callable(method):
       raise ValueError('@on_timer decorator expected callable.')
     if timer_spec._attached_callback:
@@ -157,7 +225,7 @@ def on_timer(timer_spec):
   return _inner
 
 
-def get_dofn_specs(dofn):
+def get_dofn_specs(dofn: 'DoFn') -> tuple[set[StateSpec], set[TimerSpec]]:
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:
@@ -180,12 +248,13 @@ def get_dofn_specs(dofn):
     if not isinstance(getattr(dofn, method_name, None), types.MethodType):
       continue
     method = MethodWrapper(dofn, method_name)
-    param_ids = [d.param_id for d in method.defaults
-                 if isinstance(d, _DoFnParam)]
+    param_ids = [
+        d.param_id for d in method.defaults if isinstance(d, _DoFnParam)
+    ]
     if len(param_ids) != len(set(param_ids)):
       raise ValueError(
-          'DoFn %r has duplicate %s method parameters: %s.' % (
-              dofn, method_name, param_ids))
+          'DoFn %r has duplicate %s method parameters: %s.' %
+          (dofn, method_name, param_ids))
     for d in method.defaults:
       if isinstance(d, _StateDoFnParam):
         all_state_specs.add(d.state_spec)
@@ -195,7 +264,7 @@ def get_dofn_specs(dofn):
   return all_state_specs, all_timer_specs
 
 
-def is_stateful_dofn(dofn):
+def is_stateful_dofn(dofn: 'DoFn') -> bool:
   """Determines whether a given DoFn is a stateful DoFn."""
 
   # A Stateful DoFn is a DoFn that uses user state or timers.
@@ -203,7 +272,7 @@ def is_stateful_dofn(dofn):
   return bool(all_state_specs or all_timer_specs)
 
 
-def validate_stateful_dofn(dofn):
+def validate_stateful_dofn(dofn: 'DoFn') -> None:
   """Validates the proper specification of a stateful DoFn."""
 
   # Get state and timer specs.
@@ -212,147 +281,142 @@ def validate_stateful_dofn(dofn):
   # Reject DoFns that have multiple state or timer specs with the same name.
   if len(all_state_specs) != len(set(s.name for s in all_state_specs)):
     raise ValueError(
-        'DoFn %r has multiple StateSpecs with the same name: %s.' % (
-            dofn, all_state_specs))
+        'DoFn %r has multiple StateSpecs with the same name: %s.' %
+        (dofn, all_state_specs))
   if len(all_timer_specs) != len(set(s.name for s in all_timer_specs)):
     raise ValueError(
-        'DoFn %r has multiple TimerSpecs with the same name: %s.' % (
-            dofn, all_timer_specs))
+        'DoFn %r has multiple TimerSpecs with the same name: %s.' %
+        (dofn, all_timer_specs))
 
   # Reject DoFns that use timer specs without corresponding timer callbacks.
   for timer_spec in all_timer_specs:
     if not timer_spec._attached_callback:
-      raise ValueError(
-          ('DoFn %r has a TimerSpec without an associated on_timer '
-           'callback: %s.') % (dofn, timer_spec))
+      raise ValueError((
+          'DoFn %r has a TimerSpec without an associated on_timer '
+          'callback: %s.') % (dofn, timer_spec))
     method_name = timer_spec._attached_callback.__name__
-    if (timer_spec._attached_callback !=
-        getattr(dofn, method_name, None).__func__):
-      raise ValueError(
-          ('The on_timer callback for %s is not the specified .%s method '
-           'for DoFn %r (perhaps it was overwritten?).') % (
-               timer_spec, method_name, dofn))
+    if (timer_spec._attached_callback != getattr(dofn, method_name,
+                                                 None).__func__):  # type: ignore[union-attr]
+      raise ValueError((
+          'The on_timer callback for %s is not the specified .%s method '
+          'for DoFn %r (perhaps it was overwritten?).') %
+                       (timer_spec, method_name, dofn))
 
 
-class RuntimeTimer(object):
+class BaseTimer(object):
+  def clear(self, dynamic_timer_tag: str = '') -> None:
+    raise NotImplementedError
+
+  def set(self, timestamp: Timestamp, dynamic_timer_tag: str = '') -> None:
+    raise NotImplementedError
+
+
+_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))  # type: ignore[name-match]
+
+
+class RuntimeTimer(BaseTimer):
   """Timer interface object passed to user code."""
-
-  def __init__(self, timer_spec):
+  def __init__(self) -> None:
+    self._timer_recordings: dict[str, _TimerTuple] = {}
     self._cleared = False
-    self._new_timestamp = None
+    self._new_timestamp: Optional[Timestamp] = None
 
-  def clear(self):
-    self._cleared = True
-    self._new_timestamp = None
+  def clear(self, dynamic_timer_tag: str = '') -> None:
+    self._timer_recordings[dynamic_timer_tag] = _TimerTuple(
+        cleared=True, timestamp=None)
 
-  def set(self, timestamp):
-    self._new_timestamp = timestamp
+  def set(self, timestamp: Timestamp, dynamic_timer_tag: str = '') -> None:
+    self._timer_recordings[dynamic_timer_tag] = _TimerTuple(
+        cleared=False, timestamp=timestamp)
 
 
 class RuntimeState(object):
   """State interface object passed to user code."""
-
-  def __init__(self, state_spec, state_tag, current_value_accessor):
-    self._state_spec = state_spec
-    self._state_tag = state_tag
-    self._current_value_accessor = current_value_accessor
-
-  @staticmethod
-  def for_spec(state_spec, state_tag, current_value_accessor):
-    if isinstance(state_spec, BagStateSpec):
-      return BagRuntimeState(state_spec, state_tag, current_value_accessor)
-    elif isinstance(state_spec, CombiningValueStateSpec):
-      return CombiningValueRuntimeState(state_spec, state_tag,
-                                        current_value_accessor)
-    else:
-      raise ValueError('Invalid state spec: %s' % state_spec)
-
-  def _encode(self, value):
-    return self._state_spec.coder.encode(value)
-
-  def _decode(self, value):
-    return self._state_spec.coder.decode(value)
-
-  def prefetch(self):
+  def prefetch(self) -> None:
     # The default implementation here does nothing.
     pass
 
+  def finalize(self) -> None:
+    pass
 
-# Sentinel designating an unread value.
-UNREAD_VALUE = object()
+
+class ReadModifyWriteRuntimeState(RuntimeState):
+  def read(self) -> Any:
+    raise NotImplementedError(type(self))
+
+  def write(self, value: Any) -> None:
+    raise NotImplementedError(type(self))
+
+  def clear(self) -> None:
+    raise NotImplementedError(type(self))
+
+  def commit(self) -> None:
+    raise NotImplementedError(type(self))
 
 
-class BagRuntimeState(RuntimeState):
+class AccumulatingRuntimeState(RuntimeState):
+  def read(self) -> Iterable[Any]:
+    raise NotImplementedError(type(self))
+
+  def add(self, value: Any) -> None:
+    raise NotImplementedError(type(self))
+
+  def clear(self) -> None:
+    raise NotImplementedError(type(self))
+
+  def commit(self) -> None:
+    raise NotImplementedError(type(self))
+
+
+class BagRuntimeState(AccumulatingRuntimeState):
   """Bag state interface object passed to user code."""
 
-  def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(BagRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
-    self._cached_value = UNREAD_VALUE
-    self._cleared = False
-    self._new_values = []
 
-  def read(self):
-    if self._cached_value is UNREAD_VALUE:
-      self._cached_value = self._current_value_accessor()
-    if not self._cleared:
-      encoded_values = itertools.chain(self._cached_value, self._new_values)
-    else:
-      encoded_values = self._new_values
-    return (self._decode(v) for v in encoded_values)
-
-  def add(self, value):
-    self._new_values.append(self._encode(value))
-
-  def clear(self):
-    self._cleared = True
-    self._cached_value = []
-    self._new_values = []
+class SetRuntimeState(AccumulatingRuntimeState):
+  """Set state interface object passed to user code."""
 
 
-class CombiningValueRuntimeState(RuntimeState):
+class CombiningValueRuntimeState(AccumulatingRuntimeState):
   """Combining value state interface object passed to user code."""
 
-  def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(CombiningValueRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
-    self._current_accumulator = UNREAD_VALUE
-    self._modified = False
-    self._combine_fn = state_spec.combine_fn
 
-  def _read_initial_value(self):
-    if self._current_accumulator is UNREAD_VALUE:
-      existing_accumulators = list(
-          self._decode(a) for a in self._current_value_accessor())
-      if existing_accumulators:
-        self._current_accumulator = self._combine_fn.merge_accumulators(
-            existing_accumulators)
-      else:
-        self._current_accumulator = self._combine_fn.create_accumulator()
+class OrderedListRuntimeState(AccumulatingRuntimeState):
+  """Ordered list state interface object passed to user code."""
+  def read(self) -> Iterable[tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
 
-  def read(self):
-    self._read_initial_value()
-    return self._combine_fn.extract_output(self._current_accumulator)
+  def add(self, value: tuple[Timestamp, Any]) -> None:
+    raise NotImplementedError(type(self))
 
-  def add(self, value):
-    self._read_initial_value()
-    self._modified = True
-    self._current_accumulator = self._combine_fn.add_input(
-        self._current_accumulator, value)
+  def read_range(
+      self, min_time_stamp: Timestamp,
+      limit_time_stamp: Timestamp) -> Iterable[tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
 
-  def clear(self):
-    self._modified = True
-    self._current_accumulator = self._combine_fn.create_accumulator()
+  def clear_range(
+      self, min_time_stamp: Timestamp, limit_time_stamp: Timestamp) -> None:
+    raise NotImplementedError(type(self))
 
 
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
+  def get_timer(
+      self,
+      timer_spec: TimerSpec,
+      key: Any,
+      window: 'windowed_value.BoundedWindow',
+      timestamp: Timestamp,
+      pane: windowed_value.PaneInfo,
+  ) -> BaseTimer:
+    raise NotImplementedError(type(self))
 
-  def get_timer(self, timer_spec, key, window):
-    raise NotImplementedError()
+  def get_state(
+      self,
+      state_spec: StateSpec,
+      key: Any,
+      window: 'windowed_value.BoundedWindow',
+  ) -> RuntimeState:
+    raise NotImplementedError(type(self))
 
-  def get_state(self, state_spec, key, window):
-    raise NotImplementedError()
-
-  def commit(self):
-    raise NotImplementedError()
+  def commit(self) -> None:
+    raise NotImplementedError(type(self))

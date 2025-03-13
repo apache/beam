@@ -20,8 +20,8 @@ package optimized
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // This template registers all forms of encoders as general
@@ -118,7 +118,7 @@ type encoderBool struct {
 	fn func(bool) []byte
 }
 
-func encoderMakerBool(fn interface{}) reflectx.Func {
+func encoderMakerBool(fn any) reflectx.Func {
 	f := fn.(func(bool) []byte)
 	return &encoderBool{fn: f}
 }
@@ -131,12 +131,12 @@ func (c *encoderBool) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderBool) Call(args []interface{}) []interface{} {
+func (c *encoderBool) Call(args []any) []any {
 	out := c.fn(args[0].(bool))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderBool) Call1x1(v interface{}) interface{} {
+func (c *encoderBool) Call1x1(v any) any {
 	return c.fn(v.(bool))
 }
 
@@ -144,7 +144,7 @@ type encoderBoolE struct {
 	fn func(bool) ([]byte, error)
 }
 
-func encoderMakerBoolE(fn interface{}) reflectx.Func {
+func encoderMakerBoolE(fn any) reflectx.Func {
 	f := fn.(func(bool) ([]byte, error))
 	return &encoderBoolE{fn: f}
 }
@@ -157,12 +157,12 @@ func (c *encoderBoolE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderBoolE) Call(args []interface{}) []interface{} {
+func (c *encoderBoolE) Call(args []any) []any {
 	v, err := c.fn(args[0].(bool))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderBoolE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderBoolE) Call1x2(v any) (any, any) {
 	return c.fn(v.(bool))
 }
 
@@ -170,7 +170,7 @@ type encoderTBool struct {
 	fn func(reflect.Type, bool) []byte
 }
 
-func encoderMakerTBool(fn interface{}) reflectx.Func {
+func encoderMakerTBool(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, bool) []byte)
 	return &encoderTBool{fn: f}
 }
@@ -183,12 +183,12 @@ func (c *encoderTBool) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTBool) Call(args []interface{}) []interface{} {
+func (c *encoderTBool) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(bool))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTBool) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTBool) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(bool))
 }
 
@@ -196,7 +196,7 @@ type encoderTBoolE struct {
 	fn func(reflect.Type, bool) ([]byte, error)
 }
 
-func encoderMakerTBoolE(fn interface{}) reflectx.Func {
+func encoderMakerTBoolE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, bool) ([]byte, error))
 	return &encoderTBoolE{fn: f}
 }
@@ -209,12 +209,12 @@ func (c *encoderTBoolE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTBoolE) Call(args []interface{}) []interface{} {
+func (c *encoderTBoolE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(bool))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTBoolE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTBoolE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(bool))
 }
 
@@ -222,7 +222,7 @@ type encoderString struct {
 	fn func(string) []byte
 }
 
-func encoderMakerString(fn interface{}) reflectx.Func {
+func encoderMakerString(fn any) reflectx.Func {
 	f := fn.(func(string) []byte)
 	return &encoderString{fn: f}
 }
@@ -235,12 +235,12 @@ func (c *encoderString) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderString) Call(args []interface{}) []interface{} {
+func (c *encoderString) Call(args []any) []any {
 	out := c.fn(args[0].(string))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderString) Call1x1(v interface{}) interface{} {
+func (c *encoderString) Call1x1(v any) any {
 	return c.fn(v.(string))
 }
 
@@ -248,7 +248,7 @@ type encoderStringE struct {
 	fn func(string) ([]byte, error)
 }
 
-func encoderMakerStringE(fn interface{}) reflectx.Func {
+func encoderMakerStringE(fn any) reflectx.Func {
 	f := fn.(func(string) ([]byte, error))
 	return &encoderStringE{fn: f}
 }
@@ -261,12 +261,12 @@ func (c *encoderStringE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderStringE) Call(args []interface{}) []interface{} {
+func (c *encoderStringE) Call(args []any) []any {
 	v, err := c.fn(args[0].(string))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderStringE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderStringE) Call1x2(v any) (any, any) {
 	return c.fn(v.(string))
 }
 
@@ -274,7 +274,7 @@ type encoderTString struct {
 	fn func(reflect.Type, string) []byte
 }
 
-func encoderMakerTString(fn interface{}) reflectx.Func {
+func encoderMakerTString(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, string) []byte)
 	return &encoderTString{fn: f}
 }
@@ -287,12 +287,12 @@ func (c *encoderTString) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTString) Call(args []interface{}) []interface{} {
+func (c *encoderTString) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(string))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTString) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTString) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(string))
 }
 
@@ -300,7 +300,7 @@ type encoderTStringE struct {
 	fn func(reflect.Type, string) ([]byte, error)
 }
 
-func encoderMakerTStringE(fn interface{}) reflectx.Func {
+func encoderMakerTStringE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, string) ([]byte, error))
 	return &encoderTStringE{fn: f}
 }
@@ -313,12 +313,12 @@ func (c *encoderTStringE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTStringE) Call(args []interface{}) []interface{} {
+func (c *encoderTStringE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(string))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTStringE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTStringE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(string))
 }
 
@@ -326,7 +326,7 @@ type encoderInt struct {
 	fn func(int) []byte
 }
 
-func encoderMakerInt(fn interface{}) reflectx.Func {
+func encoderMakerInt(fn any) reflectx.Func {
 	f := fn.(func(int) []byte)
 	return &encoderInt{fn: f}
 }
@@ -339,12 +339,12 @@ func (c *encoderInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt) Call(args []interface{}) []interface{} {
+func (c *encoderInt) Call(args []any) []any {
 	out := c.fn(args[0].(int))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderInt) Call1x1(v interface{}) interface{} {
+func (c *encoderInt) Call1x1(v any) any {
 	return c.fn(v.(int))
 }
 
@@ -352,7 +352,7 @@ type encoderIntE struct {
 	fn func(int) ([]byte, error)
 }
 
-func encoderMakerIntE(fn interface{}) reflectx.Func {
+func encoderMakerIntE(fn any) reflectx.Func {
 	f := fn.(func(int) ([]byte, error))
 	return &encoderIntE{fn: f}
 }
@@ -365,12 +365,12 @@ func (c *encoderIntE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderIntE) Call(args []interface{}) []interface{} {
+func (c *encoderIntE) Call(args []any) []any {
 	v, err := c.fn(args[0].(int))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderIntE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderIntE) Call1x2(v any) (any, any) {
 	return c.fn(v.(int))
 }
 
@@ -378,7 +378,7 @@ type encoderTInt struct {
 	fn func(reflect.Type, int) []byte
 }
 
-func encoderMakerTInt(fn interface{}) reflectx.Func {
+func encoderMakerTInt(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int) []byte)
 	return &encoderTInt{fn: f}
 }
@@ -391,12 +391,12 @@ func (c *encoderTInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt) Call(args []interface{}) []interface{} {
+func (c *encoderTInt) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(int))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTInt) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTInt) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(int))
 }
 
@@ -404,7 +404,7 @@ type encoderTIntE struct {
 	fn func(reflect.Type, int) ([]byte, error)
 }
 
-func encoderMakerTIntE(fn interface{}) reflectx.Func {
+func encoderMakerTIntE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int) ([]byte, error))
 	return &encoderTIntE{fn: f}
 }
@@ -417,12 +417,12 @@ func (c *encoderTIntE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTIntE) Call(args []interface{}) []interface{} {
+func (c *encoderTIntE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(int))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTIntE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTIntE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(int))
 }
 
@@ -430,7 +430,7 @@ type encoderInt8 struct {
 	fn func(int8) []byte
 }
 
-func encoderMakerInt8(fn interface{}) reflectx.Func {
+func encoderMakerInt8(fn any) reflectx.Func {
 	f := fn.(func(int8) []byte)
 	return &encoderInt8{fn: f}
 }
@@ -443,12 +443,12 @@ func (c *encoderInt8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt8) Call(args []interface{}) []interface{} {
+func (c *encoderInt8) Call(args []any) []any {
 	out := c.fn(args[0].(int8))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderInt8) Call1x1(v interface{}) interface{} {
+func (c *encoderInt8) Call1x1(v any) any {
 	return c.fn(v.(int8))
 }
 
@@ -456,7 +456,7 @@ type encoderInt8E struct {
 	fn func(int8) ([]byte, error)
 }
 
-func encoderMakerInt8E(fn interface{}) reflectx.Func {
+func encoderMakerInt8E(fn any) reflectx.Func {
 	f := fn.(func(int8) ([]byte, error))
 	return &encoderInt8E{fn: f}
 }
@@ -469,12 +469,12 @@ func (c *encoderInt8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt8E) Call(args []interface{}) []interface{} {
+func (c *encoderInt8E) Call(args []any) []any {
 	v, err := c.fn(args[0].(int8))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderInt8E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderInt8E) Call1x2(v any) (any, any) {
 	return c.fn(v.(int8))
 }
 
@@ -482,7 +482,7 @@ type encoderTInt8 struct {
 	fn func(reflect.Type, int8) []byte
 }
 
-func encoderMakerTInt8(fn interface{}) reflectx.Func {
+func encoderMakerTInt8(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int8) []byte)
 	return &encoderTInt8{fn: f}
 }
@@ -495,12 +495,12 @@ func (c *encoderTInt8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt8) Call(args []interface{}) []interface{} {
+func (c *encoderTInt8) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(int8))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTInt8) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTInt8) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(int8))
 }
 
@@ -508,7 +508,7 @@ type encoderTInt8E struct {
 	fn func(reflect.Type, int8) ([]byte, error)
 }
 
-func encoderMakerTInt8E(fn interface{}) reflectx.Func {
+func encoderMakerTInt8E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int8) ([]byte, error))
 	return &encoderTInt8E{fn: f}
 }
@@ -521,12 +521,12 @@ func (c *encoderTInt8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt8E) Call(args []interface{}) []interface{} {
+func (c *encoderTInt8E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(int8))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTInt8E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTInt8E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(int8))
 }
 
@@ -534,7 +534,7 @@ type encoderInt16 struct {
 	fn func(int16) []byte
 }
 
-func encoderMakerInt16(fn interface{}) reflectx.Func {
+func encoderMakerInt16(fn any) reflectx.Func {
 	f := fn.(func(int16) []byte)
 	return &encoderInt16{fn: f}
 }
@@ -547,12 +547,12 @@ func (c *encoderInt16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt16) Call(args []interface{}) []interface{} {
+func (c *encoderInt16) Call(args []any) []any {
 	out := c.fn(args[0].(int16))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderInt16) Call1x1(v interface{}) interface{} {
+func (c *encoderInt16) Call1x1(v any) any {
 	return c.fn(v.(int16))
 }
 
@@ -560,7 +560,7 @@ type encoderInt16E struct {
 	fn func(int16) ([]byte, error)
 }
 
-func encoderMakerInt16E(fn interface{}) reflectx.Func {
+func encoderMakerInt16E(fn any) reflectx.Func {
 	f := fn.(func(int16) ([]byte, error))
 	return &encoderInt16E{fn: f}
 }
@@ -573,12 +573,12 @@ func (c *encoderInt16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt16E) Call(args []interface{}) []interface{} {
+func (c *encoderInt16E) Call(args []any) []any {
 	v, err := c.fn(args[0].(int16))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderInt16E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderInt16E) Call1x2(v any) (any, any) {
 	return c.fn(v.(int16))
 }
 
@@ -586,7 +586,7 @@ type encoderTInt16 struct {
 	fn func(reflect.Type, int16) []byte
 }
 
-func encoderMakerTInt16(fn interface{}) reflectx.Func {
+func encoderMakerTInt16(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int16) []byte)
 	return &encoderTInt16{fn: f}
 }
@@ -599,12 +599,12 @@ func (c *encoderTInt16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt16) Call(args []interface{}) []interface{} {
+func (c *encoderTInt16) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(int16))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTInt16) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTInt16) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(int16))
 }
 
@@ -612,7 +612,7 @@ type encoderTInt16E struct {
 	fn func(reflect.Type, int16) ([]byte, error)
 }
 
-func encoderMakerTInt16E(fn interface{}) reflectx.Func {
+func encoderMakerTInt16E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int16) ([]byte, error))
 	return &encoderTInt16E{fn: f}
 }
@@ -625,12 +625,12 @@ func (c *encoderTInt16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt16E) Call(args []interface{}) []interface{} {
+func (c *encoderTInt16E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(int16))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTInt16E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTInt16E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(int16))
 }
 
@@ -638,7 +638,7 @@ type encoderInt32 struct {
 	fn func(int32) []byte
 }
 
-func encoderMakerInt32(fn interface{}) reflectx.Func {
+func encoderMakerInt32(fn any) reflectx.Func {
 	f := fn.(func(int32) []byte)
 	return &encoderInt32{fn: f}
 }
@@ -651,12 +651,12 @@ func (c *encoderInt32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt32) Call(args []interface{}) []interface{} {
+func (c *encoderInt32) Call(args []any) []any {
 	out := c.fn(args[0].(int32))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderInt32) Call1x1(v interface{}) interface{} {
+func (c *encoderInt32) Call1x1(v any) any {
 	return c.fn(v.(int32))
 }
 
@@ -664,7 +664,7 @@ type encoderInt32E struct {
 	fn func(int32) ([]byte, error)
 }
 
-func encoderMakerInt32E(fn interface{}) reflectx.Func {
+func encoderMakerInt32E(fn any) reflectx.Func {
 	f := fn.(func(int32) ([]byte, error))
 	return &encoderInt32E{fn: f}
 }
@@ -677,12 +677,12 @@ func (c *encoderInt32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt32E) Call(args []interface{}) []interface{} {
+func (c *encoderInt32E) Call(args []any) []any {
 	v, err := c.fn(args[0].(int32))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderInt32E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderInt32E) Call1x2(v any) (any, any) {
 	return c.fn(v.(int32))
 }
 
@@ -690,7 +690,7 @@ type encoderTInt32 struct {
 	fn func(reflect.Type, int32) []byte
 }
 
-func encoderMakerTInt32(fn interface{}) reflectx.Func {
+func encoderMakerTInt32(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int32) []byte)
 	return &encoderTInt32{fn: f}
 }
@@ -703,12 +703,12 @@ func (c *encoderTInt32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt32) Call(args []interface{}) []interface{} {
+func (c *encoderTInt32) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(int32))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTInt32) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTInt32) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(int32))
 }
 
@@ -716,7 +716,7 @@ type encoderTInt32E struct {
 	fn func(reflect.Type, int32) ([]byte, error)
 }
 
-func encoderMakerTInt32E(fn interface{}) reflectx.Func {
+func encoderMakerTInt32E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int32) ([]byte, error))
 	return &encoderTInt32E{fn: f}
 }
@@ -729,12 +729,12 @@ func (c *encoderTInt32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt32E) Call(args []interface{}) []interface{} {
+func (c *encoderTInt32E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(int32))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTInt32E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTInt32E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(int32))
 }
 
@@ -742,7 +742,7 @@ type encoderInt64 struct {
 	fn func(int64) []byte
 }
 
-func encoderMakerInt64(fn interface{}) reflectx.Func {
+func encoderMakerInt64(fn any) reflectx.Func {
 	f := fn.(func(int64) []byte)
 	return &encoderInt64{fn: f}
 }
@@ -755,12 +755,12 @@ func (c *encoderInt64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt64) Call(args []interface{}) []interface{} {
+func (c *encoderInt64) Call(args []any) []any {
 	out := c.fn(args[0].(int64))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderInt64) Call1x1(v interface{}) interface{} {
+func (c *encoderInt64) Call1x1(v any) any {
 	return c.fn(v.(int64))
 }
 
@@ -768,7 +768,7 @@ type encoderInt64E struct {
 	fn func(int64) ([]byte, error)
 }
 
-func encoderMakerInt64E(fn interface{}) reflectx.Func {
+func encoderMakerInt64E(fn any) reflectx.Func {
 	f := fn.(func(int64) ([]byte, error))
 	return &encoderInt64E{fn: f}
 }
@@ -781,12 +781,12 @@ func (c *encoderInt64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderInt64E) Call(args []interface{}) []interface{} {
+func (c *encoderInt64E) Call(args []any) []any {
 	v, err := c.fn(args[0].(int64))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderInt64E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderInt64E) Call1x2(v any) (any, any) {
 	return c.fn(v.(int64))
 }
 
@@ -794,7 +794,7 @@ type encoderTInt64 struct {
 	fn func(reflect.Type, int64) []byte
 }
 
-func encoderMakerTInt64(fn interface{}) reflectx.Func {
+func encoderMakerTInt64(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int64) []byte)
 	return &encoderTInt64{fn: f}
 }
@@ -807,12 +807,12 @@ func (c *encoderTInt64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt64) Call(args []interface{}) []interface{} {
+func (c *encoderTInt64) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(int64))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTInt64) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTInt64) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(int64))
 }
 
@@ -820,7 +820,7 @@ type encoderTInt64E struct {
 	fn func(reflect.Type, int64) ([]byte, error)
 }
 
-func encoderMakerTInt64E(fn interface{}) reflectx.Func {
+func encoderMakerTInt64E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, int64) ([]byte, error))
 	return &encoderTInt64E{fn: f}
 }
@@ -833,12 +833,12 @@ func (c *encoderTInt64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTInt64E) Call(args []interface{}) []interface{} {
+func (c *encoderTInt64E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(int64))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTInt64E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTInt64E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(int64))
 }
 
@@ -846,7 +846,7 @@ type encoderUint struct {
 	fn func(uint) []byte
 }
 
-func encoderMakerUint(fn interface{}) reflectx.Func {
+func encoderMakerUint(fn any) reflectx.Func {
 	f := fn.(func(uint) []byte)
 	return &encoderUint{fn: f}
 }
@@ -859,12 +859,12 @@ func (c *encoderUint) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint) Call(args []interface{}) []interface{} {
+func (c *encoderUint) Call(args []any) []any {
 	out := c.fn(args[0].(uint))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderUint) Call1x1(v interface{}) interface{} {
+func (c *encoderUint) Call1x1(v any) any {
 	return c.fn(v.(uint))
 }
 
@@ -872,7 +872,7 @@ type encoderUintE struct {
 	fn func(uint) ([]byte, error)
 }
 
-func encoderMakerUintE(fn interface{}) reflectx.Func {
+func encoderMakerUintE(fn any) reflectx.Func {
 	f := fn.(func(uint) ([]byte, error))
 	return &encoderUintE{fn: f}
 }
@@ -885,12 +885,12 @@ func (c *encoderUintE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUintE) Call(args []interface{}) []interface{} {
+func (c *encoderUintE) Call(args []any) []any {
 	v, err := c.fn(args[0].(uint))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderUintE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderUintE) Call1x2(v any) (any, any) {
 	return c.fn(v.(uint))
 }
 
@@ -898,7 +898,7 @@ type encoderTUint struct {
 	fn func(reflect.Type, uint) []byte
 }
 
-func encoderMakerTUint(fn interface{}) reflectx.Func {
+func encoderMakerTUint(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint) []byte)
 	return &encoderTUint{fn: f}
 }
@@ -911,12 +911,12 @@ func (c *encoderTUint) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint) Call(args []interface{}) []interface{} {
+func (c *encoderTUint) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(uint))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTUint) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTUint) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(uint))
 }
 
@@ -924,7 +924,7 @@ type encoderTUintE struct {
 	fn func(reflect.Type, uint) ([]byte, error)
 }
 
-func encoderMakerTUintE(fn interface{}) reflectx.Func {
+func encoderMakerTUintE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint) ([]byte, error))
 	return &encoderTUintE{fn: f}
 }
@@ -937,12 +937,12 @@ func (c *encoderTUintE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUintE) Call(args []interface{}) []interface{} {
+func (c *encoderTUintE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(uint))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTUintE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTUintE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(uint))
 }
 
@@ -950,7 +950,7 @@ type encoderUint8 struct {
 	fn func(uint8) []byte
 }
 
-func encoderMakerUint8(fn interface{}) reflectx.Func {
+func encoderMakerUint8(fn any) reflectx.Func {
 	f := fn.(func(uint8) []byte)
 	return &encoderUint8{fn: f}
 }
@@ -963,12 +963,12 @@ func (c *encoderUint8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint8) Call(args []interface{}) []interface{} {
+func (c *encoderUint8) Call(args []any) []any {
 	out := c.fn(args[0].(uint8))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderUint8) Call1x1(v interface{}) interface{} {
+func (c *encoderUint8) Call1x1(v any) any {
 	return c.fn(v.(uint8))
 }
 
@@ -976,7 +976,7 @@ type encoderUint8E struct {
 	fn func(uint8) ([]byte, error)
 }
 
-func encoderMakerUint8E(fn interface{}) reflectx.Func {
+func encoderMakerUint8E(fn any) reflectx.Func {
 	f := fn.(func(uint8) ([]byte, error))
 	return &encoderUint8E{fn: f}
 }
@@ -989,12 +989,12 @@ func (c *encoderUint8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint8E) Call(args []interface{}) []interface{} {
+func (c *encoderUint8E) Call(args []any) []any {
 	v, err := c.fn(args[0].(uint8))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderUint8E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderUint8E) Call1x2(v any) (any, any) {
 	return c.fn(v.(uint8))
 }
 
@@ -1002,7 +1002,7 @@ type encoderTUint8 struct {
 	fn func(reflect.Type, uint8) []byte
 }
 
-func encoderMakerTUint8(fn interface{}) reflectx.Func {
+func encoderMakerTUint8(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint8) []byte)
 	return &encoderTUint8{fn: f}
 }
@@ -1015,12 +1015,12 @@ func (c *encoderTUint8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint8) Call(args []interface{}) []interface{} {
+func (c *encoderTUint8) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(uint8))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTUint8) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTUint8) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(uint8))
 }
 
@@ -1028,7 +1028,7 @@ type encoderTUint8E struct {
 	fn func(reflect.Type, uint8) ([]byte, error)
 }
 
-func encoderMakerTUint8E(fn interface{}) reflectx.Func {
+func encoderMakerTUint8E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint8) ([]byte, error))
 	return &encoderTUint8E{fn: f}
 }
@@ -1041,12 +1041,12 @@ func (c *encoderTUint8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint8E) Call(args []interface{}) []interface{} {
+func (c *encoderTUint8E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(uint8))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTUint8E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTUint8E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(uint8))
 }
 
@@ -1054,7 +1054,7 @@ type encoderUint16 struct {
 	fn func(uint16) []byte
 }
 
-func encoderMakerUint16(fn interface{}) reflectx.Func {
+func encoderMakerUint16(fn any) reflectx.Func {
 	f := fn.(func(uint16) []byte)
 	return &encoderUint16{fn: f}
 }
@@ -1067,12 +1067,12 @@ func (c *encoderUint16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint16) Call(args []interface{}) []interface{} {
+func (c *encoderUint16) Call(args []any) []any {
 	out := c.fn(args[0].(uint16))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderUint16) Call1x1(v interface{}) interface{} {
+func (c *encoderUint16) Call1x1(v any) any {
 	return c.fn(v.(uint16))
 }
 
@@ -1080,7 +1080,7 @@ type encoderUint16E struct {
 	fn func(uint16) ([]byte, error)
 }
 
-func encoderMakerUint16E(fn interface{}) reflectx.Func {
+func encoderMakerUint16E(fn any) reflectx.Func {
 	f := fn.(func(uint16) ([]byte, error))
 	return &encoderUint16E{fn: f}
 }
@@ -1093,12 +1093,12 @@ func (c *encoderUint16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint16E) Call(args []interface{}) []interface{} {
+func (c *encoderUint16E) Call(args []any) []any {
 	v, err := c.fn(args[0].(uint16))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderUint16E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderUint16E) Call1x2(v any) (any, any) {
 	return c.fn(v.(uint16))
 }
 
@@ -1106,7 +1106,7 @@ type encoderTUint16 struct {
 	fn func(reflect.Type, uint16) []byte
 }
 
-func encoderMakerTUint16(fn interface{}) reflectx.Func {
+func encoderMakerTUint16(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint16) []byte)
 	return &encoderTUint16{fn: f}
 }
@@ -1119,12 +1119,12 @@ func (c *encoderTUint16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint16) Call(args []interface{}) []interface{} {
+func (c *encoderTUint16) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(uint16))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTUint16) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTUint16) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(uint16))
 }
 
@@ -1132,7 +1132,7 @@ type encoderTUint16E struct {
 	fn func(reflect.Type, uint16) ([]byte, error)
 }
 
-func encoderMakerTUint16E(fn interface{}) reflectx.Func {
+func encoderMakerTUint16E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint16) ([]byte, error))
 	return &encoderTUint16E{fn: f}
 }
@@ -1145,12 +1145,12 @@ func (c *encoderTUint16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint16E) Call(args []interface{}) []interface{} {
+func (c *encoderTUint16E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(uint16))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTUint16E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTUint16E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(uint16))
 }
 
@@ -1158,7 +1158,7 @@ type encoderUint32 struct {
 	fn func(uint32) []byte
 }
 
-func encoderMakerUint32(fn interface{}) reflectx.Func {
+func encoderMakerUint32(fn any) reflectx.Func {
 	f := fn.(func(uint32) []byte)
 	return &encoderUint32{fn: f}
 }
@@ -1171,12 +1171,12 @@ func (c *encoderUint32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint32) Call(args []interface{}) []interface{} {
+func (c *encoderUint32) Call(args []any) []any {
 	out := c.fn(args[0].(uint32))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderUint32) Call1x1(v interface{}) interface{} {
+func (c *encoderUint32) Call1x1(v any) any {
 	return c.fn(v.(uint32))
 }
 
@@ -1184,7 +1184,7 @@ type encoderUint32E struct {
 	fn func(uint32) ([]byte, error)
 }
 
-func encoderMakerUint32E(fn interface{}) reflectx.Func {
+func encoderMakerUint32E(fn any) reflectx.Func {
 	f := fn.(func(uint32) ([]byte, error))
 	return &encoderUint32E{fn: f}
 }
@@ -1197,12 +1197,12 @@ func (c *encoderUint32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint32E) Call(args []interface{}) []interface{} {
+func (c *encoderUint32E) Call(args []any) []any {
 	v, err := c.fn(args[0].(uint32))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderUint32E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderUint32E) Call1x2(v any) (any, any) {
 	return c.fn(v.(uint32))
 }
 
@@ -1210,7 +1210,7 @@ type encoderTUint32 struct {
 	fn func(reflect.Type, uint32) []byte
 }
 
-func encoderMakerTUint32(fn interface{}) reflectx.Func {
+func encoderMakerTUint32(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint32) []byte)
 	return &encoderTUint32{fn: f}
 }
@@ -1223,12 +1223,12 @@ func (c *encoderTUint32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint32) Call(args []interface{}) []interface{} {
+func (c *encoderTUint32) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(uint32))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTUint32) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTUint32) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(uint32))
 }
 
@@ -1236,7 +1236,7 @@ type encoderTUint32E struct {
 	fn func(reflect.Type, uint32) ([]byte, error)
 }
 
-func encoderMakerTUint32E(fn interface{}) reflectx.Func {
+func encoderMakerTUint32E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint32) ([]byte, error))
 	return &encoderTUint32E{fn: f}
 }
@@ -1249,12 +1249,12 @@ func (c *encoderTUint32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint32E) Call(args []interface{}) []interface{} {
+func (c *encoderTUint32E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(uint32))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTUint32E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTUint32E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(uint32))
 }
 
@@ -1262,7 +1262,7 @@ type encoderUint64 struct {
 	fn func(uint64) []byte
 }
 
-func encoderMakerUint64(fn interface{}) reflectx.Func {
+func encoderMakerUint64(fn any) reflectx.Func {
 	f := fn.(func(uint64) []byte)
 	return &encoderUint64{fn: f}
 }
@@ -1275,12 +1275,12 @@ func (c *encoderUint64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint64) Call(args []interface{}) []interface{} {
+func (c *encoderUint64) Call(args []any) []any {
 	out := c.fn(args[0].(uint64))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderUint64) Call1x1(v interface{}) interface{} {
+func (c *encoderUint64) Call1x1(v any) any {
 	return c.fn(v.(uint64))
 }
 
@@ -1288,7 +1288,7 @@ type encoderUint64E struct {
 	fn func(uint64) ([]byte, error)
 }
 
-func encoderMakerUint64E(fn interface{}) reflectx.Func {
+func encoderMakerUint64E(fn any) reflectx.Func {
 	f := fn.(func(uint64) ([]byte, error))
 	return &encoderUint64E{fn: f}
 }
@@ -1301,12 +1301,12 @@ func (c *encoderUint64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderUint64E) Call(args []interface{}) []interface{} {
+func (c *encoderUint64E) Call(args []any) []any {
 	v, err := c.fn(args[0].(uint64))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderUint64E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderUint64E) Call1x2(v any) (any, any) {
 	return c.fn(v.(uint64))
 }
 
@@ -1314,7 +1314,7 @@ type encoderTUint64 struct {
 	fn func(reflect.Type, uint64) []byte
 }
 
-func encoderMakerTUint64(fn interface{}) reflectx.Func {
+func encoderMakerTUint64(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint64) []byte)
 	return &encoderTUint64{fn: f}
 }
@@ -1327,12 +1327,12 @@ func (c *encoderTUint64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint64) Call(args []interface{}) []interface{} {
+func (c *encoderTUint64) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(uint64))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTUint64) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTUint64) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(uint64))
 }
 
@@ -1340,7 +1340,7 @@ type encoderTUint64E struct {
 	fn func(reflect.Type, uint64) ([]byte, error)
 }
 
-func encoderMakerTUint64E(fn interface{}) reflectx.Func {
+func encoderMakerTUint64E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, uint64) ([]byte, error))
 	return &encoderTUint64E{fn: f}
 }
@@ -1353,12 +1353,12 @@ func (c *encoderTUint64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTUint64E) Call(args []interface{}) []interface{} {
+func (c *encoderTUint64E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(uint64))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTUint64E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTUint64E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(uint64))
 }
 
@@ -1366,7 +1366,7 @@ type encoderFloat32 struct {
 	fn func(float32) []byte
 }
 
-func encoderMakerFloat32(fn interface{}) reflectx.Func {
+func encoderMakerFloat32(fn any) reflectx.Func {
 	f := fn.(func(float32) []byte)
 	return &encoderFloat32{fn: f}
 }
@@ -1379,12 +1379,12 @@ func (c *encoderFloat32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderFloat32) Call(args []interface{}) []interface{} {
+func (c *encoderFloat32) Call(args []any) []any {
 	out := c.fn(args[0].(float32))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderFloat32) Call1x1(v interface{}) interface{} {
+func (c *encoderFloat32) Call1x1(v any) any {
 	return c.fn(v.(float32))
 }
 
@@ -1392,7 +1392,7 @@ type encoderFloat32E struct {
 	fn func(float32) ([]byte, error)
 }
 
-func encoderMakerFloat32E(fn interface{}) reflectx.Func {
+func encoderMakerFloat32E(fn any) reflectx.Func {
 	f := fn.(func(float32) ([]byte, error))
 	return &encoderFloat32E{fn: f}
 }
@@ -1405,12 +1405,12 @@ func (c *encoderFloat32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderFloat32E) Call(args []interface{}) []interface{} {
+func (c *encoderFloat32E) Call(args []any) []any {
 	v, err := c.fn(args[0].(float32))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderFloat32E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderFloat32E) Call1x2(v any) (any, any) {
 	return c.fn(v.(float32))
 }
 
@@ -1418,7 +1418,7 @@ type encoderTFloat32 struct {
 	fn func(reflect.Type, float32) []byte
 }
 
-func encoderMakerTFloat32(fn interface{}) reflectx.Func {
+func encoderMakerTFloat32(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, float32) []byte)
 	return &encoderTFloat32{fn: f}
 }
@@ -1431,12 +1431,12 @@ func (c *encoderTFloat32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTFloat32) Call(args []interface{}) []interface{} {
+func (c *encoderTFloat32) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(float32))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTFloat32) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTFloat32) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(float32))
 }
 
@@ -1444,7 +1444,7 @@ type encoderTFloat32E struct {
 	fn func(reflect.Type, float32) ([]byte, error)
 }
 
-func encoderMakerTFloat32E(fn interface{}) reflectx.Func {
+func encoderMakerTFloat32E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, float32) ([]byte, error))
 	return &encoderTFloat32E{fn: f}
 }
@@ -1457,12 +1457,12 @@ func (c *encoderTFloat32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTFloat32E) Call(args []interface{}) []interface{} {
+func (c *encoderTFloat32E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(float32))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTFloat32E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTFloat32E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(float32))
 }
 
@@ -1470,7 +1470,7 @@ type encoderFloat64 struct {
 	fn func(float64) []byte
 }
 
-func encoderMakerFloat64(fn interface{}) reflectx.Func {
+func encoderMakerFloat64(fn any) reflectx.Func {
 	f := fn.(func(float64) []byte)
 	return &encoderFloat64{fn: f}
 }
@@ -1483,12 +1483,12 @@ func (c *encoderFloat64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderFloat64) Call(args []interface{}) []interface{} {
+func (c *encoderFloat64) Call(args []any) []any {
 	out := c.fn(args[0].(float64))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderFloat64) Call1x1(v interface{}) interface{} {
+func (c *encoderFloat64) Call1x1(v any) any {
 	return c.fn(v.(float64))
 }
 
@@ -1496,7 +1496,7 @@ type encoderFloat64E struct {
 	fn func(float64) ([]byte, error)
 }
 
-func encoderMakerFloat64E(fn interface{}) reflectx.Func {
+func encoderMakerFloat64E(fn any) reflectx.Func {
 	f := fn.(func(float64) ([]byte, error))
 	return &encoderFloat64E{fn: f}
 }
@@ -1509,12 +1509,12 @@ func (c *encoderFloat64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderFloat64E) Call(args []interface{}) []interface{} {
+func (c *encoderFloat64E) Call(args []any) []any {
 	v, err := c.fn(args[0].(float64))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderFloat64E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderFloat64E) Call1x2(v any) (any, any) {
 	return c.fn(v.(float64))
 }
 
@@ -1522,7 +1522,7 @@ type encoderTFloat64 struct {
 	fn func(reflect.Type, float64) []byte
 }
 
-func encoderMakerTFloat64(fn interface{}) reflectx.Func {
+func encoderMakerTFloat64(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, float64) []byte)
 	return &encoderTFloat64{fn: f}
 }
@@ -1535,12 +1535,12 @@ func (c *encoderTFloat64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTFloat64) Call(args []interface{}) []interface{} {
+func (c *encoderTFloat64) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(float64))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTFloat64) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTFloat64) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(float64))
 }
 
@@ -1548,7 +1548,7 @@ type encoderTFloat64E struct {
 	fn func(reflect.Type, float64) ([]byte, error)
 }
 
-func encoderMakerTFloat64E(fn interface{}) reflectx.Func {
+func encoderMakerTFloat64E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, float64) ([]byte, error))
 	return &encoderTFloat64E{fn: f}
 }
@@ -1561,12 +1561,12 @@ func (c *encoderTFloat64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTFloat64E) Call(args []interface{}) []interface{} {
+func (c *encoderTFloat64E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(float64))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTFloat64E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTFloat64E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(float64))
 }
 
@@ -1574,7 +1574,7 @@ type encoderTypex_T struct {
 	fn func(typex.T) []byte
 }
 
-func encoderMakerTypex_T(fn interface{}) reflectx.Func {
+func encoderMakerTypex_T(fn any) reflectx.Func {
 	f := fn.(func(typex.T) []byte)
 	return &encoderTypex_T{fn: f}
 }
@@ -1587,12 +1587,12 @@ func (c *encoderTypex_T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_T) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_T) Call(args []any) []any {
 	out := c.fn(args[0].(typex.T))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_T) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_T) Call1x1(v any) any {
 	return c.fn(v.(typex.T))
 }
 
@@ -1600,7 +1600,7 @@ type encoderTypex_TE struct {
 	fn func(typex.T) ([]byte, error)
 }
 
-func encoderMakerTypex_TE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_TE(fn any) reflectx.Func {
 	f := fn.(func(typex.T) ([]byte, error))
 	return &encoderTypex_TE{fn: f}
 }
@@ -1613,12 +1613,12 @@ func (c *encoderTypex_TE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_TE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_TE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.T))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_TE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_TE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.T))
 }
 
@@ -1626,7 +1626,7 @@ type encoderTTypex_T struct {
 	fn func(reflect.Type, typex.T) []byte
 }
 
-func encoderMakerTTypex_T(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_T(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.T) []byte)
 	return &encoderTTypex_T{fn: f}
 }
@@ -1639,12 +1639,12 @@ func (c *encoderTTypex_T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_T) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_T) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.T))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_T) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_T) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.T))
 }
 
@@ -1652,7 +1652,7 @@ type encoderTTypex_TE struct {
 	fn func(reflect.Type, typex.T) ([]byte, error)
 }
 
-func encoderMakerTTypex_TE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_TE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.T) ([]byte, error))
 	return &encoderTTypex_TE{fn: f}
 }
@@ -1665,12 +1665,12 @@ func (c *encoderTTypex_TE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_TE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_TE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.T))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_TE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_TE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.T))
 }
 
@@ -1678,7 +1678,7 @@ type encoderTypex_U struct {
 	fn func(typex.U) []byte
 }
 
-func encoderMakerTypex_U(fn interface{}) reflectx.Func {
+func encoderMakerTypex_U(fn any) reflectx.Func {
 	f := fn.(func(typex.U) []byte)
 	return &encoderTypex_U{fn: f}
 }
@@ -1691,12 +1691,12 @@ func (c *encoderTypex_U) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_U) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_U) Call(args []any) []any {
 	out := c.fn(args[0].(typex.U))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_U) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_U) Call1x1(v any) any {
 	return c.fn(v.(typex.U))
 }
 
@@ -1704,7 +1704,7 @@ type encoderTypex_UE struct {
 	fn func(typex.U) ([]byte, error)
 }
 
-func encoderMakerTypex_UE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_UE(fn any) reflectx.Func {
 	f := fn.(func(typex.U) ([]byte, error))
 	return &encoderTypex_UE{fn: f}
 }
@@ -1717,12 +1717,12 @@ func (c *encoderTypex_UE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_UE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_UE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.U))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_UE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_UE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.U))
 }
 
@@ -1730,7 +1730,7 @@ type encoderTTypex_U struct {
 	fn func(reflect.Type, typex.U) []byte
 }
 
-func encoderMakerTTypex_U(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_U(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.U) []byte)
 	return &encoderTTypex_U{fn: f}
 }
@@ -1743,12 +1743,12 @@ func (c *encoderTTypex_U) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_U) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_U) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.U))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_U) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_U) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.U))
 }
 
@@ -1756,7 +1756,7 @@ type encoderTTypex_UE struct {
 	fn func(reflect.Type, typex.U) ([]byte, error)
 }
 
-func encoderMakerTTypex_UE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_UE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.U) ([]byte, error))
 	return &encoderTTypex_UE{fn: f}
 }
@@ -1769,12 +1769,12 @@ func (c *encoderTTypex_UE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_UE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_UE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.U))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_UE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_UE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.U))
 }
 
@@ -1782,7 +1782,7 @@ type encoderTypex_V struct {
 	fn func(typex.V) []byte
 }
 
-func encoderMakerTypex_V(fn interface{}) reflectx.Func {
+func encoderMakerTypex_V(fn any) reflectx.Func {
 	f := fn.(func(typex.V) []byte)
 	return &encoderTypex_V{fn: f}
 }
@@ -1795,12 +1795,12 @@ func (c *encoderTypex_V) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_V) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_V) Call(args []any) []any {
 	out := c.fn(args[0].(typex.V))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_V) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_V) Call1x1(v any) any {
 	return c.fn(v.(typex.V))
 }
 
@@ -1808,7 +1808,7 @@ type encoderTypex_VE struct {
 	fn func(typex.V) ([]byte, error)
 }
 
-func encoderMakerTypex_VE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_VE(fn any) reflectx.Func {
 	f := fn.(func(typex.V) ([]byte, error))
 	return &encoderTypex_VE{fn: f}
 }
@@ -1821,12 +1821,12 @@ func (c *encoderTypex_VE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_VE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_VE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.V))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_VE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_VE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.V))
 }
 
@@ -1834,7 +1834,7 @@ type encoderTTypex_V struct {
 	fn func(reflect.Type, typex.V) []byte
 }
 
-func encoderMakerTTypex_V(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_V(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.V) []byte)
 	return &encoderTTypex_V{fn: f}
 }
@@ -1847,12 +1847,12 @@ func (c *encoderTTypex_V) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_V) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_V) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.V))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_V) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_V) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.V))
 }
 
@@ -1860,7 +1860,7 @@ type encoderTTypex_VE struct {
 	fn func(reflect.Type, typex.V) ([]byte, error)
 }
 
-func encoderMakerTTypex_VE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_VE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.V) ([]byte, error))
 	return &encoderTTypex_VE{fn: f}
 }
@@ -1873,12 +1873,12 @@ func (c *encoderTTypex_VE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_VE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_VE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.V))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_VE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_VE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.V))
 }
 
@@ -1886,7 +1886,7 @@ type encoderTypex_W struct {
 	fn func(typex.W) []byte
 }
 
-func encoderMakerTypex_W(fn interface{}) reflectx.Func {
+func encoderMakerTypex_W(fn any) reflectx.Func {
 	f := fn.(func(typex.W) []byte)
 	return &encoderTypex_W{fn: f}
 }
@@ -1899,12 +1899,12 @@ func (c *encoderTypex_W) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_W) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_W) Call(args []any) []any {
 	out := c.fn(args[0].(typex.W))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_W) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_W) Call1x1(v any) any {
 	return c.fn(v.(typex.W))
 }
 
@@ -1912,7 +1912,7 @@ type encoderTypex_WE struct {
 	fn func(typex.W) ([]byte, error)
 }
 
-func encoderMakerTypex_WE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_WE(fn any) reflectx.Func {
 	f := fn.(func(typex.W) ([]byte, error))
 	return &encoderTypex_WE{fn: f}
 }
@@ -1925,12 +1925,12 @@ func (c *encoderTypex_WE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_WE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_WE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.W))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_WE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_WE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.W))
 }
 
@@ -1938,7 +1938,7 @@ type encoderTTypex_W struct {
 	fn func(reflect.Type, typex.W) []byte
 }
 
-func encoderMakerTTypex_W(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_W(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.W) []byte)
 	return &encoderTTypex_W{fn: f}
 }
@@ -1951,12 +1951,12 @@ func (c *encoderTTypex_W) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_W) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_W) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.W))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_W) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_W) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.W))
 }
 
@@ -1964,7 +1964,7 @@ type encoderTTypex_WE struct {
 	fn func(reflect.Type, typex.W) ([]byte, error)
 }
 
-func encoderMakerTTypex_WE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_WE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.W) ([]byte, error))
 	return &encoderTTypex_WE{fn: f}
 }
@@ -1977,12 +1977,12 @@ func (c *encoderTTypex_WE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_WE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_WE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.W))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_WE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_WE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.W))
 }
 
@@ -1990,7 +1990,7 @@ type encoderTypex_X struct {
 	fn func(typex.X) []byte
 }
 
-func encoderMakerTypex_X(fn interface{}) reflectx.Func {
+func encoderMakerTypex_X(fn any) reflectx.Func {
 	f := fn.(func(typex.X) []byte)
 	return &encoderTypex_X{fn: f}
 }
@@ -2003,12 +2003,12 @@ func (c *encoderTypex_X) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_X) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_X) Call(args []any) []any {
 	out := c.fn(args[0].(typex.X))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_X) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_X) Call1x1(v any) any {
 	return c.fn(v.(typex.X))
 }
 
@@ -2016,7 +2016,7 @@ type encoderTypex_XE struct {
 	fn func(typex.X) ([]byte, error)
 }
 
-func encoderMakerTypex_XE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_XE(fn any) reflectx.Func {
 	f := fn.(func(typex.X) ([]byte, error))
 	return &encoderTypex_XE{fn: f}
 }
@@ -2029,12 +2029,12 @@ func (c *encoderTypex_XE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_XE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_XE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.X))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_XE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_XE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.X))
 }
 
@@ -2042,7 +2042,7 @@ type encoderTTypex_X struct {
 	fn func(reflect.Type, typex.X) []byte
 }
 
-func encoderMakerTTypex_X(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_X(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.X) []byte)
 	return &encoderTTypex_X{fn: f}
 }
@@ -2055,12 +2055,12 @@ func (c *encoderTTypex_X) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_X) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_X) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.X))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_X) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_X) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.X))
 }
 
@@ -2068,7 +2068,7 @@ type encoderTTypex_XE struct {
 	fn func(reflect.Type, typex.X) ([]byte, error)
 }
 
-func encoderMakerTTypex_XE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_XE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.X) ([]byte, error))
 	return &encoderTTypex_XE{fn: f}
 }
@@ -2081,12 +2081,12 @@ func (c *encoderTTypex_XE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_XE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_XE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.X))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_XE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_XE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.X))
 }
 
@@ -2094,7 +2094,7 @@ type encoderTypex_Y struct {
 	fn func(typex.Y) []byte
 }
 
-func encoderMakerTypex_Y(fn interface{}) reflectx.Func {
+func encoderMakerTypex_Y(fn any) reflectx.Func {
 	f := fn.(func(typex.Y) []byte)
 	return &encoderTypex_Y{fn: f}
 }
@@ -2107,12 +2107,12 @@ func (c *encoderTypex_Y) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_Y) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_Y) Call(args []any) []any {
 	out := c.fn(args[0].(typex.Y))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_Y) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_Y) Call1x1(v any) any {
 	return c.fn(v.(typex.Y))
 }
 
@@ -2120,7 +2120,7 @@ type encoderTypex_YE struct {
 	fn func(typex.Y) ([]byte, error)
 }
 
-func encoderMakerTypex_YE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_YE(fn any) reflectx.Func {
 	f := fn.(func(typex.Y) ([]byte, error))
 	return &encoderTypex_YE{fn: f}
 }
@@ -2133,12 +2133,12 @@ func (c *encoderTypex_YE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_YE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_YE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.Y))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_YE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_YE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.Y))
 }
 
@@ -2146,7 +2146,7 @@ type encoderTTypex_Y struct {
 	fn func(reflect.Type, typex.Y) []byte
 }
 
-func encoderMakerTTypex_Y(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_Y(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.Y) []byte)
 	return &encoderTTypex_Y{fn: f}
 }
@@ -2159,12 +2159,12 @@ func (c *encoderTTypex_Y) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_Y) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_Y) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.Y))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_Y) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_Y) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.Y))
 }
 
@@ -2172,7 +2172,7 @@ type encoderTTypex_YE struct {
 	fn func(reflect.Type, typex.Y) ([]byte, error)
 }
 
-func encoderMakerTTypex_YE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_YE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.Y) ([]byte, error))
 	return &encoderTTypex_YE{fn: f}
 }
@@ -2185,12 +2185,12 @@ func (c *encoderTTypex_YE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_YE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_YE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.Y))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_YE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_YE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.Y))
 }
 
@@ -2198,7 +2198,7 @@ type encoderTypex_Z struct {
 	fn func(typex.Z) []byte
 }
 
-func encoderMakerTypex_Z(fn interface{}) reflectx.Func {
+func encoderMakerTypex_Z(fn any) reflectx.Func {
 	f := fn.(func(typex.Z) []byte)
 	return &encoderTypex_Z{fn: f}
 }
@@ -2211,12 +2211,12 @@ func (c *encoderTypex_Z) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_Z) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_Z) Call(args []any) []any {
 	out := c.fn(args[0].(typex.Z))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTypex_Z) Call1x1(v interface{}) interface{} {
+func (c *encoderTypex_Z) Call1x1(v any) any {
 	return c.fn(v.(typex.Z))
 }
 
@@ -2224,7 +2224,7 @@ type encoderTypex_ZE struct {
 	fn func(typex.Z) ([]byte, error)
 }
 
-func encoderMakerTypex_ZE(fn interface{}) reflectx.Func {
+func encoderMakerTypex_ZE(fn any) reflectx.Func {
 	f := fn.(func(typex.Z) ([]byte, error))
 	return &encoderTypex_ZE{fn: f}
 }
@@ -2237,12 +2237,12 @@ func (c *encoderTypex_ZE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTypex_ZE) Call(args []interface{}) []interface{} {
+func (c *encoderTypex_ZE) Call(args []any) []any {
 	v, err := c.fn(args[0].(typex.Z))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *encoderTypex_ZE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *encoderTypex_ZE) Call1x2(v any) (any, any) {
 	return c.fn(v.(typex.Z))
 }
 
@@ -2250,7 +2250,7 @@ type encoderTTypex_Z struct {
 	fn func(reflect.Type, typex.Z) []byte
 }
 
-func encoderMakerTTypex_Z(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_Z(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.Z) []byte)
 	return &encoderTTypex_Z{fn: f}
 }
@@ -2263,12 +2263,12 @@ func (c *encoderTTypex_Z) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_Z) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_Z) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].(typex.Z))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *encoderTTypex_Z) Call2x1(t, v interface{}) interface{} {
+func (c *encoderTTypex_Z) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.(typex.Z))
 }
 
@@ -2276,7 +2276,7 @@ type encoderTTypex_ZE struct {
 	fn func(reflect.Type, typex.Z) ([]byte, error)
 }
 
-func encoderMakerTTypex_ZE(fn interface{}) reflectx.Func {
+func encoderMakerTTypex_ZE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, typex.Z) ([]byte, error))
 	return &encoderTTypex_ZE{fn: f}
 }
@@ -2289,11 +2289,11 @@ func (c *encoderTTypex_ZE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *encoderTTypex_ZE) Call(args []interface{}) []interface{} {
+func (c *encoderTTypex_ZE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].(typex.Z))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *encoderTTypex_ZE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *encoderTTypex_ZE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.(typex.Z))
 }

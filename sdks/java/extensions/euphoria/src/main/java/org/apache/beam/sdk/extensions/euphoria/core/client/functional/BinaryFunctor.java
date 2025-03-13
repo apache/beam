@@ -21,9 +21,14 @@ import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 
-/** Functor of two arguments. */
+/**
+ * Functor of two arguments.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface BinaryFunctor<LeftT, RightT, OutputT> extends Serializable {
 
   void apply(LeftT left, RightT right, Collector<OutputT> context);

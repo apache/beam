@@ -17,7 +17,7 @@
 
 """Test for the juliaset example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import os
@@ -25,12 +25,14 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class JuliaSetTest(unittest.TestCase):
-
   def setUp(self):
     self.test_files = {}
     self.test_files['output_coord_file_name'] = self.generate_temp_file()
@@ -75,13 +77,15 @@ class JuliaSetTest(unittest.TestCase):
         self.assertTrue(coordinates)
         self.assertEqual(grid_size, len(coordinates))
 
+  @unittest.skip(
+      'TODO(silviuc): Reactivate the test when --image_output is '
+      'supported.')
   def test_generate_fractal_image(self):
     temp_image_file = self.test_files['output_image_file_name']
     self.run_example(10, image_file_name=temp_image_file)
 
     # Ensure that the image was saved properly.
-    # TODO(silviuc): Reactivate the test when --image_output is supported.
-    # self.assertTrue(os.stat(temp_image_file).st_size > 0)
+    self.assertTrue(os.stat(temp_image_file).st_size > 0)
 
 
 if __name__ == '__main__':

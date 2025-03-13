@@ -23,22 +23,27 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
 	input  = flag.String("input", "publicdata:samples.shakespeare", "Shakespeare plays BQ table.")
 	output = flag.String("output", "", "Output BQ table.")
 
-	minLength = flag.Int("min_length", 9, "Minimum word length")
+	minLength   = flag.Int("min_length", 9, "Minimum word length")
+	small_words = beam.NewCounter("extract", "small_words")
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)).Elem())
+	register.Function2x1(concatFn)
+	register.Function2x1(formatFn)
+	register.DoFn3x0[context.Context, WordRow, func(string, string)](&extractFn{})
+	register.Emitter2[string, string]()
 }
 
 type WordRow struct {
@@ -67,11 +72,12 @@ type extractFn struct {
 	MinLength int `json:"min_length"`
 }
 
-func (f *extractFn) ProcessElement(row WordRow, emit func(string, string)) {
+func (f *extractFn) ProcessElement(ctx context.Context, row WordRow, emit func(string, string)) {
 	if len(row.Word) >= f.MinLength {
 		emit(row.Word, row.Corpus)
+	} else {
+		small_words.Inc(ctx, 1)
 	}
-	// TODO(herohde) 7/14/2017: increment counter for "small words"
 }
 
 // TODO(herohde) 7/14/2017: the choice of a string (instead of []string) for the

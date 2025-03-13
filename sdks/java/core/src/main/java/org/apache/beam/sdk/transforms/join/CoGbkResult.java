@@ -21,22 +21,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import java.util.function.Function;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.PeekingIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +52,9 @@ import org.slf4j.LoggerFactory;
  * A row result of a {@link CoGroupByKey}. This is a tuple of {@link Iterable}s produced for a given
  * key, and these can be accessed in different ways.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CoGbkResult {
   /**
    * A map of integer union tags to a list of union objects. Note: the key and the embedded union
@@ -56,7 +67,17 @@ public class CoGbkResult {
 
   private static final int DEFAULT_IN_MEMORY_ELEMENT_COUNT = 10_000;
 
+  /**
+   * Always try to cache at least this many elements per tag, even if it requires caching more than
+   * the total in memory count.
+   */
+  private static final int DEFAULT_MIN_ELEMENTS_PER_TAG = 100;
+
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResult.class);
+
+  private Counter keyCount = Metrics.counter(CoGbkResult.class, "cogbk-keys");
+
+  private Counter largeKeyCount = Metrics.counter(CoGbkResult.class, "cogbk-large-keys");
 
   /**
    * A row in the {@link PCollection} resulting from a {@link CoGroupByKey} transform. Currently,
@@ -66,16 +87,20 @@ public class CoGbkResult {
    * @param taggedValues the raw results from a group-by-key
    */
   public CoGbkResult(CoGbkResultSchema schema, Iterable<RawUnionValue> taggedValues) {
-    this(schema, taggedValues, DEFAULT_IN_MEMORY_ELEMENT_COUNT);
+    this(schema, taggedValues, DEFAULT_IN_MEMORY_ELEMENT_COUNT, DEFAULT_MIN_ELEMENTS_PER_TAG);
   }
 
   @SuppressWarnings("unchecked")
   public CoGbkResult(
-      CoGbkResultSchema schema, Iterable<RawUnionValue> taggedValues, int inMemoryElementCount) {
+      CoGbkResultSchema schema,
+      Iterable<RawUnionValue> taggedValues,
+      int inMemoryElementCount,
+      int minElementsPerTag) {
     this.schema = schema;
-    valueMap = new ArrayList<>();
+    keyCount.inc();
+    List<List<Object>> valuesByTag = new ArrayList<>();
     for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-      valueMap.add(new ArrayList<>());
+      valuesByTag.add(new ArrayList<>());
     }
 
     // Demultiplex the first imMemoryElementCount tagged union values
@@ -83,8 +108,9 @@ public class CoGbkResult {
     final Iterator<RawUnionValue> taggedIter = taggedValues.iterator();
     int elementCount = 0;
     while (taggedIter.hasNext()) {
-      if (elementCount++ >= inMemoryElementCount && taggedIter instanceof Reiterator) {
+      if (elementCount++ >= inMemoryElementCount) {
         // Let the tails be lazy.
+        largeKeyCount.inc();
         break;
       }
       RawUnionValue value = taggedIter.next();
@@ -95,40 +121,67 @@ public class CoGbkResult {
         throw new IllegalStateException(
             "union tag " + unionTag + " has no corresponding tuple tag in the result schema");
       }
-      List<Object> valueList = (List<Object>) valueMap.get(unionTag);
-      valueList.add(value.getValue());
+      valuesByTag.get(unionTag).add(value.getValue());
     }
 
-    if (taggedIter.hasNext()) {
-      // If we get here, there were more elements than we can afford to
-      // keep in memory, so we copy the re-iterable of remaining items
-      // and append filtered views to each of the sorted lists computed earlier.
-      LOG.info(
-          "CoGbkResult has more than "
-              + inMemoryElementCount
-              + " elements,"
-              + " reiteration (which may be slow) is required.");
+    if (!taggedIter.hasNext()) {
+      // Everything fits into memory, just store it.
+      valueMap = (List) valuesByTag;
+      return;
+    }
+
+    // If we get here, there were more elements than we can afford to
+    // keep in memory, so we copy the re-iterable of remaining items
+    // and append filtered views to each of the sorted lists computed earlier.
+    LOG.info(
+        "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
+        inMemoryElementCount);
+    valueMap = new ArrayList<>();
+    Function<Integer, Iterable<Object>> makeIterable;
+    if (taggedIter instanceof Reiterator) {
       final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
-      // This is a trinary-state array recording whether a given tag is present in the tail. The
-      // initial value is null (unknown) for all tags, and the first iteration through the entire
-      // list will set these values to true or false to avoid needlessly iterating if filtering
-      // against a given tag would not match anything.
-      final Boolean[] containsTag = new Boolean[schema.size()];
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        updateUnionTag(tail, containsTag, unionTag);
-      }
-    }
-  }
 
-  private <T> void updateUnionTag(
-      final Reiterator<RawUnionValue> tail, final Boolean[] containsTag, final int unionTag) {
-    @SuppressWarnings("unchecked")
-    final Iterable<T> head = (Iterable<T>) valueMap.get(unionTag);
-    valueMap.set(
-        unionTag,
-        () ->
-            Iterators.concat(
-                head.iterator(), new UnionValueIterator<T>(unionTag, tail.copy(), containsTag)));
+      // As we iterate over this re-iterable (e.g. while iterating for one tag) we populate values
+      // for other observed tags, if any.
+      ObservingReiterator<RawUnionValue> tip =
+          new ObservingReiterator<>(
+              tail,
+              new ObservingReiterator.Observer<RawUnionValue>() {
+                @Override
+                public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
+                  ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag()))
+                      .offer(reiterator);
+                }
+
+                @Override
+                public void done() {
+                  // Inform all tags that we have reached the end of the iterable, so anything that
+                  // can be observed has been observed.
+                  for (Iterable<?> iter : valueMap) {
+                    ((TagIterable<?>) iter).finish();
+                  }
+                }
+              });
+      makeIterable =
+          unionTag ->
+              new TagIterable<Object>(valuesByTag.get(unionTag), unionTag, minElementsPerTag, tip);
+    } else {
+      // Not reiterable, we have to filter each time, but there are some optimizations we can do...
+      boolean[] sharedSeenEnd = {false};
+      makeIterable =
+          unionTag ->
+              recordingFilteringIterable(
+                  taggedValues,
+                  unionTag,
+                  Math.max(
+                      inMemoryElementCount / (schema.size() * schema.size()), minElementsPerTag),
+                  valueMap,
+                  sharedSeenEnd);
+    }
+
+    for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+      valueMap.add(makeIterable.apply(unionTag));
+    }
   }
 
   public boolean isEmpty() {
@@ -196,14 +249,12 @@ public class CoGbkResult {
    * <p>If tag was not part of the original {@link CoGroupByKey}, throws an
    * IllegalArgumentException.
    */
-  @Nullable
-  public <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
+  public @Nullable <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
   }
 
   /** Like {@link #getOnly(TupleTag, Object)} but using a String instead of a TupleTag. */
-  @Nullable
-  public <V> V getOnly(String tag, @Nullable V defaultValue) {
+  public @Nullable <V> V getOnly(String tag, @Nullable V defaultValue) {
     return getOnly(new TupleTag<>(tag), defaultValue);
   }
 
@@ -269,7 +320,7 @@ public class CoGbkResult {
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       if (this == object) {
         return true;
       }
@@ -337,8 +388,8 @@ public class CoGbkResult {
     this.valueMap = valueMap;
   }
 
-  @Nullable
-  private <V> V innerGetOnly(TupleTag<V> tag, @Nullable V defaultValue, boolean useDefault) {
+  private @Nullable <V> V innerGetOnly(
+      TupleTag<V> tag, @Nullable V defaultValue, boolean useDefault) {
     int index = schema.getIndex(tag);
     if (index < 0) {
       throw new IllegalArgumentException("TupleTag " + tag + " is not in the schema");
@@ -362,62 +413,524 @@ public class CoGbkResult {
   }
 
   /**
-   * Lazily filters and recasts an {@code Iterator<RawUnionValue>} into an {@code Iterator<V>},
-   * where V is the type of the raw union value's contents.
+   * A re-iterable that notifies an observer at every advance, and upon finishing, but only once
+   * across all copies.
+   *
+   * @param <T> The value type of the underlying iterable.
    */
-  private static class UnionValueIterator<V> implements Iterator<V> {
+  private static class ObservingReiterator<T> implements Reiterator<T> {
 
-    private final int tag;
-    private final PeekingIterator<RawUnionValue> unions;
-    private final Boolean[] containsTag;
+    public interface Observer<T> {
+      /**
+       * Called exactly once, across all copies before advancing this iterator.
+       *
+       * <p>The iterator rather than the element is given so that the callee can perform a copy if
+       * desired. This class offers a peek method to get at the current element without disturbing
+       * the state of this iterator.
+       */
+      void observeAt(ObservingReiterator<T> reiterator);
 
-    private UnionValueIterator(int tag, Iterator<RawUnionValue> unions, Boolean[] containsTag) {
-      this.tag = tag;
-      this.unions = Iterators.peekingIterator(unions);
-      this.containsTag = containsTag;
+      /** Called exactly once, across all copies, once this iterator is exhausted. */
+      void done();
+    }
+
+    private PeekingReiterator<IndexingReiterator.Indexed<T>> underlying;
+    private Observer<T> observer;
+
+    // Used to keep track of what has been observed so far.
+    // These are arrays to facilitate sharing values among all copies of the same root Reiterator.
+    private final int[] lastObserved;
+    private final boolean[] doneHasRun;
+    private final PeekingReiterator<IndexingReiterator.Indexed<T>>[] mostAdvanced;
+
+    public ObservingReiterator(Reiterator<T> underlying, Observer<T> observer) {
+      this(new PeekingReiterator<>(new IndexingReiterator<>(underlying)), observer);
+    }
+
+    @SuppressWarnings("rawtypes") // array creation
+    public ObservingReiterator(
+        PeekingReiterator<IndexingReiterator.Indexed<T>> underlying, Observer<T> observer) {
+      this(
+          underlying,
+          observer,
+          new int[] {-1},
+          new boolean[] {false},
+          new PeekingReiterator[] {underlying});
+    }
+
+    private ObservingReiterator(
+        PeekingReiterator<IndexingReiterator.Indexed<T>> underlying,
+        Observer<T> observer,
+        int[] lastObserved,
+        boolean[] doneHasRun,
+        PeekingReiterator<IndexingReiterator.Indexed<T>>[] mostAdvanced) {
+      this.underlying = underlying;
+      this.observer = observer;
+      this.lastObserved = lastObserved;
+      this.doneHasRun = doneHasRun;
+      this.mostAdvanced = mostAdvanced;
+    }
+
+    @Override
+    public Reiterator<T> copy() {
+      return new ObservingReiterator<T>(
+          underlying.copy(), observer, lastObserved, doneHasRun, mostAdvanced);
     }
 
     @Override
     public boolean hasNext() {
-      if (Boolean.FALSE.equals(containsTag[tag])) {
-        return false;
+      boolean hasNext = underlying.hasNext();
+      if (!hasNext && !doneHasRun[0]) {
+        mostAdvanced[0] = underlying;
+        observer.done();
+        doneHasRun[0] = true;
       }
-      advance();
-      if (unions.hasNext()) {
-        return true;
+      return hasNext;
+    }
+
+    @Override
+    public T next() {
+      peek(); // trigger observation *before* advancing
+      return underlying.next().value;
+    }
+
+    public T peek() {
+      IndexingReiterator.Indexed<T> next = underlying.peek();
+      if (next.index > lastObserved[0]) {
+        assert next.index == lastObserved[0] + 1;
+        mostAdvanced[0] = underlying;
+        lastObserved[0] = next.index;
+        observer.observeAt(this);
+      }
+      return next.value;
+    }
+
+    public void fastForward() {
+      if (underlying != mostAdvanced[0]) {
+        underlying = mostAdvanced[0].copy();
+      }
+    }
+  }
+
+  /**
+   * Assigns a monotonically increasing index to each item in the underling Reiterator.
+   *
+   * @param <T> The value type of the underlying iterable.
+   */
+  private static class IndexingReiterator<T> implements Reiterator<IndexingReiterator.Indexed<T>> {
+
+    private Reiterator<T> underlying;
+    private int index;
+
+    public IndexingReiterator(Reiterator<T> underlying) {
+      this(underlying, 0);
+    }
+
+    public IndexingReiterator(Reiterator<T> underlying, int start) {
+      this.underlying = underlying;
+      this.index = start;
+    }
+
+    @Override
+    public IndexingReiterator<T> copy() {
+      return new IndexingReiterator<>(underlying.copy(), index);
+    }
+
+    @Override
+    public boolean hasNext() {
+      return underlying.hasNext();
+    }
+
+    @Override
+    public Indexed<T> next() {
+      return new Indexed<T>(index++, underlying.next());
+    }
+
+    public static class Indexed<T> {
+      public final int index;
+      public final T value;
+
+      public Indexed(int index, T value) {
+        this.index = index;
+        this.value = value;
+      }
+    }
+  }
+
+  /**
+   * Adapts an Reiterator, giving it a peek() method that can be used to observe the next element
+   * without consuming it.
+   *
+   * @param <T> The value type of the underlying iterable.
+   */
+  private static class PeekingReiterator<T> implements Reiterator<T> {
+    private Reiterator<T> underlying;
+    private T next;
+    private boolean nextIsValid;
+
+    public PeekingReiterator(Reiterator<T> underlying) {
+      this(underlying, null, false);
+    }
+
+    private PeekingReiterator(Reiterator<T> underlying, T next, boolean nextIsValid) {
+      this.underlying = underlying;
+      this.next = next;
+      this.nextIsValid = nextIsValid;
+    }
+
+    @Override
+    public PeekingReiterator<T> copy() {
+      return new PeekingReiterator<>(underlying.copy(), next, nextIsValid);
+    }
+
+    @Override
+    public boolean hasNext() {
+      return nextIsValid || underlying.hasNext();
+    }
+
+    @Override
+    public T next() {
+      if (nextIsValid) {
+        nextIsValid = false;
+        return next;
       } else {
-        // Now that we've iterated over all the values, we can resolve all the "unknown" null
-        // values to false.
-        for (int i = 0; i < containsTag.length; i++) {
-          if (containsTag[i] == null) {
-            containsTag[i] = false;
+        return underlying.next();
+      }
+    }
+
+    public T peek() {
+      if (!nextIsValid) {
+        next = underlying.next();
+        nextIsValid = true;
+      }
+      return next;
+    }
+  }
+
+  /**
+   * An Iterable corresponding to a single tag.
+   *
+   * <p>The values in this iterable are populated lazily via the offer method as tip advances for
+   * any tag.
+   *
+   * @param <T> The value type of the corresponding tag.
+   */
+  private static class TagIterable<T> implements Iterable<T> {
+    int tag;
+    int cacheSize;
+
+    ObservingReiterator<RawUnionValue> tip;
+
+    List<T> head;
+    Reiterator<RawUnionValue> tail;
+    boolean finished;
+
+    public TagIterable(
+        List<T> head, int tag, int cacheSize, ObservingReiterator<RawUnionValue> tip) {
+      this.tag = tag;
+      this.cacheSize = cacheSize;
+      this.head = head;
+      this.tip = tip;
+    }
+
+    void offer(ObservingReiterator<RawUnionValue> tail) {
+      assert !finished;
+      assert tail.peek().getUnionTag() == tag;
+      if (head.size() < cacheSize) {
+        head.add((T) tail.peek().getValue());
+      } else if (this.tail == null) {
+        this.tail = tail.copy();
+      }
+    }
+
+    void finish() {
+      Metrics.counter(
+              CoGbkResult.class,
+              this.tail == null ? "cogbk-small-iterables" : "cogbk-large-iterables")
+          .inc();
+      finished = true;
+    }
+
+    void seek(int tag) {
+      while (tip.hasNext() && tip.peek().getUnionTag() != tag) {
+        tip.next();
+      }
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      return new Iterator<T>() {
+
+        boolean isDone;
+        boolean advanced;
+        T next;
+
+        /** Keeps track of the index, in head, that this iterator points to. */
+        int index = -1;
+        /** If the index is beyond what was cached in head, this is this iterators view of tail. */
+        Iterator<T> tailIter;
+
+        @Override
+        public boolean hasNext() {
+          if (!advanced) {
+            advance();
+          }
+          return !isDone;
+        }
+
+        @Override
+        public T next() {
+          if (!advanced) {
+            advance();
+          }
+          if (isDone) {
+            throw new NoSuchElementException();
+          }
+          advanced = false;
+          return next;
+        }
+
+        // Invariant: After advanced is called, either isDone is true or next is valid.
+        private void advance() {
+          assert !advanced;
+          assert !isDone;
+          advanced = true;
+
+          index++;
+          if (maybeAdvance()) {
+            return;
+          }
+
+          // We were unable to advance; advance tip to populate either head or tail.
+          tip.fastForward();
+          if (tip.hasNext()) {
+            tip.next();
+            seek(tag);
+          }
+
+          // A this point, either head or tail should be sufficient to advance.
+          Preconditions.checkState(maybeAdvance());
+        }
+
+        // Invariant: If returns true, either isDone is true or next is valid.
+        private boolean maybeAdvance() {
+          if (index < head.size()) {
+            // First consume head.
+            assert tailIter == null;
+            next = head.get(index);
+            return true;
+          } else if (tail != null) {
+            // Next consume tail, if any.
+            if (tailIter == null) {
+              tailIter =
+                  Iterators.transform(
+                      Iterators.filter(
+                          tail.copy(), taggedUnion -> taggedUnion.getUnionTag() == tag),
+                      taggedUnion -> (T) taggedUnion.getValue());
+            }
+            if (tailIter.hasNext()) {
+              next = tailIter.next();
+            } else {
+              isDone = true;
+            }
+            return true;
+          } else if (finished) {
+            // If there are no more elements in head, and tail was not populated, and we are
+            // finished, this is the end of the iteration.
+            isDone = true;
+            return true;
+          } else {
+            // We need more elements in either head or tail.
+            return false;
           }
         }
-        return false;
+      };
+    }
+  }
+
+  private Iterable<Object> recordingFilteringIterable(
+      Iterable<RawUnionValue> taggedIteratable,
+      int unionTag,
+      int minElementsPerTag,
+      List<Iterable<?>> sharedValueMap,
+      boolean[] sharedSeenEnd) {
+    return () ->
+        new RecordingFilteringIterator(
+            taggedIteratable, unionTag, minElementsPerTag, sharedValueMap, sharedSeenEnd);
+  }
+
+  /**
+   * This iterator implements the optimization that if there are below a certain number of values
+   * for a given tag we cache those values in memory rather than reiterating and filtering each
+   * time.
+   *
+   * <p>This is done lazily by having each iterator keep track of what it has seen locally, and the
+   * first one to reach the end updates the shared map. As an added optimization, this iterable is
+   * also updated in place if it only had a small number of elements.
+   *
+   * <p>Unfortuantely iterators do not promise deterministic ordering, so we cannot share the work
+   * computing the local maps until the iterator is entirely exhausted.
+   */
+  private static class RecordingFilteringIterator extends AbstractIterator<Object> {
+    private final Iterable<RawUnionValue> taggedIterable;
+    private final Iterator<RawUnionValue> taggedIterator;
+    private final int unionTag;
+
+    private final int minElementsPerTag;
+
+    private final List<List<Object>> localValueMap;
+    private final List<Iterable<?>> sharedValueMap;
+    private boolean[] sharedSeenEnd;
+
+    private enum RemainingStatus {
+      UNCOMPUTED,
+      UNCOMPUTABLE,
+      COMPUTED
+    }
+
+    private RemainingStatus remainingStatus = RemainingStatus.UNCOMPUTED;
+    private Iterator<Object> remaining;
+
+    public RecordingFilteringIterator(
+        Iterable<RawUnionValue> taggedIteratable,
+        int unionTag,
+        int minElementsPerTag,
+        List<Iterable<?>> sharedValueMap,
+        boolean[] sharedSeenEnd) {
+      this.taggedIterable = taggedIteratable;
+      this.taggedIterator = taggedIteratable.iterator();
+      this.unionTag = unionTag;
+      this.minElementsPerTag = minElementsPerTag;
+      localValueMap = new ArrayList<>();
+      for (int i = 0; i < sharedValueMap.size(); i++) {
+        localValueMap.add(new ArrayList<>());
       }
+      this.sharedValueMap = sharedValueMap;
+      this.sharedSeenEnd = sharedSeenEnd;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public V next() {
-      advance();
-      return (V) unions.next().getValue();
-    }
-
-    private void advance() {
-      while (unions.hasNext()) {
-        int curTag = unions.peek().getUnionTag();
-        containsTag[curTag] = true;
-        if (curTag == tag) {
-          break;
+    protected Object computeNext() {
+      if (sharedSeenEnd[0]) {
+        if (remainingStatus == RemainingStatus.UNCOMPUTED) {
+          // We iterated all the way to the end (likely on another iterator) and may have only found
+          // a small number of values associated with this tag. Update this iterator, if possible,
+          // to return them directly.
+          remainingStatus = computeRemaining(sharedValueMap.get(unionTag));
         }
-        unions.next();
+
+        if (remainingStatus == RemainingStatus.COMPUTED) {
+          if (remaining.hasNext()) {
+            return remaining.next();
+          } else {
+            return endOfData();
+          }
+        }
       }
+
+      // Look for the next value with this tag, keeping track of up to minElementsPerTag values of
+      // all other iterables as we go.
+      while (taggedIterator.hasNext()) {
+        RawUnionValue unionValue = taggedIterator.next();
+        if (!sharedSeenEnd[0]) {
+          List<Object> valuesForTag = localValueMap.get(unionValue.getUnionTag());
+          if (valuesForTag != null) {
+            if (valuesForTag.size() < minElementsPerTag) {
+              valuesForTag.add(unionValue.getValue());
+            } else {
+              localValueMap.set(unionValue.getUnionTag(), null);
+            }
+          }
+        }
+        if (unionValue.getUnionTag() == unionTag) {
+          return unionValue.getValue();
+        }
+      }
+
+      // We got to the end of the iterable, update the shared set of values with those sets that
+      // were small enough to cache.
+      if (!sharedSeenEnd[0]) {
+        Counter smallIterablesCount = Metrics.counter(CoGbkResult.class, "cogbk-small-iterables");
+        Counter largeIterablesCount = Metrics.counter(CoGbkResult.class, "cogbk-large-iterables");
+        for (int i = 0; i < sharedValueMap.size(); i++) {
+          List<Object> localValues = localValueMap.get(i);
+          (localValues == null ? largeIterablesCount : smallIterablesCount).inc();
+          sharedValueMap.set(
+              i, localValues != null ? localValues : simpleFilteringIterable(taggedIterable, i));
+        }
+        sharedSeenEnd[0] = true;
+      }
+
+      return endOfData();
     }
 
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
+    private RemainingStatus computeRemaining(Iterable<?> allValuesIter) {
+      if (!(allValuesIter instanceof Collection)) {
+        return RemainingStatus.UNCOMPUTABLE;
+      }
+      Collection<Object> allValues = (Collection<Object>) allValuesIter;
+      List<Object> seenValues = localValueMap.get(unionTag);
+      if (allValues.size() == seenValues.size()) {
+        remaining = Collections.emptyIterator();
+        return RemainingStatus.COMPUTED;
+      } else if (seenValues.size() == 0) {
+        remaining = allValues.iterator();
+        return RemainingStatus.COMPUTED;
+      } else if (seenValues.size() == 1) {
+        // Optimize the very common case.
+        Iterator<Object> iter = allValues.iterator();
+        if (Objects.equals(iter.next(), seenValues.get(0))) {
+          remaining = iter;
+          return RemainingStatus.COMPUTED;
+        } else {
+          ArrayList<Object> allButOne = Lists.newArrayList(allValues);
+          if (allButOne.remove(seenValues.get(0))) {
+            remaining = allButOne.iterator();
+            return RemainingStatus.COMPUTED;
+          } else {
+            return RemainingStatus.UNCOMPUTABLE;
+          }
+        }
+      } else {
+        try {
+          HashMultiset<Object> seenValueSet = HashMultiset.create(seenValues);
+          List<Object> unseenValues = new ArrayList<>();
+          for (Object value : allValues) {
+            if (!seenValueSet.remove(value)) {
+              unseenValues.add(value);
+            }
+          }
+          if (seenValueSet.isEmpty()) {
+            remaining = unseenValues.iterator();
+            return RemainingStatus.COMPUTED;
+          } else {
+            // Semantically equal values didn't hash or compare equal.
+            return RemainingStatus.UNCOMPUTABLE;
+          }
+        } catch (Exception exn) {
+          // There's no promise elements have correct hash semantics or properly handle nulls.
+          return RemainingStatus.UNCOMPUTABLE;
+        }
+      }
     }
+  }
+
+  private static Iterable<Object> simpleFilteringIterable(
+      Iterable<RawUnionValue> taggedIterable, int unionTag) {
+    return () ->
+        new AbstractIterator<Object>() {
+          Iterator<RawUnionValue> taggedIterator = taggedIterable.iterator();
+
+          @Override
+          protected Object computeNext() {
+            while (taggedIterator.hasNext()) {
+              RawUnionValue unionValue = taggedIterator.next();
+              if (unionValue.getUnionTag() == unionTag) {
+                return unionValue.getValue();
+              }
+            }
+            return endOfData();
+          }
+        };
   }
 }

@@ -16,15 +16,17 @@
 # limitations under the License.
 ###############################################################################
 
-FROM debian:stretch
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+FROM gcr.io/distroless/base-nossl-debian12:latest
+LABEL Author "Apache Beam <dev@beam.apache.org>"
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        ca-certificates \
-        && \
-    rm -rf /var/lib/apt/lists/*
+ARG TARGETOS
+ARG TARGETARCH
 
-ADD target/linux_amd64/boot /opt/apache/beam/
+ADD target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
+COPY target/LICENSE /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
+
+# Add Go licenses.
+COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 ENTRYPOINT ["/opt/apache/beam/boot"]

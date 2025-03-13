@@ -18,9 +18,9 @@ package graph
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 4/21/2017: Bind is where most user mistakes will likely show
@@ -33,9 +33,11 @@ import (
 //
 // For example,
 //
-//     func (t EventTime, k typex.X, v int, emit func(string, typex.X))
+//	func (t EventTime, k typex.X, v int, emit func(string, typex.X))
+//
 // or
-//     func (context.Context, k typex.X, v int) (string, typex.X, error)
+//
+//	func (context.Context, k typex.X, v int) (string, typex.X, error)
 //
 // are UserFns that may take one or two incoming fulltypes: either KV<X,int>
 // or X with a singleton side input of type int. For the purpose of the
@@ -45,18 +47,18 @@ import (
 //
 // If either was bound to the input type [KV<string,int>], bind would return:
 //
-//     inbound:  [Main: KV<X,int>]
-//     outbound: [KV<string,X>]
-//     output:   [KV<string,string>]
+//	inbound:  [Main: KV<X,int>]
+//	outbound: [KV<string,X>]
+//	output:   [KV<string,string>]
 //
 // Note that it propagates the assignment of X to string in the output type.
 //
 // If either was instead bound to the input fulltypes [float, int], the
 // result would be:
 //
-//     inbound:  [Main: X, Singleton: int]
-//     outbound: [KV<string,X>]
-//     output:   [KV<string, float>]
+//	inbound:  [Main: X, Singleton: int]
+//	outbound: [KV<string,X>]
+//	output:   [KV<string, float>]
 //
 // Here, the inbound shape and output types are different from before.
 func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
@@ -132,13 +134,13 @@ func returnTypes(list []funcx.ReturnParam) []reflect.Type {
 
 func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, error) {
 	// log.Printf("Bind inbound: %v %v", fn, in)
-	addContext := func(err error, p []funcx.FnParam, in interface{}) error {
+	addContext := func(err error, p []funcx.FnParam, in any) error {
 		return errors.WithContextf(err, "binding params %v to input %v", p, in)
 	}
 
 	var inbound []typex.FullType
 	var kinds []InputKind
-	params := funcx.SubParams(fn.Param, fn.Params(funcx.FnValue|funcx.FnIter|funcx.FnReIter)...)
+	params := funcx.SubParams(fn.Param, fn.Params(funcx.FnValue|funcx.FnIter|funcx.FnReIter|funcx.FnMultiMap)...)
 	index := 0
 	for _, input := range in {
 		arity, err := inboundArity(input, index == 0)
@@ -212,6 +214,9 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				kind = ReIter
 				other = typex.New(trimmed[0])
 
+			case funcx.FnMultiMap:
+				return nil, kind, errors.Errorf("input to MultiMap side input must be KV, got %v", t)
+
 			default:
 				return nil, kind, errors.Errorf("unexpected param kind: %v", arg)
 			}
@@ -228,8 +233,6 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				}
 				other = typex.NewKV(typex.New(args[0].T), typex.New(args[1].T))
 			} else {
-				// TODO(herohde) 6/29/2017: side input map form.
-
 				switch args[0].Kind {
 				case funcx.FnIter:
 					values, _ := funcx.UnfoldIter(args[0].T)
@@ -249,6 +252,15 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 					}
 
 					kind = ReIter
+					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
+
+				case funcx.FnMultiMap:
+					values, _ := funcx.UnfoldMultiMap(args[0].T)
+					kind = MultiMap
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 2 {
+						return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
+					}
 					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
 
 				default:

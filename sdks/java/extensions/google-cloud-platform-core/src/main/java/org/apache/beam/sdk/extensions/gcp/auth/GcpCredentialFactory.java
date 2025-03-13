@@ -17,45 +17,72 @@
  */
 package org.apache.beam.sdk.extensions.gcp.auth;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ImpersonatedCredentials;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Construct an oauth credential to be used by the SDK and the SDK workers. Returns a GCP
  * credential.
  */
 public class GcpCredentialFactory implements CredentialFactory {
-  /**
-   * The scope cloud-platform provides access to all Cloud Platform resources. cloud-platform isn't
-   * sufficient yet for talking to datastore so we request those resources separately.
-   *
-   * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for services we access
-   * directly (GCS) as opposed to through the backend (BigQuery, GCE), we need to explicitly request
-   * that scope.
-   */
-  private static final List<String> SCOPES =
-      Arrays.asList(
-          "https://www.googleapis.com/auth/cloud-platform",
-          "https://www.googleapis.com/auth/devstorage.full_control",
-          "https://www.googleapis.com/auth/userinfo.email",
-          "https://www.googleapis.com/auth/datastore",
-          "https://www.googleapis.com/auth/pubsub");
+  // A list of OAuth scopes to request when creating a credential.
+  private List<String> oauthScopes;
+  // If non-null, a list of service account emails to be used as an impersonation chain.
+  private @Nullable List<String> impersonateServiceAccountChain;
 
-  private static final GcpCredentialFactory INSTANCE = new GcpCredentialFactory();
+  private GcpCredentialFactory(
+      List<String> oauthScopes, @Nullable List<String> impersonateServiceAccountChain) {
+    if (impersonateServiceAccountChain != null) {
+      checkArgument(impersonateServiceAccountChain.size() > 0);
+    }
+
+    this.oauthScopes = oauthScopes;
+    this.impersonateServiceAccountChain = impersonateServiceAccountChain;
+  }
 
   public static GcpCredentialFactory fromOptions(PipelineOptions options) {
-    return INSTANCE;
+    GcpOptions gcpOptions = options.as(GcpOptions.class);
+    @Nullable String impersonateServiceAccountArg = gcpOptions.getImpersonateServiceAccount();
+
+    @Nullable
+    List<String> impersonateServiceAccountChain =
+        impersonateServiceAccountArg == null
+            ? null
+            : Arrays.asList(impersonateServiceAccountArg.split(","));
+
+    return new GcpCredentialFactory(gcpOptions.getGcpOauthScopes(), impersonateServiceAccountChain);
   }
 
   /** Returns a default GCP {@link Credentials} or null when it fails. */
   @Override
-  public Credentials getCredential() {
+  public @Nullable Credentials getCredential() {
     try {
-      return GoogleCredentials.getApplicationDefault().createScoped(SCOPES);
+      GoogleCredentials applicationDefaultCredentials =
+          GoogleCredentials.getApplicationDefault().createScoped(oauthScopes);
+
+      if (impersonateServiceAccountChain == null) {
+        return applicationDefaultCredentials;
+      } else {
+        String targetPrincipal =
+            impersonateServiceAccountChain.get(impersonateServiceAccountChain.size() - 1);
+        List<String> delegationChain =
+            impersonateServiceAccountChain.subList(0, impersonateServiceAccountChain.size() - 1);
+
+        GoogleCredentials impersonationCredentials =
+            ImpersonatedCredentials.create(
+                applicationDefaultCredentials, targetPrincipal, delegationChain, oauthScopes, 0);
+
+        return impersonationCredentials;
+      }
     } catch (IOException e) {
       // Ignore the exception
       // Pipelines that only access to public data should be able to run without credentials.

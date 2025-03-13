@@ -15,12 +15,7 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import map
-from builtins import next
-from builtins import range
+# pytype: skip-file
 
 from apache_beam.io import iobase
 from apache_beam.transforms.core import Create
@@ -28,7 +23,6 @@ from apache_beam.transforms.core import Create
 
 class _CreateSource(iobase.BoundedSource):
   """Internal source that is used by Create()"""
-
   def __init__(self, serialized_values, coder):
     self._coder = coder
     self._serialized_values = []
@@ -44,8 +38,8 @@ class _CreateSource(iobase.BoundedSource):
       if current_position >= stop_position:
         return 0
       return stop_position - current_position - 1
-    range_tracker.set_split_points_unclaimed_callback(
-        split_points_unclaimed)
+
+    range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
     element_iter = iter(self._serialized_values[start_position:])
     for i in range(start_position, range_tracker.stop_position()):
       if not range_tracker.try_claim(i):
@@ -53,11 +47,12 @@ class _CreateSource(iobase.BoundedSource):
       current_position = i
       yield self._coder.decode(next(element_iter))
 
-  def split(self, desired_bundle_size, start_position=None,
-            stop_position=None):
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if len(self._serialized_values) < 2:
       yield iobase.SourceBundle(
-          weight=0, source=self, start_position=0,
+          weight=0,
+          source=self,
+          start_position=0,
           stop_position=len(self._serialized_values))
     else:
       if start_position is None:
@@ -76,10 +71,11 @@ class _CreateSource(iobase.BoundedSource):
           end = stop_position
         sub_source = Create._create_source(
             self._serialized_values[start:end], self._coder)
-        yield iobase.SourceBundle(weight=(end - start),
-                                  source=sub_source,
-                                  start_position=0,
-                                  stop_position=(end - start))
+        yield iobase.SourceBundle(
+            weight=(end - start),
+            source=sub_source,
+            start_position=0,
+            stop_position=(end - start))
         start = end
 
   def get_range_tracker(self, start_position, stop_position):

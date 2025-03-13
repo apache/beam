@@ -23,10 +23,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
@@ -45,6 +45,8 @@ type CustomCoder struct {
 	// Dec is the decoding function: []byte -> T. It may optionally take a
 	// reflect.Type parameter and return an error as well.
 	Dec *funcx.Fn
+
+	ID string // (optional) This coder's ID if translated from a pipeline proto.
 }
 
 // TODO(herohde) 5/16/2017: do we want/need to allow user coders that follow the
@@ -76,7 +78,10 @@ func (c *CustomCoder) Equals(o *CustomCoder) bool {
 }
 
 func (c *CustomCoder) String() string {
-	return fmt.Sprintf("%v[%v]", c.Type, c.Name)
+	if c.ID == "" {
+		return fmt.Sprintf("%v[%v]", c.Type, c.Name)
+	}
+	return fmt.Sprintf("%v[%v;%v]", c.Type, c.Name, c.ID)
 }
 
 // Type signatures of encode/decode for verification.
@@ -96,15 +101,15 @@ var (
 
 // ElementEncoder encapsulates being able to encode an element into a writer.
 type ElementEncoder interface {
-	Encode(element interface{}, w io.Writer) error
+	Encode(element any, w io.Writer) error
 }
 
 // ElementDecoder encapsulates being able to decode an element from a reader.
 type ElementDecoder interface {
-	Decode(r io.Reader) (interface{}, error)
+	Decode(r io.Reader) (any, error)
 }
 
-func validateEncoder(t reflect.Type, encode interface{}) error {
+func validateEncoder(t reflect.Type, encode any) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(encode, funcx.Replace(encodeSig, typex.TType, t)); err != nil {
 		return errors.WithContext(err, "validateEncoder: validating signature")
@@ -113,19 +118,19 @@ func validateEncoder(t reflect.Type, encode interface{}) error {
 	return nil
 }
 
-func validateDecoder(t reflect.Type, decode interface{}) error {
+func validateDecoder(t reflect.Type, decode any) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(decode, funcx.Replace(decodeSig, typex.TType, t)); err != nil {
 		return errors.WithContext(err, "validateDecoder: validating signature")
 	}
-	// TODO(lostluck): 2019.02.03 - Expand cases to avoid []byte -> interface{} conversion
+	// TODO(lostluck): 2019.02.03 - Expand cases to avoid []byte -> any conversion
 	// in exec, & a beam Decoder interface.
 	return nil
 }
 
 // NewCustomCoder creates a coder for the supplied parameters defining a
 // particular encoding strategy.
-func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
+func NewCustomCoder(id string, t reflect.Type, encode, decode any) (*CustomCoder, error) {
 	if err := validateEncoder(t, encode); err != nil {
 		return nil, errors.WithContext(err, "NewCustomCoder")
 	}
@@ -157,11 +162,28 @@ type Kind string
 // Tags for the various Beam encoding strategies. https://beam.apache.org/documentation/programming-guide/#coders
 // documents the usage of coders in the Beam environment.
 const (
-	Custom        Kind = "Custom" // Implicitly length-prefixed
-	Bytes         Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
-	VarInt        Kind = "varint"
-	WindowedValue Kind = "W"
-	KV            Kind = "KV"
+	Custom             Kind = "Custom" // Implicitly length-prefixed
+	Bytes              Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
+	String             Kind = "string" // Implicitly length-prefixed as part of the encoding.
+	Bool               Kind = "bool"
+	VarInt             Kind = "varint"
+	Double             Kind = "double"
+	Row                Kind = "R"
+	Nullable           Kind = "N"
+	Timer              Kind = "T"
+	PaneInfo           Kind = "PI"
+	WindowedValue      Kind = "W"
+	ParamWindowedValue Kind = "PW"
+	Iterable           Kind = "I"
+	KV                 Kind = "KV"
+	LP                 Kind = "LP" // Explicitly length prefixed, likely at the runner's direction.
+
+	// IW stands for IntervalWindow and uses the short name to avoid a collision with the
+	// WindowCoder kind. This Kind is used when the window is provided as a value instead
+	// of a window for the value.
+	IW Kind = "IW"
+
+	Window Kind = "window" // A debug wrapper around a window coder.
 
 	// CoGBK is currently equivalent to either
 	//
@@ -171,7 +193,7 @@ const (
 	// It requires special handling in translation to the model pipeline in the latter case
 	// to add the incoming index for each input.
 	//
-	// TODO(BEAM-490): once this JIRA is done, this coder should become the new thing.
+	// TODO(https://github.com/apache/beam/issues/18032): once this JIRA is done, this coder should become the new thing.
 	CoGBK Kind = "CoGBK"
 )
 
@@ -182,9 +204,11 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder     // WindowedValue, KV, CoGBK
+	Components []*Coder     // WindowedValue, KV, CoGBK, Nullable
 	Custom     *CustomCoder // Custom
 	Window     *WindowCoder // WindowedValue
+
+	ID string // (optional) This coder's ID if translated from a pipeline proto.
 }
 
 // Equals returns true iff the two coders are equal. It assumes that
@@ -222,10 +246,16 @@ func (c *Coder) String() string {
 		return "$"
 	}
 	if c.Custom != nil {
-		return c.Custom.String()
+		if c.ID == "" {
+			return c.Custom.String()
+		}
+		return fmt.Sprintf("%v;%v", c.Custom, c.ID)
 	}
 
 	ret := fmt.Sprintf("%v", c.Kind)
+	if c.ID != "" {
+		ret = fmt.Sprintf("%v;%v", c.Kind, c.ID)
+	}
 	if len(c.Components) > 0 {
 		var args []string
 		for _, elm := range c.Components {
@@ -233,8 +263,12 @@ func (c *Coder) String() string {
 		}
 		ret += fmt.Sprintf("<%v>", strings.Join(args, ","))
 	}
-	if c.Window != nil {
+	switch c.Kind {
+	case WindowedValue, ParamWindowedValue, Window, Timer:
 		ret += fmt.Sprintf("!%v", c.Window)
+	case KV, CoGBK, Bytes, Bool, VarInt, Double, String, LP, Nullable: // No additional info.
+	default:
+		ret += fmt.Sprintf("[%v]", c.T)
 	}
 	return ret
 }
@@ -245,14 +279,39 @@ func NewBytes() *Coder {
 	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
 }
 
+// NewBool returns a new bool coder using the built-in scheme.
+func NewBool() *Coder {
+	return &Coder{Kind: Bool, T: typex.New(reflectx.Bool)}
+}
+
 // NewVarInt returns a new int64 coder using the built-in scheme.
 func NewVarInt() *Coder {
 	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int64)}
 }
 
+// NewDouble returns a new double coder using the built-in scheme.
+func NewDouble() *Coder {
+	return &Coder{Kind: Double, T: typex.New(reflectx.Float64)}
+}
+
+// NewString returns a new string coder using the built-in scheme.
+func NewString() *Coder {
+	return &Coder{Kind: String, T: typex.New(reflectx.String)}
+}
+
+// NewIntervalWindowCoder returns a new IntervalWindow coder using the built-in scheme.
+func NewIntervalWindowCoder() *Coder {
+	return &Coder{Kind: IW, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem())}
+}
+
 // IsW returns true iff the coder is for a WindowedValue.
 func IsW(c *Coder) bool {
 	return c.Kind == WindowedValue
+}
+
+// NewPI returns a PaneInfo coder
+func NewPI() *Coder {
+	return &Coder{Kind: PaneInfo, T: typex.New(typex.PaneInfoType)}
 }
 
 // NewW returns a WindowedValue coder for the window of elements.
@@ -272,6 +331,57 @@ func NewW(c *Coder, w *WindowCoder) *Coder {
 	}
 }
 
+// NewPW returns a ParamWindowedValue coder for the window of elements.
+func NewPW(c *Coder, w *WindowCoder) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	if w == nil {
+		panic("window must not be nil")
+	}
+
+	return &Coder{
+		Kind:       ParamWindowedValue,
+		T:          typex.NewW(c.T),
+		Window:     w,
+		Components: []*Coder{c},
+	}
+}
+
+// NewT returns a timer coder for the window of elements.
+func NewT(c *Coder, w *WindowCoder) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	if w == nil {
+		panic("window must not be nil")
+	}
+
+	return &Coder{
+		Kind:       Timer,
+		T:          typex.New(typex.TimersType),
+		Window:     w,
+		Components: []*Coder{c},
+	}
+}
+
+// NewI returns an iterable coder in the form of a slice.
+func NewI(c *Coder) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	t := typex.New(reflect.SliceOf(c.T.Type()), c.T)
+	return &Coder{Kind: Iterable, T: t, Components: []*Coder{c}}
+}
+
+// NewR returns a schema row coder for the type.
+func NewR(t typex.FullType) *Coder {
+	return &Coder{
+		Kind: Row,
+		T:    t,
+	}
+}
+
 // IsKV returns true iff the coder is for key-value pairs.
 func IsKV(c *Coder) bool {
 	return c.Kind == KV
@@ -285,6 +395,22 @@ func NewKV(components []*Coder) *Coder {
 		T:          typex.New(typex.KVType, Types(components)...),
 		Components: components,
 	}
+}
+
+// NewN returns a coder for Nullable.
+func NewN(component *Coder) *Coder {
+	coders := []*Coder{component}
+	checkCodersNotNil(coders)
+	return &Coder{
+		Kind:       Nullable,
+		T:          typex.New(typex.NullableType, component.T),
+		Components: coders,
+	}
+}
+
+// IsNullable returns true iff the coder is for Nullable.
+func IsNullable(c *Coder) bool {
+	return c.Kind == Nullable
 }
 
 // IsCoGBK returns true iff the coder is for a CoGBK type.
@@ -310,6 +436,11 @@ func SkipW(c *Coder) *Coder {
 		return c.Components[0]
 	}
 	return c
+}
+
+// CoderFrom is a helper that creates a Coder from a CustomCoder.
+func CoderFrom(c *CustomCoder) *Coder {
+	return &Coder{Kind: Custom, T: typex.New(c.Type), Custom: c}
 }
 
 // Types returns a slice of types used by the supplied coders.

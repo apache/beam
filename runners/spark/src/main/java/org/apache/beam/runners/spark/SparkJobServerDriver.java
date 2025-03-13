@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
+import org.apache.beam.runners.jobsubmission.JobServerDriver;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -30,11 +31,6 @@ import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Spark runner. */
 public class SparkJobServerDriver extends JobServerDriver {
-
-  @Override
-  protected JobInvoker createJobInvoker() {
-    return SparkJobInvoker.create((SparkServerConfiguration) configuration);
-  }
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobServerDriver.class);
 
@@ -51,7 +47,11 @@ public class SparkJobServerDriver extends JobServerDriver {
   }
 
   public static void main(String[] args) {
-    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // Limiting gcs upload buffer to reduce memory usage while doing parallel artifact uploads.
+    options.as(GcsOptions.class).setGcsUploadBufferSizeBytes(1024 * 1024);
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(options);
     fromParams(args).run();
   }
 
@@ -62,7 +62,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     System.err.println();
   }
 
-  private static SparkJobServerDriver fromParams(String[] args) {
+  public static SparkJobServerDriver fromParams(String[] args) {
     SparkServerConfiguration configuration = new SparkServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -76,7 +76,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     return fromConfig(configuration);
   }
 
-  private static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
+  public static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
     return create(
         configuration,
         createJobServerFactory(configuration),
@@ -94,6 +94,10 @@ public class SparkJobServerDriver extends JobServerDriver {
       SparkServerConfiguration configuration,
       ServerFactory jobServerFactory,
       ServerFactory artifactServerFactory) {
-    super(configuration, jobServerFactory, artifactServerFactory);
+    super(
+        configuration,
+        jobServerFactory,
+        artifactServerFactory,
+        () -> SparkJobInvoker.create(configuration));
   }
 }

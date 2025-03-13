@@ -19,13 +19,22 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public interface BeamRelNode extends RelNode {
 
   /**
@@ -44,11 +53,18 @@ public interface BeamRelNode extends RelNode {
         : PCollection.IsBounded.UNBOUNDED;
   }
 
+  default void withErrorsTransformer(@Nullable PTransform<PCollection<Row>, POutput> ptransform) {}
+
   default List<RelNode> getPCollectionInputs() {
     return getInputs();
   };
 
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
+
+  default PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
+    return buildPTransform();
+  }
 
   /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
   default Map<String, String> getPipelineOptions() {
@@ -61,4 +77,28 @@ public interface BeamRelNode extends RelNode {
     }
     return options;
   }
+
+  /**
+   * This method is called by {@code
+   * org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats}. This is currently only used in
+   * SQLTransform Path (and not JDBC path). When a RelNode wants to calculate its BeamCost or
+   * estimate its NodeStats, it may need NodeStat of its inputs. However, it should not call this
+   * directly (because maybe its inputs are not physical yet). It should call {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils#getNodeStats(
+   * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode,
+   * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery)}
+   * instead.
+   */
+  NodeStats estimateNodeStats(BeamRelMetadataQuery mq);
+
+  /**
+   * This method is called by {@code
+   * org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl}. This is
+   * currently only used in SQLTransform Path (and not JDBC path). This is needed when Calcite Query
+   * Planner wants to get the cost of a plan. Instead of calling this directly for a node, if we
+   * needed that it should be obtained by calling mq.getNonCumulativeCost. This way RelMetadataQuery
+   * will call this method instead of ComputeSelfCost if the handler is set correctly (see {@code
+   * org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner#convertToBeamRel(String)})
+   */
+  BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq);
 }

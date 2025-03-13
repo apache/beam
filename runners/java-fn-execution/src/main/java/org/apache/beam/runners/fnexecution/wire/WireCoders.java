@@ -17,17 +17,19 @@
  */
 package org.apache.beam.runners.fnexecution.wire;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.ModelCoders;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.SyntheticComponents;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.construction.ModelCoders;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.util.construction.SyntheticComponents;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode.PCollectionNode;
 
 /** Helpers to construct coders for gRPC port reads and writes. */
 public class WireCoders {
@@ -41,8 +43,10 @@ public class WireCoders {
    * @return id of a windowed value coder containing the PCollection's element coder
    */
   public static String addSdkWireCoder(
-      PCollectionNode pCollectionNode, RunnerApi.Components.Builder components) {
-    return addWireCoder(pCollectionNode, components, false);
+      PCollectionNode pCollectionNode,
+      RunnerApi.Components.Builder components,
+      WireCoderSetting wireCoderSetting) {
+    return addWireCoder(pCollectionNode, components, false, wireCoderSetting);
   }
 
   /**
@@ -54,22 +58,39 @@ public class WireCoders {
    * @return id of a windowed value coder containing the PCollection's element coder
    */
   public static String addRunnerWireCoder(
-      PCollectionNode pCollectionNode, RunnerApi.Components.Builder components) {
-    return addWireCoder(pCollectionNode, components, true);
+      PCollectionNode pCollectionNode,
+      RunnerApi.Components.Builder components,
+      WireCoderSetting wireCoderSetting) {
+    return addWireCoder(pCollectionNode, components, true, wireCoderSetting);
   }
 
   /**
    * Instantiates a runner-side wire coder for the given PCollection. Any component coders that are
    * unknown by the runner are replaced with length-prefixed byte arrays.
    *
-   * @return a windowed value coder containing the PCollection's element coder
+   * @return a full windowed value coder containing the PCollection's element coder
    */
   public static <T> Coder<WindowedValue<T>> instantiateRunnerWireCoder(
       PCollectionNode pCollectionNode, RunnerApi.Components components) throws IOException {
+    return instantiateRunnerWireCoder(
+        pCollectionNode, components, WireCoderSetting.getDefaultInstance());
+  }
+
+  /**
+   * Instantiates a runner-side wire coder for the given PCollection. Any component coders that are
+   * unknown by the runner are replaced with length-prefixed byte arrays.
+   *
+   * @return a full or parameterized windowed value coder containing the PCollection's element coder
+   */
+  public static <T> Coder<WindowedValue<T>> instantiateRunnerWireCoder(
+      PCollectionNode pCollectionNode,
+      RunnerApi.Components components,
+      WireCoderSetting wireCoderSetting)
+      throws IOException {
     // NOTE: We discard the new set of components so we don't bother to ensure it's consistent with
     // the caller's view.
     RunnerApi.Components.Builder builder = components.toBuilder();
-    String protoCoderId = addRunnerWireCoder(pCollectionNode, builder);
+    String protoCoderId = addRunnerWireCoder(pCollectionNode, builder, wireCoderSetting);
     Coder<?> javaCoder = RehydratedComponents.forComponents(builder.build()).getCoder(protoCoderId);
     checkArgument(
         javaCoder instanceof WindowedValue.FullWindowedValueCoder,
@@ -83,13 +104,31 @@ public class WireCoders {
   private static String addWireCoder(
       PCollectionNode pCollectionNode,
       RunnerApi.Components.Builder components,
-      boolean useByteArrayCoder) {
+      boolean useByteArrayCoder,
+      WireCoderSetting wireCoderSetting) {
     String elementCoderId = pCollectionNode.getPCollection().getCoderId();
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
     String windowCoderId =
         components.getWindowingStrategiesOrThrow(windowingStrategyId).getWindowCoderId();
-    RunnerApi.Coder windowedValueCoder =
-        ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
+
+    // decide type of windowedValueCoder according to the wire coder setting.
+    RunnerApi.Coder windowedValueCoder;
+    String wireCoderUrn = wireCoderSetting.getUrn();
+    if (wireCoderUrn.equals(getUrn(RunnerApi.StandardCoders.Enum.WINDOWED_VALUE))
+        || wireCoderUrn.isEmpty()) {
+      windowedValueCoder = ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
+    } else {
+      checkArgument(
+          wireCoderUrn.equals(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE)),
+          "Unexpected wire coder urn %s, currently only %s or %s are supported!",
+          wireCoderUrn,
+          getUrn(RunnerApi.StandardCoders.Enum.WINDOWED_VALUE),
+          getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE));
+      windowedValueCoder =
+          ModelCoders.paramWindowedValueCoder(
+              elementCoderId, windowCoderId, wireCoderSetting.getPayload().toByteArray());
+    }
+
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
         SyntheticComponents.uniqueId(

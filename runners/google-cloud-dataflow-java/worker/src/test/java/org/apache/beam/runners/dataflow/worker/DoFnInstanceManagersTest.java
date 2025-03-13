@@ -17,13 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.util.Collections;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -57,6 +60,7 @@ public class DoFnInstanceManagersTest {
   }
 
   private DoFn<?, ?> initialFn = new TestFn();
+  private PipelineOptions options = PipelineOptionsFactory.create();
 
   @Test
   public void testInstanceReturnsInstance() throws Exception {
@@ -67,7 +71,8 @@ public class DoFnInstanceManagersTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.singleInstance(info);
     assertThat(mgr.peek(), Matchers.<DoFnInfo<?, ?>>theInstance(info));
@@ -88,7 +93,8 @@ public class DoFnInstanceManagersTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.singleInstance(info);
     mgr.abort(mgr.get());
@@ -108,9 +114,10 @@ public class DoFnInstanceManagersTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
-    DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info);
+    DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info, options);
     DoFnInfo<?, ?> retrievedInfo = mgr.get();
     assertThat(retrievedInfo, not(Matchers.<DoFnInfo<?, ?>>theInstance(info)));
     assertThat(retrievedInfo.getDoFn(), not(theInstance(info.getDoFn())));
@@ -130,9 +137,10 @@ public class DoFnInstanceManagersTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
-    DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info);
+    DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info, options);
     DoFnInfo<?, ?> retrievedInfo = mgr.get();
 
     mgr.abort(retrievedInfo);
@@ -154,9 +162,10 @@ public class DoFnInstanceManagersTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
-    DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info);
+    DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info, options);
 
     DoFnInfo<?, ?> firstInfo = mgr.get();
     DoFnInfo<?, ?> secondInfo = mgr.get();

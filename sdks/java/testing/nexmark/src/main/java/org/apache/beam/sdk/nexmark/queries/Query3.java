@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
@@ -27,6 +24,7 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -36,16 +34,11 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.join.CoGbkResult;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey;
-import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -68,6 +61,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(Query3.class);
@@ -80,27 +79,29 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
   @Override
   public PCollection<NameCityStateId> expand(PCollection<Event> events) {
-    int numEventsInPane = 30;
-
-    PCollection<Event> eventsWindowed =
-        events.apply(
-            Window.<Event>into(new GlobalWindows())
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(numEventsInPane)))
-                .discardingFiredPanes()
-                .withAllowedLateness(Duration.ZERO));
-    PCollection<KV<Long, Auction>> auctionsBySellerId =
-        eventsWindowed
+    PCollection<KV<Long, Event>> auctionsBySellerId =
+        events
             // Only want the new auction events.
             .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
 
             // We only want auctions in category 10.
             .apply(name + ".InCategory", Filter.by(auction -> auction.category == 10))
 
-            // Key auctions by their seller id.
-            .apply("AuctionBySeller", NexmarkQueryUtil.AUCTION_BY_SELLER);
+            // Key auctions by their seller id and move to union Event type.
+            .apply(
+                "EventByAuctionSeller",
+                ParDo.of(
+                    new DoFn<Auction, KV<Long, Event>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        Event e = new Event();
+                        e.newAuction = c.element();
+                        c.output(KV.of(c.element().seller, e));
+                      }
+                    }));
 
-    PCollection<KV<Long, Person>> personsById =
-        eventsWindowed
+    PCollection<KV<Long, Event>> personsById =
+        events
             // Only want the new people events.
             .apply(NexmarkQueryUtil.JUST_NEW_PERSONS)
 
@@ -113,18 +114,24 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
                             || "ID".equals(person.state)
                             || "CA".equals(person.state)))
 
-            // Key people by their id.
-            .apply("PersonById", NexmarkQueryUtil.PERSON_BY_ID);
+            // Key persons by their id and move to the union event type.
+            .apply(
+                "EventByPersonId",
+                ParDo.of(
+                    new DoFn<Person, KV<Long, Event>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        Event e = new Event();
+                        e.newPerson = c.element();
+                        c.output(KV.of(c.element().id, e));
+                      }
+                    }));
 
-    return
     // Join auctions and people.
-    // concatenate KeyedPCollections
-    KeyedPCollectionTuple.of(NexmarkQueryUtil.AUCTION_TAG, auctionsBySellerId)
-        .and(NexmarkQueryUtil.PERSON_TAG, personsById)
-        // group auctions and persons by personId
-        .apply(CoGroupByKey.create())
+    return PCollectionList.of(auctionsBySellerId)
+        .and(personsById)
+        .apply(Flatten.pCollections())
         .apply(name + ".Join", ParDo.of(joinDoFn))
-
         // Project what we want.
         .apply(
             name + ".Project",
@@ -151,8 +158,11 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
    * <p>However we know that each auction is associated with at most one person, so only need to
    * store auction records in persistent state until we have seen the corresponding person record.
    * And of course may have already seen that record.
+   *
+   * <p>To prevent state from accumulating over time, we cleanup buffered people or auctions after a
+   * max waiting time.
    */
-  private static class JoinDoFn extends DoFn<KV<Long, CoGbkResult>, KV<Auction, Person>> {
+  private static class JoinDoFn extends DoFn<KV<Long, Event>, KV<Auction, Person>> {
 
     private final int maxAuctionsWaitingTime;
     private static final String AUCTIONS = "auctions";
@@ -161,31 +171,24 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     @StateId(PERSON)
     private static final StateSpec<ValueState<Person>> personSpec = StateSpecs.value(Person.CODER);
 
-    private static final String PERSON_STATE_EXPIRING = "personStateExpiring";
+    private static final String STATE_EXPIRING = "stateExpiring";
 
     @StateId(AUCTIONS)
-    private final StateSpec<ValueState<List<Auction>>> auctionsSpec =
-        StateSpecs.value(ListCoder.of(Auction.CODER));
+    private final StateSpec<BagState<Auction>> auctionsSpec = StateSpecs.bag(Auction.CODER);
 
-    @TimerId(PERSON_STATE_EXPIRING)
+    @TimerId(STATE_EXPIRING)
     private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-    // Used to refer the metrics namespace
-    private final String name;
 
     private final Counter newAuctionCounter;
     private final Counter newPersonCounter;
-    private final Counter newNewOutputCounter;
     private final Counter newOldOutputCounter;
     private final Counter oldNewOutputCounter;
     private final Counter fatalCounter;
 
     private JoinDoFn(String name, int maxAuctionsWaitingTime) {
-      this.name = name;
       this.maxAuctionsWaitingTime = maxAuctionsWaitingTime;
       newAuctionCounter = Metrics.counter(name, "newAuction");
       newPersonCounter = Metrics.counter(name, "newPerson");
-      newNewOutputCounter = Metrics.counter(name, "newNewOutput");
       newOldOutputCounter = Metrics.counter(name, "newOldOutput");
       oldNewOutputCounter = Metrics.counter(name, "oldNewOutput");
       fatalCounter = Metrics.counter(name, "fatal");
@@ -193,86 +196,73 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
     @ProcessElement
     public void processElement(
-        ProcessContext c,
-        @TimerId(PERSON_STATE_EXPIRING) Timer timer,
-        @StateId(PERSON) ValueState<Person> personState,
-        @StateId(AUCTIONS) ValueState<List<Auction>> auctionsState) {
+        @Element KV<Long, Event> element,
+        OutputReceiver<KV<Auction, Person>> output,
+        @TimerId(STATE_EXPIRING) Timer timer,
+        @StateId(PERSON) @AlwaysFetched ValueState<Person> personState,
+        @StateId(AUCTIONS) BagState<Auction> auctionsState) {
       // We would *almost* implement this by  rewindowing into the global window and
       // running a combiner over the result. The combiner's accumulator would be the
       // state we use below. However, combiners cannot emit intermediate results, thus
-      // we need to wait for the pending ReduceFn API.
+      // we need to wait for the pending ReduceFn API
 
       Person existingPerson = personState.read();
-      if (existingPerson != null) {
-        // We've already seen the new person event for this person id.
-        // We can join with any new auctions on-the-fly without needing any
-        // additional persistent state.
-        for (Auction newAuction : c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
-          newAuctionCounter.inc();
-          newOldOutputCounter.inc();
-          c.output(KV.of(newAuction, existingPerson));
-        }
-        return;
-      }
-
-      Person theNewPerson = null;
-      for (Person newPerson : c.element().getValue().getAll(NexmarkQueryUtil.PERSON_TAG)) {
-        if (theNewPerson == null) {
-          theNewPerson = newPerson;
+      Event event = element.getValue();
+      Instant eventTime = null;
+      // Event is a union object, handle a new person or auction.
+      if (event.newPerson != null) {
+        Person person = event.newPerson;
+        eventTime = person.dateTime;
+        if (existingPerson == null) {
+          newPersonCounter.inc();
+          personState.write(person);
+          // We've now seen the person for this person id so can flush any
+          // pending auctions for the same seller id (an auction is done by only one seller).
+          Iterable<Auction> pendingAuctions = auctionsState.read();
+          if (pendingAuctions != null) {
+            for (Auction pendingAuction : pendingAuctions) {
+              oldNewOutputCounter.inc();
+              output.output(KV.of(pendingAuction, person));
+            }
+            auctionsState.clear();
+          }
         } else {
-          if (theNewPerson.equals(newPerson)) {
-            LOG.error("Duplicate person {}", theNewPerson);
+          if (person.equals(existingPerson)) {
+            LOG.error("Duplicate person {}", person);
           } else {
-            LOG.error("Conflicting persons {} and {}", theNewPerson, newPerson);
+            LOG.error("Conflicting persons {} and {}", existingPerson, person);
           }
           fatalCounter.inc();
-          continue;
         }
-        newPersonCounter.inc();
-        // We've now seen the person for this person id so can flush any
-        // pending auctions for the same seller id (an auction is done by only one seller).
-        List<Auction> pendingAuctions = auctionsState.read();
-        if (pendingAuctions != null) {
-          for (Auction pendingAuction : pendingAuctions) {
-            oldNewOutputCounter.inc();
-            c.output(KV.of(pendingAuction, newPerson));
-          }
-          auctionsState.clear();
-        }
-        // Also deal with any new auctions.
-        for (Auction newAuction : c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
+      } else if (event.newAuction != null) {
+        Auction auction = event.newAuction;
+        eventTime = auction.dateTime;
+        newAuctionCounter.inc();
+        if (existingPerson == null) {
+          auctionsState.add(auction);
+        } else {
           newAuctionCounter.inc();
-          newNewOutputCounter.inc();
-          c.output(KV.of(newAuction, newPerson));
+          newOldOutputCounter.inc();
+          output.output(KV.of(auction, existingPerson));
         }
-        // Remember this person for any future auctions.
-        personState.write(newPerson);
-        // set a time out to clear this state
-        Instant firingTime =
-            new Instant(newPerson.dateTime).plus(Duration.standardSeconds(maxAuctionsWaitingTime));
+      } else {
+        LOG.error("Only expecting people or auctions but received {}", event);
+        fatalCounter.inc();
+      }
+      if (eventTime != null) {
+        // Set or reset the cleanup timer to clear the state.
+        Instant firingTime = eventTime.plus(Duration.standardSeconds(maxAuctionsWaitingTime));
         timer.set(firingTime);
       }
-      if (theNewPerson != null) {
-        return;
-      }
-
-      // We'll need to remember the auctions until we see the corresponding
-      // new person event.
-      List<Auction> pendingAuctions = auctionsState.read();
-      if (pendingAuctions == null) {
-        pendingAuctions = new ArrayList<>();
-      }
-      for (Auction newAuction : c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
-        newAuctionCounter.inc();
-        pendingAuctions.add(newAuction);
-      }
-      auctionsState.write(pendingAuctions);
     }
 
-    @OnTimer(PERSON_STATE_EXPIRING)
+    @OnTimer(STATE_EXPIRING)
     public void onTimerCallback(
-        OnTimerContext context, @StateId(PERSON) ValueState<Person> personState) {
+        OnTimerContext context,
+        @StateId(PERSON) ValueState<Person> personState,
+        @StateId(AUCTIONS) BagState<Auction> auctionState) {
       personState.clear();
+      auctionState.clear();
     }
   }
 }

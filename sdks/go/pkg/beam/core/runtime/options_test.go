@@ -15,10 +15,13 @@
 
 package runtime
 
-import "testing"
+import (
+	"flag"
+	"testing"
+)
 
 func TestOptions(t *testing.T) {
-	opt := &Options{opt: make(map[string]string)}
+	opt := NewOptions()
 
 	if len(opt.Export().Options) != 0 {
 		t.Errorf("fresh map not empty")
@@ -45,5 +48,33 @@ func TestOptions(t *testing.T) {
 	m2 := opt.Export()
 	if len(m2.Options) != 4 {
 		t.Errorf("len(%v) = %v, want 4", m, len(m.Options))
+	}
+}
+
+func TestLoadOptionsFromFlags(t *testing.T) {
+	// Setup some fake flags
+	flag.String("A", "", "Flag for testing.")
+	flag.String("B", "", "Flag for testing.")
+	flag.String("C", "", "Flag for testing.")
+	flag.CommandLine.Parse([]string{"--A=123", "--B=456", "--C=789"})
+
+	var flagFilter = map[string]bool{
+		"C": true,
+		"D": true,
+	}
+	opt := NewOptions()
+	opt.LoadOptionsFromFlags(flagFilter)
+
+	if got, want := opt.Get("A"), "123"; got != want {
+		t.Errorf("opt.Get(\"A\") = %v, want %v", got, want)
+	}
+	if got, want := opt.Get("B"), "456"; got != want {
+		t.Errorf("opt.Get(\"B\") = %v, want %v", got, want)
+	}
+	if got, want := opt.Get("C"), ""; got != want {
+		t.Errorf("opt.Get(\"C\") = %v, want %v", got, want)
+	}
+	if got, want := opt.Get("D"), ""; got != want {
+		t.Errorf("opt.Get(\"D\") = %v, want %v", got, want)
 	}
 }

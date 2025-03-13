@@ -18,29 +18,71 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
 
+import com.google.api.services.dataflow.model.BucketOptions;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.DataflowGaugeValue;
+import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.api.services.dataflow.model.DistributionUpdate;
+import com.google.api.services.dataflow.model.IntegerGauge;
+import com.google.api.services.dataflow.model.Linear;
+import com.google.api.services.dataflow.model.MetricValue;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.StringList;
+import com.google.common.collect.ImmutableMap;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.NoOpCounter;
+import org.apache.beam.sdk.metrics.NoOpHistogram;
+import org.apache.beam.sdk.metrics.StringSet;
+import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.hamcrest.collection.IsEmptyIterable;
+import org.hamcrest.collection.IsMapContaining;
+import org.joda.time.DateTimeUtils;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link StreamingStepMetricsContainer}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class StreamingStepMetricsContainerTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private MetricsContainerRegistry registry = StreamingStepMetricsContainer.createRegistry();
 
   private MetricsContainer c1 = registry.getContainer("s1");
@@ -48,6 +90,8 @@ public class StreamingStepMetricsContainerTest {
 
   private MetricName name1 = MetricName.named("ns", "name1");
   private MetricName name2 = MetricName.named("ns", "name2");
+  private MetricName name3 =
+      MetricName.named("ns", "name3", ImmutableMap.of("PER_WORKER_METRIC", "true"));
 
   @Test
   public void testDedupping() {
@@ -98,7 +142,7 @@ public class StreamingStepMetricsContainerTest {
                                 .setOriginNamespace("ns")
                                 .setName("name2")
                                 .setOriginalStepName("s2"))
-                        .setMetadata(new CounterMetadata().setKind("SUM")))
+                        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
                 .setCumulative(false)
                 .setInteger(longToSplitInt(12))));
 
@@ -174,5 +218,490 @@ public class StreamingStepMetricsContainerTest {
                         .setMax(longToSplitInt(3))
                         .setMin(longToSplitInt(3))
                         .setSum(longToSplitInt(3)))));
+  }
+
+  @Test
+  public void testGaugeUpdateExtraction() {
+
+    // Freeze the clock, since gauge metrics depend on time.
+    DateTimeUtils.setCurrentMillisFixed(10L);
+    Gauge gauge = c1.getGauge(name1);
+    gauge.set(7);
+    gauge.set(5);
+    gauge.set(6);
+
+    // Only have the last update.
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(
+        updates,
+        containsInAnyOrder(
+            new CounterUpdate()
+                .setStructuredNameAndMetadata(
+                    new CounterStructuredNameAndMetadata()
+                        .setName(
+                            new CounterStructuredName()
+                                .setOrigin(Origin.USER.toString())
+                                .setOriginNamespace("ns")
+                                .setName("name1")
+                                .setOriginalStepName("s1"))
+                        .setMetadata(new CounterMetadata().setKind(Kind.LATEST_VALUE.toString())))
+                .setCumulative(false)
+                .setIntegerGauge(
+                    new IntegerGauge()
+                        .setValue(longToSplitInt(6))
+                        .setTimestamp(org.joda.time.Instant.ofEpochMilli(10L).toString()))));
+
+    DateTimeUtils.setCurrentMillisFixed(20L);
+    gauge.set(8);
+
+    assertThat(
+        updates,
+        containsInAnyOrder(
+            new CounterUpdate()
+                .setStructuredNameAndMetadata(
+                    new CounterStructuredNameAndMetadata()
+                        .setName(
+                            new CounterStructuredName()
+                                .setOrigin(Origin.USER.toString())
+                                .setOriginNamespace("ns")
+                                .setName("name1")
+                                .setOriginalStepName("s1"))
+                        .setMetadata(new CounterMetadata().setKind(Kind.LATEST_VALUE.toString())))
+                .setCumulative(false)
+                .setIntegerGauge(
+                    new IntegerGauge()
+                        .setValue(longToSplitInt(8))
+                        .setTimestamp(org.joda.time.Instant.ofEpochMilli(20L).toString()))));
+
+    // Release freeze on clock.
+    DateTimeUtils.setCurrentMillisSystem();
+  }
+
+  @Test
+  public void testNoPerWorkerGaugeUpdateExtraction() {
+    Gauge gauge = c1.getGauge(name3);
+    gauge.set(5);
+
+    // There is no update.
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, IsEmptyIterable.emptyIterable());
+  }
+
+  @Test
+  public void testStringSetUpdateExtraction() {
+    StringSet stringSet = c1.getStringSet(name1);
+    stringSet.add("ab");
+    stringSet.add("cd", "ef");
+    stringSet.add("gh");
+    stringSet.add("gh");
+
+    CounterUpdate name1Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name1")
+                            .setOriginalStepName("s1"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh")));
+
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+
+    stringSet = c2.getStringSet(name2);
+    stringSet.add("ij");
+    stringSet.add("kl", "mn");
+    stringSet.add("mn");
+
+    CounterUpdate name2Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name2")
+                            .setOriginalStepName("s2"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name2Update));
+
+    // test deltas
+    c1.getStringSet(name1).add("op");
+    name1Update.setStringList(new StringList().setElements(Arrays.asList("op")));
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+  }
+
+  @Test
+  public void testBoundedTrieUpdateExtraction() {
+    BoundedTrie boundedTrie = c1.getBoundedTrie(name1);
+    boundedTrie.add("ab");
+    boundedTrie.add("cd", "ef");
+    boundedTrie.add("gh");
+    boundedTrie.add("gh");
+
+    BoundedTrieData expectedName1 = new BoundedTrieData();
+    expectedName1.add(ImmutableList.of("ab"));
+    expectedName1.add(ImmutableList.of("cd", "ef"));
+    expectedName1.add(ImmutableList.of("gh"));
+    expectedName1.add(ImmutableList.of("gh"));
+
+    CounterUpdate name1Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name1")
+                            .setOriginalStepName("s1"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setBoundedTrie(
+                MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1.toProto()));
+
+    ((StreamingStepMetricsContainer) c1).populateBoundedTrieMetrics = true;
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+
+    boundedTrie = c2.getBoundedTrie(name2);
+    boundedTrie.add("ij");
+    boundedTrie.add("kl", "mn");
+    boundedTrie.add("mn");
+
+    BoundedTrieData expectedName2 = new BoundedTrieData();
+    expectedName2.add(ImmutableList.of("ij"));
+    expectedName2.add(ImmutableList.of("kl", "mn"));
+    expectedName2.add(ImmutableList.of("mn"));
+
+    CounterUpdate name2Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name2")
+                            .setOriginalStepName("s2"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setBoundedTrie(
+                MetricsToCounterUpdateConverter.getBoundedTrie(expectedName2.toProto()));
+
+    ((StreamingStepMetricsContainer) c2).populateBoundedTrieMetrics = true;
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name2Update));
+
+    // test delta
+    c1.getBoundedTrie(name1).add("op");
+
+    expectedName1.clear();
+    expectedName1.add(ImmutableList.of("op"));
+    name1Update.setBoundedTrie(
+        MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1.toProto()));
+
+    ((StreamingStepMetricsContainer) c1).populateBoundedTrieMetrics = true;
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+  }
+
+  @Test
+  public void testPerWorkerMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(false);
+    MetricsContainer metricsContainer = registry.getContainer("test_step");
+    MetricName histogramMetricName =
+        MetricName.named("BigQuerySink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+
+    assertThat(
+        metricsContainer.getPerWorkerCounter(histogramMetricName),
+        sameInstance(NoOpCounter.getInstance()));
+    HistogramData.BucketType testBucket = HistogramData.LinearBuckets.of(1, 1, 1);
+    assertThat(
+        metricsContainer.getHistogram(histogramMetricName, testBucket),
+        sameInstance(NoOpHistogram.getInstance()));
+
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    assertThat(
+        metricsContainer.getPerWorkerCounter(histogramMetricName),
+        not(instanceOf(NoOpCounter.class)));
+    assertThat(
+        metricsContainer.getHistogram(histogramMetricName, testBucket),
+        not(instanceOf(NoOpHistogram.class)));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdates_populatedMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
+    c1.getPerWorkerCounter(counterMetricName).inc(3);
+
+    MetricName histogramMetricName =
+        MetricName.named("BigQuerySink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getHistogram(histogramMetricName, linearBuckets).update(5.0);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+
+    // Expected counter metric.
+    MetricValue expectedCounter =
+        new MetricValue().setMetric("counter").setMetricLabels(new HashMap<>()).setValueInt64(3L);
+
+    PerStepNamespaceMetrics counters =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s1")
+            .setMetricsNamespace("BigQuerySink")
+            .setMetricValues(Collections.singletonList(expectedCounter));
+
+    List<Long> bucketCounts = Collections.singletonList(1L);
+
+    Linear linearOptions = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
+    BucketOptions bucketOptions = new BucketOptions().setLinear(linearOptions);
+
+    DataflowHistogramValue linearHistogram =
+        new DataflowHistogramValue()
+            .setCount(1L)
+            .setBucketOptions(bucketOptions)
+            .setBucketCounts(bucketCounts);
+
+    MetricValue expectedHistogram =
+        new MetricValue()
+            .setMetric("histogram")
+            .setMetricLabels(new HashMap<>())
+            .setValueHistogram(linearHistogram);
+
+    PerStepNamespaceMetrics histograms =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s2")
+            .setMetricsNamespace("BigQuerySink")
+            .setMetricValues(Collections.singletonList(expectedHistogram));
+
+    assertThat(updates, containsInAnyOrder(histograms, counters));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdatesKafka_populatedHistogramMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+    MetricName histogramMetricName =
+        MetricName.named("KafkaSink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getHistogram(histogramMetricName, linearBuckets).update(5.0);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+
+    // Expected histogram metric
+    List<Long> bucketCounts = Collections.singletonList(1L);
+
+    Linear linearOptions = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
+    BucketOptions bucketOptions = new BucketOptions().setLinear(linearOptions);
+
+    DataflowHistogramValue linearHistogram =
+        new DataflowHistogramValue()
+            .setCount(1L)
+            .setBucketOptions(bucketOptions)
+            .setBucketCounts(bucketCounts);
+
+    MetricValue expectedHistogram =
+        new MetricValue()
+            .setMetric("histogram")
+            .setMetricLabels(new HashMap<>())
+            .setValueHistogram(linearHistogram);
+
+    PerStepNamespaceMetrics histograms =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s2")
+            .setMetricsNamespace("KafkaSink")
+            .setMetricValues(Collections.singletonList(expectedHistogram));
+
+    assertThat(updates, containsInAnyOrder(histograms));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdatesKafka_populateGaugeMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+    MetricName gaugeMetricName =
+        MetricName.named("KafkaSink", "gauge", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    c2.getGauge(gaugeMetricName).set(5L);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+
+    DataflowGaugeValue gaugeValue = new DataflowGaugeValue();
+    gaugeValue.setValue(5L);
+
+    MetricValue expectedGauge =
+        new MetricValue()
+            .setMetric("gauge")
+            .setMetricLabels(new HashMap<>())
+            .setValueGauge64(gaugeValue);
+
+    PerStepNamespaceMetrics gauge =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s2")
+            .setMetricsNamespace("KafkaSink")
+            .setMetricValues(Collections.singletonList(expectedGauge));
+
+    assertThat(updates, containsInAnyOrder(gauge));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdatesKafka_perWorkerMetricsDropped() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+    MetricName gaugeMetricName =
+        MetricName.named("KafkaSink", "gauge", ImmutableMap.of("PER_WORKER_METRIC", "false"));
+    c2.getGauge(gaugeMetricName).set(5L);
+
+    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getHistogram(histogramMetricName, linearBuckets);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+    assertThat(updates, IsEmptyIterable.emptyIterable());
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdates_emptyMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
+    c1.getPerWorkerCounter(counterMetricName);
+
+    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getHistogram(histogramMetricName, linearBuckets);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+    assertThat(updates, IsEmptyIterable.emptyIterable());
+  }
+
+  public class TestClock extends Clock {
+    private Instant currentTime;
+
+    public void advance(Duration amount) {
+      currentTime = currentTime.plus(amount);
+    }
+
+    TestClock(Instant startTime) {
+      currentTime = startTime;
+    }
+
+    @Override
+    public Instant instant() {
+      return currentTime;
+    }
+
+    @Override
+    public ZoneId getZone() {
+      return ZoneOffset.UTC;
+    }
+
+    // Currently not supported.
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return new TestClock(currentTime);
+    }
+  }
+
+  @Test
+  public void testDeleteStaleCounters() {
+    TestClock clock = new TestClock(Instant.now());
+    Map<MetricName, Instant> countersByFirstStaleTime = new HashMap<>();
+    ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
+    ConcurrentHashMap<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNamesCache =
+        new ConcurrentHashMap<>();
+
+    StreamingStepMetricsContainer metricsContainer =
+        StreamingStepMetricsContainer.forTesting(
+            "s1", countersByFirstStaleTime, perWorkerCounters, parsedMetricNamesCache, clock);
+
+    MetricName counterMetricName1 = MetricName.named("BigQuerySink", "counter1-");
+    MetricName counterMetricName2 = MetricName.named("BigQuerySink", "counter2-");
+    metricsContainer.getPerWorkerCounter(counterMetricName1).inc(3);
+    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+
+    List<PerStepNamespaceMetrics> updatesList =
+        Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
+    assertThat(updatesList.size(), equalTo(1));
+
+    assertThat(perWorkerCounters.get(counterMetricName1).get(), equalTo(0L));
+    assertThat(countersByFirstStaleTime.size(), equalTo(0));
+    assertThat(parsedMetricNamesCache.size(), equalTo(2));
+
+    // Verify that parsedMetricNames have been cached.
+    LabeledMetricNameUtils.ParsedMetricName parsedCounter1 =
+        LabeledMetricNameUtils.parseMetricName(counterMetricName1.getName()).get();
+    LabeledMetricNameUtils.ParsedMetricName parsedCounter2 =
+        LabeledMetricNameUtils.parseMetricName(counterMetricName2.getName()).get();
+
+    assertThat(parsedMetricNamesCache.size(), equalTo(2));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName1, parsedCounter1));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName2, parsedCounter2));
+
+    // At minute 1 both metrics are discovered to be zero-valued.
+    updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
+    assertThat(updatesList.size(), equalTo(0));
+
+    assertThat(
+        countersByFirstStaleTime.keySet(),
+        containsInAnyOrder(counterMetricName1, counterMetricName2));
+    assertThat(
+        perWorkerCounters.keySet(), containsInAnyOrder(counterMetricName1, counterMetricName2));
+
+    assertThat(parsedMetricNamesCache.size(), equalTo(2));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName1, parsedCounter1));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName2, parsedCounter2));
+
+    // At minute 2 metric1 is zero-valued, metric2 has been updated.
+    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    clock.advance(Duration.ofSeconds(60));
+
+    updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
+    assertThat(updatesList.size(), equalTo(1));
+
+    assertThat(countersByFirstStaleTime.keySet(), contains(counterMetricName1));
+    assertThat(
+        perWorkerCounters.keySet(), containsInAnyOrder(counterMetricName1, counterMetricName2));
+
+    assertThat(parsedMetricNamesCache.size(), equalTo(2));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName1, parsedCounter1));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName2, parsedCounter2));
+
+    // After minute 6 metric1 is still zero valued and should be cleaned up.
+    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    clock.advance(Duration.ofSeconds(4 * 60 + 1));
+
+    updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
+    assertThat(updatesList.size(), equalTo(1));
+
+    assertThat(countersByFirstStaleTime.size(), equalTo(0));
+    assertThat(perWorkerCounters.keySet(), contains(counterMetricName2));
+
+    assertThat(parsedMetricNamesCache.size(), equalTo(1));
+    assertThat(
+        parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName2, parsedCounter2));
   }
 }

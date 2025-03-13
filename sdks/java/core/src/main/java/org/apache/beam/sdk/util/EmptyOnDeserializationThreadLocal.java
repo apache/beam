@@ -26,6 +26,9 @@ import org.apache.beam.sdk.coders.Coder;
  * A {@link Serializable} {@link ThreadLocal} which discards any "stored" objects. This allows for
  * Kryo to serialize a {@link Coder} as a final field.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class EmptyOnDeserializationThreadLocal<T> extends ThreadLocal<T> implements Serializable {
   private void writeObject(java.io.ObjectOutputStream out) throws IOException {}
 

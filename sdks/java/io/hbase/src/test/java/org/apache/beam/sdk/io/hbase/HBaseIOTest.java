@@ -22,15 +22,16 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -51,11 +51,12 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.StartMiniClusterOption;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -85,7 +86,7 @@ public class HBaseIOTest {
   @Rule public TemporaryHBaseTable tmpTable = new TemporaryHBaseTable();
 
   private static HBaseTestingUtility htu;
-  private static HBaseAdmin admin;
+  private static Admin admin;
 
   private static final Configuration conf = HBaseConfiguration.create();
   private static final byte[] COLUMN_FAMILY = Bytes.toBytes("info");
@@ -103,10 +104,12 @@ public class HBaseIOTest {
 
     // We don't use the full htu.startMiniCluster() to avoid starting unneeded HDFS/MR daemons
     htu.startMiniZKCluster();
-    MiniHBaseCluster hbm = htu.startMiniHBaseCluster(1, 4);
+    StartMiniClusterOption option =
+        StartMiniClusterOption.builder().numMasters(1).numRegionServers(4).build();
+    MiniHBaseCluster hbm = htu.startMiniHBaseCluster(option);
     hbm.waitForActiveAndReadyMaster();
 
-    admin = htu.getHBaseAdmin();
+    admin = htu.getAdmin();
   }
 
   @AfterClass
@@ -549,11 +552,8 @@ public class HBaseIOTest {
   private PCollection<Result> applyRead(HBaseIO.Read read, boolean useSdf) {
     final String transformId = read.getTableId() + "_" + read.getKeyRange();
     return useSdf
-        ? p.apply(
-                "Create" + transformId, Create.of(HBaseQuery.of(read.getTableId(), read.getScan())))
-            .apply(
-                "ReadAll" + transformId,
-                HBaseIO.readAll().withConfiguration(read.getConfiguration()))
+        ? p.apply("Create" + transformId, Create.of(read))
+            .apply("ReadAll" + transformId, HBaseIO.readAll())
         : p.apply("Read" + transformId, read);
   }
 

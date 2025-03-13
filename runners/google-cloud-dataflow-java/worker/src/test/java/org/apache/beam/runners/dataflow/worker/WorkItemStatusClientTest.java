@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -25,9 +26,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.isA;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,6 +53,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.DataflowReaderPosition;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedSourceSplit;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -66,7 +67,8 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -294,6 +296,23 @@ public class WorkItemStatusClientTest {
   }
 
   @Test
+  public void reportAbort() throws Exception {
+    when(worker.extractMetricUpdates()).thenReturn(Collections.emptyList());
+    statusClient.setWorker(worker, executionContext);
+
+    when(workUnitClient.reportWorkItemStatus(isA(WorkItemStatus.class)))
+        .thenReturn(
+            new WorkItemServiceState()
+                .setCompleteWorkStatus(
+                    new Status()
+                        .setCode(com.google.rpc.Code.ABORTED_VALUE)
+                        .setMessage("Worker was asked to abort!")));
+    statusClient.reportUpdate(null, LEASE_DURATION);
+
+    statusClient.reportSuccess();
+  }
+
+  @Test
   public void populateMetricUpdatesNoStateSamplerInfo() throws Exception {
     // When executionContext.getExecutionStateTracker() returns null, we get no metric updates.
     WorkItemStatus status = new WorkItemStatus();
@@ -346,7 +365,7 @@ public class WorkItemStatusClientTest {
   public void populateCounterUpdatesWithOutputCounters() throws Exception {
     final CounterUpdate counter =
         new CounterUpdate()
-            .setNameAndKind(new NameAndKind().setName("some-counter").setKind("SUM"))
+            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(Kind.SUM.toString()))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -368,7 +387,7 @@ public class WorkItemStatusClientTest {
   public void populateCounterUpdatesWithMetricsAndCounters() throws Exception {
     final CounterUpdate expectedCounter =
         new CounterUpdate()
-            .setNameAndKind(new NameAndKind().setName("some-counter").setKind("SUM"))
+            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(Kind.SUM.toString()))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -385,7 +404,7 @@ public class WorkItemStatusClientTest {
                             .setOriginNamespace("namespace")
                             .setName("some-counter")
                             .setOriginalStepName("step"))
-                    .setMetadata(new CounterMetadata().setKind("SUM")))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -422,7 +441,7 @@ public class WorkItemStatusClientTest {
                             .setOrigin("SYSTEM")
                             .setName("start-msecs")
                             .setOriginalStepName("step"))
-                    .setMetadata(new CounterMetadata().setKind("SUM")))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -546,7 +565,7 @@ public class WorkItemStatusClientTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       }

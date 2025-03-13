@@ -20,19 +20,28 @@ package org.apache.beam.runners.direct;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer.Finalization;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /** An immutable {@link TransformResult}. */
 @AutoValue
+@AutoValue.CopyAnnotations
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
   public static <InputT> Builder<InputT> withHold(
@@ -54,7 +63,8 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
         getWatermarkHold(),
         getState(),
         getTimerUpdate(),
-        getOutputTypes());
+        getOutputTypes(),
+        getBundleFinalizations());
   }
 
   /** A builder for creating instances of {@link StepTransformResult}. */
@@ -65,6 +75,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals state;
     private TimerUpdate timerUpdate;
+    private List<Finalization> finalizations;
     private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
@@ -76,6 +87,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
       this.metricUpdates = MetricUpdates.EMPTY;
+      this.finalizations = Collections.EMPTY_LIST;
     }
 
     public StepTransformResult<InputT> build() {
@@ -87,7 +99,8 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
           watermarkHold,
           state,
           timerUpdate,
-          producedOutputs);
+          producedOutputs,
+          finalizations);
     }
 
     public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
@@ -107,6 +120,12 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
     public Builder<InputT> addUnprocessedElements(WindowedValue<InputT>... unprocessed) {
       unprocessedElementsBuilder.addAll(Arrays.asList(unprocessed));
+      return this;
+    }
+
+    public Builder<InputT> withBundleFinalizations(
+        List<InMemoryBundleFinalizer.Finalization> finalizations) {
+      this.finalizations = finalizations;
       return this;
     }
 

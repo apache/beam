@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
@@ -29,7 +32,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -62,6 +65,24 @@ public class BeamSqlMultipleSchemasTest {
         input.apply(SqlTransform.query("SELECT f_int, f_string FROM PCOLLECTION"));
 
     PAssert.that(result).containsInAnyOrder(row(1, "strstr"));
+    pipeline.run();
+  }
+
+  @Test
+  public void testSelectAs() {
+    PCollection<Row> input = pipeline.apply(create(row(1, "strstr")));
+
+    PCollection<Row> result =
+        input.apply(
+            SqlTransform.query(
+                "WITH tempTable (id, v) AS (SELECT f_int as id, f_string as v FROM PCOLLECTION) SELECT id AS fout_int, v AS fout_string FROM tempTable WHERE id >= 1"));
+
+    Schema outputSchema =
+        Schema.builder().addInt32Field("fout_int").addStringField("fout_string").build();
+    assertThat(result.getSchema(), equalTo(outputSchema));
+
+    Row output = Row.withSchema(outputSchema).addValues(1, "strstr").build();
+    PAssert.that(result).containsInAnyOrder(output);
     pipeline.run();
   }
 

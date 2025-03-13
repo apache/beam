@@ -1,0 +1,23 @@
+type: edu
+files:
+- name: test/task_test.go
+  visible: false
+- name: cmd/main.go
+  visible: true
+- name: pkg/common/input.go
+  visible: true
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 1036
+    length: 60
+    placeholder_text: TODO()
+  - offset: 1105
+    length: 36
+    placeholder_text: TODO()
+  - offset: 1162
+    length: 46
+    placeholder_text: TODO()
+  - offset: 1227
+    length: 121
+    placeholder_text: TODO()

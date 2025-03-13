@@ -18,30 +18,47 @@ package filter_test
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func init() {
+	register.Function1x1(alwaysTrue)
+	register.Function1x1(alwaysFalse)
+	register.Function1x1(isOne)
+	register.Function1x1(greaterThanOne)
+}
+
+func alwaysTrue(a int) bool     { return true }
+func alwaysFalse(a int) bool    { return false }
+func isOne(a int) bool          { return a == 1 }
+func greaterThanOne(a int) bool { return a > 1 }
 
 func TestInclude(t *testing.T) {
 	tests := []struct {
 		in  []int
-		fn  interface{}
+		fn  any
 		exp []int
 	}{
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return true },
+			alwaysTrue,
 			[]int{1, 2, 3},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a == 1 },
+			isOne,
 			[]int{1},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a > 1 },
+			greaterThanOne,
 			[]int{2, 3},
 		},
 	}
@@ -59,22 +76,22 @@ func TestInclude(t *testing.T) {
 func TestExclude(t *testing.T) {
 	tests := []struct {
 		in  []int
-		fn  interface{}
+		fn  any
 		exp []int
 	}{
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return false },
+			alwaysFalse,
 			[]int{1, 2, 3},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a == 1 },
+			isOne,
 			[]int{2, 3},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a > 1 },
+			greaterThanOne,
 			[]int{1},
 		},
 	}

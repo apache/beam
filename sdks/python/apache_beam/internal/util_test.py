@@ -16,7 +16,7 @@
 #
 
 """Unit tests for the util module."""
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
@@ -26,7 +26,6 @@ from apache_beam.internal.util import remove_objects_from_args
 
 
 class UtilTest(unittest.TestCase):
-
   def test_remove_objects_from_args(self):
     args, kwargs, objs = remove_objects_from_args(
         [1, 'a'], {'x': 1, 'y': 3.14}, (str, float))

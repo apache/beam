@@ -31,6 +31,10 @@ import org.slf4j.LoggerFactory;
  * Traverses the Pipeline to determine the translation mode (i.e. streaming or batch) for this
  * pipeline.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationModeOptimizer.class);
@@ -63,7 +67,7 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
     AppliedPTransform<?, ?, ?> appliedPTransform = node.toAppliedPTransform(getPipeline());
     if (hasUnboundedOutput(appliedPTransform)) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      LOG.debug("Found unbounded PCollection for transform %s", transformClass);
+      LOG.debug("Found unbounded PCollection for transform {}", transformClass);
       hasUnboundedCollections = true;
     }
   }

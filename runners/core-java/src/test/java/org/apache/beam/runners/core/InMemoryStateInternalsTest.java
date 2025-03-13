@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -65,10 +65,6 @@ public class InMemoryStateInternalsTest {
         StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
     private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
-    private static final StateTag<WatermarkHoldState> WATERMARK_LATEST_ADDR =
-        StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
-    private static final StateTag<WatermarkHoldState> WATERMARK_EOW_ADDR =
-        StateTags.watermarkStateInternal("watermark", TimestampCombiner.END_OF_WINDOW);
 
     StateInternals underTest = new InMemoryStateInternals<>("dummyKey");
 

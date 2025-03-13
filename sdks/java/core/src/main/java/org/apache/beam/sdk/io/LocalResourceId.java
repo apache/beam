@@ -17,44 +17,42 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.lang3.SystemUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link ResourceId} implementation for local files. */
 class LocalResourceId implements ResourceId {
 
   private final String pathString;
 
-  @Nullable private transient volatile Path cachedPath;
-
-  private final boolean isDirectory;
+  private transient volatile @Nullable Path cachedPath;
 
   static LocalResourceId fromPath(Path path, boolean isDirectory) {
-    checkNotNull(path, "path");
+    checkArgumentNotNull(path, "path");
     return new LocalResourceId(path, isDirectory);
   }
 
   private LocalResourceId(Path path, boolean isDirectory) {
     this.pathString =
-        path.toAbsolutePath().normalize().toString() + (isDirectory ? File.separatorChar : "");
-    this.isDirectory = isDirectory;
+        path.toAbsolutePath().normalize().toString() + (isDirectory ? File.separator : "");
   }
 
   @Override
   public LocalResourceId resolve(String other, ResolveOptions resolveOptions) {
-    checkState(isDirectory, "Expected the path is a directory, but had [%s].", pathString);
+    checkState(isDirectory(), "Expected the path is a directory, but had [%s].", pathString);
     checkArgument(
         resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
             || resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY),
@@ -73,7 +71,7 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public LocalResourceId getCurrentDirectory() {
-    if (isDirectory) {
+    if (isDirectory()) {
       return this;
     } else {
       Path path = getPath();
@@ -81,14 +79,13 @@ class LocalResourceId implements ResourceId {
       if (parent == null && path.getNameCount() == 1) {
         parent = Paths.get(".");
       }
-      checkState(parent != null, "Failed to get the current directory for path: [%s].", pathString);
+      checkStateNotNull(parent, "Failed to get the current directory for path: [%s].", pathString);
       return fromPath(parent, true /* isDirectory */);
     }
   }
 
   @Override
-  @Nullable
-  public String getFilename() {
+  public @Nullable String getFilename() {
     Path fileName = getPath().getFileName();
     return fileName == null ? null : fileName.toString();
   }
@@ -119,7 +116,7 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public boolean isDirectory() {
-    return isDirectory;
+    return pathString.endsWith(File.separator);
   }
 
   Path getPath() {
@@ -135,16 +132,16 @@ class LocalResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof LocalResourceId)) {
       return false;
     }
     LocalResourceId other = (LocalResourceId) obj;
-    return this.pathString.equals(other.pathString) && this.isDirectory == other.isDirectory;
+    return this.pathString.equals(other.pathString);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(pathString, isDirectory);
+    return Objects.hash(pathString);
   }
 }

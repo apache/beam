@@ -18,13 +18,15 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 
 /** A {@link TransformResult} that has been committed. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 abstract class CommittedResult<ExecutableT> {
   /** Returns the {@link AppliedPTransform} that produced this result. */
   public abstract ExecutableT getExecutable();
@@ -39,13 +41,7 @@ abstract class CommittedResult<ExecutableT> {
   /** Returns the outputs produced by the transform. */
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
-  /**
-   * Returns if the transform that produced this result produced outputs.
-   *
-   * <p>Transforms that produce output via modifying the state of the runner (e.g. {@link
-   * CreatePCollectionView}) should explicitly set this to true. If {@link #getOutputs()} returns a
-   * nonempty iterable, this will also return true.
-   */
+  /** Returns a description of the produced outputs. */
   public abstract Set<OutputType> getProducedOutputTypes();
 
   public static CommittedResult<AppliedPTransform<?, ?, ?>> create(

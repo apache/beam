@@ -23,7 +23,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -32,7 +31,8 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ComparisonChain;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -54,9 +54,18 @@ public interface TimerInternals {
    *
    * <p>It is an error to set a timer for two different time domains.
    */
-  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+  void setTimer(
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain);
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+   *     TimeDomain)}.
+   */
   @Deprecated
   void setTimer(TimerData timerData);
 
@@ -67,13 +76,14 @@ public interface TimerInternals {
    * manage timers for different time domains in very different ways, thus the {@link TimeDomain} is
    * a required parameter.
    */
-  void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain);
+  void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
-  void deleteTimer(StateNamespace namespace, String timerId);
+  void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(TimerData timerKey);
 
@@ -161,35 +171,75 @@ public interface TimerInternals {
 
     public abstract String getTimerId();
 
+    public abstract String getTimerFamilyId();
+
     public abstract StateNamespace getNamespace();
 
     public abstract Instant getTimestamp();
 
+    /**
+     * Timestamp the timer assigns to outputted elements from {@link
+     * org.apache.beam.sdk.transforms.DoFn.OnTimer} method. For event time timers, output watermark
+     * is held at this timestamp until the timer fires.
+     */
+    public abstract Instant getOutputTimestamp();
+
     public abstract TimeDomain getDomain();
+
+    public abstract boolean getDeleted();
 
     // When adding a new field, make sure to add it to the compareTo() method.
 
-    /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
-     * generated.
-     */
+    /** Construct a {@link TimerData} for the given parameters. */
     public static TimerData of(
-        String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return new AutoValue_TimerInternals_TimerData(timerId, namespace, timestamp, domain);
+        String timerId,
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, "", namespace, timestamp, outputTimestamp, domain, false);
     }
 
     /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is
+     * Construct a {@link TimerData} for the given parameters except for {@code outputTimestamp}.
+     * {@code outputTimestamp} is set to timer {@code timestamp}.
+     */
+    public static TimerData of(
+        String timerId,
+        String timerFamilyId,
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
+    }
+
+    /**
+     * Construct a {@link TimerData} for the given parameters except for timer ID. Timer ID is
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
-    public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+    public static TimerData of(
+        StateNamespace namespace, Instant timestamp, Instant outputTimestamp, TimeDomain domain) {
       String timerId =
           new StringBuilder()
               .append(domain.ordinal())
               .append(':')
               .append(timestamp.getMillis())
               .toString();
-      return of(timerId, namespace, timestamp, domain);
+      return of(timerId, namespace, timestamp, outputTimestamp, domain);
+    }
+
+    public TimerData deleted() {
+      return new AutoValue_TimerInternals_TimerData(
+          getTimerId(),
+          getTimerFamilyId(),
+          getNamespace(),
+          getTimestamp(),
+          getOutputTimestamp(),
+          getDomain(),
+          true);
     }
 
     /**
@@ -206,18 +256,82 @@ public interface TimerInternals {
       }
       ComparisonChain chain =
           ComparisonChain.start()
+              .compare(this.getDeleted(), that.getDeleted())
               .compare(this.getTimestamp(), that.getTimestamp())
+              .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getDomain(), that.getDomain())
-              .compare(this.getTimerId(), that.getTimerId());
-      if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
+              .compare(this.getTimerId(), that.getTimerId())
+              .compare(this.getTimerFamilyId(), that.getTimerFamilyId());
+      int compResult = chain.result();
+      if (compResult == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
-        chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
+        compResult = this.getNamespace().stringKey().compareTo(that.getNamespace().stringKey());
       }
-      return chain.result();
+      return compResult;
+    }
+
+    public String stringKey() {
+      return getNamespace().stringKey()
+          + "/"
+          + getDomain().toString()
+          + "/"
+          + getTimerFamilyId()
+          + ":"
+          + getTimerId();
     }
   }
 
   /** A {@link Coder} for {@link TimerData}. */
+  class TimerDataCoderV2 extends StructuredCoder<TimerData> {
+    private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+    private static final InstantCoder INSTANT_CODER = InstantCoder.of();
+    private final Coder<? extends BoundedWindow> windowCoder;
+
+    public static TimerDataCoderV2 of(Coder<? extends BoundedWindow> windowCoder) {
+      return new TimerDataCoderV2(windowCoder);
+    }
+
+    private TimerDataCoderV2(Coder<? extends BoundedWindow> windowCoder) {
+      this.windowCoder = windowCoder;
+    }
+
+    @Override
+    public void encode(TimerData timer, OutputStream outStream) throws CoderException, IOException {
+      STRING_CODER.encode(timer.getTimerId(), outStream);
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
+      STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
+      INSTANT_CODER.encode(timer.getTimestamp(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
+      STRING_CODER.encode(timer.getDomain().name(), outStream);
+    }
+
+    @Override
+    public TimerData decode(InputStream inStream) throws CoderException, IOException {
+      String timerId = STRING_CODER.decode(inStream);
+      String timerFamilyId = STRING_CODER.decode(inStream);
+      StateNamespace namespace =
+          StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
+      Instant timestamp = INSTANT_CODER.decode(inStream);
+      Instant outputTimestamp = INSTANT_CODER.decode(inStream);
+      TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
+      return TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Arrays.asList(windowCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(this, "window coder must be deterministic", windowCoder);
+    }
+  }
+
+  /**
+   * A {@link Coder} for {@link TimerData}. To make it encoding and decoding backward compatible for
+   * DataFlow
+   */
   class TimerDataCoder extends StructuredCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
@@ -246,7 +360,7 @@ public interface TimerInternals {
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, timestamp, domain);
     }
 
     @Override

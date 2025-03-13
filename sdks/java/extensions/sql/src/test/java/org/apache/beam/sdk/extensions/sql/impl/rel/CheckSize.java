@@ -32,7 +32,7 @@ public class CheckSize implements SerializableFunction<Iterable<Row>, Void> {
   @Override
   public Void apply(Iterable<Row> input) {
     int count = 0;
-    for (Row row : input) {
+    for (Row ignored : input) {
       count++;
     }
     Assert.assertEquals(size, count);

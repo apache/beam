@@ -18,20 +18,25 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Apache Beam provides a number of experimental features that can be enabled with this flag. If
  * executing against a managed service, please contact the service owners before enabling any
  * experiments.
  */
-@Experimental
-@Hidden
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public interface ExperimentalOptions extends PipelineOptions {
+
+  String STATE_CACHE_SIZE = "state_cache_size";
+
+  String STATE_SAMPLING_PERIOD_MILLIS = "state_sampling_period_millis";
+
   @Description(
-      "[Experimental] Apache Beam provides a number of experimental features that can "
+      "Apache Beam provides a number of experimental features that can "
           + "be enabled with this flag. If executing against a managed service, please contact the "
           + "service owners before enabling any experiments.")
   @Nullable
@@ -59,5 +64,23 @@ public interface ExperimentalOptions extends PipelineOptions {
       experiments.add(experiment);
     }
     options.setExperiments(experiments);
+  }
+
+  /** Return the value for the specified experiment or null if not present. */
+  static String getExperimentValue(PipelineOptions options, String experiment) {
+    if (options == null) {
+      return null;
+    }
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    if (experiments == null) {
+      return null;
+    }
+    for (String experimentEntry : experiments) {
+      String[] tokens = experimentEntry.split(experiment + "=", -1);
+      if (tokens.length > 1) {
+        return tokens[1];
+      }
+    }
+    return null;
   }
 }

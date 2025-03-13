@@ -17,29 +17,26 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -202,96 +199,6 @@ public class WindowFnTestUtils {
   }
 
   /**
-   * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
-   * verifies that result of {@code windowFn.getOutputTimestamp} for each window is within the
-   * proper bound.
-   */
-  public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimes(
-      WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    validateNonInterferingOutputTimesWithValue(
-        windowFn, TimestampedValue.of((T) null, new Instant(timestamp)));
-  }
-  /**
-   * Assigns the given {@code timestampedValue} to windows using the specified {@code windowFn}, and
-   * verifies that result of {@code windowFn.getOutputTimestamp} for each window is within the
-   * proper bound. This version allows passing a {@link TimestampedValue} in case the value is
-   * needed to assign windows.
-   */
-  public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimesWithValue(
-      WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
-    Collection<W> windows = assignedWindowsWithValue(windowFn, timestampedValue);
-
-    Instant instant = timestampedValue.getTimestamp();
-    for (W window : windows) {
-      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
-      assertFalse(
-          "getOutputTime must be greater than or equal to input timestamp",
-          outputTimestamp.isBefore(instant));
-      assertFalse(
-          "getOutputTime must be less than or equal to the max timestamp",
-          outputTimestamp.isAfter(window.maxTimestamp()));
-    }
-  }
-
-  /**
-   * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
-   * verifies that result of {@link WindowFn#getOutputTime windowFn.getOutputTime} for later windows
-   * (as defined by {@code maxTimestamp} won't prevent the watermark from passing the end of earlier
-   * windows.
-   *
-   * <p>This verifies that overlapping windows don't interfere at all. Depending on the {@code
-   * windowFn} this may be stricter than desired.
-   */
-  public static <T, W extends BoundedWindow> void validateGetOutputTimestamp(
-      WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    validateGetOutputTimestampWithValue(
-        windowFn, TimestampedValue.of((T) null, new Instant(timestamp)));
-  }
-
-  /**
-   * Assigns the given {@code timestampedValue} to windows using the specified {@code windowFn}, and
-   * verifies that result of {@link WindowFn#getOutputTime windowFn.getOutputTime} for later windows
-   * (as defined by {@code maxTimestamp} won't prevent the watermark from passing the end of earlier
-   * windows.
-   *
-   * <p>This verifies that overlapping windows don't interfere at all. Depending on the {@code
-   * windowFn} this may be stricter than desired. This version allows passing a {@link
-   * TimestampedValue} in case the value is needed to assign windows.
-   */
-  public static <T, W extends BoundedWindow> void validateGetOutputTimestampWithValue(
-      WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
-    Collection<W> windows = assignedWindowsWithValue(windowFn, timestampedValue);
-    List<W> sortedWindows = new ArrayList<>(windows);
-    sortedWindows.sort(Comparator.comparing(BoundedWindow::maxTimestamp));
-
-    Instant instant = timestampedValue.getTimestamp();
-    Instant endOfPrevious = null;
-    for (W window : sortedWindows) {
-      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
-      if (endOfPrevious == null) {
-        // If this is the first window, the output timestamp can be anything, as long as it is in
-        // the valid range.
-        assertFalse(
-            "getOutputTime must be greater than or equal to input timestamp",
-            outputTimestamp.isBefore(instant));
-        assertFalse(
-            "getOutputTime must be less than or equal to the max timestamp",
-            outputTimestamp.isAfter(window.maxTimestamp()));
-      } else {
-        // If this is a later window, the output timestamp must be after the end of the previous
-        // window
-        assertTrue(
-            "getOutputTime must be greater than the end of the previous window",
-            outputTimestamp.isAfter(endOfPrevious));
-        assertFalse(
-            "getOutputTime must be less than or equal to the max timestamp",
-            outputTimestamp.isAfter(window.maxTimestamp()));
-      }
-      endOfPrevious = window.maxTimestamp();
-    }
-  }
-
-  /**
    * Verifies that later-ending merged windows from any of the timestamps hold up output of
    * earlier-ending windows, using the provided {@link WindowFn} and {@link TimestampCombiner}.
    *
@@ -370,8 +277,7 @@ public class WindowFnTestUtils {
 
       List<Instant> outputInstants = new ArrayList<>();
       for (TimestampedValue<T> element : timestampValuesForWindow) {
-        outputInstants.add(
-            assignOutputTime(timestampCombiner, new Instant(element.getTimestamp()), window));
+        outputInstants.add(assignOutputTime(timestampCombiner, element.getTimestamp(), window));
       }
 
       combinedOutputTimestamps.add(combineOutputTimes(timestampCombiner, outputInstants));

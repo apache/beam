@@ -17,20 +17,16 @@
  */
 package org.apache.beam.sdk.io.common;
 
-import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Contains helper methods for file based IO Integration tests. */
 public class FileBasedIOITHelper {
@@ -43,17 +39,6 @@ public class FileBasedIOITHelper {
 
   public static String appendTimestampSuffix(String text) {
     return String.format("%s_%s", text, new Date().getTime());
-  }
-
-  public static String getExpectedHashForLineCount(int lineCount) {
-    Map<Integer, String> expectedHashes =
-        ImmutableMap.of(
-            1000, "8604c70b43405ef9803cb49b77235ea2",
-            100_000, "4c8bb3b99dcc59459b20fefba400d446",
-            1_000_000, "9796db06e7a7960f974d5a91164afff1",
-            100_000_000, "6ce05f456e2fdc846ded2abd0ec1de95");
-
-    return getHashForRecordCount(lineCount, expectedHashes);
   }
 
   /** Constructs text lines in files used for testing. */

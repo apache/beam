@@ -17,18 +17,19 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -55,8 +56,7 @@ public class StructuredCoderTest {
     }
 
     @Override
-    @Nullable
-    public Boolean decode(InputStream inStream) throws CoderException, IOException {
+    public @Nullable Boolean decode(InputStream inStream) throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {
         return false;
@@ -113,8 +113,8 @@ public class StructuredCoderTest {
     }
 
     @Override
-    @Nullable
-    public ObjectIdentityBoolean decode(InputStream inStream) throws CoderException, IOException {
+    public @Nullable ObjectIdentityBoolean decode(InputStream inStream)
+        throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {
         return new ObjectIdentityBoolean(false);
@@ -168,7 +168,7 @@ public class StructuredCoderTest {
   /** Test for verifying {@link StructuredCoder#toString()}. */
   @Test
   public void testToString() {
-    Assert.assertThat(
+    assertThat(
         new ObjectIdentityBooleanCoder().toString(),
         CoreMatchers.equalTo("StructuredCoderTest$ObjectIdentityBooleanCoder"));
 
@@ -182,21 +182,21 @@ public class StructuredCoderTest {
           }
         };
 
-    Assert.assertThat(
+    assertThat(
         coderWithArgs.toString(),
         CoreMatchers.equalTo("StructuredCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
   }
 
   @Test
   public void testGenericStandardCoderFallsBackToT() throws Exception {
-    Assert.assertThat(
+    assertThat(
         new Foo<String>().getEncodedTypeDescriptor().getType(),
         CoreMatchers.not(TypeDescriptor.of(String.class).getType()));
   }
 
   @Test
   public void testGenericStandardCoder() throws Exception {
-    Assert.assertThat(
+    assertThat(
         new FooTwo().getEncodedTypeDescriptor(),
         CoreMatchers.equalTo(TypeDescriptor.of(String.class)));
   }

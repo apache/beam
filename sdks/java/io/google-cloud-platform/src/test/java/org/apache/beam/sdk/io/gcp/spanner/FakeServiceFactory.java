@@ -25,13 +25,15 @@ import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Instance;
+import com.google.cloud.spanner.InstanceAdminClient;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.concurrent.GuardedBy;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
 /**
  * A serialization friendly type service factory that maintains a mock {@link Spanner} and {@link
@@ -52,6 +54,12 @@ class FakeServiceFactory implements ServiceFactory<Spanner, SpannerOptions>, Ser
   private static final List<BatchClient> mockBatchClients = new ArrayList<>();
 
   @GuardedBy("lock")
+  private static final List<InstanceAdminClient> mockAdminClients = new ArrayList<>();
+
+  @GuardedBy("lock")
+  private static final List<Instance> mockInstances = new ArrayList<>();
+
+  @GuardedBy("lock")
   private static int count = 0;
 
   private final int index;
@@ -62,11 +70,16 @@ class FakeServiceFactory implements ServiceFactory<Spanner, SpannerOptions>, Ser
       mockSpanners.add(mock(Spanner.class, withSettings().serializable()));
       mockDatabaseClients.add(mock(DatabaseClient.class, withSettings().serializable()));
       mockBatchClients.add(mock(BatchClient.class, withSettings().serializable()));
+      mockAdminClients.add(mock(InstanceAdminClient.class, withSettings().serializable()));
+      mockInstances.add(mock(Instance.class, withSettings().serializable()));
     }
-    when(mockSpanner().getDatabaseClient(Matchers.any(DatabaseId.class)))
+    when(mockAdminClient().getInstance(ArgumentMatchers.any(String.class)))
+        .thenReturn(mockInstance());
+    when(mockSpanner().getDatabaseClient(ArgumentMatchers.any(DatabaseId.class)))
         .thenReturn(mockDatabaseClient());
-    when(mockSpanner().getBatchClient(Matchers.any(DatabaseId.class)))
+    when(mockSpanner().getBatchClient(ArgumentMatchers.any(DatabaseId.class)))
         .thenReturn(mockBatchClient());
+    when(mockSpanner().getInstanceAdminClient()).thenReturn(mockAdminClient());
   }
 
   DatabaseClient mockDatabaseClient() {
@@ -84,6 +97,18 @@ class FakeServiceFactory implements ServiceFactory<Spanner, SpannerOptions>, Ser
   Spanner mockSpanner() {
     synchronized (lock) {
       return mockSpanners.get(index);
+    }
+  }
+
+  InstanceAdminClient mockAdminClient() {
+    synchronized (lock) {
+      return mockAdminClients.get(index);
+    }
+  }
+
+  Instance mockInstance() {
+    synchronized (lock) {
+      return mockInstances.get(index);
     }
   }
 

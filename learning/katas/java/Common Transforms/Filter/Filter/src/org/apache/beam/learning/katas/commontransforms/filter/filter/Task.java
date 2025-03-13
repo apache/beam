@@ -18,13 +18,25 @@
 
 package org.apache.beam.learning.katas.commontransforms.filter.filter;
 
+// beam-playground:
+//   name: Filter
+//   description: Task from katas to implement a filter function that filters out odd numbers.
+//   multifile: false
+//   context_line: 43
+//   categories:
+//     - Filtering
+//   complexity: BASIC
+//   tags:
+//     - filter
+//     - numbers
+
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.values.PCollection;
-import util.Log;
 
 public class Task {
 

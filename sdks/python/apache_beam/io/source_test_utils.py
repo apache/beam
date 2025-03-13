@@ -43,29 +43,29 @@ For example usages, see the unit tests of modules such as
  * apache_beam.io.source_test_utils_test.py
  * apache_beam.io.avroio_test.py
 """
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import logging
 import threading
 import weakref
-from builtins import next
-from builtins import object
-from builtins import range
 from collections import namedtuple
 from multiprocessing.pool import ThreadPool
 
 from apache_beam.io import iobase
 from apache_beam.testing.util import equal_to
 
-__all__ = ['read_from_source',
-           'assert_sources_equal_reference_source',
-           'assert_reentrant_reads_succeed',
-           'assert_split_at_fraction_behavior',
-           'assert_split_at_fraction_binary',
-           'assert_split_at_fraction_exhaustive',
-           'assert_split_at_fraction_fails',
-           'assert_split_at_fraction_succeeds_and_consistent']
+__all__ = [
+    'read_from_source',
+    'assert_sources_equal_reference_source',
+    'assert_reentrant_reads_succeed',
+    'assert_split_at_fraction_behavior',
+    'assert_split_at_fraction_binary',
+    'assert_split_at_fraction_exhaustive',
+    'assert_split_at_fraction_fails',
+    'assert_split_at_fraction_succeeds_and_consistent'
+]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ExpectedSplitOutcome(object):
@@ -78,8 +78,7 @@ SplitAtFractionResult = namedtuple(
     'SplitAtFractionResult', 'num_primary_items num_residual_items')
 
 SplitFractionStatistics = namedtuple(
-    'SplitFractionStatistics',
-    'successful_fractions non_trivial_fractions')
+    'SplitFractionStatistics', 'successful_fractions non_trivial_fractions')
 
 
 def read_from_source(source, start_position=None, stop_position=None):
@@ -133,7 +132,7 @@ def assert_sources_equal_reference_source(reference_source_info, sources_info):
       format described above.
 
   Raises:
-    ~exceptions.ValueError: if the set of data produced by the reference source
+    ValueError: if the set of data produced by the reference source
       and the given set of sources are not equivalent.
 
   """
@@ -141,39 +140,38 @@ def assert_sources_equal_reference_source(reference_source_info, sources_info):
   if not (isinstance(reference_source_info, tuple) and
           len(reference_source_info) == 3 and
           isinstance(reference_source_info[0], iobase.BoundedSource)):
-    raise ValueError('reference_source_info must a three-tuple where first'
-                     'item of the tuple gives a '
-                     'iobase.BoundedSource. Received: %r'
-                     % reference_source_info)
-  reference_records = read_from_source(
-      *reference_source_info)
+    raise ValueError(
+        'reference_source_info must a three-tuple where first'
+        'item of the tuple gives a '
+        'iobase.BoundedSource. Received: %r' % reference_source_info)
+  reference_records = read_from_source(*reference_source_info)
 
   source_records = []
   for source_info in sources_info:
     assert isinstance(source_info, tuple)
     assert len(source_info) == 3
-    if not (isinstance(source_info, tuple) and
-            len(source_info) == 3 and
+    if not (isinstance(source_info, tuple) and len(source_info) == 3 and
             isinstance(source_info[0], iobase.BoundedSource)):
-      raise ValueError('source_info must a three tuple where first'
-                       'item of the tuple gives a '
-                       'iobase.BoundedSource. Received: %r'
-                       % source_info)
-    if (type(reference_source_info[0].default_output_coder()) !=
-        type(source_info[0].default_output_coder())):
+      raise ValueError(
+          'source_info must a three tuple where first'
+          'item of the tuple gives a '
+          'iobase.BoundedSource. Received: %r' % source_info)
+    if (type(reference_source_info[0].default_output_coder()) != type(
+        source_info[0].default_output_coder())):
       raise ValueError(
           'Reference source %r and the source %r must use the same coder. '
-          'They are using %r and %r respectively instead.'
-          % (reference_source_info[0], source_info[0],
-             type(reference_source_info[0].default_output_coder()),
-             type(source_info[0].default_output_coder())))
+          'They are using %r and %r respectively instead.' % (
+              reference_source_info[0],
+              source_info[0],
+              type(reference_source_info[0].default_output_coder()),
+              type(source_info[0].default_output_coder())))
     source_records.extend(read_from_source(*source_info))
 
   if len(reference_records) != len(source_records):
     raise ValueError(
         'Reference source must produce the same number of records as the '
-        'list of sources. Number of records were %d and %d instead.'
-        % (len(reference_records), len(source_records)))
+        'list of sources. Number of records were %d and %d instead.' %
+        (len(reference_records), len(source_records)))
 
   if equal_to(reference_records)(source_records):
     raise ValueError(
@@ -196,50 +194,55 @@ def assert_reentrant_reads_succeed(source_info):
       at, and a position to stop reading at.
 
   Raises:
-    ~exceptions.ValueError: if source is too trivial or reentrant read result
+    ValueError: if source is too trivial or reentrant read result
       in an incorrect read.
   """
 
   source, start_position, stop_position = source_info
   assert isinstance(source, iobase.BoundedSource)
 
-  expected_values = [val for val in source.read(source.get_range_tracker(
-      start_position, stop_position))]
+  expected_values = [
+      val for val in source.read(
+          source.get_range_tracker(start_position, stop_position))
+  ]
   if len(expected_values) < 2:
-    raise ValueError('Source is too trivial since it produces only %d '
-                     'values. Please give a source that reads at least 2 '
-                     'values.' % len(expected_values))
+    raise ValueError(
+        'Source is too trivial since it produces only %d '
+        'values. Please give a source that reads at least 2 '
+        'values.' % len(expected_values))
 
   for i in range(1, len(expected_values) - 1):
-    read_iter = source.read(source.get_range_tracker(
-        start_position, stop_position))
+    read_iter = source.read(
+        source.get_range_tracker(start_position, stop_position))
     original_read = []
     for _ in range(i):
       original_read.append(next(read_iter))
 
     # Reentrant read
-    reentrant_read = [val for val in source.read(
-        source.get_range_tracker(start_position, stop_position))]
+    reentrant_read = [
+        val for val in source.read(
+            source.get_range_tracker(start_position, stop_position))
+    ]
 
     # Continuing original read.
     for val in read_iter:
       original_read.append(val)
 
     if equal_to(original_read)(expected_values):
-      raise ValueError('Source did not produce expected values when '
-                       'performing a reentrant read after reading %d values. '
-                       'Expected %r received %r.'
-                       % (i, expected_values, original_read))
+      raise ValueError(
+          'Source did not produce expected values when '
+          'performing a reentrant read after reading %d values. '
+          'Expected %r received %r.' % (i, expected_values, original_read))
 
     if equal_to(reentrant_read)(expected_values):
-      raise ValueError('A reentrant read of source after reading %d values '
-                       'did not produce expected values. Expected %r '
-                       'received %r.'
-                       % (i, expected_values, reentrant_read))
+      raise ValueError(
+          'A reentrant read of source after reading %d values '
+          'did not produce expected values. Expected %r '
+          'received %r.' % (i, expected_values, reentrant_read))
 
 
-def assert_split_at_fraction_behavior(source, num_items_to_read_before_split,
-                                      split_fraction, expected_outcome):
+def assert_split_at_fraction_behavior(
+    source, num_items_to_read_before_split, split_fraction, expected_outcome):
   """Verifies the behaviour of splitting a source at a given fraction.
 
   Asserts that splitting a :class:`~apache_beam.io.iobase.BoundedSource` either
@@ -265,13 +268,21 @@ def assert_split_at_fraction_behavior(source, num_items_to_read_before_split,
   assert isinstance(source, iobase.BoundedSource)
   expected_items = read_from_source(source, None, None)
   return _assert_split_at_fraction_behavior(
-      source, expected_items, num_items_to_read_before_split, split_fraction,
+      source,
+      expected_items,
+      num_items_to_read_before_split,
+      split_fraction,
       expected_outcome)
 
 
 def _assert_split_at_fraction_behavior(
-    source, expected_items, num_items_to_read_before_split,
-    split_fraction, expected_outcome, start_position=None, stop_position=None):
+    source,
+    expected_items,
+    num_items_to_read_before_split,
+    split_fraction,
+    expected_outcome,
+    start_position=None,
+    stop_position=None):
 
   range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
@@ -282,62 +293,70 @@ def _assert_split_at_fraction_behavior(
   for _ in range(num_items_to_read_before_split):
     current_items.append(next(reader_iter))
 
-  suggested_split_position = range_tracker.position_at_fraction(
-      split_fraction)
+  suggested_split_position = range_tracker.position_at_fraction(split_fraction)
 
   stop_position_before_split = range_tracker.stop_position()
   split_result = range_tracker.try_split(suggested_split_position)
 
   if split_result is not None:
     if len(split_result) != 2:
-      raise ValueError('Split result must be a tuple that contains split '
-                       'position and split fraction. Received: %r' %
-                       (split_result,))
+      raise ValueError(
+          'Split result must be a tuple that contains split '
+          'position and split fraction. Received: %r' % (split_result, ))
 
     if range_tracker.stop_position() != split_result[0]:
-      raise ValueError('After a successful split, the stop position of the '
-                       'RangeTracker must be the same as the returned split '
-                       'position. Observed %r and %r which are different.'
-                       % (range_tracker.stop_position() % (split_result[0],)))
+      raise ValueError(
+          'After a successful split, the stop position of the '
+          'RangeTracker must be the same as the returned split '
+          'position. Observed %r and %r which are different.' %
+          (range_tracker.stop_position() % (split_result[0], )))
 
     if split_fraction < 0 or split_fraction > 1:
-      raise ValueError('Split fraction must be within the range [0,1]',
-                       'Observed split fraction was %r.' % (split_result[1],))
+      raise ValueError(
+          'Split fraction must be within the range [0,1]',
+          'Observed split fraction was %r.' % (split_result[1], ))
 
   stop_position_after_split = range_tracker.stop_position()
   if split_result and stop_position_after_split == stop_position_before_split:
-    raise ValueError('Stop position %r did not change after a successful '
-                     'split of source %r at fraction %r.' %
-                     (stop_position_before_split, source, split_fraction))
+    raise ValueError(
+        'Stop position %r did not change after a successful '
+        'split of source %r at fraction %r.' %
+        (stop_position_before_split, source, split_fraction))
 
   if expected_outcome == ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT:
     if not split_result:
-      raise ValueError('Expected split of source %r at fraction %r to be '
-                       'successful after reading %d elements. But '
-                       'the split failed.' %
-                       (source, split_fraction, num_items_to_read_before_split))
+      raise ValueError(
+          'Expected split of source %r at fraction %r to be '
+          'successful after reading %d elements. But '
+          'the split failed.' %
+          (source, split_fraction, num_items_to_read_before_split))
   elif expected_outcome == ExpectedSplitOutcome.MUST_FAIL:
     if split_result:
-      raise ValueError('Expected split of source %r at fraction %r after '
-                       'reading %d elements to fail. But splitting '
-                       'succeeded with result %r.' %
-                       (source, split_fraction, num_items_to_read_before_split,
-                        split_result))
+      raise ValueError(
+          'Expected split of source %r at fraction %r after '
+          'reading %d elements to fail. But splitting '
+          'succeeded with result %r.' % (
+              source,
+              split_fraction,
+              num_items_to_read_before_split,
+              split_result))
 
-  elif (expected_outcome !=
-        ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS):
-    raise ValueError('Unknown type of expected outcome: %r' %
-                     expected_outcome)
+  elif (
+      expected_outcome != ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS):
+    raise ValueError('Unknown type of expected outcome: %r' % expected_outcome)
   current_items.extend([value for value in reader_iter])
 
   residual_range = (
       split_result[0], stop_position_before_split) if split_result else None
 
   return _verify_single_split_fraction_result(
-      source, expected_items, current_items,
+      source,
+      expected_items,
+      current_items,
       split_result,
       (range_tracker.start_position(), range_tracker.stop_position()),
-      residual_range, split_fraction)
+      residual_range,
+      split_fraction)
 
 
 def _range_to_str(start, stop):
@@ -345,8 +364,13 @@ def _range_to_str(start, stop):
 
 
 def _verify_single_split_fraction_result(
-    source, expected_items, current_items, split_successful, primary_range,
-    residual_range, split_fraction):
+    source,
+    expected_items,
+    current_items,
+    split_successful,
+    primary_range,
+    residual_range,
+    split_fraction):
 
   assert primary_range
   primary_items = read_from_source(source, *primary_range)
@@ -356,32 +380,27 @@ def _verify_single_split_fraction_result(
     assert not residual_range
 
   residual_items = (
-      read_from_source(source, *residual_range)
-      if split_successful else [])
+      read_from_source(source, *residual_range) if split_successful else [])
 
   total_items = primary_items + residual_items
 
   if current_items != primary_items:
-    raise ValueError('Current source %r and a source created using the '
-                     'range of the primary source %r determined '
-                     'by performing dynamic work rebalancing at fraction '
-                     '%r produced different values. Expected '
-                     'these sources to produce the same list of values.'
-                     % (source,
-                        _range_to_str(*primary_range),
-                        split_fraction)
-                    )
+    raise ValueError(
+        'Current source %r and a source created using the '
+        'range of the primary source %r determined '
+        'by performing dynamic work rebalancing at fraction '
+        '%r produced different values. Expected '
+        'these sources to produce the same list of values.' %
+        (source, _range_to_str(*primary_range), split_fraction))
 
   if expected_items != total_items:
-    raise ValueError('Items obtained by reading the source %r for primary '
-                     'and residual ranges %s and %s did not produce the '
-                     'expected list of values.'
-                     % (source,
-                        _range_to_str(*primary_range),
-                        _range_to_str(*residual_range)))
+    raise ValueError(
+        'Items obtained by reading the source %r for primary '
+        'and residual ranges %s and %s did not produce the '
+        'expected list of values.' %
+        (source, _range_to_str(*primary_range), _range_to_str(*residual_range)))
 
-  result = (len(primary_items),
-            len(residual_items) if split_successful else -1)
+  result = (len(primary_items), len(residual_items) if split_successful else -1)
   return result
 
 
@@ -418,12 +437,14 @@ def assert_split_at_fraction_succeeds_and_consistent(
   """
 
   assert_split_at_fraction_behavior(
-      source, num_items_to_read_before_split, split_fraction,
+      source,
+      num_items_to_read_before_split,
+      split_fraction,
       ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
 
 
-def assert_split_at_fraction_fails(source, num_items_to_read_before_split,
-                                   split_fraction):
+def assert_split_at_fraction_fails(
+    source, num_items_to_read_before_split, split_fraction):
   """Asserts that dynamic work rebalancing at a given fraction fails.
 
   Asserts that trying to perform dynamic splitting after reading
@@ -436,13 +457,22 @@ def assert_split_at_fraction_fails(source, num_items_to_read_before_split,
   """
 
   assert_split_at_fraction_behavior(
-      source, num_items_to_read_before_split, split_fraction,
+      source,
+      num_items_to_read_before_split,
+      split_fraction,
       ExpectedSplitOutcome.MUST_FAIL)
 
 
 def assert_split_at_fraction_binary(
-    source, expected_items, num_items_to_read_before_split, left_fraction,
-    left_result, right_fraction, right_result, stats, start_position=None,
+    source,
+    expected_items,
+    num_items_to_read_before_split,
+    left_fraction,
+    left_result,
+    right_fraction,
+    right_result,
+    stats,
+    start_position=None,
     stop_position=None):
   """Performs dynamic work rebalancing for fractions within a given range.
 
@@ -470,16 +500,25 @@ def assert_split_at_fraction_binary(
 
   if left_result is None:
     left_result = _assert_split_at_fraction_behavior(
-        source, expected_items, num_items_to_read_before_split, left_fraction,
+        source,
+        expected_items,
+        num_items_to_read_before_split,
+        left_fraction,
         ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS)
 
   if right_result is None:
     right_result = _assert_split_at_fraction_behavior(
-        source, expected_items, num_items_to_read_before_split,
-        right_fraction, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS)
+        source,
+        expected_items,
+        num_items_to_read_before_split,
+        right_fraction,
+        ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS)
 
   middle_result = _assert_split_at_fraction_behavior(
-      source, expected_items, num_items_to_read_before_split, middle_fraction,
+      source,
+      expected_items,
+      num_items_to_read_before_split,
+      middle_fraction,
       ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS)
 
   if middle_result[1] != -1:
@@ -493,8 +532,14 @@ def assert_split_at_fraction_binary(
 
   if left_result[0] != middle_result[0]:
     assert_split_at_fraction_binary(
-        source, expected_items, num_items_to_read_before_split, left_fraction,
-        left_result, middle_fraction, middle_result, stats)
+        source,
+        expected_items,
+        num_items_to_read_before_split,
+        left_fraction,
+        left_result,
+        middle_fraction,
+        middle_result,
+        stats)
 
   # We special case right_fraction=1.0 since that could fail due to being out
   # of range. (even if a dynamic split fails at 'middle_fraction' and at
@@ -502,8 +547,14 @@ def assert_split_at_fraction_binary(
   # where dynamic splitting succeeds).
   if right_fraction == 1.0 or middle_result[0] != right_result[0]:
     assert_split_at_fraction_binary(
-        source, expected_items, num_items_to_read_before_split,
-        middle_fraction, middle_result, right_fraction, right_result, stats)
+        source,
+        expected_items,
+        num_items_to_read_before_split,
+        middle_fraction,
+        middle_result,
+        right_fraction,
+        right_result,
+        stats)
 
 
 MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM = 100
@@ -511,7 +562,9 @@ MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL = 1000
 
 
 def assert_split_at_fraction_exhaustive(
-    source, start_position=None, stop_position=None,
+    source,
+    start_position=None,
+    stop_position=None,
     perform_multi_threaded_test=True):
   """Performs and tests dynamic work rebalancing exhaustively.
 
@@ -527,7 +580,7 @@ def assert_split_at_fraction_exhaustive(
       multi-threaded test, otherwise this test is skipped.
 
   Raises:
-    ~exceptions.ValueError: if the exhaustive splitting test fails.
+    ValueError: if the exhaustive splitting test fails.
   """
 
   expected_items = read_from_source(source, start_position, stop_position)
@@ -556,8 +609,9 @@ def assert_split_at_fraction_exhaustive(
     all_non_trivial_fractions.append(stats.non_trivial_fractions)
 
   if not any_successful_fractions:
-    raise ValueError('SplitAtFraction test completed vacuously: no '
-                     'successful split fractions found')
+    raise ValueError(
+        'SplitAtFraction test completed vacuously: no '
+        'successful split fractions found')
 
   if not any_non_trivial_fractions:
     raise ValueError(
@@ -586,26 +640,30 @@ def assert_split_at_fraction_exhaustive(
     try:
       while True:
         num_trials += 1
-        if (num_trials >
-            MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM):
-          logging.warn(
+        if num_trials > MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM:
+          _LOGGER.warning(
               'After %d concurrent splitting trials at item #%d, observed '
               'only %s, giving up on this item',
               num_trials,
               i,
-              'success' if have_success else 'failure'
-          )
+              'success' if have_success else 'failure')
           break
 
-        if _assert_split_at_fraction_concurrent(
-            source, expected_items, i, min_non_trivial_fraction, thread_pool):
+        if _assert_split_at_fraction_concurrent(source,
+                                                expected_items,
+                                                i,
+                                                min_non_trivial_fraction,
+                                                thread_pool):
           have_success = True
         else:
           have_failure = True
 
         if have_success and have_failure:
-          logging.info('%d trials to observe both success and failure of '
-                       'concurrent splitting at item #%d', num_trials, i)
+          _LOGGER.info(
+              '%d trials to observe both success and failure of '
+              'concurrent splitting at item #%d',
+              num_trials,
+              i)
           break
     finally:
       thread_pool.close()
@@ -613,17 +671,25 @@ def assert_split_at_fraction_exhaustive(
     num_total_trials += num_trials
 
     if num_total_trials > MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL:
-      logging.warn('After %d total concurrent splitting trials, considered '
-                   'only %d items, giving up.', num_total_trials, i)
+      _LOGGER.warning(
+          'After %d total concurrent splitting trials, considered '
+          'only %d items, giving up.',
+          num_total_trials,
+          i)
       break
 
-  logging.info('%d total concurrent splitting trials for %d items',
-               num_total_trials, len(expected_items))
+  _LOGGER.info(
+      '%d total concurrent splitting trials for %d items',
+      num_total_trials,
+      len(expected_items))
 
 
 def _assert_split_at_fraction_concurrent(
-    source, expected_items, num_items_to_read_before_splitting,
-    split_fraction, thread_pool=None):
+    source,
+    expected_items,
+    num_items_to_read_before_splitting,
+    split_fraction,
+    thread_pool=None):
 
   range_tracker = source.get_range_tracker(None, None)
   stop_position_before_split = range_tracker.stop_position()
@@ -662,7 +728,12 @@ def _assert_split_at_fraction_concurrent(
       split_result[0], stop_position_before_split) if split_result else None
 
   res = _verify_single_split_fraction_result(
-      source, expected_items, current_items, split_result,
-      primary_range, residual_range, split_fraction)
+      source,
+      expected_items,
+      current_items,
+      split_result,
+      primary_range,
+      residual_range,
+      split_fraction)
 
   return res[1] > 0

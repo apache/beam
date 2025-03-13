@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -114,7 +114,8 @@ public class WindowingTest implements Serializable {
                 TimestampedValue.of("c", new Instant(11)),
                 TimestampedValue.of("d", new Instant(11))));
 
-    PCollection<String> output = input.apply(new WindowedCount(FixedWindows.of(new Duration(10))));
+    PCollection<String> output =
+        input.apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 
     PAssert.that(output)
         .containsInAnyOrder(
@@ -137,15 +138,16 @@ public class WindowingTest implements Serializable {
                 TimestampedValue.of("b", new Instant(8))));
 
     PCollection<String> output =
-        input.apply(new WindowedCount(SlidingWindows.of(new Duration(10)).every(new Duration(5))));
+        input.apply(
+            new WindowedCount(SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5))));
 
     PAssert.that(output)
         .containsInAnyOrder(
             output("a", 1, 1, -5, 5),
-            output("a", 2, 5, 0, 10),
-            output("a", 1, 10, 5, 15),
+            output("a", 2, 1, 0, 10),
+            output("a", 1, 7, 5, 15),
             output("b", 1, 8, 0, 10),
-            output("b", 1, 10, 5, 15));
+            output("b", 1, 8, 5, 15));
 
     p.run();
   }
@@ -161,7 +163,7 @@ public class WindowingTest implements Serializable {
                 TimestampedValue.of("a", new Instant(20))));
 
     PCollection<String> output =
-        input.apply(new WindowedCount(Sessions.withGapDuration(new Duration(10))));
+        input.apply(new WindowedCount(Sessions.withGapDuration(Duration.millis(10))));
 
     PAssert.that(output).containsInAnyOrder(output("a", 2, 1, 1, 15), output("a", 1, 20, 20, 30));
 
@@ -190,7 +192,7 @@ public class WindowingTest implements Serializable {
     PCollection<String> output =
         input
             .apply(Flatten.pCollections())
-            .apply(new WindowedCount(FixedWindows.of(new Duration(5))));
+            .apply(new WindowedCount(FixedWindows.of(Duration.millis(5))));
 
     PAssert.that(output).containsInAnyOrder(output("a", 2, 1, 0, 5), output("b", 2, 2, 0, 5));
 
@@ -202,7 +204,8 @@ public class WindowingTest implements Serializable {
   public void testEmptyInput() {
     PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of()));
 
-    PCollection<String> output = input.apply(new WindowedCount(FixedWindows.of(new Duration(10))));
+    PCollection<String> output =
+        input.apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 
     PAssert.that(output).empty();
 

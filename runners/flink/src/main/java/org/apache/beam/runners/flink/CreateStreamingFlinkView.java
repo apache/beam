@@ -18,25 +18,31 @@
 package org.apache.beam.runners.flink;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.runners.core.Concatenate;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.construction.CreatePCollectionViewTranslation;
+import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** Flink streaming overrides for various view (side input) transforms. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class CreateStreamingFlinkView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
   private final PCollectionView<ViewT> view;
@@ -50,55 +56,20 @@ class CreateStreamingFlinkView<ElemT, ViewT>
 
   @Override
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
-    input
-        .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
-        .apply(CreateFlinkPCollectionView.of(view));
+    PCollection<List<ElemT>> iterable;
+    // See https://github.com/apache/beam/pull/25940
+    if (view.getViewFn() instanceof PCollectionViews.IsSingletonView) {
+      TypeDescriptor<ElemT> inputType = Preconditions.checkStateNotNull(input.getTypeDescriptor());
+      iterable =
+          input
+              .apply(MapElements.into(TypeDescriptors.lists(inputType)).via(Lists::newArrayList))
+              .setCoder(ListCoder.of(input.getCoder()));
+    } else {
+      iterable = input.apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults());
+    }
+
+    iterable.apply(CreateFlinkPCollectionView.of(view));
     return input;
-  }
-
-  /**
-   * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
-   *
-   * <p>For internal use by {@link CreateStreamingFlinkView}. This combiner requires that the input
-   * {@link PCollection} fits in memory. For a large {@link PCollection} this is expected to crash!
-   *
-   * @param <T> the type of elements to concatenate.
-   */
-  private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
-    @Override
-    public List<T> createAccumulator() {
-      return new ArrayList<>();
-    }
-
-    @Override
-    public List<T> addInput(List<T> accumulator, T input) {
-      accumulator.add(input);
-      return accumulator;
-    }
-
-    @Override
-    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
-      List<T> result = createAccumulator();
-      for (List<T> accumulator : accumulators) {
-        result.addAll(accumulator);
-      }
-      return result;
-    }
-
-    @Override
-    public List<T> extractOutput(List<T> accumulator) {
-      return accumulator;
-    }
-
-    @Override
-    public Coder<List<T>> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
-
-    @Override
-    public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
   }
 
   /**
@@ -163,8 +134,8 @@ class CreateStreamingFlinkView<ElemT, ViewT>
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<ElemT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<ElemT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }

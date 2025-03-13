@@ -19,29 +19,46 @@ package memfs
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 )
 
 func init() {
 	filesystem.Register("memfs", New)
 }
 
-var instance = &fs{m: make(map[string][]byte)}
+var instance = &fs{m: make(map[string]file)}
 
 type fs struct {
-	m  map[string][]byte
+	m  map[string]file
 	mu sync.Mutex
 }
 
+type file struct {
+	Data         []byte
+	LastModified time.Time
+}
+
+func newFile(data []byte) file {
+	cp := make([]byte, len(data))
+	copy(cp, data)
+
+	return file{
+		Data:         data,
+		LastModified: time.Now(),
+	}
+}
+
 // New returns the global memory filesystem.
-func New(ctx context.Context) filesystem.Interface {
+func New(_ context.Context) filesystem.Interface {
 	return instance
 }
 
@@ -49,44 +66,121 @@ func (f *fs) Close() error {
 	return nil
 }
 
-func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
+func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	// As with other functions, the memfs:// prefix is optional.
+	globNoScheme := strings.TrimPrefix(glob, "memfs://")
+
 	var ret []string
 	for k := range f.m {
-		ret = append(ret, k)
+		matched, err := filesystem.Match(globNoScheme, strings.TrimPrefix(k, "memfs://"))
+		if err != nil {
+			return nil, fmt.Errorf("invalid glob pattern: %w", err)
+		}
+		if matched {
+			ret = append(ret, k)
+		}
 	}
 	sort.Strings(ret)
 	return ret, nil
 }
 
-func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, error) {
+func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if v, ok := f.m[normalize(filename)]; ok {
-		return ioutil.NopCloser(bytes.NewReader(v)), nil
+		return io.NopCloser(bytes.NewReader(v.Data)), nil
 	}
 	return nil, os.ErrNotExist
 }
 
-func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
-	return &commitWriter{key: filename}, nil
+func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
+	return &commitWriter{key: filename, instance: f}, nil
+}
+
+func (f *fs) Size(_ context.Context, filename string) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if v, ok := f.m[normalize(filename)]; ok {
+		return int64(len(v.Data)), nil
+	}
+	return -1, os.ErrNotExist
+}
+
+// LastModified returns the time at which the file was last modified.
+func (f *fs) LastModified(_ context.Context, filename string) (time.Time, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	v, ok := f.m[normalize(filename)]
+	if !ok {
+		return time.Time{}, os.ErrNotExist
+	}
+
+	return v.LastModified, nil
+}
+
+// Remove the named file from the filesystem.
+func (f *fs) Remove(_ context.Context, filename string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.m, filename)
+	return nil
+}
+
+// Rename the old path to the new path.
+func (f *fs) Rename(_ context.Context, oldpath, newpath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.m[newpath] = f.m[oldpath]
+	delete(f.m, oldpath)
+	return nil
+}
+
+// Copy copies the old path to the new path.
+func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	oldFile, ok := f.m[normalize(oldpath)]
+	if !ok {
+		return os.ErrNotExist
+	}
+
+	f.m[normalize(newpath)] = newFile(oldFile.Data)
+	return nil
+}
+
+// Compile time check for interface implementations.
+var (
+	_ filesystem.LastModifiedGetter = ((*fs)(nil))
+	_ filesystem.Remover            = ((*fs)(nil))
+	_ filesystem.Renamer            = ((*fs)(nil))
+	_ filesystem.Copier             = ((*fs)(nil))
+)
+
+// write is a helper function for writing to the global store.
+func (f *fs) write(key string, value []byte) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.m[normalize(key)] = newFile(value)
+	return nil
 }
 
 // Write stores the given key and value in the global store.
 func Write(key string, value []byte) {
-	instance.mu.Lock()
-	defer instance.mu.Unlock()
-
-	cp := make([]byte, len(value))
-	copy(cp, value)
-
-	instance.m[normalize(key)] = cp
+	instance.write(key, value)
 }
 
 func normalize(key string) string {
+	if runtime.GOOS == "windows" {
+		key = strings.ReplaceAll(key, "\\", "/")
+	}
 	if strings.HasPrefix(key, "memfs://") {
 		return key
 	}
@@ -94,8 +188,9 @@ func normalize(key string) string {
 }
 
 type commitWriter struct {
-	key string
-	buf bytes.Buffer
+	key      string
+	buf      bytes.Buffer
+	instance *fs
 }
 
 func (w *commitWriter) Write(p []byte) (n int, err error) {
@@ -103,6 +198,5 @@ func (w *commitWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *commitWriter) Close() error {
-	Write(w.key, w.buf.Bytes())
-	return nil
+	return w.instance.write(w.key, w.buf.Bytes())
 }

@@ -18,15 +18,15 @@
 package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -37,7 +37,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ApiSurfaceTest {
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "unchecked"
+  })
   private void assertExposed(final Class classToExamine, final Class... exposedClasses) {
 
     final ApiSurface apiSurface = ApiSurface.ofClass(classToExamine).pruningPrefix("java");

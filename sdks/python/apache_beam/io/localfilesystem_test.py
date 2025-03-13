@@ -18,13 +18,12 @@
 
 """Unit tests for LocalFileSystem."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import filecmp
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
@@ -39,16 +38,14 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 def _gen_fake_join(separator):
   """Returns a callable that joins paths with the given separator."""
-
   def _join(first_path, *paths):
-    return separator.join((first_path.rstrip(separator),) + paths)
+    return separator.join((first_path.rstrip(separator), ) + paths)
 
   return _join
 
 
 def _gen_fake_split(separator):
   """Returns a callable that splits a with the given separator."""
-
   def _split(path):
     sep_index = path.rfind(separator)
     if sep_index >= 0:
@@ -60,13 +57,6 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
     pipeline_options = PipelineOptions()
@@ -83,19 +73,18 @@ class LocalFileSystemTest(unittest.TestCase):
   def test_unix_path_join(self, *unused_mocks):
     # Test joining of Unix paths.
     localfilesystem.os.path.join.side_effect = _gen_fake_join('/')
-    self.assertEqual('/tmp/path/to/file',
-                     self.fs.join('/tmp/path', 'to', 'file'))
-    self.assertEqual('/tmp/path/to/file',
-                     self.fs.join('/tmp/path', 'to/file'))
+    self.assertEqual(
+        '/tmp/path/to/file', self.fs.join('/tmp/path', 'to', 'file'))
+    self.assertEqual('/tmp/path/to/file', self.fs.join('/tmp/path', 'to/file'))
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_windows_path_join(self, *unused_mocks):
     # Test joining of Windows paths.
     localfilesystem.os.path.join.side_effect = _gen_fake_join('\\')
-    self.assertEqual(r'C:\tmp\path\to\file',
-                     self.fs.join(r'C:\tmp\path', 'to', 'file'))
-    self.assertEqual(r'C:\tmp\path\to\file',
-                     self.fs.join(r'C:\tmp\path', r'to\file'))
+    self.assertEqual(
+        r'C:\tmp\path\to\file', self.fs.join(r'C:\tmp\path', 'to', 'file'))
+    self.assertEqual(
+        r'C:\tmp\path\to\file', self.fs.join(r'C:\tmp\path', r'to\file'))
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_unix_path_split(self, os_mock):
@@ -105,8 +94,7 @@ class LocalFileSystemTest(unittest.TestCase):
                      self.fs.split('/tmp/path/to/file'))
     # Actual os.path.split will split following to '/' and 'tmp' when run in
     # Unix.
-    self.assertEqual(('', 'tmp'),
-                     self.fs.split('/tmp'))
+    self.assertEqual(('', 'tmp'), self.fs.split('/tmp'))
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_windows_path_split(self, os_mock):
@@ -116,8 +104,7 @@ class LocalFileSystemTest(unittest.TestCase):
                      self.fs.split(r'C:\tmp\path\to\file'))
     # Actual os.path.split will split following to 'C:\' and 'tmp' when run in
     # Windows.
-    self.assertEqual((r'C:', 'tmp'),
-                     self.fs.split(r'C:\tmp'))
+    self.assertEqual((r'C:', 'tmp'), self.fs.split(r'C:\tmp'))
 
   def test_mkdirs(self):
     path = os.path.join(self.tmpdir, 't1/t2')
@@ -154,32 +141,39 @@ class LocalFileSystemTest(unittest.TestCase):
 
   def test_match_file_exception(self):
     # Match files with None so that it throws an exception
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Match operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Match operation failed') as error:
       self.fs.match([None])
     self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
   @parameterized.expand([
-      param('*',
-            files=['a', 'b', os.path.join('c', 'x')],
-            expected=['a', 'b']),
-      param('**',
-            files=['a', os.path.join('b', 'x'), os.path.join('c', 'x')],
-            expected=['a', os.path.join('b', 'x'), os.path.join('c', 'x')]),
-      param(os.path.join('*', '*'),
-            files=['a',
-                   os.path.join('b', 'x'),
-                   os.path.join('c', 'x'),
-                   os.path.join('d', 'x', 'y')],
-            expected=[os.path.join('b', 'x'), os.path.join('c', 'x')]),
-      param(os.path.join('**', '*'),
-            files=['a',
-                   os.path.join('b', 'x'),
-                   os.path.join('c', 'x'),
-                   os.path.join('d', 'x', 'y')],
-            expected=[os.path.join('b', 'x'),
-                      os.path.join('c', 'x'),
-                      os.path.join('d', 'x', 'y')]),
+      param('*', files=['a', 'b', os.path.join('c', 'x')], expected=['a', 'b']),
+      param(
+          '**',
+          files=['a', os.path.join('b', 'x'), os.path.join('c', 'x')],
+          expected=['a', os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(
+          os.path.join('*', '*'),
+          files=[
+              'a',
+              os.path.join('b', 'x'),
+              os.path.join('c', 'x'),
+              os.path.join('d', 'x', 'y')
+          ],
+          expected=[os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(
+          os.path.join('**', '*'),
+          files=[
+              'a',
+              os.path.join('b', 'x'),
+              os.path.join('c', 'x'),
+              os.path.join('d', 'x', 'y')
+          ],
+          expected=[
+              os.path.join('b', 'x'),
+              os.path.join('c', 'x'),
+              os.path.join('d', 'x', 'y')
+          ]),
   ])
   def test_match_glob(self, pattern, files, expected):
     for filename in files:
@@ -229,11 +223,11 @@ class LocalFileSystemTest(unittest.TestCase):
   def test_copy_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Copy operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Copy operation failed') as error:
       self.fs.copy([path1], [path2])
-    self.assertEqual(list(error.exception.exception_details.keys()),
-                     [(path1, path2)])
+    self.assertEqual(
+        list(error.exception.exception_details.keys()), [(path1, path2)])
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -262,11 +256,11 @@ class LocalFileSystemTest(unittest.TestCase):
   def test_rename_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Rename operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Rename operation failed') as error:
       self.fs.rename([path1], [path2])
-    self.assertEqual(list(error.exception.exception_details.keys()),
-                     [(path1, path2)])
+    self.assertEqual(
+        list(error.exception.exception_details.keys()), [(path1, path2)])
 
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -299,8 +293,14 @@ class LocalFileSystemTest(unittest.TestCase):
       f.write('Hello')
     with open(path2, 'a') as f:
       f.write('foo')
-    self.assertEqual(self.fs.checksum(path1), str(5))
-    self.assertEqual(self.fs.checksum(path2), str(3))
+    # tests that localfilesystem checksum returns file size
+    checksum1 = self.fs.checksum(path1)
+    checksum2 = self.fs.checksum(path2)
+    self.assertEqual(checksum1, str(5))
+    self.assertEqual(checksum2, str(3))
+    # tests that fs.checksum and str(fs.size) are consistent
+    self.assertEqual(checksum1, str(self.fs.size(path1)))
+    self.assertEqual(checksum2, str(self.fs.size(path2)))
 
   def make_tree(self, path, value, expected_leaf_count=None):
     """Create a file+directory structure from a simple dict-based DSL
@@ -326,20 +326,12 @@ class LocalFileSystemTest(unittest.TestCase):
     elif isinstance(value, dict):
       # recurse to create a subdirectory tree
       for basename, v in value.items():
-        self.make_tree(
-            os.path.join(path, basename),
-            v
-        )
+        self.make_tree(os.path.join(path, basename), v)
     else:
-      raise Exception(
-          'Unexpected value in tempdir tree: %s' % value
-      )
+      raise Exception('Unexpected value in tempdir tree: %s' % value)
 
-    if expected_leaf_count != None:
-      self.assertEqual(
-          self.check_tree(path, value),
-          expected_leaf_count
-      )
+    if expected_leaf_count is not None:
+      self.assertEqual(self.check_tree(path, value), expected_leaf_count)
 
   def check_tree(self, path, value, expected_leaf_count=None):
     """Verify a directory+file structure according to the rules described in
@@ -364,21 +356,14 @@ class LocalFileSystemTest(unittest.TestCase):
       actual_leaf_count = 1
     elif isinstance(value, dict):
       # recurse to check subdirectory tree
-      actual_leaf_count = sum(
-          [
-              self.check_tree(
-                  os.path.join(path, basename),
-                  v
-              )
-              for basename, v in value.items()
-          ]
-      )
+      actual_leaf_count = sum([
+          self.check_tree(os.path.join(path, basename), v) for basename,
+          v in value.items()
+      ])
     else:
-      raise Exception(
-          'Unexpected value in tempdir tree: %s' % value
-      )
+      raise Exception('Unexpected value in tempdir tree: %s' % value)
 
-    if expected_leaf_count != None:
+    if expected_leaf_count is not None:
       self.assertEqual(actual_leaf_count, expected_leaf_count)
 
     return actual_leaf_count
@@ -386,18 +371,14 @@ class LocalFileSystemTest(unittest.TestCase):
   _test_tree = {
       'path1': '111',
       'path2': {
-          '2': '222',
-          'emptydir': None
+          '2': '222', 'emptydir': None
       },
       'aaa': {
-          'b1': 'b1',
-          'b2': None,
-          'bbb': {
+          'b1': 'b1', 'b2': None, 'bbb': {
               'ccc': {
                   'ddd': 'DDD'
               }
-          },
-          'c': None
+          }, 'c': None
       }
   }
 
@@ -405,21 +386,10 @@ class LocalFileSystemTest(unittest.TestCase):
     dir = os.path.join(self.tmpdir, 'dir')
     self.make_tree(dir, self._test_tree, expected_leaf_count=7)
 
-    self.fs.delete([
-        os.path.join(dir, 'path*'),
-        os.path.join(dir, 'aaa', 'b*')
-    ])
+    self.fs.delete([os.path.join(dir, 'path*'), os.path.join(dir, 'aaa', 'b*')])
 
     # One empty nested directory is left
-    self.check_tree(
-        dir,
-        {
-            'aaa': {
-                'c': None
-            }
-        },
-        expected_leaf_count=1
-    )
+    self.check_tree(dir, {'aaa': {'c': None}}, expected_leaf_count=1)
 
   def test_recursive_delete(self):
     dir = os.path.join(self.tmpdir, 'dir')
@@ -427,69 +397,37 @@ class LocalFileSystemTest(unittest.TestCase):
 
     self.fs.delete([dir])
 
-    self.check_tree(
-        self.tmpdir,
-        {'': None},
-        expected_leaf_count=1
-    )
+    self.check_tree(self.tmpdir, {'': None}, expected_leaf_count=1)
 
   def test_delete_glob_errors(self):
     dir = os.path.join(self.tmpdir, 'dir')
     self.make_tree(dir, self._test_tree, expected_leaf_count=7)
 
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       self.fs.delete([
           os.path.join(dir, 'path*'),
           os.path.join(dir, 'aaa', 'b*'),
           os.path.join(dir, 'aaa', 'd*')  # doesn't match anything, will raise
       ])
 
-    self.check_tree(
-        dir,
-        {
-            'aaa': {
-                'c': None
-            }
-        },
-        expected_leaf_count=1
-    )
+    self.check_tree(dir, {'aaa': {'c': None}}, expected_leaf_count=1)
 
     self.assertEqual(
-        list(
-            error
-            .exception
-            .exception_details
-            .keys()
-        ),
-        [os.path.join(dir, 'aaa', 'd*')]
-    )
+        list(error.exception.exception_details.keys()),
+        [os.path.join(dir, 'aaa', 'd*')])
 
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       self.fs.delete([
           os.path.join(dir, 'path*')  # doesn't match anything, will raise
       ])
 
-    self.check_tree(
-        dir,
-        {
-            'aaa': {
-                'c': None
-            }
-        },
-        expected_leaf_count=1
-    )
+    self.check_tree(dir, {'aaa': {'c': None}}, expected_leaf_count=1)
 
     self.assertEqual(
-        list(
-            error
-            .exception
-            .exception_details
-            .keys()
-        ),
-        [os.path.join(dir, 'path*')]
-    )
+        list(error.exception.exception_details.keys()),
+        [os.path.join(dir, 'path*')])
 
   def test_delete(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -503,8 +441,8 @@ class LocalFileSystemTest(unittest.TestCase):
 
   def test_delete_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       self.fs.delete([path1])
     self.assertEqual(list(error.exception.exception_details.keys()), [path1])
 

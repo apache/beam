@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.triggers.TriggerStateMachineTester.SimpleTriggerStateMachineTester;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

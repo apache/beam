@@ -17,13 +17,19 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.util.MoreFutures.ExceptionOrResult;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -83,5 +89,73 @@ public class MoreFuturesTest {
     thrown.expectCause(isA(IllegalStateException.class));
     thrown.expectMessage(testMessage);
     MoreFutures.get(sideEffectFuture);
+  }
+
+  @Test
+  public void testAllAsListRespectsOriginalList() throws Exception {
+    CountDownLatch waitTillThreadRunning = new CountDownLatch(1);
+    CountDownLatch waitTillClearHasHappened = new CountDownLatch(1);
+    List<CompletionStage<Void>> stages = new ArrayList<>();
+    stages.add(MoreFutures.runAsync(waitTillThreadRunning::countDown));
+    stages.add(MoreFutures.runAsync(waitTillClearHasHappened::await));
+
+    CompletionStage<List<Void>> results = MoreFutures.allAsList(stages);
+    waitTillThreadRunning.await();
+    stages.clear();
+    waitTillClearHasHappened.countDown();
+    assertEquals(MoreFutures.get(results), Arrays.asList(null, null));
+  }
+
+  @Test
+  public void testAllAsListNoExceptionDueToMutation() throws Exception {
+    // This loop runs many times trying to exercise a race condition that existed where mutation
+    // of the passed in completion stages lead to various exceptions (such as a
+    // ConcurrentModificationException). See https://github.com/apache/beam/issues/23809
+    for (int i = 0; i < 10000; ++i) {
+      CountDownLatch waitTillThreadRunning = new CountDownLatch(1);
+      List<CompletionStage<Void>> stages = new ArrayList<>();
+      stages.add(MoreFutures.runAsync(waitTillThreadRunning::countDown));
+
+      CompletionStage<List<Void>> results = MoreFutures.allAsList(stages);
+      waitTillThreadRunning.await();
+      stages.clear();
+      MoreFutures.get(results);
+    }
+  }
+
+  @Test
+  public void testAllAsListWithExceptionsRespectsOriginalList() throws Exception {
+    CountDownLatch waitTillThreadRunning = new CountDownLatch(1);
+    CountDownLatch waitTillClearHasHappened = new CountDownLatch(1);
+    List<CompletionStage<Void>> stages = new ArrayList<>();
+    stages.add(MoreFutures.runAsync(waitTillThreadRunning::countDown));
+    stages.add(MoreFutures.runAsync(waitTillClearHasHappened::await));
+
+    CompletionStage<List<ExceptionOrResult<Void>>> results =
+        MoreFutures.allAsListWithExceptions(stages);
+    waitTillThreadRunning.await();
+    stages.clear();
+    waitTillClearHasHappened.countDown();
+    assertEquals(
+        MoreFutures.get(results),
+        Arrays.asList(ExceptionOrResult.result(null), ExceptionOrResult.result(null)));
+  }
+
+  @Test
+  public void testAllAsListWithExceptionsNoExceptionDueToMutation() throws Exception {
+    // This loop runs many times trying to exercise a race condition that existed where mutation
+    // of the passed in completion stages lead to various exceptions (such as a
+    // ConcurrentModificationException). See https://github.com/apache/beam/issues/23809
+    for (int i = 0; i < 10000; ++i) {
+      CountDownLatch waitTillThreadRunning = new CountDownLatch(1);
+      List<CompletionStage<Void>> stages = new ArrayList<>();
+      stages.add(MoreFutures.runAsync(waitTillThreadRunning::countDown));
+
+      CompletionStage<List<ExceptionOrResult<Void>>> results =
+          MoreFutures.allAsListWithExceptions(stages);
+      waitTillThreadRunning.await();
+      stages.clear();
+      MoreFutures.get(results);
+    }
   }
 }

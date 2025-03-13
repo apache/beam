@@ -18,54 +18,65 @@
 
 plugins { id 'org.apache.beam.module' }
 
-// We specifically enumerate all the projects that we depend on since
-// the list is used in both defining the included set for the uber jar
-// and also the set of project level dependencies.
-def dependOnShadedProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core"]
-def dependOnProjects = [":sdks:java:fn-execution",
-                        ":sdks:java:extensions:google-cloud-platform-core",
-                        ":runners:core-java", ":runners:core-construction-java"]
+configurations {
+  provided
+}
+
+dependencies {
+  // provided dependencies are declared early so they can be resolved in shadowClosure
+  provided enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
+  // :sdks:java:core and transitive dependencies
+  provided project(path: ":model:pipeline", configuration: "shadow")
+  provided project(path: ":sdks:java:core", configuration: "shadow")
+  provided project(path: ":sdks:java:transform-service:launcher")
+  provided library.java.avro
+  provided library.java.jackson_databind
+  provided library.java.joda_time
+  provided library.java.slf4j_api
+  provided library.java.vendored_grpc_1_69_0
+  provided library.java.vendored_guava_32_1_2_jre
+
+  provided library.java.jamm
+}
 
 applyJavaNature(
-  validateShadowJar: false,
+  classesTriggerCheckerBugs: [
+    'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+    'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+    'FnApiDoFnRunner': 'https://github.com/typetools/checker-framework/issues/5436',
+  ],
+  automaticModuleName: 'org.apache.beam.fn.harness',
   testShadowJar: true,
+  shadowJarValidationExcludes: [
+    "org/apache/beam/fn/harness/**",
+    "org/apache/beam/runners/core/**",
+    "org/apache/beam/sdk/fn/**",
+  ],
   shadowClosure:
-  // Create an uber jar without repackaging for the SDK harness
-  // TODO: We have been releasing this in the past, consider not
-  // releasing it since its typically bad practice to release 'all'
-  // jars.
   {
     dependencies {
-      // Directly include all projects depended on
-      dependOnProjects.each {
-        include(project(path: it, configuration: "shadow"))
+      // Exclude provided and transient dependencies
+      project.configurations.provided.getResolvedConfiguration()
+          .getLenientConfiguration().getAllModuleDependencies().each {
+        exclude(dependency(it.getModuleGroup() + ":" + it.getModuleName() + ":.*"))
       }
-      // Include all dependencies and transitive dependencies
-      include(dependency(".*:.*"))
     }
-  })
+  },
+)
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
-  dependOnShadedProjects.each {
-    compile project(path: it, configuration: "shadow")
-  }
-  dependOnProjects.each {
-    compile project(it)
-  }
-  compile library.java.jackson_databind
-  shadow library.java.vendored_guava_20_0
-  shadowTest library.java.powermock
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_13_1
-  provided library.java.error_prone_annotations
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":runners:core-java")
+  permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
+  permitUnusedDeclared library.java.avro
 }

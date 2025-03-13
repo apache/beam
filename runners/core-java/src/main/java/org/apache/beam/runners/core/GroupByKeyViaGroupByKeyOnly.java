@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -106,7 +106,10 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<WindowedValue<V>>>>> {
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    })
     @Override
     public PCollection<KV<K, Iterable<WindowedValue<V>>>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(

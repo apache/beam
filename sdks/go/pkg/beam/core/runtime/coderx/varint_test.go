@@ -19,11 +19,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func TestVarIntZ(t *testing.T) {
-	tests := []interface{}{
+	tests := []any{
 		int(1),
 		int(-1),
 		int8(8),
@@ -56,7 +56,7 @@ func TestVarIntZ(t *testing.T) {
 }
 
 func TestVarUintZ(t *testing.T) {
-	tests := []interface{}{
+	tests := []any{
 		uint(1),
 		uint8(8),
 		uint16(16),

@@ -1,0 +1,109 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# TODO(robertwb): Add more providers.
+# TODO(robertwb): Perhaps auto-generate this file?
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Sql: 'beam:external:java:sql:v1'
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+# TODO(robertwb): Auto-detect redundantly provided transforms for maximal fusion.
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'python'
+  config: {}
+  transforms:
+    MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
+    RunInference: 'apache_beam.yaml.yaml_ml.run_inference'
+
+- type: renaming
+  transforms:
+    'MapToFields-java': 'MapToFields-java'
+    'MapToFields-generic': 'MapToFields-java'
+    'Filter-java': 'Filter-java'
+    'Filter-generic': 'Filter-java'
+    'Explode': 'Explode'
+  config:
+    mappings:
+      'Sql':
+        query: 'query'
+        # Unfortunately dialect is a java logical type.
+      'MapToFields-generic':
+        language: 'language'
+        append: 'append'
+        drop: 'drop'
+        fields: 'fields'
+        error_handling: 'error_handling'
+      'MapToFields-java':
+        language: 'language'
+        append: 'append'
+        drop: 'drop'
+        fields: 'fields'
+        error_handling: 'error_handling'
+      'Filter-generic':
+        language: 'language'
+        keep: 'keep'
+        error_handling: 'error_handling'
+      'Filter-java':
+        language: 'language'
+        keep: 'keep'
+        error_handling: 'error_handling'
+      'Explode':
+        fields: 'fields'
+        cross_product: 'cross_product'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        Sql: "schematransform:org.apache.beam:sql_transform:v1"
+        MapToFields-java: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
+        Filter-java: "beam:schematransform:org.apache.beam:yaml:filter-java:v1"
+        Explode: "beam:schematransform:org.apache.beam:yaml:explode:v1"
+      config:
+        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+
+- type: 'python'
+  config: {}
+  transforms:
+    Enrichment: 'apache_beam.yaml.yaml_enrichment.enrichment_transform'

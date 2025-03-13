@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.testing.CoderProperties;

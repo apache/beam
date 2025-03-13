@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func TestIsBound(t *testing.T) {
@@ -34,6 +34,10 @@ func TestIsBound(t *testing.T) {
 		{NewKV(New(reflectx.String), New(reflect.SliceOf(reflectx.Int))), true},
 		{NewKV(New(reflectx.String), New(reflect.SliceOf(XType))), false},
 		{NewKV(New(reflectx.String), New(reflectx.String)), true},
+		{NewKV(New(reflectx.String), New(reflect.SliceOf(reflectx.String))), true},
+		{NewW(NewKV(New(reflectx.ByteSlice), New(reflectx.Int))), true},
+		{New(reflect.SliceOf(KVType), NewKV(New(reflectx.ByteSlice), New(reflectx.Int))), true},
+		{New(TimersType, New(reflectx.ByteSlice)), true},
 	}
 
 	for _, test := range tests {
@@ -44,6 +48,9 @@ func TestIsBound(t *testing.T) {
 }
 
 func TestIsStructurallyAssignable(t *testing.T) {
+	type foo int
+	var f foo
+	fooT := reflect.TypeOf(f)
 	tests := []struct {
 		A, B FullType
 		Exp  bool
@@ -52,6 +59,7 @@ func TestIsStructurallyAssignable(t *testing.T) {
 		{New(reflectx.Int32), New(reflectx.Int64), false}, // from Go assignability
 		{New(reflectx.Int64), New(reflectx.Int32), false}, // from Go assignability
 		{New(reflectx.Int), New(TType), true},
+		{New(reflectx.Int), New(fooT), false},
 		{New(XType), New(TType), true},
 		{NewKV(New(XType), New(YType)), New(TType), false},                                                   // T cannot match composites
 		{NewKV(New(reflectx.Int), New(reflectx.Int)), NewCoGBK(New(reflectx.Int), New(reflectx.Int)), false}, // structural mismatch
@@ -60,6 +68,8 @@ func TestIsStructurallyAssignable(t *testing.T) {
 		{NewKV(New(reflectx.String), New(reflectx.Int)), NewKV(New(TType), New(TType)), true},
 		{NewKV(New(reflectx.Int), New(reflectx.Int)), NewKV(New(TType), New(TType)), true},
 		{NewKV(New(reflectx.Int), New(reflectx.String)), NewKV(New(TType), New(reflectx.String)), true},
+		{New(reflect.SliceOf(reflectx.Int)), New(reflect.SliceOf(fooT)), false},
+		{New(reflect.SliceOf(reflectx.Int)), New(TType), true},
 	}
 
 	for _, test := range tests {
@@ -102,6 +112,18 @@ func TestBindSubstitute(t *testing.T) {
 			NewCoGBK(New(XType), New(YType)),
 			NewCoGBK(New(YType), New(XType)),
 			NewCoGBK(New(XType), New(ZType)),
+		},
+		{
+			New(reflect.SliceOf(reflectx.String)),
+			New(XType),
+			NewKV(New(reflectx.Int), New(XType)),
+			NewKV(New(reflectx.Int), New(reflect.SliceOf(reflectx.String))),
+		},
+		{
+			New(reflectx.String),
+			New(XType),
+			NewKV(New(reflectx.Int), New(reflect.SliceOf(XType))),
+			NewKV(New(reflectx.Int), New(reflect.SliceOf(reflectx.String))),
 		},
 	}
 

@@ -28,7 +28,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 
 /**
  * Respond to /heapz with a page allowing downloading of the heap dumps.

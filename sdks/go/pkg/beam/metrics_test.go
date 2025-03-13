@@ -20,8 +20,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 )
 
 // A beam_test global context var to improve how the examples look.
@@ -29,14 +29,9 @@ var ctx = context.Background()
 
 func ctxWithPtransformID(id string) context.Context {
 	ctx := context.Background()
-	ctx = metrics.SetPTransformID(ctx, id)
 	ctx = metrics.SetBundleID(ctx, "exampleBundle")
+	ctx = metrics.SetPTransformID(ctx, id)
 	return ctx
-}
-
-func dumpAndClearMetrics() {
-	metrics.DumpToOut()
-	metrics.Clear()
 }
 
 var (
@@ -61,15 +56,15 @@ func Example_metricsDeclaredAnywhere() {
 	extractWordsDofn(ctx, "this has six words in it", func(string) {})
 	extractWordsDofn(ctx, "this has seven words in it, see?", func(string) {})
 
-	dumpAndClearMetrics()
-	// Output: Bundle: "exampleBundle" - PTransformID: "example"
+	metrics.DumpToOutFromContext(ctx)
+	// Output: PTransformID: "example"
 	//	example.namespace.characters - count: 13 sum: 43 min: 2 max: 5
 	//	example.namespace.count - value: 13
 }
 
 func Example_metricsReusable() {
 
-	// Metrics can be used in multiple DoFns
+	// Metric proxies can be used in multiple DoFns
 	c := beam.NewCounter("example.reusable", "count")
 
 	extractWordsDofn := func(ctx context.Context, line string, emit func(string)) {
@@ -85,14 +80,15 @@ func Example_metricsReusable() {
 			c.Inc(ctx, 1)
 		}
 	}
-	extractWordsDofn(ctxWithPtransformID("extract1"), "this has six words in it", func(string) {})
+	ctx = metrics.SetBundleID(ctx, "exampleBundle")
+	extractWordsDofn(metrics.SetPTransformID(ctx, "extract1"), "this has six words in it", func(string) {})
 
-	extractRunesDofn(ctxWithPtransformID("extract2"), "seven thousand", func(rune) {})
+	extractRunesDofn(metrics.SetPTransformID(ctx, "extract2"), "seven thousand", func(rune) {})
 
-	dumpAndClearMetrics()
-	// Output: Bundle: "exampleBundle" - PTransformID: "extract1"
+	metrics.DumpToOutFromContext(ctx)
+	// Output: PTransformID: "extract1"
 	//	example.reusable.count - value: 6
-	// Bundle: "exampleBundle" - PTransformID: "extract2"
+	// PTransformID: "extract2"
 	//	example.reusable.count - value: 14
 }
 

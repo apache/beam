@@ -17,27 +17,40 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import org.apache.beam.sdk.schemas.AutoValueSchemaTest.SimpleAutoValueWithBuilder.Builder;
+import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link AutoValueSchema}. */
+@RunWith(JUnit4.class)
 public class AutoValueSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
-  static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
+  static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);
   static final StringBuilder STRING_BUILDER = new StringBuilder("stringbuilder");
 
   static final Schema SIMPLE_SCHEMA =
@@ -146,6 +159,52 @@ public class AutoValueSchemaTest {
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
+  abstract static class MemoizedAutoValue implements SimpleSchema {
+    @Override
+    public abstract String getStr();
+
+    @Override
+    public abstract byte getaByte();
+
+    @Override
+    public abstract short getaShort();
+
+    @Override
+    public abstract int getAnInt();
+
+    @Override
+    public abstract long getaLong();
+
+    @Override
+    public abstract boolean isaBoolean();
+
+    @Override
+    public abstract DateTime getDateTime();
+
+    @Override
+    @SuppressWarnings("mutable")
+    public abstract byte[] getBytes();
+
+    @Override
+    public abstract ByteBuffer getByteBuffer();
+
+    @Override
+    public abstract Instant getInstant();
+
+    @Override
+    public abstract BigDecimal getBigDecimal();
+
+    @Override
+    public abstract StringBuilder getStringBuilder();
+
+    @Memoized
+    public String getMemoizedString() {
+      return "";
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
   abstract static class SimpleAutoValueWithBuilder implements SimpleSchema {
     @Override
     public abstract String getStr();
@@ -211,6 +270,81 @@ public class AutoValueSchemaTest {
       abstract Builder setStringBuilder(StringBuilder stringBuilder);
 
       abstract SimpleAutoValueWithBuilder build();
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class MemoizedAutoValueWithBuilder implements SimpleSchema {
+    @Override
+    public abstract String getStr();
+
+    @Override
+    public abstract byte getaByte();
+
+    @Override
+    public abstract short getaShort();
+
+    @Override
+    public abstract int getAnInt();
+
+    @Override
+    public abstract long getaLong();
+
+    @Override
+    public abstract boolean isaBoolean();
+
+    @Override
+    public abstract DateTime getDateTime();
+
+    @Override
+    @SuppressWarnings("mutable")
+    public abstract byte[] getBytes();
+
+    @Override
+    public abstract ByteBuffer getByteBuffer();
+
+    @Override
+    public abstract Instant getInstant();
+
+    @Override
+    public abstract BigDecimal getBigDecimal();
+
+    @Override
+    public abstract StringBuilder getStringBuilder();
+
+    @Memoized
+    public String getMemoizedString() {
+      return "";
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setStr(String str);
+
+      abstract Builder setaByte(byte aByte);
+
+      abstract Builder setaShort(short aShort);
+
+      abstract Builder setAnInt(int anInt);
+
+      abstract Builder setaLong(long aLong);
+
+      abstract Builder setaBoolean(boolean aBoolean);
+
+      abstract Builder setDateTime(DateTime dateTime);
+
+      abstract Builder setBytes(byte[] bytes);
+
+      abstract Builder setByteBuffer(ByteBuffer byteBuffer);
+
+      abstract Builder setInstant(Instant instant);
+
+      abstract Builder setBigDecimal(BigDecimal bigDecimal);
+
+      abstract Builder setStringBuilder(StringBuilder stringBuilder);
+
+      abstract MemoizedAutoValueWithBuilder build();
     }
   }
 
@@ -281,6 +415,48 @@ public class AutoValueSchemaTest {
   }
 
   @Test
+  public void testToRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getToRowFunction(SimpleAutoValue.class));
+  }
+
+  @Test
+  public void testFromRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(
+        registry.getFromRowFunction(SimpleAutoValue.class));
+  }
+
+  @Test
+  public void testToRowConstructorMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    MemoizedAutoValue value =
+        new AutoValue_AutoValueSchemaTest_MemoizedAutoValue(
+            "string",
+            (byte) 1,
+            (short) 2,
+            (int) 3,
+            (long) 4,
+            true,
+            DATE,
+            BYTE_ARRAY,
+            ByteBuffer.wrap(BYTE_ARRAY),
+            DATE.toInstant(),
+            BigDecimal.ONE,
+            STRING_BUILDER);
+    Row row = registry.getToRowFunction(MemoizedAutoValue.class).apply(value);
+    verifyRow(row);
+  }
+
+  @Test
+  public void testFromRowConstructorMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+    MemoizedAutoValue value = registry.getFromRowFunction(MemoizedAutoValue.class).apply(row);
+    verifyAutoValue(value);
+  }
+
+  @Test
   public void testToRowBuilder() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     SimpleAutoValueWithBuilder value =
@@ -309,6 +485,52 @@ public class AutoValueSchemaTest {
     Row row = createSimpleRow("string");
     SimpleAutoValueWithBuilder value =
         registry.getFromRowFunction(SimpleAutoValueWithBuilder.class).apply(row);
+    verifyAutoValue(value);
+  }
+
+  @Test
+  public void testToRowBuilderSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(
+        registry.getToRowFunction(SimpleAutoValueWithBuilder.class));
+  }
+
+  @Test
+  public void testFromRowBuilderSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(
+        registry.getFromRowFunction(SimpleAutoValueWithBuilder.class));
+  }
+
+  @Test
+  public void testToRowBuilderMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    MemoizedAutoValueWithBuilder value =
+        new AutoValue_AutoValueSchemaTest_MemoizedAutoValueWithBuilder.Builder()
+            .setStr("string")
+            .setaByte((byte) 1)
+            .setaShort((short) 2)
+            .setAnInt((int) 3)
+            .setaLong((long) 4)
+            .setaBoolean(true)
+            .setDateTime(DATE)
+            .setBytes(BYTE_ARRAY)
+            .setByteBuffer(ByteBuffer.wrap(BYTE_ARRAY))
+            .setInstant(DATE.toInstant())
+            .setBigDecimal(BigDecimal.ONE)
+            .setStringBuilder(STRING_BUILDER)
+            .build();
+
+    Row row = registry.getToRowFunction(MemoizedAutoValueWithBuilder.class).apply(value);
+    verifyRow(row);
+  }
+
+  @Test
+  public void testFromRowBuilderMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+    MemoizedAutoValueWithBuilder value =
+        registry.getFromRowFunction(MemoizedAutoValueWithBuilder.class).apply(row);
     verifyAutoValue(value);
   }
 
@@ -497,5 +719,171 @@ public class AutoValueSchemaTest {
     SimpleAutoValueWithStaticFactory value =
         registry.getFromRowFunction(SimpleAutoValueWithStaticFactory.class).apply(row);
     verifyAutoValue(value);
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class SchemaFieldNumberSimpleClass {
+    @SchemaFieldNumber("1")
+    abstract String getStr();
+
+    @SchemaFieldNumber("0")
+    abstract Long getLng();
+  }
+
+  private static final Schema FIELD_NUMBER_SCHEMA =
+      Schema.of(Field.of("lng", FieldType.INT64), Field.of("str", FieldType.STRING));
+
+  @Test
+  public void testSchema_SchemaFieldNumber() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SchemaFieldNumberSimpleClass.class);
+    SchemaTestUtils.assertSchemaEquivalent(FIELD_NUMBER_SCHEMA, schema);
+  }
+
+  @Test
+  public void testFromRow_SchemaFieldNumber() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        Row.withSchema(FIELD_NUMBER_SCHEMA)
+            .withFieldValue("lng", 42L)
+            .withFieldValue("str", "value!")
+            .build();
+    SchemaFieldNumberSimpleClass value =
+        registry.getFromRowFunction(SchemaFieldNumberSimpleClass.class).apply(row);
+    assertEquals("value!", value.getStr());
+    assertEquals(42L, (long) value.getLng());
+  }
+
+  @Test
+  public void testToRow_SchemaFieldNumber() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    AutoValue_AutoValueSchemaTest_SchemaFieldNumberSimpleClass value =
+        new AutoValue_AutoValueSchemaTest_SchemaFieldNumberSimpleClass("another value!", 42L);
+    Row row = registry.getToRowFunction(SchemaFieldNumberSimpleClass.class).apply(value);
+    assertEquals("another value!", row.getValue("str"));
+    assertEquals((String) row.getValue(1), (String) row.getValue("str"));
+    assertEquals(42L, (long) row.getValue("lng"));
+    assertEquals((long) row.getValue(0), (long) row.getValue("lng"));
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class SchemaFieldNameSimpleClass {
+    @SchemaFieldName("renamed")
+    abstract String getStr();
+  }
+
+  @Test
+  public void testSchema_SchemaFieldName() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SchemaFieldNameSimpleClass.class);
+    SchemaTestUtils.assertSchemaEquivalent(
+        Schema.of(Field.of("renamed", FieldType.STRING)), schema);
+  }
+
+  @Test
+  public void testFromRow_SchemaFieldName() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        Row.withSchema(Schema.of(Field.of("renamed", FieldType.STRING)))
+            .withFieldValue("renamed", "value!")
+            .build();
+    SchemaFieldNameSimpleClass value =
+        registry.getFromRowFunction(SchemaFieldNameSimpleClass.class).apply(row);
+    assertEquals("value!", value.getStr());
+  }
+
+  @Test
+  public void testToRow_SchemaFieldName() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    AutoValue_AutoValueSchemaTest_SchemaFieldNameSimpleClass value =
+        new AutoValue_AutoValueSchemaTest_SchemaFieldNameSimpleClass("another value!");
+    Row row = registry.getToRowFunction(SchemaFieldNameSimpleClass.class).apply(value);
+    assertEquals("another value!", row.getValue("renamed"));
+  }
+
+  // Test that @SchemaCaseFormat can be used to rename fields
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public abstract static class SimpleAutoValueWithRenamedFields {
+    public abstract int getUserId();
+
+    public abstract int getAgeInYears();
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public abstract boolean getKnowsJavascript();
+
+    @SchemaFieldName("user")
+    public abstract String getUserName();
+
+    public static SimpleAutoValueWithRenamedFields of(
+        int userId, int ageInYears, boolean knowsJavascript, String userName) {
+      return new AutoValue_AutoValueSchemaTest_SimpleAutoValueWithRenamedFields(
+          userId, ageInYears, knowsJavascript, userName);
+    }
+  }
+
+  private static final Schema RENAMED_FIELDS_SCHEMA =
+      Schema.builder()
+          .addField("user_id", FieldType.INT32)
+          .addField("age_in_years", FieldType.INT32)
+          .addField("KnowsJavascript", FieldType.BOOLEAN)
+          .addField("user", FieldType.STRING)
+          .build();
+
+  @Test
+  public void testGetSchemaCaseFormat() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SimpleAutoValueWithRenamedFields.class);
+
+    assertThat(schema, equivalentTo(RENAMED_FIELDS_SCHEMA));
+
+    SimpleAutoValueWithRenamedFields autoValue =
+        SimpleAutoValueWithRenamedFields.of(1, 23, false, "hunter");
+    Row row =
+        Row.withSchema(RENAMED_FIELDS_SCHEMA)
+            .withFieldValue("user_id", 1)
+            .withFieldValue("age_in_years", 23)
+            .withFieldValue("KnowsJavascript", false)
+            .withFieldValue("user", "hunter")
+            .build();
+
+    Row output = registry.getToRowFunction(SimpleAutoValueWithRenamedFields.class).apply(autoValue);
+    assertThat(output, equivalentTo(row));
+    assertEquals(
+        registry.getFromRowFunction(SimpleAutoValueWithRenamedFields.class).apply(row), autoValue);
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class SchemaFieldDescriptionSimpleClass {
+    @SchemaFieldDescription("This field is a string in the row. It's very coo.")
+    abstract String getStr();
+
+    @SchemaFieldDescription(
+        "This field is a long in the row. Interestingly enough, longs are e"
+            + "ncoded as int64 by Beam, while ints are encoded as int32. "
+            + "Sign semantics are another thing")
+    abstract Long getLng();
+  }
+
+  private static final Schema FIELD_DESCRIPTION_SCHEMA =
+      Schema.of(
+          Field.of("str", FieldType.STRING)
+              .withDescription("This field is a string in the row. It's very coo."),
+          Field.of("lng", FieldType.INT64)
+              .withDescription(
+                  "This field is a long in the row. Interestingly enough, longs are e"
+                      + "ncoded as int64 by Beam, while ints are encoded as int32. "
+                      + "Sign semantics are another thing"));
+
+  @Test
+  public void testSchema_SchemaFieldDescription() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SchemaFieldDescriptionSimpleClass.class);
+    assertEquals(FIELD_DESCRIPTION_SCHEMA.getField("lng"), schema.getField("lng"));
+    assertEquals(FIELD_DESCRIPTION_SCHEMA.getField("str"), schema.getField("str"));
   }
 }

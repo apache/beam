@@ -17,11 +17,11 @@
  */
 
 /**
- * {@link org.apache.calcite.plan.RelOptRule} to generate {@link
- * org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode}.
+ * {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule} to generate
+ * {@link org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode}.
  */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;

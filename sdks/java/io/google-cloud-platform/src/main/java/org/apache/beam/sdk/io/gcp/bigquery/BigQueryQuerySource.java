@@ -18,28 +18,28 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A {@link BigQuerySourceBase} for querying BigQuery tables. */
 @VisibleForTesting
 class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryQuerySource.class);
 
   static <T> BigQueryQuerySource<T> create(
       String stepUuid,
       BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return new BigQueryQuerySource<>(stepUuid, queryDef, bqServices, coder, parseFn);
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      boolean useAvroLogicalTypes) {
+    return new BigQueryQuerySource<>(
+        stepUuid, queryDef, bqServices, coder, readerFactory, useAvroLogicalTypes);
   }
 
   private final BigQueryQuerySourceDef queryDef;
@@ -49,8 +49,9 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
-    super(stepUuid, bqServices, coder, parseFn);
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      boolean useAvroLogicalTypes) {
+    super(stepUuid, bqServices, coder, readerFactory, useAvroLogicalTypes);
     this.queryDef = queryDef;
   }
 
@@ -74,5 +75,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder.add(DisplayData.item("query", queryDef.getQuery()));
+    builder.add(
+        DisplayData.item("launchesBigQueryJobs", true)
+            .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 }

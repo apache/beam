@@ -26,16 +26,19 @@ For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-from past.builtins import long
-from past.builtins import unicode
+from typing import Callable
+from typing import Iterable
+from typing import Tuple
+from typing import Union
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.options.value_provider import StaticValueProvider
@@ -59,19 +62,20 @@ class FileBasedSource(iobase.BoundedSource):
   MIN_NUMBER_OF_FILES_TO_STAT = 100
   MIN_FRACTION_OF_FILES_TO_STAT = 0.01
 
-  def __init__(self,
-               file_pattern,
-               min_bundle_size=0,
-               compression_type=CompressionTypes.AUTO,
-               splittable=True,
-               validate=True):
+  def __init__(
+      self,
+      file_pattern,
+      min_bundle_size=0,
+      compression_type=CompressionTypes.AUTO,
+      splittable=True,
+      validate=True):
     """Initializes :class:`FileBasedSource`.
 
     Args:
       file_pattern (str): the file glob to read a string or a
         :class:`~apache_beam.options.value_provider.ValueProvider`
         (placeholder to inject a runtime value).
-      min_bundle_size (str): minimum size of bundles that should be generated
+      min_bundle_size (int): minimum size of bundles that should be generated
         when performing initial splitting on this source.
       compression_type (str): Used to handle compressed output files.
         Typical value is :attr:`CompressionTypes.AUTO
@@ -92,42 +96,46 @@ class FileBasedSource(iobase.BoundedSource):
         pipeline creation time.
 
     Raises:
-      ~exceptions.TypeError: when **compression_type** is not valid or if
+      TypeError: when **compression_type** is not valid or if
         **file_pattern** is not a :class:`str` or a
         :class:`~apache_beam.options.value_provider.ValueProvider`.
-      ~exceptions.ValueError: when compression and splittable files are
+      ValueError: when compression and splittable files are
         specified.
-      ~exceptions.IOError: when the file pattern specified yields an empty
+      IOError: when the file pattern specified yields an empty
         result.
     """
 
-    if not isinstance(file_pattern, ((str, unicode), ValueProvider)):
-      raise TypeError('%s: file_pattern must be of type string'
-                      ' or ValueProvider; got %r instead'
-                      % (self.__class__.__name__, file_pattern))
+    if not isinstance(file_pattern, (str, ValueProvider)):
+      raise TypeError(
+          '%s: file_pattern must be of type string'
+          ' or ValueProvider; got %r instead' %
+          (self.__class__.__name__, file_pattern))
 
-    if isinstance(file_pattern, (str, unicode)):
+    if isinstance(file_pattern, str):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
 
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
     if not CompressionTypes.is_valid_compression_type(compression_type):
-      raise TypeError('compression_type must be CompressionType object but '
-                      'was %s' % type(compression_type))
+      raise TypeError(
+          'compression_type must be CompressionType object but '
+          'was %s' % type(compression_type))
     self._compression_type = compression_type
     self._splittable = splittable
     if validate and file_pattern.is_accessible():
       self._validate()
 
   def display_data(self):
-    return {'file_pattern': DisplayDataItem(str(self._pattern),
-                                            label="File Pattern"),
-            'compression': DisplayDataItem(str(self._compression_type),
-                                           label='Compression Type')}
+    return {
+        'file_pattern': DisplayDataItem(
+            str(self._pattern), label="File Pattern"),
+        'compression': DisplayDataItem(
+            str(self._compression_type), label='Compression Type')
+    }
 
   @check_accessible(['_pattern'])
-  def _get_concat_source(self):
+  def _get_concat_source(self) -> concat_source.ConcatSource:
     if self._concat_source is None:
       pattern = self._pattern.get()
 
@@ -149,23 +157,27 @@ class FileBasedSource(iobase.BoundedSource):
 
         # We determine splittability of this specific file.
         splittable = (
-            self.splittable and
-            _determine_splittability_from_compression_type(
+            self.splittable and _determine_splittability_from_compression_type(
                 file_name, self._compression_type))
 
         single_file_source = _SingleFileSource(
-            file_based_source_ref, file_name,
+            file_based_source_ref,
+            file_name,
             0,
             file_size,
             min_bundle_size=self._min_bundle_size,
             splittable=splittable)
         single_file_sources.append(single_file_source)
+
+      FileSystems.report_source_lineage(pattern)
       self._concat_source = concat_source.ConcatSource(single_file_sources)
+
     return self._concat_source
 
   def open_file(self, file_name):
     return FileSystems.open(
-        file_name, 'application/octet-stream',
+        file_name,
+        'application/octet-stream',
         compression_type=self._compression_type)
 
   @check_accessible(['_pattern'])
@@ -177,8 +189,7 @@ class FileBasedSource(iobase.BoundedSource):
     # Limit the responses as we only want to check if something exists
     match_result = FileSystems.match([pattern], limits=[1])[0]
     if len(match_result.metadata_list) <= 0:
-      raise IOError(
-          'No files found based on the file pattern %s' % pattern)
+      raise IOError('No files found based on the file pattern %s' % pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
@@ -187,18 +198,15 @@ class FileBasedSource(iobase.BoundedSource):
         start_position=start_position,
         stop_position=stop_position)
 
-  @check_accessible(['_pattern'])
   def estimate_size(self):
-    pattern = self._pattern.get()
-    match_result = FileSystems.match([pattern])[0]
-    return sum([f.size_in_bytes for f in match_result.metadata_list])
+    return self._get_concat_source().estimate_size()
 
   def read(self, range_tracker):
     return self._get_concat_source().read(range_tracker)
 
   def get_range_tracker(self, start_position, stop_position):
-    return self._get_concat_source().get_range_tracker(start_position,
-                                                       stop_position)
+    return self._get_concat_source().get_range_tracker(
+        start_position, stop_position)
 
   def read_records(self, file_name, offset_range_tracker):
     """Returns a generator of records created by reading file 'file_name'.
@@ -224,8 +232,7 @@ class FileBasedSource(iobase.BoundedSource):
     return self._splittable
 
 
-def _determine_splittability_from_compression_type(
-    file_path, compression_type):
+def _determine_splittability_from_compression_type(file_path, compression_type):
   if compression_type == CompressionTypes.AUTO:
     compression_type = CompressionTypes.detect_compression_type(file_path)
 
@@ -234,14 +241,19 @@ def _determine_splittability_from_compression_type(
 
 class _SingleFileSource(iobase.BoundedSource):
   """Denotes a source for a specific file type."""
-
-  def __init__(self, file_based_source, file_name, start_offset, stop_offset,
-               min_bundle_size=0, splittable=True):
-    if not isinstance(start_offset, (int, long)):
+  def __init__(
+      self,
+      file_based_source,
+      file_name,
+      start_offset,
+      stop_offset,
+      min_bundle_size=0,
+      splittable=True):
+    if not isinstance(start_offset, int):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, int):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:
@@ -293,11 +305,9 @@ class _SingleFileSource(iobase.BoundedSource):
               start_offset,
               range_trackers.OffsetRangeTracker.OFFSET_INFINITY,
               min_bundle_size=self._min_bundle_size,
-              splittable=self._splittable
-          ),
+              splittable=self._splittable),
           start_offset,
-          range_trackers.OffsetRangeTracker.OFFSET_INFINITY
-      )
+          range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
 
   def estimate_size(self):
     return self._stop_offset - self._start_offset
@@ -311,8 +321,8 @@ class _SingleFileSource(iobase.BoundedSource):
       # file as end offset will be wrong for certain unsplittable source, for
       # e.g., compressed sources.
       stop_position = (
-          self._stop_offset if self._splittable
-          else range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
+          self._stop_offset if self._splittable else
+          range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
 
     range_tracker = range_trackers.OffsetRangeTracker(
         start_position, stop_position)
@@ -329,47 +339,64 @@ class _SingleFileSource(iobase.BoundedSource):
 
 
 class _ExpandIntoRanges(DoFn):
-
   def __init__(
       self, splittable, compression_type, desired_bundle_size, min_bundle_size):
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._splittable = splittable
     self._compression_type = compression_type
+    self._size_track = None
 
-  def process(self, element, *args, **kwargs):
-    match_results = FileSystems.match([element])
-    for metadata in match_results[0].metadata_list:
+  def process(self, element: Union[str, FileMetadata], *args,
+              **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
+    if isinstance(element, FileMetadata):
+      metadata_list = [element]
+    else:
+      match_results = FileSystems.match([element])
+      metadata_list = match_results[0].metadata_list
+    for metadata in metadata_list:
+      FileSystems.report_source_lineage(metadata.path)
+
       splittable = (
-          self._splittable and
-          _determine_splittability_from_compression_type(
+          self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))
 
       if splittable:
-        for split in OffsetRange(
-            0, metadata.size_in_bytes).split(
-                self._desired_bundle_size, self._min_bundle_size):
+        for split in OffsetRange(0, metadata.size_in_bytes).split(
+            self._desired_bundle_size, self._min_bundle_size):
           yield (metadata, split)
       else:
-        yield (metadata, OffsetRange(
-            0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
+        yield (
+            metadata,
+            OffsetRange(0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
 
 
 class _ReadRange(DoFn):
-
-  def __init__(self, source_from_file):
+  def __init__(
+      self,
+      source_from_file: Union[str, iobase.BoundedSource],
+      with_filename: bool = False) -> None:
     self._source_from_file = source_from_file
+    self._with_filename = with_filename
 
   def process(self, element, *args, **kwargs):
     metadata, range = element
     source = self._source_from_file(metadata.path)
     # Following split() operation has to be performed to create a proper
     # _SingleFileSource. Otherwise what we have is a ConcatSource that contains
-    # a single _SingleFileSource. ConcatSource.read() expects a RangeTraker for
+    # a single _SingleFileSource. ConcatSource.read() expects a RangeTracker for
     # sub-source range and reads full sub-sources (not byte ranges).
-    source = list(source.split(float('inf')))[0].source
+    source_list = list(source.split(float('inf')))
+    # Handle the case of an empty source.
+    if not source_list:
+      return
+    source = source_list[0].source
+
     for record in source.read(range.new_tracker()):
-      yield record
+      if self._with_filename:
+        yield (metadata.path, record)
+      else:
+        yield record
 
 
 class ReadAllFiles(PTransform):
@@ -379,10 +406,14 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
-
   def __init__(
-      self, splittable, compression_type, desired_bundle_size, min_bundle_size,
-      source_from_file):
+      self,
+      splittable: bool,
+      compression_type,
+      desired_bundle_size: int,
+      min_bundle_size: int,
+      source_from_file: Callable[[str], iobase.BoundedSource],
+      with_filename: bool = False):
     """
     Args:
       splittable: If False, files won't be split into sub-ranges. If True,
@@ -402,17 +433,42 @@ class ReadAllFiles(PTransform):
                         paths passed to this will be for individual files, not
                         for file patterns even if the ``PCollection`` of files
                         processed by the transform consist of file patterns.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     self._splittable = splittable
     self._compression_type = compression_type
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._source_from_file = source_from_file
+    self._with_filename = with_filename
+    # TODO(BEAM-14497) always reshuffle once gbk always trigger works.
+    self._is_reshuffle = True
+
+  def _disable_reshuffle(self):
+    # TODO(BEAM-14497) Remove this private method once gbk always trigger works.
+    #
+    # Currently Reshuffle() holds elements until the stage is completed. When
+    # ReadRange is needed instantly after match (like read continuously), the
+    # reshard is temporarily disabled. However, the read then does not scale and
+    # is deemed experimental.
+    self._is_reshuffle = False
+    return self
 
   def expand(self, pvalue):
-    return (pvalue
-            | 'ExpandIntoRanges' >> ParDo(_ExpandIntoRanges(
-                self._splittable, self._compression_type,
-                self._desired_bundle_size, self._min_bundle_size))
-            | 'Reshard' >> Reshuffle()
-            | 'ReadRange' >> ParDo(_ReadRange(self._source_from_file)))
+    pvalue = (
+        pvalue
+        | 'ExpandIntoRanges' >> ParDo(
+            _ExpandIntoRanges(
+                self._splittable,
+                self._compression_type,
+                self._desired_bundle_size,
+                self._min_bundle_size)))
+    if self._is_reshuffle:
+      pvalue = pvalue | 'Reshard' >> Reshuffle()
+    return (
+        pvalue
+        | 'ReadRange' >> ParDo(
+            _ReadRange(
+                self._source_from_file, with_filename=self._with_filename)))

@@ -23,15 +23,12 @@ import org.apache.beam.sdk.values.Row;
 /** A test PTransform to display output in console. */
 public class BeamSqlOutputToConsoleFn extends DoFn<Row, Void> {
 
-  private String stepName;
-
   public BeamSqlOutputToConsoleFn(String stepName) {
     super();
-    this.stepName = stepName;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    System.out.println("Output: " + c.element().getValues());
+    System.out.println("Output: " + c.element().toString());
   }
 }

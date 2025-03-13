@@ -26,6 +26,7 @@ plugins {
   id 'org.apache.beam.module'
   id 'java'
   id 'maven-publish'
+  id 'net.linguica.maven-settings'
 }
 
 def isRelease(Project project) {
@@ -38,7 +39,7 @@ ext {
 }
 
 for (p in rootProject.subprojects) {
-  if (!p.path.equals(project.path)) {
+  if (!p.path.startsWith(project.path)) {
     evaluationDependsOn(p.path)
   }
 }
@@ -66,15 +67,30 @@ assemble.dependsOn copyPom
 // the pom.xml generation and have the publish tasks depend on `copyPom` instead.
 tasks.whenTaskAdded { task ->
   if (task.name == 'generatePomFileForMavenJavaPublication') {
-    task.enabled = false
-  } else if (task.name == 'publishMavenJavaPublicationToMavenLocal') {
-    task.dependsOn copyPom
-  } else if (task.name == 'publishMavenJavaPublicationToMavenRepository') {
+    // Ensures the pom file is signed later if we are performing a release (see BEAM-11068)
+    task.doLast {
+      copy {
+        from 'pom.xml.template'
+        into mavenJavaDir
+        rename 'pom.xml.template', 'pom-default.xml'
+        expand(version: project.version, modules: bomModuleNames)
+      }
+    }
+  } else if (task.name.startsWith('publishMavenJavaPublication') || task.name.startsWith('signMavenJavaPublication')) {
     task.dependsOn copyPom
   }
 }
 
-jar.enabled = false
+// Starting in Gradle 6.2 a sanity check is performed before uploading. The
+// check fails without generating the jar.
+jar.enabled = true
+
+// Starting in Gradle 6.0, the Gradle module metadata is generated automatically
+// Disable generating the metadata until this project uses java-platform to
+// publish the BOM (see BEAM-11709)
+tasks.withType(GenerateModuleMetadata) {
+  enabled = false
+}
 
 // Remove the default jar archive which is added by the 'java' plugin.
 configurations.archives.artifacts.with { archives ->
@@ -108,6 +124,11 @@ afterEvaluate {
         groupId = project.mavenGroupId
         artifactId = archivesBaseName
         version = project.version
+
+        // Ensures the published components are included in the maven metadata.
+        // Gradle 6.6.1 changed the way metadata was generated and this ensures
+        // the proper snapshot versions are present for the nightly build.
+        from components.java
       }
     }
     repositories project.ext.repositories

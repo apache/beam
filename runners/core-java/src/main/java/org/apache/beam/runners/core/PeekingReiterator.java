@@ -17,18 +17,21 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Reiterator} that supports one-element lookahead during iteration.
  *
  * @param <T> the type of elements returned by this iterator
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class PeekingReiterator<T> implements Reiterator<T> {
   private @Nullable T nextElement;
   private boolean nextElementComputed;

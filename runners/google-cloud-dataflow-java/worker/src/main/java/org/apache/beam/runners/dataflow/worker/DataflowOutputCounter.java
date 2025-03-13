@@ -25,12 +25,15 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A Dataflow-specific version of {@link ElementCounter}, which specifies the object counter name
  * differently as PhysicalElementCount. Additionally, it counts element windows as ElementCount.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowOutputCounter implements ElementCounter {
   /** Number of physical element and multiple-window assignments that were serialized/processed. */
   private static final String OBJECT_COUNTER_NAME = "-PhysicalElementCount";
@@ -56,7 +59,7 @@ public class DataflowOutputCounter implements ElementCounter {
         new OutputObjectAndByteCounter(elementByteSizeObservable, counterFactory, nameContext);
     objectAndByteCounter.countObject(outputName + OBJECT_COUNTER_NAME);
     objectAndByteCounter.countMeanByte(outputName + MEAN_BYTE_COUNTER_NAME);
-    createElementCounter(counterFactory, nameContext, outputName + ELEMENT_COUNTER_NAME);
+    createElementCounter(counterFactory, outputName + ELEMENT_COUNTER_NAME);
   }
 
   @Override
@@ -93,7 +96,7 @@ public class DataflowOutputCounter implements ElementCounter {
     return prefix + MEAN_BYTE_COUNTER_NAME;
   }
 
-  private void createElementCounter(CounterFactory factory, NameContext nameContext, String name) {
+  private void createElementCounter(CounterFactory factory, String name) {
     // TODO: use the name context to name the counter
     elementCount = factory.longSum(CounterName.named(name));
   }

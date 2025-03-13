@@ -68,6 +68,11 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
+
+    @Override
+    public boolean mayFinish() {
+      return false;
+    }
   }
 
   private static class Trigger2 extends Trigger {
@@ -84,6 +89,11 @@ public class TriggerTest {
     @Override
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
+    }
+
+    @Override
+    public boolean mayFinish() {
+      return false;
     }
   }
 }

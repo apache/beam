@@ -29,10 +29,13 @@ import java.util.Observer;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for tests. */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "unchecked",
+})
 public class ExecutorTestUtils {
   // Do not instantiate.
   private ExecutorTestUtils() {}

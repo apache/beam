@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -50,6 +50,9 @@ import scala.Tuple2;
  * SparkPipelineOptions#getMinReadTimeMillis()}. Records bound is controlled by the {@link
  * RateController} mechanism.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
@@ -174,13 +177,13 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private Duration boundReadDuration(double readTimePercentage, long minReadTimeMillis) {
     long batchDurationMillis = ssc().graph().batchDuration().milliseconds();
     Duration proportionalDuration =
-        new Duration(Math.round(batchDurationMillis * readTimePercentage));
-    Duration lowerBoundDuration = new Duration(minReadTimeMillis);
+        Duration.millis(Math.round(batchDurationMillis * readTimePercentage));
+    Duration lowerBoundDuration = Duration.millis(minReadTimeMillis);
     Duration readDuration =
         proportionalDuration.isLongerThan(lowerBoundDuration)
             ? proportionalDuration
             : lowerBoundDuration;
-    LOG.info("Read duration set to: " + readDuration);
+    LOG.info("Read duration set to: {}", readDuration);
     return readDuration;
   }
 

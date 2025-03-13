@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.solr;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -40,6 +40,10 @@ import org.apache.solr.common.params.SolrParams;
  *
  * @param <ClientT> type of SolrClient
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class AuthorizedSolrClient<ClientT extends SolrClient> implements Closeable {
   private final ClientT solrClient;
   private final String username;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.List;
@@ -40,6 +40,10 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link ParDoFnFactory} which returns a {@link ParDoFn} that transforms all {@code
  * WindowedValue<V>} to {@code WindowedValue<KV<K, V>>} for a constant key {@code K}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PairWithConstantKeyDoFnFactory implements ParDoFnFactory {
   @Override
   public ParDoFn create(

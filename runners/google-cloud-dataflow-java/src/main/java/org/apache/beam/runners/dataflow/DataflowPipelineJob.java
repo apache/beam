@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
@@ -27,7 +27,6 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
-import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
@@ -35,7 +34,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -44,21 +43,25 @@ import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A DataflowPipelineJob represents a job submitted to Dataflow using {@link DataflowRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowPipelineJob implements PipelineResult {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);
 
   /** The id for the job. */
-  protected String jobId;
+  private final String jobId;
 
   /** The {@link DataflowPipelineOptions} for the job. */
   private final DataflowPipelineOptions dataflowOptions;
@@ -76,15 +79,12 @@ public class DataflowPipelineJob implements PipelineResult {
   private final DataflowMetrics dataflowMetrics;
 
   /** The state the job terminated in or {@code null} if the job has not terminated. */
-  @Nullable private State terminalState = null;
+  private @Nullable State terminalState = null;
 
   /** The job that replaced this one or {@code null} if the job has not been replaced. */
-  @Nullable private DataflowPipelineJob replacedByJob = null;
+  private @Nullable DataflowPipelineJob replacedByJob = null;
 
-  protected BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
-
-  /** The Metric Updates retrieved after the job was in a terminal state. */
-  private List<MetricUpdate> terminalMetricUpdates;
+  private final BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
 
   /** The latest timestamp up to which job messages have been retrieved. */
   private long lastTimestamp = Long.MIN_VALUE;
@@ -116,6 +116,32 @@ public class DataflowPipelineJob implements PipelineResult {
           .withMaxRetries(STATUS_POLLING_RETRIES)
           .withExponent(DEFAULT_BACKOFF_EXPONENT);
 
+  private @Nullable String latestStateString;
+
+  private final @Nullable Pipeline pipelineProto;
+
+  /**
+   * Constructs the job.
+   *
+   * @param jobId the job id
+   * @param dataflowOptions used to configure the client for the Dataflow Service
+   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
+   * @param pipelineProto Runner API pipeline proto.
+   */
+  public DataflowPipelineJob(
+      DataflowClient dataflowClient,
+      String jobId,
+      DataflowPipelineOptions dataflowOptions,
+      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames,
+      @Nullable Pipeline pipelineProto) {
+    this.dataflowClient = dataflowClient;
+    this.jobId = jobId;
+    this.dataflowOptions = dataflowOptions;
+    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
+    this.pipelineProto = pipelineProto;
+  }
+
   /**
    * Constructs the job.
    *
@@ -128,11 +154,7 @@ public class DataflowPipelineJob implements PipelineResult {
       String jobId,
       DataflowPipelineOptions dataflowOptions,
       Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
-    this.dataflowClient = dataflowClient;
-    this.jobId = jobId;
-    this.dataflowOptions = dataflowOptions;
-    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
-    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
+    this(dataflowClient, jobId, dataflowOptions, transformStepNames, null);
   }
 
   /** Get the id of this job. */
@@ -149,9 +171,18 @@ public class DataflowPipelineJob implements PipelineResult {
     return dataflowOptions;
   }
 
+  /** Get the Runner API pipeline proto if available. */
+  public @Nullable Pipeline getPipelineProto() {
+    return pipelineProto;
+  }
+
   /** Get the region this job exists in. */
   public String getRegion() {
     return dataflowOptions.getRegion();
+  }
+
+  protected @Nullable BiMap<AppliedPTransform<?, ?, ?>, String> getTransformStepNames() {
+    return transformStepNames;
   }
 
   /**
@@ -171,14 +202,12 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   @Override
-  @Nullable
-  public State waitUntilFinish() {
+  public @Nullable State waitUntilFinish() {
     return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
-  @Nullable
-  public State waitUntilFinish(Duration duration) {
+  public @Nullable State waitUntilFinish(Duration duration) {
     try {
       return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
     } catch (Exception e) {
@@ -202,9 +231,9 @@ public class DataflowPipelineJob implements PipelineResult {
    * @return The final state of the job or null on timeout or if the thread is interrupted.
    * @throws IOException If there is a persistent problem getting job information.
    */
-  @Nullable
   @VisibleForTesting
-  public State waitUntilFinish(Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
+  public @Nullable State waitUntilFinish(
+      Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
       throws IOException, InterruptedException {
     // We ignore the potential race condition here (Ctrl-C after job submission but before the
     // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
@@ -232,11 +261,11 @@ public class DataflowPipelineJob implements PipelineResult {
     }
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
-      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
+      MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock)
       throws IOException, InterruptedException {
@@ -267,11 +296,11 @@ public class DataflowPipelineJob implements PipelineResult {
    * @throws IOException If there is a persistent problem getting job information.
    * @throws InterruptedException if the thread is interrupted.
    */
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
-      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
+      MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock,
       MonitoringUtil monitor)
@@ -280,7 +309,7 @@ public class DataflowPipelineJob implements PipelineResult {
     BackOff backoff = getMessagesBackoff(duration);
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
-    // limit. Any backoff instance could, at best, track the the time since the first attempt at a
+    // limit. Any backoff instance could, at best, track the time since the first attempt at a
     // given request. Thus, we need to track the cumulative time ourselves.
     long startNanos = nanoClock.nanoTime();
 
@@ -298,7 +327,7 @@ public class DataflowPipelineJob implements PipelineResult {
       } catch (IOException e) {
         exception = e;
         LOG.warn("Failed to get job state: {}", e.getMessage());
-        LOG.debug("Failed to get job state: {}", e);
+        LOG.debug("Failed to get job state.", e);
         continue;
       }
 
@@ -325,7 +354,7 @@ public class DataflowPipelineJob implements PipelineResult {
     if (exception == null) {
       LOG.warn("No terminal state was returned within allotted timeout. State value {}", state);
     } else {
-      LOG.error("Failed to fetch job metadata with error: {}", exception);
+      LOG.error("Failed to fetch job metadata.", exception);
     }
 
     return null;
@@ -394,7 +423,7 @@ public class DataflowPipelineJob implements PipelineResult {
         }
       } catch (GoogleJsonResponseException | SocketTimeoutException e) {
         LOG.warn("Failed to get job messages: {}", e.getMessage());
-        LOG.debug("Failed to get job messages: {}", e);
+        LOG.debug("Failed to get job messages.", e);
         return e;
       }
     }
@@ -479,6 +508,11 @@ public class DataflowPipelineJob implements PipelineResult {
         BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()), Sleeper.DEFAULT);
   }
 
+  @Nullable
+  String getLatestStateString() {
+    return latestStateString;
+  }
+
   /**
    * Attempts to get the state. Uses exponential backoff on failure up to the maximum number of
    * passed in attempts.
@@ -504,7 +538,8 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
     Job job = getJobWithRetries(attempts, sleeper);
-    return MonitoringUtil.toState(job.getCurrentState());
+    latestStateString = job.getCurrentState();
+    return MonitoringUtil.toState(latestStateString);
   }
 
   /**
@@ -527,7 +562,11 @@ public class DataflowPipelineJob implements PipelineResult {
           terminalState = currentState;
           replacedByJob =
               new DataflowPipelineJob(
-                  dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
+                  dataflowClient,
+                  job.getReplacedByJobId(),
+                  dataflowOptions,
+                  transformStepNames,
+                  pipelineProto);
         }
         return job;
       } catch (IOException exn) {

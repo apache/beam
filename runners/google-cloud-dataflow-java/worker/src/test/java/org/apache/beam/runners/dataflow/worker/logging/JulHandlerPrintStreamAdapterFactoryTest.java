@@ -18,16 +18,20 @@
 package org.apache.beam.runners.dataflow.worker.logging;
 
 import static org.apache.beam.runners.dataflow.worker.LogRecordMatcher.hasLogItem;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.runners.dataflow.worker.LogSaver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,7 +69,8 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
   @Test
   public void testLogRecordMetadata() {
     PrintStream printStream =
-        JulHandlerPrintStreamAdapterFactory.create(handler, "fooLogger", Level.WARNING);
+        JulHandlerPrintStreamAdapterFactory.create(
+            handler, "fooLogger", Level.WARNING, StandardCharsets.UTF_8);
     printStream.println("anyMessage");
 
     assertThat(handler.getLogs(), not(empty()));
@@ -115,7 +120,93 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
     assertThat(handler.getLogs(), hasLogItem("blah"));
   }
 
+  @Test
+  public void testLogRawBytes() {
+    PrintStream printStream = createPrintStreamAdapter();
+    String msg = "♠ ♡ ♢ ♣ ♤ ♥ ♦ ♧";
+    byte[] bytes = msg.getBytes(StandardCharsets.UTF_8);
+    printStream.write(bytes, 0, 1);
+    printStream.write(bytes, 1, 4);
+    printStream.write(bytes, 5, 15);
+    printStream.write(bytes, 20, bytes.length - 20);
+    assertThat(handler.getLogs(), is(empty()));
+    String newlineMsg = "♠ ♡ \n♦ ♧";
+    byte[] newlineMsgBytes = newlineMsg.getBytes(StandardCharsets.UTF_8);
+    printStream.write(newlineMsgBytes, 0, newlineMsgBytes.length);
+    assertThat(handler.getLogs(), hasLogItem(msg + newlineMsg));
+  }
+
+  @Test
+  public void testLogRawBytesLarge() {
+    PrintStream printStream = createPrintStreamAdapter();
+    String msg = "♠ ♡ ♢ ♣ ♤ ♥ ♦ ♧";
+    for (int i = 0; i < 10; ++i) {
+      msg = msg + msg;
+    }
+    byte[] bytes = msg.getBytes(StandardCharsets.UTF_8);
+    printStream.write(bytes, 0, 1);
+    printStream.write(bytes, 1, 4);
+    printStream.write(bytes, 5, 15);
+    assertThat(handler.getLogs(), is(empty()));
+
+    // We expect that when the buffer is full we flush
+    printStream.write(bytes, 20, 1000);
+    printStream.write(bytes, 1020, 1000);
+    printStream.write(bytes, 2020, 1000);
+    int numLogs = handler.getLogs().size();
+    assertThat(handler.getLogs(), is(not(empty())));
+
+    // We expect that when we decode large messages we flush as well
+    printStream.write(bytes, 3020, bytes.length - 3020);
+    assertThat(numLogs, is(lessThan(handler.getLogs().size())));
+    numLogs = handler.getLogs().size();
+
+    // We expect new lines to cause a flush
+    String newlineMsg = "♠ ♡ \n♦ ♧";
+    byte[] newlineMsgBytes = newlineMsg.getBytes(StandardCharsets.UTF_8);
+    printStream.write(newlineMsgBytes, 0, newlineMsgBytes.length);
+    assertThat(numLogs, is(lessThan(handler.getLogs().size())));
+
+    StringBuilder actualMessages = new StringBuilder();
+    for (LogRecord logRecord : handler.getLogs()) {
+      actualMessages.append(logRecord.getMessage());
+    }
+
+    assertThat(
+        actualMessages.toString(),
+        equalTo(JulHandlerPrintStreamAdapterFactory.LOGGING_DISCLAIMER + msg + newlineMsg));
+  }
+
+  @Test
+  public void testLogThrowable() {
+    PrintStream printStream = createPrintStreamAdapter();
+    Throwable t = new RuntimeException("Test error");
+    t.printStackTrace(printStream);
+    assertThat(handler.getLogs(), hasLogItem("testLogThrowable"));
+  }
+
+  @Test
+  public void testNoEmptyMessages() {
+    try (PrintStream printStream = createPrintStreamAdapter()) {
+      printStream.println("blah");
+      printStream.print("\n");
+      printStream.flush();
+      printStream.println("");
+      printStream.flush();
+      printStream.print("");
+      printStream.flush();
+      byte[] bytes = "a".getBytes(StandardCharsets.UTF_8);
+      printStream.write(bytes, 0, 0);
+      printStream.flush();
+    }
+
+    for (LogRecord log : handler.getLogs()) {
+      assertThat(log.getMessage(), not(blankOrNullString()));
+    }
+  }
+
   private PrintStream createPrintStreamAdapter() {
-    return JulHandlerPrintStreamAdapterFactory.create(handler, LOGGER_NAME, Level.INFO);
+    return JulHandlerPrintStreamAdapterFactory.create(
+        handler, LOGGER_NAME, Level.INFO, StandardCharsets.UTF_8);
   }
 }

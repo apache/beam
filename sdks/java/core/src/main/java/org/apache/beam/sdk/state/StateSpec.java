@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.state;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
@@ -30,7 +28,9 @@ import org.apache.beam.sdk.transforms.Combine;
  *
  * @param <StateT> The type of state being described.
  */
-@Experimental(Kind.STATE)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface StateSpec<StateT extends State> extends Serializable {
 
   /**
@@ -76,11 +76,15 @@ public interface StateSpec<StateT extends State> extends Serializable {
 
     ResultT dispatchBag(Coder<?> elementCoder);
 
+    ResultT dispatchOrderedList(Coder<?> elementCoder);
+
     ResultT dispatchCombining(Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder);
 
     ResultT dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder);
 
     ResultT dispatchSet(Coder<?> elementCoder);
+
+    ResultT dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder);
 
     /** A base class for a visitor with a default method for cases it is not interested in. */
     abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -109,6 +113,11 @@ public interface StateSpec<StateT extends State> extends Serializable {
 
       @Override
       public ResultT dispatchSet(Coder<?> elementCoder) {
+        return dispatchDefault();
+      }
+
+      @Override
+      public ResultT dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
         return dispatchDefault();
       }
     }

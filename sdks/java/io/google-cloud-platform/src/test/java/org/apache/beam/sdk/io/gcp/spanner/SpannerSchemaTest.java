@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Type;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,11 +36,24 @@ public class SpannerSchemaTest {
             .addColumn("test", "pk", "STRING(48)")
             .addKeyPart("test", "pk", false)
             .addColumn("test", "maxKey", "STRING(MAX)")
+            .addColumn("test", "numericVal", "NUMERIC")
+            .addColumn("test", "jsonVal", "JSON")
+            .addColumn("test", "protoVal", "PROTO<customer.app.TestMessage>")
+            .addColumn("test", "enumVal", "ENUM<customer.app.TestEnum>")
+            .addColumn("test", "tokens", "TOKENLIST")
+            .addColumn("test", "uuidCol", "UUID")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(2, schema.getColumns("test").size());
+    assertEquals(8, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
+    assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
+    assertEquals(
+        Type.proto("customer.app.TestMessage"), schema.getColumns("test").get(4).getType());
+    assertEquals(
+        Type.protoEnum("customer.app.TestEnum"), schema.getColumns("test").get(5).getType());
+    assertEquals(Type.bytes(), schema.getColumns("test").get(6).getType());
+    assertEquals(Type.string(), schema.getColumns("test").get(7).getType());
   }
 
   @Test
@@ -59,5 +74,50 @@ public class SpannerSchemaTest {
 
     assertEquals(2, schema.getColumns("other").size());
     assertEquals(1, schema.getKeyParts("other").size());
+  }
+
+  @Test
+  public void testSinglePgTable() throws Exception {
+    SpannerSchema schema =
+        SpannerSchema.builder(Dialect.POSTGRESQL)
+            .addColumn("test", "pk", "character varying(48)")
+            .addKeyPart("test", "pk", false)
+            .addColumn("test", "maxKey", "character varying")
+            .addColumn("test", "numericVal", "numeric")
+            .addColumn("test", "commitTime", "spanner.commit_timestamp")
+            .addColumn("test", "jsonbCol", "jsonb")
+            .addColumn("test", "tokens", "spanner.tokenlist")
+            .addColumn("test", "uuidCol", "uuid")
+            .build();
+
+    assertEquals(1, schema.getTables().size());
+    assertEquals(7, schema.getColumns("test").size());
+    assertEquals(1, schema.getKeyParts("test").size());
+    assertEquals(Type.timestamp(), schema.getColumns("test").get(3).getType());
+    assertEquals(Type.bytes(), schema.getColumns("test").get(5).getType());
+    assertEquals(Type.string(), schema.getColumns("test").get(6).getType());
+  }
+
+  @Test
+  public void testTwoPgTables() throws Exception {
+    SpannerSchema schema =
+        SpannerSchema.builder(Dialect.POSTGRESQL)
+            .addColumn("test", "pk", "character varying(48)")
+            .addKeyPart("test", "pk", false)
+            .addColumn("test", "maxKey", "character varying")
+            .addColumn("test", "jsonbCol", "jsonb")
+            .addColumn("other", "pk", "bigint")
+            .addKeyPart("other", "pk", true)
+            .addColumn("other", "maxKey", "character varying")
+            .addColumn("other", "commitTime", "spanner.commit_timestamp")
+            .build();
+
+    assertEquals(2, schema.getTables().size());
+    assertEquals(3, schema.getColumns("test").size());
+    assertEquals(1, schema.getKeyParts("test").size());
+
+    assertEquals(3, schema.getColumns("other").size());
+    assertEquals(1, schema.getKeyParts("other").size());
+    assertEquals(Type.timestamp(), schema.getColumns("other").get(2).getType());
   }
 }

@@ -19,14 +19,14 @@ package org.apache.beam.sdk.options;
 
 import static org.apache.beam.sdk.options.SdkHarnessOptions.LogLevel.WARN;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.beam.sdk.options.SdkHarnessOptions.DefaultMaxCacheMemoryUsageMb;
 import org.apache.beam.sdk.options.SdkHarnessOptions.SdkHarnessLogLevelOverrides;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.junit.Rule;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -36,13 +36,49 @@ public class SdkHarnessOptionsTest {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-  @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  @Test
+  public void testDefaultMaxCacheMemoryUsageMbWhenRuntimeReturnsInvalidValue() {
+    assertEquals(
+        100,
+        new DefaultMaxCacheMemoryUsageMb()
+            .getMaxCacheMemoryUsage(PipelineOptionsFactory.create(), Long.MAX_VALUE));
+  }
+
+  @Test
+  public void testDefaultMaxCacheMemoryUsageMbWhenRuntimeReturnsValidValue() {
+    assertEquals(
+        20,
+        new DefaultMaxCacheMemoryUsageMb()
+            .getMaxCacheMemoryUsage(PipelineOptionsFactory.create(), 100 * 1024 * 1024));
+  }
+
+  @Test
+  public void testDefaultMaxCacheMemoryUsageMbWhenInvalidPercentage() {
+    assertThrows(
+        "maxCacheMemoryUsagePercent must be between 0 and 100",
+        IllegalArgumentException.class,
+        () ->
+            new DefaultMaxCacheMemoryUsageMb()
+                .getMaxCacheMemoryUsage(
+                    PipelineOptionsFactory.fromArgs("--maxCacheMemoryUsagePercent=-1").create(),
+                    100 * 1024 * 1024));
+    assertThrows(
+        "maxCacheMemoryUsagePercent must be between 0 and 100",
+        IllegalArgumentException.class,
+        () ->
+            new DefaultMaxCacheMemoryUsageMb()
+                .getMaxCacheMemoryUsage(
+                    PipelineOptionsFactory.fromArgs("--maxCacheMemoryUsagePercent=101").create(),
+                    100 * 1024 * 1024));
+  }
 
   @Test
   public void testSdkHarnessLogLevelOverrideWithInvalidLogLevel() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Unsupported log level");
-    SdkHarnessLogLevelOverrides.from(ImmutableMap.of("Name", "FakeLevel"));
+    assertThrows(
+        "Unsupported log level",
+        IllegalArgumentException.class,
+        () -> SdkHarnessLogLevelOverrides.from(ImmutableMap.of("Name", "FakeLevel")));
   }
 
   @Test

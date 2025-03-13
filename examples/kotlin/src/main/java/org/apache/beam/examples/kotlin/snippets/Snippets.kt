@@ -15,13 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("UNUSED_VARIABLE")
+
 package org.apache.beam.examples.kotlin.snippets
 
 import com.google.api.services.bigquery.model.*
 import com.google.common.collect.ImmutableList
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.apache.beam.sdk.Pipeline
-import org.apache.beam.sdk.coders.AvroCoder
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder
 import org.apache.beam.sdk.coders.DefaultCoder
 import org.apache.beam.sdk.coders.DoubleCoder
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
@@ -37,7 +39,29 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple
 import org.apache.beam.sdk.values.*
 
 /** Code snippets used in webdocs.  */
+@Suppress("unused")
 object Snippets {
+
+    val tableSchema: TableSchema by lazy {
+        TableSchema().setFields(
+                ImmutableList.of(
+                        TableFieldSchema()
+                                .setName("year")
+                                .setType("INTEGER")
+                                .setMode("REQUIRED"),
+                        TableFieldSchema()
+                                .setName("month")
+                                .setType("INTEGER")
+                                .setMode("REQUIRED"),
+                        TableFieldSchema()
+                                .setName("day")
+                                .setType("INTEGER")
+                                .setMode("REQUIRED"),
+                        TableFieldSchema()
+                                .setName("maxTemp")
+                                .setType("FLOAT")
+                                .setMode("NULLABLE")))
+    }
 
     @DefaultCoder(AvroCoder::class)
     internal class Quote(
@@ -60,7 +84,7 @@ object Snippets {
             pipeline: Pipeline, writeProject: String = "", writeDataset: String = "", writeTable: String = "") {
         run {
             // [START BigQueryTableSpec]
-            val tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [END BigQueryTableSpec]
         }
 
@@ -80,24 +104,24 @@ object Snippets {
         }
 
         run {
-            val tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [START BigQueryReadTable]
             val maxTemperatures = pipeline.apply(BigQueryIO.readTableRows().from(tableSpec))
                     // Each row is of type TableRow
                     .apply<PCollection<Double>>(
                             MapElements.into(TypeDescriptors.doubles())
                                     .via(SerializableFunction<TableRow, Double> {
-                                        it["max_temperature"] as Double
+                                        it["max_temperature"] as Double?
                                     })
                     )
             // [END BigQueryReadTable]
         }
 
         run {
-            val tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [START BigQueryReadFunction]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double }
+                    BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .from(tableSpec)
                             .withCoder(DoubleCoder.of()))
             // [END BigQueryReadFunction]
@@ -106,9 +130,9 @@ object Snippets {
         run {
             // [START BigQueryReadQuery]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double }
+                    BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .fromQuery(
-                                    "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
+                                    "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]")
                             .withCoder(DoubleCoder.of()))
             // [END BigQueryReadQuery]
         }
@@ -116,7 +140,7 @@ object Snippets {
         run {
             // [START BigQueryReadQueryStdSQL]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double }
+                    BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .fromQuery(
                                     "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
                             .usingStandardSql()
@@ -143,7 +167,7 @@ object Snippets {
         // [END BigQuerySchemaJson]
 
         run {
-            var tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            var tableSpec = "apache-beam-testing.samples.weather_stations"
             if (writeProject.isNotEmpty() && writeDataset.isNotEmpty() && writeTable.isNotEmpty()) {
                 tableSpec = "$writeProject:$writeDataset.$writeTable"
             }
@@ -235,7 +259,7 @@ object Snippets {
                     }
                             .fromQuery("""
                                 SELECT year, month, day, max_temperature
-                                FROM [clouddataflow-readonly:samples.weather_stations]
+                                FROM [apache-beam-testing.samples.weather_stations]
                                 WHERE year BETWEEN 2007 AND 2009
                             """.trimIndent())
                             .withCoder(AvroCoder.of(WeatherData::class.java)))
@@ -245,8 +269,8 @@ object Snippets {
                     BigQueryIO.write<WeatherData>()
                             .to(
                                     object : DynamicDestinations<WeatherData, Long>() {
-                                        override fun getDestination(elem: ValueInSingleWindow<WeatherData>): Long? {
-                                            return elem.value!!.year
+                                        override fun getDestination(elem: ValueInSingleWindow<WeatherData>?): Long {
+                                            return elem!!.value!!.year
                                         }
 
                                         override fun getTable(destination: Long?): TableDestination {
@@ -259,25 +283,7 @@ object Snippets {
                                         }
 
                                         override fun getSchema(destination: Long?): TableSchema {
-                                            return TableSchema()
-                                                    .setFields(
-                                                            ImmutableList.of(
-                                                                    TableFieldSchema()
-                                                                            .setName("year")
-                                                                            .setType("INTEGER")
-                                                                            .setMode("REQUIRED"),
-                                                                    TableFieldSchema()
-                                                                            .setName("month")
-                                                                            .setType("INTEGER")
-                                                                            .setMode("REQUIRED"),
-                                                                    TableFieldSchema()
-                                                                            .setName("day")
-                                                                            .setType("INTEGER")
-                                                                            .setMode("REQUIRED"),
-                                                                    TableFieldSchema()
-                                                                            .setName("maxTemp")
-                                                                            .setType("FLOAT")
-                                                                            .setMode("NULLABLE")))
+                                            return tableSchema
                                         }
                                     })
                             .withFormatFunction {
@@ -291,24 +297,10 @@ object Snippets {
                             .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE))
             // [END BigQueryWriteDynamicDestinations]
 
-            var tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            var tableSpec = "apache-beam-testing.samples.weather_stations"
             if (writeProject.isNotEmpty() && writeDataset.isNotEmpty() && writeTable.isNotEmpty()) {
                 tableSpec = "$writeProject:$writeDataset.${writeTable}_partitioning"
             }
-
-            val tableSchema = TableSchema()
-                    .setFields(
-                            ImmutableList.of(
-                                    TableFieldSchema().setName("year").setType("INTEGER").setMode("REQUIRED"),
-                                    TableFieldSchema()
-                                            .setName("month")
-                                            .setType("INTEGER")
-                                            .setMode("REQUIRED"),
-                                    TableFieldSchema().setName("day").setType("INTEGER").setMode("REQUIRED"),
-                                    TableFieldSchema()
-                                            .setName("maxTemp")
-                                            .setType("FLOAT")
-                                            .setMode("NULLABLE")))
 
             // [START BigQueryTimePartitioning]
             weatherData.apply<WriteResult>(

@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Hash validates that the incoming PCollection<string> has the given size and
@@ -31,6 +31,7 @@ import (
 func Hash(s beam.Scope, col beam.PCollection, name, hash string, size int) {
 	s = s.Scope(fmt.Sprintf("passert.Hash(%v)", name))
 
+	NonEmpty(s, col)
 	keyed := beam.AddFixedKey(s, col)
 	grouped := beam.GroupByKey(s, keyed)
 	beam.ParDo0(s, &hashFn{Name: name, Size: size, Hash: hash}, grouped)

@@ -21,12 +21,13 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableComparator;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * An immutable key/value pair.
@@ -39,32 +40,34 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
  */
 public class KV<K, V> implements Serializable {
   /** Returns a {@link KV} with the given key and value. */
-  public static <K, V> KV<K, V> of(@Nullable K key, @Nullable V value) {
+  public static <K, V> KV<K, V> of(K key, V value) {
     return new KV<>(key, value);
   }
 
   /** Returns the key of this {@link KV}. */
-  public @Nullable K getKey() {
+  @Pure
+  public K getKey() {
     return key;
   }
 
   /** Returns the value of this {@link KV}. */
+  @Pure
   public V getValue() {
     return value;
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
-  final @Nullable K key;
-  final @Nullable V value;
+  final K key;
+  final V value;
 
-  private KV(@Nullable K key, @Nullable V value) {
+  private KV(K key, V value) {
     this.key = key;
     this.value = value;
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }

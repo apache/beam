@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,7 +36,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.logging.ErrorManager;
-import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
@@ -44,14 +44,17 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
 
 /**
  * Formats {@link LogRecord} into JSON format for Cloud Logging. Any exception is represented using
  * {@link Throwable#printStackTrace()}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowWorkerLoggingHandler extends Handler {
   private static final EnumMap<BeamFnApi.LogEntry.Severity.Enum, String>
       BEAM_LOG_LEVEL_TO_CLOUD_LOG_LEVEL;
@@ -72,6 +75,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
     BEAM_LOG_LEVEL_TO_CLOUD_LOG_LEVEL.put(BeamFnApi.LogEntry.Severity.Enum.ERROR, "ERROR");
     BEAM_LOG_LEVEL_TO_CLOUD_LOG_LEVEL.put(BeamFnApi.LogEntry.Severity.Enum.CRITICAL, "CRITICAL");
   }
+
+  /**
+   * Buffer size to use when writing logs. This matches <a
+   * href="https://cloud.google.com/logging/quotas#log-limits">Logging usage limits</a> to avoid
+   * spreading the same log entry across multiple disk flushes.
+   */
+  private static final int LOGGING_WRITER_BUFFER_SIZE = 262144; // 256kb
 
   /**
    * Formats the throwable as per {@link Throwable#printStackTrace()}.
@@ -100,8 +110,15 @@ public class DataflowWorkerLoggingHandler extends Handler {
    * or negative.
    */
   DataflowWorkerLoggingHandler(Supplier<OutputStream> factory, long sizeLimit) throws IOException {
+    this.setFormatter(new SimpleFormatter());
     this.outputStreamFactory = factory;
-    this.generatorFactory = new ObjectMapper().getFactory();
+    this.generatorFactory =
+        new ObjectMapper()
+            // Required to avoid flushing to the file in the middle of a log message and potentially
+            // breaking its JSON formatting, if the first part is read from the file before the rest
+            // of the message:
+            .disable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE)
+            .getFactory();
     this.sizeLimit = sizeLimit < 1 ? Long.MAX_VALUE : sizeLimit;
     createOutputStream();
   }
@@ -139,7 +156,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
           "severity",
           MoreObjects.firstNonNull(LEVELS.get(record.getLevel()), record.getLevel().getName()));
       // Write the other labels.
-      writeIfNotEmpty("message", formatter.formatMessage(record));
+      writeIfNotEmpty("message", getFormatter().formatMessage(record));
       writeIfNotEmpty("thread", String.valueOf(record.getThreadID()));
       writeIfNotEmpty("job", DataflowWorkerLoggingMDC.getJobId());
       writeIfNotEmpty("stage", DataflowWorkerLoggingMDC.getStageName());
@@ -196,13 +213,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty("thread", logEntry.getThread());
       writeIfNotEmpty("job", DataflowWorkerLoggingMDC.getJobId());
       // TODO: Write the stage execution information by translating the currently execution
-      // instruction reference to a stage.
+      // instruction id to a stage.
       // writeIfNotNull("stage", ...);
-      writeIfNotEmpty("step", logEntry.getPrimitiveTransformReference());
+      writeIfNotEmpty("step", logEntry.getTransformId());
       writeIfNotEmpty("worker", DataflowWorkerLoggingMDC.getWorkerId());
       // Id should match to id in //depot/google3/third_party/cloud/dataflow/worker/agent/sdk.go
       writeIfNotEmpty("portability_worker_id", DataflowWorkerLoggingMDC.getSdkHarnessId());
-      writeIfNotEmpty("work", logEntry.getInstructionReference());
+      writeIfNotEmpty("work", logEntry.getInstructionId());
       writeIfNotEmpty("logger", logEntry.getLogLocation());
       // TODO: Figure out a way to get exceptions transported across Beam Fn Logging API
       writeIfNotEmpty("exception", logEntry.getTrace());
@@ -275,7 +292,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
       try {
         String filename = filepath + "." + formatter.format(new Date()) + ".log";
         return new BufferedOutputStream(
-            new FileOutputStream(new File(filename), true /* append */));
+            new FileOutputStream(new File(filename), true /* append */),
+            LOGGING_WRITER_BUFFER_SIZE);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -341,5 +359,4 @@ public class DataflowWorkerLoggingHandler extends Handler {
   private final long sizeLimit;
   private final Supplier<OutputStream> outputStreamFactory;
   private final JsonFactory generatorFactory;
-  private final Formatter formatter = new SimpleFormatter();
 }

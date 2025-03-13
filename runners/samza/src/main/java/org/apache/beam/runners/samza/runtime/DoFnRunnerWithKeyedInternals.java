@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,6 +27,10 @@ import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 
 /** This class wraps a DoFnRunner with keyed StateInternals and TimerInternals access. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> underlying;
   private final KeyedInternals keyedInternals;
@@ -57,23 +58,25 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     }
   }
 
-  public void onTimer(KeyedTimerData keyedTimerData, BoundedWindow window) {
-    setKeyedInternals(keyedTimerData);
+  @Override
+  public <KeyT> void onTimer(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    // Note: wrap with KV.of(key, null) as a special use case of setKeyedInternals() to set key
+    // directly.
+    setKeyedInternals(KV.of(key, null));
 
     try {
-      final TimerInternals.TimerData timer = keyedTimerData.getTimerData();
-      onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      underlying.onTimer(
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
     } finally {
       clearKeyedInternals();
     }
-  }
-
-  @Override
-  public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    checkState(keyedInternals.getKey() != null, "Key is not set for timer");
-
-    underlying.onTimer(timerId, window, timestamp, timeDomain);
   }
 
   @Override
@@ -82,11 +85,15 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    underlying.onWindowExpiration(window, timestamp, key);
+  }
+
+  @Override
   public DoFn<InputT, OutputT> getFn() {
     return underlying.getFn();
   }
 
-  @SuppressWarnings("unchecked")
   private void setKeyedInternals(Object value) {
     if (value instanceof KeyedWorkItem) {
       keyedInternals.setKey(((KeyedWorkItem<?, ?>) value).key());
@@ -95,8 +102,12 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       if (key != null) {
         keyedInternals.setKey(key);
       }
-    } else {
+    } else if (value instanceof KV) {
       keyedInternals.setKey(((KV<?, ?>) value).getKey());
+    } else {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is not supported in %s", value.getClass(), DoFnRunnerWithKeyedInternals.class));
     }
   }
 

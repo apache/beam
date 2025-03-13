@@ -24,7 +24,8 @@ import static org.junit.Assert.assertSame;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,7 +34,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExposedByteArrayOutputStreamTest {
 
-  private static final byte[] TEST_DATA = "Hello World!".getBytes(Charsets.UTF_8);
+  private static final byte[] TEST_DATA = "Hello World!".getBytes(StandardCharsets.UTF_8);
 
   private ExposedByteArrayOutputStream exposedStream = new ExposedByteArrayOutputStream();
   private ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -214,7 +215,11 @@ public class ExposedByteArrayOutputStreamTest {
   private void assertStreamContentsEquals(
       ByteArrayOutputStream stream1, ByteArrayOutputStream stream2) {
     assertArrayEquals(stream1.toByteArray(), stream2.toByteArray());
-    assertEquals(stream1.toString(), stream2.toString());
+    try {
+      assertEquals(stream1.toString("UTF-8"), stream2.toString("UTF-8"));
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
     assertEquals(stream1.size(), stream2.size());
   }
 

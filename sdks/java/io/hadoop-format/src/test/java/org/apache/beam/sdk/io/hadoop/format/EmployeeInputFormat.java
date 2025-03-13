@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -149,7 +149,7 @@ class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
     @Override
     public boolean nextKeyValue() {
-      if ((recordsRead++) >= split.getLength()) {
+      if (recordsRead++ >= split.getLength()) {
         return false;
       }
       employeeListIndex++;

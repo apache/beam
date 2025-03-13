@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.hadoop.format;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Random;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class HDFSSynchronization implements ExternalSynchronization {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(HDFSSynchronization.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HDFSSynchronization.class);
 
   private static final String LOCKS_DIR_PATTERN = "%s/";
   private static final String LOCKS_DIR_TASK_PATTERN = LOCKS_DIR_PATTERN + "%s";
@@ -94,15 +94,14 @@ public class HDFSSynchronization implements ExternalSynchronization {
 
     try (FileSystem fileSystem = fileSystemFactory.apply(conf)) {
       if (fileSystem.delete(path, true)) {
-        LOGGER.info("Delete of lock directory {} was successful", path);
+        LOG.info("Delete of lock directory {} was successful", path);
       } else {
-        LOGGER.warn("Delete of lock directory {} was unsuccessful", path);
+        LOG.warn("Delete of lock directory {} was unsuccessful", path);
       }
 
     } catch (IOException e) {
       String formattedExceptionMessage =
           String.format("Delete of lock directory %s was unsuccessful", path);
-      LOGGER.warn(formattedExceptionMessage, e);
       throw new IllegalStateException(formattedExceptionMessage, e);
     }
   }

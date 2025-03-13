@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -32,17 +32,19 @@ import java.util.Iterator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteSource;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CharSource;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closer;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CharSource;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 
 /**
  * Functions for zipping a directory (including a subdirectory) into a ZIP-file or unzipping it
  * again.
  */
+@Internal
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public final class ZipFiles {
   private ZipFiles() {}
 
@@ -148,7 +150,7 @@ public final class ZipFiles {
    */
   private static void checkName(String name) throws IOException {
     // First just check whether the entry name string contains "..".
-    // This should weed out the the vast majority of entries, which will not
+    // This should weed out the vast majority of entries, which will not
     // contain "..".
     if (name.contains("..")) {
       // If the string does contain "..", break it down into its actual name
@@ -173,27 +175,42 @@ public final class ZipFiles {
    *     as parameter, not absolute.
    * @param zipFile the zip-file to write to.
    * @throws IOException the zipping failed, e.g. because the input was not readable.
+   * @throws IllegalArgumentException sourceDirectory is not a directory, or zipFile already exists.
    */
-  static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
+  public static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
+    zipDirectory(sourceDirectory, zipFile, false);
+  }
+
+  /**
+   * Zips an entire directory specified by the path.
+   *
+   * @param sourceDirectory the directory to read from. This directory and all subdirectories will
+   *     be added to the zip-file. The path within the zip file is relative to the directory given
+   *     as parameter, not absolute.
+   * @param zipFile the zip-file to write to. Will be overwritten if it already exists.
+   * @throws IOException the zipping failed, e.g. because the input was not readable.
+   * @throws IllegalArgumentException sourceDirectory is not a directory.
+   */
+  public static void zipDirectoryOverwrite(File sourceDirectory, File zipFile) throws IOException {
+    zipDirectory(sourceDirectory, zipFile, true);
+  }
+
+  private static void zipDirectory(File sourceDirectory, File zipFile, boolean allowOverwrite)
+      throws IOException {
     checkNotNull(sourceDirectory);
     checkNotNull(zipFile);
     checkArgument(
         sourceDirectory.isDirectory(),
         "%s is not a valid directory",
         sourceDirectory.getAbsolutePath());
-    checkArgument(
-        !zipFile.exists(),
-        "%s does already exist, files are not being overwritten",
-        zipFile.getAbsolutePath());
-    Closer closer = Closer.create();
-    try {
-      OutputStream outputStream =
-          closer.register(new BufferedOutputStream(new FileOutputStream(zipFile)));
+    if (!allowOverwrite) {
+      checkArgument(
+          !zipFile.exists(),
+          "%s already exists, file is not being overwritten",
+          zipFile.getAbsolutePath());
+    }
+    try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(zipFile))) {
       zipDirectory(sourceDirectory, outputStream);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -216,11 +233,12 @@ public final class ZipFiles {
         "%s is not a valid directory",
         sourceDirectory.getAbsolutePath());
 
-    ZipOutputStream zos = new ZipOutputStream(outputStream);
-    for (File file : sourceDirectory.listFiles()) {
-      zipDirectoryInternal(file, "", zos);
+    try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
+      for (File file : sourceDirectory.listFiles()) {
+        zipDirectoryInternal(file, "", zos);
+      }
+      zos.finish();
     }
-    zos.finish();
   }
 
   /**

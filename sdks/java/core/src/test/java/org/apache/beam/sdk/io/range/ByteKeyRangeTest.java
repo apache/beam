@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -271,8 +271,8 @@ public class ByteKeyRangeTest {
   @Test
   public void testInterpolateKeyIsNotEmpty() {
     String fmt = "Interpolating %s at fraction 0.0 should not return the empty key";
-    for (ByteKeyRange range : TEST_RANGES) {
-      range = ByteKeyRange.ALL_KEYS;
+    for (ByteKeyRange ignored : TEST_RANGES) {
+      ByteKeyRange range = ByteKeyRange.ALL_KEYS;
       assertFalse(String.format(fmt, range), range.interpolateKey(0.0).isEmpty());
     }
   }
@@ -361,8 +361,11 @@ public class ByteKeyRangeTest {
     assertThat("Too many hash collisions", collisions, lessThan(totalUnequalTests / 2));
   }
 
-  /** Asserts the two keys are equal except trailing zeros. */
-  private static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
+  /**
+   * Asserts the two keys are equal except trailing zeros. Note that this can only be used for
+   * testing split logic. *
+   */
+  public static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
     ByteBuffer shortKey = expected.getValue();
     ByteBuffer longKey = key.getValue();
     if (shortKey.remaining() > longKey.remaining()) {

@@ -18,7 +18,7 @@ package {{.Package}}
 import (
     "reflect"
 
-  	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+  	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 {{- range $import := .Imports}}
     "{{$import}}"
 {{- end}}
@@ -41,7 +41,7 @@ type decoder{{$x.Name}} struct {
 	fn    func ([]byte){{$x.Type}}
 }
 
-func decoderMaker{{$x.Name}}(fn interface{}) reflectx.Func {
+func decoderMaker{{$x.Name}}(fn any) reflectx.Func {
     f := fn.(func ([]byte){{$x.Type}})
     return &decoder{{$x.Name}}{fn: f}
 }
@@ -54,12 +54,12 @@ func (c *decoder{{$x.Name}}) Type() reflect.Type {
     return reflect.TypeOf(c.fn)
 }
 
-func (c *decoder{{$x.Name}}) Call(args []interface{}) []interface{} {
+func (c *decoder{{$x.Name}}) Call(args []any) []any {
     out := c.fn(args[0].([]byte))
-    return []interface{}{out}
+    return []any{out}
 }
 
-func (c *decoder{{$x.Name}}) Call1x1(v interface{}) interface{} {
+func (c *decoder{{$x.Name}}) Call1x1(v any) any {
     return c.fn(v.([]byte))
 }
 
@@ -68,7 +68,7 @@ type decoder{{$x.Name}}E struct {
 	fn    func ([]byte) ({{$x.Type}}, error)
 }
 
-func decoderMaker{{$x.Name}}E(fn interface{}) reflectx.Func {
+func decoderMaker{{$x.Name}}E(fn any) reflectx.Func {
     f := fn.(func ([]byte)({{$x.Type}}, error))
     return &decoder{{$x.Name}}E{fn: f}
 }
@@ -81,12 +81,12 @@ func (c *decoder{{$x.Name}}E) Type() reflect.Type {
     return reflect.TypeOf(c.fn)
 }
 
-func (c *decoder{{$x.Name}}E) Call(args []interface{}) []interface{} {
+func (c *decoder{{$x.Name}}E) Call(args []any) []any {
     v, err := c.fn(args[0].([]byte))
-    return []interface{}{v, err}
+    return []any{v, err}
 }
 
-func (c *decoder{{$x.Name}}E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoder{{$x.Name}}E) Call1x2(v any) (any, any) {
     return c.fn(v.([]byte))
 }
 
@@ -94,7 +94,7 @@ type decoderT{{$x.Name}} struct {
 	fn    func (reflect.Type, []byte){{$x.Type}}
 }
 
-func decoderMakerT{{$x.Name}}(fn interface{}) reflectx.Func {
+func decoderMakerT{{$x.Name}}(fn any) reflectx.Func {
     f := fn.(func (reflect.Type, []byte){{$x.Type}})
     return &decoderT{{$x.Name}}{fn: f}
 }
@@ -107,12 +107,12 @@ func (c *decoderT{{$x.Name}}) Type() reflect.Type {
     return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderT{{$x.Name}}) Call(args []interface{}) []interface{} {
+func (c *decoderT{{$x.Name}}) Call(args []any) []any {
     out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-    return []interface{}{out}
+    return []any{out}
 }
 
-func (c *decoderT{{$x.Name}}) Call2x1(t, v interface{}) interface{} {
+func (c *decoderT{{$x.Name}}) Call2x1(t, v any) any {
     return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -121,7 +121,7 @@ type decoderT{{$x.Name}}E struct {
 	fn    func (reflect.Type, []byte) ({{$x.Type}}, error)
 }
 
-func decoderMakerT{{$x.Name}}E(fn interface{}) reflectx.Func {
+func decoderMakerT{{$x.Name}}E(fn any) reflectx.Func {
     f := fn.(func (reflect.Type, []byte)({{$x.Type}}, error))
     return &decoderT{{$x.Name}}E{fn: f}
 }
@@ -134,12 +134,12 @@ func (c *decoderT{{$x.Name}}E) Type() reflect.Type {
     return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderT{{$x.Name}}E) Call(args []interface{}) []interface{} {
+func (c *decoderT{{$x.Name}}E) Call(args []any) []any {
     val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-    return []interface{}{val, err}
+    return []any{val, err}
 }
 
-func (c *decoderT{{$x.Name}}E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderT{{$x.Name}}E) Call2x2(t, v any) (any, any) {
     return c.fn(t.(reflect.Type), v.([]byte))
 }
 

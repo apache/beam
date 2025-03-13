@@ -19,11 +19,11 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,6 +46,9 @@ import org.mockito.Mockito;
 
 /** Tests for WriteOperation. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class WriteOperationTest {
 
   private final CounterSet counterSet = new CounterSet();

@@ -1,0 +1,558 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 2,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Python Tests",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "displayLabels": [
+          "value"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "values": []
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "body": "",
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[?(@.conclusion == \"success\")]",
+              "name": "success"
+            }
+          ],
+          "hide": false,
+          "method": "GET",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": ""
+        },
+        {
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[?(@.conclusion == \"failure\")]",
+              "name": "failure"
+            }
+          ],
+          "hide": false,
+          "method": "GET",
+          "queryParams": "",
+          "refId": "B",
+          "urlPath": ""
+        },
+        {
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[?(@.conclusion == \"cancelled\")]",
+              "name": "cancelled"
+            }
+          ],
+          "hide": false,
+          "method": "GET",
+          "queryParams": "",
+          "refId": "C",
+          "urlPath": ""
+        }
+      ],
+      "title": "Python last 100 post-commit tests results",
+      "transformations": [],
+      "type": "piechart"
+    },
+    {
+      "datasource": "Python Tests",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "align": "center",
+            "displayMode": "color-background"
+          },
+          "mappings": [
+            {
+              "options": {
+                "cancelled": {
+                  "color": "super-light-yellow",
+                  "index": 2
+                },
+                "failure": {
+                  "color": "dark-red",
+                  "index": 1
+                },
+                "success": {
+                  "color": "green",
+                  "index": 0
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "Fetching status",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workflow URL"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.width",
+                "value": 415
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Created At"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "body": "",
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[*].id",
+              "name": "Workflow ID"
+            },
+            {
+              "jsonPath": "$.workflow_runs[*].conclusion",
+              "name": "Test Result"
+            },
+            {
+              "jsonPath": "$.workflow_runs[*].html_url",
+              "name": "Workflow URL"
+            },
+            {
+              "jsonPath": "$.workflow_runs[*].created_at",
+              "name": "Created At"
+            }
+          ],
+          "method": "GET",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": ""
+        }
+      ],
+      "title": "Python Workflow Results",
+      "type": "table"
+    },
+    {
+      "datasource": "Java Tests",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 2,
+      "options": {
+        "displayLabels": [
+          "value"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "values": []
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[?(@.conclusion == \"success\")]",
+              "name": "success"
+            }
+          ],
+          "hide": false,
+          "method": "GET",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": ""
+        },
+        {
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[?(@.conclusion == \"failure\")]",
+              "name": "failure"
+            }
+          ],
+          "hide": false,
+          "method": "GET",
+          "queryParams": "",
+          "refId": "B",
+          "urlPath": ""
+        },
+        {
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[?(@.conclusion == \"cancelled\")]",
+              "name": "cancelled"
+            }
+          ],
+          "hide": false,
+          "method": "GET",
+          "queryParams": "",
+          "refId": "C",
+          "urlPath": ""
+        }
+      ],
+      "title": "Java last 100 post-commit tests results",
+      "type": "piechart"
+    },
+    {
+      "datasource": "Java Tests",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "align": "center",
+            "displayMode": "color-background-solid"
+          },
+          "mappings": [
+            {
+              "options": {
+                "cancelled": {
+                  "color": "super-light-yellow",
+                  "index": 2
+                },
+                "failure": {
+                  "color": "dark-red",
+                  "index": 1
+                },
+                "success": {
+                  "color": "green",
+                  "index": 0
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "Fetching status",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workflow URL"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.width",
+                "value": 410
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Created At"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "cacheDurationSeconds": 300,
+          "fields": [
+            {
+              "jsonPath": "$.workflow_runs[*].id",
+              "name": "Workflow ID"
+            },
+            {
+              "jsonPath": "$.workflow_runs[*].conclusion",
+              "name": "Test Result"
+            },
+            {
+              "jsonPath": "$.workflow_runs[*].html_url",
+              "name": "Workflow URL"
+            },
+            {
+              "jsonPath": "$.workflow_runs[*].created_at",
+              "name": "Created At"
+            }
+          ],
+          "method": "GET",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": ""
+        }
+      ],
+      "title": "Java Workflow Results",
+      "type": "table"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "GitHub Actions Post Commit Tests",
+  "uid": "dYwQFp7nk",
+  "version": 103
+}
+

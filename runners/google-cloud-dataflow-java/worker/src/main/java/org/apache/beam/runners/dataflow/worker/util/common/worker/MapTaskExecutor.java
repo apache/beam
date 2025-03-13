@@ -20,15 +20,18 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import java.io.Closeable;
 import java.util.List;
 import java.util.ListIterator;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An executor for a map task, defined by a list of Operations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MapTaskExecutor implements WorkExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
 
@@ -73,6 +76,9 @@ public class MapTaskExecutor implements WorkExecutor {
         LOG.debug("Starting operations");
         ListIterator<Operation> iterator = operations.listIterator(operations.size());
         while (iterator.hasPrevious()) {
+          if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("Worker aborted");
+          }
           Operation op = iterator.previous();
           op.start();
         }
@@ -82,6 +88,9 @@ public class MapTaskExecutor implements WorkExecutor {
         // consumers are themselves finished.
         LOG.debug("Finishing operations");
         for (Operation op : operations) {
+          if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("Worker aborted");
+          }
           op.finish();
         }
       } catch (Exception | Error exn) {
@@ -111,8 +120,7 @@ public class MapTaskExecutor implements WorkExecutor {
   }
 
   @Override
-  @Nullable
-  public NativeReader.DynamicSplitResult requestCheckpoint() throws Exception {
+  public NativeReader.@Nullable DynamicSplitResult requestCheckpoint() throws Exception {
     return getReadOperation().requestCheckpoint();
   }
 
@@ -122,7 +130,7 @@ public class MapTaskExecutor implements WorkExecutor {
     return getReadOperation().requestDynamicSplit(splitRequest);
   }
 
-  public ReadOperation getReadOperation() throws Exception {
+  public ReadOperation getReadOperation() {
     if (operations == null || operations.isEmpty()) {
       throw new IllegalStateException("Map task has no operation.");
     }
@@ -146,7 +154,7 @@ public class MapTaskExecutor implements WorkExecutor {
 
   @Override
   public void abort() {
-    // Signal the read loop to abort on the next record.
+    // Signal the read loop to abort on the next record and async abort any iterators.
     // TODO: Also interrupt the execution thread.
     for (Operation op : operations) {
       Preconditions.checkState(op instanceof ReadOperation || op instanceof ReceivingOperation);

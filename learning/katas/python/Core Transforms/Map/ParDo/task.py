@@ -14,9 +14,19 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: MapPardo
+#   description: Task from katas is simple ParDo that maps the input element by multiplying it by 10.
+#   multifile: false
+#   context_line: 38
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 class MultiplyByTenDoFn(beam.DoFn):
@@ -25,10 +35,9 @@ class MultiplyByTenDoFn(beam.DoFn):
         yield element * 10
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([1, 2, 3, 4, 5])
-   | beam.ParDo(MultiplyByTenDoFn())
-   | LogElements())
+  (p | beam.Create([1, 2, 3, 4, 5])
+     | beam.ParDo(MultiplyByTenDoFn())
+     | beam.LogElements())
 
-p.run()

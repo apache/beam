@@ -19,9 +19,9 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.Test;
@@ -38,7 +39,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link AvroByteReaderFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class AvroByteReaderFactoryTest {
   private final String pathToAvroFile = "/path/to/file.avro";
 
@@ -76,7 +79,7 @@ public class AvroByteReaderFactoryTest {
         runTestCreateAvroReader(
             pathToAvroFile, null, null, CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
 
-    Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
+    assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
     Assert.assertEquals(pathToAvroFile, avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(0L, avroReader.startPosition);
@@ -92,7 +95,7 @@ public class AvroByteReaderFactoryTest {
         runTestCreateAvroReader(
             pathToAvroFile, 200L, 500L, CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
 
-    Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
+    assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
     Assert.assertEquals(pathToAvroFile, avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(200L, avroReader.startPosition);

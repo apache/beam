@@ -16,27 +16,34 @@
  * limitations under the License.
  */
 
-plugins {
-  id 'org.apache.beam.module'
+task cancelStaleDataflowJobs(type: Exec) {
+  commandLine './stale_dataflow_jobs_cleaner.sh'
 }
 
-applyGoNature()
-
-repositories { mavenCentral() }
-
-clean {
-  delete '.gogradle'
+task removeStaleSDKContainerImages(type: Exec) {
+  commandLine './stale_dataflow_prebuilt_image_cleaner.sh'
 }
 
-golang {
-  packagePath = 'github.com/apache/beam/.test-infra/tools'
+task removeStaleBqDatasets(type: Exec) {
+  commandLine './stale_bq_datasets_cleaner.sh'
 }
 
-check.dependsOn goTest
+task removeStaleCbtInstances(type: Exec) {
+  commandLine './stale_cbt_instances_cleaner.sh'
+}
 
-task cancelStaleDataflowJobs(type: com.github.blindpirate.gogradle.Go) {
-  dependsOn goVendor
-  go('get golang.org/x/oauth2/google')
-  go('get google.golang.org/api/dataflow/v1b3')
-  go('run stale_dataflow_jobs_cleaner.go')
+task removeStaleK8sWorkload(type: Exec) {
+  commandLine './stale_k8s_workload_cleaner.sh'
+}
+
+task removeStaleSpannerResources(type: Exec) {
+  commandLine './stale_spanner_cleaner.sh'
+}
+
+task cleanupOtherStaleResources {
+  // declared as finalizedBy dependency so that other task continue even if one dep task fails
+  finalizedBy tasks.removeStaleBqDatasets
+  finalizedBy tasks.removeStaleCbtInstances
+  finalizedBy tasks.removeStaleK8sWorkload
+  finalizedBy tasks.removeStaleSpannerResources
 }

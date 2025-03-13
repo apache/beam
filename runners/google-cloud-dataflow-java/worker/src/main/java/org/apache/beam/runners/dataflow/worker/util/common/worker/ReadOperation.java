@@ -28,12 +28,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Its start() method iterates through all elements of the source and emits them on its output.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ReadOperation extends Operation {
+  public static class ReadLoopAbortedException extends InterruptedException {
+    public ReadLoopAbortedException() {
+      super("Read loop was aborted.");
+    }
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(ReadOperation.class);
 
   // This is the rate at which the local, threadsafe progress variable is updated from the iterator,
@@ -173,11 +183,18 @@ public class ReadOperation extends Operation {
         return;
       }
 
+      if (abortRead.get()) {
+        throw new ReadLoopAbortedException();
+      }
+
       // Call reader.iterator() outside the lock, because it can take an
       // unbounded amount of time.
       NativeReader.NativeReaderIterator<?> iterator = reader.iterator();
       synchronized (initializationStateLock) {
         readerIterator = new SynchronizedReaderIterator<>(iterator, progress);
+        if (abortRead.get()) { // If the abort signal may have been delivered already.
+          readerIterator.asyncAbort();
+        }
       }
 
       Runnable setProgressFromIterator =
@@ -193,7 +210,7 @@ public class ReadOperation extends Operation {
         readerIterator.setProgressFromIterator();
         for (boolean more = readerIterator.start(); more; more = readerIterator.advance()) {
           if (abortRead.get()) {
-            throw new InterruptedException("Read loop was aborted.");
+            throw new ReadLoopAbortedException();
           }
           if (progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
             readerIterator.setProgressFromIterator();
@@ -264,6 +281,11 @@ public class ReadOperation extends Operation {
    */
   public void abortReadLoop() {
     abortRead.set(true);
+    synchronized (initializationStateLock) {
+      if (readerIterator != null) {
+        readerIterator.asyncAbort();
+      }
+    }
   }
 
   /**
@@ -280,8 +302,7 @@ public class ReadOperation extends Operation {
    * Relays the checkpoint request to {@code ReaderIterator}. This method is called concurrently to
    * the readLoop.
    */
-  @Nullable
-  public NativeReader.DynamicSplitResult requestCheckpoint() {
+  public NativeReader.@Nullable DynamicSplitResult requestCheckpoint() {
     synchronized (initializationStateLock) {
       if (isFinished() || isAborted()) {
         LOG.info(
@@ -301,8 +322,7 @@ public class ReadOperation extends Operation {
    * Relays the split request to {@code ReaderIterator}. This method is called concurrently to the
    * readLoop.
    */
-  @Nullable
-  public NativeReader.DynamicSplitResult requestDynamicSplit(
+  public NativeReader.@Nullable DynamicSplitResult requestDynamicSplit(
       NativeReader.DynamicSplitRequest splitRequest) {
     synchronized (initializationStateLock) {
       if (isFinished() || isAborted()) {
@@ -369,6 +389,12 @@ public class ReadOperation extends Operation {
     @Override
     public synchronized void abort() throws IOException {
       readerIterator.abort();
+    }
+
+    /** The asyncAbort() method does not need to be synchronized. */
+    @Override
+    public void asyncAbort() {
+      readerIterator.asyncAbort();
     }
 
     public synchronized void setProgressFromIterator() {

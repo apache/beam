@@ -17,18 +17,21 @@
  */
 package org.apache.beam.runners.fnexecution.translation;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 /** Tests for {@link PipelineTranslatorUtils}. */
 public class PipelineTranslatorUtilsTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Test
   public void testOutputMapCreation() {

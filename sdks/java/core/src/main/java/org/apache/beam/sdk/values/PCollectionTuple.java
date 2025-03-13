@@ -27,7 +27,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollectionTuple} is an immutable tuple of heterogeneously-typed {@link PCollection
@@ -217,7 +218,8 @@ public class PCollectionTuple implements PInput, POutput {
     @SuppressWarnings("unchecked")
     PCollection<T> pcollection = (PCollection<T>) pcollectionMap.get(tag);
     if (pcollection == null) {
-      throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
+      throw new IllegalArgumentException(
+          String.format("TupleTag %s not found in this PCollectionTuple tuple", tag));
     }
     return pcollection;
   }
@@ -304,7 +306,7 @@ public class PCollectionTuple implements PInput, POutput {
       // erasure as the correct type. When a transform adds
       // elements to `outputCollection` they will be of type T.
       @SuppressWarnings("unchecked")
-      PCollection outputCollection =
+      PCollection<?> outputCollection =
           PCollection.createPrimitiveOutputInternal(
                   pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
               .setTypeDescriptor(outputTag.getTypeDescriptor());
@@ -341,7 +343,7 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PCollectionTuple)) {
       return false;
     }

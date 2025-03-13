@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -38,12 +37,12 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
-import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
@@ -51,26 +50,23 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.hamcrest.MockitoHamcrest;
 
 /** Unit tests for {@link BatchDataflowWorker}. */
 @RunWith(JUnit4.class)
 public class BatchDataflowWorkerTest {
 
-  private static class WorkerException extends Exception {}
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public FastNanoClockAndSleeper clockAndSleeper = new FastNanoClockAndSleeper();
-
   @Mock WorkUnitClient mockWorkUnitClient;
-
   @Mock DataflowWorkProgressUpdater mockProgressUpdater;
-
   @Mock DataflowWorkExecutor mockWorkExecutor;
-
   DataflowWorkerHarnessOptions options;
 
   @Before
@@ -84,11 +80,7 @@ public class BatchDataflowWorkerTest {
     final String workItemId = "14";
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
 
     WorkItem workItem = new WorkItem();
     workItem.setId(Long.parseLong(workItemId));
@@ -102,13 +94,13 @@ public class BatchDataflowWorkerTest {
     workItem.setReportStatusInterval(TimeUtil.toCloudDuration(Duration.standardMinutes(1)));
 
     when(mockWorkUnitClient.getWorkItem())
-        .thenReturn(Optional.<WorkItem>absent())
+        .thenReturn(Optional.empty())
         .thenReturn(Optional.of(workItem));
 
     assertTrue(worker.getAndPerformWork());
     verify(mockWorkUnitClient)
         .reportWorkItemStatus(
-            argThat(
+            MockitoHamcrest.argThat(
                 new TypeSafeMatcher<WorkItemStatus>() {
                   @Override
                   public void describeTo(Description description) {}
@@ -126,11 +118,7 @@ public class BatchDataflowWorkerTest {
   public void testWhenProcessingWorkUnitFailsWeReportStatus() throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     // In practice this value is always 1, but for the sake of testing send a different value.
     long initialReportIndex = 4L;
     WorkItem workItem =
@@ -146,18 +134,14 @@ public class BatchDataflowWorkerTest {
 
     Throwable error = errorCaptor.getValue();
     assertThat(error, notNullValue());
-    assertThat(error.getMessage(), equalTo("Unknown kind of work item: " + workItem.toString()));
+    assertThat(error.getMessage(), equalTo("Unknown kind of work item: " + workItem));
   }
 
   @Test
   public void testStartAndStopProgressReport() throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     worker.executeWork(mockWorkExecutor, mockProgressUpdater);
     verify(mockProgressUpdater, times(1)).startReportingProgress();
     verify(mockProgressUpdater, times(1)).stopReportingProgress();
@@ -168,11 +152,7 @@ public class BatchDataflowWorkerTest {
     doThrow(new WorkerException()).when(mockWorkExecutor).execute();
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     try {
       worker.executeWork(mockWorkExecutor, mockProgressUpdater);
     } catch (WorkerException e) {
@@ -184,8 +164,9 @@ public class BatchDataflowWorkerTest {
   @Test
   public void testIsSplitResponseTooLarge() throws IOException {
     SourceSplitResponse splitResponse = new SourceSplitResponse();
-    splitResponse.setShards(
-        ImmutableList.<SourceSplitShard>of(new SourceSplitShard(), new SourceSplitShard()));
+    splitResponse.setShards(ImmutableList.of(new SourceSplitShard(), new SourceSplitShard()));
     assertThat(DataflowApiUtils.computeSerializedSizeBytes(splitResponse), greaterThan(0L));
   }
+
+  private static class WorkerException extends Exception {}
 }

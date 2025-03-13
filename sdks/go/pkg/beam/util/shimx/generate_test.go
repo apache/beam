@@ -70,13 +70,13 @@ func TestTop_ProcessImports(t *testing.T) {
 		want []string
 	}{
 		{name: "default", got: &Top{}, want: []string{"context", "keepit", "fmt", "io", "unrelated"}},
-		{name: "emit", got: &Top{Emitters: []Emitter{{Name: "emit"}}}, want: []string{ExecImport, TypexImport, "keepit", "fmt", "io", "unrelated"}},
+		{name: "emit", got: &Top{Emitters: []Emitter{{Name: "emit"}}}, want: []string{SdfImport, ExecImport, TypexImport, "keepit", "fmt", "io", "unrelated"}},
 		{name: "iter", got: &Top{Inputs: []Input{{Name: "iter"}}}, want: []string{ExecImport, "context", "keepit", "unrelated"}},
 		{name: "iterWTime", got: &Top{Inputs: []Input{{Name: "iterWTime", Time: true}}}, want: []string{ExecImport, TypexImport, "context", "keepit", "unrelated"}},
 		{name: "shim", got: &Top{Shims: []Func{{Name: "emit"}}}, want: []string{ReflectxImport, "context", "keepit", "fmt", "io", "unrelated"}},
-		{name: "iter&emit", got: &Top{Emitters: []Emitter{{Name: "emit"}}, Inputs: []Input{{Name: "iter"}}}, want: []string{ExecImport, TypexImport, "keepit", "unrelated"}},
+		{name: "iter&emit", got: &Top{Emitters: []Emitter{{Name: "emit"}}, Inputs: []Input{{Name: "iter"}}}, want: []string{SdfImport, ExecImport, TypexImport, "keepit", "unrelated"}},
 		{name: "functions", got: &Top{Functions: []string{"func1"}}, want: []string{RuntimeImport, "context", "keepit", "fmt", "io", "unrelated"}},
-		{name: "types", got: &Top{Types: []string{"func1"}}, want: []string{RuntimeImport, "context", "keepit", "fmt", "io", "unrelated"}},
+		{name: "types", got: &Top{Types: []string{"func1"}}, want: []string{SchemaImport, RuntimeImport, "context", "keepit", "fmt", "io", "unrelated"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -189,7 +189,7 @@ func TestMkparams(t *testing.T) {
 	}{
 		{format: "Foo", types: []string{}, want: ""},
 		{format: "arg%d %v", types: []string{"Bar"}, want: "arg0 Bar"},
-		{format: "a%d %v", types: []string{"Foo", "Baz", "interface{}"}, want: "a0 Foo, a1 Baz, a2 interface{}"},
+		{format: "a%d %v", types: []string{"Foo", "Baz", "any"}, want: "a0 Foo, a1 Baz, a2 any"},
 	}
 	for _, test := range tests {
 		if got := mkparams(test.format, test.types); got != test.want {

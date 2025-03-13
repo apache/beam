@@ -17,16 +17,28 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.PAYLOAD_FIELD;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
-import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import java.util.Optional;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Kafka table provider.
@@ -39,24 +51,91 @@ import org.apache.beam.sdk.schemas.Schema;
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
  * COMMENT 'this is the table orders'
- * LOCATION 'kafka://localhost:2181/brokers?topic=test'
- * TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
+ * TYPE kafka
+ * // Optional. One broker host:port pair to bootstrap with and a topic.
+ * // Only one topic overall may be provided for writing.
+ * LOCATION 'my.company.url.com:2181/topic1'
+ * // Extra bootstrap_servers and topics can be provided explicitly. These will be merged
+ * // with the server and topic in LOCATION.
+ * TBLPROPERTIES '{
+ *   "bootstrap_servers": ["104.126.7.88:7743", "104.111.9.22:7743"],
+ *   "topics": ["topic2", "topic3"]
+ * }'
  * }</pre>
  */
 @AutoService(TableProvider.class)
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
+  private static class ParsedLocation {
+    String brokerLocation = "";
+    String topic = "";
+  }
+
+  private static ParsedLocation parseLocation(String location) {
+    ParsedLocation parsed = new ParsedLocation();
+    List<String> split = Splitter.on('/').splitToList(location);
+    checkArgument(
+        split.size() >= 2,
+        "Location string `%s` invalid: must be <broker bootstrap location>/<topic>.",
+        location);
+    parsed.topic = Iterables.getLast(split);
+    parsed.brokerLocation = String.join("/", split.subList(0, split.size() - 1));
+    return parsed;
+  }
+
+  private static List<String> mergeParam(Optional<String> initial, @Nullable ArrayNode toMerge) {
+    ImmutableList.Builder<String> merged = ImmutableList.builder();
+    initial.ifPresent(merged::add);
+    if (toMerge != null) {
+      toMerge.forEach(o -> merged.add(o.asText()));
+    }
+    return merged.build();
+  }
+
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
+    ObjectNode properties = table.getProperties();
 
-    JSONObject properties = table.getProperties();
-    String bootstrapServers = properties.getString("bootstrap.servers");
-    JSONArray topicsArr = properties.getJSONArray("topics");
-    List<String> topics = new ArrayList<>(topicsArr.size());
-    for (Object topic : topicsArr) {
-      topics.add(topic.toString());
+    Optional<ParsedLocation> parsedLocation = Optional.empty();
+    if (!Strings.isNullOrEmpty(table.getLocation())) {
+      parsedLocation = Optional.of(parseLocation(checkArgumentNotNull(table.getLocation())));
     }
-    return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+    List<String> topics =
+        mergeParam(parsedLocation.map(loc -> loc.topic), (ArrayNode) properties.get("topics"));
+    List<String> allBootstrapServers =
+        mergeParam(
+            parsedLocation.map(loc -> loc.brokerLocation),
+            (ArrayNode) properties.get("bootstrap_servers"));
+    String bootstrapServers = String.join(",", allBootstrapServers);
+
+    Optional<String> payloadFormat =
+        properties.has("format")
+            ? Optional.of(properties.get("format").asText())
+            : Optional.empty();
+    if (Schemas.isNestedSchema(schema)) {
+      Optional<PayloadSerializer> serializer =
+          payloadFormat.map(
+              format ->
+                  PayloadSerializers.getSerializer(
+                      format,
+                      checkArgumentNotNull(schema.getField(PAYLOAD_FIELD).getType().getRowSchema()),
+                      TableUtils.convertNode2Map(properties)));
+      return new NestedPayloadKafkaTable(schema, bootstrapServers, topics, serializer);
+    } else {
+      /*
+       * CSV is handled separately because multiple rows can be produced from a single message, which
+       * adds complexity to payload extraction. It remains here and as the default because it is the
+       * historical default, but it will not be extended to support attaching extended attributes to
+       * rows.
+       */
+      if (payloadFormat.orElse("csv").equals("csv")) {
+        return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+      }
+      PayloadSerializer serializer =
+          PayloadSerializers.getSerializer(
+              payloadFormat.get(), schema, TableUtils.convertNode2Map(properties));
+      return new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer);
+    }
   }
 
   @Override

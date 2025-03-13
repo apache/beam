@@ -17,25 +17,27 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -54,14 +56,15 @@ public class CommittedResultTest implements Serializable {
   private transient AppliedPTransform<?, ?, ?> transform =
       AppliedPTransform.<PBegin, PDone, PTransform<PBegin, PDone>>of(
           "foo",
-          p.begin().expand(),
-          PDone.in(p).expand(),
+          PValues.expandInput(p.begin()),
+          PValues.expandOutput(PDone.in(p)),
           new PTransform<PBegin, PDone>() {
             @Override
             public PDone expand(PBegin begin) {
               throw new IllegalArgumentException("Should never be applied");
             }
           },
+          ResourceHints.create(),
           p);
   private transient BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
@@ -70,7 +73,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.absent(),
+            Optional.empty(),
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
@@ -99,11 +102,11 @@ public class CommittedResultTest implements Serializable {
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.absent(),
+            Optional.empty(),
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.absent()));
+    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.empty()));
   }
 
   @Test
@@ -129,7 +132,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.absent(),
+            Optional.empty(),
             outputs,
             EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 

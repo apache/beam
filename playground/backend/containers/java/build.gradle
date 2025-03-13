@@ -1,0 +1,85 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
+apply plugin: 'java'
+apply from: "$project.rootDir/playground/backend/containers/git-functions.gradle"
+applyDockerNature()
+
+def playgroundJobServerProject = "${project.path.replace('-container', '')}"
+def default_beam_version = "2.44.0"
+description = project(playgroundJobServerProject).description + " :: Container"
+
+configurations {
+   dockerDependency
+}
+
+dependencies {
+   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
+}
+
+task copyKafkaEmulator(type: Copy) {
+   dependsOn(":playground:kafka-emulator:distTar")
+   from project(":playground:kafka-emulator").buildDir.path + "/distributions/kafka-emulator.tar"
+   into 'build/kafka-emulator/'
+}
+
+task copyDockerfileDependencies {
+   dependsOn("copyKafkaEmulator")
+
+   doLast {
+      copy {
+         from '../../../backend/'
+         into 'build/src'
+         exclude 'containers'
+      }
+      copy {
+         from 'entrypoint.sh'
+         into 'build/'
+      }
+      copy {
+         from '../../../playground'
+         into 'build/playground'
+      }
+      copy {
+         from '../../../../learning/katas/java'
+         into 'build/katas'
+      }
+   }
+}
+
+docker {
+   name containerImageName(
+         name: project.docker_image_default_repo_prefix + "playground-backend-java",
+         root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+               project.rootProject["docker-repository-root"] :
+               project.docker_image_default_repo_root)
+   files "./build/"
+   tags containerImageTags()
+   buildArgs(
+         ['BEAM_VERSION' : project.rootProject.hasProperty(["sdk-tag"]) ?
+               project.rootProject["sdk-tag"] :
+               default_beam_version,
+          'GIT_COMMIT'   : getGitCommitHash(),
+          'GIT_TIMESTAMP': getGitCommitTimestamp()])
+}
+
+// Ensure that we build the required resources and copy and file dependencies from related projects
+dockerPrepare.dependsOn copyDockerfileDependencies

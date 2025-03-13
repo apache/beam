@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Subcategory for {@link UsesTestStream} tests which use the processing time feature of {@link
  * TestStream}. Some Runners do not support setting processing time globally in a way that {@link
  * TestStream} demands it.
  */
+@Internal
 public interface UsesTestStreamWithProcessingTime extends UsesTestStream {}

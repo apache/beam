@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="96" height="96" rx="8" fill="#F8F8F8"/>
+<path d="M8 16C8 11.5817 11.5817 8 16 8H80C84.4183 8 88 11.5817 88 16V80C88 84.4183 84.4183 88 80 88H16C11.5817 88 8 84.4183 8 80V16Z" fill="#F8F8F8"/>
+<path d="M27.7333 20V31.6281M27.7333 40.2228V44.4671M27.7333 53.6V51.6M37.8667 20V25.3085M37.8667 32.3865V35.1671M48 28.2155V31.6281M48 38.7061V44.0146M37.8667 42.8517V48.4253M48 20V21.1628M17.6 47.4915V52.8M17.6 32.7289V36.5207M17.6 20V23.9434M58.1333 20V34.4642M58.1333 45.1552V49.8718M68.2667 20V26.6032M68.2667 35.4075V38.8664M78.4 30.2193V34.4642M78.4 43.2685V49.8718M68.2667 48.4253V49.8718M78.4 20V21.4464" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.6 63.6152V71.8082C17.6 73.0257 18.0843 74.1943 18.9474 75.056C19.8093 75.9165 20.9798 76.4 22.1992 76.4H73.9988C75.2194 76.4 76.3887 75.9165 77.2518 75.056C78.115 74.1943 78.5992 73.0269 78.5992 71.8082V63.6152" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M42.4 62L47.9989 67.2L53.6 62M48.0011 52.8V67.1988" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

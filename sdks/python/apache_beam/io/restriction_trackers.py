@@ -16,11 +16,9 @@
 #
 
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
-import threading
-from builtins import object
+from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
@@ -28,7 +26,6 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 
 
 class OffsetRange(object):
-
   def __init__(self, start, stop):
     if start > stop:
       raise ValueError(
@@ -43,17 +40,16 @@ class OffsetRange(object):
 
     return self.start == other.start and self.stop == other.stop
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((type(self), self.start, self.stop))
 
+  def __repr__(self):
+    return 'OffsetRange(start=%s, stop=%s)' % (self.start, self.stop)
+
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
-    max_split_size = max(desired_num_offsets_per_split,
-                         min_num_offsets_per_split)
+    max_split_size = max(
+        desired_num_offsets_per_split, min_num_offsets_per_split)
     while current_split_start < self.stop:
       current_split_stop = min(current_split_start + max_split_size, self.stop)
       remaining = self.stop - current_split_stop
@@ -66,121 +62,111 @@ class OffsetRange(object):
       yield OffsetRange(current_split_start, current_split_stop)
       current_split_start = current_split_stop
 
+  def split_at(self, split_pos) -> Tuple['OffsetRange', 'OffsetRange']:
+    return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
+
   def new_tracker(self):
     return OffsetRangeTracker(self.start, self.stop)
+
+  def size(self):
+    return self.stop - self.start
 
 
 class OffsetRestrictionTracker(RestrictionTracker):
   """An `iobase.RestrictionTracker` implementations for an offset range.
 
-  Offset range is represented as a pair of integers
-  [start_position, stop_position}.
+  Offset range is represented as OffsetRange.
   """
-
-  def __init__(self, start_position, stop_position):
-    self._range = OffsetRange(start_position, stop_position)
+  def __init__(self, offset_range: OffsetRange) -> None:
+    assert isinstance(offset_range, OffsetRange), offset_range
+    self._range = offset_range
     self._current_position = None
-    self._current_watermark = None
     self._last_claim_attempt = None
-    self._deferred_residual = None
     self._checkpointed = False
-    self._lock = threading.RLock()
 
   def check_done(self):
-    with self._lock:
-      if self._last_claim_attempt < self._range.stop - 1:
-        raise ValueError(
-            'OffsetRestrictionTracker is not done since work in range [%s, %s) '
-            'has not been claimed.'
-            % (self._last_claim_attempt if self._last_claim_attempt is not None
-               else self._range.start,
-               self._range.stop))
+    if (self._range.start != self._range.stop and
+        (self._last_claim_attempt is None or
+         self._last_claim_attempt < self._range.stop - 1)):
+      raise ValueError(
+          'OffsetRestrictionTracker is not done since work in range [%s, %s) '
+          'has not been claimed.' % (
+              self._last_claim_attempt
+              if self._last_claim_attempt is not None else self._range.start,
+              self._range.stop))
 
   def current_restriction(self):
-    with self._lock:
-      return (self._range.start, self._range.stop)
+    return self._range
 
-  def current_watermark(self):
-    return self._current_watermark
-
-  def current_progress(self):
-    with self._lock:
-      if self._current_position is None:
-        fraction = 0.0
-      elif self._range.stop == self._range.start:
-        # If self._current_position is not None, we must be done.
-        fraction = 1.0
-      else:
-        fraction = (
-            float(self._current_position - self._range.start)
-            / (self._range.stop - self._range.start))
+  def current_progress(self) -> RestrictionProgress:
+    if self._current_position is None:
+      fraction = 0.0
+    elif self._range.stop == self._range.start:
+      # If self._current_position is not None, we must be done.
+      fraction = 1.0
+    else:
+      fraction = (
+          float(self._current_position - self._range.start) /
+          (self._range.stop - self._range.start))
     return RestrictionProgress(fraction=fraction)
 
   def start_position(self):
-    with self._lock:
-      return self._range.start
+    return self._range.start
 
   def stop_position(self):
-    with self._lock:
-      return self._range.stop
-
-  def default_size(self):
-    return self._range.stop - self._range.start
+    return self._range.stop
 
   def try_claim(self, position):
-    with self._lock:
-      if self._last_claim_attempt and position <= self._last_claim_attempt:
-        raise ValueError(
-            'Positions claimed should strictly increase. Trying to claim '
-            'position %d while last claim attempt was %d.'
-            % (position, self._last_claim_attempt))
+    if (self._last_claim_attempt is not None and
+        position <= self._last_claim_attempt):
+      raise ValueError(
+          'Positions claimed should strictly increase. Trying to claim '
+          'position %d while last claim attempt was %d.' %
+          (position, self._last_claim_attempt))
 
-      self._last_claim_attempt = position
-      if position < self._range.start:
-        raise ValueError(
-            'Position to be claimed cannot be smaller than the start position '
-            'of the range. Tried to claim position %r for the range [%r, %r)'
-            % (position, self._range.start, self._range.stop))
+    self._last_claim_attempt = position
+    if position < self._range.start:
+      raise ValueError(
+          'Position to be claimed cannot be smaller than the start position '
+          'of the range. Tried to claim position %r for the range [%r, %r)' %
+          (position, self._range.start, self._range.stop))
 
-      if position >= self._range.start and position < self._range.stop:
-        self._current_position = position
-        return True
+    if self._range.start <= position < self._range.stop:
+      self._current_position = position
+      return True
 
-      return False
+    return False
 
   def try_split(self, fraction_of_remainder):
-    with self._lock:
-      if not self._checkpointed:
-        if self._current_position is None:
-          cur = self._range.start - 1
-        else:
-          cur = self._current_position
-        split_point = (
-            cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
-        if split_point < self._range.stop:
-          prev_stop, self._range.stop = self._range.stop, split_point
-          return (self._range.start, split_point), (split_point, prev_stop)
-
-  # TODO(SDF): Replace all calls with try_claim(0).
-  def checkpoint(self):
-    with self._lock:
-      # If self._current_position is 'None' no records have been claimed so
-      # residual should start from self._range.start.
-      if self._current_position is None:
-        end_position = self._range.start
+    if not self._checkpointed:
+      if self._last_claim_attempt is None:
+        cur = self._range.start - 1
       else:
-        end_position = self._current_position + 1
+        cur = self._last_claim_attempt
+      split_point = (
+          cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
+      if split_point < self._range.stop:
+        if fraction_of_remainder == 0:
+          self._checkpointed = True
+        self._range, residual_range = self._range.split_at(split_point)
+        return self._range, residual_range
 
-      residual_range = (end_position, self._range.stop)
+  def is_bounded(self):
+    return True
 
-      self._range = OffsetRange(self._range.start, end_position)
-      return residual_range
 
-  def defer_remainder(self, watermark=None):
-    with self._lock:
-      self._deferred_watermark = watermark or self._current_watermark
-      self._deferred_residual = self.checkpoint()
+class UnsplittableRestrictionTracker(RestrictionTracker):
+  """An `iobase.RestrictionTracker` that wraps another but does not split."""
+  def __init__(self, underling_tracker):
+    self._underling_tracker = underling_tracker
 
-  def deferred_status(self):
-    if self._deferred_residual:
-      return (self._deferred_residual, self._deferred_watermark)
+  def try_split(self, fraction_of_remainder):
+    return False
+
+  # __getattribute__ is used rather than __getattr__ to override the
+  # stubs in the baseclass.
+  def __getattribute__(self, name):
+    if name.startswith('_') or name in ('try_split', ):
+      return super().__getattribute__(name)
+    else:
+      return getattr(self._underling_tracker, name)

@@ -27,15 +27,20 @@ import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOpti
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.ErrorManager;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions.LogLevel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sets up {@link java.util.logging} configuration on the Dataflow worker with a rotating file
@@ -47,7 +52,13 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
  * level is INFO, the default location is a file named dataflow-json.log within the system temporary
  * directory and the default file size is 1 GB.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "ForbidDefaultCharset"
+})
 public class DataflowWorkerLoggingInitializer {
+  private static final org.slf4j.Logger LOG =
+      LoggerFactory.getLogger(DataflowWorkerLoggingInitializer.class);
   private static final String ROOT_LOGGER_NAME = "";
 
   @VisibleForTesting
@@ -98,6 +109,35 @@ public class DataflowWorkerLoggingInitializer {
   private static PrintStream originalStdErr = System.err;
   private static boolean initialized = false;
 
+  // This is the same as ErrorManager except that it uses the provided
+  // print stream.
+  public static class PrintStreamErrorManager extends ErrorManager {
+    public PrintStreamErrorManager(PrintStream stream) {
+      this.stream = stream;
+    }
+
+    private PrintStream stream;
+    private boolean reported = false;
+
+    @Override
+    public synchronized void error(String msg, Exception ex, int code) {
+      if (reported) {
+        // We only report the first error, to avoid clogging
+        // the screen.
+        return;
+      }
+      reported = true;
+      String text = "java.util.logging.ErrorManager: " + code;
+      if (msg != null) {
+        text = text + ": " + msg;
+      }
+      stream.println(text);
+      if (ex != null) {
+        ex.printStackTrace(stream);
+      }
+    }
+  };
+
   private static DataflowWorkerLoggingHandler makeLoggingHandler(
       String filepathProperty, String defaultFilePath) throws IOException {
     String filepath = System.getProperty(filepathProperty, defaultFilePath);
@@ -105,6 +145,9 @@ public class DataflowWorkerLoggingInitializer {
     DataflowWorkerLoggingHandler handler =
         new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024L * 1024L);
     handler.setLevel(Level.ALL);
+    // To avoid potential deadlock between the handler and the System.err print stream, use the
+    // original stderr print stream for errors. See BEAM-9399.
+    handler.setErrorManager(new PrintStreamErrorManager(getOriginalStdErr()));
     return handler;
   }
 
@@ -131,10 +174,10 @@ public class DataflowWorkerLoggingInitializer {
       originalStdErr = System.err;
       System.setOut(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO));
+              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO, Charset.defaultCharset()));
       System.setErr(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE));
+              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE, Charset.defaultCharset()));
 
       // Initialize the SDK Logging Handler, which will only be used for the LoggingService
       sdkLoggingHandler = makeLoggingHandler(SDK_FILEPATH_PROPERTY, DEFAULT_SDK_LOGGING_LOCATION);
@@ -150,14 +193,32 @@ public class DataflowWorkerLoggingInitializer {
     if (!initialized) {
       throw new RuntimeException("configure() called before initialize()");
     }
-    if (options.getDefaultWorkerLogLevel() != null) {
-      Level defaultLevel = getJulLevel(options.getDefaultWorkerLogLevel());
-      LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(defaultLevel);
+
+    // For compatibility reason, we do not call SdkHarnessOptions.getConfiguredLoggerFromOptions
+    // to config the logging for legacy worker, instead replicate the config steps used for
+    // DataflowWorkerLoggingOptions for default log level and log level overrides.
+    SdkHarnessOptions harnessOptions = options.as(SdkHarnessOptions.class);
+    boolean usedDeprecated = false;
+
+    // default value for both DefaultSdkHarnessLogLevel and DefaultWorkerLogLevel are INFO
+    Level overrideLevel = getJulLevel(harnessOptions.getDefaultSdkHarnessLogLevel());
+    if (options.getDefaultWorkerLogLevel() != null && options.getDefaultWorkerLogLevel() != INFO) {
+      overrideLevel = getJulLevel(options.getDefaultWorkerLogLevel());
+      usedDeprecated = true;
     }
+    LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(overrideLevel);
 
     if (options.getWorkerLogLevelOverrides() != null) {
       for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
           options.getWorkerLogLevelOverrides().entrySet()) {
+        Logger logger = Logger.getLogger(loggerOverride.getKey());
+        logger.setLevel(getJulLevel(loggerOverride.getValue()));
+        configuredLoggers.add(logger);
+      }
+      usedDeprecated = true;
+    } else if (harnessOptions.getSdkHarnessLogLevelOverrides() != null) {
+      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
+          harnessOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
         logger.setLevel(getJulLevel(loggerOverride.getValue()));
         configuredLoggers.add(logger);
@@ -172,7 +233,8 @@ public class DataflowWorkerLoggingInitializer {
           JulHandlerPrintStreamAdapterFactory.create(
               loggingHandler,
               SYSTEM_OUT_LOG_NAME,
-              getJulLevel(options.getWorkerSystemOutMessageLevel())));
+              getJulLevel(options.getWorkerSystemOutMessageLevel()),
+              Charset.defaultCharset()));
     }
 
     if (options.getWorkerSystemErrMessageLevel() != null) {
@@ -181,7 +243,14 @@ public class DataflowWorkerLoggingInitializer {
           JulHandlerPrintStreamAdapterFactory.create(
               loggingHandler,
               SYSTEM_ERR_LOG_NAME,
-              getJulLevel(options.getWorkerSystemErrMessageLevel())));
+              getJulLevel(options.getWorkerSystemErrMessageLevel()),
+              Charset.defaultCharset()));
+    }
+
+    if (usedDeprecated) {
+      LOG.warn(
+          "Deprecated DataflowWorkerLoggingOptions are used for log level settings."
+              + "Consider using options defined in SdkHarnessOptions for forward compatibility.");
     }
   }
 
@@ -211,6 +280,10 @@ public class DataflowWorkerLoggingInitializer {
 
   private static Level getJulLevel(DataflowWorkerLoggingOptions.Level level) {
     return LEVELS.inverse().get(level);
+  }
+
+  private static Level getJulLevel(SdkHarnessOptions.LogLevel level) {
+    return LogLevel.LEVEL_CONFIGURATION.get(level);
   }
 
   @VisibleForTesting

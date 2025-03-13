@@ -19,8 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** Function of two arguments of the same type. */
+/**
+ * Function of two arguments of the same type.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.INTERNAL)
 @FunctionalInterface
+@Deprecated
 public interface SameArgsBinaryFunction<InputT, OutputT>
     extends BinaryFunction<InputT, InputT, OutputT> {}

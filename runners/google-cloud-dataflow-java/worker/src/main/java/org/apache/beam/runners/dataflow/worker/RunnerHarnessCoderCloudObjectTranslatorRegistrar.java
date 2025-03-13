@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjectTranslator;
@@ -37,7 +36,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A registrar for {@link CloudObjectTranslator}s for the Dataflow runner harness.
@@ -45,6 +45,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * <p>See {@link CoderCloudObjectTranslatorRegistrar} for more details.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RunnerHarnessCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
 

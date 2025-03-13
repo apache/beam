@@ -17,18 +17,29 @@ package graphx_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
 	runtime.RegisterFunction(dec)
 	runtime.RegisterFunction(enc)
+}
+
+type registeredNamedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
+func init() {
+	schema.RegisterType(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))
 }
 
 // TestMarshalUnmarshalCoders verifies that coders survive a proto roundtrip.
@@ -38,55 +49,148 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 	baz := custom("baz", reflectx.Int)
 
 	tests := []struct {
-		name string
-		c    *coder.Coder
+		name       string
+		c          *coder.Coder
+		equivalent *coder.Coder
 	}{
 		{
-			"bytes",
-			coder.NewBytes(),
+			name: "bytes",
+			c:    coder.NewBytes(),
 		},
 		{
-			"varint",
-			coder.NewVarInt(),
+			name: "bool",
+			c:    coder.NewBool(),
 		},
 		{
-			"foo",
-			foo,
+			name: "varint",
+			c:    coder.NewVarInt(),
 		},
 		{
-			"bar",
-			bar,
+			name: "double",
+			c:    coder.NewDouble(),
 		},
 		{
-			"baz",
-			baz,
+			name: "string",
+			c:    coder.NewString(),
 		},
 		{
-			"W<bytes>",
-			coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
+			name: "foo",
+			c:    foo,
 		},
 		{
-			"KV<foo,bar>",
-			coder.NewKV([]*coder.Coder{foo, bar}),
+			name: "bar",
+			c:    bar,
 		},
 		{
-			"CoGBK<foo,bar>",
-			coder.NewCoGBK([]*coder.Coder{foo, bar}),
+			name: "baz",
+			c:    baz,
 		},
 		{
-			"CoGBK<foo,bar,baz>",
-			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
+			name: "IW",
+			c:    coder.NewIntervalWindowCoder(),
+		},
+		{
+			name: "W<bytes>",
+			c:    coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
+		},
+		{
+			name: "N<bytes>",
+			c:    coder.NewN(coder.NewBytes()),
+		},
+		{
+			name: "I<foo>",
+			c:    coder.NewI(foo),
+		},
+		{
+			name: "KV<foo,bar>",
+			c:    coder.NewKV([]*coder.Coder{foo, bar}),
+		},
+		{
+			name: "KV<foo, I<bar>>",
+			c:    coder.NewKV([]*coder.Coder{foo, coder.NewI(bar)}),
+		},
+		{
+			name:       "CoGBK<foo,bar>",
+			c:          coder.NewCoGBK([]*coder.Coder{foo, bar}),
+			equivalent: coder.NewKV([]*coder.Coder{foo, coder.NewI(bar)}),
+		},
+		{
+			name: "CoGBK<foo,bar,baz>",
+			c:    coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
+		},
+		{
+			name: "R[graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)).Elem())),
+		},
+		{
+			name: "R[*graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			coders, err := graphx.UnmarshalCoders(graphx.MarshalCoders([]*coder.Coder{test.c}))
+			ids, marshalCoders, err := graphx.MarshalCoders([]*coder.Coder{test.c})
+			if err != nil {
+				t.Fatalf("Marshal(%v) failed: %v", test.c, err)
+			}
+			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}
-			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+			if test.equivalent != nil && !test.equivalent.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want equivalent", test.equivalent, coders)
+			}
+			if test.equivalent == nil && !test.c.Equals(coders[0]) {
 				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
+			}
+		})
+	}
+
+	for _, test := range tests {
+		t.Run("namespaced:"+test.name, func(t *testing.T) {
+			cm := graphx.NewCoderMarshaller()
+			cm.Namespace = "testnamespace"
+			ids, err := cm.AddMulti([]*coder.Coder{test.c})
+			if err != nil {
+				t.Fatalf("AddMulti(%v) failed: %v", test.c, err)
+			}
+			marshalCoders := cm.Build()
+			for _, id := range ids {
+				if !strings.Contains(id, cm.Namespace) {
+					t.Errorf("got %v, want it to contain %v", id, cm.Namespace)
+				}
+			}
+
+			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
+			if err != nil {
+				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
+			}
+			if test.equivalent != nil && !test.equivalent.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want equivalent", test.equivalent, coders)
+			}
+			if test.equivalent == nil && !test.c.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
+			}
+		})
+	}
+
+	// These tests cover the pure dataflow to dataflow coder cases.
+	for _, test := range tests {
+		t.Run("dataflow:"+test.name, func(t *testing.T) {
+			ref, err := graphx.EncodeCoderRef(test.c)
+			if err != nil {
+				t.Fatalf("EncodeCoderRef(%v) failed: %v", test.c, err)
+			}
+			got, err := graphx.DecodeCoderRef(ref)
+			if err != nil {
+				t.Fatalf("DecodeCoderRef(EncodeCoderRef(%v)) failed: %v", test.c, err)
+			}
+			if test.equivalent != nil && !test.equivalent.Equals(got) {
+				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v want equivalent", test.equivalent, got)
+			}
+			if test.equivalent == nil && !test.c.Equals(got) {
+				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v want identity", test.c, got)
 			}
 		})
 	}

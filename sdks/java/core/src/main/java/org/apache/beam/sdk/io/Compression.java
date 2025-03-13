@@ -27,14 +27,17 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.sdk.util.LzoCompression;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
+import org.apache.commons.compress.compressors.snappy.SnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 
@@ -152,6 +155,59 @@ public enum Compression {
     }
   },
 
+  /**
+   * LZO compression using LZO codec. {@code .lzo_deflate} extension is specified for files which
+   * use the LZO algorithm without headers.
+   *
+   * <p>The Beam Java SDK does not pull in the required libraries for LZO compression by default, so
+   * it is the user's responsibility to declare an explicit dependency on {@code
+   * io.airlift:aircompressor} and {@code com.facebook.presto.hadoop:hadoop-apache2}. Attempts to
+   * read or write {@code .lzo_deflate} files without {@code io.airlift:aircompressor} and {@code
+   * com.facebook.presto.hadoop:hadoop-apache2} loaded will result in a {@code NoClassDefFoundError}
+   * at runtime.
+   */
+  LZO(".lzo_deflate", ".lzo_deflate") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          LzoCompression.createLzoInputStream(Channels.newInputStream(channel)));
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          LzoCompression.createLzoOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+
+  /**
+   * LZOP compression using LZOP codec. {@code .lzo} extension is specified for files with magic
+   * bytes and headers.
+   *
+   * <p><b>Warning:</b> The LZOP codec being used does not support concatenated LZOP streams and
+   * will silently ignore data after the end of the first LZOP stream.
+   *
+   * <p>The Beam Java SDK does not pull in the required libraries for LZOP compression by default,
+   * so it is the user's responsibility to declare an explicit dependency on {@code
+   * io.airlift:aircompressor} and {@code com.facebook.presto.hadoop:hadoop-apache2}. Attempts to
+   * read or write {@code .lzo} files without {@code io.airlift:aircompressor} and {@code
+   * com.facebook.presto.hadoop:hadoop-apache2} loaded will result in a {@code NoClassDefFoundError}
+   * at runtime.
+   */
+  LZOP(".lzo", ".lzo") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          LzoCompression.createLzopInputStream(Channels.newInputStream(channel)));
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          LzoCompression.createLzopOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+
   /** Deflate compression. */
   DEFLATE(".deflate", ".deflate", ".zlib") {
     @Override
@@ -164,6 +220,25 @@ public enum Compression {
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
           new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+
+  /** Google Snappy compression. */
+  SNAPPY(".snappy", ".snappy") {
+    private int uncompressedSize;
+
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      SnappyCompressorInputStream is =
+          new SnappyCompressorInputStream(Channels.newInputStream(channel));
+      uncompressedSize = is.getSize();
+      return Channels.newChannel(is);
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new SnappyCompressorOutputStream(Channels.newOutputStream(channel), uncompressedSize));
     }
   };
 

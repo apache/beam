@@ -1,0 +1,246 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Code generated from sdf_invokers_arity.tmpl. DO NOT EDIT.
+
+package exec
+
+import (
+	"fmt"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+)
+
+func (n *cirInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (context.Context?, key?, value) (restriction, error?)
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+{{range $out := upto 3}}
+{{range $in := upto 4}}
+    {{if gt $out 0}}
+    {{if gt $in 0}}
+	case reflectx.Func{{$in}}x{{$out}}:
+		n.call = func() (rest any, err error) {
+			{{mktuplef $out "r%v"}} := fnT.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
+			{{- if eq $out 1}}
+			return r0, nil
+			{{- else}}
+			return r0, asError(r1)
+			{{- end}}
+		}
+	{{end}}
+	{{end}}
+{{end}}
+{{end}}
+	default:
+		if len(n.fn.Param) < 1 || len(n.fn.Param) > 3 {
+			return errors.Errorf("CreateInitialRestriction has unexpected number of parameters: %v", len(n.fn.Param))
+		}
+
+		n.call = func() (rest any, err error) {
+			ret := n.fn.Fn.Call(n.args)
+
+			switch len(ret) {
+			case 1:
+				return ret[0], nil
+			case 2:
+				return ret[0], asError(ret[1])
+			}
+
+			panic(fmt.Sprintf("CreateInitialRestriction has unexpected number of return values: %v", len(ret)))
+		}
+	}
+
+	return nil
+}
+
+func (n *srInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (context.Context?, key?, value, restriction) ([]restriction, error?)
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+{{range $out := upto 3}}
+{{range $in := upto 5}}
+    {{if gt $out 0}}
+    {{if gt $in 1}}
+	case reflectx.Func{{$in}}x{{$out}}:
+		n.call = func() (splits any, err error) {
+			{{mktuplef $out "r%v"}} := fnT.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
+			{{- if eq $out 1}}
+			return r0, nil
+			{{- else}}
+			return r0, asError(r1)
+			{{- end}}
+		}
+	{{end}}
+	{{end}}
+{{end}}
+{{end}}
+	default:
+		if len(n.fn.Param) < 2 || len(n.fn.Param) > 4 {
+			return errors.Errorf("SplitRestriction has unexpected number of parameters: %v", len(n.fn.Param))
+		}
+
+		n.call = func() (splits any, err error) {
+			ret := n.fn.Fn.Call(n.args)
+
+			switch len(ret) {
+			case 1:
+				return ret[0], nil
+			case 2:
+				return ret[0], asError(ret[1])
+			}
+
+			panic(fmt.Sprintf("SplitRestriction has unexpected number of return values: %v", len(ret)))
+		}
+	}
+
+	return nil
+}
+
+func (n *rsInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (context.Context?, key?, value, restriction) (float64, error?)
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+{{range $out := upto 3}}
+{{range $in := upto 5}}
+    {{if gt $out 0}}
+    {{if gt $in 1}}
+	case reflectx.Func{{$in}}x{{$out}}:
+		n.call = func() (size float64, err error) {
+			{{mktuplef $out "r%v"}} := fnT.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
+			{{- if eq $out 1}}
+			return r0.(float64), nil
+			{{- else}}
+			return r0.(float64), asError(r1)
+			{{- end}}
+		}
+	{{end}}
+	{{end}}
+{{end}}
+{{end}}
+	default:
+		if len(n.fn.Param) < 2 || len(n.fn.Param) > 4 {
+			return errors.Errorf("RestrictionSize has unexpected number of parameters: %v", len(n.fn.Param))
+		}
+
+		n.call = func() (size float64, err error) {
+			ret := n.fn.Fn.Call(n.args)
+
+			switch len(ret) {
+			case 1:
+				return ret[0].(float64), nil
+			case 2:
+				return ret[0].(float64), asError(ret[1])
+			}
+
+			panic(fmt.Sprintf("RestrictionSize has unexpected number of return values: %v", len(ret)))
+		}
+	}
+
+	return nil
+}
+
+func (n *ctInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (context.Context?, restriction) (sdf.RTracker, error?)
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+{{range $out := upto 3}}
+{{range $in := upto 3}}
+    {{if gt $out 0}}
+    {{if gt $in 0}}
+	case reflectx.Func{{$in}}x{{$out}}:
+		n.call = func() (rt sdf.RTracker, err error) {
+			{{mktuplef $out "r%v"}} := fnT.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
+			{{- if eq $out 1}}
+			return r0.(sdf.RTracker), nil
+			{{- else}}
+			return r0.(sdf.RTracker), asError(r1)
+			{{- end}}
+		}
+	{{end}}
+	{{end}}
+{{end}}
+{{end}}
+	default:
+		if len(n.fn.Param) < 1 || len(n.fn.Param) > 2 {
+			return errors.Errorf("CreateTracker has unexpected number of parameters: %v", len(n.fn.Param))
+		}
+
+		n.call = func() (rt sdf.RTracker, err error) {
+			ret := n.fn.Fn.Call(n.args)
+
+			switch len(ret) {
+			case 1:
+				return ret[0].(sdf.RTracker), nil
+			case 2:
+				return ret[0].(sdf.RTracker), asError(ret[1])
+			}
+
+			panic(fmt.Sprintf("CreateTracker has unexpected number of return values: %v", len(ret)))
+		}
+	}
+
+	return nil
+}
+
+func (n *trInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (context.Context?, sdf.RTracker, key?, value) (restriction, error?)
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+{{range $out := upto 3}}
+{{range $in := upto 5}}
+    {{if gt $out 0}}
+    {{if gt $in 1}}
+	case reflectx.Func{{$in}}x{{$out}}:
+		n.call = func() (rest any, err error) {
+			{{mktuplef $out "r%v"}} := fnT.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
+			{{- if eq $out 1}}
+			return r0, nil
+			{{- else}}
+			return r0, asError(r1)
+			{{- end}}
+		}
+	{{end}}
+	{{end}}
+{{end}}
+{{end}}
+	default:
+		if len(n.fn.Param) < 2 || len(n.fn.Param) > 4 {
+			return errors.Errorf("TruncateRestriction has unexpected number of parameters: %v", len(n.fn.Param))
+		}
+
+		n.call = func() (rest any, err error) {
+			ret := n.fn.Fn.Call(n.args)
+
+			switch len(ret) {
+			case 1:
+				return ret[0], nil
+			case 2:
+				return ret[0], asError(ret[1])
+			}
+
+			panic(fmt.Sprintf("TruncateRestriction has unexpected number of return values: %v", len(ret)))
+		}
+	}
+
+	return nil
+}

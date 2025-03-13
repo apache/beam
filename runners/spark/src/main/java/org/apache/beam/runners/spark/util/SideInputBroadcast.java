@@ -31,6 +31,9 @@ import org.slf4j.LoggerFactory;
  * Broadcast helper for side inputs. Helps to do the transformation from bytes transform to
  * broadcast transform to value by coder
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SideInputBroadcast<T> implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(SideInputBroadcast.class);

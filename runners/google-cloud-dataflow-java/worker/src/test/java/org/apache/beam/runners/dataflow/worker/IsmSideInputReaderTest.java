@@ -19,8 +19,9 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.concat;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.concat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
@@ -28,7 +29,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -70,7 +70,7 @@ import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
-import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -106,20 +106,19 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closer;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -130,8 +129,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tests for {@link IsmSideInputReader}.
@@ -140,13 +137,14 @@ import org.slf4j.LoggerFactory;
  * equivalently to their numeric representation for non-negative values.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"keyfor"})
 public class IsmSideInputReaderTest {
-  private static final Logger LOG = LoggerFactory.getLogger(IsmSideInputReaderTest.class);
+
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;
   private static final int NUM_THREADS = 16;
   private static final DataflowPipelineOptions pipelineOptions =
       PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-  private static final Pipeline pipeline = Pipeline.create(pipelineOptions);
+
   private static final CounterSet counterFactory = new CounterSet();
   private static final BatchModeExecutionContext executionContext =
       BatchModeExecutionContext.forTesting(
@@ -167,9 +165,7 @@ public class IsmSideInputReaderTest {
 
   @Before
   public void setUp() {
-    pipelineOptions
-        .as(DataflowPipelineDebugOptions.class)
-        .setExperiments(Lists.newArrayList(Experiment.SideInputIOMetrics.getName()));
+    pipelineOptions.as(DataflowPipelineDebugOptions.class);
     setupCloser = Closer.create();
     setupCloser.register(executionContext.getExecutionStateTracker().activate());
     setupCloser.register(operationContext.enterProcess());
@@ -682,7 +678,9 @@ public class IsmSideInputReaderTest {
             KV.of(2L, valueInGlobalWindow(62L)));
 
     final PCollectionView<List<Long>> view =
-        Pipeline.create().apply(Create.empty(VarLongCoder.of())).apply(View.asList());
+        Pipeline.create()
+            .apply(Create.empty(VarLongCoder.of()))
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(firstElements), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(secondElements), ismCoder);
@@ -740,7 +738,7 @@ public class IsmSideInputReaderTest {
         Pipeline.create()
             .apply(Create.empty(VarLongCoder.of()))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.asList());
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(concat(firstElements, secondElements)), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(thirdElements), ismCoder);
@@ -1331,7 +1329,7 @@ public class IsmSideInputReaderTest {
         new CounterUpdate()
             .setStructuredNameAndMetadata(
                 new CounterStructuredNameAndMetadata()
-                    .setMetadata(new CounterMetadata().setKind("SUM"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString()))
                     .setName(
                         new CounterStructuredName()
                             .setOrigin("SYSTEM")
@@ -1555,6 +1553,8 @@ public class IsmSideInputReaderTest {
     }
   }
 
+  // TODO(https://github.com/apache/beam/issues/21294): Add assertions on contains() calls
+  @SuppressWarnings("ReturnValueIgnored")
   private static <T> void verifyMap(
       Map<byte[], T> expectedMap, Map<byte[], T> mapView, Comparator<T> valueComparator) {
     List<Entry<byte[], T>> expectedElements = new ArrayList<>(expectedMap.entrySet());
@@ -1580,7 +1580,7 @@ public class IsmSideInputReaderTest {
     Collections.shuffle(expectedElements, random);
     Set<byte[]> mapViewKeySet = mapView.keySet();
     for (Entry<byte[], T> expected : expectedElements) {
-      mapViewKeySet.contains(expected.getKey());
+      assertTrue(mapViewKeySet.contains(expected.getKey()));
     }
 
     // Verify key set iterator

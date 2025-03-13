@@ -1,0 +1,84 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# This file enumerates the standard Apache Beam expansion services.
+# Each service must specify a package destination for each supported SDK, which
+# is where generated wrappers will go by default.
+#
+# Individual transforms can modify their destination module as well as their
+# generated wrapper class name.
+#
+# Transform identifiers listed in the `skip_transforms` field will be skipped.
+#
+#
+# Any new gradle targets added here should also be added to:
+# - sdks/python/build.gradle (as a dependency in the 'generateExternalTransformsConfig' task)
+# - sdks/python/test-suites/xlang/build.gradle (look for 'servicesToGenerateFrom')
+#
+# After making changes here, please run `./gradlew generateExternalTransformsConfig`
+# to regenerate the config file at sdks/standard_external_transforms.yaml
+#
+# Refer to sdks/python/gen_xlang_wrappers.py for more info.
+
+- gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+  destinations:
+    python: 'apache_beam/io'
+  transforms:
+    'beam:schematransform:org.apache.beam:kafka_write:v1':
+      name: 'WriteToKafka'
+    'beam:schematransform:org.apache.beam:kafka_read:v1':
+      name: 'ReadFromKafka'
+  skip_transforms:
+    # Handwritten Kafka wrappers already exist in apache_beam/io/kafka.py
+    - 'beam:schematransform:org.apache.beam:kafka_write:v1'
+    - 'beam:schematransform:org.apache.beam:kafka_read:v1'
+    # Available through apache_beam.transforms.managed.[Read/Write]
+    - 'beam:schematransform:org.apache.beam:iceberg_write:v1'
+    - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
+
+# TODO(ahmedabu98): Enable this service in a future PR
+#- gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+#  destinations:
+#    python: 'apache_beam/io/gcp'
+#  transforms:
+#    'beam:schematransform:org.apache.beam:spanner_cdc_read:v1':
+#      name: 'ReadFromSpannerChangeStreams'
+#  skip_transforms:
+#    # generate_sequence is already included in the Java IO expansion service
+#    - 'beam:schematransform:org.apache.beam:generate_sequence:v1'
+#    # Handwritten wrappers exist in apache_beam/io/gcp/pubsublite/
+#    - 'beam:schematransform:org.apache.beam:pubsublite_read:v1'
+#    - 'beam:schematransform:org.apache.beam:pubsublite_write:v1'
+#    # Handwritten wrapper exists in apache_beam/io/gcp/spanner.py
+#    - 'beam:schematransform:org.apache.beam:spanner_write:v1'
+#    # Native IO exists in apache_beam/io/gcp/pubsub.py
+#    - 'beam:schematransform:org.apache.beam:pubsub_read:v1'
+#    - 'beam:schematransform:org.apache.beam:pubsub_write:v1'
+#    # Native IO exists in apache_beam/io/gcp/bigquery.py
+#    - 'beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1'
+#    - 'beam:schematransform:org.apache.beam:bigquery_export_read:v1'
+#    - 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+#    - 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
+##    - 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+#    # Handwritten wrappers exists in apache_beam/io/jdbc.py
+#    - 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+#    - 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+#    # Handwritten wrappers exist in apache_beam/io/gcp/bigtableio.py
+#    - 'beam:schematransform:org.apache.beam:bigtable_write:v1'
+#    - 'beam:schematransform:org.apache.beam:bigtable_read:v1'

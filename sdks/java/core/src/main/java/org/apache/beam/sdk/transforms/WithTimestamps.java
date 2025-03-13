@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -51,7 +51,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * <p>CAUTION: Use of {@link #withAllowedTimestampSkew(Duration)} permits elements to be emitted
    * behind the watermark. These elements are considered late, and if behind the {@link
    * Window#withAllowedLateness(Duration) allowed lateness} of a downstream {@link PCollection} may
-   * be silently dropped. See https://issues.apache.org/jira/browse/BEAM-644 for details on a
+   * be silently dropped. See https://github.com/apache/beam/issues/18065 for details on a
    * replacement.
    *
    * <p>Each output element will be in the same windows as the input element. If a new window based
@@ -91,7 +91,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * @deprecated This method permits a to elements to be emitted behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public WithTimestamps<T> withAllowedTimestampSkew(Duration allowedTimestampSkew) {
@@ -106,7 +106,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * @deprecated This method permits a to elements to be emitted behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {

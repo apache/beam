@@ -20,13 +20,16 @@ package org.apache.beam.runners.dataflow.worker;
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.ServiceLoader;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Constructs a {@link Sink} from a Dataflow service {@link CloudObject} specification. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface SinkFactory {
 
   /** Creates a {@link Sink} from a Dataflow API Sink definition. */

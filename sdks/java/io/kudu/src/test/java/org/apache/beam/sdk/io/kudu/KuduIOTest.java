@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.kudu;
 
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.COL_ID;
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.GenerateUpsert;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class KuduIOTest {
-  private static final Logger LOG = LoggerFactory.getLogger(KuduIOTest.class);
 
   @Rule public final TestPipeline writePipeline = TestPipeline.create();
   @Rule public final TestPipeline readPipeline = TestPipeline.create();
@@ -202,7 +201,7 @@ public class KuduIOTest {
     @Override
     public void close() {
       // called on teardown which give no guarantees
-      LOG.debug("FakeWriter[{}] close {}", id);
+      LOG.debug("FakeWriter[{}] closed.", id);
     }
 
     /** Sets the unique id on deserialzation using the shared counter. */

@@ -17,22 +17,27 @@
  */
 package org.apache.beam.sdk.state;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static methods for working with {@link StateSpec StateSpecs}. */
-@Experimental(Kind.STATE)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class StateSpecs {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
@@ -42,12 +47,20 @@ public class StateSpecs {
   /**
    * Create a {@link StateSpec} for a single value of type {@code T}.
    *
-   * <p>This method attempts to infer the accumulator coder automatically.
+   * <p>This method attempts to infer the value coder automatically.
+   *
+   * <p>If the value type has a schema registered, then the schema will be used to encode the
+   * values.
    *
    * @see #value(Coder)
    */
   public static <T> StateSpec<ValueState<T>> value() {
     return new ValueStateSpec<>(null);
+  }
+
+  /** Create a {@link StateSpec} for a row value with the specified schema. */
+  public static StateSpec<ValueState<Row>> rowValue(Schema schema) {
+    return value(RowCoder.of(schema));
   }
 
   /**
@@ -129,10 +142,23 @@ public class StateSpecs {
    *
    * <p>This method attempts to infer the element coder automatically.
    *
+   * <p>If the element type has a schema registered, then the schema will be used to encode the
+   * values.
+   *
    * @see #bag(Coder)
    */
   public static <T> StateSpec<BagState<T>> bag() {
     return new BagStateSpec<>(null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link BagState}, optimized for adding values frequently and
+   * occasionally retrieving all the values that have been added.
+   *
+   * <p>This method is for storing row elements with the given schema.
+   */
+  public static StateSpec<BagState<Row>> rowBag(Schema schema) {
+    return new BagStateSpec<>(RowCoder.of(schema));
   }
 
   /**
@@ -149,10 +175,22 @@ public class StateSpecs {
    *
    * <p>This method attempts to infer the element coder automatically.
    *
+   * <p>If the element type has a schema registered, then the schema will be used to encode the
+   * values.
+   *
    * @see #set(Coder)
    */
   public static <T> StateSpec<SetState<T>> set() {
     return new SetStateSpec<>(null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link SetState}, optimized for checking membership.
+   *
+   * <p>This method is for storing row elements with the given schema.
+   */
+  public static StateSpec<SetState<Row>> rowSet(Schema schema) {
+    return new SetStateSpec<>(RowCoder.of(schema));
   }
 
   /**
@@ -165,14 +203,29 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link SetState}, optimized for key lookups and writes.
+   * Create a {@link StateSpec} for a {@link MapState}, optimized for key lookups and writes.
    *
    * <p>This method attempts to infer the key and value coders automatically.
+   *
+   * <p>If the key and value types have schemas registered, then the schemas will be used to encode
+   * the elements.
    *
    * @see #map(Coder, Coder)
    */
   public static <K, V> StateSpec<MapState<K, V>> map() {
     return new MapStateSpec<>(null, null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link MapState}, optimized for key lookups and writes.
+   *
+   * <p>This method is for storing maps where both the keys and the values are rows with the
+   * specified schemas.
+   *
+   * @see #map(Coder, Coder)
+   */
+  public static StateSpec<MapState<Row, Row>> rowMap(Schema keySchema, Schema valueSchema) {
+    return new MapStateSpec<>(RowCoder.of(keySchema), RowCoder.of(valueSchema));
   }
 
   /**
@@ -182,6 +235,53 @@ public class StateSpecs {
    */
   public static <K, V> StateSpec<MapState<K, V>> map(Coder<K> keyCoder, Coder<V> valueCoder) {
     return new MapStateSpec<>(keyCoder, valueCoder);
+  }
+
+  public static <T> StateSpec<OrderedListState<T>> orderedList(Coder<T> elemCoder) {
+    return new OrderedListStateSpec<>(elemCoder);
+  }
+
+  public static StateSpec<OrderedListState<Row>> rowOrderedList(Schema valueSchema) {
+    return new OrderedListStateSpec<>(RowCoder.of(valueSchema));
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups, key puts,
+   * and clear.
+   *
+   * <p>This method attempts to infer the key and value coders automatically.
+   *
+   * <p>If the key and value types have schemas registered, then the schemas will be used to encode
+   * the elements.
+   *
+   * @see #multimap(Coder, Coder)
+   */
+  public static <K, V> StateSpec<MultimapState<K, V>> multimap() {
+    return new MultimapStateSpec<>(null, null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups, key puts,
+   * and clear.
+   *
+   * <p>This method is for storing multimaps where both the keys and the values are rows with the
+   * specified schemas.
+   *
+   * @see #multimap(Coder, Coder)
+   */
+  public static StateSpec<MultimapState<Row, Row>> rowMultimap(
+      Schema keySchema, Schema valueSchema) {
+    return new MultimapStateSpec<>(RowCoder.of(keySchema), RowCoder.of(valueSchema));
+  }
+
+  /**
+   * Identical to {@link #multimap()}, but with key and value coders explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
+   */
+  public static <K, V> StateSpec<MultimapState<K, V>> multimap(
+      Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new MultimapStateSpec<>(keyCoder, valueCoder);
   }
 
   /**
@@ -259,13 +359,51 @@ public class StateSpecs {
   }
 
   /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a set state spec to a map-state spec.
+   */
+  @Internal
+  public static <KeyT> StateSpec<MapState<KeyT, Boolean>> convertToMapSpecInternal(
+      StateSpec<SetState<KeyT>> setStateSpec) {
+    if (setStateSpec instanceof SetStateSpec) {
+      // Checked above; conversion to a map spec depends on the provided spec being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      SetStateSpec<KeyT> typedSpec = (SetStateSpec<KeyT>) setStateSpec;
+      return typedSpec.asMapSpec();
+    } else {
+      throw new IllegalArgumentException("Unexpected StateSpec " + setStateSpec);
+    }
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a set state spec to a map-state spec.
+   */
+  @Internal
+  public static <KeyT, ValueT> StateSpec<MultimapState<KeyT, ValueT>> convertToMultimapSpecInternal(
+      StateSpec<MapState<KeyT, ValueT>> spec) {
+    if (spec instanceof MapStateSpec) {
+      // Checked above; conversion to a map spec depends on the provided spec being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      MapStateSpec<KeyT, ValueT> typedSpec = (MapStateSpec<KeyT, ValueT>) spec;
+      return typedSpec.asMultimapSpec();
+    } else {
+      throw new IllegalArgumentException("Unexpected StateSpec " + spec);
+    }
+  }
+
+  /**
    * A specification for a state cell holding a settable value of type {@code T}.
    *
    * <p>Includes the coder for {@code T}.
    */
   private static class ValueStateSpec<T> implements StateSpec<ValueState<T>> {
 
-    @Nullable private Coder<T> coder;
+    private @Nullable Coder<T> coder;
 
     private ValueStateSpec(@Nullable Coder<T> coder) {
       this.coder = coder;
@@ -301,7 +439,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -328,7 +466,7 @@ public class StateSpecs {
   private static class CombiningStateSpec<InputT, AccumT, OutputT>
       implements StateSpec<CombiningState<InputT, AccumT, OutputT>> {
 
-    @Nullable private Coder<AccumT> accumCoder;
+    private @Nullable Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningStateSpec(
@@ -369,7 +507,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -400,7 +538,7 @@ public class StateSpecs {
   private static class CombiningWithContextStateSpec<InputT, AccumT, OutputT>
       implements StateSpec<CombiningState<InputT, AccumT, OutputT>> {
 
-    @Nullable private Coder<AccumT> accumCoder;
+    private @Nullable Coder<AccumT> accumCoder;
     private final CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
 
     private CombiningWithContextStateSpec(
@@ -445,7 +583,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -476,7 +614,7 @@ public class StateSpecs {
    */
   private static class BagStateSpec<T> implements StateSpec<BagState<T>> {
 
-    @Nullable private Coder<T> elemCoder;
+    private @Nullable Coder<T> elemCoder;
 
     private BagStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -512,7 +650,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -531,10 +669,67 @@ public class StateSpecs {
     }
   }
 
+  private static class OrderedListStateSpec<T> implements StateSpec<OrderedListState<T>> {
+
+    private @Nullable Coder<T> elemCoder;
+
+    private OrderedListStateSpec(@Nullable Coder<T> elemCoder) {
+      this.elemCoder = elemCoder;
+    }
+
+    @Override
+    public OrderedListState<T> bind(String id, StateBinder visitor) {
+      return visitor.bindOrderedList(id, this, elemCoder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchOrderedList(elemCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
+      }
+    }
+
+    @Override
+    public void finishSpecifying() {
+      if (elemCoder == null) {
+        throw new IllegalStateException(
+            "Unable to infer a coder for OrderedListState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.orderedListState(Coder<K> elemCoder), specifying a schema,  or by registering the"
+                + " coder in the Pipeline's CoderRegistry.");
+      }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof OrderedListStateSpec)) {
+        return false;
+      }
+
+      OrderedListStateSpec<?> that = (OrderedListStateSpec<?>) obj;
+      return Objects.equals(this.elemCoder, that.elemCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), elemCoder);
+    }
+  }
+
   private static class MapStateSpec<K, V> implements StateSpec<MapState<K, V>> {
 
-    @Nullable private Coder<K> keyCoder;
-    @Nullable private Coder<V> valueCoder;
+    private @Nullable Coder<K> keyCoder;
+    private @Nullable Coder<V> valueCoder;
 
     private MapStateSpec(@Nullable Coder<K> keyCoder, @Nullable Coder<V> valueCoder) {
       this.keyCoder = keyCoder;
@@ -574,7 +769,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -592,6 +787,73 @@ public class StateSpecs {
     public int hashCode() {
       return Objects.hash(getClass(), keyCoder, valueCoder);
     }
+
+    private MultimapStateSpec<K, V> asMultimapSpec() {
+      return new MultimapStateSpec<>(this.keyCoder, this.valueCoder);
+    }
+  }
+
+  private static class MultimapStateSpec<K, V> implements StateSpec<MultimapState<K, V>> {
+
+    private @Nullable Coder<K> keyCoder;
+    private @Nullable Coder<V> valueCoder;
+
+    private MultimapStateSpec(@Nullable Coder<K> keyCoder, @Nullable Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public MultimapState<K, V> bind(String id, StateBinder visitor) {
+      return visitor.bindMultimap(id, this, keyCoder, valueCoder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchMultimap(keyCoder, valueCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.keyCoder == null && coders[0] != null) {
+        this.keyCoder = (Coder<K>) coders[0];
+      }
+      if (this.valueCoder == null && coders[1] != null) {
+        this.valueCoder = (Coder<V>) coders[1];
+      }
+    }
+
+    @Override
+    public void finishSpecifying() {
+      if (keyCoder == null || valueCoder == null) {
+        throw new IllegalStateException(
+            "Unable to infer a coder for MultimapState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.multimap(Coder<K> keyCoder, Coder<V> valueCoder) or by registering"
+                + " the coder in the Pipeline's CoderRegistry.");
+      }
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof MultimapStateSpec)) {
+        return false;
+      }
+
+      MultimapStateSpec<?, ?> that = (MultimapStateSpec<?, ?>) obj;
+      return Objects.equals(this.keyCoder, that.keyCoder)
+          && Objects.equals(this.valueCoder, that.valueCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), keyCoder, valueCoder);
+    }
   }
 
   /**
@@ -601,7 +863,7 @@ public class StateSpecs {
    */
   private static class SetStateSpec<T> implements StateSpec<SetState<T>> {
 
-    @Nullable private Coder<T> elemCoder;
+    private @Nullable Coder<T> elemCoder;
 
     private SetStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -637,7 +899,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -653,6 +915,10 @@ public class StateSpecs {
     @Override
     public int hashCode() {
       return Objects.hash(getClass(), elemCoder);
+    }
+
+    private StateSpec<MapState<T, Boolean>> asMapSpec() {
+      return new MapStateSpec<>(this.elemCoder, BooleanCoder.of());
     }
   }
 
@@ -696,7 +962,7 @@ public class StateSpecs {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }

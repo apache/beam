@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.avro;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
+import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -31,8 +31,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
@@ -45,6 +45,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -66,6 +67,8 @@ import org.junit.runners.JUnit4;
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
+ *  "--datasetSize=12345",
+ *  "--expectedHash=99f23ab",
  *  "--filenamePrefix=output_file_path"
  *  ]'
  *  --tests org.apache.beam.sdk.io.avro.AvroIOIT
@@ -91,10 +94,11 @@ public class AvroIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static Integer numberOfTextLines;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static final String AVRO_NAMESPACE = AvroIOIT.class.getName();
+  private static Integer numberOfTextLines;
+  private static Integer datasetSize;
+  private static String expectedHash;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -102,10 +106,16 @@ public class AvroIOIT {
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
-    numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
+    datasetSize = options.getDatasetSize();
+    expectedHash = options.getExpectedHash();
+    numberOfTextLines = options.getNumberOfRecords();
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   @Test
@@ -141,7 +151,6 @@ public class AvroIOIT {
             .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFilenames.apply(
@@ -150,18 +159,21 @@ public class AvroIOIT {
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result);
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   private void collectAndPublishMetrics(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE, uuid, timestamp)
-        .publish(bigQueryDataset, bigQueryTable);
+    final IOITMetrics metrics =
+        new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE, uuid, timestamp);
+    metrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
@@ -191,7 +203,10 @@ public class AvroIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
-
+    if (datasetSize != null) {
+      suppliers.add(
+          (reader) -> NamedTestResult.create(uuid, timestamp, "dataset_size", datasetSize));
+    }
     return suppliers;
   }
 

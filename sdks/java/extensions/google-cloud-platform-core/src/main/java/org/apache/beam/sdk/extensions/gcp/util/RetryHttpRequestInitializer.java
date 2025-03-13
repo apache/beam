@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
-import static com.google.api.client.util.BackOffUtils.next;
-
 import com.google.api.client.http.HttpIOExceptionHandler;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -34,16 +32,22 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Implements a request initializer that adds retry handlers to all HttpRequests.
  *
- * <p>Also can take a HttpResponseInterceptor to be applied to the responses.
+ * <p>Also can take an HttpResponseInterceptor to be applied to the responses.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final Logger LOG = LoggerFactory.getLogger(RetryHttpRequestInitializer.class);
@@ -55,10 +59,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
               307 /* Redirect, handled by the client library */,
               308 /* Resume Incomplete, handled by the client library */));
 
-  /** Http response timeout to use for hanging gets. */
+  /** Default http response timeout to use for hanging gets. */
   private static final int HANGING_GET_TIMEOUT_SEC = 80;
 
   private int writeTimeout;
+  private int readTimeout;
 
   /** Handlers used to provide additional logging information on unsuccessful HTTP requests. */
   private static class LoggingHttpBackOffHandler
@@ -68,9 +73,12 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     private final BackOff ioExceptionBackOff;
     private final BackOff unsuccessfulResponseBackOff;
     private final Set<Integer> ignoredResponseCodes;
+    // aggregate the total time spent in exponential backoff
+    private final Counter throttlingMsecs =
+        Metrics.counter(LoggingHttpBackOffHandler.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
     private int ioExceptionRetries;
     private int unsuccessfulResponseRetries;
-    @Nullable private CustomHttpErrors customHttpErrors;
+    private @Nullable CustomHttpErrors customHttpErrors;
 
     private LoggingHttpBackOffHandler(
         Sleeper sleeper,
@@ -172,7 +180,13 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     /** Returns true iff performing the backoff was successful. */
     private boolean backOffWasSuccessful(BackOff backOff) {
       try {
-        return next(sleeper, backOff);
+        long backOffTime = backOff.nextBackOffMillis();
+        if (backOffTime == BackOff.STOP) {
+          return false;
+        }
+        throttlingMsecs.inc(backOffTime);
+        sleeper.sleep(backOffTime);
+        return true;
       } catch (InterruptedException | IOException e) {
         return false;
       }
@@ -195,6 +209,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   private final Sleeper sleeper; // used for testing
 
   private Set<Integer> ignoredResponseCodes = new HashSet<>(DEFAULT_IGNORED_RESPONSE_CODES);
+
+  private Map<String, String> httpHeaders = null;
 
   public RetryHttpRequestInitializer() {
     this(Collections.emptyList());
@@ -234,13 +250,14 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.ignoredResponseCodes.addAll(additionalIgnoredResponseCodes);
     this.responseInterceptor = responseInterceptor;
     this.writeTimeout = 0;
+    // Set a timeout for hanging-gets.
+    // TODO: Do this exclusively for work requests.
+    this.readTimeout = HANGING_GET_TIMEOUT_SEC * 1000;
   }
 
   @Override
   public void initialize(HttpRequest request) throws IOException {
-    // Set a timeout for hanging-gets.
-    // TODO: Do this exclusively for work requests.
-    request.setReadTimeout(HANGING_GET_TIMEOUT_SEC * 1000);
+    request.setReadTimeout(this.readTimeout);
     request.setWriteTimeout(this.writeTimeout);
 
     LoggingHttpBackOffHandler loggingHttpBackOffHandler =
@@ -258,6 +275,10 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     request.setUnsuccessfulResponseHandler(loggingHttpBackOffHandler);
     request.setIOExceptionHandler(loggingHttpBackOffHandler);
 
+    if (this.httpHeaders != null) {
+      request.getHeaders().putAll(this.httpHeaders);
+    }
+
     // Set response initializer
     if (responseInterceptor != null) {
       request.setResponseInterceptor(responseInterceptor);
@@ -268,7 +289,17 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.customHttpErrors = customErrors;
   }
 
+  /** @param writeTimeout in milliseconds. */
   public void setWriteTimeout(int writeTimeout) {
     this.writeTimeout = writeTimeout;
+  }
+
+  public void setHttpHeaders(Map<String, String> httpHeaders) {
+    this.httpHeaders = httpHeaders;
+  }
+
+  /** @param readTimeout in milliseconds. */
+  public void setReadTimeout(int readTimeout) {
+    this.readTimeout = readTimeout;
   }
 }

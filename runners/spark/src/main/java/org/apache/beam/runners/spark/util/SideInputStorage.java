@@ -21,13 +21,17 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Cache deserialized side inputs for executor so every task doesn't need to deserialize them again.
  * Side inputs are stored in {@link Cache} with 5 minutes expireAfterAccess.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SideInputStorage {
 
   /** JVM deserialized side input cache. */
@@ -55,7 +59,7 @@ class SideInputStorage {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

@@ -1,0 +1,14 @@
+type: edu
+custom_name: Hello Beam Test
+files:
+- name: pkg/task/task.go
+  visible: true
+- name: test/task_test.go
+  visible: true
+  placeholders:
+  - offset: 1244
+    length: 36
+    placeholder_text: TODO()
+  - offset: 1290
+    length: 12
+    placeholder_text: TODO()

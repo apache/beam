@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -66,8 +64,24 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   /**
    * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like subtype,
    * from a list of decoded elements.
+   *
+   * <p>Override {@link #decodeToIterable(List, long, InputStream)} if you need access to the
+   * terminator value and the {@link InputStream}.
    */
   protected abstract IterableT decodeToIterable(List<T> decodedElements);
+
+  /**
+   * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like subtype,
+   * from a list of decoded elements with the {@link InputStream} at the position where this coder
+   * detected the end of the stream.
+   */
+  protected IterableT decodeToIterable(
+      List<T> decodedElements, long terminatorValue, InputStream in) throws IOException {
+    throw new IllegalStateException(
+        String.format(
+            "%s does not support non zero terminator values. Received stream with terminator %s.",
+            iterableName, terminatorValue));
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
@@ -88,55 +102,55 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable == null) {
       throw new CoderException("cannot encode a null " + iterableName);
     }
-    DataOutputStream dataOutStream = new DataOutputStream(outStream);
     if (iterable instanceof Collection) {
       // We can know the size of the Iterable.  Use an encoding with a
       // leading size field, followed by that many elements.
       Collection<T> collection = (Collection<T>) iterable;
-      dataOutStream.writeInt(collection.size());
+      BitConverters.writeBigEndianInt(collection.size(), outStream);
       for (T elem : collection) {
-        elementCoder.encode(elem, dataOutStream);
+        elementCoder.encode(elem, outStream);
       }
     } else {
       // We don't know the size without traversing it so use a fixed size buffer
       // and encode as many elements as possible into it before outputting the size followed
       // by the elements.
-      dataOutStream.writeInt(-1);
+      BitConverters.writeBigEndianInt(-1, outStream);
       BufferedElementCountingOutputStream countingOutputStream =
-          new BufferedElementCountingOutputStream(dataOutStream);
+          new BufferedElementCountingOutputStream(outStream);
       for (T elem : iterable) {
         countingOutputStream.markElementStart();
         elementCoder.encode(elem, countingOutputStream);
       }
       countingOutputStream.finish();
     }
-    // Make sure all our output gets pushed to the underlying outStream.
-    dataOutStream.flush();
   }
 
   @Override
   public IterableT decode(InputStream inStream) throws IOException, CoderException {
-    DataInputStream dataInStream = new DataInputStream(inStream);
-    int size = dataInStream.readInt();
+    int size = BitConverters.readBigEndianInt(inStream);
     if (size >= 0) {
       List<T> elements = new ArrayList<>(size);
       for (int i = 0; i < size; i++) {
-        elements.add(elementCoder.decode(dataInStream));
+        elements.add(elementCoder.decode(inStream));
       }
       return decodeToIterable(elements);
     }
     List<T> elements = new ArrayList<>();
     // We don't know the size a priori.  Check if we're done with
     // each block of elements.
-    long count = VarInt.decodeLong(dataInStream);
+    long count = VarInt.decodeLong(inStream);
     while (count > 0L) {
-      elements.add(elementCoder.decode(dataInStream));
+      elements.add(elementCoder.decode(inStream));
       --count;
       if (count == 0L) {
-        count = VarInt.decodeLong(dataInStream);
+        count = VarInt.decodeLong(inStream);
       }
     }
-    return decodeToIterable(elements);
+    if (count == 0) {
+      return decodeToIterable(elements);
+    } else {
+      return decodeToIterable(elements, count, inStream);
+    }
   }
 
   @Override
@@ -191,9 +205,10 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
           elementCoder.registerByteSizeObserver(elem, observer);
         }
       } else {
-        // TODO: (BEAM-1537) Update to use an accurate count depending on size and count,
+        // TODO: (https://github.com/apache/beam/issues/18169) Update to use an accurate count
+        // depending on size and count,
         // currently we are under estimating the size by up to 10 bytes per block of data since we
-        // are not encoding the count prefix which occurs at most once per 64k of data and is upto
+        // are not encoding the count prefix which occurs at most once per 64k of data and is up to
         // 10 bytes long. Since we include the total count we can upper bound the underestimate
         // to be 10 / 65536 ~= 0.0153% of the actual size.
         observer.update(4L);

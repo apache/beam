@@ -19,20 +19,27 @@
 # This script will be run by Jenkins as a post commit test. In order to run
 # locally make the following changes:
 #
-# LOCAL_PATH   -> Path of tox and virtualenv if you have them already installed.
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for dataflow and docker images.
+# REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python2 container: ./sdks/python/container/run_validatescontainer.sh python2
-#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python3
+#     test Python3.8 x86 container:
+#         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
+#     or test all supported python versions x86 containers together:
+#         ./gradlew :sdks:python:test-suites:dataflow:validatesContainer
+#
+# Note: ARM test suites only run on github actions. For example, to test Python3.8 ARM containers,
+# commenting `Run Python ValidatesContainer Dataflow ARM (3.8)` will trigger the test.
 
-echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
-if [[ $# != 1 ]]; then
-  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version>"
+if [[ $# < 2 ]]; then
+  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version> <sdk_location> <cpu_architecture>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
-  printf " Use 'python2' for Python2, 'python3' for Python3."
+  printf " Sample value: 3.9"
+  printf "\n\tcpu_architecture: [optional] CPU architecture used for container build and run tests, default as x86."
+  printf " Sample value: ARM or x86"
   exit 1
 fi
 
@@ -44,22 +51,17 @@ GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
 PROJECT=${PROJECT:-apache-beam-testing}
+REGION=${REGION:-us-central1}
+IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
+SDK_VERSION="$(grep 'sdk_version' gradle.properties | cut -d'=' -f2)"
+PY_VERSION=$1
+ARCH=${3:-"x86"}
+IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}_sdk"
+CONTAINER_PROJECT="sdks:python:container:py${PY_VERSION//.}"  # Note: we substitute away the dot in the version.
+PY_INTERPRETER="python${PY_VERSION}"
+MACHINE_TYPE_ARGS=""
 
-# Other variables branched by Python version.
-if [[ $1 == "python2" ]]; then
-  IMAGE_NAME="python"       # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container"  # Use this to build container by Gradle.
-  GRADLE_PY3_FLAG=""        # Use this in Gradle command.
-  PY_INTERPRETER="python"   # Use this in virtualenv command.
-elif [[ $1 == "python3" ]]; then
-  IMAGE_NAME="python3"          # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container:py3"  # Use this to build container by Gradle.
-  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
-  PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
-else
-  echo "Must set Python version with 'python2' or 'python3' from commandline."
-  exit 1
-fi
+XUNIT_FILE="pytest-$IMAGE_NAME.xml"
 
 # Verify in the root of the repository
 test -d sdks/python/container
@@ -70,54 +72,77 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# Build the container
-TAG=$(date +%Y%m%d-%H%M%S)
+TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
+PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
-./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG $GRADLE_PY3_FLAG --info
+echo "Using CPU architecture $ARCH"
 
-# Verify it exists
-docker images | grep $TAG
+if [[ "$ARCH" == "x86" ]]; then
+  # Verify docker image has been built.
+  docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
 
-# Push the container
-gcloud docker -- push $CONTAINER
+  # Tag the docker container.
+  docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
+
+  # Push the container
+  gcloud docker -- push $CONTAINER:$TAG
+elif [[ "$ARCH" == "ARM" ]]; then
+  # Reset the multi-arch Python SDK container image tag.
+  TAG=$MULTIARCH_TAG
+  MACHINE_TYPE_ARGS="--machine_type=t2a-standard-1"
+else
+  printf "Please give a valid CPU architecture, either x86 or ARM."
+  exit 1
+fi
 
 function cleanup_container {
   # Delete the container locally and remotely
-  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
+  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
+  do
+    echo "Deleting Docker image: $image"
+    docker rmi $image || echo "Failed to remove prebuilt sdk container image"
+    image_tag="${image##*:}"
+    digest=$(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags=$image_tag" --format="get(digest)")
+    echo "Deleting from GCloud an image with digest: $digest"
+    gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
+  done
+  # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
+  # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
+  # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
+  if [[ "$ARCH" == "x86" ]]; then
+    gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  fi
+
   echo "Removed the container"
 }
 trap cleanup_container EXIT
 
 echo ">>> Successfully built and push container $CONTAINER"
 
-# Virtualenv for the rest of the script to run setup & e2e test
-VENV_PATH=sdks/python/container/venv/$PY_INTERPRETER
-virtualenv $VENV_PATH -p $PY_INTERPRETER
-. $VENV_PATH/bin/activate
 cd sdks/python
-pip install -e .[gcp,test]
+SDK_LOCATION=$2
 
-# Create a tarball
-python setup.py sdist
-SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
-
-# Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-python setup.py nosetests \
-  --attr ValidatesContainer \
-  --nologcapture \
-  --processes=1 \
-  --process-timeout=900 \
+pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
+  -m=it_validatescontainer \
+  --numprocesses=1 \
+  --timeout=3600 \
+  --junitxml=$XUNIT_FILE \
+  --ignore-glob '.*py3\d?\.py$' \
+  --log-cli-level=INFO \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
-    --worker_harness_container_image=$CONTAINER:$TAG \
+    --region=$REGION \
+    --sdk_container_image=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
-    --num_workers=1"
+    --num_workers=1 \
+    $MACHINE_TYPE_ARGS \
+    --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

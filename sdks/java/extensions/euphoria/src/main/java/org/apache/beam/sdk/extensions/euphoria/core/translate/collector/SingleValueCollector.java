@@ -20,21 +20,29 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 import static java.util.Objects.requireNonNull;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** {@code Collector} for combinable functors. */
+/**
+ * {@code Collector} for combinable functors.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   private static final String UNSUPPORTED = "Accumulators are supported for named operators only.";
 
   private final AccumulatorProvider accumulators;
-  @Nullable private final String operatorName;
+  private final @Nullable String operatorName;
   private T elem;
 
   public SingleValueCollector(AccumulatorProvider accumulators, @Nullable String operatorName) {

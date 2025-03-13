@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -70,7 +70,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
 
     CustomTimestampPolicyWithLimitedDelay<String, String> policy =
         new CustomTimestampPolicyWithLimitedDelay<>(
-            (record -> new Instant(record.getTimestamp())), maxDelay, Optional.empty());
+            record -> new Instant(record.getTimestamp()), maxDelay, Optional.empty());
 
     Instant now = Instant.now();
 

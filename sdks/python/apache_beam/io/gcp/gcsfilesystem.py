@@ -14,13 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""GCS file system implementation for accessing files on GCS."""
 
-from __future__ import absolute_import
+"""GCS file system implementation for accessing files on GCS.
 
-from builtins import zip
+**Updates to the I/O connector code**
 
-from future.utils import iteritems
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
+"""
+
+# pytype: skip-file
+
+import traceback
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -38,6 +45,10 @@ class GCSFileSystem(FileSystem):
 
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
   GCS_PREFIX = 'gs://'
+
+  def __init__(self, pipeline_options):
+    super().__init__(pipeline_options)
+    self._pipeline_options = pipeline_options
 
   @classmethod
   def scheme(cls):
@@ -97,7 +108,7 @@ class GCSFileSystem(FileSystem):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     pass
 
@@ -118,27 +129,38 @@ class GCSFileSystem(FileSystem):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in iteritems(gcsio.GcsIO().list_prefix(dir_or_prefix)):
-        yield FileMetadata(path, size)
+      for path, (size, updated) in self._gcsIO().list_files(dir_or_prefix,
+                                                            with_metadata=True):
+        yield FileMetadata(path, size, updated)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
-  def _path_open(self, path, mode, mime_type='application/octet-stream',
-                 compression_type=CompressionTypes.AUTO):
+  def _gcsIO(self):
+    return gcsio.GcsIO(pipeline_options=self._pipeline_options)
+
+  def _path_open(
+      self,
+      path,
+      mode,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = gcsio.GcsIO().open(path, mode, mime_type=mime_type)
+    raw_file = self._gcsIO().open(path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
 
-  def create(self, path, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a write channel for the given file path.
 
     Args:
@@ -150,8 +172,11 @@ class GCSFileSystem(FileSystem):
     """
     return self._path_open(path, 'wb', mime_type, compression_type)
 
-  def open(self, path, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a read channel for the given file path.
 
     Args:
@@ -171,10 +196,11 @@ class GCSFileSystem(FileSystem):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     def _copy_path(source, destination):
@@ -184,9 +210,9 @@ class GCSFileSystem(FileSystem):
         raise ValueError('Destination %r must be GCS path.' % destination)
       # Use copy_tree if the path ends with / as it is a directory
       if source.endswith('/'):
-        gcsio.GcsIO().copytree(source, destination)
+        self._gcsIO().copytree(source, destination)
       else:
-        gcsio.GcsIO().copy(source, destination)
+        self._gcsIO().copy(source, destination)
 
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
@@ -207,10 +233,11 @@ class GCSFileSystem(FileSystem):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     gcs_batches = []
@@ -226,18 +253,19 @@ class GCSFileSystem(FileSystem):
     # Execute GCS renames if any and return exceptions.
     exceptions = {}
     for batch in gcs_batches:
-      copy_statuses = gcsio.GcsIO().copy_batch(batch)
-      copy_succeeded = []
+      copy_statuses = self._gcsIO().copy_batch(batch)
+      copy_succeeded = {}
+      delete_targets = []
       for src, dest, exception in copy_statuses:
         if exception:
           exceptions[(src, dest)] = exception
         else:
-          copy_succeeded.append((src, dest))
-      delete_batch = [src for src, dest in copy_succeeded]
-      delete_statuses = gcsio.GcsIO().delete_batch(delete_batch)
-      for i, (src, exception) in enumerate(delete_statuses):
-        dest = copy_succeeded[i][1]
+          copy_succeeded[src] = dest
+          delete_targets.append(src)
+      delete_statuses = self._gcsIO().delete_batch(delete_targets)
+      for src, exception in delete_statuses:
         if exception:
+          dest = copy_succeeded[src]
           exceptions[(src, dest)] = exception
 
     if exceptions:
@@ -251,7 +279,7 @@ class GCSFileSystem(FileSystem):
 
     Returns: boolean flag indicating if path exists
     """
-    return gcsio.GcsIO().exists(path)
+    return self._gcsIO().exists(path)
 
   def size(self, path):
     """Get size of path on the FileSystem.
@@ -262,9 +290,9 @@ class GCSFileSystem(FileSystem):
     Returns: int size of path according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
-    return gcsio.GcsIO().size(path)
+    return self._gcsIO().size(path)
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
@@ -275,9 +303,9 @@ class GCSFileSystem(FileSystem):
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
-    return gcsio.GcsIO().last_updated(path)
+    return self._gcsIO().last_updated(path)
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -289,12 +317,30 @@ class GCSFileSystem(FileSystem):
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      return gcsio.GcsIO().checksum(path)
+      return self._gcsIO().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path: e})
+
+  def metadata(self, path):
+    """Fetch metadata fields of a file on the FileSystem.
+
+    Args:
+      path: string path of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    try:
+      file_metadata = self._gcsIO()._status(path)
+      return FileMetadata(path, file_metadata['size'], file_metadata['updated'])
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Metadata operation failed", {path: e})
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.
@@ -303,26 +349,32 @@ class GCSFileSystem(FileSystem):
     Args:
       paths: list of paths that give the file objects to be deleted
     """
-    def _delete_path(path):
-      """Recursively delete the file or directory at the provided path.
-      """
+
+    exceptions = {}
+
+    for path in paths:
       if path.endswith('/'):
-        path_to_use = path + '*'
+        self._gcsIO().delete(path, recursive=True)
+        continue
       else:
         path_to_use = path
       match_result = self.match([path_to_use])[0]
-      statuses = gcsio.GcsIO().delete_batch(
+      statuses = self._gcsIO().delete_batch(
           [m.path for m in match_result.metadata_list])
-      failures = [e for (_, e) in statuses if e is not None]
-      if failures:
-        raise failures[0]
-
-    exceptions = {}
-    for path in paths:
-      try:
-        _delete_path(path)
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[path] = e
+      for target, exception in statuses:
+        if exception:
+          exceptions[target] = exception
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    try:
+      components = gcsio.parse_gcs_path(path, object_optional=True)
+    except ValueError:
+      # report lineage is fail-safe
+      traceback.print_exc()
+      return
+    if components and not components[-1]:
+      components = components[:-1]
+    lineage.add('gcs', *components, last_segment_sep='/')

@@ -27,16 +27,16 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.SchemaFactory;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.SchemaVersion;
-import org.apache.calcite.schema.Table;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaVersion;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Factory classes that Calcite uses to create initial schema for JDBC connection.
@@ -54,6 +54,9 @@ import org.apache.calcite.schema.Table;
  * <p>{@link Empty} is an override used in {@link JdbcDriver#connect(TableProvider,
  * org.apache.beam.sdk.options.PipelineOptions)} to avoid loading all available table providers.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class BeamCalciteSchemaFactory {
 
   /**

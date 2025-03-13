@@ -18,9 +18,9 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -35,10 +35,9 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -47,38 +46,31 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SideInputHandlerTest {
 
-  private static final long WINDOW_MSECS_1 = 100;
-  private static final long WINDOW_MSECS_2 = 500;
-  private PCollectionView<Iterable<String>> view1;
-  private PCollectionView<Iterable<String>> view2;
-
-  @Before
-  public void setUp() {
-    PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
-    view1 =
-        pc.apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
-            .apply(View.asIterable());
-    view2 =
-        pc.apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
-            .apply(View.asIterable());
-  }
-
   @Test
-  public void testIsEmpty() {
-    SideInputHandler sideInputHandler =
-        new SideInputHandler(ImmutableList.of(view1), InMemoryStateInternals.<Void>forKey(null));
-
-    assertFalse(sideInputHandler.isEmpty());
-
-    // create an empty handler
+  public void testIsEmptyTrue() {
+    // Create an empty handler
     SideInputHandler emptySideInputHandler =
         new SideInputHandler(ImmutableList.of(), InMemoryStateInternals.<Void>forKey(null));
-
     assertTrue(emptySideInputHandler.isEmpty());
   }
 
   @Test
+  public void testIsEmptyFalse() {
+    PCollectionView<Iterable<String>> view =
+        Pipeline.create().apply(Create.of("1")).apply(View.asIterable());
+    SideInputHandler sideInputHandler =
+        new SideInputHandler(ImmutableList.of(view), InMemoryStateInternals.<Void>forKey(null));
+
+    assertFalse(sideInputHandler.isEmpty());
+  }
+
+  @Test
   public void testContains() {
+    PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
+    PCollectionView<Iterable<String>> view1 = pc.apply(View.asIterable());
+    PCollectionView<Iterable<String>> view2 = pc.apply(View.asIterable());
+
+    // Only contains view1
     SideInputHandler sideInputHandler =
         new SideInputHandler(ImmutableList.of(view1), InMemoryStateInternals.<Void>forKey(null));
 
@@ -88,24 +80,36 @@ public class SideInputHandlerTest {
 
   @Test
   public void testIsReady() {
+    long view1WindowSize = 100;
+    PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
+    PCollectionView<Iterable<String>> view1 =
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(view1WindowSize))))
+            .apply(View.asIterable());
+
+    // Unused, just to have a non-trivial handler set up
+    PCollectionView<Iterable<String>> view2 = pc.apply(View.asIterable());
+
     SideInputHandler sideInputHandler =
         new SideInputHandler(
             ImmutableList.of(view1, view2), InMemoryStateInternals.<Void>forKey(null));
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    // Adjacent fixed windows
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(view1WindowSize));
+    IntervalWindow secondWindow =
+        new IntervalWindow(new Instant(view1WindowSize), new Instant(view1WindowSize * 2));
 
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_2));
-
-    // side input should not yet be ready
+    // side input should not yet be ready in first window
     assertFalse(sideInputHandler.isReady(view1, firstWindow));
 
     // add a value for view1
     sideInputHandler.addSideInputValue(
         view1,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), firstWindow));
+            materializeValuesFor(view1.getPipeline().getOptions(), View.asIterable(), "Hello"),
+            new Instant(0),
+            firstWindow));
 
-    // now side input should be ready
+    // now side input should be ready in first window
     assertTrue(sideInputHandler.isReady(view1, firstWindow));
 
     // second window input should still not be ready
@@ -114,47 +118,68 @@ public class SideInputHandlerTest {
 
   @Test
   public void testNewInputReplacesPreviousInput() {
+    long view1WindowSize = 100;
+    PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
+    PCollectionView<Iterable<String>> view =
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(view1WindowSize))))
+            .apply(View.asIterable());
+
     // new input should completely replace old input
     // the creation of the Iterable that has the side input
     // contents happens upstream. this is also where
     // accumulation/discarding is decided.
 
     SideInputHandler sideInputHandler =
-        new SideInputHandler(ImmutableList.of(view1), InMemoryStateInternals.<Void>forKey(null));
+        new SideInputHandler(ImmutableList.of(view), InMemoryStateInternals.<Void>forKey(null));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(view1WindowSize));
 
-    // add a first value for view1
+    // add a first value for view
     sideInputHandler.addSideInputValue(
-        view1,
-        valuesInWindow(materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), window));
+        view,
+        valuesInWindow(
+            materializeValuesFor(view.getPipeline().getOptions(), View.asIterable(), "Hello"),
+            new Instant(0),
+            window));
 
-    assertThat(sideInputHandler.get(view1, window), contains("Hello"));
+    assertThat(sideInputHandler.get(view, window), contains("Hello"));
 
     // subsequent values should replace existing values
     sideInputHandler.addSideInputValue(
-        view1,
+        view,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Ciao", "Buongiorno"), new Instant(0), window));
+            materializeValuesFor(
+                view.getPipeline().getOptions(), View.asIterable(), "Ciao", "Buongiorno"),
+            new Instant(0),
+            window));
 
-    assertThat(sideInputHandler.get(view1, window), contains("Ciao", "Buongiorno"));
+    assertThat(sideInputHandler.get(view, window), contains("Ciao", "Buongiorno"));
   }
 
   @Test
   public void testMultipleWindows() {
+    long view1WindowSize = 100;
+    PCollectionView<Iterable<String>> view1 =
+        Pipeline.create()
+            .apply(Create.of("1"))
+            .apply(Window.into(FixedWindows.of(Duration.millis(view1WindowSize))))
+            .apply(View.asIterable());
+
     SideInputHandler sideInputHandler =
         new SideInputHandler(ImmutableList.of(view1), InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(view1WindowSize));
     IntervalWindow secondWindow =
-        new IntervalWindow(new Instant(1000), new Instant(1000 + WINDOW_MSECS_2));
+        new IntervalWindow(new Instant(view1WindowSize), new Instant(view1WindowSize * 2));
 
     // add a first value for view1 in the first window
     sideInputHandler.addSideInputValue(
         view1,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), firstWindow));
+            materializeValuesFor(view1.getPipeline().getOptions(), View.asIterable(), "Hello"),
+            new Instant(0),
+            firstWindow));
 
     assertThat(sideInputHandler.get(view1, firstWindow), contains("Hello"));
 
@@ -162,7 +187,10 @@ public class SideInputHandlerTest {
     sideInputHandler.addSideInputValue(
         view1,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Arrivederci"), new Instant(0), secondWindow));
+            materializeValuesFor(
+                view1.getPipeline().getOptions(), View.asIterable(), "Arrivederci"),
+            new Instant(0),
+            secondWindow));
 
     assertThat(sideInputHandler.get(view1, secondWindow), contains("Arrivederci"));
 
@@ -172,35 +200,50 @@ public class SideInputHandlerTest {
 
   @Test
   public void testMultipleSideInputs() {
+    long windowSize = 100;
+    PCollectionView<Iterable<String>> view1;
+    PCollectionView<Iterable<String>> view2;
+    PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
+    view1 =
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(windowSize))))
+            .apply(View.asIterable());
+    view2 =
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(windowSize))))
+            .apply(View.asIterable());
+
     SideInputHandler sideInputHandler =
         new SideInputHandler(
             ImmutableList.of(view1, view2), InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(windowSize));
 
     // add value for view1 in the first window
     sideInputHandler.addSideInputValue(
         view1,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), firstWindow));
+            materializeValuesFor(view1.getPipeline().getOptions(), View.asIterable(), "Hello"),
+            new Instant(0),
+            window));
 
-    assertThat(sideInputHandler.get(view1, firstWindow), contains("Hello"));
+    assertThat(sideInputHandler.get(view1, window), contains("Hello"));
 
     // view2 should not have any data
-    assertFalse(sideInputHandler.isReady(view2, firstWindow));
+    assertFalse(sideInputHandler.isReady(view2, window));
 
     // also add some data for view2
     sideInputHandler.addSideInputValue(
         view2,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Salut"), new Instant(0), firstWindow));
+            materializeValuesFor(view2.getPipeline().getOptions(), View.asIterable(), "Salut"),
+            new Instant(0),
+            window));
 
-    assertTrue(sideInputHandler.isReady(view2, firstWindow));
-    assertThat(sideInputHandler.get(view2, firstWindow), contains("Salut"));
+    assertTrue(sideInputHandler.isReady(view2, window));
+    assertThat(sideInputHandler.get(view2, window), contains("Salut"));
 
     // view1 should not be affected by that
-    assertThat(sideInputHandler.get(view1, firstWindow), contains("Hello"));
+    assertThat(sideInputHandler.get(view1, window), contains("Hello"));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

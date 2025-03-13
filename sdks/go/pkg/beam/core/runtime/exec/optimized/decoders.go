@@ -20,8 +20,8 @@ package optimized
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // This template registers all forms of decoders as general
@@ -122,7 +122,7 @@ type decoderByteSlice struct {
 	fn func([]byte) []byte
 }
 
-func decoderMakerByteSlice(fn interface{}) reflectx.Func {
+func decoderMakerByteSlice(fn any) reflectx.Func {
 	f := fn.(func([]byte) []byte)
 	return &decoderByteSlice{fn: f}
 }
@@ -135,12 +135,12 @@ func (c *decoderByteSlice) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderByteSlice) Call(args []interface{}) []interface{} {
+func (c *decoderByteSlice) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderByteSlice) Call1x1(v interface{}) interface{} {
+func (c *decoderByteSlice) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -148,7 +148,7 @@ type decoderByteSliceE struct {
 	fn func([]byte) ([]byte, error)
 }
 
-func decoderMakerByteSliceE(fn interface{}) reflectx.Func {
+func decoderMakerByteSliceE(fn any) reflectx.Func {
 	f := fn.(func([]byte) ([]byte, error))
 	return &decoderByteSliceE{fn: f}
 }
@@ -161,12 +161,12 @@ func (c *decoderByteSliceE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderByteSliceE) Call(args []interface{}) []interface{} {
+func (c *decoderByteSliceE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderByteSliceE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderByteSliceE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -174,7 +174,7 @@ type decoderTByteSlice struct {
 	fn func(reflect.Type, []byte) []byte
 }
 
-func decoderMakerTByteSlice(fn interface{}) reflectx.Func {
+func decoderMakerTByteSlice(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) []byte)
 	return &decoderTByteSlice{fn: f}
 }
@@ -187,12 +187,12 @@ func (c *decoderTByteSlice) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTByteSlice) Call(args []interface{}) []interface{} {
+func (c *decoderTByteSlice) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTByteSlice) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTByteSlice) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -200,7 +200,7 @@ type decoderTByteSliceE struct {
 	fn func(reflect.Type, []byte) ([]byte, error)
 }
 
-func decoderMakerTByteSliceE(fn interface{}) reflectx.Func {
+func decoderMakerTByteSliceE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) ([]byte, error))
 	return &decoderTByteSliceE{fn: f}
 }
@@ -213,12 +213,12 @@ func (c *decoderTByteSliceE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTByteSliceE) Call(args []interface{}) []interface{} {
+func (c *decoderTByteSliceE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTByteSliceE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTByteSliceE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -226,7 +226,7 @@ type decoderBool struct {
 	fn func([]byte) bool
 }
 
-func decoderMakerBool(fn interface{}) reflectx.Func {
+func decoderMakerBool(fn any) reflectx.Func {
 	f := fn.(func([]byte) bool)
 	return &decoderBool{fn: f}
 }
@@ -239,12 +239,12 @@ func (c *decoderBool) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderBool) Call(args []interface{}) []interface{} {
+func (c *decoderBool) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderBool) Call1x1(v interface{}) interface{} {
+func (c *decoderBool) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -252,7 +252,7 @@ type decoderBoolE struct {
 	fn func([]byte) (bool, error)
 }
 
-func decoderMakerBoolE(fn interface{}) reflectx.Func {
+func decoderMakerBoolE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (bool, error))
 	return &decoderBoolE{fn: f}
 }
@@ -265,12 +265,12 @@ func (c *decoderBoolE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderBoolE) Call(args []interface{}) []interface{} {
+func (c *decoderBoolE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderBoolE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderBoolE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -278,7 +278,7 @@ type decoderTBool struct {
 	fn func(reflect.Type, []byte) bool
 }
 
-func decoderMakerTBool(fn interface{}) reflectx.Func {
+func decoderMakerTBool(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) bool)
 	return &decoderTBool{fn: f}
 }
@@ -291,12 +291,12 @@ func (c *decoderTBool) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTBool) Call(args []interface{}) []interface{} {
+func (c *decoderTBool) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTBool) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTBool) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -304,7 +304,7 @@ type decoderTBoolE struct {
 	fn func(reflect.Type, []byte) (bool, error)
 }
 
-func decoderMakerTBoolE(fn interface{}) reflectx.Func {
+func decoderMakerTBoolE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (bool, error))
 	return &decoderTBoolE{fn: f}
 }
@@ -317,12 +317,12 @@ func (c *decoderTBoolE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTBoolE) Call(args []interface{}) []interface{} {
+func (c *decoderTBoolE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTBoolE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTBoolE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -330,7 +330,7 @@ type decoderString struct {
 	fn func([]byte) string
 }
 
-func decoderMakerString(fn interface{}) reflectx.Func {
+func decoderMakerString(fn any) reflectx.Func {
 	f := fn.(func([]byte) string)
 	return &decoderString{fn: f}
 }
@@ -343,12 +343,12 @@ func (c *decoderString) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderString) Call(args []interface{}) []interface{} {
+func (c *decoderString) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderString) Call1x1(v interface{}) interface{} {
+func (c *decoderString) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -356,7 +356,7 @@ type decoderStringE struct {
 	fn func([]byte) (string, error)
 }
 
-func decoderMakerStringE(fn interface{}) reflectx.Func {
+func decoderMakerStringE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (string, error))
 	return &decoderStringE{fn: f}
 }
@@ -369,12 +369,12 @@ func (c *decoderStringE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderStringE) Call(args []interface{}) []interface{} {
+func (c *decoderStringE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderStringE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderStringE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -382,7 +382,7 @@ type decoderTString struct {
 	fn func(reflect.Type, []byte) string
 }
 
-func decoderMakerTString(fn interface{}) reflectx.Func {
+func decoderMakerTString(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) string)
 	return &decoderTString{fn: f}
 }
@@ -395,12 +395,12 @@ func (c *decoderTString) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTString) Call(args []interface{}) []interface{} {
+func (c *decoderTString) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTString) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTString) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -408,7 +408,7 @@ type decoderTStringE struct {
 	fn func(reflect.Type, []byte) (string, error)
 }
 
-func decoderMakerTStringE(fn interface{}) reflectx.Func {
+func decoderMakerTStringE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (string, error))
 	return &decoderTStringE{fn: f}
 }
@@ -421,12 +421,12 @@ func (c *decoderTStringE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTStringE) Call(args []interface{}) []interface{} {
+func (c *decoderTStringE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTStringE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTStringE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -434,7 +434,7 @@ type decoderInt struct {
 	fn func([]byte) int
 }
 
-func decoderMakerInt(fn interface{}) reflectx.Func {
+func decoderMakerInt(fn any) reflectx.Func {
 	f := fn.(func([]byte) int)
 	return &decoderInt{fn: f}
 }
@@ -447,12 +447,12 @@ func (c *decoderInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt) Call(args []interface{}) []interface{} {
+func (c *decoderInt) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderInt) Call1x1(v interface{}) interface{} {
+func (c *decoderInt) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -460,7 +460,7 @@ type decoderIntE struct {
 	fn func([]byte) (int, error)
 }
 
-func decoderMakerIntE(fn interface{}) reflectx.Func {
+func decoderMakerIntE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (int, error))
 	return &decoderIntE{fn: f}
 }
@@ -473,12 +473,12 @@ func (c *decoderIntE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderIntE) Call(args []interface{}) []interface{} {
+func (c *decoderIntE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderIntE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderIntE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -486,7 +486,7 @@ type decoderTInt struct {
 	fn func(reflect.Type, []byte) int
 }
 
-func decoderMakerTInt(fn interface{}) reflectx.Func {
+func decoderMakerTInt(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) int)
 	return &decoderTInt{fn: f}
 }
@@ -499,12 +499,12 @@ func (c *decoderTInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt) Call(args []interface{}) []interface{} {
+func (c *decoderTInt) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTInt) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTInt) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -512,7 +512,7 @@ type decoderTIntE struct {
 	fn func(reflect.Type, []byte) (int, error)
 }
 
-func decoderMakerTIntE(fn interface{}) reflectx.Func {
+func decoderMakerTIntE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (int, error))
 	return &decoderTIntE{fn: f}
 }
@@ -525,12 +525,12 @@ func (c *decoderTIntE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTIntE) Call(args []interface{}) []interface{} {
+func (c *decoderTIntE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTIntE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTIntE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -538,7 +538,7 @@ type decoderInt8 struct {
 	fn func([]byte) int8
 }
 
-func decoderMakerInt8(fn interface{}) reflectx.Func {
+func decoderMakerInt8(fn any) reflectx.Func {
 	f := fn.(func([]byte) int8)
 	return &decoderInt8{fn: f}
 }
@@ -551,12 +551,12 @@ func (c *decoderInt8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt8) Call(args []interface{}) []interface{} {
+func (c *decoderInt8) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderInt8) Call1x1(v interface{}) interface{} {
+func (c *decoderInt8) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -564,7 +564,7 @@ type decoderInt8E struct {
 	fn func([]byte) (int8, error)
 }
 
-func decoderMakerInt8E(fn interface{}) reflectx.Func {
+func decoderMakerInt8E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (int8, error))
 	return &decoderInt8E{fn: f}
 }
@@ -577,12 +577,12 @@ func (c *decoderInt8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt8E) Call(args []interface{}) []interface{} {
+func (c *decoderInt8E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderInt8E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderInt8E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -590,7 +590,7 @@ type decoderTInt8 struct {
 	fn func(reflect.Type, []byte) int8
 }
 
-func decoderMakerTInt8(fn interface{}) reflectx.Func {
+func decoderMakerTInt8(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) int8)
 	return &decoderTInt8{fn: f}
 }
@@ -603,12 +603,12 @@ func (c *decoderTInt8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt8) Call(args []interface{}) []interface{} {
+func (c *decoderTInt8) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTInt8) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTInt8) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -616,7 +616,7 @@ type decoderTInt8E struct {
 	fn func(reflect.Type, []byte) (int8, error)
 }
 
-func decoderMakerTInt8E(fn interface{}) reflectx.Func {
+func decoderMakerTInt8E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (int8, error))
 	return &decoderTInt8E{fn: f}
 }
@@ -629,12 +629,12 @@ func (c *decoderTInt8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt8E) Call(args []interface{}) []interface{} {
+func (c *decoderTInt8E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTInt8E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTInt8E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -642,7 +642,7 @@ type decoderInt16 struct {
 	fn func([]byte) int16
 }
 
-func decoderMakerInt16(fn interface{}) reflectx.Func {
+func decoderMakerInt16(fn any) reflectx.Func {
 	f := fn.(func([]byte) int16)
 	return &decoderInt16{fn: f}
 }
@@ -655,12 +655,12 @@ func (c *decoderInt16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt16) Call(args []interface{}) []interface{} {
+func (c *decoderInt16) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderInt16) Call1x1(v interface{}) interface{} {
+func (c *decoderInt16) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -668,7 +668,7 @@ type decoderInt16E struct {
 	fn func([]byte) (int16, error)
 }
 
-func decoderMakerInt16E(fn interface{}) reflectx.Func {
+func decoderMakerInt16E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (int16, error))
 	return &decoderInt16E{fn: f}
 }
@@ -681,12 +681,12 @@ func (c *decoderInt16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt16E) Call(args []interface{}) []interface{} {
+func (c *decoderInt16E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderInt16E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderInt16E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -694,7 +694,7 @@ type decoderTInt16 struct {
 	fn func(reflect.Type, []byte) int16
 }
 
-func decoderMakerTInt16(fn interface{}) reflectx.Func {
+func decoderMakerTInt16(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) int16)
 	return &decoderTInt16{fn: f}
 }
@@ -707,12 +707,12 @@ func (c *decoderTInt16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt16) Call(args []interface{}) []interface{} {
+func (c *decoderTInt16) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTInt16) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTInt16) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -720,7 +720,7 @@ type decoderTInt16E struct {
 	fn func(reflect.Type, []byte) (int16, error)
 }
 
-func decoderMakerTInt16E(fn interface{}) reflectx.Func {
+func decoderMakerTInt16E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (int16, error))
 	return &decoderTInt16E{fn: f}
 }
@@ -733,12 +733,12 @@ func (c *decoderTInt16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt16E) Call(args []interface{}) []interface{} {
+func (c *decoderTInt16E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTInt16E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTInt16E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -746,7 +746,7 @@ type decoderInt32 struct {
 	fn func([]byte) int32
 }
 
-func decoderMakerInt32(fn interface{}) reflectx.Func {
+func decoderMakerInt32(fn any) reflectx.Func {
 	f := fn.(func([]byte) int32)
 	return &decoderInt32{fn: f}
 }
@@ -759,12 +759,12 @@ func (c *decoderInt32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt32) Call(args []interface{}) []interface{} {
+func (c *decoderInt32) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderInt32) Call1x1(v interface{}) interface{} {
+func (c *decoderInt32) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -772,7 +772,7 @@ type decoderInt32E struct {
 	fn func([]byte) (int32, error)
 }
 
-func decoderMakerInt32E(fn interface{}) reflectx.Func {
+func decoderMakerInt32E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (int32, error))
 	return &decoderInt32E{fn: f}
 }
@@ -785,12 +785,12 @@ func (c *decoderInt32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt32E) Call(args []interface{}) []interface{} {
+func (c *decoderInt32E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderInt32E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderInt32E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -798,7 +798,7 @@ type decoderTInt32 struct {
 	fn func(reflect.Type, []byte) int32
 }
 
-func decoderMakerTInt32(fn interface{}) reflectx.Func {
+func decoderMakerTInt32(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) int32)
 	return &decoderTInt32{fn: f}
 }
@@ -811,12 +811,12 @@ func (c *decoderTInt32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt32) Call(args []interface{}) []interface{} {
+func (c *decoderTInt32) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTInt32) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTInt32) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -824,7 +824,7 @@ type decoderTInt32E struct {
 	fn func(reflect.Type, []byte) (int32, error)
 }
 
-func decoderMakerTInt32E(fn interface{}) reflectx.Func {
+func decoderMakerTInt32E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (int32, error))
 	return &decoderTInt32E{fn: f}
 }
@@ -837,12 +837,12 @@ func (c *decoderTInt32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt32E) Call(args []interface{}) []interface{} {
+func (c *decoderTInt32E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTInt32E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTInt32E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -850,7 +850,7 @@ type decoderInt64 struct {
 	fn func([]byte) int64
 }
 
-func decoderMakerInt64(fn interface{}) reflectx.Func {
+func decoderMakerInt64(fn any) reflectx.Func {
 	f := fn.(func([]byte) int64)
 	return &decoderInt64{fn: f}
 }
@@ -863,12 +863,12 @@ func (c *decoderInt64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt64) Call(args []interface{}) []interface{} {
+func (c *decoderInt64) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderInt64) Call1x1(v interface{}) interface{} {
+func (c *decoderInt64) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -876,7 +876,7 @@ type decoderInt64E struct {
 	fn func([]byte) (int64, error)
 }
 
-func decoderMakerInt64E(fn interface{}) reflectx.Func {
+func decoderMakerInt64E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (int64, error))
 	return &decoderInt64E{fn: f}
 }
@@ -889,12 +889,12 @@ func (c *decoderInt64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderInt64E) Call(args []interface{}) []interface{} {
+func (c *decoderInt64E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderInt64E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderInt64E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -902,7 +902,7 @@ type decoderTInt64 struct {
 	fn func(reflect.Type, []byte) int64
 }
 
-func decoderMakerTInt64(fn interface{}) reflectx.Func {
+func decoderMakerTInt64(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) int64)
 	return &decoderTInt64{fn: f}
 }
@@ -915,12 +915,12 @@ func (c *decoderTInt64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt64) Call(args []interface{}) []interface{} {
+func (c *decoderTInt64) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTInt64) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTInt64) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -928,7 +928,7 @@ type decoderTInt64E struct {
 	fn func(reflect.Type, []byte) (int64, error)
 }
 
-func decoderMakerTInt64E(fn interface{}) reflectx.Func {
+func decoderMakerTInt64E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (int64, error))
 	return &decoderTInt64E{fn: f}
 }
@@ -941,12 +941,12 @@ func (c *decoderTInt64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTInt64E) Call(args []interface{}) []interface{} {
+func (c *decoderTInt64E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTInt64E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTInt64E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -954,7 +954,7 @@ type decoderUint struct {
 	fn func([]byte) uint
 }
 
-func decoderMakerUint(fn interface{}) reflectx.Func {
+func decoderMakerUint(fn any) reflectx.Func {
 	f := fn.(func([]byte) uint)
 	return &decoderUint{fn: f}
 }
@@ -967,12 +967,12 @@ func (c *decoderUint) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint) Call(args []interface{}) []interface{} {
+func (c *decoderUint) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderUint) Call1x1(v interface{}) interface{} {
+func (c *decoderUint) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -980,7 +980,7 @@ type decoderUintE struct {
 	fn func([]byte) (uint, error)
 }
 
-func decoderMakerUintE(fn interface{}) reflectx.Func {
+func decoderMakerUintE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (uint, error))
 	return &decoderUintE{fn: f}
 }
@@ -993,12 +993,12 @@ func (c *decoderUintE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUintE) Call(args []interface{}) []interface{} {
+func (c *decoderUintE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderUintE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderUintE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1006,7 +1006,7 @@ type decoderTUint struct {
 	fn func(reflect.Type, []byte) uint
 }
 
-func decoderMakerTUint(fn interface{}) reflectx.Func {
+func decoderMakerTUint(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) uint)
 	return &decoderTUint{fn: f}
 }
@@ -1019,12 +1019,12 @@ func (c *decoderTUint) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint) Call(args []interface{}) []interface{} {
+func (c *decoderTUint) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTUint) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTUint) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1032,7 +1032,7 @@ type decoderTUintE struct {
 	fn func(reflect.Type, []byte) (uint, error)
 }
 
-func decoderMakerTUintE(fn interface{}) reflectx.Func {
+func decoderMakerTUintE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (uint, error))
 	return &decoderTUintE{fn: f}
 }
@@ -1045,12 +1045,12 @@ func (c *decoderTUintE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUintE) Call(args []interface{}) []interface{} {
+func (c *decoderTUintE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTUintE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTUintE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1058,7 +1058,7 @@ type decoderUint8 struct {
 	fn func([]byte) uint8
 }
 
-func decoderMakerUint8(fn interface{}) reflectx.Func {
+func decoderMakerUint8(fn any) reflectx.Func {
 	f := fn.(func([]byte) uint8)
 	return &decoderUint8{fn: f}
 }
@@ -1071,12 +1071,12 @@ func (c *decoderUint8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint8) Call(args []interface{}) []interface{} {
+func (c *decoderUint8) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderUint8) Call1x1(v interface{}) interface{} {
+func (c *decoderUint8) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1084,7 +1084,7 @@ type decoderUint8E struct {
 	fn func([]byte) (uint8, error)
 }
 
-func decoderMakerUint8E(fn interface{}) reflectx.Func {
+func decoderMakerUint8E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (uint8, error))
 	return &decoderUint8E{fn: f}
 }
@@ -1097,12 +1097,12 @@ func (c *decoderUint8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint8E) Call(args []interface{}) []interface{} {
+func (c *decoderUint8E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderUint8E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderUint8E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1110,7 +1110,7 @@ type decoderTUint8 struct {
 	fn func(reflect.Type, []byte) uint8
 }
 
-func decoderMakerTUint8(fn interface{}) reflectx.Func {
+func decoderMakerTUint8(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) uint8)
 	return &decoderTUint8{fn: f}
 }
@@ -1123,12 +1123,12 @@ func (c *decoderTUint8) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint8) Call(args []interface{}) []interface{} {
+func (c *decoderTUint8) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTUint8) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTUint8) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1136,7 +1136,7 @@ type decoderTUint8E struct {
 	fn func(reflect.Type, []byte) (uint8, error)
 }
 
-func decoderMakerTUint8E(fn interface{}) reflectx.Func {
+func decoderMakerTUint8E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (uint8, error))
 	return &decoderTUint8E{fn: f}
 }
@@ -1149,12 +1149,12 @@ func (c *decoderTUint8E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint8E) Call(args []interface{}) []interface{} {
+func (c *decoderTUint8E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTUint8E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTUint8E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1162,7 +1162,7 @@ type decoderUint16 struct {
 	fn func([]byte) uint16
 }
 
-func decoderMakerUint16(fn interface{}) reflectx.Func {
+func decoderMakerUint16(fn any) reflectx.Func {
 	f := fn.(func([]byte) uint16)
 	return &decoderUint16{fn: f}
 }
@@ -1175,12 +1175,12 @@ func (c *decoderUint16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint16) Call(args []interface{}) []interface{} {
+func (c *decoderUint16) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderUint16) Call1x1(v interface{}) interface{} {
+func (c *decoderUint16) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1188,7 +1188,7 @@ type decoderUint16E struct {
 	fn func([]byte) (uint16, error)
 }
 
-func decoderMakerUint16E(fn interface{}) reflectx.Func {
+func decoderMakerUint16E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (uint16, error))
 	return &decoderUint16E{fn: f}
 }
@@ -1201,12 +1201,12 @@ func (c *decoderUint16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint16E) Call(args []interface{}) []interface{} {
+func (c *decoderUint16E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderUint16E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderUint16E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1214,7 +1214,7 @@ type decoderTUint16 struct {
 	fn func(reflect.Type, []byte) uint16
 }
 
-func decoderMakerTUint16(fn interface{}) reflectx.Func {
+func decoderMakerTUint16(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) uint16)
 	return &decoderTUint16{fn: f}
 }
@@ -1227,12 +1227,12 @@ func (c *decoderTUint16) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint16) Call(args []interface{}) []interface{} {
+func (c *decoderTUint16) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTUint16) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTUint16) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1240,7 +1240,7 @@ type decoderTUint16E struct {
 	fn func(reflect.Type, []byte) (uint16, error)
 }
 
-func decoderMakerTUint16E(fn interface{}) reflectx.Func {
+func decoderMakerTUint16E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (uint16, error))
 	return &decoderTUint16E{fn: f}
 }
@@ -1253,12 +1253,12 @@ func (c *decoderTUint16E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint16E) Call(args []interface{}) []interface{} {
+func (c *decoderTUint16E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTUint16E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTUint16E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1266,7 +1266,7 @@ type decoderUint32 struct {
 	fn func([]byte) uint32
 }
 
-func decoderMakerUint32(fn interface{}) reflectx.Func {
+func decoderMakerUint32(fn any) reflectx.Func {
 	f := fn.(func([]byte) uint32)
 	return &decoderUint32{fn: f}
 }
@@ -1279,12 +1279,12 @@ func (c *decoderUint32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint32) Call(args []interface{}) []interface{} {
+func (c *decoderUint32) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderUint32) Call1x1(v interface{}) interface{} {
+func (c *decoderUint32) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1292,7 +1292,7 @@ type decoderUint32E struct {
 	fn func([]byte) (uint32, error)
 }
 
-func decoderMakerUint32E(fn interface{}) reflectx.Func {
+func decoderMakerUint32E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (uint32, error))
 	return &decoderUint32E{fn: f}
 }
@@ -1305,12 +1305,12 @@ func (c *decoderUint32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint32E) Call(args []interface{}) []interface{} {
+func (c *decoderUint32E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderUint32E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderUint32E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1318,7 +1318,7 @@ type decoderTUint32 struct {
 	fn func(reflect.Type, []byte) uint32
 }
 
-func decoderMakerTUint32(fn interface{}) reflectx.Func {
+func decoderMakerTUint32(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) uint32)
 	return &decoderTUint32{fn: f}
 }
@@ -1331,12 +1331,12 @@ func (c *decoderTUint32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint32) Call(args []interface{}) []interface{} {
+func (c *decoderTUint32) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTUint32) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTUint32) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1344,7 +1344,7 @@ type decoderTUint32E struct {
 	fn func(reflect.Type, []byte) (uint32, error)
 }
 
-func decoderMakerTUint32E(fn interface{}) reflectx.Func {
+func decoderMakerTUint32E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (uint32, error))
 	return &decoderTUint32E{fn: f}
 }
@@ -1357,12 +1357,12 @@ func (c *decoderTUint32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint32E) Call(args []interface{}) []interface{} {
+func (c *decoderTUint32E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTUint32E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTUint32E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1370,7 +1370,7 @@ type decoderUint64 struct {
 	fn func([]byte) uint64
 }
 
-func decoderMakerUint64(fn interface{}) reflectx.Func {
+func decoderMakerUint64(fn any) reflectx.Func {
 	f := fn.(func([]byte) uint64)
 	return &decoderUint64{fn: f}
 }
@@ -1383,12 +1383,12 @@ func (c *decoderUint64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint64) Call(args []interface{}) []interface{} {
+func (c *decoderUint64) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderUint64) Call1x1(v interface{}) interface{} {
+func (c *decoderUint64) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1396,7 +1396,7 @@ type decoderUint64E struct {
 	fn func([]byte) (uint64, error)
 }
 
-func decoderMakerUint64E(fn interface{}) reflectx.Func {
+func decoderMakerUint64E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (uint64, error))
 	return &decoderUint64E{fn: f}
 }
@@ -1409,12 +1409,12 @@ func (c *decoderUint64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderUint64E) Call(args []interface{}) []interface{} {
+func (c *decoderUint64E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderUint64E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderUint64E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1422,7 +1422,7 @@ type decoderTUint64 struct {
 	fn func(reflect.Type, []byte) uint64
 }
 
-func decoderMakerTUint64(fn interface{}) reflectx.Func {
+func decoderMakerTUint64(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) uint64)
 	return &decoderTUint64{fn: f}
 }
@@ -1435,12 +1435,12 @@ func (c *decoderTUint64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint64) Call(args []interface{}) []interface{} {
+func (c *decoderTUint64) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTUint64) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTUint64) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1448,7 +1448,7 @@ type decoderTUint64E struct {
 	fn func(reflect.Type, []byte) (uint64, error)
 }
 
-func decoderMakerTUint64E(fn interface{}) reflectx.Func {
+func decoderMakerTUint64E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (uint64, error))
 	return &decoderTUint64E{fn: f}
 }
@@ -1461,12 +1461,12 @@ func (c *decoderTUint64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTUint64E) Call(args []interface{}) []interface{} {
+func (c *decoderTUint64E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTUint64E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTUint64E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1474,7 +1474,7 @@ type decoderFloat32 struct {
 	fn func([]byte) float32
 }
 
-func decoderMakerFloat32(fn interface{}) reflectx.Func {
+func decoderMakerFloat32(fn any) reflectx.Func {
 	f := fn.(func([]byte) float32)
 	return &decoderFloat32{fn: f}
 }
@@ -1487,12 +1487,12 @@ func (c *decoderFloat32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderFloat32) Call(args []interface{}) []interface{} {
+func (c *decoderFloat32) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderFloat32) Call1x1(v interface{}) interface{} {
+func (c *decoderFloat32) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1500,7 +1500,7 @@ type decoderFloat32E struct {
 	fn func([]byte) (float32, error)
 }
 
-func decoderMakerFloat32E(fn interface{}) reflectx.Func {
+func decoderMakerFloat32E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (float32, error))
 	return &decoderFloat32E{fn: f}
 }
@@ -1513,12 +1513,12 @@ func (c *decoderFloat32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderFloat32E) Call(args []interface{}) []interface{} {
+func (c *decoderFloat32E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderFloat32E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderFloat32E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1526,7 +1526,7 @@ type decoderTFloat32 struct {
 	fn func(reflect.Type, []byte) float32
 }
 
-func decoderMakerTFloat32(fn interface{}) reflectx.Func {
+func decoderMakerTFloat32(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) float32)
 	return &decoderTFloat32{fn: f}
 }
@@ -1539,12 +1539,12 @@ func (c *decoderTFloat32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTFloat32) Call(args []interface{}) []interface{} {
+func (c *decoderTFloat32) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTFloat32) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTFloat32) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1552,7 +1552,7 @@ type decoderTFloat32E struct {
 	fn func(reflect.Type, []byte) (float32, error)
 }
 
-func decoderMakerTFloat32E(fn interface{}) reflectx.Func {
+func decoderMakerTFloat32E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (float32, error))
 	return &decoderTFloat32E{fn: f}
 }
@@ -1565,12 +1565,12 @@ func (c *decoderTFloat32E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTFloat32E) Call(args []interface{}) []interface{} {
+func (c *decoderTFloat32E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTFloat32E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTFloat32E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1578,7 +1578,7 @@ type decoderFloat64 struct {
 	fn func([]byte) float64
 }
 
-func decoderMakerFloat64(fn interface{}) reflectx.Func {
+func decoderMakerFloat64(fn any) reflectx.Func {
 	f := fn.(func([]byte) float64)
 	return &decoderFloat64{fn: f}
 }
@@ -1591,12 +1591,12 @@ func (c *decoderFloat64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderFloat64) Call(args []interface{}) []interface{} {
+func (c *decoderFloat64) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderFloat64) Call1x1(v interface{}) interface{} {
+func (c *decoderFloat64) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1604,7 +1604,7 @@ type decoderFloat64E struct {
 	fn func([]byte) (float64, error)
 }
 
-func decoderMakerFloat64E(fn interface{}) reflectx.Func {
+func decoderMakerFloat64E(fn any) reflectx.Func {
 	f := fn.(func([]byte) (float64, error))
 	return &decoderFloat64E{fn: f}
 }
@@ -1617,12 +1617,12 @@ func (c *decoderFloat64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderFloat64E) Call(args []interface{}) []interface{} {
+func (c *decoderFloat64E) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderFloat64E) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderFloat64E) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1630,7 +1630,7 @@ type decoderTFloat64 struct {
 	fn func(reflect.Type, []byte) float64
 }
 
-func decoderMakerTFloat64(fn interface{}) reflectx.Func {
+func decoderMakerTFloat64(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) float64)
 	return &decoderTFloat64{fn: f}
 }
@@ -1643,12 +1643,12 @@ func (c *decoderTFloat64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTFloat64) Call(args []interface{}) []interface{} {
+func (c *decoderTFloat64) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTFloat64) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTFloat64) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1656,7 +1656,7 @@ type decoderTFloat64E struct {
 	fn func(reflect.Type, []byte) (float64, error)
 }
 
-func decoderMakerTFloat64E(fn interface{}) reflectx.Func {
+func decoderMakerTFloat64E(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (float64, error))
 	return &decoderTFloat64E{fn: f}
 }
@@ -1669,12 +1669,12 @@ func (c *decoderTFloat64E) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTFloat64E) Call(args []interface{}) []interface{} {
+func (c *decoderTFloat64E) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTFloat64E) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTFloat64E) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1682,7 +1682,7 @@ type decoderTypex_T struct {
 	fn func([]byte) typex.T
 }
 
-func decoderMakerTypex_T(fn interface{}) reflectx.Func {
+func decoderMakerTypex_T(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.T)
 	return &decoderTypex_T{fn: f}
 }
@@ -1695,12 +1695,12 @@ func (c *decoderTypex_T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_T) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_T) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_T) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_T) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1708,7 +1708,7 @@ type decoderTypex_TE struct {
 	fn func([]byte) (typex.T, error)
 }
 
-func decoderMakerTypex_TE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_TE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.T, error))
 	return &decoderTypex_TE{fn: f}
 }
@@ -1721,12 +1721,12 @@ func (c *decoderTypex_TE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_TE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_TE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_TE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_TE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1734,7 +1734,7 @@ type decoderTTypex_T struct {
 	fn func(reflect.Type, []byte) typex.T
 }
 
-func decoderMakerTTypex_T(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_T(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.T)
 	return &decoderTTypex_T{fn: f}
 }
@@ -1747,12 +1747,12 @@ func (c *decoderTTypex_T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_T) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_T) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_T) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_T) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1760,7 +1760,7 @@ type decoderTTypex_TE struct {
 	fn func(reflect.Type, []byte) (typex.T, error)
 }
 
-func decoderMakerTTypex_TE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_TE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.T, error))
 	return &decoderTTypex_TE{fn: f}
 }
@@ -1773,12 +1773,12 @@ func (c *decoderTTypex_TE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_TE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_TE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_TE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_TE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1786,7 +1786,7 @@ type decoderTypex_U struct {
 	fn func([]byte) typex.U
 }
 
-func decoderMakerTypex_U(fn interface{}) reflectx.Func {
+func decoderMakerTypex_U(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.U)
 	return &decoderTypex_U{fn: f}
 }
@@ -1799,12 +1799,12 @@ func (c *decoderTypex_U) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_U) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_U) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_U) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_U) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1812,7 +1812,7 @@ type decoderTypex_UE struct {
 	fn func([]byte) (typex.U, error)
 }
 
-func decoderMakerTypex_UE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_UE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.U, error))
 	return &decoderTypex_UE{fn: f}
 }
@@ -1825,12 +1825,12 @@ func (c *decoderTypex_UE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_UE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_UE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_UE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_UE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1838,7 +1838,7 @@ type decoderTTypex_U struct {
 	fn func(reflect.Type, []byte) typex.U
 }
 
-func decoderMakerTTypex_U(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_U(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.U)
 	return &decoderTTypex_U{fn: f}
 }
@@ -1851,12 +1851,12 @@ func (c *decoderTTypex_U) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_U) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_U) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_U) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_U) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1864,7 +1864,7 @@ type decoderTTypex_UE struct {
 	fn func(reflect.Type, []byte) (typex.U, error)
 }
 
-func decoderMakerTTypex_UE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_UE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.U, error))
 	return &decoderTTypex_UE{fn: f}
 }
@@ -1877,12 +1877,12 @@ func (c *decoderTTypex_UE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_UE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_UE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_UE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_UE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1890,7 +1890,7 @@ type decoderTypex_V struct {
 	fn func([]byte) typex.V
 }
 
-func decoderMakerTypex_V(fn interface{}) reflectx.Func {
+func decoderMakerTypex_V(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.V)
 	return &decoderTypex_V{fn: f}
 }
@@ -1903,12 +1903,12 @@ func (c *decoderTypex_V) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_V) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_V) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_V) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_V) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -1916,7 +1916,7 @@ type decoderTypex_VE struct {
 	fn func([]byte) (typex.V, error)
 }
 
-func decoderMakerTypex_VE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_VE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.V, error))
 	return &decoderTypex_VE{fn: f}
 }
@@ -1929,12 +1929,12 @@ func (c *decoderTypex_VE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_VE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_VE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_VE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_VE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -1942,7 +1942,7 @@ type decoderTTypex_V struct {
 	fn func(reflect.Type, []byte) typex.V
 }
 
-func decoderMakerTTypex_V(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_V(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.V)
 	return &decoderTTypex_V{fn: f}
 }
@@ -1955,12 +1955,12 @@ func (c *decoderTTypex_V) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_V) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_V) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_V) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_V) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1968,7 +1968,7 @@ type decoderTTypex_VE struct {
 	fn func(reflect.Type, []byte) (typex.V, error)
 }
 
-func decoderMakerTTypex_VE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_VE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.V, error))
 	return &decoderTTypex_VE{fn: f}
 }
@@ -1981,12 +1981,12 @@ func (c *decoderTTypex_VE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_VE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_VE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_VE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_VE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -1994,7 +1994,7 @@ type decoderTypex_W struct {
 	fn func([]byte) typex.W
 }
 
-func decoderMakerTypex_W(fn interface{}) reflectx.Func {
+func decoderMakerTypex_W(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.W)
 	return &decoderTypex_W{fn: f}
 }
@@ -2007,12 +2007,12 @@ func (c *decoderTypex_W) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_W) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_W) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_W) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_W) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -2020,7 +2020,7 @@ type decoderTypex_WE struct {
 	fn func([]byte) (typex.W, error)
 }
 
-func decoderMakerTypex_WE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_WE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.W, error))
 	return &decoderTypex_WE{fn: f}
 }
@@ -2033,12 +2033,12 @@ func (c *decoderTypex_WE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_WE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_WE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_WE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_WE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -2046,7 +2046,7 @@ type decoderTTypex_W struct {
 	fn func(reflect.Type, []byte) typex.W
 }
 
-func decoderMakerTTypex_W(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_W(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.W)
 	return &decoderTTypex_W{fn: f}
 }
@@ -2059,12 +2059,12 @@ func (c *decoderTTypex_W) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_W) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_W) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_W) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_W) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2072,7 +2072,7 @@ type decoderTTypex_WE struct {
 	fn func(reflect.Type, []byte) (typex.W, error)
 }
 
-func decoderMakerTTypex_WE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_WE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.W, error))
 	return &decoderTTypex_WE{fn: f}
 }
@@ -2085,12 +2085,12 @@ func (c *decoderTTypex_WE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_WE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_WE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_WE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_WE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2098,7 +2098,7 @@ type decoderTypex_X struct {
 	fn func([]byte) typex.X
 }
 
-func decoderMakerTypex_X(fn interface{}) reflectx.Func {
+func decoderMakerTypex_X(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.X)
 	return &decoderTypex_X{fn: f}
 }
@@ -2111,12 +2111,12 @@ func (c *decoderTypex_X) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_X) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_X) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_X) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_X) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -2124,7 +2124,7 @@ type decoderTypex_XE struct {
 	fn func([]byte) (typex.X, error)
 }
 
-func decoderMakerTypex_XE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_XE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.X, error))
 	return &decoderTypex_XE{fn: f}
 }
@@ -2137,12 +2137,12 @@ func (c *decoderTypex_XE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_XE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_XE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_XE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_XE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -2150,7 +2150,7 @@ type decoderTTypex_X struct {
 	fn func(reflect.Type, []byte) typex.X
 }
 
-func decoderMakerTTypex_X(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_X(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.X)
 	return &decoderTTypex_X{fn: f}
 }
@@ -2163,12 +2163,12 @@ func (c *decoderTTypex_X) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_X) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_X) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_X) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_X) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2176,7 +2176,7 @@ type decoderTTypex_XE struct {
 	fn func(reflect.Type, []byte) (typex.X, error)
 }
 
-func decoderMakerTTypex_XE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_XE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.X, error))
 	return &decoderTTypex_XE{fn: f}
 }
@@ -2189,12 +2189,12 @@ func (c *decoderTTypex_XE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_XE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_XE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_XE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_XE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2202,7 +2202,7 @@ type decoderTypex_Y struct {
 	fn func([]byte) typex.Y
 }
 
-func decoderMakerTypex_Y(fn interface{}) reflectx.Func {
+func decoderMakerTypex_Y(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.Y)
 	return &decoderTypex_Y{fn: f}
 }
@@ -2215,12 +2215,12 @@ func (c *decoderTypex_Y) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_Y) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_Y) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_Y) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_Y) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -2228,7 +2228,7 @@ type decoderTypex_YE struct {
 	fn func([]byte) (typex.Y, error)
 }
 
-func decoderMakerTypex_YE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_YE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.Y, error))
 	return &decoderTypex_YE{fn: f}
 }
@@ -2241,12 +2241,12 @@ func (c *decoderTypex_YE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_YE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_YE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_YE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_YE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -2254,7 +2254,7 @@ type decoderTTypex_Y struct {
 	fn func(reflect.Type, []byte) typex.Y
 }
 
-func decoderMakerTTypex_Y(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_Y(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.Y)
 	return &decoderTTypex_Y{fn: f}
 }
@@ -2267,12 +2267,12 @@ func (c *decoderTTypex_Y) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_Y) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_Y) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_Y) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_Y) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2280,7 +2280,7 @@ type decoderTTypex_YE struct {
 	fn func(reflect.Type, []byte) (typex.Y, error)
 }
 
-func decoderMakerTTypex_YE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_YE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.Y, error))
 	return &decoderTTypex_YE{fn: f}
 }
@@ -2293,12 +2293,12 @@ func (c *decoderTTypex_YE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_YE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_YE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_YE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_YE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2306,7 +2306,7 @@ type decoderTypex_Z struct {
 	fn func([]byte) typex.Z
 }
 
-func decoderMakerTypex_Z(fn interface{}) reflectx.Func {
+func decoderMakerTypex_Z(fn any) reflectx.Func {
 	f := fn.(func([]byte) typex.Z)
 	return &decoderTypex_Z{fn: f}
 }
@@ -2319,12 +2319,12 @@ func (c *decoderTypex_Z) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_Z) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_Z) Call(args []any) []any {
 	out := c.fn(args[0].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTypex_Z) Call1x1(v interface{}) interface{} {
+func (c *decoderTypex_Z) Call1x1(v any) any {
 	return c.fn(v.([]byte))
 }
 
@@ -2332,7 +2332,7 @@ type decoderTypex_ZE struct {
 	fn func([]byte) (typex.Z, error)
 }
 
-func decoderMakerTypex_ZE(fn interface{}) reflectx.Func {
+func decoderMakerTypex_ZE(fn any) reflectx.Func {
 	f := fn.(func([]byte) (typex.Z, error))
 	return &decoderTypex_ZE{fn: f}
 }
@@ -2345,12 +2345,12 @@ func (c *decoderTypex_ZE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTypex_ZE) Call(args []interface{}) []interface{} {
+func (c *decoderTypex_ZE) Call(args []any) []any {
 	v, err := c.fn(args[0].([]byte))
-	return []interface{}{v, err}
+	return []any{v, err}
 }
 
-func (c *decoderTypex_ZE) Call1x2(v interface{}) (interface{}, interface{}) {
+func (c *decoderTypex_ZE) Call1x2(v any) (any, any) {
 	return c.fn(v.([]byte))
 }
 
@@ -2358,7 +2358,7 @@ type decoderTTypex_Z struct {
 	fn func(reflect.Type, []byte) typex.Z
 }
 
-func decoderMakerTTypex_Z(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_Z(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) typex.Z)
 	return &decoderTTypex_Z{fn: f}
 }
@@ -2371,12 +2371,12 @@ func (c *decoderTTypex_Z) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_Z) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_Z) Call(args []any) []any {
 	out := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *decoderTTypex_Z) Call2x1(t, v interface{}) interface{} {
+func (c *decoderTTypex_Z) Call2x1(t, v any) any {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }
 
@@ -2384,7 +2384,7 @@ type decoderTTypex_ZE struct {
 	fn func(reflect.Type, []byte) (typex.Z, error)
 }
 
-func decoderMakerTTypex_ZE(fn interface{}) reflectx.Func {
+func decoderMakerTTypex_ZE(fn any) reflectx.Func {
 	f := fn.(func(reflect.Type, []byte) (typex.Z, error))
 	return &decoderTTypex_ZE{fn: f}
 }
@@ -2397,11 +2397,11 @@ func (c *decoderTTypex_ZE) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *decoderTTypex_ZE) Call(args []interface{}) []interface{} {
+func (c *decoderTTypex_ZE) Call(args []any) []any {
 	val, err := c.fn(args[0].(reflect.Type), args[1].([]byte))
-	return []interface{}{val, err}
+	return []any{val, err}
 }
 
-func (c *decoderTTypex_ZE) Call2x2(t, v interface{}) (interface{}, interface{}) {
+func (c *decoderTTypex_ZE) Call2x2(t, v any) (any, any) {
 	return c.fn(t.(reflect.Type), v.([]byte))
 }

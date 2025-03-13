@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +27,6 @@ import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -44,9 +43,10 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A default {@link FilenamePolicy} for windowed and unwindowed files. This policy is constructed
@@ -58,6 +58,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
  * different files for each window and other sharding controls, see the {@code
  * WriteOneFilePerWindow} example pipeline.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template. */
   public static final String DEFAULT_UNWINDOWED_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
@@ -83,7 +86,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * objects to be dynamically generated.
    */
   public static class Params implements Serializable {
-    @Nullable private final ValueProvider<ResourceId> baseFilename;
+    private final @Nullable ValueProvider<ResourceId> baseFilename;
     private final String shardTemplate;
     private final boolean explicitTemplate;
     private final String suffix;
@@ -148,7 +151,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Params)) {
         return false;
       }
@@ -171,7 +174,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** A Coder for {@link Params}. */
   public static class ParamsCoder extends AtomicCoder<Params> {
     private static final ParamsCoder INSTANCE = new ParamsCoder();
-    private Coder<String> stringCoder = StringUtf8Coder.of();
+    private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
     public static ParamsCoder of() {
       return INSTANCE;
@@ -182,17 +185,17 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
-      stringCoder.encode(value.baseFilename.get().toString(), outStream);
-      stringCoder.encode(value.shardTemplate, outStream);
-      stringCoder.encode(value.suffix, outStream);
+      STRING_CODER.encode(value.baseFilename.get().toString(), outStream);
+      STRING_CODER.encode(value.shardTemplate, outStream);
+      STRING_CODER.encode(value.suffix, outStream);
     }
 
     @Override
     public Params decode(InputStream inStream) throws IOException {
       ResourceId prefix =
-          FileBasedSink.convertToFileResourceIfPossible(stringCoder.decode(inStream));
-      String shardTemplate = stringCoder.decode(inStream);
-      String suffix = stringCoder.decode(inStream);
+          FileBasedSink.convertToFileResourceIfPossible(STRING_CODER.decode(inStream));
+      String shardTemplate = STRING_CODER.decode(inStream);
+      String suffix = STRING_CODER.decode(inStream);
       return new Params()
           .withBaseFilename(prefix)
           .withShardTemplate(shardTemplate)
@@ -266,7 +269,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * ".txt", with shardNum = 1 and numShards = 100, the following is produced:
    * "path/to/output-001-of-100.txt".
    */
-  static ResourceId constructName(
+  public static ResourceId constructName(
       ResourceId baseFilename,
       String shardTemplate,
       String suffix,
@@ -310,8 +313,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   }
 
   @Override
-  @Nullable
-  public ResourceId unwindowedFilename(
+  public @Nullable ResourceId unwindowedFilename(
       int shardNumber, int numShards, OutputFileHints outputFileHints) {
     return constructName(
         params.baseFilename.get(),

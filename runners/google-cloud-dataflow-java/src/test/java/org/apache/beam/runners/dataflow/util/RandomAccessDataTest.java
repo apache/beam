@@ -31,7 +31,7 @@ import org.apache.beam.runners.dataflow.util.RandomAccessData.RandomAccessDataCo
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedBytes;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

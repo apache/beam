@@ -17,24 +17,23 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.samza.operators.MessageStream;
 
 /**
@@ -52,16 +51,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
     final PCollection<T> output = ctx.getOutput(transform);
 
     final List<MessageStream<OpMessage<T>>> inputStreams = new ArrayList<>();
-    for (Map.Entry<TupleTag<?>, PValue> taggedPValue : node.getInputs().entrySet()) {
-      if (!(taggedPValue.getValue() instanceof PCollection)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Got non-PCollection input for flatten. Tag: %s. Input: %s. Type: %s",
-                taggedPValue.getKey(),
-                taggedPValue.getValue(),
-                taggedPValue.getValue().getClass()));
-      }
-
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedPValue : node.getInputs().entrySet()) {
       @SuppressWarnings("unchecked")
       final PCollection<T> input = (PCollection<T>) taggedPValue.getValue();
       inputStreams.add(ctx.getMessageStream(input));
@@ -71,7 +61,8 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       // for some of the validateRunner tests only
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
-              .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
+              .flatMapAsync(
+                  OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}, ctx));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }
@@ -84,13 +75,11 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
-    doTranslatePortable(transform, pipeline, ctx);
+    doTranslatePortable(transform, ctx);
   }
 
   private static <T> void doTranslatePortable(
-      PipelineNode.PTransformNode transform,
-      QueryablePipeline pipeline,
-      PortableTranslationContext ctx) {
+      PipelineNode.PTransformNode transform, PortableTranslationContext ctx) {
     final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
     final String outputId = ctx.getOutputId(transform);
 

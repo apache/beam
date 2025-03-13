@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
@@ -28,7 +27,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryRe
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A source that reads from a shuffled dataset, without any key grouping. Returns just the values.
@@ -36,6 +37,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  *
  * @param <T> the type of the elements read from the source
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class UngroupedShuffleReader<T> extends NativeReader<T> {
   final byte[] shuffleReaderConfig;
   final String startShufflePosition;
@@ -111,9 +115,9 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
       }
       ShuffleEntry record = iterator.next();
       // Throw away the primary and the secondary keys.
-      byte[] value = record.getValue();
+      ByteString value = record.getValue();
       shuffleReader.notifyElementRead(record.length());
-      current = CoderUtils.decodeFromByteArray(shuffleReader.coder, value);
+      current = CoderUtils.decodeFromByteString(shuffleReader.coder, value);
       return true;
     }
 

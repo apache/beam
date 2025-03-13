@@ -48,6 +48,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
+    sideInputFetcher.prefetchBlockedMap();
 
     // Find the set of ready windows.
     Set<W> readyWindows = sideInputFetcher.getReadyWindows();
@@ -76,8 +77,14 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   }
 
   @Override
-  public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+  public <KeyT> void onTimer(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException(
         "Attempt to deliver a timer to a DoFn, but timers are not supported in Dataflow.");
   }
@@ -86,6 +93,11 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
     sideInputFetcher.persist();
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    simpleDoFnRunner.onWindowExpiration(window, timestamp, key);
   }
 
   @Override

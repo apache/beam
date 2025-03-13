@@ -16,7 +16,7 @@
 package stats
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 //go:generate specialize --input=max_switch.tmpl --x=integers,floats
@@ -28,9 +28,8 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    max := stats.Max(s, col)   // PCollection<int> with 11 as the only element.
-//
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	max := stats.Max(s, col)   // PCollection<int> with 11 as the only element.
 func Max(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Max")
 	return combine(s, findMaxFn, col)

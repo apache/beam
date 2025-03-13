@@ -20,25 +20,29 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A mocked unbounded table. */
-@Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TestUnboundedTable extends TestTable {
   /** rows flow out from this table with the specified watermark instant. */
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
+
+  private BeamTableStatistics statistics = BeamTableStatistics.UNBOUNDED_UNKNOWN;
 
   private TestUnboundedTable(Schema beamSchema) {
     super(beamSchema);
@@ -59,6 +63,16 @@ public class TestUnboundedTable extends TestTable {
    */
   public static TestUnboundedTable of(final Object... args) {
     return new TestUnboundedTable(TestTableUtils.buildBeamSqlSchema(args));
+  }
+
+  public TestUnboundedTable setStatistics(BeamTableStatistics statistics) {
+    this.statistics = statistics;
+    return this;
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return this.statistics;
   }
 
   public TestUnboundedTable timestampColumnIndex(int idx) {
@@ -94,9 +108,7 @@ public class TestUnboundedTable extends TestTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    TestStream.Builder<Row> values =
-        TestStream.create(
-            schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+    TestStream.Builder<Row> values = TestStream.create(schema);
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));

@@ -22,32 +22,50 @@ applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Go :: Container"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
-
-dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
+goBuild {
+  goTargets = '*.go' // only build the immediate directory.
+  outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
 }
 
-golang {
-  packagePath = 'github.com/apache/beam/sdks/go/boot'
-  goBuild {
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
-  }
-}
+def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
-  name containerImageName(name: "go")
+  name containerImageName(
+          name: project.docker_image_default_repo_prefix + "go_sdk",
+          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root)
+  // tags used by dockerTag task
+  tags containerImageTags()
   files "./build/"
+  buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                     project.rootProject.hasProperty(["isRelease"])])
+  buildx project.useBuildx()
+  platform(*project.containerPlatforms())
+  load project.useBuildx() && !pushContainers
+  push pushContainers
 }
+dockerPrepare.dependsOn tasks.named("goBuild")
+
 // Ensure that making the docker image builds any required artifacts
-dockerPrepare.dependsOn goBuild
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+  task copyGolangLicenses(type: Copy) {
+    project.logger.lifecycle('docker-pull-licenses set, running go-licenses')
+    from "${project(':release:go-licenses:go').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:go:createLicenses'
+  }
+  dockerPrepare.dependsOn 'copyGolangLicenses'
+} else {
+  task skipPullLicenses(type: Exec) {
+    project.logger.lifecycle('docker-pull-licenses not set, skipping go-licenses')
+    executable "sh"
+    // Touch a dummy file to ensure the directory exists.
+    args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
+  }
+  dockerPrepare.dependsOn 'skipPullLicenses'
+}
+
+task pushAll {
+  dependsOn ":sdks:go:container:docker"
+}

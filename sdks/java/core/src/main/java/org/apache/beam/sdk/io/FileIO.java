@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -34,14 +34,13 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MetadataCoderV2;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -62,20 +61,24 @@ import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -135,9 +138,15 @@ import org.slf4j.LoggerFactory;
  *     .apply(FileIO.readMatches().withCompression(GZIP))
  *     .apply(MapElements
  *         // uses imports from TypeDescriptors
- *         .into(KVs(strings(), strings()))
- *         .via((ReadableFile f) -> KV.of(
- *             f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String())));
+ *         .into(kvs(strings(), strings()))
+ *         .via((ReadableFile f) -> {
+ *           try {
+ *             return KV.of(
+ *                 f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String());
+ *           } catch (IOException ex) {
+ *             throw new RuntimeException("Failed to read the file", ex);
+ *           }
+ *         }));
  * }</pre>
  *
  * <h2>Writing files</h2>
@@ -220,7 +229,7 @@ import org.slf4j.LoggerFactory;
  * {@link Sink}, e.g. write different elements to Avro files in different directories with different
  * schemas.
  *
- * <p>This feature is supported by {@link #writeDynamic}. Use {@link Write#by} to specify how to
+ * <p>This feature is supported by {@link #writeDynamic}. Use {@link Write#by} to specify how too
  * partition the elements into groups ("destinations"). Then elements will be grouped by
  * destination, and {@link Write#withNaming(Contextful)} and {@link Write#via(Contextful)} will be
  * applied separately within each group, i.e. different groups will be written using the file naming
@@ -228,6 +237,27 @@ import org.slf4j.LoggerFactory;
  * Write#via(Contextful)} for the respective destinations. Note that currently sharding can not be
  * destination-dependent: every window/pane for every destination will use the same number of shards
  * specified via {@link Write#withNumShards} or {@link Write#withSharding}.
+ *
+ * <h3>Handling Errors</h3>
+ *
+ * <p>When using dynamic destinations, or when using a formatting function to format a record for
+ * writing, it's possible for an individual record to be malformed, causing an exception. By
+ * default, these exceptions are propagated to the runner causing the bundle to fail. These are
+ * usually retried, though this depends on the runner. Alternately, these errors can be routed to
+ * another {@link PTransform} by using {@link Write#withBadRecordErrorHandler(ErrorHandler)}. The
+ * ErrorHandler is registered with the pipeline (see below). See {@link ErrorHandler} for more
+ * documentation. Of note, this error handling only handles errors related to specific records. It
+ * does not handle errors related to connectivity, authorization, etc. as those should be retried by
+ * the runner.
+ *
+ * <pre>{@code
+ * PCollection<> records = ...;
+ * PTransform<PCollection<BadRecord>,?> alternateSink = ...;
+ * try (BadRecordErrorHandler<?> handler = pipeline.registerBadRecordErrorHandler(alternateSink) {
+ *    records.apply("Write", FileIO.writeDynamic().otherConfigs()
+ *        .withBadRecordErrorHandler(handler));
+ * }
+ * }</pre>
  *
  * <h3>Writing custom types to sinks</h3>
  *
@@ -237,7 +267,7 @@ import org.slf4j.LoggerFactory;
  * type to the sink's <i>output type</i>.
  *
  * <p>However, when using dynamic destinations, in many such cases the destination needs to be
- * extract from the original type, so such a conversion is not possible. For example, one might
+ * extracted from the original type, so such a conversion is not possible. For example, one might
  * write events of a custom class {@code Event} to a text sink, using the event's "type" as a
  * destination. In that case, specify an <i>output function</i> in {@link Write#via(Contextful,
  * Contextful)} or {@link Write#via(Contextful, Sink)}.
@@ -245,7 +275,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Example: Writing CSV files</h3>
  *
  * <pre>{@code
- * class CSVSink implements FileSink<List<String>> {
+ * class CSVSink implements FileIO.Sink<List<String>> {
  *   private String header;
  *   private PrintWriter writer;
  *
@@ -262,7 +292,7 @@ import org.slf4j.LoggerFactory;
  *     writer.println(Joiner.on(",").join(element));
  *   }
  *
- *   public void finish() throws IOException {
+ *   public void flush() throws IOException {
  *     writer.flush();
  *   }
  * }
@@ -270,13 +300,13 @@ import org.slf4j.LoggerFactory;
  * PCollection<BankTransaction> transactions = ...;
  * // Convert transactions to strings before writing them to the CSV sink.
  * transactions.apply(MapElements
- *         .into(lists(strings()))
+ *         .into(TypeDescriptors.lists(TypeDescriptors.strings()))
  *         .via(tx -> Arrays.asList(tx.getUser(), tx.getAmount())))
  *     .apply(FileIO.<List<String>>write()
- *         .via(new CSVSink(Arrays.asList("user", "amount"))
+ *         .via(new CSVSink(Arrays.asList("user", "amount")))
  *         .to(".../path/to/")
  *         .withPrefix("transactions")
- *         .withSuffix(".csv")
+ *         .withSuffix(".csv"));
  * }</pre>
  *
  * <h3>Example: Writing CSV files to different directories and with different headers</h3>
@@ -301,6 +331,9 @@ import org.slf4j.LoggerFactory;
  *     .withNaming(type -> defaultNaming(type + "-transactions", ".csv"));
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 
@@ -360,6 +393,7 @@ public class FileIO {
         .setDynamic(false)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setAutoSharding(false)
         .setNoSpilling(false)
         .build();
   }
@@ -373,6 +407,7 @@ public class FileIO {
         .setDynamic(true)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setAutoSharding(false)
         .setNoSpilling(false)
         .build();
   }
@@ -435,7 +470,7 @@ public class FileIO {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -462,22 +497,25 @@ public class FileIO {
     public static MatchConfiguration create(EmptyMatchTreatment emptyMatchTreatment) {
       return new AutoValue_FileIO_MatchConfiguration.Builder()
           .setEmptyMatchTreatment(emptyMatchTreatment)
+          .setMatchUpdatedFiles(false)
           .build();
     }
 
-    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    public abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
-    @Nullable
-    abstract Duration getWatchInterval();
+    public abstract boolean getMatchUpdatedFiles();
 
-    @Nullable
-    abstract TerminationCondition<String, ?> getWatchTerminationCondition();
+    public abstract @Nullable Duration getWatchInterval();
+
+    abstract @Nullable TerminationCondition<String, ?> getWatchTerminationCondition();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
+
+      abstract Builder setMatchUpdatedFiles(boolean matchUpdatedFiles);
 
       abstract Builder setWatchInterval(Duration watchInterval);
 
@@ -494,29 +532,62 @@ public class FileIO {
     /**
      * Continuously watches for new files at the given interval until the given termination
      * condition is reached, where the input to the condition is the filepattern.
+     *
+     * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change, with
+     * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
+     * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
+     * timestamp metadata is not available with the IO connector.
+     *
+     * <p>Matching continuously scales poorly, as it is stateful, and requires storing file ids in
+     * memory. In addition, because it is memory-only, if a pipeline is restarted, already processed
+     * files will be reprocessed. Consider an alternate technique, such as <a
+     * href="https://cloud.google.com/storage/docs/pubsub-notifications">Pub/Sub Notifications</a>
+     * when using GCS if possible.
+     */
+    public MatchConfiguration continuously(
+        Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
+      LOG.warn(
+          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
+              + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
+      return toBuilder()
+          .setWatchInterval(interval)
+          .setWatchTerminationCondition(condition)
+          .setMatchUpdatedFiles(matchUpdatedFiles)
+          .build();
+    }
+
+    /**
+     * Continuously watches for new files at the given interval until the given termination
+     * condition is reached, where the input to the condition is the filepattern. To watch also for
+     * updated files, please set {@code matchUpdatedFiles} as {@code true}.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition) {
-      return toBuilder().setWatchInterval(interval).setWatchTerminationCondition(condition).build();
+      return continuously(interval, condition, false);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder
-          .add(
-              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
-                  .withLabel("Treatment of filepatterns that match no files"))
-          .addIfNotNull(
-              DisplayData.item("watchForNewFilesInterval", getWatchInterval())
-                  .withLabel("Interval to watch for new files"));
+      builder.add(
+          DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+              .withLabel("Treatment of filepatterns that match no files"));
+      if (getWatchInterval() != null) {
+        builder
+            .add(
+                DisplayData.item("watchForNewFilesInterval", getWatchInterval())
+                    .withLabel("Interval to watch for new files"))
+            .add(
+                DisplayData.item("isMatchUpdatedFiles", getMatchUpdatedFiles())
+                    .withLabel("If also match for files with timestamp change"));
+      }
     }
   }
 
   /** Implementation of {@link #match}. */
   @AutoValue
   public abstract static class Match extends PTransform<PBegin, PCollection<MatchResult.Metadata>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getConfiguration();
 
@@ -554,12 +625,26 @@ public class FileIO {
     /**
      * See {@link MatchConfiguration#continuously}. The returned {@link PCollection} is unbounded.
      *
-     * <p>This works only in runners supporting {@link Experimental.Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+    public Match continuously(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withConfiguration(
+          getConfiguration().continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * See {@link MatchConfiguration#continuously}. The returned {@link PCollection} is unbounded.
+     *
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
+     */
     public Match continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
+      return continuously(pollInterval, terminationCondition, false);
     }
 
     @Override
@@ -604,11 +689,19 @@ public class FileIO {
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    /** Like {@link Match#continuously}. */
-    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+    /** Like {@link Match#continuously(Duration, TerminationCondition, boolean)}. */
+    public MatchAll continuously(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withConfiguration(
+          getConfiguration().continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /** Like {@link Match#continuously(Duration, TerminationCondition)}. */
     public MatchAll continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
+      return continuously(pollInterval, terminationCondition, false);
     }
 
     @Override
@@ -620,16 +713,15 @@ public class FileIO {
                 "Match filepatterns",
                 ParDo.of(new MatchFn(getConfiguration().getEmptyMatchTreatment())));
       } else {
-        res =
-            input
-                .apply(
-                    "Continuously match filepatterns",
-                    Watch.growthOf(
-                            Contextful.of(new MatchPollFn(), Requirements.empty()),
-                            new ExtractFilenameFn())
-                        .withPollInterval(getConfiguration().getWatchInterval())
-                        .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
-                .apply(Values.create());
+        if (getConfiguration().getMatchUpdatedFiles()) {
+          res =
+              input
+                  .apply(createWatchTransform(new ExtractFilenameAndLastUpdateFn()))
+                  .apply(Values.create())
+                  .setCoder(MetadataCoderV2.of());
+        } else {
+          res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
+        }
       }
       return res.apply(Reshuffle.viaRandomKey());
     }
@@ -638,6 +730,14 @@ public class FileIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.include("configuration", getConfiguration());
+    }
+
+    /** Helper function creating a watch transform based on outputKeyFn. */
+    private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
+        SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
+      return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
+          .withPollInterval(getConfiguration().getWatchInterval())
+          .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -674,6 +774,18 @@ public class FileIO {
       @Override
       public String apply(MatchResult.Metadata input) {
         return input.resourceId().toString();
+      }
+    }
+
+    private static class ExtractFilenameAndLastUpdateFn
+        implements SerializableFunction<MatchResult.Metadata, KV<String, Long>> {
+      @Override
+      public KV<String, Long> apply(MatchResult.Metadata input) throws RuntimeException {
+        long timestamp = input.lastModifiedMillis();
+        if (0L == timestamp) {
+          throw new RuntimeException("Extract file timestamp failed: got file timestamp == 0.");
+        }
+        return KV.of(input.resourceId().toString(), timestamp);
       }
     }
   }
@@ -819,7 +931,6 @@ public class FileIO {
 
   /** Implementation of {@link #write} and {@link #writeDynamic}. */
   @AutoValue
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class Write<DestinationT, UserT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     /** A policy for generating names for shard files. */
@@ -898,50 +1009,41 @@ public class FileIO {
 
     abstract boolean getDynamic();
 
-    @Nullable
-    abstract Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
+    abstract @Nullable Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
 
-    @Nullable
-    abstract Contextful<Fn<UserT, ?>> getOutputFn();
+    abstract @Nullable Contextful<Fn<UserT, ?>> getOutputFn();
 
-    @Nullable
-    abstract Contextful<Fn<UserT, DestinationT>> getDestinationFn();
+    abstract @Nullable Contextful<Fn<UserT, DestinationT>> getDestinationFn();
 
-    @Nullable
-    abstract ValueProvider<String> getOutputDirectory();
+    abstract @Nullable ValueProvider<String> getOutputDirectory();
 
-    @Nullable
-    abstract ValueProvider<String> getFilenamePrefix();
+    abstract @Nullable ValueProvider<String> getFilenamePrefix();
 
-    @Nullable
-    abstract ValueProvider<String> getFilenameSuffix();
+    abstract @Nullable ValueProvider<String> getFilenameSuffix();
 
-    @Nullable
-    abstract FileNaming getConstantFileNaming();
+    abstract @Nullable FileNaming getConstantFileNaming();
 
-    @Nullable
-    abstract Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
+    abstract @Nullable Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
 
-    @Nullable
-    abstract DestinationT getEmptyWindowDestination();
+    abstract @Nullable DestinationT getEmptyWindowDestination();
 
-    @Nullable
-    abstract Coder<DestinationT> getDestinationCoder();
+    abstract @Nullable Coder<DestinationT> getDestinationCoder();
 
-    @Nullable
-    abstract ValueProvider<String> getTempDirectory();
+    abstract @Nullable ValueProvider<String> getTempDirectory();
 
     abstract Compression getCompression();
 
-    @Nullable
-    abstract ValueProvider<Integer> getNumShards();
+    abstract @Nullable ValueProvider<Integer> getNumShards();
 
-    @Nullable
-    abstract PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
+    abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
 
     abstract boolean getIgnoreWindowing();
 
+    abstract boolean getAutoSharding();
+
     abstract boolean getNoSpilling();
+
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<DestinationT, UserT> toBuilder();
 
@@ -987,7 +1089,12 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
 
+      abstract Builder<DestinationT, UserT> setAutoSharding(boolean autosharding);
+
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1210,9 +1317,25 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    public Write<DestinationT, UserT> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public Write<DestinationT, UserT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
+    }
+
+    /**
+     * Configures a new {@link Write} with an ErrorHandler. For configuring an ErrorHandler, see
+     * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination
+     * is performed, and that operation fails, the exception is passed to the error handler. This is
+     * intended to handle any errors related to the data of a record, but not any connectivity or IO
+     * errors related to the literal writing of a record.
+     */
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     @VisibleForTesting
@@ -1299,6 +1422,7 @@ public class FileIO {
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
+      resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
@@ -1315,8 +1439,14 @@ public class FileIO {
       if (!getIgnoreWindowing()) {
         writeFiles = writeFiles.withWindowedWrites();
       }
+      if (getAutoSharding()) {
+        writeFiles = writeFiles.withAutoSharding();
+      }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getBadRecordErrorHandler() != null) {
+        writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply(writeFiles);
     }
@@ -1363,7 +1493,7 @@ public class FileIO {
           @Override
           public Writer<DestinationT, OutputT> createWriter() throws Exception {
             return new Writer<DestinationT, OutputT>(this, "") {
-              @Nullable private Sink<OutputT> sink;
+              private @Nullable Sink<OutputT> sink;
 
               @Override
               protected void prepareWrite(WritableByteChannel channel) throws Exception {
@@ -1400,7 +1530,7 @@ public class FileIO {
       private static class DynamicDestinationsAdapter<UserT, DestinationT, OutputT>
           extends DynamicDestinations<UserT, DestinationT, OutputT> {
         private final Write<DestinationT, UserT> spec;
-        @Nullable private transient Fn.Context context;
+        private transient Fn.@Nullable Context context;
 
         private DynamicDestinationsAdapter(Write<DestinationT, UserT> spec) {
           this.spec = spec;
@@ -1467,9 +1597,8 @@ public class FileIO {
                   false /* isDirectory */);
             }
 
-            @Nullable
             @Override
-            public ResourceId unwindowedFilename(
+            public @Nullable ResourceId unwindowedFilename(
                 int shardNumber, int numShards, OutputFileHints outputFileHints) {
               return FileSystems.matchNewResource(
                   namingFn.getFilename(
@@ -1488,9 +1617,8 @@ public class FileIO {
           return Lists.newArrayList(spec.getAllSideInputs());
         }
 
-        @Nullable
         @Override
-        public Coder<DestinationT> getDestinationCoder() {
+        public @Nullable Coder<DestinationT> getDestinationCoder() {
           return spec.getDestinationCoder();
         }
       }

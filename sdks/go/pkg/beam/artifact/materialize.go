@@ -22,43 +22,288 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
+	"google.golang.org/protobuf/proto"
+)
+
+// TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
+const (
+	URNFileArtifact        = "beam:artifact:type:file:v1"
+	URNUrlArtifact         = "beam:artifact:type:url:v1"
+	URNGoWorkerBinaryRole  = "beam:artifact:role:go_worker_binary:v1"
+	URNPipRequirementsFile = "beam:artifact:role:pip_requirements_file:v1"
+	URNStagingTo           = "beam:artifact:role:staging_to:v1"
+	NoArtifactsStaged      = "__no_artifacts_staged__"
 )
 
 // Materialize is a convenience helper for ensuring that all artifacts are
 // present and uncorrupted. It interprets each artifact name as a relative
 // path under the dest directory. It does not retrieve valid artifacts already
 // present.
-func Materialize(ctx context.Context, endpoint string, rt string, dest string) ([]*pb.ArtifactMetadata, error) {
+// TODO(https://github.com/apache/beam/issues/20267): Return a mapping of filename to dependency, rather than []*jobpb.ArtifactMetadata.
+// TODO(https://github.com/apache/beam/issues/20267): Leverage richness of roles rather than magic names to understand artifacts.
+func Materialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
+	if len(dependencies) > 0 {
+		return newMaterialize(ctx, endpoint, dependencies, dest)
+	} else if rt == "" || rt == NoArtifactsStaged {
+		return []*pipepb.ArtifactInformation{}, nil
+	} else {
+		return legacyMaterialize(ctx, endpoint, rt, dest)
+	}
+}
+
+func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	client := pb.NewArtifactRetrievalServiceClient(cc)
+	return newMaterializeWithClient(ctx, jobpb.NewArtifactRetrievalServiceClient(cc), dependencies, dest)
+}
 
-	m, err := client.GetManifest(ctx, &pb.GetManifestRequest{RetrievalToken: rt})
+func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrievalServiceClient, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
+	resolution, err := client.ResolveArtifacts(ctx, &jobpb.ResolveArtifactsRequest{Artifacts: dependencies})
+	if err != nil {
+		return nil, err
+	}
+
+	var artifacts []*pipepb.ArtifactInformation
+	var list []retrievable
+	for _, dep := range resolution.Replacements {
+		path, err := extractStagingToPath(dep)
+		if err != nil {
+			return nil, err
+		}
+		filePayload := pipepb.ArtifactFilePayload{
+			Path: path,
+		}
+		if dep.TypeUrn == URNFileArtifact {
+			typePayload := pipepb.ArtifactFilePayload{}
+			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
+				return nil, errors.Wrap(err, "failed to parse artifact file payload")
+			}
+			filePayload.Sha256 = typePayload.Sha256
+		} else if dep.TypeUrn == URNUrlArtifact {
+			typePayload := pipepb.ArtifactUrlPayload{}
+			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
+				return nil, errors.Wrap(err, "failed to parse artifact url payload")
+			}
+			filePayload.Sha256 = typePayload.Sha256
+		}
+		newTypePayload, err := proto.Marshal(&filePayload)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact type payload")
+		}
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: newTypePayload,
+			RoleUrn:     dep.RoleUrn,
+			RolePayload: dep.RolePayload,
+		})
+
+		rolePayload, err := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: path,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact role payload")
+		}
+		list = append(list, &artifact{
+			client: client,
+			dep: &pipepb.ArtifactInformation{
+				TypeUrn:     dep.TypeUrn,
+				TypePayload: dep.TypePayload,
+				RoleUrn:     URNStagingTo,
+				RolePayload: rolePayload,
+			},
+		})
+	}
+
+	return artifacts, MultiRetrieve(ctx, 10, list, dest)
+}
+
+// Used for generating unique IDs. We assign uniquely generated names to staged files without staging names.
+var idCounter uint64
+
+func generateId() string {
+	id := atomic.AddUint64(&idCounter, 1)
+	return strconv.FormatUint(id, 10)
+}
+
+func extractStagingToPath(artifact *pipepb.ArtifactInformation) (string, error) {
+	var stagedName string
+	if artifact.RoleUrn == URNStagingTo {
+		role := pipepb.ArtifactStagingToRolePayload{}
+		if err := proto.Unmarshal(artifact.RolePayload, &role); err != nil {
+			return "", err
+		}
+		stagedName = role.StagedName
+	} else if artifact.TypeUrn == URNFileArtifact {
+		ty := pipepb.ArtifactFilePayload{}
+		if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
+			return "", err
+		}
+		stagedName = generateId() + "-" + filepath.Base(ty.Path)
+	} else if artifact.TypeUrn == URNUrlArtifact {
+		ty := pipepb.ArtifactUrlPayload{}
+		if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
+			return "", err
+		}
+		stagedName = generateId() + "-" + path.Base(ty.Url)
+	} else {
+		return "", errors.Errorf("failed to extract staging path for artifact type %v role %v", artifact.TypeUrn, artifact.RoleUrn)
+	}
+	return stagedName, nil
+}
+
+func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, string) {
+	if artifact.TypeUrn != URNFileArtifact {
+		log.Fatalf("Unsupported artifact type %v", artifact.TypeUrn)
+	}
+	ty := pipepb.ArtifactFilePayload{}
+	if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
+		log.Fatalf("failed to parse artifact file payload: %v", err)
+	}
+	return ty.Path, ty.Sha256
+}
+
+type artifact struct {
+	client jobpb.ArtifactRetrievalServiceClient
+	dep    *pipepb.ArtifactInformation
+}
+
+func (a artifact) retrieve(ctx context.Context, dest string) error {
+	path, err := extractStagingToPath(a.dep)
+	if err != nil {
+		return err
+	}
+
+	filename := filepath.Join(dest, filepath.FromSlash(path))
+
+	_, err = os.Stat(filename)
+	if err == nil {
+		if err = os.Remove(filename); err != nil {
+			return errors.Errorf("failed to delete: %v (remove: %v)", filename, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to stat %v", filename)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
+		return err
+	}
+
+	stream, err := a.client.GetArtifact(ctx, &jobpb.GetArtifactRequest{Artifact: a.dep})
+	if err != nil {
+		return err
+	}
+
+	fd, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if err != nil {
+		return err
+	}
+	w := bufio.NewWriter(fd)
+
+	sha256Hash, err := writeChunks(stream, w)
+	if err != nil {
+		fd.Close() // drop any buffered content
+		return errors.Wrapf(err, "failed to retrieve chunk for %v", filename)
+	}
+	if err := w.Flush(); err != nil {
+		fd.Close()
+		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
+	}
+	stat, _ := fd.Stat()
+	log.Printf("Downloaded: %v (sha256: %v, size: %v)", filename, sha256Hash, stat.Size())
+
+	return fd.Close()
+}
+
+func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
+	sha256W := sha256.New()
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+		if _, err := sha256W.Write(chunk.Data); err != nil {
+			panic(err) // cannot fail
+		}
+		if _, err := w.Write(chunk.Data); err != nil {
+			return "", errors.Wrapf(err, "chunk write failed")
+		}
+	}
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
+}
+
+func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
+	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	defer cc.Close()
+
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
+
+	m, err := client.GetManifest(ctx, &jobpb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get manifest")
 	}
-	md := m.GetManifest().GetArtifact()
-	return md, MultiRetrieve(ctx, client, 10, md, rt, dest)
+	mds := m.GetManifest().GetArtifact()
+
+	var artifacts []*pipepb.ArtifactInformation
+	var list []retrievable
+	for _, md := range mds {
+		typePayload, err := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path:   md.Name,
+			Sha256: md.Sha256,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact type payload")
+		}
+		rolePayload, err := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: md.Name,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact role payload")
+		}
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: typePayload,
+			RoleUrn:     URNStagingTo,
+			RolePayload: rolePayload,
+		})
+		list = append(list, &legacyArtifact{
+			client: client,
+			rt:     rt,
+			md:     md,
+		})
+	}
+
+	return artifacts, MultiRetrieve(ctx, 10, list, dest)
 }
 
 // MultiRetrieve retrieves multiple artifacts concurrently, using at most 'cpus'
 // goroutines. It retries each artifact a few times. Convenience wrapper.
-func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, cpus int, list []*pb.ArtifactMetadata, rt string, dest string) error {
+func MultiRetrieve(ctx context.Context, cpus int, list []retrievable, dest string) error {
 	if len(list) == 0 {
 		return nil
 	}
@@ -86,13 +331,13 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 
 				var failures []string
 				for {
-					err := Retrieve(ctx, client, a, rt, dest)
+					err := a.retrieve(ctx, dest)
 					if err == nil || permErr.Error() != nil {
 						break // done or give up
 					}
 					failures = append(failures, err.Error())
 					if len(failures) > attempts {
-						permErr.TrySetError(errors.Errorf("failed to retrieve %v in %v attempts: %v", a.Name, attempts, strings.Join(failures, "; ")))
+						permErr.TrySetError(errors.Errorf("failed to retrieve %v in %v attempts: %v", dest, attempts, strings.Join(failures, "; ")))
 						break // give up
 					}
 					time.Sleep(time.Duration(rand.Intn(5)+1) * time.Second)
@@ -105,11 +350,38 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 	return permErr.Error()
 }
 
+type retrievable interface {
+	retrieve(ctx context.Context, dest string) error
+}
+
+// LegacyMultiRetrieve is exported for testing.
+func LegacyMultiRetrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceClient, cpus int, list []*jobpb.ArtifactMetadata, rt string, dest string) error {
+	var rlist []retrievable
+	for _, md := range list {
+		rlist = append(rlist, &legacyArtifact{
+			client: client,
+			rt:     rt,
+			md:     md,
+		})
+	}
+	return MultiRetrieve(ctx, cpus, rlist, dest)
+}
+
+type legacyArtifact struct {
+	client jobpb.LegacyArtifactRetrievalServiceClient
+	rt     string
+	md     *jobpb.ArtifactMetadata
+}
+
+func (a legacyArtifact) retrieve(ctx context.Context, dest string) error {
+	return Retrieve(ctx, a.client, a.md, a.rt, dest)
+}
+
 // Retrieve checks whether the given artifact is already successfully
 // retrieved. If not, it retrieves into the dest directory. It overwrites any
 // previous retrieval attempt and may leave a corrupt/partial local file on
 // failure.
-func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, dest string) error {
+func Retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceClient, a *jobpb.ArtifactMetadata, rt string, dest string) error {
 	filename := filepath.Join(dest, filepath.FromSlash(a.Name))
 
 	_, err := os.Stat(filename)
@@ -144,8 +416,8 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 // It validates that the given SHA256 matches the content and fails otherwise.
 // It expects the file to not exist, but does not clean up on failure and
 // may leave a corrupt file.
-func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, filename string) error {
-	stream, err := client.GetArtifact(ctx, &pb.GetArtifactRequest{Name: a.Name, RetrievalToken: rt})
+func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceClient, a *jobpb.ArtifactMetadata, rt string, filename string) error {
+	stream, err := client.GetArtifact(ctx, &jobpb.LegacyGetArtifactRequest{Name: a.Name, RetrievalToken: rt})
 	if err != nil {
 		return err
 	}
@@ -176,7 +448,7 @@ func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 	return nil
 }
 
-func retrieveChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
+func retrieveChunks(stream jobpb.LegacyArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
 	sha256W := sha256.New()
 	for {
 		chunk, err := stream.Recv()
@@ -223,8 +495,8 @@ func computeSHA256(filename string) (string, error) {
 	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
-func slice2queue(list []*pb.ArtifactMetadata) chan *pb.ArtifactMetadata {
-	q := make(chan *pb.ArtifactMetadata, len(list))
+func slice2queue(list []retrievable) chan retrievable {
+	q := make(chan retrievable, len(list))
 	for _, elm := range list {
 		q <- elm
 	}
@@ -232,8 +504,8 @@ func slice2queue(list []*pb.ArtifactMetadata) chan *pb.ArtifactMetadata {
 	return q
 }
 
-func queue2slice(q chan *pb.ArtifactMetadata) []*pb.ArtifactMetadata {
-	var ret []*pb.ArtifactMetadata
+func queue2slice(q chan *jobpb.ArtifactMetadata) []*jobpb.ArtifactMetadata {
+	var ret []*jobpb.ArtifactMetadata
 	for elm := range q {
 		ret = append(ret, elm)
 	}

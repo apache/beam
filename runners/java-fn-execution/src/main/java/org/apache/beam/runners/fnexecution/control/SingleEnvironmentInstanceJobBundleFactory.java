@@ -23,9 +23,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
@@ -34,8 +33,11 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /**
  * A {@link JobBundleFactory} which can manage a single instance of an {@link Environment}.
@@ -46,6 +48,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
  *     {@code InProcessJobBundleFactory} and inline the creation of the environment if appropriate.
  */
 @Deprecated
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFactory {
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
@@ -90,7 +95,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             stage.getEnvironment(),
             env -> {
               try {
-                return environmentFactory.createEnvironment(env);
+                return environmentFactory.createEnvironment(env, idGenerator.getId());
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
@@ -115,7 +120,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             descriptor.getProcessBundleDescriptor(),
             descriptor.getRemoteInputDestinations(),
             stateService.getService());
-    return new BundleProcessorStageBundleFactory(descriptor, bundleProcessor);
+    return new BundleProcessorStageBundleFactory(descriptor, bundleProcessor, sdkHarnessClient);
   }
 
   @Override
@@ -139,21 +144,28 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
 
   private static class BundleProcessorStageBundleFactory implements StageBundleFactory {
     private final ExecutableProcessBundleDescriptor descriptor;
+    private final SdkHarnessClient client;
     private final SdkHarnessClient.BundleProcessor processor;
 
     private BundleProcessorStageBundleFactory(
-        ExecutableProcessBundleDescriptor descriptor, SdkHarnessClient.BundleProcessor processor) {
+        ExecutableProcessBundleDescriptor descriptor,
+        SdkHarnessClient.BundleProcessor processor,
+        SdkHarnessClient client) {
       this.descriptor = descriptor;
       this.processor = processor;
+      this.client = client;
     }
 
     @Override
     public RemoteBundle getBundle(
         OutputReceiverFactory outputReceiverFactory,
+        TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler) {
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           descriptor.getRemoteOutputCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
@@ -162,18 +174,40 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
                     .getTransformsOrThrow(remoteOutputCoder.getKey())
                     .getInputsMap()
                     .values());
-        FnDataReceiver<WindowedValue<?>> outputReceiver =
-            outputReceiverFactory.create(bundleOutputPCollection);
+        FnDataReceiver<?> outputReceiver = outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
             remoteOutputCoder.getKey(),
             RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputReceiver));
       }
-      return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
+      Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers = new HashMap<>();
+      for (Map.Entry<String, Map<String, TimerSpec>> transformTimerSpecs :
+          descriptor.getTimerSpecs().entrySet()) {
+        for (TimerSpec timerSpec : transformTimerSpecs.getValue().values()) {
+          FnDataReceiver<Timer<?>> receiver =
+              (FnDataReceiver)
+                  timerReceiverFactory.create(timerSpec.transformId(), timerSpec.timerId());
+          timerReceivers.put(
+              KV.of(timerSpec.transformId(), timerSpec.timerId()),
+              RemoteOutputReceiver.of(timerSpec.coder(), receiver));
+        }
+      }
+      return processor.newBundle(
+          outputReceivers,
+          timerReceivers,
+          stateRequestHandler,
+          progressHandler,
+          finalizationHandler,
+          checkpointHandler);
     }
 
     @Override
     public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
       return descriptor;
+    }
+
+    @Override
+    public InstructionRequestHandler getInstructionRequestHandler() {
+      return client.getInstructionRequestHandler();
     }
 
     @Override

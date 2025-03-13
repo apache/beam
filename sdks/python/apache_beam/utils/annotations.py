@@ -15,13 +15,7 @@
 # limitations under the License.
 #
 
-"""Deprecated and experimental annotations.
-
-Experimental: Signifies that a public API (public class, method or field) is
-subject to incompatible changes, or even removal, in a future release. Note that
-the presence of this annotation implies nothing about the quality or performance
-of the API in question, only the fact that the API or behavior may change in any
-way.
+"""Deprecated annotations.
 
 Deprecated: Signifies that users are discouraged from using a public API
 typically because a better alternative exists, and the current form might be
@@ -55,37 +49,35 @@ same function 'multiply'.::
     print(arg1, '*', arg2, '(the old way)=', end=' ')
     return result
 
-# This annotation marks 'exp_multiply' as experimental and suggests
-# using 'multiply' instead.::
-
-  @experimental(since='v.1', current='multiply')
-  def exp_multiply(arg1, arg2):
-    print(arg1, '*', arg2, '(the experimental way)=', end=' ')
-    return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
-
-# If a custom message is needed, on both annotations types the
-# arg custom_message can be used.::
-
-  @experimental(since='v.1', current='multiply'
-                custom_message='Experimental since %since%
-                                Please use %current% insted.')
-  def exp_multiply(arg1, arg2):
-    print(arg1, '*', arg2, '(the experimental way)=', end=' ')
-    return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
-
 # Set a warning filter to control how often warnings are produced.::
 
   warnings.simplefilter("always")
   print(multiply(5, 6))
   print(old_multiply(5,6))
-  print(exp_multiply(5,6))
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
+import inspect
 import warnings
 from functools import partial
 from functools import wraps
+
+
+def _add_deprecation_notice_to_docstring(docstring, message):
+  """Adds a deprecation notice to a docstring.
+
+  Args:
+    docstring: The original docstring (can be None or empty).
+    message: The deprecation message to add.
+
+  Returns:
+    The modified docstring.
+  """
+  if docstring:
+    return f"{docstring}\n\n.. deprecated:: {message}"
+  else:
+    return f".. deprecated:: {message}"
 
 
 class BeamDeprecationWarning(DeprecationWarning):
@@ -94,6 +86,39 @@ class BeamDeprecationWarning(DeprecationWarning):
 
 # Don't ignore BeamDeprecationWarnings.
 warnings.simplefilter('once', BeamDeprecationWarning)
+
+
+class _WarningMessage:
+  """Utility class for assembling the warning message."""
+  def __init__(self, label, since, current, extra_message, custom_message):
+    """Initialize message, leave only name as placeholder."""
+    if custom_message is None:
+      message = '%name% is ' + label
+      if label == 'deprecated':
+        message += ' since %s' % since
+      message += '. Use %s instead.' % current if current else '.'
+      if extra_message:
+        message += ' ' + extra_message
+    else:
+      if label == 'deprecated' and '%since%' not in custom_message:
+        raise TypeError(
+            "Replacement string %since% not found on \
+        custom message")
+      emptyArg = lambda x: '' if x is None else x
+      message = custom_message\
+      .replace('%since%', emptyArg(since))\
+      .replace('%current%', emptyArg(current))\
+      .replace('%extra%', emptyArg(extra_message))
+    self.label = label
+    self.message = message
+
+  def emit_warning(self, fnc_name):
+    if self.label == 'deprecated':
+      warning_type = BeamDeprecationWarning
+    else:
+      warning_type = FutureWarning
+    warnings.warn(
+        self.message.replace('%name%', fnc_name), warning_type, stacklevel=3)
 
 
 def annotate(label, since, current, extra_message, custom_message=None):
@@ -118,40 +143,52 @@ def annotate(label, since, current, extra_message, custom_message=None):
   Returns:
     The decorator for the API.
   """
+  warning_message = _WarningMessage(
+      label=label,
+      since=since,
+      current=current,
+      extra_message=extra_message,
+      custom_message=custom_message)
+
   def _annotate(fnc):
-    @wraps(fnc)
-    def inner(*args, **kwargs):
+    if inspect.isclass(fnc):
+      # Wrapping class into function causes documentation rendering issue.
+      # Patch class's __new__ method instead.
+      old_new = fnc.__new__
+
+      def wrapped_new(cls, *args, **kwargs):
+        # Emit a warning when class instance is created.
+        warning_message.emit_warning(fnc.__name__)
+        if old_new is object.__new__:
+          # object.__new__ takes no extra argument for python>=3
+          return old_new(cls)
+        return old_new(cls, *args, **kwargs)
+
+      fnc.__new__ = staticmethod(wrapped_new)
       if label == 'deprecated':
-        warning_type = BeamDeprecationWarning
-      else:
-        warning_type = FutureWarning
-      if custom_message is None:
-        message = '%s is %s' % (fnc.__name__, label)
-        if label == 'deprecated':
-          message += ' since %s' % since
-        message += '. Use %s instead.' % current if current else '.'
-        if extra_message:
-          message += ' ' + extra_message
-      else:
-        if label == 'deprecated' and '%since%' not in custom_message:
-          raise TypeError("Replacement string %since% not found on \
-          custom message")
-        emptyArg = lambda x: '' if x is None else x
-        message = custom_message\
-        .replace('%name%', fnc.__name__)\
-        .replace('%since%', emptyArg(since))\
-        .replace('%current%', emptyArg(current))\
-        .replace('%extra%', emptyArg(extra_message))
-      warnings.warn(message, warning_type, stacklevel=2)
-      return fnc(*args, **kwargs)
-    return inner
+        fnc.__doc__ = _add_deprecation_notice_to_docstring(
+            fnc.__doc__,
+            warning_message.message.replace('%name%', fnc.__name__))
+      return fnc
+    else:
+
+      @wraps(fnc)
+      def inner(*args, **kwargs):
+        # Emit a warning when the function is called.
+        warning_message.emit_warning(fnc.__name__)
+        return fnc(*args, **kwargs)
+
+      if label == 'deprecated':
+        inner.__doc__ = _add_deprecation_notice_to_docstring(
+            fnc.__doc__,
+            warning_message.message.replace('%name%', fnc.__name__))
+      return inner
+
   return _annotate
 
 
 # Use partial application to customize each annotation.
 # 'current' will be optional in both deprecated and experimental
 # while 'since' will be mandatory for deprecated.
-deprecated = partial(annotate, label='deprecated',
-                     current=None, extra_message=None)
-experimental = partial(annotate, label='experimental',
-                       current=None, since=None, extra_message=None)
+deprecated = partial(
+    annotate, label='deprecated', current=None, extra_message=None)

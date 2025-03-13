@@ -1,0 +1,12 @@
+{"schema": [
+  {"name":"t_time_sk","type":"Identifier"},
+  {"name":"t_time_id","type":"char(16)"},
+  {"name":"t_time","type":"Integer"},
+  {"name":"t_hour","type":"Integer"},
+  {"name":"t_minute","type":"Integer"},
+  {"name":"t_second","type":"Integer"},
+  {"name":"t_am_pm","type":"char(2)"},
+  {"name":"t_shift","type":"char(20)"},
+  {"name":"t_sub_shift","type":"char(20)"},
+  {"name":"t_meal_time","type":"char(20)"}
+]}

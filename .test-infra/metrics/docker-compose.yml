@@ -25,12 +25,34 @@ services:
     container_name: beampostgresql
     volumes:
       - beam-postgresql-data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=<PGPasswordHere>
       - POSTGRES_DB=beam_metrics
+  influxdb:
+    image: influxdb:1.8.0
+    ports:
+      - "8086:8086"
+      - "8088:8088"
+    expose:
+      - 8086
+    container_name: influxdb
+    volumes:
+      - beam-influxdb-storage:/var/lib/influxdb
+    environment:
+      - INFLUXDB_BIND_ADDRESS=:8088
+  influxdb-restore:
+    build: ./influxdb
+    depends_on:
+      - influxdb
+    container_name: restore-backup
+    entrypoint: "sh"
+    command: ["-c", "./wait-for-it.sh influxdb:8086 -t 60 && \
+              influxd restore -portable -host influxdb:8088 /backup"]
   grafana:
-    image: grafana/grafana
+    image: beamgrafana
+    build: ./grafana
     ports:
       - "3000:3000"
     container_name: beamgrafana
@@ -42,7 +64,15 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
-      - GF_INSTALL_PLUGINS=vonage-status-panel
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
+      - PSQL_DB_HOST=beampostgresql
+      - PSQL_DB_PORT=5432
+      - PSQL_DB_DBNAME=beam_metrics
+      - PSQL_DB_DBUSERNAME=admin
+      - PSQL_DB_DBPWD=<PGPasswordHere>
+      - INFLUX_DB_HOST=influxdb
+      - INFLUX_DB_PORT=8086
+      - INFLUX_DB_DBNAME=beam_test_metrics
   syncgithub:
     image: syncgithub
     container_name: beamsyncgithub
@@ -55,24 +85,15 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-      - GH_ACCESS_TOKEN=<GitHubAccessToken>
+      - GH_APP_ID=<GithubAppID>
+      - GH_APP_INSTALLATION_ID=<GithubAppInstallationID>
+      - GH_PEM_KEY=<GithubPemKey>
+      - GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH=30
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins
     build:
       context: ./sync/jenkins
-      dockerfile: Dockerfile
-    environment:
-      - JENSYNC_HOST=beampostgresql
-      - JENSYNC_PORT=5432
-      - JENSYNC_DBNAME=beam_metrics
-      - JENSYNC_DBUSERNAME=admin
-      - JENSYNC_DBPWD=<PGPasswordHere>
-  syncjira:
-    image: syncjira
-    container_name: beamsyncjira
-    build:
-      context: ./sync/jira
       dockerfile: Dockerfile
     environment:
       - DB_HOST=beampostgresql
@@ -85,4 +106,4 @@ volumes:
   beam-grafana-libdata:
   beam-grafana-etcdata:
   beam-grafana-logdata:
-
+  beam-influxdb-storage:

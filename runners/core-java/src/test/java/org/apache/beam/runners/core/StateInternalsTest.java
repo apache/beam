@@ -49,10 +49,9 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -61,7 +60,6 @@ import org.junit.Test;
 /** Tests for {@link StateInternals}. */
 public abstract class StateInternalsTest {
 
-  private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
   private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
   private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
   private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
@@ -388,10 +386,16 @@ public abstract class StateInternalsTest {
         value.entries().readLater().read(),
         containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
+    // isEmpty
+    assertFalse(value.isEmpty().read());
+
     // clear
     value.clear();
     assertThat(value.entries().read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), equalTo(value));
+
+    // isEmpty
+    assertTrue(value.isEmpty().read());
   }
 
   @Test
@@ -628,7 +632,7 @@ public abstract class StateInternalsTest {
     // test get
     ReadableState<Integer> get = value.get("B");
     value.put("B", 2);
-    assertNull(get.read());
+    assertThat(get.read(), equalTo(2));
 
     // test addIfAbsent
     value.putIfAbsent("C", 3);
@@ -672,7 +676,7 @@ public abstract class StateInternalsTest {
     public void verifyDeterministic() throws NonDeterministicException {}
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other == this;
     }
 

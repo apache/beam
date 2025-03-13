@@ -25,9 +25,9 @@ import CommonJobProperties as commonJobProperties
  * for pre- and post- commit test jobs and unify them across the project.
  */
 class PostcommitJobBuilder {
-  private def scope;
-  private def jobDefinition;
-  private def job;
+  private def scope
+  private def jobDefinition
+  private def job
 
   PostcommitJobBuilder(scope, jobDefinition = {}) {
     this.scope = scope
@@ -42,13 +42,16 @@ class PostcommitJobBuilder {
    * @param triggerPhrase Phrase to trigger jobs, empty to not have a trigger.
    * @param githubUiHint Short description in the github UI.
    * @param scope Delegate for the job.
+   *        scope is expected to have the job property (set by Jenkins).
+   *        scope can have the following optional property:
+   *        - buildSchedule: the build schedule of the job. The default is every 6h ('H H/6 * * *')
    * @param jobDefinition Closure for the job.
    */
   static void postCommitJob(nameBase,
-                            triggerPhrase,
-                            githubUiHint,
-                            scope,
-                            jobDefinition = {}) {
+      triggerPhrase,
+      githubUiHint,
+      scope,
+      jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
     if (triggerPhrase) {
@@ -57,8 +60,15 @@ class PostcommitJobBuilder {
   }
 
   void defineAutoPostCommitJob(name) {
+    // default build schedule
+    String buildSchedule = 'H H/6 * * *'
+    try {
+      buildSchedule = scope.getProperty('buildSchedule')
+    } catch (MissingPropertyException ignored) {
+      // do nothing
+    }
     def autoBuilds = scope.job(name) {
-      commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'builds@beam.apache.org', true, true
+      commonJobProperties.setAutoJob delegate, buildSchedule, 'builds@beam.apache.org', true
     }
 
     autoBuilds.with(jobDefinition)
@@ -74,10 +84,10 @@ class PostcommitJobBuilder {
       }
 
       commonJobProperties.setPullRequestBuildTrigger(
-        delegate,
-        githubUiHint,
-        triggerPhrase,
-        !triggerOnPrCommit)
+          delegate,
+          githubUiHint,
+          triggerPhrase,
+          !triggerOnPrCommit)
     }
     ghprbBuilds.with(jobDefinition)
   }

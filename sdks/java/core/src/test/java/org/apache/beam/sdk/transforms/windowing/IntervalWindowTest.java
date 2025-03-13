@@ -17,15 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -86,5 +89,21 @@ public class IntervalWindowTest {
         encodedMinuteWindow.length, equalTo(encodedStart.length + encodedMinuteEnd.length - 5));
     assertThat(encodedHourWindow.length, equalTo(encodedStart.length + encodedHourEnd.length - 4));
     assertThat(encodedDayWindow.length, equalTo(encodedStart.length + encodedDayEnd.length - 4));
+  }
+
+  @Test
+  public void testCoderRegisterByteSizeObserver() throws Exception {
+    assertThat(TEST_CODER.isRegisterByteSizeObserverCheap(TEST_VALUES.get(0)), equalTo(true));
+    TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
+    TestElementByteSizeObserver observer2 = new TestElementByteSizeObserver();
+    for (IntervalWindow window : TEST_VALUES) {
+      TEST_CODER.registerByteSizeObserver(window, observer);
+      InstantCoder.of().registerByteSizeObserver(window.maxTimestamp(), observer2);
+      DurationCoder.of()
+          .registerByteSizeObserver(new Duration(window.start(), window.end()), observer2);
+      observer.advance();
+      observer2.advance();
+      assertThat(observer.getSumAndReset(), equalTo(observer2.getSumAndReset()));
+    }
   }
 }

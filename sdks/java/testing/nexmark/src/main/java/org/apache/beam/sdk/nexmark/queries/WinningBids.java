@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -57,6 +56,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -75,6 +76,9 @@ import org.joda.time.Instant;
  * <p>Our implementation will use a custom windowing function in order to bring bids and auctions
  * together without requiring global state.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WinningBids extends PTransform<PCollection<Event>, PCollection<AuctionBid>> {
   /** Windows for open auctions and bids. */
   private static class AuctionOrBidWindow extends IntervalWindow {
@@ -104,7 +108,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     /** Return an auction window for {@code auction}. */
     public static AuctionOrBidWindow forAuction(Instant timestamp, Auction auction) {
-      return new AuctionOrBidWindow(timestamp, new Instant(auction.expires), auction.id, true);
+
+      return new AuctionOrBidWindow(timestamp, auction.expires, auction.id, true);
     }
 
     /**
@@ -125,7 +130,10 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       // the upper bound of auctions assuming the auction starts at the same time as the bid,
       // and assuming the system is running at its lowest event rate (as per interEventDelayUs).
       return new AuctionOrBidWindow(
-          timestamp, timestamp.plus(expectedAuctionDurationMs * 2), bid.auction, false);
+          timestamp,
+          timestamp.plus(Duration.millis(expectedAuctionDurationMs * 2)),
+          bid.auction,
+          false);
     }
 
     /** Is this an auction window? */
@@ -141,7 +149,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -280,29 +288,6 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     public WindowMappingFn<AuctionOrBidWindow> getDefaultWindowMappingFn() {
       throw new UnsupportedOperationException("AuctionWindowFn not supported for side inputs");
     }
-
-    /**
-     * Below we will GBK auctions and bids on their auction ids. Then we will reduce those per id to
-     * emit {@code (auction, winning bid)} pairs for auctions which have expired with at least one
-     * valid bid. We would like those output pairs to have a timestamp of the auction's expiry
-     * (since that's the earliest we know for sure we have the correct winner). We would also like
-     * to make that winning results are available to following stages at the auction's expiry.
-     *
-     * <p>Each result of the GBK will have a timestamp of the min of the result of this object's
-     * assignOutputTime over all records which end up in one of its iterables. Thus we get the
-     * desired behavior if we ignore each record's timestamp and always return the auction window's
-     * 'maxTimestamp', which will correspond to the auction's expiry.
-     *
-     * <p>In contrast, if this object's assignOutputTime were to return 'inputTimestamp' (the usual
-     * implementation), then each GBK record will take as its timestamp the minimum of the
-     * timestamps of all bids and auctions within it, which will always be the auction's timestamp.
-     * An auction which expires well into the future would thus hold up the watermark of the GBK
-     * results until that auction expired. That in turn would hold up all winning pairs.
-     */
-    @Override
-    public Instant getOutputTime(Instant inputTimestamp, AuctionOrBidWindow window) {
-      return window.maxTimestamp();
-    }
   }
 
   private final AuctionOrBidWindowFn auctionOrBidWindowFn;
@@ -407,7 +392,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.util.common;
 
 import static java.util.Arrays.asList;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -32,132 +34,113 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.Queue;
 import java.util.ServiceLoader;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Queues;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReflectHelpers {
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");
 
-  /** A {@link Function} that turns a method into a simple method signature. */
-  public static final Function<Method, String> METHOD_FORMATTER =
-      new Function<Method, String>() {
-        @Override
-        public String apply(@Nonnull Method input) {
-          String parameterTypes =
-              FluentIterable.from(asList(input.getParameterTypes()))
-                  .transform(CLASS_SIMPLE_NAME)
-                  .join(COMMA_SEPARATOR);
-          return String.format("%s(%s)", input.getName(), parameterTypes);
-        }
-      };
+  /** Returns a string representation of the signature of a {@link Method}. */
+  public static String formatMethod(Method input) {
+    String parameterTypes =
+        FluentIterable.from(asList(input.getParameterTypes()))
+            .transform(Class::getSimpleName)
+            .join(COMMA_SEPARATOR);
+    return String.format("%s(%s)", input.getName(), parameterTypes);
+  }
 
-  /** A {@link Function} that turns a method into the declaring class + method signature. */
-  public static final Function<Method, String> CLASS_AND_METHOD_FORMATTER =
-      new Function<Method, String>() {
-        @Override
-        public String apply(@Nonnull Method input) {
-          return String.format(
-              "%s#%s", CLASS_NAME.apply(input.getDeclaringClass()), METHOD_FORMATTER.apply(input));
-        }
-      };
-
-  /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_NAME = Class::getName;
-
-  /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME = Class::getSimpleName;
+  /** Returns a string representation of the class + method signature for a {@link Method}. */
+  public static String formatMethodWithClass(Method input) {
+    return String.format("%s#%s", input.getDeclaringClass().getName(), formatMethod(input));
+  }
 
   /** A {@link Function} that returns a concise string for a {@link Annotation}. */
-  public static final Function<Annotation, String> ANNOTATION_FORMATTER =
-      annotation -> {
-        String annotationName = annotation.annotationType().getName();
-        String annotationNameWithoutPackage =
-            annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
-        String annotationToString = annotation.toString();
-        String values = annotationToString.substring(annotationToString.indexOf('('));
-        return String.format("%s%s", annotationNameWithoutPackage, values);
-      };
+  public static String formatAnnotation(Annotation annotation) {
+    String annotationName = annotation.annotationType().getName();
+    String annotationNameWithoutPackage =
+        annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
+    String annotationToString = annotation.toString();
+    String values = annotationToString.substring(annotationToString.indexOf('('));
+    return String.format("%s%s", annotationNameWithoutPackage, values);
+  }
 
   /** A {@link Function} that formats types. */
-  public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
-      new Function<Type, String>() {
-        @Override
-        @Nullable
-        public String apply(@Nonnull Type input) {
-          StringBuilder builder = new StringBuilder();
-          format(builder, input);
-          return builder.toString();
-        }
+  public static String simpleTypeDescription(Type input) {
+    StringBuilder builder = new StringBuilder();
+    format(builder, input);
+    return builder.toString();
+  }
 
-        private void format(StringBuilder builder, Type t) {
-          if (t instanceof Class) {
-            formatClass(builder, (Class<?>) t);
-          } else if (t instanceof TypeVariable) {
-            formatTypeVariable(builder, (TypeVariable<?>) t);
-          } else if (t instanceof WildcardType) {
-            formatWildcardType(builder, (WildcardType) t);
-          } else if (t instanceof ParameterizedType) {
-            formatParameterizedType(builder, (ParameterizedType) t);
-          } else if (t instanceof GenericArrayType) {
-            formatGenericArrayType(builder, (GenericArrayType) t);
-          } else {
-            builder.append(t.toString());
-          }
-        }
+  private static void format(StringBuilder builder, Type t) {
+    if (t instanceof Class) {
+      formatClass(builder, (Class<?>) t);
+    } else if (t instanceof TypeVariable) {
+      formatTypeVariable(builder, (TypeVariable<?>) t);
+    } else if (t instanceof WildcardType) {
+      formatWildcardType(builder, (WildcardType) t);
+    } else if (t instanceof ParameterizedType) {
+      formatParameterizedType(builder, (ParameterizedType) t);
+    } else if (t instanceof GenericArrayType) {
+      formatGenericArrayType(builder, (GenericArrayType) t);
+    } else {
+      builder.append(t.toString());
+    }
+  }
 
-        private void formatClass(StringBuilder builder, Class<?> clazz) {
-          builder.append(clazz.getSimpleName());
-        }
+  private static void formatClass(StringBuilder builder, Class<?> clazz) {
+    builder.append(clazz.getSimpleName());
+  }
 
-        private void formatTypeVariable(StringBuilder builder, TypeVariable<?> t) {
-          builder.append(t.getName());
-        }
+  private static void formatTypeVariable(StringBuilder builder, TypeVariable<?> t) {
+    builder.append(t.getName());
+  }
 
-        private void formatWildcardType(StringBuilder builder, WildcardType t) {
-          builder.append("?");
-          for (Type lowerBound : t.getLowerBounds()) {
-            builder.append(" super ");
-            format(builder, lowerBound);
-          }
-          for (Type upperBound : t.getUpperBounds()) {
-            if (!Object.class.equals(upperBound)) {
-              builder.append(" extends ");
-              format(builder, upperBound);
-            }
-          }
-        }
+  private static void formatWildcardType(StringBuilder builder, WildcardType t) {
+    builder.append("?");
+    for (Type lowerBound : t.getLowerBounds()) {
+      builder.append(" super ");
+      format(builder, lowerBound);
+    }
+    for (Type upperBound : t.getUpperBounds()) {
+      if (!Object.class.equals(upperBound)) {
+        builder.append(" extends ");
+        format(builder, upperBound);
+      }
+    }
+  }
 
-        private void formatParameterizedType(StringBuilder builder, ParameterizedType t) {
-          if (t.getOwnerType() != null) {
-            format(builder, t.getOwnerType());
-            builder.append('.');
-          }
-          format(builder, t.getRawType());
-          if (t.getActualTypeArguments().length > 0) {
-            builder.append('<');
-            COMMA_SEPARATOR.appendTo(
-                builder,
-                FluentIterable.from(asList(t.getActualTypeArguments()))
-                    .transform(TYPE_SIMPLE_DESCRIPTION));
-            builder.append('>');
-          }
-        }
+  private static void formatParameterizedType(StringBuilder builder, ParameterizedType t) {
+    if (t.getOwnerType() != null) {
+      format(builder, t.getOwnerType());
+      builder.append('.');
+    }
+    format(builder, t.getRawType());
+    if (t.getActualTypeArguments().length > 0) {
+      builder.append('<');
+      COMMA_SEPARATOR.appendTo(
+          builder,
+          FluentIterable.from(asList(t.getActualTypeArguments()))
+              .transform(ReflectHelpers::simpleTypeDescription));
+      builder.append('>');
+    }
+  }
 
-        private void formatGenericArrayType(StringBuilder builder, GenericArrayType t) {
-          format(builder, t.getGenericComponentType());
-          builder.append("[]");
-        }
-      };
+  private static void formatGenericArrayType(StringBuilder builder, GenericArrayType t) {
+    format(builder, t.getGenericComponentType());
+    builder.append("[]");
+  }
 
   /** A {@link Comparator} that uses the object's class' canonical name to compare them. */
   public static class ObjectsClassComparator implements Comparator<Object> {
@@ -202,8 +185,8 @@ public class ReflectHelpers {
   }
 
   /**
-   * Returns instances of all implementations of the the specified {@code iface}. Instances are
-   * sorted by their class' name to ensure deterministic execution.
+   * Returns instances of all implementations of the specified {@code iface}. Instances are sorted
+   * by their class' name to ensure deterministic execution.
    *
    * @param iface The interface to load implementations of
    * @param classLoader The class loader to use
@@ -232,9 +215,9 @@ public class ReflectHelpers {
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the {@link ServiceLoader#load} call,
    * which by default would use the proposed {@code ClassLoader}, which can be null. The fallback is
-   * as follows: context ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   * as follows: context ClassLoader, class ClassLoader and finally the system ClassLoader.
    */
-  public static ClassLoader findClassLoader(final ClassLoader proposed) {
+  public static ClassLoader findClassLoader(@Nullable final ClassLoader proposed) {
     ClassLoader classLoader = proposed;
     if (classLoader == null) {
       classLoader = ReflectHelpers.class.getClassLoader();
@@ -268,7 +251,7 @@ public class ReflectHelpers {
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the {@link ServiceLoader#load} call,
    * which by default would use the context {@code ClassLoader}, which can be null. The fallback is
-   * as follows: context ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   * as follows: context ClassLoader, class ClassLoader and finally the system ClassLoader.
    */
   public static ClassLoader findClassLoader() {
     return findClassLoader(Thread.currentThread().getContextClassLoader());
@@ -295,5 +278,61 @@ public class ReflectHelpers {
       it = it.getParent();
     }
     return false;
+  }
+
+  public static Collection<Method> declaredMethodsWithAnnotation(
+      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
+    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_METHODS);
+  }
+
+  public static Collection<Field> declaredFieldsWithAnnotation(
+      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
+    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_FIELDS);
+  }
+
+  private interface MemberGetter<MemberT> {
+    MemberT[] getMembers(Class<?> clazz);
+  }
+
+  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
+
+  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
+
+  private static <MemberT extends AnnotatedElement>
+      Collection<MemberT> declaredMembersWithAnnotation(
+          Class<? extends Annotation> anno,
+          Class<?> startClass,
+          Class<?> stopClass,
+          MemberGetter<MemberT> getter) {
+    Collection<MemberT> matches = new ArrayList<>();
+
+    Class<?> clazz = startClass;
+    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
+
+    // First, find all declared methods on the startClass and parents (up to stopClass)
+    while (clazz != null && !clazz.equals(stopClass)) {
+      for (MemberT member : getter.getMembers(clazz)) {
+        if (member.isAnnotationPresent(anno)) {
+          matches.add(member);
+        }
+      }
+
+      // Add all interfaces, including transitive
+      for (TypeDescriptor<?> iface : TypeDescriptor.of(clazz).getInterfaces()) {
+        interfaces.add(iface.getRawType());
+      }
+
+      clazz = clazz.getSuperclass();
+    }
+
+    // Now, iterate over all the discovered interfaces
+    for (Class<?> iface : interfaces) {
+      for (MemberT member : getter.getMembers(iface)) {
+        if (member.isAnnotationPresent(anno)) {
+          matches.add(member);
+        }
+      }
+    }
+    return matches;
   }
 }

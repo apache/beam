@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.apache.beam.sdk.io.mongodb.FindQuery.bson2BsonDocument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
@@ -26,20 +26,28 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.InsertManyOptions;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
+import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -49,16 +57,19 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,8 +103,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>MongoDB sink supports writing of Document (as JSON String) in a MongoDB.
  *
- * <p>To configure a MongoDB sink, you must specify a connection {@code URI}, a {@code Database}
- * name, a {@code Collection} name. For instance:
+ * <p>To configure a MongoDB sink and insert/replace, you must specify a connection {@code URI}, a
+ * {@code Database} name, a {@code Collection} name. For instance:
  *
  * <pre>{@code
  * pipeline
@@ -105,11 +116,36 @@ import org.slf4j.LoggerFactory;
  *     .withNumSplits(30))
  *
  * }</pre>
+ *
+ * *
+ *
+ * <p>To configure a MongoDB sink and update, you must specify a connection {@code URI}, a {@code
+ * Database} * name, a {@code Collection} name. It matches the key with _id in target collection.
+ * For instance: * *
+ *
+ * <pre>{@code
+ * * pipeline
+ * *   .apply(...)
+ * *   .apply(MongoDbIO.write()
+ * *     .withUri("mongodb://localhost:27017")
+ * *     .withDatabase("my-database")
+ * *     .withCollection("my-collection")
+ * *     .withUpdateConfiguration(UpdateConfiguration.create().withFindKey("key1").withUpdateKey("key2")
+ * *     .withUpdateFields(UpdateField.fieldUpdate("$set", "source-field1", "dest-field1"),
+ * *                       UpdateField.fieldUpdate("$set","source-field2", "dest-field2"),
+ * *                       //pushes entire input doc to the dest field
+ * *                        UpdateField.fullUpdate("$push", "dest-field3") )));
+ * *
+ * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
+
+  public static final String ERROR_MSG_QUERY_FN =
+      " class is not supported. "
+          + "Please provide one of the predefined classes in the MongoDbIO package "
+          + "such as FindQuery or AggregationQuery.";
 
   /** Read data from MongoDB. */
   public static Read read() {
@@ -141,29 +177,38 @@ public class MongoDbIO {
   /** A {@link PTransform} to read data from MongoDB. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Document>> {
-    @Nullable
-    abstract String uri();
 
+    @Pure
+    abstract @Nullable String uri();
+
+    @Pure
     abstract int maxConnectionIdleTime();
 
+    @Pure
     abstract boolean sslEnabled();
 
+    @Pure
     abstract boolean sslInvalidHostNameAllowed();
 
+    @Pure
     abstract boolean ignoreSSLCertificate();
 
-    @Nullable
-    abstract String database();
+    @Pure
+    abstract @Nullable String database();
 
-    @Nullable
-    abstract String collection();
+    @Pure
+    abstract @Nullable String collection();
 
+    @Pure
     abstract int numSplits();
 
+    @Pure
     abstract boolean bucketAuto();
 
+    @Pure
     abstract SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn();
 
+    @Pure
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -262,42 +307,6 @@ public class MongoDbIO {
       return builder().setCollection(collection).build();
     }
 
-    /**
-     * Sets a filter on the documents in a collection.
-     *
-     * @deprecated Filtering manually is discouraged. Use {@link #withQueryFn(SerializableFunction)
-     *     with {@link FindQuery#withFilters(Bson)} as an argument to set up the projection}.
-     */
-    @Deprecated
-    public Read withFilter(String filter) {
-      checkArgument(filter != null, "filter can not be null");
-      checkArgument(
-          this.queryFn().getClass() != FindQuery.class,
-          "withFilter is only supported for FindQuery API");
-      FindQuery findQuery = (FindQuery) queryFn();
-      FindQuery queryWithFilter =
-          findQuery.toBuilder().setFilters(bson2BsonDocument(Document.parse(filter))).build();
-      return builder().setQueryFn(queryWithFilter).build();
-    }
-
-    /**
-     * Sets a projection on the documents in a collection.
-     *
-     * @deprecated Use {@link #withQueryFn(SerializableFunction) with {@link
-     *     FindQuery#withProjection(List)} as an argument to set up the projection}.
-     */
-    @Deprecated
-    public Read withProjection(final String... fieldNames) {
-      checkArgument(fieldNames.length > 0, "projection can not be null");
-      checkArgument(
-          this.queryFn().getClass() != FindQuery.class,
-          "withFilter is only supported for FindQuery API");
-      FindQuery findQuery = (FindQuery) queryFn();
-      FindQuery queryWithProjection =
-          findQuery.toBuilder().setProjection(Arrays.asList(fieldNames)).build();
-      return builder().setQueryFn(queryWithProjection).build();
-    }
-
     /** Sets the user defined number of splits. */
     public Read withNumSplits(int numSplits) {
       checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %s", numSplits);
@@ -309,9 +318,16 @@ public class MongoDbIO {
       return builder().setBucketAuto(bucketAuto).build();
     }
 
-    /** Sets a queryFn. */
+    /**
+     * Sets a queryFn. The provided queryFn must be one of the predefined classes in the MongoDbIO
+     * package such as {@link FindQuery#FindQuery} or {@link AggregationQuery#AggregationQuery}.
+     */
     public Read withQueryFn(
         SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
+      checkArgument(
+          Arrays.asList(AutoValue_FindQuery.class, AutoValue_AggregationQuery.class)
+              .contains(queryBuilderFn.getClass()),
+          String.format("[%s]" + ERROR_MSG_QUERY_FN, queryBuilderFn.getClass().getName()));
       return builder().setQueryFn(queryBuilderFn).build();
     }
 
@@ -321,6 +337,13 @@ public class MongoDbIO {
       checkArgument(database() != null, "withDatabase() is required");
       checkArgument(collection() != null, "withCollection() is required");
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
+    }
+
+    public long getDocumentCount() {
+      checkArgument(uri() != null, "withUri() is required");
+      checkArgument(database() != null, "withDatabase() is required");
+      checkArgument(collection() != null, "withCollection() is required");
+      return new BoundedMongoDbSource(this).getDocumentCount();
     }
 
     @Override
@@ -340,14 +363,19 @@ public class MongoDbIO {
   }
 
   private static MongoClientOptions.Builder getOptions(
-      int maxConnectionIdleTime, boolean sslEnabled, boolean sslInvalidHostNameAllowed) {
+      int maxConnectionIdleTime,
+      boolean sslEnabled,
+      boolean sslInvalidHostNameAllowed,
+      boolean ignoreSSLCertificate) {
     MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
     optionsBuilder.maxConnectionIdleTime(maxConnectionIdleTime);
     if (sslEnabled) {
-      optionsBuilder
-          .sslEnabled(sslEnabled)
-          .sslInvalidHostNameAllowed(sslInvalidHostNameAllowed)
-          .sslContext(SSLUtils.ignoreSSLCertificate());
+      optionsBuilder.sslEnabled(sslEnabled).sslInvalidHostNameAllowed(sslInvalidHostNameAllowed);
+      if (ignoreSSLCertificate) {
+        SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
+        optionsBuilder.sslContext(sslContext);
+        optionsBuilder.socketFactory(sslContext.getSocketFactory());
+      }
     }
     return optionsBuilder;
   }
@@ -357,7 +385,8 @@ public class MongoDbIO {
   static class BoundedMongoDbSource extends BoundedSource<Document> {
     private final Read spec;
 
-    private BoundedMongoDbSource(Read spec) {
+    @VisibleForTesting
+    BoundedMongoDbSource(Read spec) {
       this.spec = spec;
     }
 
@@ -376,17 +405,62 @@ public class MongoDbIO {
       return new BoundedMongoDbReader(this);
     }
 
-    @Override
-    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
+    /**
+     * Returns number of Documents in a collection.
+     *
+     * @return Positive number of Documents in a collection or -1 on error.
+     */
+    long getDocumentCount() {
+      String uri = Preconditions.checkStateNotNull(spec.uri());
+      String database = Preconditions.checkStateNotNull(spec.database());
+      String collection = Preconditions.checkStateNotNull(spec.collection());
       try (MongoClient mongoClient =
           new MongoClient(
               new MongoClientURI(
-                  spec.uri(),
+                  uri,
                   getOptions(
                       spec.maxConnectionIdleTime(),
                       spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed())))) {
-        return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
+                      spec.sslInvalidHostNameAllowed(),
+                      spec.ignoreSSLCertificate())))) {
+        return getDocumentCount(mongoClient, database, collection);
+      } catch (Exception e) {
+        return -1;
+      }
+    }
+
+    private long getDocumentCount(MongoClient mongoClient, String database, String collection) {
+      MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
+
+      // get the Mongo collStats object
+      // it gives the size for the entire collection
+      BasicDBObject stat = new BasicDBObject();
+      stat.append("collStats", collection);
+      Document stats = mongoDatabase.runCommand(stat);
+
+      return stats.get("count", Number.class).longValue();
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
+      String uri = Preconditions.checkStateNotNull(spec.uri());
+      String database = Preconditions.checkStateNotNull(spec.database());
+      String collection = Preconditions.checkStateNotNull(spec.collection());
+      try (MongoClient mongoClient =
+          new MongoClient(
+              new MongoClientURI(
+                  uri,
+                  getOptions(
+                      spec.maxConnectionIdleTime(),
+                      spec.sslEnabled(),
+                      spec.sslInvalidHostNameAllowed(),
+                      spec.ignoreSSLCertificate())))) {
+        try {
+          return getEstimatedSizeBytes(mongoClient, database, collection);
+        } catch (MongoCommandException exception) {
+          LOG.warn("Cannot estimate size: ", exception);
+          return 0L;
+        }
       }
     }
 
@@ -406,15 +480,19 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource<Document>> split(
         long desiredBundleSizeBytes, PipelineOptions options) {
+      String uri = Preconditions.checkStateNotNull(spec.uri());
+      String database = Preconditions.checkStateNotNull(spec.database());
+      String collection = Preconditions.checkStateNotNull(spec.collection());
       try (MongoClient mongoClient =
           new MongoClient(
               new MongoClientURI(
-                  spec.uri(),
+                  uri,
                   getOptions(
                       spec.maxConnectionIdleTime(),
                       spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed())))) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
+                      spec.sslInvalidHostNameAllowed(),
+                      spec.ignoreSSLCertificate())))) {
+        MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
 
         List<Document> splitKeys;
         List<BoundedSource<Document>> sources = new ArrayList<>();
@@ -423,11 +501,13 @@ public class MongoDbIO {
           if (spec.bucketAuto()) {
             splitKeys = buildAutoBuckets(mongoDatabase, spec);
           } else {
-            if (spec.numSplits() > 0) {
+            if (spec.numSplits() <= 0) {
+              LOG.debug("Split keys disabled, using a unique source");
+              return Collections.singletonList(this);
+            } else {
               // the user defines his desired number of splits
               // calculate the batch size
-              long estimatedSizeBytes =
-                  getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
+              long estimatedSizeBytes = getEstimatedSizeBytes(mongoClient, database, collection);
               desiredBundleSizeBytes = estimatedSizeBytes / spec.numSplits();
             }
 
@@ -450,7 +530,7 @@ public class MongoDbIO {
           }
 
           if (splitKeys.size() < 1) {
-            LOG.debug("Split keys is low, using an unique source");
+            LOG.debug("Split keys is low, using a unique source");
             return Collections.singletonList(this);
           }
 
@@ -477,7 +557,6 @@ public class MongoDbIO {
               .anyMatch(s -> s.keySet().contains("$limit"))) {
             return Collections.singletonList(this);
           }
-
           splitKeys = buildAutoBuckets(mongoDatabase, spec);
 
           for (BsonDocument shardFilter : splitKeysToMatch(splitKeys)) {
@@ -589,7 +668,6 @@ public class MongoDbIO {
       ObjectId lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
         ObjectId splitKey = splitKeys.get(i).getObjectId("_id");
-        String rangeFilter;
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
           if (splitKeys.size() == 1) {
@@ -618,8 +696,9 @@ public class MongoDbIO {
 
     @VisibleForTesting
     static List<Document> buildAutoBuckets(MongoDatabase mongoDatabase, Read spec) {
+      String collection = Preconditions.checkStateNotNull(spec.collection());
       List<Document> splitKeys = new ArrayList<>();
-      MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+      MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(collection);
       BsonDocument bucketAutoConfig = new BsonDocument();
       bucketAutoConfig.put("groupBy", new BsonString("$_id"));
       // 10 is the default number of buckets
@@ -642,9 +721,9 @@ public class MongoDbIO {
   private static class BoundedMongoDbReader extends BoundedSource.BoundedReader<Document> {
     private final BoundedMongoDbSource source;
 
-    private MongoClient client;
-    private MongoCursor<Document> cursor;
-    private Document current;
+    private @Nullable MongoClient client;
+    private @Nullable MongoCursor<Document> cursor;
+    private @Nullable Document current;
 
     BoundedMongoDbReader(BoundedMongoDbSource source) {
       this.source = source;
@@ -653,17 +732,20 @@ public class MongoDbIO {
     @Override
     public boolean start() {
       Read spec = source.spec;
+      String database = Preconditions.checkStateNotNull(spec.database());
+      String collection = Preconditions.checkStateNotNull(spec.collection());
 
       // MongoDB Connection preparation
       client = createClient(spec);
-      MongoDatabase mongoDatabase = client.getDatabase(spec.database());
-      MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+      MongoDatabase mongoDatabase = client.getDatabase(database);
+      MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(collection);
       cursor = spec.queryFn().apply(mongoCollection);
       return advance();
     }
 
     @Override
     public boolean advance() {
+      Preconditions.checkStateNotNull(cursor);
       if (cursor.hasNext()) {
         current = cursor.next();
         return true;
@@ -678,6 +760,9 @@ public class MongoDbIO {
 
     @Override
     public Document getCurrent() {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
       return current;
     }
 
@@ -691,20 +776,24 @@ public class MongoDbIO {
         LOG.warn("Error closing MongoDB cursor", e);
       }
       try {
-        client.close();
+        if (client != null) {
+          client.close();
+        }
       } catch (Exception e) {
         LOG.warn("Error closing MongoDB client", e);
       }
     }
 
     private MongoClient createClient(Read spec) {
+      String uri = Preconditions.checkStateNotNull(spec.uri(), "withUri() is required");
       return new MongoClient(
           new MongoClientURI(
-              spec.uri(),
+              uri,
               getOptions(
                   spec.maxConnectionIdleTime(),
                   spec.sslEnabled(),
-                  spec.sslInvalidHostNameAllowed())));
+                  spec.sslInvalidHostNameAllowed(),
+                  spec.ignoreSSLCertificate())));
     }
   }
 
@@ -712,27 +801,37 @@ public class MongoDbIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Document>, PDone> {
 
-    @Nullable
-    abstract String uri();
+    @Pure
+    abstract @Nullable String uri();
 
+    @Pure
     abstract int maxConnectionIdleTime();
 
+    @Pure
     abstract boolean sslEnabled();
 
+    @Pure
     abstract boolean sslInvalidHostNameAllowed();
 
+    @Pure
     abstract boolean ignoreSSLCertificate();
 
+    @Pure
     abstract boolean ordered();
 
-    @Nullable
-    abstract String database();
+    @Pure
+    abstract @Nullable String database();
 
-    @Nullable
-    abstract String collection();
+    @Pure
+    abstract @Nullable String collection();
 
+    @Pure
     abstract long batchSize();
 
+    @Pure
+    abstract @Nullable UpdateConfiguration updateConfiguration();
+
+    @Pure
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -754,6 +853,8 @@ public class MongoDbIO {
       abstract Builder setCollection(String collection);
 
       abstract Builder setBatchSize(long batchSize);
+
+      abstract Builder setUpdateConfiguration(UpdateConfiguration updateConfiguration);
 
       abstract Write build();
     }
@@ -845,6 +946,10 @@ public class MongoDbIO {
       return builder().setBatchSize(batchSize).build();
     }
 
+    public Write withUpdateConfiguration(UpdateConfiguration updateConfiguration) {
+      return builder().setUpdateConfiguration(updateConfiguration).build();
+    }
+
     @Override
     public PDone expand(PCollection<Document> input) {
       checkArgument(uri() != null, "withUri() is required");
@@ -870,8 +975,8 @@ public class MongoDbIO {
 
     static class WriteFn extends DoFn<Document, Void> {
       private final Write spec;
-      private transient MongoClient client;
-      private List<Document> batch;
+      private transient @Nullable MongoClient client;
+      private @Nullable List<Document> batch;
 
       WriteFn(Write spec) {
         this.spec = spec;
@@ -879,14 +984,16 @@ public class MongoDbIO {
 
       @Setup
       public void createMongoClient() {
+        String uri = Preconditions.checkStateNotNull(spec.uri());
         client =
             new MongoClient(
                 new MongoClientURI(
-                    spec.uri(),
+                    uri,
                     getOptions(
                         spec.maxConnectionIdleTime(),
                         spec.sslEnabled(),
-                        spec.sslInvalidHostNameAllowed())));
+                        spec.sslInvalidHostNameAllowed(),
+                        spec.ignoreSSLCertificate())));
       }
 
       @StartBundle
@@ -896,8 +1003,10 @@ public class MongoDbIO {
 
       @ProcessElement
       public void processElement(ProcessContext ctx) {
+        List<Document> batch = Preconditions.checkStateNotNull(this.batch);
         // Need to copy the document because mongoCollection.insertMany() will mutate it
         // before inserting (will assign an id).
+
         batch.add(new Document(ctx.element()));
         if (batch.size() >= spec.batchSize()) {
           flush();
@@ -910,11 +1019,26 @@ public class MongoDbIO {
       }
 
       private void flush() {
+        List<Document> batch = Preconditions.checkStateNotNull(this.batch);
         if (batch.isEmpty()) {
           return;
         }
-        MongoDatabase mongoDatabase = client.getDatabase(spec.database());
-        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+        MongoClient client = Preconditions.checkStateNotNull(this.client);
+        String database = Preconditions.checkStateNotNull(spec.database());
+        String collection = Preconditions.checkStateNotNull(spec.collection());
+
+        MongoDatabase mongoDatabase = client.getDatabase(database);
+        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(collection);
+        if (spec.updateConfiguration() == null) {
+          insertDocuments(mongoCollection);
+        } else {
+          updateDocuments(mongoCollection);
+        }
+        batch.clear();
+      }
+
+      private void insertDocuments(MongoCollection<Document> mongoCollection) {
+        Preconditions.checkStateNotNull(batch);
         try {
           mongoCollection.insertMany(batch, new InsertManyOptions().ordered(spec.ordered()));
         } catch (MongoBulkWriteException e) {
@@ -922,14 +1046,72 @@ public class MongoDbIO {
             throw e;
           }
         }
+      }
 
-        batch.clear();
+      private void updateDocuments(MongoCollection<Document> mongoCollection) {
+        List<Document> batch = Preconditions.checkStateNotNull(this.batch);
+        UpdateConfiguration updateConfiguration =
+            Preconditions.checkStateNotNull(spec.updateConfiguration());
+        if (batch.isEmpty()) {
+          return;
+        }
+        List<WriteModel<Document>> actions = new ArrayList<>();
+        List<UpdateField> updateFields =
+            (updateConfiguration.updateFields() != null)
+                ? updateConfiguration.updateFields()
+                : Collections.emptyList();
+        Map<String, List<UpdateField>> operatorFieldsMap = getOperatorFieldsMap(updateFields);
+        try {
+          for (Document doc : batch) {
+            Document updateDocument = new Document();
+            for (Map.Entry<String, List<UpdateField>> entry : operatorFieldsMap.entrySet()) {
+              Document updateSubDocument = new Document();
+              for (UpdateField field : entry.getValue()) {
+                String destField = Preconditions.checkStateNotNull(field.destField());
+                updateSubDocument.append(
+                    destField, field.sourceField() == null ? doc : doc.get(field.sourceField()));
+              }
+              updateDocument.append(entry.getKey(), updateSubDocument);
+            }
+            String findKey = Optional.ofNullable(updateConfiguration.findKey()).orElse("_id");
+            String updateKey = Preconditions.checkStateNotNull(updateConfiguration.updateKey());
+            Document findCriteria = new Document(findKey, doc.get(updateKey));
+            UpdateOptions updateOptions =
+                new UpdateOptions().upsert(updateConfiguration.isUpsert());
+            actions.add(new UpdateOneModel<>(findCriteria, updateDocument, updateOptions));
+          }
+          mongoCollection.bulkWrite(actions, new BulkWriteOptions().ordered(spec.ordered()));
+        } catch (MongoBulkWriteException e) {
+          if (spec.ordered()) {
+            throw e;
+          }
+        }
+      }
+
+      private static Map<String, List<UpdateField>> getOperatorFieldsMap(
+          List<UpdateField> updateFields) {
+        Map<String, List<UpdateField>> operatorFieldsMap = new HashMap<>();
+        for (UpdateField field : updateFields) {
+          String updateOperator = Preconditions.checkStateNotNull(field.updateOperator());
+          if (operatorFieldsMap.containsKey(updateOperator)) {
+            List<UpdateField> fields = operatorFieldsMap.get(updateOperator);
+            fields.add(field);
+            operatorFieldsMap.put(updateOperator, fields);
+          } else {
+            List<UpdateField> fields = new ArrayList<>();
+            fields.add(field);
+            operatorFieldsMap.put(updateOperator, fields);
+          }
+        }
+        return operatorFieldsMap;
       }
 
       @Teardown
       public void closeMongoClient() {
-        client.close();
-        client = null;
+        if (client != null) {
+          client.close();
+          client = null;
+        }
       }
     }
   }

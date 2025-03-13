@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Iterator;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -30,7 +30,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element in a {@link
@@ -50,6 +50,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  *
  * <p>For elements with the same timestamp, the element chosen for output is arbitrary.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Latest {
   // Do not instantiate
   private Latest() {}
@@ -106,8 +109,10 @@ public class Latest {
 
       if (input.getTimestamp().isBefore(accumulator.getTimestamp())) {
         return accumulator;
-      } else {
+      } else if (input.getTimestamp().isAfter(accumulator.getTimestamp())) {
         return input;
+      } else {
+        return accumulator.getValue() != null ? accumulator : input;
       }
     }
 

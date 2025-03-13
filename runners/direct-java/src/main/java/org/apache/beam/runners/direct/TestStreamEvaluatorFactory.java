@@ -23,10 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.testing.TestStream;
@@ -38,20 +34,26 @@ import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.ReplacementOutputs;
+import org.apache.beam.sdk.util.construction.TestStreamTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 
@@ -59,9 +61,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     this.evaluationContext = evaluationContext;
   }
 
-  @Nullable
   @Override
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     return createEvaluator((AppliedPTransform) application);
   }
@@ -138,17 +139,15 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
   @VisibleForTesting
   static class TestClock implements Clock {
-    private final AtomicReference<Instant> currentTime =
-        new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    private Instant currentTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-    public void advance(Duration amount) {
-      Instant now = currentTime.get();
-      currentTime.compareAndSet(now, now.plus(amount));
+    public synchronized void advance(Duration amount) {
+      currentTime = currentTime.plus(amount);
     }
 
     @Override
-    public Instant now() {
-      return currentTime.get();
+    public synchronized Instant now() {
+      return currentTime;
     }
   }
 
@@ -184,8 +183,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 

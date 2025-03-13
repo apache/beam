@@ -20,10 +20,11 @@ package org.apache.beam.sdk.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.StringUtils;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,6 @@ import org.slf4j.LoggerFactory;
  * container for the current thread and get a {@link Closeable} that will restore the previous
  * container when closed.
  */
-@Experimental(Kind.METRICS)
 @Internal
 public class MetricsEnvironment {
 
@@ -51,22 +51,39 @@ public class MetricsEnvironment {
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
-  private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD = new ThreadLocal<>();
+  @SuppressWarnings("type.argument") // object guaranteed to be non-null
+  private static final ThreadLocal<@NonNull MetricsContainerHolder> CONTAINER_FOR_THREAD =
+      ThreadLocal.withInitial(MetricsContainerHolder::new);
+
+  private static final AtomicReference<@Nullable MetricsContainer> PROCESS_WIDE_METRICS_CONTAINER =
+      new AtomicReference<>();
+
+  /** Returns the container holder for the current thread. */
+  public static MetricsEnvironmentState getMetricsEnvironmentStateForCurrentThread() {
+    return CONTAINER_FOR_THREAD.get();
+  }
 
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *
    * @return The previous container for the current thread.
    */
-  @Nullable
-  public static MetricsContainer setCurrentContainer(@Nullable MetricsContainer container) {
-    MetricsContainer previous = CONTAINER_FOR_THREAD.get();
-    if (container == null) {
-      CONTAINER_FOR_THREAD.remove();
-    } else {
-      CONTAINER_FOR_THREAD.set(container);
-    }
+  public static @Nullable MetricsContainer setCurrentContainer(
+      @Nullable MetricsContainer container) {
+    MetricsContainerHolder holder = CONTAINER_FOR_THREAD.get();
+    @Nullable MetricsContainer previous = holder.container;
+    holder.container = container;
     return previous;
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the current process.
+   *
+   * @return The previous container for the current process.
+   */
+  public static @Nullable MetricsContainer setProcessWideContainer(
+      @Nullable MetricsContainer container) {
+    return PROCESS_WIDE_METRICS_CONTAINER.getAndSet(container);
   }
 
   /** Called by the run to indicate whether metrics reporting is supported. */
@@ -90,16 +107,19 @@ public class MetricsEnvironment {
   }
 
   private static class ScopedContainer implements Closeable {
-
-    @Nullable private final MetricsContainer oldContainer;
+    private final MetricsContainerHolder holder;
+    private final @Nullable MetricsContainer oldContainer;
 
     private ScopedContainer(MetricsContainer newContainer) {
-      this.oldContainer = setCurrentContainer(newContainer);
+      // It is safe to cache the thread-local holder because it never changes for the thread.
+      holder = CONTAINER_FOR_THREAD.get();
+      this.oldContainer = holder.container;
+      holder.container = newContainer;
     }
 
     @Override
     public void close() throws IOException {
-      setCurrentContainer(oldContainer);
+      holder.container = oldContainer;
     }
   }
 
@@ -110,18 +130,47 @@ public class MetricsEnvironment {
    * is not a work-execution thread. The first time this happens in a given thread it will log a
    * diagnostic message.
    */
-  @Nullable
-  public static MetricsContainer getCurrentContainer() {
-    MetricsContainer container = CONTAINER_FOR_THREAD.get();
+  public static @Nullable MetricsContainer getCurrentContainer() {
+    MetricsContainer container = CONTAINER_FOR_THREAD.get().container;
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
-      if (METRICS_SUPPORTED.get()) {
+      if (isMetricsSupported()) {
         LOG.error(
-            "Unable to update metrics on the current thread. "
-                + "Most likely caused by using metrics outside the managed work-execution thread.");
+            "Unable to update metrics on the current thread. Most likely caused by using metrics "
+                + "outside the managed work-execution thread:\n  {}",
+            StringUtils.arrayToNewlines(Thread.currentThread().getStackTrace(), 10));
       } else {
-        LOG.warn("Reporting metrics are not supported in the current execution environment.");
+        // rate limiting this log as it can be emitted each time metrics incremented
+        LOG.warn(
+            "Reporting metrics are not supported in the current execution environment:\n  {}",
+            StringUtils.arrayToNewlines(Thread.currentThread().getStackTrace(), 10));
       }
     }
     return container;
+  }
+
+  /** Return the {@link MetricsContainer} for the current process. */
+  public static @Nullable MetricsContainer getProcessWideContainer() {
+    return PROCESS_WIDE_METRICS_CONTAINER.get();
+  }
+
+  public static class MetricsContainerHolder implements MetricsEnvironmentState {
+    private @Nullable MetricsContainer container = null;
+
+    @Override
+    public @Nullable MetricsContainer activate(@Nullable MetricsContainer metricsContainer) {
+      MetricsContainer old = container;
+      container = metricsContainer;
+      return old;
+    }
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the associated {@link MetricsEnvironment}.
+   *
+   * @return The previous container for the associated {@link MetricsEnvironment}.
+   */
+  public interface MetricsEnvironmentState {
+    @Nullable
+    MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
   }
 }

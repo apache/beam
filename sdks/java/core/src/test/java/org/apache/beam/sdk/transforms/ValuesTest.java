@@ -37,13 +37,19 @@ import org.junit.runners.JUnit4;
 /** Tests for Values transform. */
 @RunWith(JUnit4.class)
 public class ValuesTest {
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "unchecked"
+  })
   static final KV<String, Integer>[] TABLE =
       new KV[] {
         KV.of("one", 1), KV.of("two", 2), KV.of("three", 3), KV.of("four", 4), KV.of("dup", 4)
       };
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "unchecked"
+  })
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};
 
   @Rule public final TestPipeline p = TestPipeline.create();

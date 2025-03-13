@@ -15,6 +15,8 @@
 
 package graph
 
+import "context"
+
 // Scope is a syntactic Scope, such as arising from a composite Transform. It
 // has no semantic meaning at execution time. Used by monitoring.
 type Scope struct {
@@ -24,6 +26,8 @@ type Scope struct {
 	Label string
 	// Parent is the parent scope, if nested.
 	Parent *Scope
+	// Context contains optional metadata associated with this scope.
+	Context context.Context
 }
 
 // ID returns the graph-local identifier for the scope.

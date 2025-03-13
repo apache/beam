@@ -33,7 +33,8 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms to
@@ -41,6 +42,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class JAXBCoder<T> extends CustomCoder<T> {
 
   private final Class<T> jaxbClass;
@@ -151,7 +155,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }
@@ -183,6 +187,11 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
     CloseIgnoringOutputStream(OutputStream out) {
       super(out);
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      out.write(b, off, len);
     }
 
     @Override

@@ -18,8 +18,12 @@
 
 plugins { id 'org.apache.beam.module' }
 applyPortabilityNature(
+    publish: false,
     shadowJarValidationExcludes: ["org/apache/beam/runners/dataflow/worker/windmill/**"],
-    archivesBaseName: 'beam-runners-google-cloud-dataflow-java-windmill'
+    archivesBaseName: 'beam-runners-google-cloud-dataflow-java-windmill',
+    generatedClassPatterns: [
+      /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/
+    ]
 )
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow Java :: Windmill"

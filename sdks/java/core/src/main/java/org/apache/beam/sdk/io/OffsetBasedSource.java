@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,6 +54,9 @@ import org.slf4j.LoggerFactory;
  * @see FileBasedSource
  * @see RangeTracker
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   private final long startOffset;
   private final long endOffset;

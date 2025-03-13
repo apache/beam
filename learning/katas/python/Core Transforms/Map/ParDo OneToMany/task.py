@@ -14,21 +14,32 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: MapParDoOneToMany
+#   description: Task from katas is a ParDo that maps each input sentence into
+#     words splitter by whitespace (" ").
+#   multifile: false
+#   context_line: 40
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 class BreakIntoWordsDoFn(beam.DoFn):
 
     def process(self, element):
-        return element.split()
+        for w in element.split():
+            yield w
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(['Hello Beam', 'It is awesome'])
-   | beam.ParDo(BreakIntoWordsDoFn())
-   | LogElements())
+  (p | beam.Create(['Hello Beam', 'It is awesome'])
+     | beam.ParDo(BreakIntoWordsDoFn())
+     | beam.LogElements())
 
-p.run()

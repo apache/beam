@@ -33,14 +33,14 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT>> {
 
   private final String stepName;
-  private final FlinkMetricContainer container;
+  private final FlinkMetricContainerBase container;
   private final Boolean enableMetrics;
 
   public ReaderInvocationUtil(
-      String stepName, PipelineOptions options, FlinkMetricContainer container) {
+      String stepName, PipelineOptions options, FlinkMetricContainerBase container) {
     FlinkPipelineOptions flinkPipelineOptions = options.as(FlinkPipelineOptions.class);
     this.stepName = stepName;
-    enableMetrics = flinkPipelineOptions.getEnableMetrics();
+    this.enableMetrics = !flinkPipelineOptions.getDisableMetrics();
     this.container = container;
   }
 

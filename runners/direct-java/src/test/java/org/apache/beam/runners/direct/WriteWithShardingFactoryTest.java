@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,7 +26,6 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.File;
 import java.io.Reader;
@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DynamicFileDestinations;
@@ -58,10 +57,13 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.sdk.values.PValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -155,7 +157,13 @@ public class WriteWithShardingFactoryTest implements Serializable {
             WriteFilesResult<Void>,
             PTransform<PCollection<Object>, WriteFilesResult<Void>>>
         originalApplication =
-            AppliedPTransform.of("write", objs.expand(), Collections.emptyMap(), original, p);
+            AppliedPTransform.of(
+                "write",
+                PValues.expandInput(objs),
+                Collections.emptyMap(),
+                original,
+                ResourceHints.create(),
+                p);
 
     assertThat(
         factory.getReplacementTransform(originalApplication).getTransform(),
@@ -251,9 +259,8 @@ public class WriteWithShardingFactoryTest implements Serializable {
       throw new IllegalArgumentException("Should not be used");
     }
 
-    @Nullable
     @Override
-    public ResourceId unwindowedFilename(
+    public @Nullable ResourceId unwindowedFilename(
         int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
       throw new IllegalArgumentException("Should not be used");
     }

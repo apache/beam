@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -37,13 +37,14 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ValueProvider} abstracts the notion of fetching a value that may or may not be currently
@@ -60,6 +61,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public interface ValueProvider<T> extends Serializable {
   /**
    * Returns the runtime value wrapped by this {@link ValueProvider} in case it is {@link
@@ -75,7 +80,7 @@ public interface ValueProvider<T> extends Serializable {
    * static value to be provided.
    */
   class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
-    @Nullable private final T value;
+    private final @Nullable T value;
 
     StaticValueProvider(@Nullable T value) {
       this.value = value;
@@ -99,6 +104,17 @@ public interface ValueProvider<T> extends Serializable {
     @Override
     public String toString() {
       return String.valueOf(value);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof StaticValueProvider
+          && Objects.equals(value, ((StaticValueProvider) other).value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(value);
     }
   }
 
@@ -159,6 +175,18 @@ public interface ValueProvider<T> extends Serializable {
           .add("translator", translator.getClass().getSimpleName())
           .toString();
     }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof NestedValueProvider
+          && Objects.equals(value, ((NestedValueProvider) other).value)
+          && Objects.equals(translator, ((NestedValueProvider) other).translator);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value, translator);
+    }
   }
 
   /**
@@ -175,7 +203,7 @@ public interface ValueProvider<T> extends Serializable {
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
     private final String propertyName;
-    @Nullable private final T defaultValue;
+    private final @Nullable T defaultValue;
     private final Long optionsId;
 
     /**
@@ -230,6 +258,7 @@ public interface ValueProvider<T> extends Serializable {
         Method method = klass.getMethod(methodName);
         PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
+        @SuppressWarnings("unchecked")
         ValueProvider<T> result = (ValueProvider<T>) handler.invoke(methodOptions, method, null);
         // Two cases: If we have deserialized a new value from JSON, it will
         // be wrapped in a StaticValueProvider, which we can provide here.  If
@@ -263,6 +292,21 @@ public interface ValueProvider<T> extends Serializable {
           .add("propertyName", propertyName)
           .add("default", defaultValue)
           .toString();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof RuntimeValueProvider
+          && Objects.equals(klass, ((RuntimeValueProvider) other).klass)
+          && Objects.equals(methodName, ((RuntimeValueProvider) other).methodName)
+          && Objects.equals(propertyName, ((RuntimeValueProvider) other).propertyName)
+          && Objects.equals(defaultValue, ((RuntimeValueProvider) other).defaultValue)
+          && Objects.equals(optionsId, ((RuntimeValueProvider) other).optionsId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(klass, methodName, propertyName, defaultValue, optionsId);
     }
   }
 

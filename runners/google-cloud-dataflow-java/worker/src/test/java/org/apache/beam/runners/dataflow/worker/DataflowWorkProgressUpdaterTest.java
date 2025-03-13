@@ -23,8 +23,8 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.isA;
-import static org.mockito.Matchers.isNull;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -32,15 +32,19 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
+import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.Position;
+import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
-import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.StubbedExecutor;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -64,6 +68,9 @@ public class DataflowWorkProgressUpdaterTest {
   private static final String PROJECT_ID = "TEST_PROJECT_ID";
   private static final String JOB_ID = "TEST_JOB_ID";
   private static final Long WORK_ID = 1234567890L;
+  private static final String STEP_ID = "TEST_STEP_ID";
+  private static final Duration HOT_KEY_AGE = Duration.standardSeconds(1);
+  private static final String HOT_KEY = "key";
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -72,8 +79,11 @@ public class DataflowWorkProgressUpdaterTest {
   private DataflowWorkProgressUpdater progressUpdater;
   private long startTime;
   private FixedClock clock;
+  private DataflowPipelineOptions options;
   @Mock private WorkItemStatusClient workItemStatusClient;
   @Mock private DataflowWorkExecutor worker;
+  @Mock private BatchModeExecutionContext context;
+  @Mock private HotKeyLogger hotKeyLogger;
   @Captor private ArgumentCaptor<DynamicSplitResult> splitResultCaptor;
 
   @Before
@@ -82,6 +92,8 @@ public class DataflowWorkProgressUpdaterTest {
     startTime = 0L;
     clock = new FixedClock(startTime);
     executor = new StubbedExecutor(clock);
+    options = PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setHotKeyLoggingEnabled(true);
 
     WorkItem workItem = new WorkItem();
     workItem.setProjectId(PROJECT_ID);
@@ -91,9 +103,19 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
     workItem.setInitialReportIndex(1L);
 
+    when(workItemStatusClient.getExecutionContext()).thenReturn(context);
+    when(context.getKey()).thenReturn(HOT_KEY);
+
     progressUpdater =
         new DataflowWorkProgressUpdater(
-            workItemStatusClient, workItem, worker, executor.getExecutor(), clock) {
+            workItemStatusClient,
+            workItem,
+            worker,
+            executor.getExecutor(),
+            clock,
+            hotKeyLogger,
+            options) {
+
           // Shorten reporting interval boundaries for faster testing.
           @Override
           protected long getMinReportingInterval() {
@@ -119,6 +141,43 @@ public class DataflowWorkProgressUpdaterTest {
 
     verify(workItemStatusClient, atLeastOnce())
         .reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class));
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressLogsHotKeyDetection() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE, HOT_KEY);
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressLogsHotKeyDetectionNotEnabled() throws Exception {
+    options.setHotKeyLoggingEnabled(false);
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressAskedToAbortWorker() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceAbort());
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(worker, atLeastOnce()).abort();
 
     progressUpdater.stopReportingProgress();
   }
@@ -231,6 +290,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     // And nothing happened after that.
     verify(workItemStatusClient, Mockito.atLeastOnce()).uniqueWorkId();
+    verify(workItemStatusClient, Mockito.atLeastOnce()).getExecutionContext();
     verifyNoMoreInteractions(workItemStatusClient);
   }
 
@@ -246,6 +306,21 @@ public class DataflowWorkProgressUpdaterTest {
       responseState.setSplitRequest(
           ReaderTestUtils.approximateSplitRequestAtPosition(suggestedStopPosition));
     }
+
+    HotKeyDetection hotKeyDetection = new HotKeyDetection();
+    hotKeyDetection.setUserStepName(STEP_ID);
+    hotKeyDetection.setHotKeyAge(toCloudDuration(HOT_KEY_AGE));
+    responseState.setHotKeyDetection(hotKeyDetection);
+
+    return responseState;
+  }
+
+  private WorkItemServiceState generateServiceAbort() {
+    WorkItemServiceState responseState = new WorkItemServiceState();
+    responseState.setCompleteWorkStatus(
+        new Status()
+            .setCode(com.google.rpc.Code.ABORTED_VALUE)
+            .setMessage("Worker was asked to abort!"));
 
     return responseState;
   }

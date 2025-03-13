@@ -1,0 +1,119 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- columns:
+    - purpose
+    - channel
+    - action
+  data:
+    - purpose: Get user support, ask general questions and stay up-to-date with project news
+      contact:
+        {
+          email: user@beam.apache.org,
+          link: "https://lists.apache.org/list.html?user@beam.apache.org",
+          add: "User mailing list:"
+        }
+      icon: icons/community/contact-us/question-mark.svg
+      actions:
+        [
+          {
+            action: Subscribe,
+            link: "mailto:user-subscribe@beam.apache.org"
+          },
+          {
+            action: Archives,
+            link: "https://lists.apache.org/list.html?user@beam.apache.org",
+          },
+          {
+            action: Read tips below,
+          }
+        ]
+    - purpose: Developer and contributor discussions
+      contact:
+        {
+          email: dev@beam.apache.org,
+          link: "https://lists.apache.org/list.html?dev@beam.apache.org",
+          add: "Developer mailing list:"
+        }
+      icon: icons/community/contact-us/discussion.svg
+      actions:
+        [
+          {
+            action: Subscribe,
+            link: "mailto:dev-subscribe@beam.apache.org"
+          },
+          {
+            action: Archives,
+            link: "https://lists.apache.org/list.html?dev@beam.apache.org",
+          },
+          {
+            action: Read tips below,
+          }
+        ]
+    - purpose: Report bugs, request features, follow known issues
+      contact:
+        {
+          email: Apache Beam Issues,
+          link: "https://github.com/apache/beam/issues/new",
+        }
+      icon: icons/community/contact-us/bug.svg
+      actions: [{ action: "&#8208;" }]
+    - purpose: Ask and answer community questions
+      contact:
+        {
+          email: "Apache Beam category in Stackoverflow",
+          link: "https://stackoverflow.com/questions/tagged/apache-beam",
+        }
+      icon: icons/community/contact-us/messages.svg
+      actions: [{ action: "&#8208;" }]
+    - purpose: Contact users and contributors in real time through the ASF slack workspace
+      contact:
+        {
+          email: The ASF slack workspace,
+          link: "https://s.apache.org/beam-slack-channel",
+        }
+      icon: icons/community/contact-us/knot.svg
+      actions: [
+        {
+          action: "Join the",
+        },
+        {
+          action: "#beam channel",
+          link: "https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P",
+        },
+        {
+          action: " and browse other available channels."
+        },
+      ]
+    - purpose: Firehose of commits, bugs, pull requests, etc.
+      contact:
+        {
+          email: builds@beam.apache.org,
+          link: "https://lists.apache.org/list.html?builds@beam.apache.org",
+          add: Build mailing list,
+        }
+      icon: icons/community/contact-us/gitArrows.svg
+      actions: [{
+            action: Archives,
+            link: "https://lists.apache.org/list.html?builds@beam.apache.org",
+          }]
+    - purpose: 'Firehose of build notifications from Jenkins'
+      contact: {
+        email: commits@beam.apache.org,
+        link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+        add: Commits mailing list
+      }
+      icon: icons/community/contact-us/notification.svg
+      actions: [{
+            action: Archives,
+            link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+          }]

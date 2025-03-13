@@ -21,8 +21,9 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // ReusableEmitter is a resettable value needed to hold the implicit context and
@@ -31,7 +32,15 @@ type ReusableEmitter interface {
 	// Init resets the value. Can be called multiple times.
 	Init(ctx context.Context, ws []typex.Window, t typex.EventTime) error
 	// Value returns the side input value. Constant value.
-	Value() interface{}
+	Value() any
+}
+
+// ReusableTimestampObservingWatermarkEmitter is a resettable value needed to hold
+// the implicit context and emit event time. It also has the ability to have a
+// watermark estimator attached.
+type ReusableTimestampObservingWatermarkEmitter interface {
+	ReusableEmitter
+	AttachEstimator(est *sdf.WatermarkEstimator)
 }
 
 var (
@@ -82,8 +91,9 @@ func makeEmit(t reflect.Type, n ElementProcessor) ReusableEmitter {
 // emitValue is the reflection-based default emitter implementation.
 type emitValue struct {
 	n     ElementProcessor
-	fn    interface{}
+	fn    any
 	types []reflect.Type
+	est   *sdf.WatermarkEstimator
 
 	ctx context.Context
 	ws  []typex.Window
@@ -97,8 +107,12 @@ func (e *emitValue) Init(ctx context.Context, ws []typex.Window, et typex.EventT
 	return nil
 }
 
-func (e *emitValue) Value() interface{} {
+func (e *emitValue) Value() any {
 	return e.fn
+}
+
+func (e *emitValue) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
 }
 
 func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
@@ -114,6 +128,10 @@ func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
 		default:
 			value.Elm2 = args[i].Interface()
 		}
+	}
+
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(value.Timestamp.ToTime())
 	}
 
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {

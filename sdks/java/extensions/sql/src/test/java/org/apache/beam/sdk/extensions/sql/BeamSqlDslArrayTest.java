@@ -19,10 +19,10 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -38,7 +38,8 @@ public class BeamSqlDslArrayTest {
   private static final Schema INPUT_SCHEMA =
       Schema.builder()
           .addInt32Field("f_int")
-          .addArrayField("f_stringArr", Schema.FieldType.STRING)
+          .addStringField("f_string")
+          .addNullableField("f_stringArr", FieldType.array(Schema.FieldType.STRING))
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -92,6 +93,41 @@ public class BeamSqlDslArrayTest {
   }
 
   @Test
+  public void testProjectArrayFieldWithCoGBKJoin() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    Schema resultType =
+        Schema.builder()
+            .addNullableField("f_stringArr", FieldType.array(Schema.FieldType.STRING))
+            .build();
+
+    // When we use longer enough IN clause, Calcite calculate physical plan with BeamCoGBKJoin.
+    // This SQL push Calcite to use BeamCoGBKJoin for simple select statement.
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery",
+            SqlTransform.query(
+                "SELECT f_stringArr FROM PCOLLECTION WHERE f_string IN ('A', 'B', "
+                    + "'ABCAABAAAGAG','ABCAABAAAGCB','ABCAABAAAGCJ','ABCAABAAAGEB','ABCAABAAAGEK',"
+                    + "'ABCAABAAAGFB','ABCAABAAAGFG','ABCAABABAGBJ','ABCAABABBKIF','ABCAABABCAIK',"
+                    + "'ABCAABAEJAAF','ABCAABAEJAED','ABCAABAEJAEE','ABCAABAEJAEF','ABCIABAAAGGJ',"
+                    + "'ABCIABAAAGKB','ABCIABAAAJBC','ABCIABAAAJCD','ABCIABAAAJEK','ABCIABAAAJFE',"
+                    + "'ABCIABAAAJGE','ABCIABAAAJGF','ABCIABAAAJGG','ABCIABAAAJJK','ABCIABAABAGK',"
+                    + "'ABCIABAABAKD','ABCIABAABBDI','ABCIABAABBEI','ABCIABAABFBB','ABCIABAABFBJ',"
+                    + "'ABCIABAABFCC','ABCIABAABFDI','ABCIABACFBKF','ABCIABAJAIBG','ABCIABBBDAAC',"
+                    + "'ABCIABBFJGAD','ABCIABBGJFDK','ABCIABCAAFBB','ABCIABCAAFJC','ABCIABCACADA',"
+                    + "'ABGDABAAGFGA','ABGDABAAGFGF','ABGDABAAGFJG','ABGDABAAGFJK','ABGDABAAGFKJ',"
+                    + "'ABGDABAAGFKI')"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addArray(Arrays.asList("111", "222")).build(),
+            Row.withSchema(resultType).addArray(Arrays.asList("33", "44", "55")).build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testAccessArrayElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
@@ -110,16 +146,11 @@ public class BeamSqlDslArrayTest {
 
   @Test
   public void testSingleElement() throws Exception {
-    Row inputRow = Row.withSchema(INPUT_SCHEMA).addValues(1).addArray(Arrays.asList("111")).build();
+    Row inputRow =
+        Row.withSchema(INPUT_SCHEMA).addValues(1, "A").addArray(Arrays.asList("111")).build();
 
     PCollection<Row> input =
-        pipeline.apply(
-            "boundedInput1",
-            Create.of(inputRow)
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput1", Create.of(inputRow).withRowSchema(INPUT_SCHEMA));
 
     Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
@@ -154,11 +185,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input =
         pipeline.apply(
             "boundedInput1",
-            Create.empty(TypeDescriptor.of(Row.class))
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.empty(TypeDescriptor.of(Row.class)).withRowSchema(INPUT_SCHEMA));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
@@ -184,11 +211,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input =
         pipeline.apply(
             "boundedInput1",
-            Create.empty(TypeDescriptor.of(Row.class))
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.empty(TypeDescriptor.of(Row.class)).withRowSchema(INPUT_SCHEMA));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
@@ -214,21 +237,18 @@ public class BeamSqlDslArrayTest {
   public void testUnnestCrossJoin() {
     Row row1 =
         Row.withSchema(INPUT_SCHEMA)
-            .addValues(42)
+            .addValues(42, "S")
             .addArray(Arrays.asList("111", "222", "333"))
             .build();
 
     Row row2 =
-        Row.withSchema(INPUT_SCHEMA).addValues(13).addArray(Arrays.asList("444", "555")).build();
+        Row.withSchema(INPUT_SCHEMA)
+            .addValues(13, "T")
+            .addArray(Arrays.asList("444", "555"))
+            .build();
 
     PCollection<Row> input =
-        pipeline.apply(
-            "boundedInput1",
-            Create.of(row1, row2)
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput1", Create.of(row1, row2).withRowSchema(INPUT_SCHEMA));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
@@ -287,8 +307,7 @@ public class BeamSqlDslArrayTest {
                                 Row.withSchema(elementSchema).addValues("CC", 33).build(),
                                 Row.withSchema(elementSchema).addValues("DD", 44).build()))
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -318,7 +337,7 @@ public class BeamSqlDslArrayTest {
     Schema elementSchema =
         Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultSchema = elementSchema;
+    Schema resultSchema = Schema.builder().addRowField("row", elementSchema).build();
 
     Schema inputType =
         Schema.builder()
@@ -343,8 +362,7 @@ public class BeamSqlDslArrayTest {
                                 Row.withSchema(elementSchema).addValues("CC", 33).build(),
                                 Row.withSchema(elementSchema).addValues("DD", 44).build()))
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -353,8 +371,12 @@ public class BeamSqlDslArrayTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(elementSchema).addValues("BB", 22).build(),
-            Row.withSchema(elementSchema).addValues("DD", 44).build());
+            Row.withSchema(resultSchema)
+                .addValues(Row.withSchema(elementSchema).addValues("BB", 22).build())
+                .build(),
+            Row.withSchema(resultSchema)
+                .addValues(Row.withSchema(elementSchema).addValues("DD", 44).build())
+                .build());
 
     pipeline.run();
   }
@@ -389,8 +411,7 @@ public class BeamSqlDslArrayTest {
                                 Row.withSchema(elementSchema).addValues("CC", 33).build(),
                                 Row.withSchema(elementSchema).addValues("DD", 44).build()))
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -410,14 +431,13 @@ public class BeamSqlDslArrayTest {
         "boundedInput1",
         Create.of(
                 Row.withSchema(INPUT_SCHEMA)
-                    .addValues(1)
+                    .addValues(1, "A")
                     .addArray(Arrays.asList("111", "222"))
                     .build(),
                 Row.withSchema(INPUT_SCHEMA)
-                    .addValues(2)
+                    .addValues(2, "B")
                     .addArray(Arrays.asList("33", "44", "55"))
                     .build())
-            .withSchema(
-                INPUT_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()));
+            .withRowSchema(INPUT_SCHEMA));
   }
 }

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -39,12 +39,12 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingInputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingInputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
 
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions rather
@@ -54,6 +54,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStr
  * coder is preserved. This causes tests written such that coders that lose information during
  * serialization or change state during encoding/decoding will fail.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CoderProperties {
 
   /** All the contexts, for use in test cases. */
@@ -102,6 +105,17 @@ public class CoderProperties {
   public static <T> void coderDecodeEncodeEqualInContext(
       Coder<T> coder, Coder.Context context, T value) throws Exception {
     assertThat(decodeEncode(coder, context, value), equalTo(value));
+  }
+
+  /**
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and value of type {@code
+   * T}, encoding followed by decoding yields a value of type {@code T} and tests that the matcher
+   * succeeds on the values.
+   */
+  public static <T> void coderDecodeEncodeInContext(
+      Coder<T> coder, Coder.Context context, T value, org.hamcrest.Matcher<T> matcher)
+      throws Exception {
+    assertThat(decodeEncode(coder, context, value), matcher);
   }
 
   /**
@@ -231,6 +245,21 @@ public class CoderProperties {
   }
 
   /**
+   * Verifies that for the given {@code Coder<T>} and value of type {@code T}, the structural value
+   * of the content of the Iterable is equal to the structural value yield by encoding and decoding
+   * the original value.
+   *
+   * <p>This is useful to test the correct implementation of a Coder structural equality with values
+   * that don't implement the equals contract.
+   */
+  public static <T extends Iterable<?>> void structuralValueDecodeEncodeEqualIterable(
+      Coder<T> coder, T value) throws Exception {
+    for (Coder.Context context : ALL_CONTEXTS) {
+      CoderProperties.structuralValueDecodeEncodeEqualIterableInContext(coder, context, value);
+    }
+  }
+
+  /**
    * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and value of type {@code
    * T}, the structural value is equal to the structural value yield by encoding and decoding the
    * original value, in any {@code Coder.Context}.
@@ -239,6 +268,20 @@ public class CoderProperties {
       Coder<T> coder, Coder.Context context, T value) throws Exception {
     assertEquals(
         coder.structuralValue(value), coder.structuralValue(decodeEncode(coder, context, value)));
+  }
+
+  /**
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and value of type {@code
+   * T}, the structural content of the Iterable of the value is equal to the structural value yield
+   * by encoding and decoding the original value, in any {@code Coder.Context}.
+   */
+  public static <T extends Iterable<?>> void structuralValueDecodeEncodeEqualIterableInContext(
+      Coder<T> coder, Coder.Context context, T value) throws Exception {
+    assertThat(
+        "The original value changed after, encoding and decoding.",
+        Iterables.elementsEqual(
+            (Iterable<?>) coder.structuralValue(value),
+            (Iterable<?>) coder.structuralValue(decodeEncode(coder, context, value))));
   }
 
   private static final String DECODING_WIRE_FORMAT_MESSAGE =

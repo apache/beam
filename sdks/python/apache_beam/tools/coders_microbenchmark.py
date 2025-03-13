@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """A microbenchmark for measuring performance of coders.
 
 This runs a sequence of encode-decode operations on random inputs
@@ -28,21 +29,25 @@ Run as:
 
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
+# pytype: skip-file
 
 import argparse
+import logging
 import random
 import re
 import string
 import sys
 
-from past.builtins import unicode
-
+import apache_beam as beam
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
+from apache_beam.coders import row_coder
+from apache_beam.coders import typecoders
 from apache_beam.tools import utils
 from apache_beam.transforms import window
+from apache_beam.typehints import trivial_inference
+from apache_beam.typehints.pandas_type_compatibility import DataFrameBatchConverterDropIndex
 from apache_beam.utils import windowed_value
 
 
@@ -53,20 +58,61 @@ def coder_benchmark_factory(coder, generate_fn):
     coder: coder to use to encode an element.
     generate_fn: a callable that generates an element.
   """
-
   class CoderBenchmark(object):
     def __init__(self, num_elements_per_benchmark):
       self._coder = coders.IterableCoder(coder)
-      self._list = [generate_fn()
-                    for _ in range(num_elements_per_benchmark)]
+      self._list = [generate_fn() for _ in range(num_elements_per_benchmark)]
 
     def __call__(self):
       # Calling coder operations on a single element at a time may incur
       # unrelevant overhead. To compensate, we use a list elements.
       _ = self._coder.decode(self._coder.encode(self._list))
 
-  CoderBenchmark.__name__ = "%s, %s" % (
-      generate_fn.__name__, str(coder))
+  CoderBenchmark.__name__ = "%s, %s" % (generate_fn.__name__, str(coder))
+
+  return CoderBenchmark
+
+
+def batch_row_coder_benchmark_factory(generate_fn, use_batch):
+  """Creates a benchmark that encodes and decodes a list of elements.
+
+  Args:
+    coder: coder to use to encode an element.
+    generate_fn: a callable that generates an element.
+  """
+  class CoderBenchmark(object):
+    def __init__(self, num_elements_per_benchmark):
+      self._use_batch = use_batch
+      row_instance = generate_fn()
+      row_type = trivial_inference.instance_to_type(row_instance)
+      self._row_coder = get_row_coder(row_instance)
+      self._batch_converter = DataFrameBatchConverterDropIndex(row_type)
+      self._seq_coder = coders.IterableCoder(self._row_coder)
+      self._data = self._batch_converter.produce_batch(
+          [generate_fn() for _ in range(num_elements_per_benchmark)])
+
+    def __call__(self):
+      if self._use_batch:
+        impl = self._row_coder.get_impl()
+        columnar = {
+            col: self._data[col].to_numpy()
+            for col in self._data.columns
+        }
+        output_stream = coder_impl.create_OutputStream()
+        impl.encode_batch_to_stream(columnar, output_stream)
+        impl.decode_batch_from_stream(
+            columnar, coder_impl.create_InputStream(output_stream.get()))
+
+      else:
+        # Calling coder operations on a single element at a time may incur
+        # unrelevant overhead. To compensate, we use a list elements.
+        self._batch_converter.produce_batch(
+            self._seq_coder.decode(
+                self._seq_coder.encode(
+                    self._batch_converter.explode_batch(self._data))))
+
+  CoderBenchmark.__name__ = "%s, BatchRowCoder%s" % (
+      generate_fn.__name__, use_batch)
 
   return CoderBenchmark
 
@@ -80,8 +126,9 @@ def large_int():
 
 
 def random_string(length):
-  return unicode(''.join(random.choice(
-      string.ascii_letters + string.digits) for _ in range(length)))
+  return ''.join(
+      random.choice(string.ascii_letters + string.digits)
+      for _ in range(length))
 
 
 def small_string():
@@ -151,9 +198,7 @@ def large_message_with_map():
 
 def globally_windowed_value():
   return windowed_value.WindowedValue(
-      value=small_int(),
-      timestamp=12345678,
-      windows=(window.GlobalWindow(),))
+      value=small_int(), timestamp=12345678, windows=(window.GlobalWindow(), ))
 
 
 def random_windowed_value(num_windows):
@@ -162,8 +207,7 @@ def random_windowed_value(num_windows):
       timestamp=12345678,
       windows=tuple(
           window.IntervalWindow(i * 10, i * 10 + small_int())
-          for i in range(num_windows)
-      ))
+          for i in range(num_windows)))
 
 
 def wv_with_one_window():
@@ -174,48 +218,61 @@ def wv_with_multiple_windows():
   return random_windowed_value(num_windows=32)
 
 
+def tiny_row():
+  return beam.Row(int_value=1)
+
+
+def large_row():
+  return beam.Row(**{f'int_{ix}': ix for ix in range(20)})
+
+
+def nullable_row():
+  return beam.Row(**{f'int_{ix}': ix if ix % 2 else None for ix in range(20)})
+
+
+def diverse_row():
+  return beam.Row(
+      int_value=1,
+      float_value=3.14159,
+      str_value='beam',
+      row_value=beam.Row(int_value=2, float_value=2.718281828))
+
+
+def get_row_coder(row_instance):
+  coder = typecoders.registry.get_coder(
+      trivial_inference.instance_to_type(row_instance))
+  assert isinstance(coder, row_coder.RowCoder)
+  return coder
+
+
+def row_coder_benchmark_factory(generate_fn):
+  return coder_benchmark_factory(get_row_coder(generate_fn()), generate_fn)
+
+
 def run_coder_benchmarks(
     num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
 
-  # TODO(BEAM-4441): Pick coders using type hints, for example:
-  # tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int, ...])
+  # TODO(https://github.com/apache/beam/issues/18788): Pick coders using type
+  # hints, for example:
+  # tuple_coder = typecoders.registry.get_coder(typing.Tuple[int, ...])
   benchmarks = [
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_int),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_int),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_string),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_string),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_list),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), small_int),
+          coders.IterableCoder(coders.FastPrimitivesCoder()), small_list),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_list),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), large_int),
+          coders.IterableCoder(coders.FastPrimitivesCoder()), large_list),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), small_string),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), large_string),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          small_list),
-      coder_benchmark_factory(
-          coders.IterableCoder(coders.FastPrimitivesCoder()),
-          small_list),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          large_list),
-      coder_benchmark_factory(
-          coders.IterableCoder(coders.FastPrimitivesCoder()),
-          large_list),
-      coder_benchmark_factory(
-          coders.IterableCoder(coders.FastPrimitivesCoder()),
-          large_iterable),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          small_tuple),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          large_tuple),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          small_dict),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          large_dict),
+          coders.IterableCoder(coders.FastPrimitivesCoder()), large_iterable),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_tuple),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_tuple),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_dict),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_dict),
       coder_benchmark_factory(
           coders.ProtoCoder(test_message.MessageWithMap),
           small_message_with_map),
@@ -232,24 +289,38 @@ def run_coder_benchmarks(
           coders.WindowedValueCoder(coders.FastPrimitivesCoder()),
           wv_with_one_window),
       coder_benchmark_factory(
-          coders.WindowedValueCoder(coders.FastPrimitivesCoder(),
-                                    coders.IntervalWindowCoder()),
+          coders.WindowedValueCoder(
+              coders.FastPrimitivesCoder(), coders.IntervalWindowCoder()),
           wv_with_multiple_windows),
       coder_benchmark_factory(
-          coders.WindowedValueCoder(coders.FastPrimitivesCoder(),
-                                    coders.GlobalWindowCoder()),
+          coders.WindowedValueCoder(
+              coders.FastPrimitivesCoder(), coders.GlobalWindowCoder()),
           globally_windowed_value),
       coder_benchmark_factory(
-          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()),
-          small_int)
+          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()), small_int),
+      row_coder_benchmark_factory(tiny_row),
+      row_coder_benchmark_factory(large_row),
+      row_coder_benchmark_factory(nullable_row),
+      row_coder_benchmark_factory(diverse_row),
+      batch_row_coder_benchmark_factory(tiny_row, False),
+      batch_row_coder_benchmark_factory(tiny_row, True),
+      batch_row_coder_benchmark_factory(large_row, False),
+      batch_row_coder_benchmark_factory(large_row, True),
+      batch_row_coder_benchmark_factory(nullable_row, False),
+      batch_row_coder_benchmark_factory(nullable_row, True),
+      batch_row_coder_benchmark_factory(diverse_row, False),
+      batch_row_coder_benchmark_factory(diverse_row, True),
   ]
 
-  suite = [utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks
-           if re.search(filter_regex, b.__name__, flags=re.I)]
+  suite = [
+      utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks
+      if re.search(filter_regex, b.__name__, flags=re.I)
+  ]
   utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == "__main__":
+  logging.basicConfig()
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--filter', default='.*')
@@ -265,5 +336,8 @@ if __name__ == "__main__":
   seed = 42  # Fix the seed for better consistency
 
   run_coder_benchmarks(
-      options.num_runs, options.num_elements_per_benchmark, options.seed,
-      verbose=True, filter_regex=options.filter)
+      options.num_runs,
+      options.num_elements_per_benchmark,
+      options.seed,
+      verbose=True,
+      filter_regex=options.filter)

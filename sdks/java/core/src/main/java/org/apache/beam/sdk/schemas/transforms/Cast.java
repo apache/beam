@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -38,13 +37,16 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 /** Set of utilities for casting rows between schemas. */
-@Experimental(Experimental.Kind.SCHEMAS)
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row>> {
 
   public abstract Schema outputSchema();
@@ -113,7 +115,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
    * <p>Other conversions to may cause loss of precision.
    */
   public static class Widening implements Validator {
-    private final Fold fold = new Fold();
+    private final Widening.Fold fold = new Widening.Fold();
 
     public static Widening of() {
       return new Widening();
@@ -197,7 +199,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
    * </ul>
    */
   public static class Narrowing implements Validator {
-    private final Fold fold = new Fold();
+    private final Narrowing.Fold fold = new Narrowing.Fold();
 
     public static Narrowing of() {
       return new Narrowing();
@@ -293,7 +295,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
                 new DoFn<T, Row>() {
                   // TODO: This should be the same as resolved so that Beam knows which fields
                   // are being accessed. Currently Beam only supports wildcard descriptors.
-                  // Once BEAM-4457 is fixed, fix this.
+                  // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
                   @FieldAccess("filterFields")
                   final FieldAccessDescriptor fieldAccessDescriptor =
                       FieldAccessDescriptor.withAllFields();
@@ -403,8 +405,9 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
         return castRow((Row) inputValue, input.getRowSchema(), output.getRowSchema());
 
       case ARRAY:
-        List<Object> inputValues = (List<Object>) inputValue;
-        List<Object> outputValues = new ArrayList<>(inputValues.size());
+      case ITERABLE:;
+        Iterable<Object> inputValues = (Iterable<Object>) inputValue;
+        List<Object> outputValues = new ArrayList<>(Iterables.size(inputValues));
 
         for (Object elem : inputValues) {
           outputValues.add(

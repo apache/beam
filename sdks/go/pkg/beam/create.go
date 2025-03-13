@@ -17,48 +17,74 @@ package beam
 
 import (
 	"bytes"
-	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
-// Create inserts a fixed set of values into the pipeline. The values must
+func init() {
+	register.DoFn2x1[[]byte, func(T), error]((*createFn)(nil))
+	register.Emitter1[T]()
+}
+
+// Create inserts a fixed non-empty set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type A.
 //
 // The returned PCollections can be used as any other PCollections. The values
 // are JSON-coded. Each runner may place limits on the sizes of the values and
 // Create should generally only be used for small collections.
-func Create(s Scope, values ...interface{}) PCollection {
+func Create(s Scope, values ...any) PCollection {
 	return Must(TryCreate(s, values...))
 }
 
 // CreateList inserts a fixed set of values into the pipeline from a slice or
-// array. It is a convenience wrapper over Create.
-func CreateList(s Scope, list interface{}) PCollection {
-	var ret []interface{}
+// array. Unlike Create this supports the creation of an empty PCollection.
+func CreateList(s Scope, list any) PCollection {
+	return Must(TryCreateList(s, list))
+}
+
+// TryCreate inserts a fixed non-empty set of values into the pipeline. The
+// values must be of the same type.
+func TryCreate(s Scope, values ...any) (PCollection, error) {
+	if len(values) == 0 {
+		err := errors.New("create has no values")
+		return PCollection{}, addCreateCtx(err, s)
+	}
+
+	t := reflect.ValueOf(values[0]).Type()
+	return createList(s, values, t)
+}
+
+// TryCreateList inserts a fixed set of values into the pipeline from a slice or
+// array. The values must be of the same type. Unlike TryCreate this supports
+// the creation of an empty PCollection.
+func TryCreateList(s Scope, list any) (PCollection, error) {
 	val := reflect.ValueOf(list)
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		panic(fmt.Sprintf("Input %v must be a slice or array", list))
+		err := errors.Errorf("input %v must be a slice or array", list)
+		return PCollection{}, addCreateCtx(err, s)
 	}
+
+	var ret []any
 	for i := 0; i < val.Len(); i++ {
 		ret = append(ret, val.Index(i).Interface())
 	}
-	return Must(TryCreate(s, ret...))
+
+	var t reflect.Type
+	if len(ret) == 0 {
+		t = reflect.TypeOf(list).Elem()
+	} else {
+		t = reflect.ValueOf(ret[0]).Type()
+	}
+	return createList(s, ret, t)
 }
 
 func addCreateCtx(err error, s Scope) error {
 	return errors.WithContextf(err, "inserting Create in scope %s", s)
 }
 
-// TryCreate inserts a fixed set of values into the pipeline. The values must
-// be of the same type.
-func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
-	if len(values) == 0 {
-		return PCollection{}, addCreateCtx(errors.New("create has no values"), s)
-	}
-
-	t := reflect.ValueOf(values[0]).Type()
+func createList(s Scope, values []any, t reflect.Type) (PCollection, error) {
 	fn := &createFn{Type: EncodedType{T: t}}
 	enc := NewElementEncoder(t)
 
@@ -69,7 +95,8 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 		}
 		var buf bytes.Buffer
 		if err := enc.Encode(value, &buf); err != nil {
-			return PCollection{}, addCreateCtx(errors.Wrapf(err, "marshalling of %v failed", value), s)
+			err = errors.Wrapf(err, "marshalling of %v failed", value)
+			return PCollection{}, addCreateCtx(err, s)
 		}
 		fn.Values = append(fn.Values, buf.Bytes())
 	}

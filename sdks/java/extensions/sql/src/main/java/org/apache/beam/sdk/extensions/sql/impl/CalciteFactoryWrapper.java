@@ -21,18 +21,19 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.TimeZone;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.avatica.AvaticaConnection;
-import org.apache.calcite.avatica.AvaticaFactory;
-import org.apache.calcite.avatica.AvaticaPreparedStatement;
-import org.apache.calcite.avatica.AvaticaResultSet;
-import org.apache.calcite.avatica.AvaticaSpecificDatabaseMetaData;
-import org.apache.calcite.avatica.AvaticaStatement;
-import org.apache.calcite.avatica.Meta;
-import org.apache.calcite.avatica.QueryState;
-import org.apache.calcite.avatica.UnregisteredDriver;
-import org.apache.calcite.jdbc.CalciteFactory;
-import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.AvaticaFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.AvaticaPreparedStatement;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.AvaticaResultSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.AvaticaSpecificDatabaseMetaData;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.AvaticaStatement;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.Meta;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.QueryState;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.UnregisteredDriver;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Wrapper for {@link CalciteFactory}.
@@ -55,8 +56,8 @@ public abstract class CalciteFactoryWrapper extends CalciteFactory {
       AvaticaFactory avaticaFactory,
       String url,
       Properties info,
-      CalciteSchema rootSchema,
-      JavaTypeFactory typeFactory) {
+      @Nullable CalciteSchema rootSchema,
+      @Nullable JavaTypeFactory typeFactory) {
 
     return this.factory.newConnection(driver, avaticaFactory, url, info, rootSchema, typeFactory);
   }

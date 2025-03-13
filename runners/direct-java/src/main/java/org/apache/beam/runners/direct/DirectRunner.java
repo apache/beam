@@ -28,9 +28,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -44,14 +41,17 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 
 /**
@@ -64,6 +64,9 @@ import org.joda.time.Duration;
  * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
  * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   enum Enforcement {
@@ -76,8 +79,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     IMMUTABILITY {
       @Override
       public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
-        return CONTAINS_UDF.contains(
-            PTransformTranslation.urnForTransform(graph.getProducer(collection).getTransform()));
+        return !ImmutabilityEnforcementFactory.isReadTransform(graph.getProducer(collection))
+            && CONTAINS_UDF.contains(
+                PTransformTranslation.urnForTransform(
+                    graph.getProducer(collection).getTransform()));
       }
     };
 
@@ -167,7 +172,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           "PipelineOptions specified failed to serialize to JSON.", e);
     }
 
-    pipeline.replaceAll(defaultTransformOverrides());
+    performRewrites(pipeline);
     MetricsEnvironment.setMetricsSupported(true);
     try {
       DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
@@ -227,16 +232,34 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   /**
-   * The default set of transform overrides to use in the {@link DirectRunner}.
+   * Rewrites to the pipeline to make it ready for scheduling.
    *
-   * <p>The order in which overrides is applied is important, as some overrides are expanded into a
+   * <p>The order in which rewrites are applied is important, as some overrides are expanded into a
    * composite. If the composite contains {@link PTransform PTransforms} which are also overridden,
    * these PTransforms must occur later in the iteration order. {@link ImmutableMap} has an
    * iteration order based on the order at which elements are added to it.
    */
-  @SuppressWarnings("rawtypes")
   @VisibleForTesting
-  List<PTransformOverride> defaultTransformOverrides() {
+  void performRewrites(Pipeline pipeline) {
+    // These overrides introduce side inputs so they must be
+    // applied before the viewVisitor, next.
+    pipeline.replaceAll(sideInputUsingTransformOverrides());
+
+    // Add WriteView primitives attached to each active side input.
+    // This must run before GBK override because it introduces
+    // additional GroupByKey primitives that must be expanded.
+    pipeline.traverseTopologically(new DirectWriteViewVisitor());
+
+    // The last set of overrides includes GBK overrides used in WriteView
+    pipeline.replaceAll(groupByKeyOverrides());
+
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+  }
+
+  @SuppressWarnings("rawtypes")
+  private List<PTransformOverride> sideInputUsingTransformOverrides() {
     DirectTestOptions testOptions = options.as(DirectTestOptions.class);
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     if (testOptions.isRunnerDeterminedSharding()) {
@@ -245,19 +268,20 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
               PTransformMatchers.writeWithRunnerDeterminedSharding(),
               new WriteWithShardingFactory())); /* Uses a view internally. */
     }
+    builder
+        .add(PTransformOverride.of(MultiStepCombine.matcher(), MultiStepCombine.Factory.create()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
+                new DirectTestStreamFactory(this))); /* primitive */
+    return builder.build();
+  }
+
+  @SuppressWarnings("rawtypes")
+  private List<PTransformOverride> groupByKeyOverrides() {
+    ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     builder =
         builder
-            .add(
-                PTransformOverride.of(
-                    MultiStepCombine.matcher(), MultiStepCombine.Factory.create()))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                    new ViewOverrideFactory())) /* Uses pardos and GBKs */
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
-                    new DirectTestStreamFactory(this))) /* primitive */
             // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
             // primitives
             .add(
@@ -298,6 +322,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     @Override
     public State getState() {
+      if (this.state == State.RUNNING) {
+        this.state = executor.getPipelineState();
+      }
       return state;
     }
 
@@ -337,26 +364,30 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
      */
     @Override
     public State waitUntilFinish(Duration duration) {
-      State startState = this.state;
-      if (!startState.isTerminal()) {
-        try {
-          state = executor.waitUntilFinish(duration);
-        } catch (UserCodeException uce) {
-          // Emulates the behavior of Pipeline#run(), where a stack trace caused by a
-          // UserCodeException is truncated and replaced with the stack starting at the call to
-          // waitToFinish
-          throw new Pipeline.PipelineExecutionException(uce.getCause());
-        } catch (Exception e) {
-          if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
-          if (e instanceof RuntimeException) {
-            throw (RuntimeException) e;
-          }
-          throw new RuntimeException(e);
-        }
+      if (this.state.isTerminal()) {
+        return this.state;
       }
-      return this.state;
+      final State endState;
+      try {
+        endState = executor.waitUntilFinish(duration);
+      } catch (UserCodeException uce) {
+        // Emulates the behavior of Pipeline#run(), where a stack trace caused by a
+        // UserCodeException is truncated and replaced with the stack starting at the call to
+        // waitToFinish
+        throw new Pipeline.PipelineExecutionException(uce.getCause());
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        if (e instanceof RuntimeException) {
+          throw (RuntimeException) e;
+        }
+        throw new RuntimeException(e);
+      }
+      if (endState != null) {
+        this.state = endState;
+      }
+      return endState;
     }
   }
 

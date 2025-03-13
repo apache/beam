@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.util.common.Reiterator;
 

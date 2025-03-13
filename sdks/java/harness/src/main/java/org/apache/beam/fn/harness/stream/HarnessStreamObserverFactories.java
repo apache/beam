@@ -18,27 +18,32 @@
 package org.apache.beam.fn.harness.stream;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 
 /**
  * Uses {@link PipelineOptions} to configure which underlying {@link StreamObserver} implementation
  * to use in the java SDK harness.
  */
 public abstract class HarnessStreamObserverFactories {
+
+  /**
+   * Creates an {@link OutboundObserverFactory} for client-side RPCs. All {@link StreamObserver}s
+   * created by this factory are thread safe.
+   */
   public static OutboundObserverFactory fromOptions(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_buffered_stream")) {
       int bufferSize = getBufferSize(experiments);
       if (bufferSize > 0) {
         return OutboundObserverFactory.clientBuffered(
-            options.as(GcsOptions.class).getExecutorService(), bufferSize);
+            options.as(ExecutorOptions.class).getScheduledExecutorService(), bufferSize);
       }
       return OutboundObserverFactory.clientBuffered(
-          options.as(GcsOptions.class).getExecutorService());
+          options.as(ExecutorOptions.class).getScheduledExecutorService());
     }
     return OutboundObserverFactory.clientDirect();
   }

@@ -25,7 +25,12 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/** Pipeline options related to Euphoria DSL translation. */
+/**
+ * Pipeline options related to Euphoria DSL translation.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
+@Deprecated
 public interface EuphoriaOptions extends PipelineOptions {
 
   /** {@link DefaultValueFactory} of {@link TranslatorProvider}. */

@@ -38,19 +38,23 @@ class Repositories {
 
       mavenCentral()
       mavenLocal()
-      jcenter()
 
-      // Spring only for resolving pentaho dependency.
+      // For Confluent Kafka dependencies
       maven {
-        url "https://repo.spring.io/plugins-release/"
-        content { includeGroup "org.pentaho" }
+        url "https://packages.confluent.io/maven/"
+        content { includeGroup "io.confluent" }
       }
 
       // Release staging repository
       maven { url "https://oss.sonatype.org/content/repositories/staging/" }
 
       // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
+      maven {
+        url "https://repository.apache.org/snapshots"
+        mavenContent {
+          snapshotsOnly()
+        }
+      }
 
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
@@ -68,9 +72,9 @@ class Repositories {
       repositories {
         mavenLocal()
         mavenCentral()
-        jcenter()
         maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "http://repo.spring.io/plugins-release" }
+        maven { url "https://repo.spring.io/plugins-release" }
+        maven { url "https://packages.confluent.io/maven/" }
         maven { url project.offlineRepositoryRoot }
       }
       includeSources = false
@@ -79,4 +83,3 @@ class Repositories {
     }
   }
 }
-

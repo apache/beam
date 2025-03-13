@@ -16,14 +16,15 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"reflect"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
@@ -37,7 +38,7 @@ type ReusableInput interface {
 	// Init initializes the value before use.
 	Init() error
 	// Value returns the side input value.
-	Value() interface{}
+	Value() any
 	// Reset resets the value after use.
 	Reset() error
 }
@@ -64,7 +65,7 @@ func IsInputRegistered(t reflect.Type) bool {
 type reIterValue struct {
 	t  reflect.Type
 	s  ReStream
-	fn interface{}
+	fn any
 }
 
 func makeReIter(t reflect.Type, s ReStream) ReusableInput {
@@ -81,7 +82,7 @@ func (v *reIterValue) Init() error {
 	return nil
 }
 
-func (v *reIterValue) Value() interface{} {
+func (v *reIterValue) Value() any {
 	return v.fn
 }
 
@@ -97,7 +98,7 @@ func (v *reIterValue) invoke(args []reflect.Value) []reflect.Value {
 
 type iterValue struct {
 	s     ReStream
-	fn    interface{}
+	fn    any
 	types []reflect.Type
 
 	// cur is the "current" stream, if any.
@@ -135,7 +136,7 @@ func (v *iterValue) Init() error {
 	return nil
 }
 
-func (v *iterValue) Value() interface{} {
+func (v *iterValue) Value() any {
 	return v.fn
 }
 
@@ -168,8 +169,6 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 	for i, t := range v.types {
 		var v reflect.Value
 		switch {
-		case t == typex.EventTimeType:
-			v = reflect.ValueOf(elm.Timestamp)
 		case isKey:
 			v = reflect.ValueOf(Convert(elm.Elm, t))
 			isKey = false
@@ -182,17 +181,64 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 }
 
 type fixedValue struct {
-	val interface{}
+	val any
 }
 
 func (v *fixedValue) Init() error {
 	return nil
 }
 
-func (v *fixedValue) Value() interface{} {
+func (v *fixedValue) Value() any {
 	return v.val
 }
 
 func (v *fixedValue) Reset() error {
 	return nil
+}
+
+type multiMapValue struct {
+	t       reflect.Type
+	keyType reflect.Type
+	// These four things are needed to dynamically build the iterables
+	ctx     context.Context
+	adapter SideInputAdapter
+	reader  StateReader
+	w       typex.Window
+	// fn is the actual invoked function
+	fn any
+}
+
+func makeMultiMap(ctx context.Context, t reflect.Type, adapter SideInputAdapter, reader StateReader, w typex.Window) ReusableInput {
+	types, ok := funcx.UnfoldMultiMap(t)
+	if !ok {
+		panic(fmt.Sprintf("illegal multimap type: %v", t))
+	}
+	mm := &multiMapValue{t: t, keyType: types[0], ctx: ctx, adapter: adapter, reader: reader, w: w}
+	mm.fn = reflect.MakeFunc(t, mm.invoke).Interface()
+	return mm
+}
+
+func (v *multiMapValue) Init() error {
+	return nil
+}
+
+func (v *multiMapValue) Value() any {
+	return v.fn
+}
+
+func (v *multiMapValue) Reset() error {
+	return nil
+}
+
+func (v *multiMapValue) invoke(args []reflect.Value) []reflect.Value {
+	if len(args) != 1 {
+		panic(fmt.Sprintf("wanted one key value, got %v", args))
+	}
+	rs, err := v.adapter.NewKeyedIterable(v.ctx, v.reader, v.w, args[0].Interface())
+	if err != nil {
+		panic(fmt.Sprintf("failed to create keyed iterable, got %v", err))
+	}
+	iter := makeIter(v.t.Out(0), rs)
+	iter.Init()
+	return []reflect.Value{reflect.ValueOf(iter.Value())}
 }

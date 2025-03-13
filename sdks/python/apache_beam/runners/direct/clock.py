@@ -19,10 +19,11 @@
 
 For internal use only. No backwards compatibility guarantees.
 """
-from __future__ import absolute_import
+# pytype: skip-file
 
 import time
-from builtins import object
+
+from apache_beam.utils.timestamp import Timestamp
 
 
 class Clock(object):
@@ -42,11 +43,11 @@ class RealClock(object):
 
 class TestClock(object):
   """Clock used for Testing"""
-  def __init__(self, current_time=0):
-    self._current_time = current_time
+  def __init__(self, current_time=None):
+    self._current_time = current_time if current_time else Timestamp()
 
   def time(self):
-    return self._current_time
+    return float(self._current_time)
 
   def advance_time(self, advance_by):
     self._current_time += advance_by

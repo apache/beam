@@ -24,15 +24,17 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.SchemaVersion;
-import org.apache.calcite.schema.Schemas;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaVersion;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schemas;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Adapter from {@link TableProvider} to {@link Schema}. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalciteSchema implements Schema {
   private JdbcConnection connection;
   private TableProvider tableProvider;
@@ -89,7 +91,7 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public RelProtoDataType getType(String name) {
+  public @Nullable RelProtoDataType getType(String name) {
     return null;
   }
 
@@ -99,7 +101,8 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public org.apache.calcite.schema.Table getTable(String name) {
+  public org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table getTable(
+      String name) {
     Table table = tableProvider.getTable(name);
     if (table == null) {
       return null;

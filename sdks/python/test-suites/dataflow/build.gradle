@@ -16,37 +16,76 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
+dependencies {
+  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
 
-task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+task preCommitIT {
+  getVersionsAsList('dataflow_precommit_it_task_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_batch")
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_streaming")
+  }
+}
 
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+task mongodbioIT {
+  getVersionsAsList('dataflow_mongodbio_it_task_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:mongodbioIT")
+  }
+}
 
-  doLast {
-    // Basic integration tests to run in PreCommit
-    def precommitTests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
-    ]
-    def testOpts = [
-        "--tests=${precommitTests.join(',')}",
-        "--nocapture",    // Print stdout instantly
-        "--processes=2",    // Number of tests running in parallel
-        "--process-timeout=1800",   // Timeout of whole command execution
-    ]
-    def cmdArgs = project.mapToArgString([
-        "test_opts": testOpts,
-        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-        "worker_jar": dataflowWorkerJar
-    ])
+task chicagoTaxiExample {
+  getVersionsAsList('dataflow_chicago_taxi_example_task_py_versions').each {
+    dependsOn.add("sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:chicagoTaxiExample")
+  }
+}
 
-    exec {
-      executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
+task validatesRunnerBatchTests {
+  getVersionsAsList('dataflow_validates_runner_batch_tests').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
+  }
+}
+
+task validatesRunnerStreamingTests {
+  getVersionsAsList('dataflow_validates_runner_streaming_tests').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
+  }
+}
+
+task validatesContainerTests {
+  getVersionsAsList('python_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
+  }
+}
+
+task validatesDistrolessContainerTests {
+  getVersionsAsList('python_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesDistrolessContainer")
+  }
+}
+
+task examplesPostCommit {
+  getVersionsAsList('dataflow_examples_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
+  }
+}
+
+task gcpCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
+  }
+}
+
+task ioCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:ioCrossLanguagePythonUsingJava")
+  }
+}
+
+task tftTests {
+  getVersionsAsList('dataflow_cloudml_benchmark_tests_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:tftTests")
   }
 }

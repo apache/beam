@@ -18,14 +18,23 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeBoundedTrie;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleCounter;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleDistribution;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Histogram;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.time.Instant;
 import java.util.HashMap;
-import javax.annotation.Nullable;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.util.HistogramData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -47,13 +56,13 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
+  private static final SpecMonitoringInfoValidator VALIDATOR = new SpecMonitoringInfoValidator();
   private final boolean validateAndDropInvalid;
 
-  private static final HashMap<String, MonitoringInfoSpec> specs =
+  private static final Map<String, MonitoringInfoSpec> KNOWN_SPECS =
       new HashMap<String, MonitoringInfoSpec>();
 
   private MonitoringInfo.Builder builder;
-  private SpecMonitoringInfoValidator validator = new SpecMonitoringInfoValidator();
 
   static {
     for (MonitoringInfoSpecs.Enum val : MonitoringInfoSpecs.Enum.values()) {
@@ -62,7 +71,7 @@ public class SimpleMonitoringInfoBuilder {
       if (!val.name().equals("UNRECOGNIZED")) {
         MonitoringInfoSpec spec =
             val.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec);
-        SimpleMonitoringInfoBuilder.specs.put(spec.getUrn(), spec);
+        KNOWN_SPECS.put(spec.getUrn(), spec);
       }
     }
   }
@@ -86,52 +95,101 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /** Sets the timestamp of the MonitoringInfo to the current time. */
-  public SimpleMonitoringInfoBuilder setTimestampToNow() {
-    Instant time = Instant.now();
-    this.builder.getTimestampBuilder().setSeconds(time.getEpochSecond()).setNanos(time.getNano());
-    return this;
-  }
-
-  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
-  public SimpleMonitoringInfoBuilder setInt64Value(long value) {
-    this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
-    this.setInt64TypeUrn();
+  /**
+   * Sets the type of the MonitoringInfo.
+   *
+   * @param type The type of the MonitoringInfo
+   */
+  public SimpleMonitoringInfoBuilder setType(String type) {
+    this.builder.setType(type);
     return this;
   }
 
   /**
-   * Sets the IntDistributionData of the DistributionData in the MonitoringInfo, and the appropriate
-   * type URN.
+   * Encodes the value and sets the type to {@link MonitoringInfoConstants.TypeUrns#SUM_INT64_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setInt64SumValue(long value) {
+    this.builder.setPayload(encodeInt64Counter(value));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setDoubleSumValue(double value) {
+    this.builder.setPayload(encodeDoubleCounter(value));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_DOUBLE_TYPE);
+    return this;
+  }
+
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#LATEST_INT64_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setInt64LatestValue(GaugeData data) {
+    checkArgument(GaugeData.empty() != data, "Cannot encode empty gauge data");
+    this.builder.setPayload(encodeInt64Gauge(data));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE);
+    return this;
+  }
+
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}.
    */
   public SimpleMonitoringInfoBuilder setInt64DistributionValue(DistributionData data) {
-    this.builder
-        .getMetricBuilder()
-        .getDistributionDataBuilder()
-        .getIntDistributionDataBuilder()
-        .setCount(data.count())
-        .setSum(data.sum())
-        .setMin(data.min())
-        .setMax(data.max());
-    this.setInt64DistributionTypeUrn();
+    this.builder.setPayload(encodeInt64Distribution(data));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE);
     return this;
   }
 
-  /** Sets the the appropriate type URN for int64 distribution tuples. */
-  public SimpleMonitoringInfoBuilder setInt64DistributionTypeUrn() {
-    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64);
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setDoubleDistributionValue(
+      long count, double sum, double min, double max) {
+    this.builder.setPayload(encodeDoubleDistribution(count, sum, min, max));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_DOUBLE_TYPE);
     return this;
   }
 
-  /** Sets the the appropriate type URN for sum int64 counters. */
-  public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
-    this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64);
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#SET_STRING_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setStringSetValue(StringSetData value) {
+    this.builder.setPayload(encodeStringSet(value));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE);
+    return this;
+  }
+
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#BOUNDED_TRIE_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setBoundedTrieValue(BoundedTrieData value) {
+    this.builder.setPayload(encodeBoundedTrie(value));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE);
+    return this;
+  }
+
+  /**
+   * Encodes the value and sets the type to {@link MonitoringInfoConstants.TypeUrns#HISTOGRAM_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setInt64HistogramValue(HistogramData data) {
+    this.builder.setPayload(encodeInt64Histogram(data));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE);
     return this;
   }
 
   /** Sets the MonitoringInfo label to the given name and value. */
   public SimpleMonitoringInfoBuilder setLabel(String labelName, String labelValue) {
     this.builder.putLabels(labelName, labelValue);
+    return this;
+  }
+
+  /** Adds all the labels to the MonitoringInfo overwriting any duplicated keys. */
+  public SimpleMonitoringInfoBuilder setLabels(Map<String, String> labels) {
+    this.builder.putAllLabels(labels);
     return this;
   }
 
@@ -144,25 +202,12 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * @return A copy of the MonitoringInfo with the timestamp cleared, to allow comparing two
-   *     MonitoringInfos.
-   */
-  @VisibleForTesting
-  public static MonitoringInfo copyAndClearTimestamp(MonitoringInfo input) {
-    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
-    builder.mergeFrom(input);
-    builder.clearTimestamp();
-    return builder.build();
-  }
-
-  /**
    * Builds the provided MonitoringInfo. Returns null if validateAndDropInvalid set and fields do
    * not match respecting MonitoringInfoSpec based on urn.
    */
-  @Nullable
-  public MonitoringInfo build() {
+  public @Nullable MonitoringInfo build() {
     final MonitoringInfo result = this.builder.build();
-    if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
+    if (validateAndDropInvalid && VALIDATOR.validate(result).isPresent()) {
       return null;
     }
     return result;

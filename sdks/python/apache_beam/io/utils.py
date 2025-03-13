@@ -14,14 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Utils for the io library.
 * CountingSource: Subclass of iobase.BoundedSource. Used
 on transforms.ptransform_test.test_read_metrics.
 """
 
-from __future__ import absolute_import
-
-from builtins import range
+# pytype: skip-file
 
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -61,8 +60,9 @@ class CountingSource(iobase.BoundedSource):
     bundle_start = start_position
     while bundle_start < stop_position:
       bundle_stop = min(stop_position, bundle_start + desired_bundle_size)
-      yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                                source=self,
-                                start_position=bundle_start,
-                                stop_position=bundle_stop)
+      yield iobase.SourceBundle(
+          weight=(bundle_stop - bundle_start),
+          source=self,
+          start_position=bundle_start,
+          stop_position=bundle_stop)
       bundle_start = bundle_stop

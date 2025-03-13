@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
@@ -39,10 +39,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -59,6 +60,7 @@ import org.apache.hive.hcatalog.data.transfer.ReadEntity;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,12 +68,18 @@ import org.slf4j.LoggerFactory;
 /**
  * IO to read and write data using HCatalog.
  *
+ * <p><b>WARNING:</b>This package requires users to declare their own dependency on
+ * org.apache.hive:hive-exec and org.apache.hive.hcatalog. At the time of this Beam release every
+ * released version of those packages had a transitive dependency on a version of log4j vulnerable
+ * to CVE-2021-44228. We strongly encourage users to pin a non-vulnerable version of log4j when
+ * using this package. See <a href="https://github.com/apache/beam/issues/21426">Issue #21426</a>.
+ *
  * <h3>Reading using HCatalog</h3>
  *
  * <p>HCatalog source supports reading of HCatRecord from a HCatalog managed source, for eg. Hive.
  *
  * <p>To configure a HCatalog source, you must specify a metastore URI and a table name. Other
- * optional parameters are database &amp; filter For instance:
+ * optional parameters are database &amp; filter. For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<>();
@@ -104,8 +112,8 @@ import org.slf4j.LoggerFactory;
  * <p>HCatalog sink supports writing of HCatRecord to a HCatalog managed source, for eg. Hive.
  *
  * <p>To configure a HCatalog sink, you must specify a metastore URI and a table name. Other
- * optional parameters are database, partition &amp; batchsize The destination table should exist
- * beforehand, the transform does not create a new table if it does not exist For instance:
+ * optional parameters are database, partition &amp; batchsize. The destination table should exist
+ * beforehand, the transform does not create a new table if it does not exist. For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<>();
@@ -121,7 +129,9 @@ import org.slf4j.LoggerFactory;
  *       .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HCatalogIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(HCatalogIO.class);
@@ -149,37 +159,37 @@ public class HCatalogIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
 
-    @Nullable
-    abstract Map<String, String> getConfigProperties();
+    abstract @Nullable Map<String, String> getConfigProperties();
+
+    abstract @Nullable String getDatabase();
+
+    abstract @Nullable String getTable();
+
+    abstract @Nullable String getFilter();
 
     @Nullable
-    abstract String getDatabase();
+    ReaderContext getContext() {
+      if (getContextHolder() == null) {
+        return null;
+      }
+      return getContextHolder().get();
+    }
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable ReaderContextHolder getContextHolder();
 
-    @Nullable
-    abstract String getFilter();
+    abstract @Nullable Integer getSplitId();
 
-    @Nullable
-    abstract ReaderContext getContext();
+    abstract @Nullable Duration getPollingInterval();
 
-    @Nullable
-    abstract Integer getSplitId();
+    abstract @Nullable List<String> getPartitionCols();
 
-    @Nullable
-    abstract Duration getPollingInterval();
-
-    @Nullable
-    abstract List<String> getPartitionCols();
-
-    @Nullable
-    abstract TerminationCondition<Read, ?> getTerminationCondition();
+    abstract @Nullable TerminationCondition<Read, ?> getTerminationCondition();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setConfigProperties(Map<String, String> configProperties);
 
       abstract Builder setDatabase(String database);
@@ -190,7 +200,11 @@ public class HCatalogIO {
 
       abstract Builder setSplitId(Integer splitId);
 
-      abstract Builder setContext(ReaderContext context);
+      abstract Builder setContextHolder(ReaderContextHolder context);
+
+      Builder setContext(ReaderContext context) {
+        return this.setContextHolder(new ReaderContextHolder(context));
+      }
 
       abstract Builder setPollingInterval(Duration pollingInterval);
 
@@ -283,6 +297,35 @@ public class HCatalogIO {
       builder.add(DisplayData.item("table", getTable()));
       builder.addIfNotNull(DisplayData.item("database", getDatabase()));
       builder.addIfNotNull(DisplayData.item("filter", getFilter()));
+    }
+
+    /**
+     * We specifically use a holder which replaces the implementation of what is being serialized to
+     * cache the serialized version instead of re-serializing the ReaderContext. See BEAM-10694 for
+     * additional details.
+     */
+    static class ReaderContextHolder implements Serializable {
+
+      private final byte[] serializedReaderContext;
+      private transient ReaderContext readerContext;
+
+      public ReaderContextHolder(ReaderContext readerContext) {
+        this.serializedReaderContext = SerializableUtils.serializeToByteArray(readerContext);
+        this.readerContext = readerContext;
+      }
+
+      private ReaderContext get() {
+        return readerContext;
+      }
+
+      private void readObject(java.io.ObjectInputStream in)
+          throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        readerContext =
+            (ReaderContext)
+                SerializableUtils.deserializeFromByteArray(
+                    serializedReaderContext, "ReaderContext");
+      }
     }
   }
 
@@ -427,17 +470,14 @@ public class HCatalogIO {
   /** A {@link PTransform} to write to a HCatalog managed source. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<HCatRecord>, PDone> {
-    @Nullable
-    abstract Map<String, String> getConfigProperties();
 
-    @Nullable
-    abstract String getDatabase();
+    abstract @Nullable Map<String, String> getConfigProperties();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable String getDatabase();
 
-    @Nullable
-    abstract Map<String, String> getPartition();
+    abstract @Nullable String getTable();
+
+    abstract @Nullable Map<String, String> getPartition();
 
     abstract long getBatchSize();
 

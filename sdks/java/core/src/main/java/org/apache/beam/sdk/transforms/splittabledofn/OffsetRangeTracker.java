@@ -17,23 +17,32 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
  * increasing fashion.
+ *
+ * <p>The smallest offset is {@code Long.MIN_VALUE} and the largest offset is {@code Long.MAX_VALUE
+ * - 1}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
-    implements Sizes.HasSize {
-  private OffsetRange range;
-  @Nullable private Long lastClaimedOffset = null;
-  @Nullable private Long lastAttemptedOffset = null;
+    implements HasProgress {
+  protected OffsetRange range;
+  protected @Nullable Long lastClaimedOffset = null;
+  protected @Nullable Long lastAttemptedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
     this.range = checkNotNull(range);
@@ -45,12 +54,29 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public OffsetRange checkpoint() {
-    checkState(
-        lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
-    OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
-    this.range = new OffsetRange(range.getFrom(), lastClaimedOffset + 1);
-    return res;
+  public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+    // Convert to BigDecimal in computation to prevent overflow, which may result in loss of
+    // precision.
+    BigDecimal cur =
+        (lastAttemptedOffset == null)
+            ? BigDecimal.valueOf(range.getFrom()).subtract(BigDecimal.ONE, MathContext.DECIMAL128)
+            : BigDecimal.valueOf(lastAttemptedOffset);
+    // split = cur + max(1, (range.getTo() - cur) * fractionOfRemainder)
+    BigDecimal splitPos =
+        cur.add(
+            BigDecimal.valueOf(range.getTo())
+                .subtract(cur, MathContext.DECIMAL128)
+                .multiply(BigDecimal.valueOf(fractionOfRemainder), MathContext.DECIMAL128)
+                .max(BigDecimal.ONE),
+            MathContext.DECIMAL128);
+
+    long split = splitPos.longValue();
+    if (split >= range.getTo()) {
+      return null;
+    }
+    OffsetRange res = new OffsetRange(split, range.getTo());
+    this.range = new OffsetRange(range.getFrom(), split);
+    return SplitResult.of(range, res);
   }
 
   /**
@@ -81,6 +107,13 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
 
   @Override
   public void checkDone() throws IllegalStateException {
+    if (range.getFrom() == range.getTo()) {
+      return;
+    }
+    checkState(
+        lastAttemptedOffset != null,
+        "Last attempted offset should not be null. No work was claimed in non-empty range %s.",
+        range);
     checkState(
         lastAttemptedOffset >= range.getTo() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
@@ -88,6 +121,11 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
         range,
         lastAttemptedOffset + 1,
         range.getTo());
+  }
+
+  @Override
+  public IsBounded isBounded() {
+    return IsBounded.BOUNDED;
   }
 
   @Override
@@ -100,14 +138,30 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public double getSize() {
-    // If we have never attempted an offset, we return the length of the entire range.
+  public Progress getProgress() {
+    // If we have never attempted an offset, we return the length of the entire range as work
+    // remaining.
+    // Convert to BigDecimal in computation to prevent overflow, which may result in loss of
+    // precision.
     if (lastAttemptedOffset == null) {
-      return range.getTo() - range.getFrom();
+      return Progress.from(
+          0,
+          BigDecimal.valueOf(range.getTo())
+              .subtract(BigDecimal.valueOf(range.getFrom()), MathContext.DECIMAL128)
+              .doubleValue());
     }
 
-    // Otherwise we return the length from where we are to where we are attempting to get to
+    // Compute the amount of work remaining from where we are to where we are attempting to get to
     // with a minimum of zero in case we have claimed beyond the end of the range.
-    return Math.max(range.getTo() - lastAttemptedOffset, 0);
+    BigDecimal workRemaining =
+        BigDecimal.valueOf(range.getTo())
+            .subtract(BigDecimal.valueOf(lastAttemptedOffset), MathContext.DECIMAL128)
+            .max(BigDecimal.ZERO);
+    BigDecimal totalWork =
+        BigDecimal.valueOf(range.getTo())
+            .subtract(BigDecimal.valueOf(range.getFrom()), MathContext.DECIMAL128);
+    return Progress.from(
+        totalWork.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
+        workRemaining.doubleValue());
   }
 }

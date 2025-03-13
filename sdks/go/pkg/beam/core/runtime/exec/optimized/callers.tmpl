@@ -18,7 +18,7 @@ package {{.Package}}
 import (
     "reflect"
 
-  	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+  	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 {{- range $import := .Imports}}
     "{{$import}}"
 {{- end}}
@@ -45,7 +45,7 @@ type native{{$x.Name}}MFunc struct {
 	fn    func ({{$x.Type}}, {{$x.Type}}){{$x.Type}}
 }
 
-func funcMaker{{$x.Name}}M(fn interface{}) reflectx.Func {
+func funcMaker{{$x.Name}}M(fn any) reflectx.Func {
     f := fn.(func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})
     return &native{{$x.Name}}MFunc{fn: f}
 }
@@ -58,12 +58,12 @@ func (c *native{{$x.Name}}MFunc) Type() reflect.Type {
     return reflect.TypeOf(c.fn)
 }
 
-func (c *native{{$x.Name}}MFunc) Call(args []interface{}) []interface{} {
+func (c *native{{$x.Name}}MFunc) Call(args []any) []any {
     out := c.fn(args[0].({{$x.Type}}), args[1].({{$x.Type}}))
-    return []interface{}{out}
+    return []any{out}
 }
 
-func (c *native{{$x.Name}}MFunc) Call2x1(a, b interface{}) interface{} {
+func (c *native{{$x.Name}}MFunc) Call2x1(a, b any) any {
     return c.fn(a.({{$x.Type}}), b.({{$x.Type}}))
 }
 {{end}}

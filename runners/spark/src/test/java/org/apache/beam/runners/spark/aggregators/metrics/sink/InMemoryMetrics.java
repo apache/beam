@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.spark.aggregators.metrics.sink;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
+import java.util.Collection;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.spark.metrics.sink.Sink;
 
 /** An in-memory {@link Sink} implementation for tests. */
@@ -30,6 +32,7 @@ public class InMemoryMetrics implements Sink {
   private static WithMetricsSupport extendedMetricsRegistry;
   private static MetricRegistry internalMetricRegistry;
 
+  // Constructor for Spark 3.1
   @SuppressWarnings("UnusedParameters")
   public InMemoryMetrics(
       final Properties properties,
@@ -39,26 +42,24 @@ public class InMemoryMetrics implements Sink {
     internalMetricRegistry = metricRegistry;
   }
 
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public static <T> T valueOf(final String name) {
-    final T retVal;
+  // Constructor for Spark >= 3.2
+  @SuppressWarnings("UnusedParameters")
+  public InMemoryMetrics(final Properties properties, final MetricRegistry metricRegistry) {
+    extendedMetricsRegistry = WithMetricsSupport.forRegistry(metricRegistry);
+    internalMetricRegistry = metricRegistry;
+  }
 
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "rawtypes"})
+  public static <T> T valueOf(final String name) {
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.
-    if (extendedMetricsRegistry != null
-        && extendedMetricsRegistry.getGauges().keySet().stream()
-            .anyMatch(Predicates.containsPattern(name + "$")::apply)) {
-      String key =
-          extendedMetricsRegistry.getGauges().keySet().stream()
-              .filter(Predicates.containsPattern(name + "$")::apply)
-              .findFirst()
-              .get();
-      retVal = (T) extendedMetricsRegistry.getGauges().get(key).getValue();
+    if (extendedMetricsRegistry != null) {
+      Collection<Gauge> matches =
+          extendedMetricsRegistry.getGauges((n, m) -> n.endsWith(name)).values();
+      return matches.isEmpty() ? null : (T) Iterables.getOnlyElement(matches).getValue();
     } else {
-      retVal = null;
+      return null;
     }
-
-    return retVal;
   }
 
   @SuppressWarnings("WeakerAccess")

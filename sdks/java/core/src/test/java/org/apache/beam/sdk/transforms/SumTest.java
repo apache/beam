@@ -27,7 +27,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -60,6 +60,35 @@ public class SumTest {
   @Test
   public void testSumDoubleFn() {
     testCombineFn(Sum.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, 4.0), 10.0);
+  }
+
+  @Test
+  public void testSumDoubleFnInfinity() {
+    testCombineFn(
+        Sum.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.NaN);
+  }
+
+  @Test
+  public void testSumDoubleFnPositiveInfinity() {
+    testCombineFn(
+        Sum.ofDoubles(),
+        Lists.newArrayList(1.0, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.POSITIVE_INFINITY);
+  }
+
+  @Test
+  public void testSumDoubleFnNegativeInfinity() {
+    testCombineFn(
+        Sum.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, 4.0),
+        Double.NEGATIVE_INFINITY);
+  }
+
+  @Test
+  public void testSumDoubleFnNan() {
+    testCombineFn(Sum.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, Double.NaN), Double.NaN);
   }
 
   @Test

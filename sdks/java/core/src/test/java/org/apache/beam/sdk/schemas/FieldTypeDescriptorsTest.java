@@ -79,6 +79,17 @@ public class FieldTypeDescriptorsTest {
   }
 
   @Test
+  public void testIterableTypeToJavaType() {
+    assertEquals(
+        TypeDescriptors.iterables(TypeDescriptors.longs()),
+        FieldTypeDescriptors.javaTypeForFieldType(FieldType.iterable(FieldType.INT64)));
+    assertEquals(
+        TypeDescriptors.iterables(TypeDescriptors.iterables(TypeDescriptors.longs())),
+        FieldTypeDescriptors.javaTypeForFieldType(
+            FieldType.iterable(FieldType.iterable(FieldType.INT64))));
+  }
+
+  @Test
   public void testMapTypeToJavaType() {
     assertEquals(
         TypeDescriptors.maps(TypeDescriptors.strings(), TypeDescriptors.longs()),
@@ -145,6 +156,18 @@ public class FieldTypeDescriptorsTest {
   }
 
   @Test
+  public void testIterableTypeToFieldType() {
+    assertEquals(
+        FieldType.iterable(FieldType.STRING),
+        FieldTypeDescriptors.fieldTypeForJavaType(
+            TypeDescriptors.iterables(TypeDescriptors.strings())));
+    assertEquals(
+        FieldType.iterable(FieldType.iterable(FieldType.STRING)),
+        FieldTypeDescriptors.fieldTypeForJavaType(
+            TypeDescriptors.iterables(TypeDescriptors.iterables(TypeDescriptors.strings()))));
+  }
+
+  @Test
   public void testMapTypeToFieldType() {
     assertEquals(
         FieldType.map(FieldType.STRING, FieldType.INT64),
@@ -155,5 +178,10 @@ public class FieldTypeDescriptorsTest {
         FieldTypeDescriptors.fieldTypeForJavaType(
             TypeDescriptors.maps(
                 TypeDescriptors.strings(), TypeDescriptors.lists(TypeDescriptors.longs()))));
+    assertEquals(
+        FieldType.map(FieldType.STRING, FieldType.iterable(FieldType.INT64)),
+        FieldTypeDescriptors.fieldTypeForJavaType(
+            TypeDescriptors.maps(
+                TypeDescriptors.strings(), TypeDescriptors.iterables(TypeDescriptors.longs()))));
   }
 }

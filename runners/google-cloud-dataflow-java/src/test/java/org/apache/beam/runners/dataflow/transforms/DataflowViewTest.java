@@ -26,19 +26,14 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -65,6 +60,7 @@ public class DataflowViewTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
+    options.setRegion("some-region1");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(dataflow);
@@ -76,6 +72,7 @@ public class DataflowViewTest {
     options.setRunner(DataflowRunner.class);
     options.setStreaming(true);
     options.setProject("someproject");
+    options.setRegion("some-region1");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(dataflow);
@@ -101,22 +98,6 @@ public class DataflowViewTest {
                     KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
               }
             })
-        .apply(view);
-  }
-
-  private void testViewNonmerging(
-      Pipeline pipeline,
-      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Unable to create a side-input view from input");
-    thrown.expectCause(
-        ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
-    pipeline
-        .apply(Create.of(KV.of("hello", 5)))
-        .apply(
-            Window.into(
-                new InvalidWindows<>(
-                    "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
         .apply(view);
   }
 
@@ -168,55 +149,5 @@ public class DataflowViewTest {
   @Test
   public void testViewUnboundedAsMultimapStreaming() {
     testViewUnbounded(createTestStreamingRunner(), View.asMultimap());
-  }
-
-  @Test
-  public void testViewNonmergingAsSingletonBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.asSingleton());
-  }
-
-  @Test
-  public void testViewNonmergingAsSingletonStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.asSingleton());
-  }
-
-  @Test
-  public void testViewNonmergingAsIterableBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.asIterable());
-  }
-
-  @Test
-  public void testViewNonmergingAsIterableStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.asIterable());
-  }
-
-  @Test
-  public void testViewNonmergingAsListBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.asList());
-  }
-
-  @Test
-  public void testViewNonmergingAsListStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.asList());
-  }
-
-  @Test
-  public void testViewNonmergingAsMapBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.asMap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMapStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.asMap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMultimapBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.asMultimap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMultimapStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.asMultimap());
   }
 }

@@ -19,85 +19,88 @@ package universal
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+
 	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
-	"github.com/golang/protobuf/proto"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/extworker"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/runnerlib"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/vet"
 )
 
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("universal", Execute)
+	beam.RegisterRunner("PortableRunner", Execute)
+	beam.RegisterRunner("portable", Execute)
 }
 
 // Execute executes the pipeline on a universal beam runner.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if !beam.Initialized() {
-		panic(fmt.Sprint("Beam has not been initialized. Call beam.Init() before pipeline construction."))
+		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
 	}
 
 	if *jobopts.Strict {
 		log.Info(ctx, "Strict mode enabled, applying additional validation.")
-		if err := vet.Execute(ctx, p); err != nil {
-			return errors.Wrap(err, "strictness check failed")
+		if _, err := vet.Execute(ctx, p); err != nil {
+			return nil, errors.Wrap(err, "strictness check failed")
 		}
 		log.Info(ctx, "Strict mode validation passed.")
 	}
 
 	endpoint, err := jobopts.GetEndpoint()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	edges, _, err := p.Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
-	if err != nil {
-		return errors.WithContextf(err, "generating model pipeline")
+	envUrn := jobopts.GetEnvironmentUrn(ctx)
+	getEnvCfg := jobopts.GetEnvironmentConfig
+
+	if jobopts.IsLoopback() {
+		// TODO(BEAM-10610): Allow user configuration of this port, rather than kernel selected.
+		srv, err := extworker.StartLoopback(ctx, 0)
+		if err != nil {
+			return nil, err
+		}
+		defer srv.Stop(ctx)
+		getEnvCfg = srv.EnvironmentConfig
 	}
 
-	log.Info(ctx, proto.MarshalTextString(pipeline))
+	// Fetch all dependencies for cross-language transforms
+	xlangx.ResolveArtifacts(ctx, edges, nil)
+
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
+
+	log.Info(ctx, pipeline.String())
 
 	opt := &runnerlib.JobOptions{
-		Name:        jobopts.GetJobName(),
-		Experiments: jobopts.GetExperiments(),
-		Worker:      *jobopts.WorkerBinary,
+		Name:         jobopts.GetJobName(),
+		Experiments:  jobopts.GetExperiments(),
+		Worker:       *jobopts.WorkerBinary,
+		RetainDocker: *jobopts.RetainDockerContainers,
+		Parallelism:  *jobopts.Parallelism,
+		Loopback:     jobopts.IsLoopback(),
 	}
-	_, err = runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
-	return err
-}
-
-func createEnvironment(ctx context.Context) pb.Environment {
-	var environment pb.Environment
-	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
-	case "beam:env:process:v1":
-		// TODO Support process based SDK Harness.
-		panic(fmt.Sprintf("Unsupported environment %v", urn))
-	case "beam:env:docker:v1":
-		fallthrough
-	default:
-		config := jobopts.GetEnvironmentConfig(ctx)
-		payload := &pb.DockerPayload{ContainerImage: config}
-		serializedPayload, err := proto.Marshal(payload)
-		if err != nil {
-			panic(fmt.Sprintf(
-				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
-		}
-		environment = pb.Environment{
-			Urn:     urn,
-			Payload: serializedPayload,
-		}
-	}
-	return environment
+	return runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 }

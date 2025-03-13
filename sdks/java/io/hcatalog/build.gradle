@@ -16,35 +16,36 @@
  * limitations under the License.
  */
 
+import java.util.stream.Collectors
+
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
+  // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
+  // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
+  enableStrictDependencies: false,
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
 
-def hive_version = "2.1.0"
+def hadoopVersions = [
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    // "341": "3.4.1", // tests already exercised on the default version
+]
 
-test {
-  // TODO: Get tests to run. Known issues:
-  //  * calcite-avatica bundles w/o repackaging Jackson (CALCITE-1110)
-  //  * hive-exec bundles w/o repackaging Guava (HIVE-13690)
-  ignoreFailures true
-}
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":sdks:java:io:common")
+def hive_version = "3.1.3"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
   provided library.java.jackson_annotations
@@ -52,22 +53,66 @@ dependencies {
   provided library.java.jackson_databind
   // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
   // here so that it appears on the compile/test/runtime classpath before Calcite.
-  provided library.java.guava
   provided library.java.hadoop_common
   provided "org.apache.hive:hive-exec:$hive_version"
   provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
-  testCompile library.java.commons_io_2x
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
-  testCompile "org.apache.hive:hive-exec:$hive_version"
-  testCompile "org.apache.hive:hive-common:$hive_version"
-  testCompile "org.apache.hive:hive-cli:$hive_version"
-  testRuntimeOnly project(":runners:direct-java")
+  testImplementation library.java.commons_io
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
+  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation "org.apache.hive:hive-common:$hive_version"
+  testImplementation "org.apache.hive:hive-cli:$hive_version"
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
+  testImplementation project(path: ":sdks:java:io:common")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+  }
 }
 
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+      force "org.apache.hadoop:hadoop-minicluster:$kv.value"
+      force "org.apache.hadoop:hadoop-hdfs:$kv.value"
+      force "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs HCatalog tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  tasks.create(name: "hadoopVersion${kv.key}Test", type: Test, group: "Verification") {
+    description = "Runs HCatalog tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
+}
+
+project.tasks.withType(Test).configureEach {
+  if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0 && project.findProperty('testJavaVersion') != '8') {
+    useJUnit {
+      filter {
+        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogIOTest"
+        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchemaTest"
+      }
+    }
+  }
+}

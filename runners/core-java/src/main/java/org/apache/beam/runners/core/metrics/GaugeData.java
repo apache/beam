@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.joda.time.Instant;
 
 /**
@@ -33,8 +34,13 @@ public abstract class GaugeData implements Serializable {
 
   public abstract Instant timestamp();
 
+  /** Returns a {@link GaugeData} using the current time. */
   public static GaugeData create(long value) {
-    return new AutoValue_GaugeData(value, Instant.now());
+    return create(value, Instant.now());
+  }
+
+  public static GaugeData create(long value, Instant timestamp) {
+    return new AutoValue_GaugeData(value, timestamp);
   }
 
   public static GaugeData empty() {
@@ -57,7 +63,7 @@ public abstract class GaugeData implements Serializable {
   public static class EmptyGaugeData extends GaugeData {
 
     private static final EmptyGaugeData INSTANCE = new EmptyGaugeData();
-    private static final Instant EPOCH = new Instant(0);
+    private static final Instant EPOCH = GlobalWindow.TIMESTAMP_MIN_VALUE;
 
     private EmptyGaugeData() {}
 

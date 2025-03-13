@@ -20,9 +20,11 @@ A PTransform that provides an unbounded, streaming source of empty byte arrays.
 
 This can only be used with the flink runner.
 """
-from __future__ import absolute_import
+# pytype: skip-file
 
 import json
+from typing import Any
+from typing import Dict
 
 from apache_beam import PTransform
 from apache_beam import Windowing
@@ -33,14 +35,14 @@ from apache_beam.transforms.window import GlobalWindows
 class FlinkStreamingImpulseSource(PTransform):
   URN = "flink:transform:streaming_impulse:v1"
 
-  config = {}
+  config: Dict[str, Any] = {}
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (
         'Input to transform must be a PBegin but found %s' % pbegin)
-    return pvalue.PCollection(pbegin.pipeline)
+    return pvalue.PCollection(pbegin.pipeline, is_bounded=False)
 
-  def get_windowing(self, inputs):
+  def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
 
   def infer_output_type(self, unused_input_type):
@@ -64,9 +66,11 @@ class FlinkStreamingImpulseSource(PTransform):
     self.config["message_count"] = message_count
     return self
 
-  # pylint: disable=no-self-argument
-  @PTransform.register_urn("flink:transform:streaming_impulse:v1", None)
-  def from_runner_api_parameter(spec_parameter, _unused_context):
+  @staticmethod
+  @PTransform.register_urn(URN, None)
+  def from_runner_api_parameter(_ptransform, spec_parameter, _context):
+    if isinstance(spec_parameter, bytes):
+      spec_parameter = spec_parameter.decode('utf-8')
     config = json.loads(spec_parameter)
     instance = FlinkStreamingImpulseSource()
     if "interval_ms" in config:

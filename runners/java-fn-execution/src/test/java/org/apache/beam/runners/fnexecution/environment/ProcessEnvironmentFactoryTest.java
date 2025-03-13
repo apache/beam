@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyMap;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,17 +31,18 @@ import java.io.IOException;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
-import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
+import org.apache.beam.sdk.util.construction.Environments;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -51,7 +52,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link ProcessEnvironmentFactory}. */
 @RunWith(JUnit4.class)
 public class ProcessEnvironmentFactoryTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =
       ApiServiceDescriptor.newBuilder().setUrl("service-url").build();
   private static final String COMMAND = "my-command";
@@ -62,9 +63,6 @@ public class ProcessEnvironmentFactoryTest {
 
   @Mock private ProcessManager processManager;
 
-  @Mock private GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  @Mock private GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  @Mock private GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   @Mock private GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
   @Mock private InstructionRequestHandler client;
@@ -76,47 +74,41 @@ public class ProcessEnvironmentFactoryTest {
 
     when(processManager.startProcess(anyString(), anyString(), anyList(), anyMap()))
         .thenReturn(Mockito.mock(ProcessManager.RunningProcess.class));
-    when(controlServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
-    when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
-    when(retrievalServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(provisioningServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     factory =
         ProcessEnvironmentFactory.create(
             processManager,
-            controlServiceServer,
-            loggingServiceServer,
-            retrievalServiceServer,
             provisioningServiceServer,
             (workerId, timeout) -> client,
-            ID_GENERATOR);
+            ID_GENERATOR,
+            PipelineOptionsFactory.as(RemoteEnvironmentOptions.class));
   }
 
   @Test
   public void createsCorrectEnvironment() throws Exception {
-    RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+    RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT, "workerId");
     assertThat(handle.getInstructionRequestHandler(), is(client));
     assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
-    Mockito.verify(processManager)
-        .startProcess(eq(ID_GENERATOR.currentId), anyString(), anyList(), anyMap());
+    Mockito.verify(processManager).startProcess(eq("workerId"), anyString(), anyList(), anyMap());
   }
 
   @Test
   public void destroysCorrectContainer() throws Exception {
-    RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+    RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT, "workerId");
     handle.close();
-    verify(processManager).stopProcess(ID_GENERATOR.currentId);
+    verify(processManager).stopProcess("workerId");
   }
 
   @Test
   public void createsMultipleEnvironments() throws Exception {
     Environment fooEnv =
         Environments.createProcessEnvironment("", "", "foo", Collections.emptyMap());
-    RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
+    RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv, "workerId");
     assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
 
     Environment barEnv =
         Environments.createProcessEnvironment("", "", "bar", Collections.emptyMap());
-    RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
+    RemoteEnvironment barHandle = factory.createEnvironment(barEnv, "workerId");
     assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
   }
 

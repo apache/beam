@@ -18,16 +18,14 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a {@link PCollection}
@@ -55,10 +53,9 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *
    * <p>The {@link PCollection} may not be available in all contexts.
    */
-  @Nullable
   @Internal
+  @Nullable
   PCollection<?> getPCollection();
-
   /**
    * <b>For internal use only.</b>
    *
@@ -87,7 +84,6 @@ public interface PCollectionView<T> extends PValue, Serializable {
    * <p>Returns the {@link WindowMappingFn} used to map windows from a main input to the side input
    * of this {@link PCollectionView}.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   WindowMappingFn<?> getWindowMappingFn();
 

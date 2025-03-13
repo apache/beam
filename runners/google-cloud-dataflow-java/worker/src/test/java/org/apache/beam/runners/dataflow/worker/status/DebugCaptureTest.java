@@ -18,22 +18,20 @@
 package org.apache.beam.runners.dataflow.worker.status;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isA;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
 import com.google.api.services.dataflow.model.SendDebugCaptureRequest;
 import com.google.api.services.dataflow.model.SendDebugCaptureResponse;
 import java.util.Collections;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,7 +47,6 @@ public class DebugCaptureTest {
   private static final String WORKER_ID = "some-host-abcd";
   private static final String UPDATE_CONFIG_JSON =
       "{\"expire_timestamp_usec\":11,\"capture_frequency_usec\":12}";
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
   private Dataflow.Projects.Locations.Jobs.Debug.SendCapture mockSendCapture;
   private GetDebugConfigResponse fakeGetConfigResponse;
@@ -79,9 +76,9 @@ public class DebugCaptureTest {
     return mockDataflowClient;
   }
 
-  private StreamingDataflowWorkerOptions buildDataflowWorkerOptions() throws Exception {
-    StreamingDataflowWorkerOptions options =
-        PipelineOptionsFactory.as(StreamingDataflowWorkerOptions.class);
+  private DataflowWorkerHarnessOptions buildDataflowWorkerOptions() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     options.setProject(PROJECT_ID);
     options.setRegion(REGION);
     options.setJobId(JOB_ID);

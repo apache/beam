@@ -18,17 +18,15 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
@@ -37,6 +35,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
@@ -67,9 +66,13 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.GetSize;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
@@ -77,30 +80,51 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerCon
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorStateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Primitives;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
-public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
+class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
+  public static final String SETUP_CONTEXT_PARAMETER_METHOD = "setupContext";
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ELEMENT_PARAMETER_METHOD = "element";
   public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
+  public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
@@ -109,9 +133,16 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String WINDOW_PARAMETER_METHOD = "window";
   public static final String PANE_INFO_PARAMETER_METHOD = "paneInfo";
   public static final String PIPELINE_OPTIONS_PARAMETER_METHOD = "pipelineOptions";
+  public static final String RESTRICTION_PARAMETER_METHOD = "restriction";
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
+  public static final String WATERMARK_ESTIMATOR_PARAMETER_METHOD = "watermarkEstimator";
+  public static final String WATERMARK_ESTIMATOR_STATE_PARAMETER_METHOD = "watermarkEstimatorState";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
+  public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
+  public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
+  public static final String TIMER_ID_PARAMETER_METHOD = "timerId";
+  public static final String KEY_PARAMETER_METHOD = "key";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -138,9 +169,13 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
    * Needed because generating an invoker class is expensive, and to avoid generating an excessive
    * number of classes consuming PermGen memory.
+   *
+   * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a
+   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
+   * consistent</a>.
    */
   private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
-      new LinkedHashMap<>();
+      new ConcurrentHashMap<>();
 
   private ByteBuddyDoFnInvokerFactory() {}
 
@@ -162,7 +197,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       implements DoFnInvoker<InputT, OutputT> {
     protected DoFnT delegate;
 
-    private Map<String, OnTimerInvoker> onTimerInvokers = new HashMap<>();
+    private Map<String, OnTimerInvoker> onTimerInvokers = Maps.newHashMap();
+    private Map<String, OnTimerInvoker> onTimerFamilyInvokers = Maps.newHashMap();
 
     public DoFnInvokerBase(DoFnT delegate) {
       this.delegate = delegate;
@@ -181,10 +217,26 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       this.onTimerInvokers.put(timerId, onTimerInvoker);
     }
 
+    /**
+     * Associates the given timerFamily ID with the given {@link OnTimerInvoker}.
+     *
+     * <p>ByteBuddy does not like to generate conditional code, so we use a map + lookup of the
+     * timer ID rather than a generated conditional branch to choose which OnTimerInvoker to invoke.
+     */
+    void addOnTimerFamilyInvoker(String timerFamilyId, OnTimerInvoker onTimerInvoker) {
+      this.onTimerFamilyInvokers.put(timerFamilyId, onTimerInvoker);
+    }
+
     @Override
     public void invokeOnTimer(
-        String timerId, DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
-      @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerId);
+        String timerId,
+        String timerFamilyId,
+        DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
+      @Nullable
+      OnTimerInvoker onTimerInvoker =
+          timerFamilyId.isEmpty()
+              ? onTimerInvokers.get(timerId)
+              : onTimerFamilyInvokers.get(timerFamilyId);
 
       if (onTimerInvoker != null) {
         onTimerInvoker.invokeOnTimer(arguments);
@@ -223,7 +275,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         invoker.addOnTimerInvoker(
             onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
       }
-
+      for (DoFnSignature.OnTimerFamilyMethod onTimerFamilyMethod :
+          signature.onTimerFamilyMethods().values()) {
+        invoker.addOnTimerFamilyInvoker(
+            onTimerFamilyMethod.id(), OnTimerInvokers.forTimerFamily(fn, onTimerFamilyMethod.id()));
+      }
       return invoker;
     } catch (InstantiationException
         | IllegalAccessException
@@ -240,28 +296,40 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
    * DoFn} class.
    */
-  private synchronized Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
+  private Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
-    Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
-    if (constructor == null) {
-      Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
-      try {
-        constructor = invokerClass.getConstructor(fnClass);
-      } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException(e);
-      }
-      byteBuddyInvokerConstructorCache.put(fnClass, constructor);
-    }
-    return constructor;
+    return byteBuddyInvokerConstructorCache.computeIfAbsent(
+        fnClass,
+        clazz -> {
+          Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+          try {
+            return invokerClass.getConstructor(clazz);
+          } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   /** Default implementation of {@link DoFn.SplitRestriction}, for delegation by bytebuddy. */
   public static class DefaultSplitRestriction {
     /** Doesn't split the restriction. */
     @SuppressWarnings("unused")
-    public static <InputT, RestrictionT> void invokeSplitRestriction(
-        InputT element, RestrictionT restriction, DoFn.OutputReceiver<RestrictionT> receiver) {
-      receiver.output(restriction);
+    public static void invokeSplitRestriction(DoFnInvoker.ArgumentProvider argumentProvider) {
+      argumentProvider.outputReceiver(null).output(argumentProvider.restriction());
+    }
+  }
+
+  /** Default implementation of {@link TruncateRestriction}, for delegation by bytebuddy. */
+  public static class DefaultTruncateRestriction {
+
+    /** Output the current restriction if it is bounded. Otherwise, return null. */
+    @SuppressWarnings("unused")
+    public static TruncateResult<?> invokeTruncateRestriction(
+        DoFnInvoker.ArgumentProvider argumentProvider) {
+      if (argumentProvider.restrictionTracker().isBounded() == IsBounded.BOUNDED) {
+        return TruncateResult.of(argumentProvider.restriction());
+      }
+      return null;
     }
   }
 
@@ -273,7 +341,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       this.restrictionType = restrictionType;
     }
 
-    /** Doesn't split the restriction. */
     @SuppressWarnings({"unused", "unchecked"})
     public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
@@ -281,12 +348,100 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /**
+   * Default implementation of {@link DoFn.GetWatermarkEstimatorStateCoder}, for delegation by
+   * bytebuddy.
+   */
+  public static class DefaultWatermarkEstimatorStateCoder {
+    private final TypeDescriptor<?> watermarkEstimatorStateType;
+
+    DefaultWatermarkEstimatorStateCoder(TypeDescriptor<?> watermarkEstimatorStateType) {
+      this.watermarkEstimatorStateType = watermarkEstimatorStateType;
+    }
+
+    @SuppressWarnings({"unused", "unchecked"})
+    public <WatermarkEstimatorStateT>
+        Coder<WatermarkEstimatorStateT> invokeGetWatermarkEstimatorStateCoder(
+            CoderRegistry registry) throws CannotProvideCoderException {
+      return (Coder) registry.getCoder(watermarkEstimatorStateType);
+    }
+  }
+
+  /**
+   * Default implementation for {@link DoFn.GetInitialWatermarkEstimatorState}, for delegation by
+   * bytebuddy.
+   */
+  public static class DefaultGetInitialWatermarkEstimatorState {
+    /** The default watermark estimator state is {@code null}. */
+    @SuppressWarnings("unused")
+    public static <InputT, OutputT, WatermarkEstimatorStateT>
+        WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
+            DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
+      return null;
+    }
+  }
+
+  /** Default implementation of {@link DoFn.NewWatermarkEstimator}, for delegation by bytebuddy. */
+  public static class DefaultNewWatermarkEstimator {
+
+    /**
+     * Constructs a new watermark estimator from the state type if it is annotated with {@link
+     * HasDefaultWatermarkEstimator} otherwise returns a watermark estimator that always reports the
+     * minimum watermark.
+     */
+    @SuppressWarnings("unused")
+    public static <InputT, OutputT, WatermarkEstimatorStateT>
+        WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
+            DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
+      if (argumentProvider.watermarkEstimatorState() instanceof HasDefaultWatermarkEstimator) {
+        return ((HasDefaultWatermarkEstimator) argumentProvider.watermarkEstimatorState())
+            .newWatermarkEstimator();
+      }
+      return new WatermarkEstimator<WatermarkEstimatorStateT>() {
+        @Override
+        public Instant currentWatermark() {
+          return GlobalWindow.TIMESTAMP_MIN_VALUE;
+        }
+
+        @Override
+        public WatermarkEstimatorStateT getState() {
+          return null;
+        }
+      };
+    }
+  }
+
   /** Default implementation of {@link DoFn.NewTracker}, for delegation by bytebuddy. */
   public static class DefaultNewTracker {
     /** Uses {@link HasDefaultTracker} to produce the tracker. */
     @SuppressWarnings("unused")
-    public static RestrictionTracker invokeNewTracker(Object restriction) {
-      return ((HasDefaultTracker) restriction).newTracker();
+    public static <InputT, OutputT, RestrictionT, PositionT>
+        RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
+            DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
+      return ((HasDefaultTracker) argumentProvider.restriction()).newTracker();
+    }
+  }
+
+  public static class DefaultGetSize {
+    /** Uses {@link HasProgress} to produce the size. */
+    @SuppressWarnings("unused")
+    public static <InputT, OutputT> double invokeGetSize(
+        DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
+      if (argumentProvider.restrictionTracker() instanceof HasProgress) {
+        return ((HasProgress) argumentProvider.restrictionTracker())
+            .getProgress()
+            .getWorkRemaining();
+      } else {
+        return 0.0;
+      }
+    }
+
+    public static double validateSize(double size) {
+      if (size < 0) {
+        throw new IllegalArgumentException(
+            String.format("Expected size >= 0 but received %s.", size));
+      }
+      return size;
     }
   }
 
@@ -310,7 +465,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             //   public <invoker class>(<fn class> delegate) { this.delegate = delegate; }
             .defineConstructor(Visibility.PUBLIC)
             .withParameter(fnClass)
-            .intercept(new InvokerConstructor())
+            .intercept(new InvokerConstructor(DoFnInvokerBase.class))
 
             //   public invokeProcessElement(ProcessContext, ExtraContextFactory) {
             //     delegate.<@ProcessElement>(... pass just the right args ...);
@@ -321,11 +476,13 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             //   public invokeStartBundle(Context c) { delegate.<@StartBundle>(c); }
             //   ... etc ...
             .method(ElementMatchers.named("invokeStartBundle"))
-            .intercept(delegateOrNoop(clazzDescription, signature.startBundle()))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.startBundle()))
             .method(ElementMatchers.named("invokeFinishBundle"))
-            .intercept(delegateOrNoop(clazzDescription, signature.finishBundle()))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
-            .intercept(delegateOrNoop(clazzDescription, signature.setup()))
+            .intercept(delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
             .method(ElementMatchers.named("invokeOnWindowExpiration"))
@@ -334,25 +491,62 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     clazzDescription, signature.onWindowExpiration()))
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(
-                delegateWithDowncastOrThrow(clazzDescription, signature.getInitialRestriction()))
+                delegateMethodWithExtraParametersOrThrow(
+                    clazzDescription, signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
-            .intercept(splitRestrictionDelegation(clazzDescription, signature))
+            .intercept(splitRestrictionDelegation(clazzDescription, signature.splitRestriction()))
+            .method(ElementMatchers.named("invokeTruncateRestriction"))
+            .intercept(
+                truncateRestrictionDelegation(clazzDescription, signature.truncateRestriction()))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))
-            .intercept(newTrackerDelegation(clazzDescription, signature.newTracker()));
+            .intercept(newTrackerDelegation(clazzDescription, signature.newTracker()))
+            .method(ElementMatchers.named("invokeGetSize"))
+            .intercept(getSizeDelegation(clazzDescription, signature.getSize()))
+            .method(ElementMatchers.named("invokeGetWatermarkEstimatorStateCoder"))
+            .intercept(getWatermarkEstimatorStateCoderDelegation(clazzDescription, signature))
+            .method(ElementMatchers.named("invokeGetInitialWatermarkEstimatorState"))
+            .intercept(
+                getInitialWatermarkEstimatorStateDelegation(
+                    clazzDescription, signature.getInitialWatermarkEstimatorState()))
+            .method(ElementMatchers.named("invokeNewWatermarkEstimator"))
+            .intercept(
+                newWatermarkEstimatorDelegation(
+                    clazzDescription, signature.newWatermarkEstimator()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
-
     @SuppressWarnings("unchecked")
     Class<? extends DoFnInvoker<?, ?>> res =
         (Class<? extends DoFnInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
+  }
+
+  private static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
+    try {
+      ClassLoadingStrategy<ClassLoader> strategy;
+      if (ClassInjector.UsingLookup.isAvailable()) {
+        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
+        Object lookup = methodHandles.getMethod("lookup").invoke(null);
+        Method privateLookupIn =
+            methodHandles.getMethod(
+                "privateLookupIn",
+                Class.class,
+                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
+        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
+        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
+      } else if (ClassInjector.UsingReflection.isAvailable()) {
+        strategy = ClassLoadingStrategy.Default.INJECTION;
+      } else {
+        throw new IllegalStateException("No code generation strategy available");
+      }
+      return strategy;
+    } catch (ReflectiveOperationException e) {
+      throw new LinkageError(e.getMessage(), e);
+    }
   }
 
   private static Implementation getRestrictionCoderDelegation(
@@ -370,24 +564,78 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  private static Implementation splitRestrictionDelegation(
+  private static Implementation getWatermarkEstimatorStateCoderDelegation(
       TypeDescription doFnType, DoFnSignature signature) {
-    if (signature.splitRestriction() == null) {
+    if (signature.processElement().isSplittable()) {
+      if (signature.getWatermarkEstimatorStateCoder() == null) {
+        return MethodDelegation.to(
+            new DefaultWatermarkEstimatorStateCoder(
+                signature.getInitialWatermarkEstimatorState() == null
+                    ? TypeDescriptors.voids()
+                    : signature.getInitialWatermarkEstimatorState().watermarkEstimatorStateT()));
+      } else {
+        return new DowncastingParametersMethodDelegation(
+            doFnType, signature.getWatermarkEstimatorStateCoder().targetMethod());
+      }
+    } else {
+      return ExceptionMethod.throwing(UnsupportedOperationException.class);
+    }
+  }
+
+  private static Implementation splitRestrictionDelegation(
+      TypeDescription doFnType, DoFnSignature.SplitRestrictionMethod signature) {
+    if (signature == null) {
       return MethodDelegation.to(DefaultSplitRestriction.class);
     } else {
-      return new DowncastingParametersMethodDelegation(
-          doFnType, signature.splitRestriction().targetMethod());
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
+  private static Implementation truncateRestrictionDelegation(
+      TypeDescription doFnType, DoFnSignature.TruncateRestrictionMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultTruncateRestriction.class);
+    } else {
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
+  private static Implementation getInitialWatermarkEstimatorStateDelegation(
+      TypeDescription doFnType,
+      DoFnSignature.@Nullable GetInitialWatermarkEstimatorStateMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultGetInitialWatermarkEstimatorState.class);
+    } else {
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
+  private static Implementation newWatermarkEstimatorDelegation(
+      TypeDescription doFnType, DoFnSignature.@Nullable NewWatermarkEstimatorMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultNewWatermarkEstimator.class);
+    } else {
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
     }
   }
 
   private static Implementation newTrackerDelegation(
-      TypeDescription doFnType, @Nullable DoFnSignature.NewTrackerMethod signature) {
+      TypeDescription doFnType, DoFnSignature.@Nullable NewTrackerMethod signature) {
     if (signature == null) {
       // We must have already verified that in this case the restriction type
       // is a subtype of HasDefaultTracker.
       return MethodDelegation.to(DefaultNewTracker.class);
     } else {
-      return delegateWithDowncastOrThrow(doFnType, signature);
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
+  private static Implementation getSizeDelegation(
+      TypeDescription doFnType, DoFnSignature.@Nullable GetSizeMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultGetSize.class);
+    } else {
+      return new GetSizeDelegation(doFnType, signature);
     }
   }
 
@@ -407,12 +655,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
   }
 
-  /** Delegates to the given method if available, or throws UnsupportedOperationException. */
-  private static Implementation delegateWithDowncastOrThrow(
-      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
+  private static Implementation delegateMethodWithExtraParametersOrThrow(
+      TypeDescription doFnType, DoFnSignature.MethodWithExtraParameters method) {
     return (method == null)
         ? ExceptionMethod.throwing(UnsupportedOperationException.class)
-        : new DowncastingParametersMethodDelegation(doFnType, method.targetMethod());
+        : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
   }
 
   /**
@@ -426,7 +673,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     private final boolean targetHasReturn;
 
     /** Starts {@code null}, initialized by {@link #prepare(InstrumentedType)}. */
-    @Nullable protected FieldDescription delegateField;
+    protected @Nullable FieldDescription delegateField;
 
     private final TypeDescription doFnType;
 
@@ -457,14 +704,20 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
          * @param instrumentedMethod The {@link DoFnInvoker} method for which we're generating code.
          */
         @Override
-        public Size apply(
+        public ByteCodeAppender.Size apply(
             MethodVisitor methodVisitor,
             Context implementationContext,
             MethodDescription instrumentedMethod) {
           // Figure out how many locals we'll need. This corresponds to "this", the parameters
           // of the instrumented method, and an argument to hold the return value if the target
-          // method has a return value.
-          int numLocals = 1 + instrumentedMethod.getParameters().size() + (targetHasReturn ? 1 : 0);
+          // method has a return value. We properly calculate the size of the return type since
+          // some return types like the primitive double and long require space for 2 locals.
+          int numLocals =
+              1
+                  + instrumentedMethod.getParameters().size()
+                  + (targetHasReturn
+                      ? Type.getReturnType(instrumentedMethod.getDescriptor()).getSize()
+                      : 0);
 
           Integer returnVarIndex = null;
           if (targetHasReturn) {
@@ -497,7 +750,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                   afterDelegation(instrumentedMethod));
 
           StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), numLocals);
+          return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
         }
       };
     }
@@ -628,7 +881,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     return parameter.match(
         new Cases<StackManipulation>() {
-
           @Override
           public StackManipulation dispatch(StartBundleContextParameter p) {
             return new StackManipulation.Compound(
@@ -702,6 +954,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(BundleFinalizerParameter p) {
+            return simpleExtraContextParameter(BUNDLE_FINALIZER_PARAMETER_METHOD);
+          }
+
+          @Override
           public StackManipulation dispatch(TimeDomainParameter p) {
             return new StackManipulation.Compound(
                 pushDelegate,
@@ -755,9 +1012,19 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(RestrictionParameter p) {
+            // DoFnInvoker.ArgumentProvider.restriction() returns an Object,
+            // but the methods expect a concrete subtype of it.
+            // Insert a downcast.
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter(RESTRICTION_PARAMETER_METHOD),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.restrictionT().getRawType())));
+          }
+
+          @Override
           public StackManipulation dispatch(RestrictionTrackerParameter p) {
             // DoFnInvoker.ArgumentProvider.restrictionTracker() returns a RestrictionTracker,
-            // but the @ProcessElement method expects a concrete subtype of it.
+            // but the methods expect a concrete subtype of it.
             // Insert a downcast.
             return new StackManipulation.Compound(
                 simpleExtraContextParameter(RESTRICTION_TRACKER_PARAMETER_METHOD),
@@ -765,11 +1032,34 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(WatermarkEstimatorParameter p) {
+            // DoFnInvoker.ArgumentProvider.watermarkEstimator() returns a WatermarkEstimator,
+            // but the methods expect a concrete subtype of it.
+            // Insert a downcast.
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter(WATERMARK_ESTIMATOR_PARAMETER_METHOD),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.estimatorT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(WatermarkEstimatorStateParameter p) {
+            // DoFnInvoker.ArgumentProvider.watermarkEstimatorState() returns an Object,
+            // but the methods expect a concrete subtype of it.
+            // Insert a downcast.
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter(WATERMARK_ESTIMATOR_STATE_PARAMETER_METHOD),
+                TypeCasting.to(
+                    new TypeDescription.ForLoadedType(p.estimatorStateT().getRawType())));
+          }
+
+          @Override
           public StackManipulation dispatch(StateParameter p) {
             return new StackManipulation.Compound(
                 new TextConstant(p.referent().id()),
+                IntegerConstant.forValue(p.alwaysFetched()),
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(STATE_PARAMETER_METHOD, String.class)),
+                    getExtraContextFactoryMethodDescription(
+                        STATE_PARAMETER_METHOD, String.class, boolean.class)),
                 TypeCasting.to(
                     new TypeDescription.ForLoadedType(p.referent().stateType().getRawType())));
           }
@@ -784,8 +1074,44 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(TimerFamilyParameter p) {
+            return new StackManipulation.Compound(
+                new TextConstant(p.referent().id()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIMER_FAMILY_PARAMETER_METHOD, String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(TimerMap.class)));
+          }
+
+          @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {
             return simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD);
+          }
+
+          @Override
+          public StackManipulation dispatch(SideInputParameter p) {
+            return new StackManipulation.Compound(
+                new TextConstant(p.sideInputId()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        SIDE_INPUT_PARAMETER_METHOD, String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIMER_ID_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.KeyParameter p) {
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter(KEY_PARAMETER_METHOD),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.keyT().getRawType())));
           }
         });
   }
@@ -807,13 +1133,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       }
     }
 
-    private final DoFnSignature.ProcessElementMethod signature;
-
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(
         TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
       super(doFnType, signature);
-      this.signature = signature;
     }
 
     @Override
@@ -827,9 +1150,38 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /**
+   * Implements the invoker's {@link DoFnInvoker#invokeGetSize} method by delegating to the {@link
+   * GetSize} method.
+   */
+  private static final class GetSizeDelegation extends DoFnMethodWithExtraParametersDelegation {
+    private static final MethodDescription VALIDATE_SIZE_METHOD;
+
+    static {
+      try {
+        VALIDATE_SIZE_METHOD =
+            new MethodDescription.ForLoadedMethod(
+                DefaultGetSize.class.getMethod("validateSize", double.class));
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException("Failed to locate DefaultGetSize.validateSize()");
+      }
+    }
+
+    /** Implementation of {@link MethodDelegation} for the {@link GetSize} method. */
+    private GetSizeDelegation(TypeDescription doFnType, DoFnSignature.GetSizeMethod signature) {
+      super(doFnType, signature);
+    }
+
+    @Override
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return new StackManipulation.Compound(
+          MethodInvocation.invoke(VALIDATE_SIZE_METHOD), MethodReturn.DOUBLE);
+    }
+  }
+
   private static class UserCodeMethodInvocation implements StackManipulation {
 
-    @Nullable private final Integer returnVarIndex;
+    private final @Nullable Integer returnVarIndex;
     private final MethodDescription targetMethod;
     private final MethodDescription instrumentedMethod;
     private final TypeDescription returnType;
@@ -902,7 +1254,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         locals[i + 1] = describeType(localTypes[i]);
       }
       if (hasReturnLocal) {
-        locals[locals.length - 1] = returnType.getInternalName();
+        locals[locals.length - 1] = describeType(Type.getReturnType(targetMethod.getDescriptor()));
       }
 
       Object[] stack = stackTop == null ? new Object[] {} : new Object[] {stackTop};
@@ -911,8 +1263,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
 
     @Override
-    public Size apply(MethodVisitor mv, Context context) {
-      Size size = new Size(0, 0);
+    public StackManipulation.Size apply(MethodVisitor mv, Context context) {
+      StackManipulation.Size size = new StackManipulation.Size(0, 0);
 
       mv.visitLabel(wrapStart);
 
@@ -924,8 +1276,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       size = size.aggregate(MethodInvocation.invoke(targetMethod).apply(mv, context));
 
       if (returnVarIndex != null) {
-        mv.visitVarInsn(Opcodes.ASTORE, returnVarIndex);
-        size = size.aggregate(new Size(-1, 0)); // Reduces the size of the stack
+        Type returnType = Type.getReturnType(targetMethod.getDescriptor());
+        mv.visitVarInsn(returnType.getOpcode(Opcodes.ISTORE), returnVarIndex);
+        size = size.aggregate(new StackManipulation.Size(-1, 0)); // Reduces the size of the stack
       }
       mv.visitJumpInsn(Opcodes.GOTO, catchBlockEnd);
       mv.visitLabel(tryBlockEnd);
@@ -948,19 +1301,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
       // After catch block, should have same locals and will have the return on the stack.
       if (returnVarIndex != null) {
-        mv.visitVarInsn(Opcodes.ALOAD, returnVarIndex);
-        size = size.aggregate(new Size(1, 0)); // Increases the size of the stack
+        Type returnType = Type.getReturnType(targetMethod.getDescriptor());
+        mv.visitVarInsn(returnType.getOpcode(Opcodes.ILOAD), returnVarIndex);
+        size = size.aggregate(new StackManipulation.Size(1, 0)); // Increases the size of the stack
       }
       mv.visitLabel(wrapEnd);
       if (returnVarIndex != null) {
         // Drop the return type from the locals
         mv.visitLocalVariable(
-            "res",
-            returnType.getDescriptor(),
-            returnType.getGenericSignature(),
-            wrapStart,
-            wrapEnd,
-            returnVarIndex);
+            "res", returnType.getDescriptor(), null, wrapStart, wrapEnd, returnVarIndex);
       }
 
       return size;
@@ -972,6 +1321,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * for a constructor that takes a single argument and assigns it to the delegate field.
    */
   private static final class InvokerConstructor implements Implementation {
+    Class<? extends DoFnInvoker> clazz;
+
+    InvokerConstructor(Class<? extends DoFnInvoker> clazz) {
+      this.clazz = clazz;
+    }
+
     @Override
     public InstrumentedType prepare(InstrumentedType instrumentedType) {
       return instrumentedType;
@@ -988,7 +1343,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     MethodVariableAccess.REFERENCE.loadFrom(1),
                     // Invoke the super constructor (default constructor of Object)
                     MethodInvocation.invoke(
-                        new TypeDescription.ForLoadedType(DoFnInvokerBase.class)
+                        new TypeDescription.ForLoadedType(clazz)
                             .getDeclaredMethods()
                             .filter(
                                 ElementMatchers.isConstructor()

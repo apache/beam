@@ -19,18 +19,19 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamUnnestRel;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.SingleRel;
-import org.apache.calcite.rel.core.Correlate;
-import org.apache.calcite.rel.core.Uncollect;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.calcite.rex.RexFieldAccess;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SemiJoinType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.SingleRel;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Correlate;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Uncollect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalCorrelate;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@code ConverterRule} to replace {@link Correlate} {@link Uncollect} with {@link
@@ -61,7 +62,7 @@ public class BeamUnnestRule extends RelOptRule {
       // can only unnest a single column
       return;
     }
-    if (correlate.getJoinType() != SemiJoinType.INNER) {
+    if (correlate.getJoinType() != JoinRelType.INNER) {
       return;
     }
 
@@ -93,14 +94,23 @@ public class BeamUnnestRule extends RelOptRule {
     if (!(exp instanceof RexFieldAccess)) {
       return;
     }
-    int fieldIndex = ((RexFieldAccess) exp).getField().getIndex();
+    RexFieldAccess fieldAccess = (RexFieldAccess) exp;
+    // Innermost field index comes first (e.g. struct.field1.field2 => [2, 1])
+    ImmutableList.Builder<Integer> fieldAccessIndices = ImmutableList.builder();
+    while (true) {
+      fieldAccessIndices.add(fieldAccess.getField().getIndex());
+      if (!(fieldAccess.getReferenceExpr() instanceof RexFieldAccess)) {
+        break;
+      }
+      fieldAccess = (RexFieldAccess) fieldAccess.getReferenceExpr();
+    }
 
     call.transformTo(
         new BeamUnnestRel(
             correlate.getCluster(),
             correlate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            outer,
+            convert(outer, outer.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
             call.rel(2).getRowType(),
-            fieldIndex));
+            fieldAccessIndices.build()));
   }
 }

@@ -20,12 +20,14 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.autoCastField;
 import static org.apache.beam.sdk.values.Row.toRow;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
@@ -33,12 +35,14 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.core.Values;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Values;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * {@code BeamRelNode} to replace a {@code Values} node.
@@ -90,5 +94,16 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     return IntStream.range(0, tuple.size())
         .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
         .collect(toRow(schema));
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
+    return NodeStats.create(tuples.size(), 0, tuples.size());
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
+    NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
   }
 }

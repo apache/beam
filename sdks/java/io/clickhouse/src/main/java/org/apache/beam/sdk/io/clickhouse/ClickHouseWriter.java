@@ -17,37 +17,42 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import com.clickhouse.data.ClickHouseOutputStream;
+import com.clickhouse.data.ClickHousePipedOutputStream;
+import com.clickhouse.data.format.BinaryStreamUtils;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.sdk.values.RowWithStorage;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
-import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
-/** Writes Rows and field values using {@link ClickHouseRowBinaryStream}. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+/** Writes Rows and field values using {@link ClickHousePipedOutputStream}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ClickHouseWriter {
   private static final Instant EPOCH_INSTANT = new Instant(0L);
 
   @SuppressWarnings("unchecked")
-  static void writeNullableValue(
-      ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
+  static void writeNullableValue(ClickHouseOutputStream stream, ColumnType columnType, Object value)
+      throws IOException {
 
     if (value == null) {
-      stream.markNextNullable(true);
+      BinaryStreamUtils.writeNull(stream);
     } else {
-      stream.markNextNullable(false);
+      BinaryStreamUtils.writeNonNull(stream);
       writeValue(stream, columnType, value);
     }
   }
 
   @SuppressWarnings("unchecked")
-  static void writeValue(ClickHouseRowBinaryStream stream, ColumnType columnType, Object value)
+  static void writeValue(ClickHouseOutputStream stream, ColumnType columnType, Object value)
       throws IOException {
 
     switch (columnType.typeName()) {
@@ -55,7 +60,7 @@ public class ClickHouseWriter {
         byte[] bytes;
 
         if (value instanceof String) {
-          bytes = ((String) value).getBytes(Charsets.UTF_8);
+          bytes = ((String) value).getBytes(StandardCharsets.UTF_8);
         } else {
           bytes = ((byte[]) value);
         }
@@ -64,47 +69,47 @@ public class ClickHouseWriter {
         break;
 
       case FLOAT32:
-        stream.writeFloat32((Float) value);
+        BinaryStreamUtils.writeFloat32(stream, (Float) value);
         break;
 
       case FLOAT64:
-        stream.writeFloat64((Double) value);
+        BinaryStreamUtils.writeFloat64(stream, (Double) value);
         break;
 
       case INT8:
-        stream.writeInt8((Byte) value);
+        BinaryStreamUtils.writeInt8(stream, (Byte) value);
         break;
 
       case INT16:
-        stream.writeInt16((Short) value);
+        BinaryStreamUtils.writeInt16(stream, (Short) value);
         break;
 
       case INT32:
-        stream.writeInt32((Integer) value);
+        BinaryStreamUtils.writeInt32(stream, (Integer) value);
         break;
 
       case INT64:
-        stream.writeInt64((Long) value);
+        BinaryStreamUtils.writeInt64(stream, (Long) value);
         break;
 
       case STRING:
-        stream.writeString((String) value);
+        BinaryStreamUtils.writeString(stream, (String) value);
         break;
 
       case UINT8:
-        stream.writeUInt8((Short) value);
+        BinaryStreamUtils.writeUnsignedInt8(stream, (Short) value);
         break;
 
       case UINT16:
-        stream.writeUInt16((Integer) value);
+        BinaryStreamUtils.writeUnsignedInt16(stream, (Integer) value);
         break;
 
       case UINT32:
-        stream.writeUInt32((Long) value);
+        BinaryStreamUtils.writeUnsignedInt32(stream, (Long) value);
         break;
 
       case UINT64:
-        stream.writeUInt64((Long) value);
+        BinaryStreamUtils.writeUnsignedInt64(stream, (Long) value);
         break;
 
       case ENUM8:
@@ -112,7 +117,7 @@ public class ClickHouseWriter {
         Preconditions.checkNotNull(
             enum8,
             "unknown enum value '" + value + "', possible values: " + columnType.enumValues());
-        stream.writeInt8(enum8);
+        BinaryStreamUtils.writeInt8(stream, enum8);
         break;
 
       case ENUM16:
@@ -120,30 +125,47 @@ public class ClickHouseWriter {
         Preconditions.checkNotNull(
             enum16,
             "unknown enum value '" + value + "', possible values: " + columnType.enumValues());
-        stream.writeInt16(enum16);
+        BinaryStreamUtils.writeInt16(stream, enum16);
         break;
 
       case DATE:
         Days epochDays = Days.daysBetween(EPOCH_INSTANT, (ReadableInstant) value);
-        stream.writeUInt16(epochDays.getDays());
+        BinaryStreamUtils.writeUnsignedInt16(stream, epochDays.getDays());
         break;
 
       case DATETIME:
         long epochSeconds = ((ReadableInstant) value).getMillis() / 1000L;
-        stream.writeUInt32(epochSeconds);
+        BinaryStreamUtils.writeUnsignedInt32(stream, epochSeconds);
         break;
 
       case ARRAY:
         List<Object> values = (List<Object>) value;
-        stream.writeUnsignedLeb128(values.size());
+        BinaryStreamUtils.writeVarInt(stream, values.size());
         for (Object arrayValue : values) {
           writeValue(stream, columnType.arrayElementType(), arrayValue);
+        }
+        break;
+      case BOOL:
+        BinaryStreamUtils.writeBoolean(stream, (Boolean) value);
+        break;
+      case TUPLE:
+        RowWithStorage rowValues = (RowWithStorage) value;
+        List<Object> tupleValues = rowValues.getValues();
+        Collection<ColumnType> columnTypesList = columnType.tupleTypes().values();
+        int index = 0;
+        for (ColumnType ct : columnTypesList) {
+          if (ct.nullable()) {
+            writeNullableValue(stream, ct, tupleValues.get(index));
+          } else {
+            writeValue(stream, ct, tupleValues.get(index));
+          }
+          index++;
         }
         break;
     }
   }
 
-  static void writeRow(ClickHouseRowBinaryStream stream, TableSchema schema, Row row)
+  static void writeRow(ClickHouseOutputStream stream, TableSchema schema, Row row)
       throws IOException {
     for (TableSchema.Column column : schema.columns()) {
       if (!column.materializedOrAlias()) {
@@ -155,7 +177,6 @@ public class ClickHouseWriter {
           if (value == null) {
             value = column.defaultValue();
           }
-
           writeValue(stream, column.columnType(), value);
         }
       }

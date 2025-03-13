@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.NoOpCounter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 
 /**
@@ -27,6 +29,9 @@ import org.joda.time.Duration;
  *
  * @see #DEFAULT for the default configuration parameters.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class FluentBackoff {
 
   private static final double DEFAULT_EXPONENT = 1.5;
@@ -35,12 +40,14 @@ public final class FluentBackoff {
   private static final Duration DEFAULT_MAX_BACKOFF = Duration.standardDays(1000);
   private static final int DEFAULT_MAX_RETRIES = Integer.MAX_VALUE;
   private static final Duration DEFAULT_MAX_CUM_BACKOFF = Duration.standardDays(1000);
+  private static final Counter DEFAULT_THROTTLED_TIME_COUNTER = NoOpCounter.getInstance();
 
   private final double exponent;
   private final Duration initialBackoff;
   private final Duration maxBackoff;
   private final Duration maxCumulativeBackoff;
   private final int maxRetries;
+  private final Counter throttledTimeCounter;
 
   /**
    * By default the {@link BackOff} created by this builder will use exponential backoff (base
@@ -62,7 +69,8 @@ public final class FluentBackoff {
           DEFAULT_MIN_BACKOFF,
           DEFAULT_MAX_BACKOFF,
           DEFAULT_MAX_CUM_BACKOFF,
-          DEFAULT_MAX_RETRIES);
+          DEFAULT_MAX_RETRIES,
+          DEFAULT_THROTTLED_TIME_COUNTER);
 
   /**
    * Instantiates a {@link BackOff} that will obey the current configuration.
@@ -84,7 +92,12 @@ public final class FluentBackoff {
   public FluentBackoff withExponent(double exponent) {
     checkArgument(exponent > 0, "exponent %s must be greater than 0", exponent);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -101,7 +114,12 @@ public final class FluentBackoff {
         "initialBackoff %s must be at least 1 millisecond",
         initialBackoff);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -116,7 +134,12 @@ public final class FluentBackoff {
     checkArgument(
         maxBackoff.getMillis() > 0, "maxBackoff %s must be at least 1 millisecond", maxBackoff);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -133,7 +156,12 @@ public final class FluentBackoff {
         "maxCumulativeBackoff %s must be at least 1 millisecond",
         maxCumulativeBackoff);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -148,7 +176,22 @@ public final class FluentBackoff {
   public FluentBackoff withMaxRetries(int maxRetries) {
     checkArgument(maxRetries >= 0, "maxRetries %s cannot be negative", maxRetries);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
+  }
+
+  public FluentBackoff withThrottledTimeCounter(Counter throttledTimeCounter) {
+    return new FluentBackoff(
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   @Override
@@ -201,8 +244,9 @@ public final class FluentBackoff {
       nextBackoffMillis = Math.min(nextBackoffMillis, remainingCumulative.getMillis());
 
       // Update state and return backoff.
-      currentCumulativeBackoff = currentCumulativeBackoff.plus(nextBackoffMillis);
+      currentCumulativeBackoff = currentCumulativeBackoff.plus(Duration.millis(nextBackoffMillis));
       currentRetry += 1;
+      backoffConfig.throttledTimeCounter.inc(nextBackoffMillis);
       return nextBackoffMillis;
     }
 
@@ -226,11 +270,13 @@ public final class FluentBackoff {
       Duration initialBackoff,
       Duration maxBackoff,
       Duration maxCumulativeBackoff,
-      int maxRetries) {
+      int maxRetries,
+      Counter throttledTimeCounter) {
     this.exponent = exponent;
     this.initialBackoff = initialBackoff;
     this.maxBackoff = maxBackoff;
     this.maxRetries = maxRetries;
     this.maxCumulativeBackoff = maxCumulativeBackoff;
+    this.throttledTimeCounter = throttledTimeCounter;
   }
 }

@@ -15,7 +15,7 @@
 
 // Package starcgenx is a Static Analysis Type Assertion shim and Registration Code Generator
 // which provides an extractor to extract types from a package, in order to generate
-// approprate shimsr a package so code can be generated for it.
+// appropriate shims for a package so code can be generated for it.
 //
 // It's written for use by the starcgen tool, but separate to permit
 // alternative "go/importer" Importers for accessing types from imported packages.
@@ -30,8 +30,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/shimx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/shimx"
 )
 
 // NewExtractor returns an extractor for the given package.
@@ -56,6 +57,11 @@ type Extractor struct {
 
 	// Debug enables printing out the analysis information to the output.
 	Debug bool
+
+	// LegacyIdentifiers disables parts of the code generator analysis
+	// requiring a list of identifiers to be passed in. Notably this
+	// disables RegisterDoFn support.
+	LegacyIdentifiers bool
 
 	// Ids is an optional slice of package local identifiers
 	Ids []string
@@ -94,19 +100,6 @@ func (e *Extractor) Summary() {
 	e.Printf("%d\t Inputs\n", len(e.iters))
 }
 
-// lifecycleMethodName returns if the passed in string is one of the lifecycle method names used
-// by the Go SDK as DoFn or CombineFn lifecycle methods. These are the only methods that need
-// shims generated for them, as per beam/core/graph/fn.go
-// TODO(lostluck): Move this to beam/core/graph/fn.go, so it can stay up to date.
-func lifecycleMethodName(n string) bool {
-	switch n {
-	case "ProcessElement", "StartBundle", "FinishBundle", "Setup", "Teardown", "CreateAccumulator", "AddInput", "MergeAccumulators", "ExtractOutput", "Compact":
-		return true
-	default:
-		return false
-	}
-}
-
 // Bytes forwards to fmt.Fprint to the extractor buffer.
 func (e *Extractor) Bytes() []byte {
 	return e.w.Bytes()
@@ -120,7 +113,7 @@ func (e *Extractor) Print(s string) {
 }
 
 // Printf forwards to fmt.Printf to the extractor buffer.
-func (e *Extractor) Printf(f string, args ...interface{}) {
+func (e *Extractor) Printf(f string, args ...any) {
 	if e.Debug {
 		fmt.Fprintf(&e.w, f, args...)
 	}
@@ -130,25 +123,30 @@ func (e *Extractor) Printf(f string, args ...interface{}) {
 func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*ast.File) error {
 	conf := types.Config{
 		Importer:                 imp,
-		IgnoreFuncBodies:         true,
+		IgnoreFuncBodies:         false,
 		DisableUnusedImportCheck: true,
 	}
 	info := &types.Info{
+		Uses: make(map[*ast.Ident]types.Object),
 		Defs: make(map[*ast.Ident]types.Object),
 	}
-	if len(e.Ids) != 0 {
-		// TODO(lostluck): This becomes unnnecessary iff we can figure out
-		// which ParDos are being passed to beam.ParDo or beam.Combine.
-		// If there are ids, we need to also look at function bodies, and uses.
-		var checkFuncBodies bool
-		for _, v := range e.Ids {
-			if strings.Contains(v, ".") {
-				checkFuncBodies = true
-				break
+	if e.LegacyIdentifiers {
+		info.Uses = nil
+		conf.IgnoreFuncBodies = true
+		if len(e.Ids) != 0 {
+			// TODO(lostluck): This becomes unnnecessary iff we can figure out
+			// which ParDos are being passed to beam.ParDo or beam.Combine.
+			// If there are ids, we need to also look at function bodies, and uses.
+			var checkFuncBodies bool
+			for _, v := range e.Ids {
+				if strings.Contains(v, ".") {
+					checkFuncBodies = true
+					break
+				}
 			}
+			conf.IgnoreFuncBodies = !checkFuncBodies
+			info.Uses = make(map[*ast.Ident]types.Object)
 		}
-		conf.IgnoreFuncBodies = !checkFuncBodies
-		info.Uses = make(map[*ast.Ident]types.Object)
 	}
 
 	if _, err := conf.Check(e.Package, fset, files, info); err != nil {
@@ -156,15 +154,25 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	}
 
 	e.Print("/*\n")
+	e.Print("CHECKING for RegisterDoFn EXPRs\n")
+	visitor := findRegisterDoFnCalls{info, e, make(map[string]bool)}
+	for _, file := range files {
+		ast.Walk(visitor, file)
+	}
+	for id := range visitor.idsToFind {
+		e.Ids = append(e.Ids, id)
+	}
+
 	var idsRequired, idsFound map[string]bool
 	if len(e.Ids) > 0 {
-		e.Printf("Filtering by %d identifiers: %q\n", len(e.Ids), strings.Join(e.Ids, ", "))
+		e.Printf("Filtering by %d identifiers: %q\n\n", len(e.Ids), strings.Join(e.Ids, ", "))
 		idsRequired = make(map[string]bool)
 		idsFound = make(map[string]bool)
 		for _, id := range e.Ids {
 			idsRequired[id] = true
 		}
 	}
+
 	e.Print("CHECKING DEFS\n")
 	for id, obj := range info.Defs {
 		e.fromObj(fset, id, obj, idsRequired, idsFound)
@@ -187,6 +195,136 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	return nil
 }
 
+type findRegisterDoFnCalls struct {
+	info      *types.Info
+	e         *Extractor
+	idsToFind map[string]bool
+}
+
+func (v findRegisterDoFnCalls) Visit(node ast.Node) (w ast.Visitor) {
+	switch node := node.(type) {
+	case *ast.CallExpr:
+		if !v.isRegisterDoFnCall(node) {
+			return v
+		}
+		// We have the RegisterDoFn call, now we need to extract the parameter's local identifier
+		// for code gen.
+		param := node.Args[0]
+		v.e.Printf("\tparam - %v\n", types.ExprString(param))
+
+		// Strip the reflect.TypeOf call if present.
+		if node, ok := param.(*ast.CallExpr); ok {
+			if !v.isReflectTypeOf(node) {
+				break
+			}
+			param = node.Args[0]
+		}
+
+		switch node := param.(type) {
+		case *ast.CallExpr: // Strip a (*DoFn)(nil) structure.
+			param = node.Fun.(*ast.ParenExpr).X.(*ast.StarExpr).X
+		case *ast.UnaryExpr: // Handle &DoFn{} if present.
+			param = node.X
+			v.e.Printf("\t\tpost unary - %v %T\n", types.ExprString(param), param)
+		}
+		switch node := param.(type) {
+		case *ast.CompositeLit: // extract the DoFn from `DoFn{}`
+			param = node.Type
+			v.e.Printf("\t\tpost composite - %v %T\n", types.ExprString(param), param)
+		case *ast.SelectorExpr: // Handle function primitives
+			str := node.X.(*ast.Ident).String() + "." + node.Sel.Name
+			if pkgName := v.findPackageRename(node.X.(*ast.Ident)); pkgName != nil {
+				str = pkgName.Imported().Name() + "." + node.Sel.Name
+			}
+			v.e.Printf("\t\thave function - %v %s\n", types.ExprString(param), str)
+			v.idsToFind[str] = true
+			// Need to look up package identifiers for renamed imports.
+			return v
+		case *ast.Ident: // Already have DoFn.
+		default:
+			v.e.Printf("\t\t\t can't handle - %v %T\n", types.ExprString(param), param)
+			return v
+		}
+		iden := param.(*ast.Ident)
+		v.e.Printf("\t\thave type - %v\n", iden.Name)
+		v.idsToFind[iden.Name] = true
+	}
+	return v
+}
+
+func (v findRegisterDoFnCalls) isReflectTypeOf(node *ast.CallExpr) bool {
+	switch inner := node.Fun.(type) {
+	case *ast.SelectorExpr:
+		if inner.Sel.Name != "TypeOf" {
+			return false
+		}
+		iden, ok := inner.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		if iden.Name == "reflect" {
+			return true
+		}
+	}
+	return false
+}
+
+func (v findRegisterDoFnCalls) isRegisterDoFnCall(node *ast.CallExpr) bool {
+	switch inner := node.Fun.(type) {
+	case *ast.SelectorExpr:
+		if inner.Sel.Name != "RegisterDoFn" {
+			return false
+		}
+		// While it's unlikely that there will be other uses of "RegisterDoFn"
+		// outside of beam related code, from other packages, we should at least
+		// do some diligence to check that it's from one of the two packages we
+		// expect that call, either the user facing beam package or the internal
+		// genx package, and handle if those packages are renamed.
+
+		// We can't simply check the fully qualified path due to vendoring.
+		v.e.Printf("%v\n", types.ExprString(node))
+		iden, ok := inner.X.(*ast.Ident)
+		if !ok {
+			v.e.Printf("\tfail %v!\n", types.ExprString(iden))
+			return false
+		}
+		switch iden.Name {
+		case "beam", "genx":
+			v.e.Printf("\t success!\n")
+			return true
+		default:
+			v.e.Printf("\tpackage renamed %v!\n", iden)
+			// We have a *use* of the identifier, but not the original definition.
+			// Look up the definition and trust that typechecked name resolution
+			// is correct.
+			pkgName := v.findPackageRename(iden)
+			if pkgName == nil {
+				return false
+			}
+			switch pkgName.Imported().Name() {
+			case "beam", "genx":
+				return true
+			default:
+				v.e.Printf("\tfail - not likely the beam package? %v\n", types.ObjectString(pkgName, nil))
+			}
+		}
+	}
+	return false
+}
+
+func (v findRegisterDoFnCalls) findPackageRename(iden *ast.Ident) *types.PkgName {
+	for k, imp := range v.info.Defs {
+		if k.Name == iden.Name {
+			if pkgName, ok := imp.(*types.PkgName); ok {
+				v.e.Printf("\tfound package rename %#v  -  %v\n", k, types.ObjectString(imp, nil))
+				return pkgName
+			}
+		}
+	}
+	v.e.Printf("\tfail - %v not a package\n", types.ExprString(iden))
+	return nil
+}
+
 func (e *Extractor) isRequired(ident string, obj types.Object, idsRequired, idsFound map[string]bool) bool {
 	if idsRequired == nil {
 		return true
@@ -198,6 +336,7 @@ func (e *Extractor) isRequired(ident string, obj types.Object, idsRequired, idsF
 	// or it's receiver type identifier needs to be in the filtered identifiers.
 	if idsRequired[ident] {
 		idsFound[ident] = true
+		e.Printf("isRequired found: %s\n", ident)
 		return true
 	}
 	// Check if this is a function.
@@ -206,16 +345,16 @@ func (e *Extractor) isRequired(ident string, obj types.Object, idsRequired, idsF
 		return false
 	}
 	// If this is a function, and it has a receiver, it's a method.
-	if recv := sig.Recv(); recv != nil && lifecycleMethodName(ident) {
+	if recv := sig.Recv(); recv != nil && graph.IsLifecycleMethod(ident) {
 		// We don't want to care about pointers, so dereference to value type.
 		t := recv.Type()
-		p, ok := t.(*types.Pointer)
+		p, ok := types.Unalias(t).(*types.Pointer)
 		for ok {
 			t = p.Elem()
-			p, ok = t.(*types.Pointer)
+			p, ok = types.Unalias(t).(*types.Pointer)
 		}
 		ts := types.TypeString(t, e.qualifier)
-		e.Printf("RRR has %v, ts: %s %s--- ", sig, ts, ident)
+		e.Printf("recv %v has %v, ts: %s %s--- ", recv, sig, ts, ident)
 		if !idsRequired[ts] {
 			e.Print("IGNORE\n")
 			return false
@@ -246,6 +385,8 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 		ident = obj.Name()
 	}
 	if !e.isRequired(ident, obj, idsRequired, idsFound) {
+		e.Printf("%s: %q with package %q is not required \n",
+			fset.Position(id.Pos()), id.Name, pkg.Name())
 		return
 	}
 
@@ -253,7 +394,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 	case *types.Var:
 		// Vars are tricky since they could be anything, and anywhere (package scope, parameters, etc)
 		// eg. Flags, or Field Tags, among others.
-		// I'm increasingly convinced that we should simply igonore vars.
+		// I'm increasingly convinced that we should simply ignore vars.
 		// Do nothing for vars.
 	case *types.Func:
 		sig := obj.Type().(*types.Signature)
@@ -261,16 +402,16 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 			// Methods don't need registering, but they do need shim generation.
 			e.Printf("%s: %q is a method of %v -> %v--- %T %v %v %v\n",
 				fset.Position(id.Pos()), id.Name, recv.Type(), obj, obj, id, obj.Pkg(), obj.Type())
-			if !lifecycleMethodName(id.Name) {
+			if !graph.IsLifecycleMethod(id.Name) {
 				// If this is not a lifecycle method, we should ignore it.
 				return
 			}
 			// This must be a structural DoFn! We should generate a closure wrapper for it.
 			t := recv.Type()
-			p, ok := t.(*types.Pointer)
+			p, ok := types.Unalias(t).(*types.Pointer)
 			for ok {
 				t = p.Elem()
-				p, ok = t.(*types.Pointer)
+				p, ok = types.Unalias(t).(*types.Pointer)
 			}
 			ts := types.TypeString(t, e.qualifier)
 			mthdMap := e.wraps[ts]
@@ -299,7 +440,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 			fset.Position(id.Pos()), id.Name, obj, obj, id, obj.Pkg(), obj.Type(), obj.Name())
 		// Probably need to sanity check that this type actually is/has a ProcessElement
 		// or MergeAccumulators defined for this type so unnecessary registrations don't happen,
-		// an can explicitly produce an error if an explicitly named type *isn't* a DoFn or CombineFn.
+		// and can explicitly produce an error if an explicitly named type *isn't* a DoFn or CombineFn.
 		e.extractType(ot)
 	default:
 		e.Printf("%s: %q defines %v --- %T %v %v %v\n",
@@ -315,6 +456,10 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 	// A single level is safe since the code we're analysing imports it,
 	// so we can assume the generated code can access it too.
 	if ot.IsAlias() {
+		if t, ok := ot.Type().(*types.Alias); ok {
+			ot = t.Obj()
+			name = types.TypeString(t, e.qualifier)
+		}
 		if t, ok := ot.Type().(*types.Named); ok {
 			ot = t.Obj()
 			name = types.TypeString(t, e.qualifier)
@@ -323,7 +468,7 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 	// Only register non-universe types (eg. avoid `error` and similar)
 	if pkg := ot.Pkg(); pkg != nil {
 		path := pkg.Path()
-		e.imports[pkg.Path()] = struct{}{}
+		e.imports[path] = struct{}{}
 
 		// Do not add universal types to be registered.
 		if path == shimx.TypexImport {
@@ -340,22 +485,50 @@ func (e *Extractor) extractFromSignature(sig *types.Signature) {
 	e.extractFromTuple(sig.Results())
 }
 
+// extractFromContainer recurses through nested non-map container types to a non-derived
+// element type.
+func (e *Extractor) extractFromContainer(t types.Type) types.Type {
+	// Container types need to be iteratively unwrapped until we're at the base type,
+	// so we can get the import if necessary.
+	for {
+		if s, ok := types.Unalias(t).(*types.Slice); ok {
+			t = s.Elem()
+			continue
+		}
+
+		if p, ok := types.Unalias(t).(*types.Pointer); ok {
+			t = p.Elem()
+			continue
+		}
+
+		if a, ok := types.Unalias(t).(*types.Array); ok {
+			t = a.Elem()
+			continue
+		}
+
+		return t
+	}
+}
+
 func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 	for i := 0; i < tuple.Len(); i++ {
 		s := tuple.At(i) // *types.Var
 
-		// Pointer types need to be iteratively unwrapped until we're at the base type,
-		// so we can get the import if necessary.
-		t := s.Type()
-		p, ok := t.(*types.Pointer)
-		for ok {
-			t = p.Elem()
-			p, ok = t.(*types.Pointer)
-		}
+		t := e.extractFromContainer(s.Type())
+
 		// Here's where we ensure we register new imports.
+		if at, ok := t.(*types.Alias); ok {
+			if pkg := at.Obj().Pkg(); pkg != nil {
+				e.imports[pkg.Path()] = struct{}{}
+			}
+			e.extractType(at.Obj())
+		}
 		if t, ok := t.(*types.Named); ok {
 			if pkg := t.Obj().Pkg(); pkg != nil {
+				e.Printf("extractType: adding import path %q for %v\n", pkg.Path(), t)
 				e.imports[pkg.Path()] = struct{}{}
+			} else {
+				e.Printf("extractType: %v has no package to import\n", t)
 			}
 			e.extractType(t.Obj())
 		}
@@ -526,7 +699,7 @@ func (e *Extractor) makeEmitter(sig *types.Signature) (shimx.Emitter, bool) {
 
 // makeInput checks if the given signature is an iterator or not, and if so,
 // returns a shimx.Input struct for the signature for use by the code
-// generator. The canonical check for an iterater signature is in the
+// generator. The canonical check for an iterator signature is in the
 // funcx.UnfoldIter function which uses the reflect library,
 // and this logic is replicated here.
 func (e *Extractor) makeInput(sig *types.Signature) (shimx.Input, bool) {
@@ -535,13 +708,13 @@ func (e *Extractor) makeInput(sig *types.Signature) (shimx.Input, bool) {
 		return shimx.Input{}, false
 	}
 	// Iterators must return a bool.
-	if b, ok := r.At(0).Type().(*types.Basic); !ok || b.Kind() != types.Bool {
+	if b, ok := types.Unalias(r.At(0).Type()).(*types.Basic); !ok || b.Kind() != types.Bool {
 		return shimx.Input{}, false
 	}
 	p := sig.Params()
 	for i := 0; i < p.Len(); i++ {
 		// All params for iterators must be pointers.
-		if _, ok := p.At(i).Type().(*types.Pointer); !ok {
+		if _, ok := types.Unalias(p.At(i).Type()).(*types.Pointer); !ok {
 			return shimx.Input{}, false
 		}
 	}

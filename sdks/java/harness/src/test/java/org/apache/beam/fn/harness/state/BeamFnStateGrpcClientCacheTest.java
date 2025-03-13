@@ -17,36 +17,41 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
+import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc.BeamFnStateImplBase;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.fn.test.TestExecutors;
+import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -59,8 +64,9 @@ public class BeamFnStateGrpcClientCacheTest {
   private static final String TEST_ERROR = "TEST ERROR";
   private static final String SERVER_ERROR = "SERVER ERROR";
 
+  @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
+
   private Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private ManagedChannel testChannel;
   private Server testServer;
   private BeamFnStateGrpcClientCache clientCache;
   private BlockingQueue<StreamObserver<StateResponse>> outboundServerObservers;
@@ -75,7 +81,7 @@ public class BeamFnStateGrpcClientCacheTest {
 
     apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
-            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
             .build();
     testServer =
         InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -91,40 +97,57 @@ public class BeamFnStateGrpcClientCacheTest {
             .build();
     testServer.start();
 
-    testChannel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
-
     clientCache =
         new BeamFnStateGrpcClientCache(
             IdGenerators.decrementingLongs(),
-            (Endpoints.ApiServiceDescriptor descriptor) -> testChannel,
+            ManagedChannelFactory.createInProcess(),
             OutboundObserverFactory.trivial());
   }
 
   @After
   public void tearDown() throws Exception {
     testServer.shutdownNow();
-    testChannel.shutdownNow();
   }
 
   @Test
   public void testCachingOfClient() throws Exception {
-    assertSame(
-        clientCache.forApiServiceDescriptor(apiServiceDescriptor),
-        clientCache.forApiServiceDescriptor(apiServiceDescriptor));
-    assertNotSame(
-        clientCache.forApiServiceDescriptor(apiServiceDescriptor),
-        clientCache.forApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()));
+    Endpoints.ApiServiceDescriptor otherApiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(apiServiceDescriptor.getUrl() + "-other")
+            .build();
+    Server testServer2 =
+        InProcessServerBuilder.forName(otherApiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnStateImplBase() {
+                  @Override
+                  public StreamObserver<StateRequest> state(
+                      StreamObserver<StateResponse> outboundObserver) {
+                    throw new RuntimeException();
+                  }
+                })
+            .build();
+    testServer2.start();
+
+    try {
+      assertSame(
+          clientCache.forApiServiceDescriptor(apiServiceDescriptor),
+          clientCache.forApiServiceDescriptor(apiServiceDescriptor));
+      assertNotSame(
+          clientCache.forApiServiceDescriptor(apiServiceDescriptor),
+          clientCache.forApiServiceDescriptor(otherApiServiceDescriptor));
+    } finally {
+      testServer2.shutdownNow();
+    }
   }
 
   @Test
   public void testRequestResponses() throws Exception {
     BeamFnStateClient client = clientCache.forApiServiceDescriptor(apiServiceDescriptor);
 
-    CompletableFuture<StateResponse> successfulResponse = new CompletableFuture<>();
-    CompletableFuture<StateResponse> unsuccessfulResponse = new CompletableFuture<>();
-
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), successfulResponse);
-    client.handle(StateRequest.newBuilder().setInstructionReference(FAIL), unsuccessfulResponse);
+    CompletableFuture<StateResponse> successfulResponse =
+        client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS));
+    CompletableFuture<StateResponse> unsuccessfulResponse =
+        client.handle(StateRequest.newBuilder().setInstructionId(FAIL));
 
     // Wait for the client to connect.
     StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
@@ -146,29 +169,27 @@ public class BeamFnStateGrpcClientCacheTest {
   }
 
   @Test
+  // The checker erroneously flags that the CompletableFuture is not being resolved since it is the
+  // result to Executor#submit.
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testServerErrorCausesPendingAndFutureCallsToFail() throws Exception {
     BeamFnStateClient client = clientCache.forApiServiceDescriptor(apiServiceDescriptor);
 
-    CompletableFuture<StateResponse> inflight = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), inflight);
+    Future<CompletableFuture<StateResponse>> stateResponse =
+        executor.submit(() -> client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS)));
+    Future<Void> serverResponse =
+        executor.submit(
+            () -> {
+              // Wait for the client to connect.
+              StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
+              // Send an error from the server.
+              outboundServerObserver.onError(
+                  new StatusRuntimeException(Status.INTERNAL.withDescription(SERVER_ERROR)));
+              return null;
+            });
 
-    // Wait for the client to connect.
-    StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
-    // Send an error from the server.
-    outboundServerObserver.onError(
-        new StatusRuntimeException(Status.INTERNAL.withDescription(SERVER_ERROR)));
-
-    try {
-      inflight.get();
-      fail("Expected unsuccessful response due to server error");
-    } catch (ExecutionException e) {
-      assertThat(e.toString(), containsString(SERVER_ERROR));
-    }
-
-    // Send a response after the client will have received an error.
-    CompletableFuture<StateResponse> late = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), late);
-
+    CompletableFuture<StateResponse> inflight = stateResponse.get();
+    serverResponse.get();
     try {
       inflight.get();
       fail("Expected unsuccessful response due to server error");
@@ -178,31 +199,29 @@ public class BeamFnStateGrpcClientCacheTest {
   }
 
   @Test
+  // The checker erroneously flags that the CompletableFuture is not being resolved since it is the
+  // result to Executor#submit.
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testServerCompletionCausesPendingAndFutureCallsToFail() throws Exception {
     BeamFnStateClient client = clientCache.forApiServiceDescriptor(apiServiceDescriptor);
 
-    CompletableFuture<StateResponse> inflight = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), inflight);
+    Future<CompletableFuture<StateResponse>> stateResponse =
+        executor.submit(() -> client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS)));
+    Future<Void> serverResponse =
+        executor.submit(
+            () -> {
+              // Wait for the client to connect.
+              StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
+              // Send that the server is done.
+              outboundServerObserver.onCompleted();
+              return null;
+            });
 
-    // Wait for the client to connect.
-    StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
-    // Send that the server is done.
-    outboundServerObserver.onCompleted();
-
+    CompletableFuture<StateResponse> inflight = stateResponse.get();
+    serverResponse.get();
     try {
       inflight.get();
-      fail("Expected unsuccessful response due to server completion");
-    } catch (ExecutionException e) {
-      assertThat(e.toString(), containsString("Server hanged up"));
-    }
-
-    // Send a response after the client will have received an error.
-    CompletableFuture<StateResponse> late = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), late);
-
-    try {
-      inflight.get();
-      fail("Expected unsuccessful response due to server completion");
+      fail("Expected unsuccessful response due to server error");
     } catch (ExecutionException e) {
       assertThat(e.toString(), containsString("Server hanged up"));
     }
@@ -210,7 +229,7 @@ public class BeamFnStateGrpcClientCacheTest {
 
   private void handleServerRequest(
       StreamObserver<StateResponse> outboundObserver, StateRequest value) {
-    switch (value.getInstructionReference()) {
+    switch (value.getInstructionId()) {
       case SUCCESS:
         outboundObserver.onNext(StateResponse.newBuilder().setId(value.getId()).build());
         return;

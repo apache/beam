@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
-import com.google.bigtable.v2.SampleRowKeysResponse;
-import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
@@ -42,15 +42,14 @@ interface BigtableService extends Serializable {
      *
      * @throws IOException if there is an error submitting the write.
      */
-    CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+    CompletableFuture<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException;
 
     /**
-     * Flushes the writer.
-     *
-     * @throws IOException if any writes did not succeed
+     * Like above, but will not batch the record. Useful for single record retries. writeRecord
+     * should be preferred for performance reasons.
      */
-    void flush() throws IOException;
+    void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException;
 
     /**
      * Closes the writer.
@@ -58,6 +57,9 @@ interface BigtableService extends Serializable {
      * @throws IOException if there is an error closing the writer
      */
     void close() throws IOException;
+
+    /** Report Lineage metrics to runner. */
+    default void reportLineage() {}
   }
 
   /** The interface of a class that reads from Cloud Bigtable. */
@@ -72,34 +74,28 @@ interface BigtableService extends Serializable {
     boolean advance() throws IOException;
 
     /**
-     * Closes the reader.
-     *
-     * @throws IOException if there is an error.
-     */
-    void close() throws IOException;
-
-    /**
      * Returns the last row read by a successful start() or advance(), or throws if there is no
      * current row because the last such call was unsuccessful.
      */
     Row getCurrentRow() throws NoSuchElementException;
+
+    void close();
+
+    /** Report Lineage metrics to runner. */
+    default void reportLineage() {}
   }
-
-  /** Returns the BigtableOptions used to configure this BigtableService. */
-  BigtableOptions getBigtableOptions();
-
-  /** Returns {@code true} if the table with the give name exists. */
-  boolean tableExists(String tableId) throws IOException;
 
   /** Returns a {@link Reader} that will read from the specified source. */
   Reader createReader(BigtableSource source) throws IOException;
 
   /** Returns a {@link Writer} that will write to the specified table. */
-  Writer openForWriting(String tableId) throws IOException;
+  Writer openForWriting(BigtableWriteOptions writeOptions) throws IOException;
 
   /**
    * Returns a set of row keys sampled from the underlying table. These contain information about
    * the distribution of keys within the table.
    */
-  List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException;
+  List<KeyOffset> getSampleRowKeys(BigtableSource source) throws IOException;
+
+  void close();
 }

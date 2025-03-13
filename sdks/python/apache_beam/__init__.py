@@ -25,11 +25,6 @@ model for building both batch and streaming parallel data processing pipelines.
 The Apache Beam SDK for Python provides access to Apache Beam capabilities
 from the Python programming language.
 
-Status
-------
-The SDK is still early in its development, and significant changes
-should be expected before the first stable version.
-
 Overview
 --------
 The key concepts in this programming model are
@@ -71,35 +66,42 @@ has some examples.
 
 """
 
-
-from __future__ import absolute_import
-
-import os
 import sys
 import warnings
 
-
-if sys.version_info[0] == 3:
-  warnings.warn(
-      'Some syntactic constructs of Python 3 are not yet fully supported by '
-      'Apache Beam.')
-elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
+if sys.version_info.major == 3:
+  if sys.version_info.minor <= 8 or sys.version_info.minor >= 13:
+    warnings.warn(
+        'This version of Apache Beam has not been sufficiently tested on '
+        'Python %s.%s. You may encounter bugs or missing features.' %
+        (sys.version_info.major, sys.version_info.minor))
   pass
 else:
   raise RuntimeError(
-      'The Apache Beam SDK for Python is only supported on Python 2.7 or '
-      'Python 3. It is not supported on Python [' +
-      str(sys.version_info) + '].')
+      'The Apache Beam SDK for Python is only supported on Python 3. '
+      'It is not supported on Python [' + str(sys.version_info) + '].')
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
 
 from apache_beam import coders
 from apache_beam import io
+from apache_beam import metrics
 from apache_beam import typehints
 from apache_beam import version
-from apache_beam.pipeline import Pipeline
+from apache_beam.pipeline import *
 from apache_beam.transforms import *
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import Row
+from apache_beam.pvalue import TaggedOutput
+
+try:
+  # Add mitigation for CVE-2023-47248 while Beam allows affected versions
+  # of pyarrow. (https://github.com/apache/beam/issues/29392)
+  import pyarrow_hotfix
+except ImportError:
+  pass
+
 # pylint: enable=wrong-import-position
 
 __version__ = version.__version__

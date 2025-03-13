@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This transforms turns a side input into a singleton PCollection that can be used as the main
@@ -36,7 +38,7 @@ public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<I
     final PCollectionView<Iterable<T>> view = input.apply(View.asIterable());
     return input
         .getPipeline()
-        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+        .apply(Create.<@Nullable Void>of((@Nullable Void) null).withCoder(VoidCoder.of()))
         .apply(
             ParDo.of(
                     new DoFn<Void, Iterable<T>>() {
@@ -45,6 +47,7 @@ public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<I
                         c.output(c.sideInput(view));
                       }
                     })
-                .withSideInputs(view));
+                .withSideInputs(view))
+        .setCoder(IterableCoder.of(input.getCoder()));
   }
 }

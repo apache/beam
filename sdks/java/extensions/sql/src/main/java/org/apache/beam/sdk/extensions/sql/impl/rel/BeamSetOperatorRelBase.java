@@ -17,27 +17,28 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.join.CoGbkResult;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey;
-import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
  * BeamMinusRel}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCollection<Row>> {
   /** Set operator type. */
   public enum OpType implements Serializable {
@@ -78,25 +79,20 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
               + rightWindow);
     }
 
-    final TupleTag<Row> leftTag = new TupleTag<>();
-    final TupleTag<Row> rightTag = new TupleTag<>();
-
-    // co-group
-    PCollection<KV<Row, CoGbkResult>> coGbkResultCollection =
-        KeyedPCollectionTuple.of(
-                leftTag,
-                leftRows.apply(
-                    "CreateLeftIndex",
-                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-            .and(
-                rightTag,
-                rightRows.apply(
-                    "CreateRightIndex",
-                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-            .apply(CoGroupByKey.create());
-    return coGbkResultCollection.apply(
-        ParDo.of(
-            new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                leftTag, rightTag, opType, all)));
+    // TODO: We may want to preaggregate the counts first using Group instead of calling CoGroup and
+    // measuring the
+    // iterable size. If on average there are duplicates in the input, this will be faster.
+    final String lhsTag = "lhs";
+    final String rhsTag = "rhs";
+    PCollection<Row> joined =
+        PCollectionTuple.of(lhsTag, leftRows, rhsTag, rightRows)
+            .apply("CoGroup", CoGroup.join(By.fieldNames("*")));
+    return joined
+        .apply(
+            "FilterResults",
+            ParDo.of(
+                new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                    lhsTag, rhsTag, opType, all)))
+        .setRowSchema(joined.getSchema().getField("key").getType().getRowSchema());
   }
 }

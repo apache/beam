@@ -28,9 +28,12 @@ import org.apache.beam.sdk.values.PCollection;
 /**
  * Composite operator using two {@link Filter} operators to split a {@link PCollection} into two
  * subsets using provided {@link UnaryPredicate}.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
+@Deprecated
 public class Split {
 
   static final String DEFAULT_NAME = "Split";

@@ -24,7 +24,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.metrics.Counter;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -58,6 +59,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Every windowSizeSec, save all events from the last period into 2*maxWorkers log files.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Query10 extends NexmarkQueryTransform<Done> {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
   private static final int NUM_SHARDS_PER_WORKER = 5;
@@ -75,7 +79,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
     /** Timing of records in this file. */
     private final PaneInfo.Timing timing;
     /** Path to file containing records, or {@literal null} if no output required. */
-    @Nullable private final String filename;
+    private final @Nullable String filename;
 
     public OutputFile(
         Instant maxTimestamp,
@@ -97,7 +101,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   }
 
   /** GCS uri prefix for all log and 'finished' files. If null they won't be written. */
-  @Nullable private String outputPath;
+  private @Nullable String outputPath;
 
   /** Maximum number of workers, used to determine log sharding factor. */
   private int maxNumWorkers;
@@ -116,10 +120,12 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   }
 
   /** Return channel for writing bytes to GCS. */
+  @SuppressWarnings("unused")
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
     // TODO
-    // Fix after PR: right now this is a specific Google added use case
+    // [https://github.com/apache/beam/issues/20670] Fix after PR: right now this is a specific
+    // Google added use case
     // Discuss it on ML: shall we keep GCS or use HDFS or use a generic beam filesystem way.
     throw new UnsupportedOperationException("Disabled after removal of GcsIOChannelFactory");
   }
@@ -161,8 +167,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
    * Return path to which we should write the index for {@code window}, or {@literal null} if no
    * output required.
    */
-  @Nullable
-  private String indexPathFor(BoundedWindow window) {
+  private @Nullable String indexPathFor(BoundedWindow window) {
     if (outputPath == null) {
       return null;
     }
@@ -185,7 +190,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                   public void processElement(ProcessContext c) {
                     if (c.element().hasAnnotation("LATE")) {
                       lateCounter.inc();
-                      LOG.info("Observed late: %s", c.element());
+                      LOG.debug("Observed late: {}", c.element());
                     } else {
                       onTimeCounter.inc();
                     }
@@ -237,7 +242,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                       }
                     }
                     String shard = c.element().getKey();
-                    LOG.info(
+                    LOG.debug(
                         String.format(
                             "%s with timestamp %s has %d actually late and %d on-time "
                                 + "elements in pane %s for window %s",
@@ -249,20 +254,21 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                             window.maxTimestamp()));
                     if (c.pane().getTiming() == PaneInfo.Timing.LATE) {
                       if (numLate == 0) {
-                        LOG.error("ERROR! No late events in late pane for %s", shard);
+                        LOG.error("ERROR! No late events in late pane for {}", shard);
                         unexpectedLatePaneCounter.inc();
                       }
                       if (numOnTime > 0) {
                         LOG.error(
-                            "ERROR! Have %d on-time events in late pane for %s", numOnTime, shard);
+                            "ERROR! Have {} on-time events in late pane for {}", numOnTime, shard);
                         unexpectedOnTimeElementCounter.inc();
                       }
                       lateCounter.inc();
                     } else if (c.pane().getTiming() == PaneInfo.Timing.EARLY) {
                       if (numOnTime + numLate < configuration.maxLogEvents) {
                         LOG.error(
-                            "ERROR! Only have %d events in early pane for %s",
-                            numOnTime + numLate, shard);
+                            "ERROR! Only have {} events in early pane for {}",
+                            numOnTime + numLate,
+                            shard);
                       }
                       earlyCounter.inc();
                     } else {
@@ -285,12 +291,12 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                     String shard = c.element().getKey();
                     GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
                     OutputFile outputFile = outputFileFor(window, shard, c.pane());
-                    LOG.info(
+                    LOG.debug(
                         String.format(
                             "Writing %s with record timestamp %s, window timestamp %s, pane %s",
                             shard, c.timestamp(), window.maxTimestamp(), c.pane()));
                     if (outputFile.filename != null) {
-                      LOG.info("Beginning write to '%s'", outputFile.filename);
+                      LOG.info("Beginning write to '{}'", outputFile.filename);
                       int n = 0;
                       try (OutputStream output =
                           Channels.newOutputStream(
@@ -299,11 +305,11 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                           Event.CODER.encode(event, output, Coder.Context.OUTER);
                           writtenRecordsCounter.inc();
                           if (++n % 10000 == 0) {
-                            LOG.info("So far written %d records to '%s'", n, outputFile.filename);
+                            LOG.info("So far written {} records to '{}'", n, outputFile.filename);
                           }
                         }
                       }
-                      LOG.info("Written all %d records to '%s'", n, outputFile.filename);
+                      LOG.info("Written all {} records to '{}'", n, outputFile.filename);
                     }
                     savedFileCounter.inc();
                     c.output(KV.of(null, outputFile));
@@ -314,7 +320,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
             name + ".WindowLogFiles",
             Window.<KV<Void, OutputFile>>into(
                     FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec)))
-                .triggering(AfterWatermark.pastEndOfWindow())
+                .triggering(DefaultTrigger.of())
                 // We expect no late data here, but we'll assume the worst so we can detect any.
                 .withAllowedLateness(Duration.standardDays(1))
                 .discardingFiredPanes())
@@ -337,22 +343,24 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                       throws IOException {
                     if (c.pane().getTiming() == Timing.LATE) {
                       unexpectedLateCounter.inc();
-                      LOG.error("ERROR! Unexpected LATE pane: %s", c.pane());
+                      LOG.error("ERROR! Unexpected LATE pane: {}", c.pane());
                     } else if (c.pane().getTiming() == Timing.EARLY) {
                       unexpectedEarlyCounter.inc();
-                      LOG.error("ERROR! Unexpected EARLY pane: %s", c.pane());
+                      LOG.error("ERROR! Unexpected EARLY pane: {}", c.pane());
                     } else if (c.pane().getTiming() == Timing.ON_TIME && c.pane().getIndex() != 0) {
                       unexpectedIndexCounter.inc();
-                      LOG.error("ERROR! Unexpected ON_TIME pane index: %s", c.pane());
+                      LOG.error("ERROR! Unexpected ON_TIME pane index: {}", c.pane());
                     } else {
                       GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
-                      LOG.info(
-                          "Index with record timestamp %s, window timestamp %s, pane %s",
-                          c.timestamp(), window.maxTimestamp(), c.pane());
+                      LOG.debug(
+                          "Index with record timestamp {}, window timestamp {}, pane {}",
+                          c.timestamp(),
+                          window.maxTimestamp(),
+                          c.pane());
 
                       @Nullable String filename = indexPathFor(window);
                       if (filename != null) {
-                        LOG.info("Beginning write to '%s'", filename);
+                        LOG.info("Beginning write to '{}'", filename);
                         int n = 0;
                         try (OutputStream output =
                             Channels.newOutputStream(openWritableGcsFile(options, filename))) {
@@ -361,7 +369,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                             n++;
                           }
                         }
-                        LOG.info("Written all %d lines to '%s'", n, filename);
+                        LOG.info("Written all {} lines to '{}'", n, filename);
                       }
                       c.output(new Done("written for timestamp " + window.maxTimestamp()));
                       finalizedCounter.inc();

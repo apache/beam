@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +40,9 @@ public class GcpCoreApiSurfaceTest {
     final ApiSurface apiSurface =
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+            .pruningPattern("org[.]apache[.]beam[.].*vendor.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
 
@@ -54,11 +56,13 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.google.api.services.storage"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.fasterxml.jackson.annotation"),
+            classesInPackage("com.google.cloud.hadoop.gcsio"),
+            classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
             classesInPackage("java"),
             classesInPackage("javax"),
+            classesInPackage("org.apache.beam.model.pipeline.v1"),
             classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.joda.time"),
-            classesInPackage("org.junit"));
+            classesInPackage("org.joda.time"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

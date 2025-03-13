@@ -18,12 +18,10 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.SourceOperationRequest;
-import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** Creates a SourceOperationExecutor from a SourceOperation. */
 public class SourceOperationExecutorFactory {
@@ -34,27 +32,15 @@ public class SourceOperationExecutorFactory {
       DataflowExecutionContext<?> executionContext,
       String stageName)
       throws Exception {
-    boolean beamFnApi =
-        DataflowRunner.hasExperiment(options.as(DataflowPipelineDebugOptions.class), "beam_fn_api");
-
     Preconditions.checkNotNull(request, "SourceOperationRequest must be non-null");
     Preconditions.checkNotNull(executionContext, "executionContext must be non-null");
 
-    // Disable splitting when fn api is enabled.
-    // TODO: Fix this once source splitting is supported.
-    if (beamFnApi) {
-      return new NoOpSourceOperationExecutor(request);
-    } else {
-      DataflowOperationContext operationContext =
-          executionContext.createOperationContext(
-              NameContext.create(
-                  stageName,
-                  request.getOriginalName(),
-                  request.getSystemName(),
-                  request.getName()));
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(
+            NameContext.create(
+                stageName, request.getOriginalName(), request.getSystemName(), request.getName()));
 
-      return new WorkerCustomSourceOperationExecutor(
-          options, request, counters, executionContext, operationContext);
-    }
+    return new WorkerCustomSourceOperationExecutor(
+        options, request, counters, executionContext, operationContext);
   }
 }

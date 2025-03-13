@@ -18,16 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /** Base class for mocked table. */
-@Experimental
-public abstract class TestTable extends BaseBeamTable {
+public abstract class TestTable extends SchemaBaseBeamTable {
   public static final AtomicInteger COUNTER = new AtomicInteger();
 
   public TestTable(Schema beamSchema) {

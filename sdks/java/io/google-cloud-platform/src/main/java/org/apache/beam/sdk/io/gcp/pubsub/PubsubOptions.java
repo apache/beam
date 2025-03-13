@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -31,6 +34,41 @@ import org.apache.beam.sdk.options.StreamingOptions;
         + "https://cloud.google.com/pubsub/docs/overview for details on Cloud Pub/Sub.")
 public interface PubsubOptions
     extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {
+
+  /**
+   * Internal only utility for converting {@link #getPubsubRootUrl()} (e.g. {@code https://<host>})
+   * to an endpoint target, usable by GCP client libraries (e.g. {@code <host>:443})
+   */
+  @Internal
+  static String targetForRootUrl(String urlString) {
+    URL url;
+    try {
+      url = new URL(urlString);
+    } catch (MalformedURLException e) {
+      throw new IllegalArgumentException(
+          String.format("Could not parse pubsub root url \"%s\"", urlString), e);
+    }
+
+    int port = url.getPort();
+
+    if (port < 0) {
+      switch (url.getProtocol()) {
+        case "https":
+          port = 443;
+          break;
+        case "http":
+          port = 80;
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not determine port for pubsub root url \"%s\". You must either specify the port or use the protocol \"https\" or \"http\"",
+                  urlString));
+      }
+    }
+
+    return String.format("%s:%d", url.getHost(), port);
+  }
 
   /** Root URL for use with the Google Cloud Pub/Sub API. */
   @Description("Root URL for use with the Google Cloud Pub/Sub API")

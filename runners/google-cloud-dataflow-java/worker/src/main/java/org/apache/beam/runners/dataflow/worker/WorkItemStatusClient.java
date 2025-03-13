@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MetricStructuredName;
@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -48,9 +47,11 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHand
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +60,12 @@ import org.slf4j.LoggerFactory;
  * Wrapper around {@link WorkUnitClient} with methods for creating and sending work item status
  * updates.
  */
-// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
+// Very likely real potential for bugs - https://github.com/apache/beam/issues/19270
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WorkItemStatusClient {
-
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
 
   private final WorkItem workItem;
@@ -72,8 +75,9 @@ public class WorkItemStatusClient {
 
   private transient String uniqueWorkId = null;
   private boolean finalStateSent = false;
+  private boolean wasAskedToAbort = false;
 
-  @Nullable private BatchModeExecutionContext executionContext;
+  private @Nullable BatchModeExecutionContext executionContext;
 
   /**
    * Construct a partly-initialized {@link WorkItemStatusClient}. Once the {@link
@@ -111,8 +115,12 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending an error completion status. */
-  public synchronized WorkItemServiceState reportError(Throwable e) throws IOException {
+  public synchronized @Nullable WorkItemServiceState reportError(Throwable e) throws IOException {
     checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
     WorkItemStatus status = createStatusUpdate(true);
 
     // TODO: Provide more structure representation of error, e.g., the serialized exception object.
@@ -129,6 +137,8 @@ public class WorkItemStatusClient {
               + "instances in PipelineOptions.\n";
       LOG.error("{}: {}", logPrefix, message);
       error.setMessage(message + DataflowWorkerLoggingHandler.formatException(t));
+    } else if (isReadLoopAbortedError(t)) {
+      LOG.debug("Read loop aborted error occurred during work unit execution", t);
     } else {
       LOG.error(
           "{}: Uncaught exception occurred during work unit execution. This will be retried.",
@@ -142,9 +152,13 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending a success completion status. */
-  public synchronized WorkItemServiceState reportSuccess() throws IOException {
+  public synchronized @Nullable WorkItemServiceState reportSuccess() throws IOException {
     checkState(!finalStateSent, "cannot reportSuccess after sending a final state");
     checkState(worker != null, "setWorker should be called before reportSuccess");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
 
     WorkItemStatus status = createStatusUpdate(true);
 
@@ -163,12 +177,16 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending a progress update. */
-  public synchronized WorkItemServiceState reportUpdate(
+  public synchronized @Nullable WorkItemServiceState reportUpdate(
       @Nullable DynamicSplitResult dynamicSplitResult, Duration requestedLeaseDuration)
       throws Exception {
     checkState(worker != null, "setWorker should be called before reportUpdate");
     checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
     checkArgument(requestedLeaseDuration != null, "requestLeaseDuration must be non-null");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
 
     WorkItemStatus status = createStatusUpdate(false);
     status.setRequestedLeaseDuration(TimeUtil.toCloudDuration(requestedLeaseDuration));
@@ -188,11 +206,30 @@ public class WorkItemStatusClient {
     return false;
   }
 
-  @Nullable
-  private synchronized WorkItemServiceState execute(WorkItemStatus status) throws IOException {
+  private static boolean isReadLoopAbortedError(Throwable t) {
+    while (t != null) {
+      if (t instanceof ReadOperation.ReadLoopAbortedException) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
+  }
+
+  private synchronized @Nullable WorkItemServiceState execute(WorkItemStatus status)
+      throws IOException {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
+      if (result.getCompleteWorkStatus() != null
+          && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
+        LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
+        wasAskedToAbort = true;
+        return result;
+      }
       nextReportIndex = result.getNextReportIndex();
+      if (nextReportIndex == null && !status.getCompleted()) {
+        LOG.error("Missing next work index in {} when reporting {}.", result, status);
+      }
       commitMetrics();
     }
 
@@ -356,5 +393,9 @@ public class WorkItemStatusClient {
     }
 
     executionContext.commitMetricUpdates();
+  }
+
+  public BatchModeExecutionContext getExecutionContext() {
+    return this.executionContext;
   }
 }

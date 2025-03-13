@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,36 +16,71 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
 from mock import patch
 
-from apache_beam.examples.snippets.util import *
+import apache_beam as beam
+from apache_beam.examples.snippets import util
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class UtilTest(unittest.TestCase):
-  def test_parse_example_empty(self):
-    # python path/to/snippets.py
-    argv = []
-    with self.assertRaises(SystemExit):
-      self.assertEqual(parse_example(argv), 'example()')
+  def test_assert_matches_stdout_object(self):
+    expected = [
+        "{'a': '🍓', 'b': True}",
+        "{'a': '🥕', 'b': 42}",
+        "{'a': '🍆', 'b': '\"hello\"'}",
+        "{'a': '🍅', 'b': [1, 2, 3]}",
+        "{'b': 'B', 'a': '🥔'}",
+    ]
+    with TestPipeline() as pipeline:
+      actual = (
+          pipeline
+          | beam.Create([
+              {
+                  'a': '🍓', 'b': True
+              },
+              {
+                  'a': '🥕', 'b': 42
+              },
+              {
+                  'a': '🍆', 'b': '"hello"'
+              },
+              {
+                  'a': '🍅', 'b': [1, 2, 3]
+              },
+              {
+                  'a': '🥔', 'b': 'B'
+              },
+          ])
+          | beam.Map(str))
+      util.assert_matches_stdout(actual, expected)
 
-  def test_parse_example_no_arguments(self):
-    # python path/to/snippets.py example
-    argv = ['example']
-    self.assertEqual(parse_example(argv), 'example()')
+  def test_assert_matches_stdout_string(self):
+    expected = ['🍓', '🥕', '🍆', '🍅', '🥔']
+    with TestPipeline() as pipeline:
+      actual = (
+          pipeline
+          | beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])
+          | beam.Map(str))
+      util.assert_matches_stdout(actual, expected)
 
-  def test_parse_example_one_argument(self):
-    # python path/to/snippets.py example A
-    argv = ['example', 'A']
-    self.assertEqual(parse_example(argv), "example('A')")
-
-  def test_parse_example_multiple_arguments(self):
-    # python path/to/snippets.py example A B "C's"
-    argv = ['example', 'A', 'B', "C's"]
-    self.assertEqual(parse_example(argv), "example('A', 'B', \"C's\")")
+  def test_assert_matches_stdout_sorted_keys(self):
+    expected = [{'list': [1, 2]}, {'list': [3, 4]}]
+    with TestPipeline() as pipeline:
+      actual = (
+          pipeline
+          | beam.Create([{
+              'list': [2, 1]
+          }, {
+              'list': [4, 3]
+          }])
+          | beam.Map(str))
+      util.assert_matches_stdout(
+          actual, expected, lambda elem: {'sorted': sorted(elem['list'])})
 
   @patch('subprocess.call', lambda cmd: None)
   def test_run_shell_commands(self):
@@ -54,7 +90,7 @@ class UtilTest(unittest.TestCase):
         '  !echo {variable}  ',
         '  echo "quoted arguments work"  # trailing comment  ',
     ]
-    actual = list(run_shell_commands(commands, variable='hello world'))
+    actual = list(util.run_shell_commands(commands, variable='hello world'))
     expected = [
         ['echo', 'this', 'is', 'a', 'shell', 'command'],
         ['echo', 'hello', 'world'],

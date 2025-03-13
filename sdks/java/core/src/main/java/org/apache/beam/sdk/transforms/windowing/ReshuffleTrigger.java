@@ -29,11 +29,8 @@ import org.joda.time.Instant;
  * state.
  *
  * @param <W> The kind of window that is being reshuffled.
- * @deprecated The intended side effect of {@link Reshuffle} is not portable; it will likely be
- *     removed
  */
 @Internal
-@Deprecated
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   public ReshuffleTrigger() {
@@ -49,6 +46,11 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     throw new UnsupportedOperationException(
         "ReshuffleTrigger should not be used outside of Reshuffle");
+  }
+
+  @Override
+  public boolean mayFinish() {
+    return false;
   }
 
   @Override

@@ -18,15 +18,19 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Intersect;
-import org.apache.calcite.rel.core.SetOp;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Intersect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.SetOp;
 
 /**
  * {@code BeamRelNode} to replace a {@code Intersect} node.
@@ -48,5 +52,34 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.INTERSECT, all);
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
+    // This takes the minimum of the inputs for all the estimate factors.
+    double minimumRows = Double.POSITIVE_INFINITY;
+    double minimumWindowSize = Double.POSITIVE_INFINITY;
+    double minimumRate = Double.POSITIVE_INFINITY;
+
+    for (RelNode input : inputs) {
+      NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(input, mq);
+      minimumRows = Math.min(minimumRows, inputEstimates.getRowCount());
+      minimumRate = Math.min(minimumRate, inputEstimates.getRate());
+      minimumWindowSize = Math.min(minimumWindowSize, inputEstimates.getWindow());
+    }
+
+    return NodeStats.create(minimumRows, minimumRate, minimumWindowSize).multiply(0.5);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
+
+    NodeStats inputsStatSummation =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+
+    return BeamCostModel.FACTORY.makeCost(
+        inputsStatSummation.getRowCount(), inputsStatSummation.getRate());
   }
 }

@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.ByteString.ByteIterator;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import javax.annotation.Nonnull;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString.ByteIterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A class representing a key consisting of an array of bytes. Arbitrary-length {@code byte[]} keys
@@ -151,7 +152,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == this) {
       return true;
     }

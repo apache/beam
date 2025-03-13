@@ -20,24 +20,27 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"path"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"google.golang.org/api/option"
 )
 
+var userAgent = option.WithUserAgent("(GPN:Beam)")
+
 // NewClient creates a new GCS client with default application credentials, and supplied
-// OAuth scope. The OAuth scopes are defined in https://godoc.org/cloud.google.com/go/storage#pkg-constants.
+// OAuth scope. The OAuth scopes are defined in https://pkg.go.dev/cloud.google.com/go/storage#pkg-constants.
+// Sets the user agent to Beam.
 func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
-	return storage.NewClient(ctx, option.WithScopes(scope))
+	return storage.NewClient(ctx, option.WithScopes(scope), userAgent)
 }
 
 // NewUnauthenticatedClient creates a new GCS client without authentication.
+// Sets the user agent to Beam.
 func NewUnauthenticatedClient(ctx context.Context) (*storage.Client, error) {
-	return storage.NewClient(ctx, option.WithoutAuthentication())
+	return storage.NewClient(ctx, option.WithoutAuthentication(), userAgent)
 }
 
 // Upload writes the given content to GCS. If the specified bucket does not
@@ -60,9 +63,20 @@ func Upload(ctx context.Context, client *storage.Client, project, bucket, object
 
 }
 
-// CreateBucket creates a bucket in GCS.
+// Get BucketAttrs with RetentionDuration of SoftDeletePolicy set to zero for disabling SoftDeletePolicy.
+func getDisableSoftDeletePolicyBucketAttrs() *storage.BucketAttrs {
+	attrs := &storage.BucketAttrs{
+		SoftDeletePolicy: &storage.SoftDeletePolicy{
+			RetentionDuration: 0,
+		},
+	}
+	return attrs
+}
+
+// CreateBucket creates a bucket in GCS with RetentionDuration of zero to disable SoftDeletePolicy.
 func CreateBucket(ctx context.Context, client *storage.Client, project, bucket string) error {
-	return client.Bucket(bucket).Create(ctx, project, nil)
+	disableSoftDeletePolicyBucketAttrs := getDisableSoftDeletePolicyBucketAttrs()
+	return client.Bucket(bucket).Create(ctx, project, disableSoftDeletePolicyBucketAttrs)
 }
 
 // BucketExists returns true iff the given bucket exists.
@@ -91,7 +105,7 @@ func ReadObject(ctx context.Context, client *storage.Client, bucket, object stri
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // MakeObject creates a object location from bucket and path. For example,

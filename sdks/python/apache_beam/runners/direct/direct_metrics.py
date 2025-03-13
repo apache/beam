@@ -20,28 +20,91 @@ DirectRunner implementation of MetricResults. It is in charge not only of
 responding to queries of current metrics, but also of keeping the common
 state consistent.
 """
-from __future__ import absolute_import
+# pytype: skip-file
 
 import threading
-from builtins import object
 from collections import defaultdict
+from typing import Any
+from typing import SupportsInt
 
-from apache_beam.metrics.cells import CounterAggregator
-from apache_beam.metrics.cells import DistributionAggregator
-from apache_beam.metrics.cells import GaugeAggregator
+from apache_beam.metrics.cells import BoundedTrieData
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import GaugeData
+from apache_beam.metrics.cells import StringSetData
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
 
 
+class MetricAggregator(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Base interface for aggregating metric data during pipeline execution."""
+  def identity_element(self):
+    # type: () -> Any
+
+    """Returns the identical element of an Aggregation.
+
+    For the identity element, it must hold that
+     Aggregator.combine(any_element, identity_element) == any_element.
+    """
+    raise NotImplementedError
+
+  def combine(self, x, y):
+    # type: (Any, Any) -> Any
+    raise NotImplementedError
+
+  def result(self, x):
+    # type: (Any) -> Any
+    raise NotImplementedError
+
+
+class CounterAggregator(MetricAggregator):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Aggregator for Counter metric data during pipeline execution.
+
+  Values aggregated should be ``int`` objects.
+  """
+  @staticmethod
+  def identity_element():
+    # type: () -> int
+    return 0
+
+  def combine(self, x, y):
+    # type: (SupportsInt, SupportsInt) -> int
+    return int(x) + int(y)
+
+  def result(self, x):
+    # type: (SupportsInt) -> int
+    return int(x)
+
+
+class GenericAggregator(MetricAggregator):
+  def __init__(self, data_class):
+    self._data_class = data_class
+
+  def identity_element(self):
+    return self._data_class.identity_element()
+
+  def combine(self, x, y):
+    return x.combine(y)
+
+  def result(self, x):
+    return x.get_result()
+
+
 class DirectMetrics(MetricResults):
   def __init__(self):
-    self._counters = defaultdict(
-        lambda: DirectMetric(CounterAggregator()))
+    self._counters = defaultdict(lambda: DirectMetric(CounterAggregator()))
     self._distributions = defaultdict(
-        lambda: DirectMetric(DistributionAggregator()))
+        lambda: DirectMetric(GenericAggregator(DistributionData)))
     self._gauges = defaultdict(
-        lambda: DirectMetric(GaugeAggregator()))
+        lambda: DirectMetric(GenericAggregator(GaugeData)))
+    self._string_sets = defaultdict(
+        lambda: DirectMetric(GenericAggregator(StringSetData)))
+    self._bounded_tries = defaultdict(
+        lambda: DirectMetric(GenericAggregator(BoundedTrieData)))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -52,6 +115,12 @@ class DirectMetrics(MetricResults):
 
     for k, v in updates.gauges.items():
       op(self._gauges[k], bundle, v)
+
+    for k, v in updates.string_sets.items():
+      op(self._string_sets[k], bundle, v)
+
+    for k, v in updates.bounded_tries.items():
+      op(self._bounded_tries[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
@@ -66,25 +135,49 @@ class DirectMetrics(MetricResults):
     self._apply_operation(bundle, updates, op)
 
   def query(self, filter=None):
-    counters = [MetricResult(MetricKey(k.step, k.metric),
-                             v.extract_committed(),
-                             v.extract_latest_attempted())
-                for k, v in self._counters.items()
-                if self.matches(filter, k)]
-    distributions = [MetricResult(MetricKey(k.step, k.metric),
-                                  v.extract_committed(),
-                                  v.extract_latest_attempted())
-                     for k, v in self._distributions.items()
-                     if self.matches(filter, k)]
-    gauges = [MetricResult(MetricKey(k.step, k.metric),
-                           v.extract_committed(),
-                           v.extract_latest_attempted())
-              for k, v in self._gauges.items()
-              if self.matches(filter, k)]
+    counters = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._counters.items() if self.matches(filter, k)
+    ]
+    distributions = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._distributions.items() if self.matches(filter, k)
+    ]
+    gauges = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._gauges.items() if self.matches(filter, k)
+    ]
+    string_sets = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._string_sets.items() if self.matches(filter, k)
+    ]
+    bounded_tries = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._bounded_tries.items() if self.matches(filter, k)
+    ]
 
-    return {self.COUNTERS: counters,
-            self.DISTRIBUTIONS: distributions,
-            self.GAUGES: gauges}
+    return {
+        self.COUNTERS: counters,
+        self.DISTRIBUTIONS: distributions,
+        self.GAUGES: gauges,
+        self.STRINGSETS: string_sets,
+        self.BOUNDED_TRIES: bounded_tries,
+    }
 
 
 class DirectMetric(object):
@@ -103,14 +196,14 @@ class DirectMetric(object):
 
   def commit_logical(self, bundle, update):
     with self._committed_lock:
-      self.finished_committed = self.aggregator.combine(update,
-                                                        self.finished_committed)
+      self.finished_committed = self.aggregator.combine(
+          update, self.finished_committed)
 
   def commit_physical(self, bundle, update):
     with self._attempted_lock:
       self.inflight_attempted[bundle] = update
-      self.finished_attempted = self.aggregator.combine(update,
-                                                        self.finished_attempted)
+      self.finished_attempted = self.aggregator.combine(
+          update, self.finished_attempted)
       del self.inflight_attempted[bundle]
 
   def update_physical(self, bundle, update):

@@ -17,13 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
@@ -31,7 +32,8 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,9 +62,17 @@ public class DataflowBatchWorkerHarness {
     DataflowWorkerHarnessHelper.initializeLogging(DataflowBatchWorkerHarness.class);
     DataflowWorkerHarnessOptions pipelineOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            DataflowBatchWorkerHarness.class);
+            DataflowBatchWorkerHarness.class, DataflowWorkerHarnessOptions.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
+
+    checkArgument(
+        !DataflowRunner.hasExperiment(pipelineOptions, "beam_fn_api"),
+        "%s cannot be main() class with beam_fn_api enabled",
+        DataflowBatchWorkerHarness.class.getSimpleName());
+
+    CoderTranslation.verifyModelCodersRegistered();
+
     JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();
   }
@@ -141,7 +151,7 @@ public class DataflowBatchWorkerHarness {
         LOG.debug("{} processing one WorkItem.", success ? "Finished" : "Failed");
         return success;
       } catch (IOException e) { // If there is a problem getting work.
-        LOG.debug("There was a problem getting work.", e);
+        LOG.info("There was a problem getting work.", e);
         return false;
       } catch (Exception e) { // These exceptions are caused by bugs within the SDK
         LOG.error("There was an unhandled error caused by the Dataflow SDK.", e);

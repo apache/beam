@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList;
 
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -31,8 +30,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 /**
  * A transform to drop fields from a schema.
@@ -61,7 +59,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
  * PCollection<Row> noLatitude = events.apply(DropFields.fields("location.latitude"));
  * }</pre>
  */
-@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DropFields {
   public static <T> Inner<T> fields(String... fields) {
     return fields(FieldAccessDescriptor.withFieldNames(fields));
@@ -85,9 +85,8 @@ public class DropFields {
 
     FieldAccessDescriptor complement(Schema inputSchema, FieldAccessDescriptor input) {
       // Create a FieldAccessDescriptor that select all fields _not_ selected in the input
-      // descriptor. Maintain
-      // the original order of the schema.
-      Set<String> fieldNamesToSelect = Sets.newHashSet();
+      // descriptor. Maintain the original order of the schema.
+      List<String> fieldNamesToSelect = newArrayList();
       Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nestedFieldsToSelect =
           Maps.newHashMap();
       for (int i = 0; i < inputSchema.getFieldCount(); ++i) {

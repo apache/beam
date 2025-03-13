@@ -22,9 +22,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.values.EncodableThrowable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -32,7 +31,8 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A collection of utilities for writing transforms that can handle exceptions raised during
@@ -67,7 +67,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  *      .apply("FlattenFailureCollections", Flatten.pCollections());
  * }</pre>
  */
-@Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WithFailures {
 
   /**
@@ -85,6 +87,24 @@ public class WithFailures {
 
     public static <T> ExceptionElement<T> of(T element, Exception exception) {
       return new AutoValue_WithFailures_ExceptionElement<>(element, exception);
+    }
+  }
+
+  /**
+   * A handler that holds onto the {@link Throwable} that led to the exception, returning it along
+   * with the original value as a {@link KV}.
+   *
+   * <p>Extends {@link SimpleFunction} so that full type information is captured. {@link KV} and
+   * {@link EncodableThrowable} coders can be easily inferred by Beam, so coder inference can be
+   * successfully applied if the consuming transform passes type information to the failure
+   * collection's {@link TupleTag}. This may require creating an instance of an anonymous inherited
+   * class rather than of this class directly.
+   */
+  public static class ThrowableHandler<T>
+      extends SimpleFunction<ExceptionElement<T>, KV<T, EncodableThrowable>> {
+    @Override
+    public KV<T, EncodableThrowable> apply(ExceptionElement<T> f) {
+      return KV.of(f.element(), EncodableThrowable.forThrowable(f.exception()));
     }
   }
 
@@ -125,8 +145,7 @@ public class WithFailures {
 
     public abstract OutputT output();
 
-    @Nullable
-    abstract TupleTag<?> outputTag();
+    abstract @Nullable TupleTag<?> outputTag();
 
     public abstract PCollection<FailureElementT> failures();
 

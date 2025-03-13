@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.extensions.gcp.util.Transport.getJsonFactory;
 import static org.apache.beam.sdk.extensions.gcp.util.Transport.getTransport;
 
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.services.clouddebugger.v2.CloudDebugger;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -31,7 +30,7 @@ import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Helpers for cloud communication. */
 public class DataflowTransport {
@@ -81,16 +80,6 @@ public class DataflowTransport {
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  public static CloudDebugger.Builder newClouddebuggerClient(DataflowPipelineOptions options) {
-    return new CloudDebugger.Builder(
-            getTransport(),
-            getJsonFactory(),
-            chainHttpRequestInitializer(
-                options.getGcpCredential(), new RetryHttpRequestInitializer()))
-        .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 

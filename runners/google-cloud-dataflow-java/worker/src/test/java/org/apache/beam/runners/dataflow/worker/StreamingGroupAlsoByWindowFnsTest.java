@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -71,11 +71,12 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -149,6 +150,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 TimerData.of(
                     namespace,
                     timestamp,
+                    timestamp,
                     type == Windmill.Timer.Type.WATERMARK
                         ? TimeDomain.EVENT_TIME
                         : TimeDomain.PROCESSING_TIME)))
@@ -168,7 +170,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
     Coder<Collection<? extends BoundedWindow>> windowsCoder =
         (Coder) CollectionCoder.of(windowCoder);
 
-    ByteString.Output dataOutput = ByteString.newOutput();
+    ByteStringOutputStream dataOutput = new ByteStringOutputStream();
     valueCoder.encode(value, dataOutput, Context.OUTER);
     messageBundle
         .addMessagesBuilder()
@@ -313,16 +315,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1")),
                 equalTo(new Instant(2)),
                 equalTo(window(-10, 10))),
-
-            // For this sliding window, the minimum output timestmap was 10, since we didn't want to
-            // overlap with the previous window that was [-10, 10).
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(window(-10, 10).maxTimestamp().plus(1)),
+                equalTo(new Instant(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(window(0, 20).maxTimestamp().plus(1)),
+                equalTo(new Instant(15)),
                 equalTo(window(10, 30)))));
   }
 
@@ -401,16 +400,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 isKv(equalTo(KEY), emptyIterable()),
                 equalTo(window(-10, 10).maxTimestamp()),
                 equalTo(window(-10, 10))),
-
-            // For this sliding window, the minimum output timestmap was 10, since we didn't want to
-            // overlap with the previous window that was [-10, 10).
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(window(-10, 10).maxTimestamp().plus(1)),
+                equalTo(new Instant(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(window(0, 20).maxTimestamp().plus(1)),
+                equalTo(new Instant(15)),
                 equalTo(window(10, 30)))));
 
     long droppedValues =

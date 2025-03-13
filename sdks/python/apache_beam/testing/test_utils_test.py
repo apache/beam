@@ -17,7 +17,7 @@
 
 """Unittest for testing utilities,"""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import os
@@ -32,7 +32,6 @@ from apache_beam.testing import test_utils as utils
 
 
 class TestUtilsTest(unittest.TestCase):
-
   def setUp(self):
     utils.patch_retry(self, utils)
     self.tmpdir = tempfile.mkdtemp()
@@ -73,8 +72,7 @@ class TestUtilsTest(unittest.TestCase):
   def test_temp_file_field_correct(self):
     with utils.TempDir() as tempdir:
       filename = tempdir.create_temp_file(
-          suffix='.txt',
-          lines=[b'line1\n', b'line2\n', b'line3\n'])
+          suffix='.txt', lines=[b'line1\n', b'line2\n', b'line3\n'])
       self.assertTrue(filename.endswith('.txt'))
 
       with open(filename, 'rb') as f:
@@ -87,15 +85,52 @@ class TestUtilsTest(unittest.TestCase):
     sub = mock.Mock()
     sub.name = 'test_sub'
     utils.cleanup_subscriptions(sub_client, [sub])
-    sub_client.delete_subscription.assert_called_with(sub.name)
+    sub_client.delete_subscription.assert_called_with(subscription=sub.name)
 
   def test_cleanup_topics(self):
     pub_client = mock.Mock()
     topic = mock.Mock()
     topic.name = 'test_topic'
     utils.cleanup_topics(pub_client, [topic])
-    pub_client.delete_topic.assert_called_with(topic.name)
+    pub_client.delete_topic.assert_called_with(topic=topic.name)
 
+
+class LCGeneratorTest(unittest.TestCase):
+  Generator = utils.LCGenerator
+
+  def test_generator_seed_results(self):
+    generator = self.Generator()
+    generator.seed(0)
+    self.assertEqual(generator.next_int(), 4232237)
+
+    generator.seed(1)
+    self.assertEqual(generator.next_int(), -1151252339)
+    self.assertEqual(generator.next_uint(), 3745583449)
+    self.assertAlmostEqual(generator.random_sample(), 0.375548, delta=1e-6)
+    self.assertEqual(generator.randbytes(10), b'\xa6\x8fW\xcb\xb1\xa88]dP')
+
+  def test_generator_seed_jdk_results(self):
+    generator = self.Generator()
+    generator.seed_jdk(0)
+    self.assertEqual(generator.next_int(), -1155484576)
+
+    generator.seed_jdk(1)
+    # the first next_int after seed_jdk(1) is close to seed_jdk(0)
+    self.assertEqual(generator.next_int(), -1155869325)
+    self.assertEqual(generator.next_uint(), 431529176)
+    self.assertAlmostEqual(generator.random_sample(), 0.410081, delta=1e-6)
+    self.assertEqual(generator.randbytes(10), b'\x92\xf9Mh\xfc\xcc,5\xf0\xb8')
+
+
+try:
+  # pylint: disable=wrong-import-position
+  from .fast_test_utils import LCGenerator as FastLCGenerator
+
+  class FastLCGeneratorTest(LCGeneratorTest):
+    Generator = FastLCGenerator
+
+except ImportError:
+  pass
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

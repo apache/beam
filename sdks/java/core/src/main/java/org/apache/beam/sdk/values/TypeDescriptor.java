@@ -24,12 +24,12 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.Invokable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.Parameter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeResolver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.Invokable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.Parameter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeResolver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeToken;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A description of a Java type, including actual generic parameters where possible.
@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeToken;
  * concrete types:
  *
  * <pre>{@code
- * TypeDecriptor<List<String>> = new TypeDescriptor<List<String>>() {};
+ * TypeDescriptor<List<String>> typeDescriptor = new TypeDescriptor<List<String>>() {};
  * }</pre>
  *
  * <p>If the above were not an anonymous subclass, the type {@code List<String>} would be erased and
@@ -103,7 +103,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
     token = typedToken;
   }
 
-  private boolean hasUnresolvedParameters(Type type) {
+  private static boolean hasUnresolvedParameters(Type type) {
     if (type instanceof TypeVariable) {
       return true;
     } else if (type instanceof ParameterizedType) {
@@ -121,8 +121,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * Returns the enclosing instance if the field is synthetic and it is able to access it, or
    * {@literal null} if not.
    */
-  @Nullable
-  private Object getEnclosingInstance(Field field, Object instance) {
+  private static @Nullable Object getEnclosingInstance(Field field, Object instance) {
     if (!field.isSynthetic()) {
       return null;
     }
@@ -177,8 +176,13 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /** Returns the component type if this type is an array type, otherwise returns {@code null}. */
-  public TypeDescriptor<?> getComponentType() {
-    return new SimpleTypeDescriptor<>(token.getComponentType());
+  public @Nullable TypeDescriptor<?> getComponentType() {
+    @Nullable TypeToken<?> componentTypeToken = token.getComponentType();
+    if (componentTypeToken == null) {
+      return null;
+    } else {
+      return new SimpleTypeDescriptor<>(componentTypeToken);
+    }
   }
 
   /** Returns the generic form of a supertype. */
@@ -362,7 +366,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
 
   /** Two type descriptor are equal if and only if they represent the same type. */
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof TypeDescriptor)) {
       return false;
     } else {

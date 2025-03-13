@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -33,7 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -47,14 +46,18 @@ import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.UnmodifiableIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.UnmodifiableIterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for getting an idea of a {@code PCollection}'s data distribution using
  * approximate {@code N}-tiles (e.g. quartiles, percentiles, etc.), either globally or per-key.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ApproximateQuantiles {
   private ApproximateQuantiles() {
     // do not instantiate
@@ -144,7 +147,7 @@ public class ApproximateQuantiles {
   }
 
   /**
-   * Like {@link #perKey(int, Comparator)}, but sorts values using the their natural ordering.
+   * Like {@link #perKey(int, Comparator)}, but sorts values using their natural ordering.
    *
    * @param <K> the type of the keys in the input and output {@code PCollection}s
    * @param <V> the type of the values in the input {@code PCollection}
@@ -340,9 +343,9 @@ public class ApproximateQuantiles {
     private int numBuffers;
     private int bufferSize;
 
-    @Nullable private T min;
+    private @Nullable T min;
 
-    @Nullable private T max;
+    private @Nullable T max;
 
     /** The set of buffers, ordered by level from smallest to largest. */
     private PriorityQueue<QuantileBuffer<T>> buffers;
@@ -682,7 +685,7 @@ public class ApproximateQuantiles {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == this) {
         return true;
       }

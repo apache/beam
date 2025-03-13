@@ -14,172 +14,203 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
-This is SideInput load test with Synthetic Source. Besides of the standard
-input options there are additional options:
-* number_of_counter_operations - number of pardo operations
-* project (optional) - the gcp project in case of saving
-metrics in Big Query (in case of Dataflow Runner
-it is required to specify project of runner),
-* publish_to_big_query - if metrics should be published in big query,
-* metrics_namespace (optional) - name of BigQuery dataset where metrics
-will be stored,
-* metrics_table (optional) - name of BigQuery table where metrics
-will be stored,
-* input_options - options for Synthetic Sources.
+Load test for operations involving side inputs.
 
-To run test on DirectRunner
+The purpose of this test is to measure the cost of materialization and
+accessing side inputs. The test uses synthetic source which can be
+parametrized to generate records with various sizes of keys and values,
+impose delays in the pipeline and simulate other performance challenges.
 
-python setup.py nosetests \
+This test can accept the following parameters:
+  * side_input_type (str) - Required. Specifies how the side input will be
+    materialized in ParDo operation. Choose from (dict, iter, list).
+  * window_count (int) - The number of fixed sized windows to subdivide the
+    side input into. By default, a global window will be used.
+  * access_percentage (int) - Specifies the percentage of elements in the side
+    input to be accessed. By default, all elements will be accessed.
+
+Example test run:
+
+python -m apache_beam.testing.load_tests.sideinput_test \
     --test-pipeline-options="
-    --project=big-query-project
-    --publish_to_big_query=true
-    --metrics_dataset=python_load_tests
-    --metrics_table=side_input
-    --number_of_counter_operations=1000
+    --side_input_type=iter
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
-    \"value_size\":15,
-    \"bundle_size_distribution_type\": \"const\",
-    \"bundle_size_distribution_param\": 1,
-    \"force_initial_num_bundles\": 0
-    }'
-   " \
-    --tests apache_beam.testing.load_tests.sideinput_test
+    \"value_size\": 15
+    }'"
 
 or:
 
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=side_input
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.sideinput_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
-To run test on other runner (ex. Dataflow):
-
-python setup.py nosetests \
-    --test-pipeline-options="
-        --runner=TestDataflowRunner
-        --project=...
-        --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=side_input
-        --staging_location=gs://...
-        --temp_location=gs://...
-        --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --number_of_counter_operations=1000
-        --input_options='{
-        \"num_records\": 1,
-        \"key_size\": 1,
-        \"value_size\":1,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\": 0
-        }'
-        " \
-    --tests apache_beam.testing.load_tests.sideinput_test
-
-or:
-
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=side_input
-    --temp_location=gs://...
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=TestDataflowRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.sideinput_test:SideInputTest.testSideInput \
--Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+./gradlew -PloadTest.args="
+    --side_input_type=iter
+    --input_options='{
+      \"num_records\": 300,
+      \"key_size\": 5,
+      \"value_size\": 15}'" \
+-PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
-import os
-import unittest
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import Tuple
+from typing import Union
 
 import apache_beam as beam
-from apache_beam.pvalue import AsIter
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
+from apache_beam.transforms import window
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class SideInputTest(LoadTest):
-  def _getSideInput(self):
-    side_input = self.parseTestPipelineOptions()
-    side_input['numRecords'] = side_input['numRecords']
-    side_input['keySizeBytes'] = side_input['keySizeBytes']
-    side_input['valueSizeBytes'] = side_input['valueSizeBytes']
-    return side_input
+  SIDE_INPUT_TYPES = {
+      'iter': beam.pvalue.AsIter,
+      'list': beam.pvalue.AsList,
+      'dict': beam.pvalue.AsDict,
+  }
+  SDF_INITIAL_ELEMENTS = 1000
 
-  def setUp(self):
-    super(SideInputTest, self).setUp()
+  def __init__(self):
+    super().__init__()
+    self.windows = self.get_option_or_default('window_count', default=1)
 
-    self.iterations = self.pipeline.get_option('number_of_counter_operations')
-    if not self.iterations:
-      self.iterations = 1
-    self.iterations = int(self.iterations)
+    self.access_percentage = self.get_option_or_default(
+        'access_percentage', default=100)
+    if self.access_percentage < 0 or self.access_percentage > 100:
+      raise ValueError(
+          'access_percentage: Invalid value. Should be in range '
+          'from 0 to 100, got {} instead'.format(self.access_percentage))
 
-  def testSideInput(self):
-    def join_fn(element, side_input, iterations):
-      list = []
-      for i in range(iterations):
-        for key, value in side_input:
-          if i == iterations - 1:
-            list.append({key: element[1]+value})
-      yield list
+    self.elements_per_window = self.input_options['num_records'] // self.windows
 
-    main_input = (self.pipeline
-                  | "Read pcoll 1" >> beam.io.Read(
-                      synthetic_pipeline.SyntheticSource(
-                          self.parseTestPipelineOptions()))
-                  | 'Measure time: Start pcoll 1' >> beam.ParDo(
-                      MeasureTime(self.metrics_namespace))
-                 )
+    self.side_input_type = self.pipeline.get_option('side_input_type')
+    if self.side_input_type is None:
+      raise ValueError(
+          'side_input_type is required. Please provide one of '
+          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
 
-    side_input = (self.pipeline
-                  | "Read pcoll 2" >> beam.io.Read(
-                      synthetic_pipeline.SyntheticSource(
-                          self._getSideInput()))
-                  | 'Measure time: Start pcoll 2' >> beam.ParDo(
-                      MeasureTime(self.metrics_namespace))
-                 )
-    # pylint: disable=expression-not-assigned
-    (main_input
-     | "Merge" >> beam.ParDo(
-         join_fn,
-         AsIter(side_input),
-         self.iterations)
-     | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+  def materialize_as(self):
+    try:
+      return self.SIDE_INPUT_TYPES[self.side_input_type]
+    except KeyError:
+      raise ValueError(
+          'Unknown side input type. Please provide one of '
+          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
+
+  def test(self):
+    class SequenceSideInputTestDoFn(beam.DoFn):
+      """Iterate over first n side_input elements."""
+      def __init__(self, first_n: int):
+        self._first_n = first_n
+
+      def process(
+          self, element: Any, side_input: Iterable[Tuple[bytes,
+                                                         bytes]]) -> None:
+        i = 0
+        it = iter(side_input)
+        while i < self._first_n:
+          i += 1
+          try:
+            # No-op. We only make sure that the element is accessed.
+            next(it)
+          except StopIteration:
+            break
+
+    class MappingSideInputTestDoFn(beam.DoFn):
+      """Iterates over first n keys in the dictionary and checks the value."""
+      def __init__(self, first_n: int):
+        self._first_n = first_n
+
+      def process(
+          self, element: Any, dict_side_input: Dict[bytes, bytes]) -> None:
+        i = 0
+        for key in dict_side_input:
+          if i == self._first_n:
+            break
+          # No-op. We only make sure that the element is accessed.
+          dict_side_input[key]
+          i += 1
+
+    class AssignTimestamps(beam.DoFn):
+      """Produces timestamped values. Timestamps are equal to the value of the
+      element."""
+      def __init__(self):
+        # Avoid having to use save_main_session
+        self.window = window
+
+      def process(self, element: int) -> Iterable[window.TimestampedValue]:
+        yield self.window.TimestampedValue(element, element)
+
+    class GetSyntheticSDFOptions(beam.DoFn):
+      def __init__(
+          self, elements_per_record: int, key_size: int, value_size: int):
+        self.elements_per_record = elements_per_record
+        self.key_size = key_size
+        self.value_size = value_size
+
+      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:
+        yield {
+            'num_records': self.elements_per_record,
+            'key_size': self.key_size,
+            'value_size': self.value_size,
+            'initial_splitting_num_bundles': 0,
+            'initial_splitting_desired_bundle_size': 0,
+            'sleep_per_input_record_sec': 0,
+            'initial_splitting': 'const'
+        }
+
+    main_input = self.pipeline | 'Create' >> beam.Create(range(self.windows))
+
+    initial_elements = self.SDF_INITIAL_ELEMENTS
+    if self.windows > 1:
+      main_input = (
+          main_input
+          | 'Assign timestamps' >> beam.ParDo(AssignTimestamps())
+          | 'Apply windows' >> beam.WindowInto(window.FixedWindows(1)))
+      side_input = main_input
+      initial_elements = self.windows
+    else:
+      side_input = self.pipeline | 'Side input: create' >> beam.Create(
+          range(initial_elements))
+
+    side_input = (
+        side_input
+        | 'Get synthetic SDF options' >> beam.ParDo(
+            GetSyntheticSDFOptions(
+                self.input_options['num_records'] // initial_elements,
+                self.input_options['key_size'],
+                self.input_options['value_size']))
+        | 'Generate input' >> beam.ParDo(SyntheticSDFAsSource()))
+    main_input |= 'Collect start time metrics' >> beam.ParDo(
+        MeasureTime(self.metrics_namespace))
+
+    side_input_type = self.materialize_as()
+    elements_to_access = self.elements_per_window * \
+                         self.access_percentage // 100
+    logging.info(
+        '%s out of %s total elements in each window will be accessed.',
+        elements_to_access,
+        self.elements_per_window)
+    if side_input_type is beam.pvalue.AsDict:
+      dofn = MappingSideInputTestDoFn(elements_to_access)
+    else:
+      dofn = SequenceSideInputTestDoFn(elements_to_access)
+
+    _ = (
+        main_input
+        | beam.ParDo(dofn, side_input_type(side_input))
+        | 'Collect end time metrics' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  SideInputTest().run()

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UnsafeByteOperations;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,7 +27,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 /**
  * A {@link Coder} for {@link ByteString} objects based on their encoded Protocol Buffer form.
@@ -79,10 +80,17 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
     }
 
     int size = VarInt.decodeInt(inStream);
-    // ByteString reads to the end of the input stream, so give it a limited stream of exactly
-    // the right length. Also set its chunk size so that the ByteString will contain exactly
-    // one chunk.
-    return ByteString.readFrom(ByteStreams.limit(inStream, size), size);
+    if (size == 0) {
+      return ByteString.EMPTY;
+    }
+
+    // we pre-allocate a byte[] and read into it, then wrap it with a ByteString, rather than using
+    // ByteString.readFrom since we know the length.  Doing so is significantly more efficient
+    // because we don't need an intermediate buffer list and can save an extra byte[] allocation of
+    // `size`.
+    byte[] buf = new byte[size];
+    ByteStreams.readFully(inStream, buf, 0, size);
+    return UnsafeByteOperations.unsafeWrap(buf, 0, size);
   }
 
   @Override

@@ -18,16 +18,16 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import java.util.List;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlDataTypeSpec;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Parse tree for column. */
 public class SqlColumnDeclaration extends SqlCall {
@@ -61,7 +61,8 @@ public class SqlColumnDeclaration extends SqlCall {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     name.unparse(writer, 0, 0);
     dataType.unparse(writer, 0, 0);
-    if (dataType.getNullable() != null && !dataType.getNullable()) {
+    Boolean nullable = dataType.getNullable();
+    if (nullable != null && !nullable) {
       writer.keyword("NOT NULL");
     }
     if (comment != null) {

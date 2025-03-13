@@ -18,13 +18,13 @@
 """:class:`~apache_beam.io.filesystem.FileSystem` implementation for accessing
 Hadoop Distributed File System files."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import io
 import logging
 import posixpath
 import re
-from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 import hdfs
 
@@ -41,7 +41,8 @@ __all__ = ['HadoopFileSystem']
 
 _HDFS_PREFIX = 'hdfs:/'
 _URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
-_COPY_BUFFER_SIZE = 2 ** 16
+_FULL_URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'/([^/]+)(/.*)*')
+_COPY_BUFFER_SIZE = 2**16
 _DEFAULT_BUFFER_SIZE = 20 * 1024 * 1024
 
 # WebHDFS FileChecksum property constants.
@@ -50,14 +51,16 @@ _FILE_CHECKSUM_BYTES = 'bytes'
 _FILE_CHECKSUM_LENGTH = 'length'
 # WebHDFS FileStatus property constants.
 _FILE_STATUS_LENGTH = 'length'
+_FILE_STATUS_UPDATED = 'modificationTime'
 _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
 _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
 _FILE_STATUS_TYPE_FILE = 'FILE'
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class HdfsDownloader(filesystemio.Downloader):
-
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     self._path = path
@@ -68,13 +71,12 @@ class HdfsDownloader(filesystemio.Downloader):
     return self._size
 
   def get_range(self, start, end):
-    with self._hdfs_client.read(
-        self._path, offset=start, length=end - start + 1) as reader:
+    with self._hdfs_client.read(self._path, offset=start,
+                                length=end - start) as reader:
       return reader.read()
 
 
 class HdfsUploader(filesystemio.Uploader):
-
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     if self._hdfs_client.status(path, strict=False) is not None:
@@ -84,7 +86,9 @@ class HdfsUploader(filesystemio.Uploader):
     self._handle = self._handle_context.__enter__()
 
   def put(self, data):
-    self._handle.write(data)
+    # hdfs uses an async writer which first add data to a queue. To avoid buffer
+    # gets reused upstream a deepcopy is required here.
+    self._handle.write(bytes(data))
 
   def finish(self):
     self._handle.__exit__(None, None, None)
@@ -97,14 +101,13 @@ class HadoopFileSystem(FileSystem):
 
   URL arguments to methods expect strings starting with ``hdfs://``.
   """
-
   def __init__(self, pipeline_options):
     """Initializes a connection to HDFS.
 
     Connection configuration is done by passing pipeline options.
     See :class:`~apache_beam.options.pipeline_options.HadoopFileSystemOptions`.
     """
-    super(HadoopFileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     logging.getLogger('hdfs.client').setLevel(logging.WARN)
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')
@@ -113,10 +116,12 @@ class HadoopFileSystem(FileSystem):
       hdfs_host = hdfs_options.hdfs_host
       hdfs_port = hdfs_options.hdfs_port
       hdfs_user = hdfs_options.hdfs_user
+      self._full_urls = hdfs_options.hdfs_full_urls
     else:
       hdfs_host = pipeline_options.get('hdfs_host')
       hdfs_port = pipeline_options.get('hdfs_port')
       hdfs_user = pipeline_options.get('hdfs_user')
+      self._full_urls = pipeline_options.get('hdfs_full_urls', False)
 
     if hdfs_host is None:
       raise ValueError('hdfs_host is not set')
@@ -124,6 +129,9 @@ class HadoopFileSystem(FileSystem):
       raise ValueError('hdfs_port is not set')
     if hdfs_user is None:
       raise ValueError('hdfs_user is not set')
+    if not isinstance(self._full_urls, bool):
+      raise ValueError(
+          'hdfs_full_urls should be bool, got: %s', self._full_urls)
     self._hdfs_client = hdfs.InsecureClient(
         'http://%s:%s' % (hdfs_host, str(hdfs_port)), user=hdfs_user)
 
@@ -131,24 +139,35 @@ class HadoopFileSystem(FileSystem):
   def scheme(cls):
     return 'hdfs'
 
-  @staticmethod
-  def _parse_url(url):
+  def _parse_url(self, url):
     """Verifies that url begins with hdfs:// prefix, strips it and adds a
     leading /.
 
-    Raises:
-      ValueError if url doesn't begin with hdfs://.
+    Parsing behavior is determined by HadoopFileSystemOptions.hdfs_full_urls.
 
     Args:
-      url: A URL in the form hdfs://path/...
+      url: (str) A URL in the form hdfs://path/...
+        or in the form hdfs://server/path/...
+
+    Raises:
+      ValueError if the URL doesn't match the expect format.
 
     Returns:
-      For an input of 'hdfs://path/...', will return '/path/...'.
+      (str, str) If using hdfs_full_urls, for an input of
+      'hdfs://server/path/...' will return (server, '/path/...').
+      Otherwise, for an input of 'hdfs://path/...', will return
+      ('', '/path/...').
     """
-    m = _URL_RE.match(url)
-    if m is None:
-      raise ValueError('Could not parse url: %s' % url)
-    return m.group(1)
+    if not self._full_urls:
+      m = _URL_RE.match(url)
+      if m is None:
+        raise ValueError('Could not parse url: %s' % url)
+      return '', m.group(1)
+    else:
+      m = _FULL_URL_RE.match(url)
+      if m is None:
+        raise ValueError('Could not parse url: %s' % url)
+      return m.group(1), m.group(2) or '/'
 
   def join(self, base_url, *paths):
     """Join two or more pathname components.
@@ -161,19 +180,24 @@ class HadoopFileSystem(FileSystem):
     Returns:
       Full url after combining all the passed components.
     """
-    basepath = self._parse_url(base_url)
-    return _HDFS_PREFIX + self._join(basepath, *paths)
+    server, basepath = self._parse_url(base_url)
+    return _HDFS_PREFIX + self._join(server, basepath, *paths)
 
-  def _join(self, basepath, *paths):
-    return posixpath.join(basepath, *paths)
+  def _join(self, server, basepath, *paths):
+    res = posixpath.join(basepath, *paths)
+    if server:
+      server = '/' + server
+    return server + res
 
   def split(self, url):
-    rel_path = self._parse_url(url)
+    server, rel_path = self._parse_url(url)
+    if server:
+      server = '/' + server
     head, tail = posixpath.split(rel_path)
-    return _HDFS_PREFIX + head, tail
+    return _HDFS_PREFIX + server + head, tail
 
   def mkdirs(self, url):
-    path = self._parse_url(url)
+    _, path = self._parse_url(url)
     if self._exists(path):
       raise BeamIOError('Path already exists: %s' % path)
     return self._mkdirs(path)
@@ -186,18 +210,22 @@ class HadoopFileSystem(FileSystem):
 
   def _list(self, url):
     try:
-      path = self._parse_url(url)
+      server, path = self._parse_url(url)
       for res in self._hdfs_client.list(path, status=True):
-        yield FileMetadata(_HDFS_PREFIX + self._join(path, res[0]),
-                           res[1][_FILE_STATUS_LENGTH])
+        yield FileMetadata(
+            _HDFS_PREFIX + self._join(server, path, res[0]),
+            res[1][_FILE_STATUS_LENGTH],
+            res[1][_FILE_STATUS_UPDATED] / 1000.0)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError('List operation failed', {url: e})
 
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):
     if mime_type != 'application/octet-stream':
-      logging.warning('Mime types are not supported. Got non-default mime_type:'
-                      ' %s', mime_type)
+      _LOGGER.warning(
+          'Mime types are not supported. Got non-default mime_type:'
+          ' %s',
+          mime_type)
     if compression_type == CompressionTypes.AUTO:
       compression_type = CompressionTypes.detect_compression_type(path)
     if compression_type != CompressionTypes.UNCOMPRESSED:
@@ -205,37 +233,47 @@ class HadoopFileSystem(FileSystem):
 
     return stream
 
-  def create(self, url, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      self,
+      url,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """
     Returns:
       A Python File-like object.
     """
-    path = self._parse_url(url)
+    _, path = self._parse_url(url)
     return self._create(path, mime_type, compression_type)
 
-  def _create(self, path, mime_type='application/octet-stream',
-              compression_type=CompressionTypes.AUTO):
+  def _create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     stream = io.BufferedWriter(
-        filesystemio.UploaderStream(
-            HdfsUploader(self._hdfs_client, path)),
+        filesystemio.UploaderStream(HdfsUploader(self._hdfs_client, path)),
         buffer_size=_DEFAULT_BUFFER_SIZE)
     return self._add_compression(stream, path, mime_type, compression_type)
 
-  def open(self, url, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      self,
+      url,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """
     Returns:
       A Python File-like object.
     """
-    path = self._parse_url(url)
+    _, path = self._parse_url(url)
     return self._open(path, mime_type, compression_type)
 
-  def _open(self, path, mime_type='application/octet-stream',
-            compression_type=CompressionTypes.AUTO):
+  def _open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     stream = io.BufferedReader(
-        filesystemio.DownloaderStream(
-            HdfsDownloader(self._hdfs_client, path)),
+        filesystemio.DownloaderStream(HdfsDownloader(self._hdfs_client, path)),
         buffer_size=_DEFAULT_BUFFER_SIZE)
     return self._add_compression(stream, path, mime_type, compression_type)
 
@@ -252,8 +290,8 @@ class HadoopFileSystem(FileSystem):
     if len(source_file_names) != len(destination_file_names):
       raise BeamIOError(
           'source_file_names and destination_file_names should '
-          'be equal in length: %d != %d' % (
-              len(source_file_names), len(destination_file_names)))
+          'be equal in length: %d != %d' %
+          (len(source_file_names), len(destination_file_names)))
 
     def _copy_file(source, destination):
       with self._open(source) as f1:
@@ -273,7 +311,7 @@ class HadoopFileSystem(FileSystem):
 
       for path, dirs, files in self._hdfs_client.walk(source):
         for dir in dirs:
-          new_dir = self._join(destination, dir)
+          new_dir = self._join('', destination, dir)
           if not self._exists(new_dir):
             self._mkdirs(new_dir)
 
@@ -281,14 +319,15 @@ class HadoopFileSystem(FileSystem):
         if rel_path == '.':
           rel_path = ''
         for file in files:
-          _copy_file(self._join(path, file),
-                     self._join(destination, rel_path, file))
+          _copy_file(
+              self._join('', path, file),
+              self._join('', destination, rel_path, file))
 
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
       try:
-        rel_source = self._parse_url(source)
-        rel_destination = self._parse_url(destination)
+        _, rel_source = self._parse_url(source)
+        _, rel_destination = self._parse_url(destination)
         _copy_path(rel_source, rel_destination)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[(source, destination)] = e
@@ -300,8 +339,8 @@ class HadoopFileSystem(FileSystem):
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
       try:
-        rel_source = self._parse_url(source)
-        rel_destination = self._parse_url(destination)
+        _, rel_source = self._parse_url(source)
+        _, rel_destination = self._parse_url(destination)
         try:
           self._hdfs_client.rename(rel_source, rel_destination)
         except hdfs.HdfsError as e:
@@ -313,7 +352,7 @@ class HadoopFileSystem(FileSystem):
     if exceptions:
       raise BeamIOError('Rename operation failed', exceptions)
 
-  def exists(self, url):
+  def exists(self, url: str) -> bool:
     """Checks existence of url in HDFS.
 
     Args:
@@ -322,7 +361,7 @@ class HadoopFileSystem(FileSystem):
     Returns:
       True if url exists as a file or directory in HDFS.
     """
-    path = self._parse_url(url)
+    _, path = self._parse_url(url)
     return self._exists(path)
 
   def _exists(self, path):
@@ -334,22 +373,39 @@ class HadoopFileSystem(FileSystem):
     return self._hdfs_client.status(path, strict=False) is not None
 
   def size(self, url):
-    path = self._parse_url(url)
-    status = self._hdfs_client.status(path, strict=False)
-    if status is None:
-      raise BeamIOError('File not found: %s' % url)
-    return status[_FILE_STATUS_LENGTH]
+    """Fetches file size for a URL.
+
+    Returns:
+      int size of path according to the FileSystem.
+
+    Raises:
+      ``BeamIOError``: if url doesn't exist.
+    """
+    return self.metadata(url).size_in_bytes
 
   def last_updated(self, url):
-    raise NotImplementedError
+    """Fetches last updated time for a URL.
+
+    Args:
+      url: string url of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError``: if path doesn't exist.
+    """
+    return self.metadata(url).last_updated_in_seconds
 
   def checksum(self, url):
     """Fetches a checksum description for a URL.
 
     Returns:
       String describing the checksum.
+
+    Raises:
+      ``BeamIOError``: if url doesn't exist.
     """
-    path = self._parse_url(url)
+    _, path = self._parse_url(url)
     file_checksum = self._hdfs_client.checksum(path)
     return '%s-%d-%s' % (
         file_checksum[_FILE_CHECKSUM_ALGORITHM],
@@ -357,11 +413,30 @@ class HadoopFileSystem(FileSystem):
         file_checksum[_FILE_CHECKSUM_BYTES],
     )
 
+  def metadata(self, url):
+    """Fetch metadata fields of a file on the FileSystem.
+
+    Args:
+      url: string url of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
+
+    Raises:
+      ``BeamIOError``: if url doesn't exist.
+    """
+    _, path = self._parse_url(url)
+    status = self._hdfs_client.status(path, strict=False)
+    if status is None:
+      raise BeamIOError('File not found: %s' % url)
+    return FileMetadata(
+        url, status[_FILE_STATUS_LENGTH], status[_FILE_STATUS_UPDATED] / 1000.0)
+
   def delete(self, urls):
     exceptions = {}
     for url in urls:
       try:
-        path = self._parse_url(url)
+        _, path = self._parse_url(url)
         self._hdfs_client.delete(path, recursive=True)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[url] = e

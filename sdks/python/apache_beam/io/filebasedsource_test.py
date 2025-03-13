@@ -14,8 +14,7 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import bz2
 import gzip
@@ -24,11 +23,8 @@ import logging
 import math
 import os
 import random
-import sys
 import tempfile
 import unittest
-from builtins import object
-from builtins import range
 
 import hamcrest as hc
 
@@ -51,7 +47,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
 class LineSource(FileBasedSource):
-
   def read_records(self, file_name, range_tracker):
     f = self.open_file(file_name)
     try:
@@ -67,8 +62,10 @@ class LineSource(FileBasedSource):
         start += len(line)
       current = start
       line = f.readline()
-      while line:
-        if not range_tracker.try_claim(current):
+      while range_tracker.try_claim(current):
+        # When the source is unsplittable, try_claim is not enough to determine
+        # whether the file has reached to the end.
+        if not line:
           return
         yield line.rstrip(b'\n')
         current += len(line)
@@ -85,7 +82,10 @@ class EOL(object):
 
 
 def write_data(
-    num_lines, no_data=False, directory=None, prefix=tempfile.template,
+    num_lines,
+    no_data=False,
+    directory=None,
+    prefix=tempfile.template,
     eol=EOL.LF):
   """Writes test data to a temporary file.
 
@@ -104,8 +104,8 @@ def write_data(
       data.
   """
   all_data = []
-  with tempfile.NamedTemporaryFile(
-      delete=False, dir=directory, prefix=prefix) as f:
+  with tempfile.NamedTemporaryFile(delete=False, dir=directory,
+                                   prefix=prefix) as f:
     sep_values = [b'\n', b'\r\n']
     for i in range(num_lines):
       data = b'' if no_data else b'line' + str(i).encode()
@@ -127,10 +127,12 @@ def write_data(
     return f.name, all_data
 
 
-def _write_prepared_data(data, directory=None,
-                         prefix=tempfile.template, suffix=''):
-  with tempfile.NamedTemporaryFile(
-      delete=False, dir=directory, prefix=prefix, suffix=suffix) as f:
+def _write_prepared_data(
+    data, directory=None, prefix=tempfile.template, suffix=''):
+  with tempfile.NamedTemporaryFile(delete=False,
+                                   dir=directory,
+                                   prefix=prefix,
+                                   suffix=suffix) as f:
     f.write(data)
     return f.name
 
@@ -141,8 +143,8 @@ def write_prepared_pattern(data, suffixes=None):
     suffixes = [''] * len(data)
   temp_dir = tempfile.mkdtemp()
   for i, d in enumerate(data):
-    file_name = _write_prepared_data(d, temp_dir, prefix='mytemp',
-                                     suffix=suffixes[i])
+    file_name = _write_prepared_data(
+        d, temp_dir, prefix='mytemp', suffix=suffixes[i])
   return file_name[:file_name.rfind(os.path.sep)] + os.path.sep + 'mytemp*'
 
 
@@ -176,20 +178,18 @@ def write_pattern(lines_per_file, no_data=False):
 
 
 class TestConcatSource(unittest.TestCase):
-
   class DummySource(iobase.BoundedSource):
-
     def __init__(self, values):
       self._values = values
 
-    def split(self, desired_bundle_size, start_position=None,
-              stop_position=None):
+    def split(
+        self, desired_bundle_size, start_position=None, stop_position=None):
       # simply devides values into two bundles
       middle = len(self._values) // 2
-      yield iobase.SourceBundle(0.5, TestConcatSource.DummySource(
-          self._values[:middle]), None, None)
-      yield iobase.SourceBundle(0.5, TestConcatSource.DummySource(
-          self._values[middle:]), None, None)
+      yield iobase.SourceBundle(
+          0.5, TestConcatSource.DummySource(self._values[:middle]), None, None)
+      yield iobase.SourceBundle(
+          0.5, TestConcatSource.DummySource(self._values[middle:]), None, None)
 
     def get_range_tracker(self, start_position, stop_position):
       if start_position is None:
@@ -209,28 +209,26 @@ class TestConcatSource(unittest.TestCase):
     def estimate_size(self):
       return len(self._values)  # Assuming each value to be 1 byte.
 
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
 
   def test_read(self):
-    sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
-               in [0, 10, 20]]
+    sources = [
+        TestConcatSource.DummySource(range(start, start + 10))
+        for start in [0, 10, 20]
+    ]
     concat = ConcatSource(sources)
     range_tracker = concat.get_range_tracker(None, None)
     read_data = [value for value in concat.read(range_tracker)]
     self.assertCountEqual(list(range(30)), read_data)
 
   def test_split(self):
-    sources = [TestConcatSource.DummySource(list(range(start, start + 10)))
-               for start in [0, 10, 20]]
+    sources = [
+        TestConcatSource.DummySource(list(range(start, start + 10)))
+        for start in [0, 10, 20]
+    ]
     concat = ConcatSource(sources)
     splits = [split for split in concat.split()]
     self.assertEqual(6, len(splits))
@@ -239,27 +237,21 @@ class TestConcatSource(unittest.TestCase):
     read_data = []
     for split in splits:
       range_tracker_for_split = split.source.get_range_tracker(
-          split.start_position,
-          split.stop_position)
-      read_data.extend([value for value in split.source.read(
-          range_tracker_for_split)])
+          split.start_position, split.stop_position)
+      read_data.extend(
+          [value for value in split.source.read(range_tracker_for_split)])
     self.assertCountEqual(list(range(30)), read_data)
 
   def test_estimate_size(self):
-    sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
-               in [0, 10, 20]]
+    sources = [
+        TestConcatSource.DummySource(range(start, start + 10))
+        for start in [0, 10, 20]
+    ]
     concat = ConcatSource(sources)
     self.assertEqual(30, concat.estimate_size())
 
 
 class TestFileBasedSource(unittest.TestCase):
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -267,20 +259,22 @@ class TestFileBasedSource(unittest.TestCase):
 
   def test_string_or_value_provider_only(self):
     str_file_pattern = tempfile.NamedTemporaryFile(delete=False).name
-    self.assertEqual(str_file_pattern,
-                     FileBasedSource(str_file_pattern)._pattern.value)
+    self.assertEqual(
+        str_file_pattern, FileBasedSource(str_file_pattern)._pattern.value)
 
-    static_vp_file_pattern = StaticValueProvider(value_type=str,
-                                                 value=str_file_pattern)
-    self.assertEqual(static_vp_file_pattern,
-                     FileBasedSource(static_vp_file_pattern)._pattern)
+    static_vp_file_pattern = StaticValueProvider(
+        value_type=str, value=str_file_pattern)
+    self.assertEqual(
+        static_vp_file_pattern,
+        FileBasedSource(static_vp_file_pattern)._pattern)
 
     runtime_vp_file_pattern = RuntimeValueProvider(
-        option_name='arg',
-        value_type=str,
-        default_value=str_file_pattern)
-    self.assertEqual(runtime_vp_file_pattern,
-                     FileBasedSource(runtime_vp_file_pattern)._pattern)
+        option_name='arg', value_type=str, default_value=str_file_pattern)
+    self.assertEqual(
+        runtime_vp_file_pattern,
+        FileBasedSource(runtime_vp_file_pattern)._pattern)
+    # Reset runtime options to avoid side-effects in other tests.
+    RuntimeValueProvider.set_runtime_options(None)
 
     invalid_file_pattern = 123
     with self.assertRaises(TypeError):
@@ -297,9 +291,9 @@ class TestFileBasedSource(unittest.TestCase):
 
   def test_validation_failing(self):
     no_files_found_error = 'No files found based on the file pattern*'
-    with self.assertRaisesRegexp(IOError, no_files_found_error):
+    with self.assertRaisesRegex(IOError, no_files_found_error):
       LineSource('dummy_pattern')
-    with self.assertRaisesRegexp(IOError, no_files_found_error):
+    with self.assertRaisesRegex(IOError, no_files_found_error):
       temp_dir = tempfile.mkdtemp()
       LineSource(os.path.join(temp_dir, '*'))
 
@@ -320,9 +314,9 @@ class TestFileBasedSource(unittest.TestCase):
     dd = DisplayData.create_from(fbs)
     expected_items = [
         DisplayDataItemMatcher('file_pattern', file_name),
-        DisplayDataItemMatcher('compression', 'auto')]
-    hc.assert_that(dd.items,
-                   hc.contains_inanyorder(*expected_items))
+        DisplayDataItemMatcher('compression', 'auto')
+    ]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_fully_read_file_pattern(self):
     pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
@@ -375,8 +369,8 @@ class TestFileBasedSource(unittest.TestCase):
 
     sizes = []
     for _ in range(num_files):
-      sizes.append(int(random.uniform(base_size - variance,
-                                      base_size + variance)))
+      sizes.append(
+          int(random.uniform(base_size - variance, base_size + variance)))
     pattern, _ = write_pattern(sizes)
     tolerance = 0.05
     self.assertAlmostEqual(
@@ -390,8 +384,7 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(pattern)
     splits = [split for split in fbs.split(desired_bundle_size=15)]
     expected_num_splits = (
-        math.ceil(float(6 * 5) / 15) +
-        math.ceil(float(6 * 9) / 15) +
+        math.ceil(float(6 * 5) / 15) + math.ceil(float(6 * 9) / 15) +
         math.ceil(float(6 * 6) / 15))
     assert len(splits) == expected_num_splits
 
@@ -405,8 +398,8 @@ class TestFileBasedSource(unittest.TestCase):
     read_data = []
     for split in splits:
       source = split.source
-      range_tracker = source.get_range_tracker(split.start_position,
-                                               split.stop_position)
+      range_tracker = source.get_range_tracker(
+          split.start_position, split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
 
@@ -422,19 +415,18 @@ class TestFileBasedSource(unittest.TestCase):
     read_data = []
     for split in splits:
       source = split.source
-      range_tracker = source.get_range_tracker(split.start_position,
-                                               split.stop_position)
+      range_tracker = source.get_range_tracker(
+          split.start_position, split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
 
     self.assertCountEqual(expected_data, read_data)
 
   def _run_source_test(self, pattern, expected_data, splittable=True):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        pattern, splittable=splittable))
-    assert_that(pcoll, equal_to(expected_data))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(pattern, splittable=splittable))
+      assert_that(pcoll, equal_to(expected_data))
 
   def test_source_file(self):
     file_name, expected_data = write_data(100)
@@ -470,13 +462,13 @@ class TestFileBasedSource(unittest.TestCase):
     with bz2.BZ2File(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        splittable=False,
-        compression_type=CompressionTypes.BZIP2))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(
+              filename,
+              splittable=False,
+              compression_type=CompressionTypes.BZIP2))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_file_gzip(self):
     _, lines = write_data(10)
@@ -485,36 +477,36 @@ class TestFileBasedSource(unittest.TestCase):
     with gzip.GzipFile(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        splittable=False,
-        compression_type=CompressionTypes.GZIP))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(
+              filename,
+              splittable=False,
+              compression_type=CompressionTypes.GZIP))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_pattern_bzip2(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
+    chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
       compressobj = bz2.BZ2Compressor()
       compressed_chunks.append(
           compressobj.compress(b'\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        splittable=False,
-        compression_type=CompressionTypes.BZIP2))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(
+              file_pattern,
+              splittable=False,
+              compression_type=CompressionTypes.BZIP2))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_pattern_gzip(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
+    chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
       out = io.BytesIO()
@@ -522,13 +514,13 @@ class TestFileBasedSource(unittest.TestCase):
         f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        splittable=False,
-        compression_type=CompressionTypes.GZIP))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(
+              file_pattern,
+              splittable=False,
+              compression_type=CompressionTypes.GZIP))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_single_file_bzip2(self):
     _, lines = write_data(10)
@@ -537,12 +529,10 @@ class TestFileBasedSource(unittest.TestCase):
     with bz2.BZ2File(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(filename, compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_single_file_gzip(self):
     _, lines = write_data(10)
@@ -551,12 +541,10 @@ class TestFileBasedSource(unittest.TestCase):
     with gzip.GzipFile(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(filename, compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_pattern(self):
     _, lines = write_data(200)
@@ -569,13 +557,11 @@ class TestFileBasedSource(unittest.TestCase):
         f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(
-        compressed_chunks, suffixes=['.gz']*len(chunks))
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+        compressed_chunks, suffixes=['.gz'] * len(chunks))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(file_pattern, compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_pattern_compressed_and_uncompressed(self):
     _, lines = write_data(200)
@@ -583,28 +569,25 @@ class TestFileBasedSource(unittest.TestCase):
     chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     chunks_to_write = []
     for i, c in enumerate(chunks):
-      if i%2 == 0:
+      if i % 2 == 0:
         out = io.BytesIO()
         with gzip.GzipFile(fileobj=out, mode="wb") as f:
           f.write(b'\n'.join(c))
         chunks_to_write.append(out.getvalue())
       else:
         chunks_to_write.append(b'\n'.join(c))
-    file_pattern = write_prepared_pattern(chunks_to_write,
-                                          suffixes=(['.gz', '']*3))
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    file_pattern = write_prepared_pattern(
+        chunks_to_write, suffixes=(['.gz', ''] * 3))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(
+          LineSource(file_pattern, compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_splits_get_coder_from_fbs(self):
     class DummyCoder(object):
       val = 12345
 
     class FileBasedSourceWithCoder(LineSource):
-
       def default_output_coder(self):
         return DummyCoder()
 
@@ -618,13 +601,6 @@ class TestFileBasedSource(unittest.TestCase):
 
 
 class TestSingleFileSource(unittest.TestCase):
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -636,19 +612,19 @@ class TestSingleFileSource(unittest.TestCase):
     file_name = 'dummy_pattern'
     fbs = LineSource(file_name, validate=False)
 
-    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset='aaa', stop_offset='bbb')
-    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset='aaa', stop_offset=100)
-    with self.assertRaisesRegexp(TypeError, stop_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, stop_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset='bbb')
-    with self.assertRaisesRegexp(TypeError, stop_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, stop_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=None)
-    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=None, stop_offset=100)
 
@@ -658,9 +634,9 @@ class TestSingleFileSource(unittest.TestCase):
     dd = DisplayData.create_from(fbs)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('file_pattern', file_name)]
-    hc.assert_that(dd.items,
-                   hc.contains_inanyorder(*expected_items))
+        DisplayDataItemMatcher('file_pattern', file_name)
+    ]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_source_creation_fails_if_start_lg_stop(self):
     start_larger_than_stop_error = (
@@ -668,10 +644,10 @@ class TestSingleFileSource(unittest.TestCase):
     fbs = LineSource('dummy_pattern', validate=False)
     SingleFileSource(
         fbs, file_name='dummy_file', start_offset=99, stop_offset=100)
-    with self.assertRaisesRegexp(ValueError, start_larger_than_stop_error):
+    with self.assertRaisesRegex(ValueError, start_larger_than_stop_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=99)
-    with self.assertRaisesRegexp(ValueError, start_larger_than_stop_error):
+    with self.assertRaisesRegex(ValueError, start_larger_than_stop_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=100)
 
@@ -683,8 +659,8 @@ class TestSingleFileSource(unittest.TestCase):
         fbs, file_name='dummy_file', start_offset=0, stop_offset=100)
     self.assertEqual(100, source.estimate_size())
 
-    source = SingleFileSource(fbs, file_name='dummy_file', start_offset=10,
-                              stop_offset=100)
+    source = SingleFileSource(
+        fbs, file_name='dummy_file', start_offset=10, stop_offset=100)
     self.assertEqual(90, source.estimate_size())
 
   def test_read_range_at_beginning(self):
@@ -748,8 +724,8 @@ class TestSingleFileSource(unittest.TestCase):
     read_data = []
     for split in splits:
       source = split.source
-      range_tracker = source.get_range_tracker(split.start_position,
-                                               split.stop_position)
+      range_tracker = source.get_range_tracker(
+          split.start_position, split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
     self.assertCountEqual(expected_data, read_data)
@@ -760,16 +736,17 @@ class TestSingleFileSource(unittest.TestCase):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
-    splits = [split for split in
-              source.split(desired_bundle_size=15, start_offset=10,
-                           stop_offset=50)]
+    splits = [
+        split for split in source.split(
+            desired_bundle_size=15, start_offset=10, stop_offset=50)
+    ]
     self.assertEqual(3, len(splits))
 
     read_data = []
     for split in splits:
       source = split.source
-      range_tracker = source.get_range_tracker(split.start_position,
-                                               split.stop_position)
+      range_tracker = source.get_range_tracker(
+          split.start_position, split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
     self.assertCountEqual(expected_data[2:9], read_data)

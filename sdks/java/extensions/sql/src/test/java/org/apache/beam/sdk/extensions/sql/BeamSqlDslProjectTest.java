@@ -186,9 +186,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     String sql = "SELECT f_int_na FROM TABLE_A";
 
-    PCollection<Row> result =
-        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testProjectUnknownField", SqlTransform.query(sql));
+    PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+        .apply("testProjectUnknownField", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -214,6 +213,20 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     Assert.assertEquals(outputSchema, result.getSchema());
 
     PAssert.that(result).containsInAnyOrder(Row.withSchema(outputSchema).addValue(42L).build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testBytesLiteral() {
+    Schema outputSchema = Schema.of(Schema.Field.of("c_bytes", Schema.FieldType.BYTES));
+
+    PCollection<Row> result =
+        PCollectionTuple.empty(pipeline).apply(SqlTransform.query("SELECT x'baadcafe' as c_bytes"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema).addValue(new byte[] {-70, -83, -54, -2}).build());
 
     pipeline.run();
   }

@@ -16,13 +16,13 @@
 #
 
 """Tests for the stream implementations."""
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import logging
 import math
 import unittest
-from builtins import range
+
+import numpy as np
 
 from apache_beam.coders import slow_stream
 
@@ -32,6 +32,7 @@ class StreamTest(unittest.TestCase):
   InputStream = slow_stream.InputStream
   OutputStream = slow_stream.OutputStream
   ByteCountingOutputStream = slow_stream.ByteCountingOutputStream
+
   # pylint: enable=invalid-name
 
   def test_read_write(self):
@@ -83,15 +84,16 @@ class StreamTest(unittest.TestCase):
 
   def test_medium_var_int64(self):
     base = -1.7
-    self.run_read_write_var_int64(
-        [int(base**pow)
-         for pow in range(1, int(63 * math.log(2) / math.log(-base)))])
+    self.run_read_write_var_int64([
+        int(base**pow)
+        for pow in range(1, int(63 * math.log(2) / math.log(-base)))
+    ])
 
   def test_large_var_int64(self):
     self.run_read_write_var_int64([0, 2**63 - 1, -2**63, 2**63 - 3])
 
   def test_read_write_double(self):
-    values = 0, 1, -1, 1e100, 1.0/3, math.pi, float('inf')
+    values = 0, 1, -1, 1e100, 1.0 / 3, math.pi, float('inf')
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_double(v)
@@ -99,8 +101,19 @@ class StreamTest(unittest.TestCase):
     for v in values:
       self.assertEqual(v, in_s.read_bigendian_double())
 
+  def test_read_write_float(self):
+    values = 0, 1, -1, 1e20, 1.0 / 3, math.pi, float('inf')
+    # Restrict to single precision before coder roundtrip
+    values = tuple(float(np.float32(v)) for v in values)
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_bigendian_float(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEqual(v, in_s.read_bigendian_float())
+
   def test_read_write_bigendian_int64(self):
-    values = 0, 1, -1, 2**63-1, -2**63, int(2**61 * math.pi)
+    values = 0, 1, -1, 2**63 - 1, -2**63, int(2**61 * math.pi)
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_int64(v)
@@ -109,7 +122,7 @@ class StreamTest(unittest.TestCase):
       self.assertEqual(v, in_s.read_bigendian_int64())
 
   def test_read_write_bigendian_uint64(self):
-    values = 0, 1, 2**64-1, int(2**61 * math.pi)
+    values = 0, 1, 2**64 - 1, int(2**61 * math.pi)
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_uint64(v)
@@ -118,13 +131,22 @@ class StreamTest(unittest.TestCase):
       self.assertEqual(v, in_s.read_bigendian_uint64())
 
   def test_read_write_bigendian_int32(self):
-    values = 0, 1, -1, 2**31-1, -2**31, int(2**29 * math.pi)
+    values = 0, 1, -1, 2**31 - 1, -2**31, int(2**29 * math.pi)
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_int32(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
       self.assertEqual(v, in_s.read_bigendian_int32())
+
+  def test_read_write_bigendian_int16(self):
+    values = 0, 1, -1, 2**15 - 1, -2**15, int(2**13 * math.pi)
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_bigendian_int16(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEqual(v, in_s.read_bigendian_int16())
 
   def test_byte_counting(self):
     bc_s = self.ByteCountingOutputStream()
@@ -175,7 +197,6 @@ try:
 
 except ImportError:
   pass
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

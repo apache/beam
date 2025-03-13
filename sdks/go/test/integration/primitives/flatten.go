@@ -16,33 +16,25 @@
 package primitives
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 // Flatten tests flatten.
-func Flatten() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func Flatten(s beam.Scope) {
 	a := beam.Create(s, 1, 2, 3)
 	b := beam.Create(s, 4, 5, 6)
 	c := beam.Create(s, 7, 8, 9)
 
 	flat := beam.Flatten(s, a, b, c)
 	passert.Sum(s, flat, "flat", 9, 45)
-
-	return p
 }
 
 // FlattenDups tests flatten with the same input multiple times.
-func FlattenDup() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func FlattenDup(s beam.Scope) {
 	a := beam.Create(s, 1, 2, 3)
 	b := beam.Create(s, 4, 5, 6)
 
 	flat := beam.Flatten(s, a, b, a)
 	passert.Sum(s, flat, "flat", 9, 27)
-
-	return p
 }

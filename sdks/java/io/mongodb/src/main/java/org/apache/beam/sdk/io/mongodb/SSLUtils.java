@@ -17,16 +17,20 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import org.apache.beam.sdk.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility class for registration of ssl context, and to allow all certificate requests. */
 class SSLUtils {
+  private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
 
   /** static class to allow all requests. */
   private static final TrustManager[] trustAllCerts =
@@ -34,7 +38,7 @@ class SSLUtils {
         new X509TrustManager() {
           @Override
           public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-            return null;
+            return new X509Certificate[0];
           }
 
           @Override
@@ -55,12 +59,21 @@ class SSLUtils {
       // Install the all-trusting trust manager
       SSLContext sc = SSLContext.getInstance("TLS");
       sc.init(null, trustAllCerts, new java.security.SecureRandom());
-      HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
 
-      KeyStore ks = KeyStore.getInstance("JKS");
-      ks.load(
-          SSLUtils.class.getClassLoader().getResourceAsStream("resources/.keystore"),
-          "changeit".toCharArray());
+      KeyStore ks =
+          Preconditions.checkStateNotNull(KeyStore.getInstance("JKS"), "Keystore 'JKS' not found");
+      ClassLoader classLoader =
+          Preconditions.checkStateNotNull(
+              SSLUtils.class.getClassLoader(), "SSLUtil classloader is null - boot classloader?");
+      InputStream inputStream = classLoader.getResourceAsStream("resources/.keystore");
+      if (inputStream != null) {
+        LOG.info("Found keystore in classpath 'resources/.keystore'. Loading...");
+      } else {
+        LOG.info(
+            "Unable to find keystore under 'resources/.keystore' in the classpath. "
+                + "Continuing with an empty keystore.");
+      }
+      ks.load(inputStream, "changeit".toCharArray());
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(ks, "changeit".toCharArray());

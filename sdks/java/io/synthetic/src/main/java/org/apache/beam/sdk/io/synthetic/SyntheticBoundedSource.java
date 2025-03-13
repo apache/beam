@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -33,7 +32,7 @@ import org.apache.beam.sdk.io.synthetic.delay.ReaderDelay;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +49,9 @@ import org.slf4j.LoggerFactory;
  * enables repeatable execution for debugging. The SyntheticBoundedInput configurable parameters are
  * defined in {@link SyntheticSourceOptions}.*
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SyntheticBoundedSource extends OffsetBasedSource<KV<byte[], byte[]>> {
 
   private static final long serialVersionUID = 0;

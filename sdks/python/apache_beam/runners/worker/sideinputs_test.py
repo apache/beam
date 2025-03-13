@@ -17,13 +17,11 @@
 
 """Tests for side input utilities."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import time
 import unittest
-from builtins import object
-from builtins import range
 
 import mock
 
@@ -36,7 +34,6 @@ def strip_windows(iterator):
 
 
 class FakeSource(object):
-
   def __init__(self, items, notify_observers=False):
     self.items = items
     self._should_notify_observers = notify_observers
@@ -46,9 +43,8 @@ class FakeSource(object):
 
 
 class FakeSourceReader(observable.ObservableMixin):
-
   def __init__(self, items, notify_observers=False):
-    super(FakeSourceReader, self).__init__()
+    super().__init__()
     self.items = items
     self.entered = False
     self.exited = False
@@ -73,7 +69,6 @@ class FakeSourceReader(observable.ObservableMixin):
 
 
 class PrefetchingSourceIteratorTest(unittest.TestCase):
-
   def test_single_source_iterator_fn(self):
     sources = [
         FakeSource([0, 1, 2, 3, 4, 5]),
@@ -163,11 +158,11 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
 
 
 class EmulatedCollectionsTest(unittest.TestCase):
-
   def test_emulated_iterable(self):
     def _iterable_fn():
       for i in range(10):
         yield i
+
     iterable = sideinputs.EmulatedIterable(_iterable_fn)
     # Check that multiple iterations are supported.
     for _ in range(0, 5):
@@ -181,6 +176,7 @@ class EmulatedCollectionsTest(unittest.TestCase):
     def _iterable_fn():
       for i in range(10):
         yield ('%d' % i) * (200 * 1024 * 1024)
+
     iterable = sideinputs.EmulatedIterable(_iterable_fn)
     # Check that multiple iterations are supported.
     for _ in range(0, 3):

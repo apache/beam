@@ -18,24 +18,29 @@
 package org.apache.beam.runners.fnexecution;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -43,44 +48,50 @@ import org.mockito.Mockito;
 /** Tests for {@link GrpcContextHeaderAccessorProvider}. */
 @RunWith(JUnit4.class)
 public class GrpcContextHeaderAccessorProviderTest {
+  @Rule public GrpcCleanupRule cleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   @SuppressWarnings("unchecked")
   @Test
   public void testWorkerIdOnConnect() throws Exception {
     final String worker1 = "worker1";
     CompletableFuture<String> workerId = new CompletableFuture<>();
     Consumer<StreamObserver<Elements>> consumer =
-        elementsStreamObserver ->
-            workerId.complete(
-                GrpcContextHeaderAccessorProvider.getHeaderAccessor().getSdkWorkerId());
+        elementsStreamObserver -> {
+          workerId.complete(GrpcContextHeaderAccessorProvider.getHeaderAccessor().getSdkWorkerId());
+          elementsStreamObserver.onCompleted();
+        };
     TestDataService testService = new TestDataService(Mockito.mock(StreamObserver.class), consumer);
     ApiServiceDescriptor serviceDescriptor =
         ApiServiceDescriptor.newBuilder().setUrl("testServer").build();
-    Server server =
-        InProcessServerFactory.create().create(ImmutableList.of(testService), serviceDescriptor);
+    cleanupRule.register(
+        InProcessServerFactory.create().create(ImmutableList.of(testService), serviceDescriptor));
     final Metadata.Key<String> workerIdKey =
         Metadata.Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
     Channel channel =
-        InProcessChannelBuilder.forName(serviceDescriptor.getUrl())
-            .intercept(
-                new ClientInterceptor() {
-                  @Override
-                  public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
-                      MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-                    ClientCall<ReqT, RespT> call = next.newCall(method, callOptions);
-                    return new SimpleForwardingClientCall<ReqT, RespT>(call) {
+        cleanupRule.register(
+            InProcessChannelBuilder.forName(serviceDescriptor.getUrl())
+                .intercept(
+                    new ClientInterceptor() {
                       @Override
-                      public void start(
-                          ClientCall.Listener<RespT> responseListener, Metadata headers) {
-                        headers.put(workerIdKey, worker1);
-                        super.start(responseListener, headers);
+                      public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                          MethodDescriptor<ReqT, RespT> method,
+                          CallOptions callOptions,
+                          Channel next) {
+                        ClientCall<ReqT, RespT> call = next.newCall(method, callOptions);
+                        return new SimpleForwardingClientCall<ReqT, RespT>(call) {
+                          @Override
+                          public void start(
+                              ClientCall.Listener<RespT> responseListener, Metadata headers) {
+                            headers.put(workerIdKey, worker1);
+                            super.start(responseListener, headers);
+                          }
+                        };
                       }
-                    };
-                  }
-                })
-            .build();
+                    })
+                .build());
     BeamFnDataGrpc.BeamFnDataStub stub = BeamFnDataGrpc.newStub(channel);
-    stub.data(Mockito.mock(StreamObserver.class));
-    server.shutdown();
+    stub.data(Mockito.mock(StreamObserver.class)).onCompleted();
 
     Assert.assertEquals(worker1, workerId.get());
   }

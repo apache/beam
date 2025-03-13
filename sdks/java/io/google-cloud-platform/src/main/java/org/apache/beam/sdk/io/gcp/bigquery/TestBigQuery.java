@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.joda.time.Seconds.secondsBetween;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest.Rows;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -30,6 +33,7 @@ import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,8 +45,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -65,8 +73,8 @@ public class TestBigQuery implements TestRule {
 
   private TestBigQueryOptions pipelineOptions;
   private Schema schema;
-  private Table table;
-  private BigQueryServices.DatasetService datasetService;
+  private @Nullable Table table = null;
+  private BigQueryServices.@Nullable DatasetService datasetService = null;
 
   /**
    * Creates an instance of this rule.
@@ -115,14 +123,19 @@ public class TestBigQuery implements TestRule {
     this.table = createTable(description);
   }
 
+  @RequiresNonNull("datasetService")
   private Table createTable(Description description) throws IOException, InterruptedException {
+    BigQueryServices.DatasetService datasetService = this.datasetService;
     TableReference tableReference =
         new TableReference()
-            .setProjectId(pipelineOptions.getProject())
+            .setProjectId(
+                pipelineOptions.getBigQueryProject() == null
+                    ? pipelineOptions.getProject()
+                    : pipelineOptions.getBigQueryProject())
             .setDatasetId(pipelineOptions.getTargetDataset())
             .setTableId(createRandomizedName(description));
 
-    table =
+    Table newTable =
         new Table()
             .setTableReference(tableReference)
             .setSchema(BigQueryUtils.toTableSchema(schema))
@@ -140,7 +153,8 @@ public class TestBigQuery implements TestRule {
               + "It should have been cleaned up by the test rule.");
     }
 
-    datasetService.createTable(table);
+    datasetService.createTable(newTable);
+    table = newTable;
     return table;
   }
 
@@ -171,22 +185,51 @@ public class TestBigQuery implements TestRule {
     }
 
     if (description.getMethodName() != null) {
-      topicName.append(description.getMethodName()).append("_");
+      topicName.append(description.getMethodName().replaceAll("[\\[\\]\\.]", "_")).append("_");
     }
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString()
-        + "_"
-        + String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()));
+    long randomNumber = ThreadLocalRandom.current().nextLong();
+    randomNumber = (randomNumber == Long.MIN_VALUE) ? 0 : Math.abs(randomNumber);
+
+    return topicName.toString() + "_" + String.valueOf(randomNumber);
   }
 
+  @RequiresNonNull("table")
   public String tableSpec() {
+    Table table = this.table;
     return String.format(
         "%s:%s.%s",
         table.getTableReference().getProjectId(),
         table.getTableReference().getDatasetId(),
         table.getTableReference().getTableId());
+  }
+
+  @RequiresNonNull("table")
+  public TableReference tableReference() {
+    return table.getTableReference();
+  }
+
+  @RequiresNonNull("table")
+  public TableDataInsertAllResponse insertRows(Schema rowSchema, Row... rows) throws IOException {
+    Table table = this.table;
+    List<Rows> bqRows =
+        Arrays.stream(rows)
+            .map(row -> new Rows().setJson(BigQueryUtils.toTableRow(row)))
+            .collect(ImmutableList.toImmutableList());
+    Bigquery bq = newBigQueryClient(pipelineOptions);
+
+    return bq.tabledata()
+        .insertAll(
+            pipelineOptions.getBigQueryProject() == null
+                ? pipelineOptions.getProject()
+                : pipelineOptions.getBigQueryProject(),
+            pipelineOptions.getTargetDataset(),
+            table.getTableReference().getTableId(),
+            new TableDataInsertAllRequest().setRows(bqRows))
+        .setPrettyPrint(false)
+        .execute();
   }
 
   /**
@@ -197,11 +240,12 @@ public class TestBigQuery implements TestRule {
    */
   public List<Row> getFlatJsonRows(Schema rowSchema) {
     Bigquery bq = newBigQueryClient(pipelineOptions);
+    Preconditions.checkStateNotNull(this.table);
     return bqRowsToBeamRows(getSchema(bq), getTableRows(bq), rowSchema);
   }
 
   public RowsAssertion assertThatAllRows(Schema rowSchema) {
-    return matcher -> duration -> pollAndAssert(rowSchema, matcher, duration);
+    return new RowsAssertion(rowSchema);
   }
 
   private void pollAndAssert(
@@ -210,7 +254,7 @@ public class TestBigQuery implements TestRule {
     DateTime start = DateTime.now();
     while (true) {
       try {
-        assertThat(getFlatJsonRows(rowSchema), matcher);
+        doAssert(rowSchema, matcher);
         break;
       } catch (AssertionError assertionError) {
         if (secondsBetween(start, DateTime.now()).isGreaterThan(duration.toStandardSeconds())) {
@@ -219,6 +263,10 @@ public class TestBigQuery implements TestRule {
         sleep(15_000);
       }
     }
+  }
+
+  private void doAssert(Schema rowSchema, Matcher<Iterable<? extends Row>> matcher) {
+    assertThat(getFlatJsonRows(rowSchema), matcher);
   }
 
   private List<Row> bqRowsToBeamRows(
@@ -232,13 +280,19 @@ public class TestBigQuery implements TestRule {
         .collect(Collectors.toList());
   }
 
+  @RequiresNonNull("table")
+  @SideEffectFree
   private TableSchema getSchema(Bigquery bq) {
+    Table table = this.table;
     try {
       return bq.tables()
           .get(
-              pipelineOptions.getProject(),
+              pipelineOptions.getBigQueryProject() == null
+                  ? pipelineOptions.getProject()
+                  : pipelineOptions.getBigQueryProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
+          .setPrettyPrint(false)
           .execute()
           .getSchema();
     } catch (IOException e) {
@@ -246,13 +300,19 @@ public class TestBigQuery implements TestRule {
     }
   }
 
+  @RequiresNonNull("table")
+  @SideEffectFree
   private List<TableRow> getTableRows(Bigquery bq) {
+    Table table = this.table;
     try {
       return bq.tabledata()
           .list(
-              pipelineOptions.getProject(),
+              pipelineOptions.getBigQueryProject() == null
+                  ? pipelineOptions.getProject()
+                  : pipelineOptions.getBigQueryProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
+          .setPrettyPrint(false)
           .execute()
           .getRows();
     } catch (IOException e) {
@@ -294,8 +354,20 @@ public class TestBigQuery implements TestRule {
   }
 
   /** Interface for creating a polling eventual assertion. */
-  public interface RowsAssertion {
-    PollingAssertion eventually(Matcher<Iterable<? extends Row>> matcher);
+  public class RowsAssertion {
+    private final Schema rowSchema;
+
+    private RowsAssertion(Schema rowSchema) {
+      this.rowSchema = rowSchema;
+    }
+
+    public PollingAssertion eventually(Matcher<Iterable<? extends Row>> matcher) {
+      return duration -> pollAndAssert(rowSchema, matcher, duration);
+    }
+
+    public void now(Matcher<Iterable<? extends Row>> matcher) {
+      doAssert(rowSchema, matcher);
+    }
   }
 
   /** Interface to implement a polling assertion. */

@@ -24,15 +24,18 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A {@link Coder} for {@link TableDestination} that includes time partitioning information. This is
- * a new coder (instead of extending the old {@link TableDestinationCoder}) for compatibility
- * reasons. The old coder is kept around for the same compatibility reasons.
+ * A {@link Coder} for {@link TableDestination} that includes time partitioning information. It is
+ * the default coder for {@link TableDestination} used by {@link BigQueryIO} and does not extend the
+ * old {@link TableDestinationCoder}) for compatibility reasons. The old coder is kept around for
+ * the same compatibility reasons.
  */
 public class TableDestinationCoderV2 extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoderV2 INSTANCE = new TableDestinationCoderV2();
-  private static final Coder<String> timePartitioningCoder = NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<@Nullable String> timePartitioningCoder =
+      NullableCoder.of(StringUtf8Coder.of());
 
   public static TableDestinationCoderV2 of() {
     return INSTANCE;

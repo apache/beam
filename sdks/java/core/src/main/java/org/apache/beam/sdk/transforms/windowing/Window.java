@@ -18,9 +18,6 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -32,8 +29,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -134,6 +132,10 @@ import org.joda.time.Duration;
  * <p>See {@link Trigger} for details on the available triggers.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /**
@@ -194,26 +196,19 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     return new AutoValue_Window.Builder<T>().build();
   }
 
-  @Nullable
-  public abstract WindowFn<? super T, ?> getWindowFn();
+  public abstract @Nullable WindowFn<? super T, ?> getWindowFn();
 
-  @Nullable
-  abstract Trigger getTrigger();
+  abstract @Nullable Trigger getTrigger();
 
-  @Nullable
-  abstract AccumulationMode getAccumulationMode();
+  abstract @Nullable AccumulationMode getAccumulationMode();
 
-  @Nullable
-  abstract Duration getAllowedLateness();
+  abstract @Nullable Duration getAllowedLateness();
 
-  @Nullable
-  abstract ClosingBehavior getClosingBehavior();
+  abstract @Nullable ClosingBehavior getClosingBehavior();
 
-  @Nullable
-  abstract OnTimeBehavior getOnTimeBehavior();
+  abstract @Nullable OnTimeBehavior getOnTimeBehavior();
 
-  @Nullable
-  abstract TimestampCombiner getTimestampCombiner();
+  abstract @Nullable TimestampCombiner getTimestampCombiner();
 
   abstract Builder<T> toBuilder();
 
@@ -250,7 +245,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation mode
    * using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> triggering(Trigger trigger) {
     return toBuilder().setTrigger(trigger).build();
   }
@@ -262,7 +256,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Does not modify this transform. The resulting {@code PTransform} is sufficiently specified
    * to be applied, but more properties can still be specified.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> discardingFiredPanes() {
     return toBuilder().setAccumulationMode(AccumulationMode.DISCARDING_FIRED_PANES).build();
   }
@@ -274,7 +267,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Does not modify this transform. The resulting {@code PTransform} is sufficiently specified
    * to be applied, but more properties can still be specified.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> accumulatingFiredPanes() {
     return toBuilder().setAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES).build();
   }
@@ -293,16 +285,14 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
    * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> withAllowedLateness(Duration allowedLateness) {
     return toBuilder().setAllowedLateness(allowedLateness).build();
   }
 
   /**
-   * <b><i>(Experimental)</i></b> Override the default {@link TimestampCombiner}, to control the
-   * output timestamp of values output from a {@link GroupByKey} operation.
+   * Override the default {@link TimestampCombiner}, to control the output timestamp of values
+   * output from a {@link GroupByKey} operation.
    */
-  @Experimental(Kind.OUTPUT_TIME)
   public Window<T> withTimestampCombiner(TimestampCombiner timestampCombiner) {
     return toBuilder().setTimestampCombiner(timestampCombiner).build();
   }
@@ -317,16 +307,14 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * elements will be added to a window (because this duration has passed) any state associated with
    * the window will be cleaned up.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
     return toBuilder().setAllowedLateness(allowedLateness).setClosingBehavior(behavior).build();
   }
 
   /**
-   * <b><i>(Experimental)</i></b> Override the default {@link OnTimeBehavior}, to control whether to
-   * output an empty on-time pane.
+   * Override the default {@link OnTimeBehavior}, to control whether to output an empty on-time
+   * pane.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> withOnTimeBehavior(OnTimeBehavior behavior) {
     return toBuilder().setOnTimeBehavior(behavior).build();
   }
@@ -335,7 +323,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   public WindowingStrategy<?, ?> getOutputStrategyInternal(WindowingStrategy<?, ?> inputStrategy) {
     WindowingStrategy<?, ?> result = inputStrategy;
     if (getWindowFn() != null) {
-      result = result.withWindowFn(getWindowFn());
+      result = result.withAlreadyMerged(false).withWindowFn(getWindowFn());
     }
     if (getTrigger() != null) {
       result = result.withTrigger(getTrigger());
@@ -466,7 +454,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * Pipeline authors should use {@link Window} directly instead.
    */
   public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private final Window<T> original;
+    private final @Nullable Window<T> original;
     private final WindowingStrategy<T, ?> updatedStrategy;
 
     /**
@@ -475,7 +463,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
      * #getWindowFn()}.
      */
     @VisibleForTesting
-    Assign(Window<T> original, WindowingStrategy updatedStrategy) {
+    Assign(@Nullable Window<T> original, WindowingStrategy updatedStrategy) {
       this.original = original;
       this.updatedStrategy = updatedStrategy;
     }
@@ -488,12 +476,17 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      original.populateDisplayData(builder);
+      if (original != null) {
+        original.populateDisplayData(builder);
+      }
     }
 
-    @Nullable
-    public WindowFn<T, ?> getWindowFn() {
+    public @Nullable WindowFn<T, ?> getWindowFn() {
       return updatedStrategy.getWindowFn();
+    }
+
+    public static <T> Assign<T> createInternal(WindowingStrategy finalStrategy) {
+      return new Assign<T>(null, finalStrategy);
     }
   }
 
@@ -513,9 +506,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   private static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      WindowingStrategy<?, ?> outputWindowingStrategy =
-          getOutputWindowing(input.getWindowingStrategy());
-
       return input
           // We first apply a (trivial) transform to the input PCollection to produce a new
           // PCollection. This ensures that we don't modify the windowing strategy of the input
@@ -530,18 +520,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
                     }
                   }))
           // Then we modify the windowing strategy.
-          .setWindowingStrategyInternal(outputWindowingStrategy);
-    }
-
-    private <W extends BoundedWindow> WindowingStrategy<?, W> getOutputWindowing(
-        WindowingStrategy<?, W> inputStrategy) {
-      if (inputStrategy.getWindowFn() instanceof InvalidWindows) {
-        @SuppressWarnings("unchecked")
-        InvalidWindows<W> invalidWindows = (InvalidWindows<W>) inputStrategy.getWindowFn();
-        return inputStrategy.withWindowFn(invalidWindows.getOriginalWindowFn());
-      } else {
-        return inputStrategy;
-      }
+          .setWindowingStrategyInternal(input.getWindowingStrategy().withAlreadyMerged(false));
     }
   }
 }

@@ -16,13 +16,16 @@
 # limitations under the License.
 ###############################################################################
 
-FROM openjdk:8
+FROM eclipse-temurin:11
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libltdl7
 
 ADD beam-runners-flink-job-server.jar /opt/apache/beam/jars/
 ADD flink-job-server.sh /opt/apache/beam/
+
+COPY target/LICENSE /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
 
 WORKDIR /opt/apache/beam
 ENTRYPOINT ["./flink-job-server.sh"]

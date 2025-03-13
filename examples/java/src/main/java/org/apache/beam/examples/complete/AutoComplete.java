@@ -19,14 +19,13 @@ package org.apache.beam.examples.complete;
 
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.datastore.v1.Entity;
-import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Value;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,8 +39,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
@@ -69,7 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 
 /**
@@ -96,6 +95,9 @@ import org.joda.time.Duration;
  * <p>This will update the Cloud Datastore every 10 seconds based on the last 30 minutes of data
  * received.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AutoComplete {
 
   /**
@@ -123,7 +125,7 @@ public class AutoComplete {
               // First count how often each token appears.
               .apply(Count.perElement())
 
-              // Map the KV outputs of Count into our own CompletionCandiate class.
+              // Map the KV outputs of Count into our own CompletionCandidate class.
               .apply(
                   "CreateCompletionCandidates",
                   ParDo.of(
@@ -166,7 +168,7 @@ public class AutoComplete {
           // For each completion candidate, map it to all prefixes.
           .apply(ParDo.of(new AllPrefixes(minPrefix)))
 
-          // Find and return the top candiates for each prefix.
+          // Find and return the top candidates for each prefix.
           .apply(
               Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
                   .withHotKeyFanout(new HotKeyFanout()));
@@ -225,7 +227,7 @@ public class AutoComplete {
             .apply(Partition.of(2, new KeySizePartitionFn()));
       } else {
         // If a candidate is in the top N for prefix a...b, it must also be in the top
-        // N for a...bX for every X, which is typlically a much smaller set to consider.
+        // N for a...bX for every X, which is typically a much smaller set to consider.
         // First, compute the top candidate for prefixes of size at least minPrefix + 1.
         PCollectionList<KV<String, List<CompletionCandidate>>> larger =
             input.apply(new ComputeTopRecursive(candidatesPerPrefix, minPrefix + 1));
@@ -367,8 +369,8 @@ public class AutoComplete {
   }
 
   /**
-   * Takes as input a the top candidates per prefix, and emits an entity suitable for writing to
-   * Cloud Datastore.
+   * Takes as input the top candidates per prefix, and emits an entity suitable for writing to Cloud
+   * Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
@@ -386,7 +388,8 @@ public class AutoComplete {
     @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key key = makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
+      com.google.datastore.v1.Key key =
+          makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
@@ -464,7 +467,6 @@ public class AutoComplete {
 
   public static void runAutocompletePipeline(Options options) throws IOException {
 
-    options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either

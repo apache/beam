@@ -18,36 +18,49 @@
 """
 A connector for reading from and writing to Google Cloud Datastore.
 
-Please use this module for Datastore I/O since
-``apache_beam.io.gcp.datastore.v1.datastoreio`` will be deprecated in the
-next Beam major release.
+This module uses the newer google-cloud-datastore client package. Its API was
+different enough to require extensive changes to this and associated modules.
 
-This module uses the newer google-cloud-datastore package. Its API was different
-enough to require extensive changes to this and associated modules.
+**Updates to the I/O connector code**
 
-This module is experimental, no backwards compatibility guarantees.
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import logging
 import time
-from builtins import round
 
 from apache_beam import typehints
-from apache_beam.io.gcp.datastore.v1 import util
-from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.io.gcp.datastore.v1new import util
+from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import RampupThrottlingFn
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
+from apache_beam.utils import retry
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
+except ImportError:
+  pass
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @typehints.with_output_types(types.Entity)
@@ -107,7 +120,7 @@ class ReadFromDatastore(PTransform):
         used to fetch entities.
       num_splits: (:class:`int`) (optional) Number of splits for the query.
     """
-    super(ReadFromDatastore, self).__init__()
+    super().__init__()
 
     if not query.project:
       raise ValueError("query.project cannot be empty")
@@ -136,17 +149,20 @@ class ReadFromDatastore(PTransform):
     #   3. In the third step, a ``ParDo`` reads entities for each query and
     #   outputs a ``PCollection[Entity]``.
 
-    return (pcoll.pipeline
-            | 'UserQuery' >> Create([self._query])
-            | 'SplitQuery' >> ParDo(ReadFromDatastore._SplitQueryFn(
-                self._num_splits))
-            | Reshuffle()
-            | 'Read' >> ParDo(ReadFromDatastore._QueryFn()))
+    return (
+        pcoll.pipeline
+        | 'UserQuery' >> Create([self._query])
+        | 'SplitQuery' >> ParDo(
+            ReadFromDatastore._SplitQueryFn(self._num_splits))
+        | Reshuffle()
+        | 'Read' >> ParDo(ReadFromDatastore._QueryFn()))
 
   def display_data(self):
-    disp_data = {'project': self._query.project,
-                 'query': str(self._query),
-                 'num_splits': self._num_splits}
+    disp_data = {
+        'project': self._query.project,
+        'query': str(self._query),
+        'num_splits': self._num_splits
+    }
 
     if self._datastore_namespace is not None:
       disp_data['namespace'] = self._datastore_namespace
@@ -158,7 +174,7 @@ class ReadFromDatastore(PTransform):
   class _SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, num_splits):
-      super(ReadFromDatastore._SplitQueryFn, self).__init__()
+      super().__init__()
       self._num_splits = num_splits
 
     def process(self, query, *args, **kwargs):
@@ -172,12 +188,12 @@ class ReadFromDatastore(PTransform):
         else:
           estimated_num_splits = self._num_splits
 
-        logging.info("Splitting the query into %d splits", estimated_num_splits)
+        _LOGGER.info("Splitting the query into %d splits", estimated_num_splits)
         query_splits = query_splitter.get_splits(
             client, query, estimated_num_splits)
       except query_splitter.QuerySplitterError:
-        logging.info("Unable to parallelize the given query: %s", query,
-                     exc_info=True)
+        _LOGGER.info(
+            "Unable to parallelize the given query: %s", query, exc_info=True)
         query_splits = [query]
 
       return query_splits
@@ -198,7 +214,10 @@ class ReadFromDatastore(PTransform):
         kind = '__Stat_Total__'
       else:
         kind = '__Stat_Ns_Total__'
-      query = client.query(kind=kind, order=["-timestamp", ])
+      query = client.query(
+          kind=kind, order=[
+              "-timestamp",
+          ])
       entities = list(query.fetch(limit=1))
       if not entities:
         raise RuntimeError("Datastore total statistics unavailable.")
@@ -216,10 +235,12 @@ class ReadFromDatastore(PTransform):
       """
       kind_name = query.kind
       latest_timestamp = (
-          ReadFromDatastore._SplitQueryFn
-          .query_latest_statistics_timestamp(client))
-      logging.info('Latest stats timestamp for kind %s is %s',
-                   kind_name, latest_timestamp)
+          ReadFromDatastore._SplitQueryFn.query_latest_statistics_timestamp(
+              client))
+      _LOGGER.info(
+          'Latest stats timestamp for kind %s is %s',
+          kind_name,
+          latest_timestamp)
 
       if client.namespace is None:
         kind = '__Stat_Kind__'
@@ -240,14 +261,17 @@ class ReadFromDatastore(PTransform):
       """Computes the number of splits to be performed on the query."""
       try:
         estimated_size_bytes = (
-            ReadFromDatastore._SplitQueryFn
-            .get_estimated_size_bytes(client, query))
-        logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
-        num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
-            (float(estimated_size_bytes) /
-             ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
+            ReadFromDatastore._SplitQueryFn.get_estimated_size_bytes(
+                client, query))
+        _LOGGER.info('Estimated size bytes for query: %s', estimated_size_bytes)
+        num_splits = int(
+            min(
+                ReadFromDatastore._NUM_QUERY_SPLITS_MAX,
+                round((
+                    float(estimated_size_bytes) /
+                    ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
       except Exception as e:
-        logging.warning('Failed to fetch estimated size bytes: %s', e)
+        _LOGGER.warning('Failed to fetch estimated size bytes: %s', e)
         # Fallback in case estimated size is unavailable.
         num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 
@@ -258,10 +282,35 @@ class ReadFromDatastore(PTransform):
   class _QueryFn(DoFn):
     """A DoFn that fetches entities from Cloud Datastore, for a given query."""
     def process(self, query, *unused_args, **unused_kwargs):
+      if query.namespace is None:
+        query.namespace = ''
       _client = helper.get_client(query.project, query.namespace)
       client_query = query._to_client_query(_client)
-      for client_entity in client_query.fetch(query.limit):
-        yield types.Entity.from_client_entity(client_entity)
+      # Create request count metric
+      resource = resource_identifiers.DatastoreNamespace(
+          query.project, query.namespace)
+      labels = {
+          monitoring_infos.SERVICE_LABEL: 'Datastore',
+          monitoring_infos.METHOD_LABEL: 'BatchDatastoreRead',
+          monitoring_infos.RESOURCE_LABEL: resource,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: query.namespace,
+          monitoring_infos.DATASTORE_PROJECT_ID_LABEL: query.project,
+          monitoring_infos.STATUS_LABEL: 'ok'
+      }
+      service_call_metric = ServiceCallMetric(
+          request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+          base_labels=labels)
+      try:
+        for client_entity in client_query.fetch(query.limit):
+          yield types.Entity.from_client_entity(client_entity)
+        service_call_metric.call('ok')
+      except (ClientError, GoogleAPICallError) as e:
+        # e.code.value contains the numeric http status code.
+        service_call_metric.call(e.code.value)
+        raise
+      except HttpError as e:
+        service_call_metric.call(e)
+        raise
 
 
 class _Mutate(PTransform):
@@ -271,15 +320,32 @@ class _Mutate(PTransform):
   supported, as the commits are retried when failures occur.
   """
 
-  def __init__(self, mutate_fn):
+  # Default hint for the expected number of workers in the ramp-up throttling
+  # step for write or delete operations.
+  _DEFAULT_HINT_NUM_WORKERS = 500
+
+  def __init__(
+      self,
+      mutate_fn,
+      throttle_rampup=True,
+      hint_num_workers=_DEFAULT_HINT_NUM_WORKERS):
     """Initializes a Mutate transform.
 
      Args:
        mutate_fn: Instance of `DatastoreMutateFn` to use.
+       throttle_rampup: Whether to enforce a gradual ramp-up.
+       hint_num_workers: A hint for the expected number of workers, used to
+                         estimate appropriate limits during ramp-up throttling.
      """
     self._mutate_fn = mutate_fn
+    self._throttle_rampup = throttle_rampup
+    self._hint_num_workers = hint_num_workers
 
   def expand(self, pcoll):
+    if self._throttle_rampup:
+      throttling_fn = RampupThrottlingFn(self._hint_num_workers)
+      pcoll = (
+          pcoll | 'Enforce throttling during ramp-up' >> ParDo(throttling_fn))
     return pcoll | 'Write Batch to Datastore' >> ParDo(self._mutate_fn)
 
   class DatastoreMutateFn(DoFn):
@@ -306,8 +372,8 @@ class _Mutate(PTransform):
           _Mutate.DatastoreMutateFn, "datastoreRpcErrors")
       self._throttled_secs = Metrics.counter(
           _Mutate.DatastoreMutateFn, "cumulativeThrottlingSeconds")
-      self._throttler = AdaptiveThrottler(window_ms=120000, bucket_ms=1000,
-                                          overload_ratio=1.25)
+      self._throttler = AdaptiveThrottler(
+          window_ms=120000, bucket_ms=1000, overload_ratio=1.25)
 
     def _update_rpc_stats(self, successes=0, errors=0, throttled_secs=0):
       self._rpc_successes.inc(successes)
@@ -322,33 +388,121 @@ class _Mutate(PTransform):
       self._target_batch_size = self._batch_sizer.get_batch_size(
           time.time() * 1000)
 
-    def add_element_to_batch(self, element):
+    def element_to_client_batch_item(self, element):
       raise NotImplementedError
 
+    def add_to_batch(self, client_batch_item):
+      raise NotImplementedError
+
+    @retry.with_exponential_backoff(
+        num_retries=5, retry_filter=helper.retry_on_rpc_error)
+    def write_mutations(self, throttler, rpc_stats_callback, throttle_delay=1):
+      """Writes a batch of mutations to Cloud Datastore.
+
+      If a commit fails, it will be retried up to 5 times. All mutations in the
+      batch will be committed again, even if the commit was partially
+      successful. If the retry limit is exceeded, the last exception from
+      Cloud Datastore will be raised.
+
+      Assumes that the Datastore client library does not perform any retries on
+      commits. It has not been determined how such retries would interact with
+      the retries and throttler used here.
+      See ``google.cloud.datastore_v1.gapic.datastore_client_config`` for
+      retry config.
+
+      Args:
+        rpc_stats_callback: a function to call with arguments `successes` and
+            `failures` and `throttled_secs`; this is called to record successful
+            and failed RPCs to Datastore and time spent waiting for throttling.
+        throttler: (``apache_beam.io.gcp.datastore.v1new.adaptive_throttler.
+          AdaptiveThrottler``)
+          Throttler instance used to select requests to be throttled.
+        throttle_delay: (:class:`float`) time in seconds to sleep when
+            throttled.
+
+      Returns:
+        (int) The latency of the successful RPC in milliseconds.
+      """
+      # Client-side throttling.
+      while throttler.throttle_request(time.time() * 1000):
+        _LOGGER.info(
+            "Delaying request for %ds due to previous failures", throttle_delay)
+        time.sleep(throttle_delay)
+        rpc_stats_callback(throttled_secs=throttle_delay)
+
+      if self._batch is None:
+        # this will only happen when we re-try previously failed batch
+        self._batch = self._client.batch()
+        self._batch.begin()
+        for element in self._batch_elements:
+          self.add_to_batch(element)
+
+      # Create request count metric
+      resource = resource_identifiers.DatastoreNamespace(self._project, "")
+      labels = {
+          monitoring_infos.SERVICE_LABEL: 'Datastore',
+          monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
+          monitoring_infos.RESOURCE_LABEL: resource,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: "",
+          monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self._project,
+          monitoring_infos.STATUS_LABEL: 'ok'
+      }
+
+      service_call_metric = ServiceCallMetric(
+          request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+          base_labels=labels)
+
+      try:
+        start_time = time.time()
+        self._batch.commit()
+        end_time = time.time()
+        service_call_metric.call('ok')
+
+        rpc_stats_callback(successes=1)
+        throttler.successful_request(start_time * 1000)
+        commit_time_ms = int((end_time - start_time) * 1000)
+        return commit_time_ms
+      except (ClientError, GoogleAPICallError) as e:
+        self._batch = None
+        # e.code.value contains the numeric http status code.
+        service_call_metric.call(e.code.value)
+        rpc_stats_callback(errors=1)
+        raise
+      except HttpError as e:
+        service_call_metric.call(e)
+        rpc_stats_callback(errors=1)
+        raise
+
     def process(self, element):
-      self.add_element_to_batch(element)
-      self._batch_bytes_size += self._batch.mutations[-1].ByteSize()
+      client_element = self.element_to_client_batch_item(element)
+      self._batch_elements.append(client_element)
+      self.add_to_batch(client_element)
+      self._batch_bytes_size += self._batch.mutations[-1]._pb.ByteSize()
 
       if (len(self._batch.mutations) >= self._target_batch_size or
           self._batch_bytes_size > util.WRITE_BATCH_MAX_BYTES_SIZE):
         self._flush_batch()
 
     def finish_bundle(self):
-      if self._batch.mutations:
+      if self._batch_elements:
         self._flush_batch()
 
     def _init_batch(self):
       self._batch_bytes_size = 0
       self._batch = self._client.batch()
       self._batch.begin()
+      self._batch_elements = []
 
     def _flush_batch(self):
       # Flush the current batch of mutations to Cloud Datastore.
-      latency_ms = helper.write_mutations(
-          self._batch, self._throttler, self._update_rpc_stats,
+      latency_ms = self.write_mutations(
+          self._throttler,
+          rpc_stats_callback=self._update_rpc_stats,
           throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS // 1000)
-      logging.debug("Successfully wrote %d mutations in %dms.",
-                    len(self._batch.mutations), latency_ms)
+      _LOGGER.debug(
+          "Successfully wrote %d mutations in %dms.",
+          len(self._batch.mutations),
+          latency_ms)
 
       now = time.time() * 1000
       self._batch_sizer.report_latency(
@@ -365,27 +519,42 @@ class WriteToDatastore(_Mutate):
   :class:`~apache_beam.io.gcp.datastore.v1new.types.Entity` to Cloud Datastore.
 
   Entity keys must be complete. The ``project`` field in each key must match the
-  project ID passed to this transform.
+  project ID passed to this transform. If ``project`` field in entity or
+  property key is empty then it is filled with the project ID passed to this
+  transform.
   """
-
-  def __init__(self, project):
+  def __init__(
+      self,
+      project,
+      throttle_rampup=True,
+      hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
     """Initialize the `WriteToDatastore` transform.
 
     Args:
       project: (:class:`str`) The ID of the project to write entities to.
+      throttle_rampup: Whether to enforce a gradual ramp-up.
+      hint_num_workers: A hint for the expected number of workers, used to
+                        estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = WriteToDatastore._DatastoreWriteFn(project)
-    super(WriteToDatastore, self).__init__(mutate_fn)
+    super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
-    def add_element_to_batch(self, element):
+    def element_to_client_batch_item(self, element):
       if not isinstance(element, types.Entity):
-        raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
-                         ' expected, got: %s' % type(element))
+        raise ValueError(
+            'apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
+            ' expected, got: %s' % type(element))
+      if not element.key.project:
+        element.key.project = self._project
       client_entity = element.to_client_entity()
       if client_entity.key.is_partial:
-        raise ValueError('Entities to be written to Cloud Datastore must '
-                         'have complete keys:\n%s' % client_entity)
+        raise ValueError(
+            'Entities to be written to Cloud Datastore must '
+            'have complete keys:\n%s' % client_entity)
+      return client_entity
+
+    def add_to_batch(self, client_entity):
       self._batch.put(client_entity)
 
     def display_data(self):
@@ -403,27 +572,42 @@ class DeleteFromDatastore(_Mutate):
   Datastore.
 
   Keys must be complete. The ``project`` field in each key must match the
-  project ID passed to this transform.
+  project ID passed to this transform. If ``project`` field in key is empty then
+  it is filled with the project ID passed to this transform.
   """
-  def __init__(self, project):
+  def __init__(
+      self,
+      project,
+      throttle_rampup=True,
+      hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
     """Initialize the `DeleteFromDatastore` transform.
 
     Args:
       project: (:class:`str`) The ID of the project from which the entities will
         be deleted.
+      throttle_rampup: Whether to enforce a gradual ramp-up.
+      hint_num_workers: A hint for the expected number of workers, used to
+                        estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = DeleteFromDatastore._DatastoreDeleteFn(project)
-    super(DeleteFromDatastore, self).__init__(mutate_fn)
+    super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
-    def add_element_to_batch(self, element):
+    def element_to_client_batch_item(self, element):
       if not isinstance(element, types.Key):
-        raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
-                         ' expected, got: %s' % type(element))
+        raise ValueError(
+            'apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
+            ' expected, got: %s' % type(element))
+      if not element.project:
+        element.project = self._project
       client_key = element.to_client_key()
       if client_key.is_partial:
-        raise ValueError('Keys to be deleted from Cloud Datastore must be '
-                         'complete:\n%s' % client_key)
+        raise ValueError(
+            'Keys to be deleted from Cloud Datastore must be '
+            'complete:\n%s' % client_key)
+      return client_key
+
+    def add_to_batch(self, client_key):
       self._batch.delete(client_key)
 
     def display_data(self):

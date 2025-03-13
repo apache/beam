@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -25,11 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -40,16 +36,24 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.ReadTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
- * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
+ * for the {@link PrimitiveUnboundedRead SplittableParDo.PrimitiveUnboundedRead} primitive {@link
+ * PTransform}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   // Occasionally close an existing reader and resume from checkpoint, to exercise close-and-resume
   private static final double DEFAULT_READER_REUSE_CHANCE = 0.95;
@@ -72,14 +76,15 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
-  @Nullable
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public @Nullable <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     return createEvaluator((AppliedPTransform) application);
   }
 
   private <OutputT> TransformEvaluator<?> createEvaluator(
-      AppliedPTransform<PBegin, PCollection<OutputT>, Read.Unbounded<OutputT>> application) {
+      AppliedPTransform<
+              PBegin, PCollection<OutputT>, SplittableParDo.PrimitiveUnboundedRead<OutputT>>
+          application) {
     return new UnboundedReadEvaluator<>(application, evaluationContext, options, readerReuseChance);
   }
 
@@ -305,11 +310,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     abstract UnboundedReadDeduplicator getDeduplicator();
 
-    @Nullable
-    abstract UnboundedReader<T> getExistingReader();
+    abstract @Nullable UnboundedReader<T> getExistingReader();
 
-    @Nullable
-    abstract CheckpointT getCheckpoint();
+    abstract @Nullable CheckpointT getCheckpoint();
   }
 
   static class InputProvider<T>

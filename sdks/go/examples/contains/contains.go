@@ -15,20 +15,36 @@
 
 package main
 
+// beam-playground:
+//   name: Contains
+//   description: An example counts received substring in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --search king
+//   context_line: 95
+//   categories:
+//     - Filtering
+//     - Options
+//     - Debugging
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
+
 import (
 	"context"
 	"flag"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 // Options used purely at pipeline construction-time can just be flags.
@@ -38,7 +54,10 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*includeFn)(nil)).Elem())
+	register.Function2x0(extractFn)
+	register.Function2x1(formatFn)
+	register.DoFn2x0[string, func(string)](&includeFn{})
+	register.Emitter1[string]()
 }
 
 // FilterWords returns PCollection<KV<word,count>> with (up to) 10 matching words.

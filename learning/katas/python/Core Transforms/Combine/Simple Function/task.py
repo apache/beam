@@ -14,9 +14,20 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: CombineSimpleFunction
+#   description: Task from katas to implement the summation of numbers.
+#   multifile: false
+#   context_line: 42
+#   categories:
+#     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - combine
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 def sum(numbers):
@@ -28,10 +39,8 @@ def sum(numbers):
     return total
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([1, 2, 3, 4, 5])
-   | beam.CombineGlobally(sum)
-   | LogElements())
-
-p.run()
+  (p | beam.Create([1, 2, 3, 4, 5])
+     | beam.CombineGlobally(sum)
+     | beam.LogElements())

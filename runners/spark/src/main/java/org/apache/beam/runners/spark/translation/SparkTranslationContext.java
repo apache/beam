@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.sun.istack.Nullable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -29,11 +28,16 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Translation context used to lazily store Spark data sets during portable pipeline translation and
  * compute them after translation.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkTranslationContext {
   private final JavaSparkContext jsc;
   final JobInfo jobInfo;
@@ -53,6 +57,10 @@ public class SparkTranslationContext {
 
   public JavaSparkContext getSparkContext() {
     return jsc;
+  }
+
+  public SerializablePipelineOptions getSerializableOptions() {
+    return serializablePipelineOptions;
   }
 
   /** Add output of transform to context. */

@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-"""Unittest for GCP Bigtable testing."""
-from __future__ import absolute_import
+"""Integration tests for bigtableio."""
+# pytype: skip-file
 
 import datetime
 import logging
@@ -24,7 +24,9 @@ import random
 import string
 import unittest
 import uuid
+from typing import TYPE_CHECKING
 
+import pytest
 import pytz
 
 import apache_beam as beam
@@ -47,9 +49,11 @@ except ImportError:
   _microseconds_from_datetime = lambda label_stamp: label_stamp
   _datetime_from_microseconds = lambda micro: micro
 
+if TYPE_CHECKING:
+  import google.cloud.bigtable.instance
 
-EXISTING_INSTANCES = []
-LABEL_KEY = u'python-bigtable-beam'
+EXISTING_INSTANCES: list['google.cloud.bigtable.instance.Instance'] = []
+LABEL_KEY = 'python-bigtable-beam'
 label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
 LABELS = {LABEL_KEY: str(label_stamp_micros)}
@@ -62,15 +66,18 @@ class GenerateTestRows(beam.PTransform):
   Bigtable Table.
 
   """
-  def __init__(self, number, project_id=None, instance_id=None,
-               table_id=None):
-    super(WriteToBigTable, self).__init__()
+  def __init__(self, number, project_id=None, instance_id=None, table_id=None):
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super().__init__()
+    beam.PTransform.__init__(self)
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
+    self.beam_options = {
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id
+    }
 
   def _generate(self):
     value = ''.join(self.rand for i in range(100))
@@ -79,19 +86,21 @@ class GenerateTestRows(beam.PTransform):
       key = "beam_key%s" % ('{0:07}'.format(index))
       direct_row = row.DirectRow(row_key=key)
       for column_id in range(10):
-        direct_row.set_cell(self.column_family_id,
-                            ('field%s' % column_id).encode('utf-8'),
-                            value,
-                            datetime.datetime.now())
+        direct_row.set_cell(
+            self.column_family_id, ('field%s' % column_id).encode('utf-8'),
+            value,
+            datetime.datetime.now())
       yield direct_row
 
   def expand(self, pvalue):
     beam_options = self.beam_options
-    return (pvalue
-            | beam.Create(self._generate())
-            | WriteToBigTable(beam_options['project_id'],
-                              beam_options['instance_id'],
-                              beam_options['table_id']))
+    return (
+        pvalue
+        | beam.Create(self._generate())
+        | WriteToBigTable(
+            beam_options['project_id'],
+            beam_options['instance_id'],
+            beam_options['table_id']))
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
@@ -122,15 +131,17 @@ class BigtableIOWriteTest(unittest.TestCase):
 
     self._delete_old_instances()
 
-    self.instance = self.client.instance(self.instance_id,
-                                         instance_type=self.INSTANCE_TYPE,
-                                         labels=LABELS)
+    self.instance = self.client.instance(
+        self.instance_id, instance_type=self.INSTANCE_TYPE, labels=LABELS)
 
     if not self.instance.exists():
-      cluster = self.instance.cluster(self.cluster_id,
-                                      self.LOCATION_ID,
-                                      default_storage_type=self.STORAGE_TYPE)
-      self.instance.create(clusters=[cluster])
+      cluster = self.instance.cluster(
+          self.cluster_id,
+          self.LOCATION_ID,
+          default_storage_type=self.STORAGE_TYPE)
+      operation = self.instance.create(clusters=[cluster])
+      operation.result(timeout=300)  # Wait up to 5 min.
+
     self.table = self.instance.table(self.table_id)
 
     if not self.table.exists():
@@ -144,11 +155,15 @@ class BigtableIOWriteTest(unittest.TestCase):
     EXISTING_INSTANCES[:] = instances
 
     def age_in_hours(micros):
-      return (datetime.datetime.utcnow().replace(tzinfo=UTC) - (
-          _datetime_from_microseconds(micros))).total_seconds() // 3600
-    CLEAN_INSTANCE = [i for instance in EXISTING_INSTANCES for i in instance if(
-        LABEL_KEY in i.labels.keys() and
-        (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))]
+      return (
+          datetime.datetime.utcnow().replace(tzinfo=UTC) -
+          (_datetime_from_microseconds(micros))).total_seconds() // 3600
+
+    CLEAN_INSTANCE = [
+        i for instance in EXISTING_INSTANCES for i in instance if (
+            LABEL_KEY in i.labels.keys() and
+            (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))
+    ]
 
     if CLEAN_INSTANCE:
       for instance in CLEAN_INSTANCE:
@@ -158,35 +173,35 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
+  @pytest.mark.it_postcommit
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-      config_data = {'project_id':self.project,
-                     'instance_id':self.instance,
-                     'table_id':self.table}
+      config_data = {
+          'project_id': self.project,
+          'instance_id': self.instance_id,
+          'table_id': self.table_id
+      }
       _ = (
           pipeline
           | 'Generate Direct Rows' >> GenerateTestRows(number, **config_data))
 
-      result = pipeline.run()
-      result.wait_until_finish()
+    assert pipeline.result.state == PipelineState.DONE
 
-      assert result.state == PipelineState.DONE
+    read_rows = self.table.read_rows()
+    assert len([_ for _ in read_rows]) == number
 
-      read_rows = self.table.read_rows()
-      assert len([_ for _ in read_rows]) == number
+    if not hasattr(pipeline.result, 'has_job') or pipeline.result.has_job:
+      read_filter = MetricsFilter().with_name('Written Row')
+      query_result = pipeline.result.metrics().query(read_filter)
+      if query_result['counters']:
+        read_counter = query_result['counters'][0]
 
-      if not hasattr(result, 'has_job') or result.has_job:
-        read_filter = MetricsFilter().with_name('Written Row')
-        query_result = result.metrics().query(read_filter)
-        if query_result['counters']:
-          read_counter = query_result['counters'][0]
-
-          logging.info('Number of Rows: %d', read_counter.committed)
-          assert read_counter.committed == number
+        logging.info('Number of Rows: %d', read_counter.committed)
+        assert read_counter.committed == number
 
 
 if __name__ == '__main__':

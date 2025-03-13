@@ -17,18 +17,19 @@
     under the License.
 -->
 # BeamMonitoring
-This folder contains resources required to deploy the Beam community metrics
-stack.
+This folder contains resources required to deploy the Beam metrics stack.
 
-[Beam community dashboard is available here.](https://s.apache.org/beam-community-metrics)
+There are two types of metrics in Beam:
+* Community metrics. The stack includes:
+  * Python scripts for ingesting data from sources (Jenkins and GitHub)
+  * Postgres analytics database
 
-Whole stack can be deployed on your local machine as well.
+* Test Results, i.e. metrics published by tests (IO Performance tests, Load tests and Nexmark tests). Beam uses InfluxDB time series database to store test metrics.
 
-This includes
-* Python scripts for ingesting data from sources (Jenkins, JIRA,
-  GitHub)
-* Postgres analytics database
-* [Grafana](https://grafana.com) dashboarding UI
+
+Both types of metrics are presented in [Grafana dashboard available here.](http://metrics.beam.apache.org)
+
+Both stacks can be deployed on your local machine.
 
 All components run within Docker containers. These are composed together via
 docker-compose for local hosting, and Kubernetes for the production instance on
@@ -91,16 +92,43 @@ machine:
 
 * Grafana: http://localhost:3000
 * Postgres DB: localhost:5432
+* InfluxDB: http://localhost:8086
 
 If you're deploying for the first time on your machine, follow the wiki instructions
 on how to manually [configure
 Grafana](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics#CommunityMetrics-GrafanaUI).
 
-Grafana and Postgres containers persist data to Docker volumes, which will be
+Grafana, Postgres and InfluxDB containers persist data to Docker volumes, which will be
 restored on subsequent runs. To start from a clean state, you must also wipe out
 these volumes. (List volumes via `docker volume ls`)
 
 ## Kubernetes setup
 
-Kubernetes deployment instructions are maintained in the
-[wiki](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics).
+### Cluster Specification
+* Name: metrics
+* GKE Version: 1.22.6-gke.300
+* Node Pool Version: 1.22.6-gke.300
+* Runtime: Container-Optimized OS with containerd (cos_containerd)
+* Authentication method: OAuth Client Certificate.
+
+Kubernetes deployment instructions are maintained in the wiki:
+* [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
+* [Test Results Monitoring](https://cwiki.apache.org/confluence/display/BEAM/Test+Results+Monitoring)
+
+### PSQL User
+Grafana running in metrics cluster is configured to use `kubeproxyuser_ro` user which does not come with any permissions. SELECT permission was manually granted on all tables in the  `beammetrics` psql DB. Any new tables or if some table is created/recreated by automation should also add grants for the user:
+
+```
+GRANT SELECT ON table_name TO kubeproxyuser_ro;
+```
+
+
+### Note: Basic Auth is not supported on BEAM Clusters as of March 4th 2022
+
+Prior to v1.19 GKE allowed to log into a cluster using basic authentication methods, which relies on a username and password, and now it is deprecated.
+
+Currently, OAuth is the standard authentication method, previous usernames and passwords were removed so only the certificate remains as master auth.
+
+Some Beam Performance tests need to be logged into the cluster so they can create its own resources, the correct method to do so is by setting up the right Kubeconfig inside the worker and execute get credentials within GCP.
+
+In the future if you need to create an automatic process that need to have access to the cluster, use OAuth inside your script or job.

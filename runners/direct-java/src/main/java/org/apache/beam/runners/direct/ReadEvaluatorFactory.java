@@ -18,14 +18,14 @@
 package org.apache.beam.runners.direct;
 
 import java.util.Collection;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.ReadTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
@@ -41,9 +41,8 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
     unboundedFactory = new UnboundedReadEvaluatorFactory(context, options);
   }
 
-  @Nullable
   @Override
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     switch (ReadTranslation.sourceIsBounded(application)) {
       case BOUNDED:

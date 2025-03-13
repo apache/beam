@@ -33,6 +33,9 @@ import org.apache.beam.sdk.values.PCollection;
  * Query 0: Pass events through unchanged. However, force them to do a round trip through
  * serialization so that we measure the impact of the choice of coders.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Query0 extends NexmarkQueryTransform<Event> {
   public Query0() {
     super("Query0");

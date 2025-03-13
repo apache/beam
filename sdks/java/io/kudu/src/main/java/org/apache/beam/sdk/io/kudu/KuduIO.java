@@ -17,17 +17,15 @@
  */
 package org.apache.beam.sdk.io.kudu;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -42,15 +40,14 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.kudu.Common;
 import org.apache.kudu.client.KuduException;
 import org.apache.kudu.client.KuduPredicate;
 import org.apache.kudu.client.Operation;
 import org.apache.kudu.client.RowResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A bounded source and sink for Kudu.
@@ -61,8 +58,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading from Kudu</h3>
  *
  * <p>{@code KuduIO} provides a source to read and returns a bounded collection of entities as
- * {@code PCollection&lt;T&gt;}. An entity is built by parsing a Kudu {@link RowResult} using the
- * provided {@link SerializableFunction}.
+ * {@code PCollection<T>}. An entity is built by parsing a Kudu {@link RowResult} using the provided
+ * {@link SerializableFunction}.
  *
  * <p>The following example illustrates various options for configuring the IO:
  *
@@ -115,13 +112,13 @@ import org.slf4j.LoggerFactory;
  *         .withFormatFn(fn));
  * }</pre>
  *
- * <h3>Experimental</h3>
- *
- * {@code KuduIO} does not support authentication in this release.
+ * <p>{@link KuduIO} does not support authentication in this release.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class KuduIO {
-  private static final Logger LOG = LoggerFactory.getLogger(KuduIO.class);
 
   private KuduIO() {}
 
@@ -143,32 +140,24 @@ public class KuduIO {
   /** Implementation of {@link KuduIO#read()}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract List<String> getMasterAddresses();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable List<String> getMasterAddresses();
 
-    @Nullable
-    abstract Integer getBatchSize();
+    abstract @Nullable String getTable();
 
-    @Nullable
-    abstract List<String> getProjectedColumns();
+    abstract @Nullable Integer getBatchSize();
 
-    @Nullable
-    abstract List<Common.ColumnPredicatePB> getSerializablePredicates();
+    abstract @Nullable List<String> getProjectedColumns();
 
-    @Nullable
-    abstract Boolean getFaultTolerent();
+    abstract @Nullable List<Common.ColumnPredicatePB> getSerializablePredicates();
 
-    @Nullable
-    abstract SerializableFunction<RowResult, T> getParseFn();
+    abstract @Nullable Boolean getFaultTolerent();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable SerializableFunction<RowResult, T> getParseFn();
 
-    @Nullable
-    abstract KuduService<T> getKuduService();
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract @Nullable KuduService<T> getKuduService();
 
     abstract Builder<T> builder();
 
@@ -305,7 +294,7 @@ public class KuduIO {
   static class KuduSource<T> extends BoundedSource {
     final Read<T> spec;
     private final Coder<T> coder;
-    @Nullable byte[] serializedToken; // only during a split
+    byte @Nullable [] serializedToken; // only during a split
 
     KuduSource(Read spec, Coder<T> coder, byte[] serializedToken) {
       this.spec = spec;
@@ -352,17 +341,14 @@ public class KuduIO {
    */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract List<String> masterAddresses();
 
-    @Nullable
-    abstract String table();
+    abstract @Nullable List<String> masterAddresses();
 
-    @Nullable
-    abstract FormatFunction<T> formatFn();
+    abstract @Nullable String table();
 
-    @Nullable
-    abstract KuduService<T> kuduService();
+    abstract @Nullable FormatFunction<T> formatFn();
+
+    abstract @Nullable KuduService<T> kuduService();
 
     abstract Builder<T> builder();
 

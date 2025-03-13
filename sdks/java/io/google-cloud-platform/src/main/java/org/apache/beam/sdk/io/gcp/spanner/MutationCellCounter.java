@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 final class MutationCellCounter {
   // Prevent construction.

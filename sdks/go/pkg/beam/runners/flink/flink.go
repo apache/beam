@@ -19,16 +19,17 @@ package flink
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 )
 
 func init() {
 	beam.RegisterRunner("flink", Execute)
+	beam.RegisterRunner("FlinkRunner", Execute)
 }
 
 // Execute runs the given pipeline on Flink. Convenience wrapper over the
 // universal runner.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	return universal.Execute(ctx, p)
 }

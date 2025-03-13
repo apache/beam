@@ -18,6 +18,22 @@
 
 package org.apache.beam.learning.katas.coretransforms.sideoutput;
 
+// beam-playground:
+//   name: SideOutput
+//   description: Task from katas to implement additional output to your ParDo for numbers bigger than 100.
+//   multifile: false
+//   context_line: 50
+//   categories:
+//     - Combiners
+//     - Core Transforms
+//     - Multiple Outputs
+//   complexity: BASIC
+//   tags:
+//     - transforms
+//     - numbers
+//     - output
+
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -28,7 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import util.Log;
 
 public class Task {
 

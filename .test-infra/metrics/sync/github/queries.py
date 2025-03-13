@@ -114,3 +114,61 @@ query {
   }
 }
 '''
+
+'''
+This query is used to fetch issue data from github via Github API v4 (GraphQL).
+Returns issues on apache/beam repo that are older than provided timestamp.
+Time format "2017-10-26T20:00:00Z
+'''
+MAIN_ISSUES_QUERY = '''
+query {
+  search(
+    query: "type:issue repo:apache/beam updated:><TemstampSubstitueLocation> sort:updated-asc"
+    type: ISSUE
+    first: 100
+  ) {
+    issueCount
+    pageInfo {
+      endCursor
+      startCursor
+      hasNextPage
+      hasPreviousPage
+    }
+    edges {
+      cursor
+      node {
+        ... on Issue {
+          number
+          author {
+            login
+          }
+          createdAt
+          closedAt
+          updatedAt
+          assignees(first: 50) {
+            pageInfo {
+              startCursor
+              endCursor
+              hasNextPage
+              hasPreviousPage
+            }
+            edges {
+              node {
+                login
+              }
+            }
+          }
+          title
+          labels(first: 10) {
+            edges {
+              node {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+'''

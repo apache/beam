@@ -21,10 +21,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -197,23 +196,8 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     return offset;
   }
 
-  /**
-   * Ensures that later sliding windows have an output time that is past the end of earlier windows.
-   *
-   * <p>If this is the earliest sliding window containing {@code inputTimestamp}, that's fine.
-   * Otherwise, we pick the earliest time that doesn't overlap with earlier windows.
-   */
-  @Experimental(Kind.OUTPUT_TIME)
   @Override
-  public Instant getOutputTime(Instant inputTimestamp, IntervalWindow window) {
-    Instant startOfLastSegment = window.maxTimestamp().minus(period);
-    return startOfLastSegment.isBefore(inputTimestamp)
-        ? inputTimestamp
-        : startOfLastSegment.plus(1);
-  }
-
-  @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (!(object instanceof SlidingWindows)) {
       return false;
     }

@@ -29,10 +29,14 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Correctness tests of {@link TopPerKey}. */
+@RunWith(JUnit4.class)
 public class TopPerKeyTest extends AbstractOperatorTest {
 
   @Test
@@ -169,7 +173,7 @@ public class TopPerKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

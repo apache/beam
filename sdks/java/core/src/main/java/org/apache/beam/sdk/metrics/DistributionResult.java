@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** The result of a {@link Distribution} metric. */
-@Experimental(Kind.METRICS)
 @AutoValue
 public abstract class DistributionResult {
 

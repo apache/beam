@@ -42,13 +42,61 @@ public class VarInt {
 
   /** Encodes the given value onto the stream. */
   public static void encode(long v, OutputStream stream) throws IOException {
-    do {
-      // Encode next 7 bits + terminator bit
-      long bits = v & 0x7F;
-      v >>>= 7;
-      byte b = (byte) (bits | ((v != 0) ? 0x80 : 0));
-      stream.write(b);
-    } while (v != 0);
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+    stream.write((byte) (v | 0x80));
+    v >>>= 7;
+    stream.write((byte) (v));
   }
 
   /** Decodes an integer value from the given stream. */

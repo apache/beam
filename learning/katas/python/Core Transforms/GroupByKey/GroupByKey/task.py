@@ -14,15 +14,30 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: GroupByKey
+#   description: Task from katas that groups words by its first letter.
+#   multifile: false
+#   context_line: 32
+#   categories:
+#     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - group
+#     - strings
 
-from log_elements import LogElements
+def groupbykey():
+  # [START groupbykey]
+  import apache_beam as beam
 
-p = beam.Pipeline()
+  with beam.Pipeline() as p:
 
-(p | beam.Create(['apple', 'ball', 'car', 'bear', 'cheetah', 'ant'])
-   | beam.Map(lambda word: (word[0], word))
-   | beam.GroupByKey()
-   | LogElements())
+    (p | beam.Create(['apple', 'ball', 'car', 'bear', 'cheetah', 'ant'])
+       | beam.Map(lambda word: (word[0], word))
+       | beam.GroupByKey()
+       | beam.LogElements())
+  # [END groupbykey]
 
-p.run()
+if __name__ == '__main__':
+  groupbykey()

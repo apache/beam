@@ -30,13 +30,11 @@ import org.joda.time.Instant;
  */
 public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
   private final DoFnRunner<InT, OutT> underlying;
-  private final SamzaMetricsContainer metricsContainer;
   private final FnWithMetricsWrapper metricsWrapper;
 
   private DoFnRunnerWithMetrics(
       DoFnRunner<InT, OutT> underlying, SamzaMetricsContainer metricsContainer, String stepName) {
     this.underlying = underlying;
-    this.metricsContainer = metricsContainer;
     this.metricsWrapper = new FnWithMetricsWrapper(metricsContainer, stepName);
   }
 
@@ -47,25 +45,38 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
 
   @Override
   public void startBundle() {
-    withMetrics(() -> underlying.startBundle());
+    withMetrics(underlying::startBundle, false);
   }
 
   @Override
   public void processElement(WindowedValue<InT> elem) {
-    withMetrics(() -> underlying.processElement(elem));
+    withMetrics(() -> underlying.processElement(elem), false);
   }
 
   @Override
-  public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    withMetrics(() -> underlying.onTimer(timerId, window, timestamp, timeDomain));
+  public <KeyT> void onTimer(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    withMetrics(
+        () ->
+            underlying.onTimer(
+                timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain),
+        false);
   }
 
   @Override
   public void finishBundle() {
-    withMetrics(() -> underlying.finishBundle());
+    withMetrics(underlying::finishBundle, true);
+  }
 
-    metricsContainer.updateMetrics();
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    underlying.onWindowExpiration(window, timestamp, key);
   }
 
   @Override
@@ -73,13 +84,14 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
     return underlying.getFn();
   }
 
-  private void withMetrics(Runnable runnable) {
+  private void withMetrics(Runnable runnable, boolean shouldUpdateMetrics) {
     try {
       metricsWrapper.wrap(
           () -> {
             runnable.run();
             return (Void) null;
-          });
+          },
+          shouldUpdateMetrics);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

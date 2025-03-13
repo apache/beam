@@ -20,15 +20,18 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link ShuffleBatchReader} that caches batches as they're read. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CachingShuffleBatchReader implements ShuffleBatchReader {
   private final ShuffleBatchReader reader;
   @VisibleForTesting final LoadingCache<BatchRange, Batch> cache;
@@ -80,8 +83,8 @@ public class CachingShuffleBatchReader implements ShuffleBatchReader {
 
   /** The key for the entries stored in the batch cache. */
   static final class BatchRange {
-    @Nullable protected final ShufflePosition startPosition;
-    @Nullable protected final ShufflePosition endPosition;
+    protected final @Nullable ShufflePosition startPosition;
+    protected final @Nullable ShufflePosition endPosition;
 
     public BatchRange(
         @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
@@ -90,7 +93,7 @@ public class CachingShuffleBatchReader implements ShuffleBatchReader {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return o == this
           || (o instanceof BatchRange
               && Objects.equal(((BatchRange) o).startPosition, startPosition)

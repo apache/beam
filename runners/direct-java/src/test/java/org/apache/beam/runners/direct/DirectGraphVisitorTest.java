@@ -17,33 +17,32 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingSource;
-import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Flatten.PCollections;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,33 +76,37 @@ public class DirectGraphVisitorTest implements Serializable {
             .apply(View.asList());
     PCollectionView<Object> singletonView =
         p.apply("singletonCreate", Create.<Object>of(1, 2, 3)).apply(View.asSingleton());
-    p.replaceAll(
-        DirectRunner.fromOptions(TestPipeline.testingPipelineOptions())
-            .defaultTransformOverrides());
+
+    // Views are not materialized unless they are consumed
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                    new DoFn<Integer, Void>() {
+                      @ProcessElement
+                      public void process() {}
+                    })
+                .withSideInputs(listView, singletonView));
+
+    DirectRunner.fromOptions(TestPipeline.testingPipelineOptions()).performRewrites(p);
     p.traverseTopologically(visitor);
     assertThat(visitor.getGraph().getViews(), Matchers.containsInAnyOrder(listView, singletonView));
   }
 
   @Test
   public void getRootTransformsContainsRootTransforms() {
-    PCollection<String> created = p.apply(Create.of("foo", "bar"));
-    PCollection<Long> counted = p.apply(Read.from(CountingSource.upTo(1234L)));
-    PCollection<Long> unCounted = p.apply(GenerateSequence.from(0));
+    PCollection<byte[]> impulse = p.apply(Impulse.create());
+    impulse.apply(WithKeys.of("abc"));
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
-    assertThat(graph.getRootTransforms(), hasSize(3));
+    assertThat(graph.getRootTransforms(), hasSize(1));
     assertThat(
         graph.getRootTransforms(),
-        Matchers.containsInAnyOrder(
-            new Object[] {
-              graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)
-            }));
+        Matchers.containsInAnyOrder(new Object[] {graph.getProducer(impulse)}));
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
       // Root transforms will have no inputs
       assertThat(root.getInputs().entrySet(), emptyIterable());
       assertThat(
-          Iterables.getOnlyElement(root.getOutputs().values()),
-          Matchers.<POutput>isOneOf(created, counted, unCounted));
+          Iterables.getOnlyElement(root.getOutputs().values()), Matchers.<POutput>isOneOf(impulse));
     }
   }
 
@@ -187,19 +190,21 @@ public class DirectGraphVisitorTest implements Serializable {
                     c.output(Integer.toString(c.element().length()));
                   }
                 }));
-    PDone finished =
-        transformed.apply(
-            new PTransform<PInput, PDone>() {
-              @Override
-              public PDone expand(PInput input) {
-                return PDone.in(input.getPipeline());
-              }
-            });
+    transformed.apply(
+        new PTransform<PInput, PDone>() {
+          @Override
+          public PDone expand(PInput input) {
+            return PDone.in(input.getPipeline());
+          }
+        });
 
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
-    assertThat(graph.getStepName(graph.getProducer(created)), equalTo("s0"));
-    assertThat(graph.getStepName(graph.getProducer(transformed)), equalTo("s1"));
+    // Step names are of the format "s#" such as "s0", "s1", ...
+    int createdStepIndex =
+        Integer.parseInt(graph.getStepName(graph.getProducer(created)).substring(1));
+    assertThat(
+        graph.getStepName(graph.getProducer(transformed)), equalTo("s" + (createdStepIndex + 1)));
     // finished doesn't have a producer, because it's not a PValue.
     // TODO: Demonstrate that PCollectionList/Tuple and other composite PValues are either safe to
     // use, or make them so.

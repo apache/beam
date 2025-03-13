@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
+import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -30,7 +30,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** A {@link Coder} for {@link KeyedWorkItem KeyedWorkItems}. */
 public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<K, ElemT>> {
@@ -54,7 +54,7 @@ public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<
     this.keyCoder = keyCoder;
     this.elemCoder = elemCoder;
     this.windowCoder = windowCoder;
-    this.timersCoder = IterableCoder.of(TimerDataCoder.of(windowCoder));
+    this.timersCoder = IterableCoder.of(TimerDataCoderV2.of(windowCoder));
     this.elemsCoder = IterableCoder.of(FullWindowedValueCoder.of(elemCoder, windowCoder));
   }
 

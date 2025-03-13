@@ -21,13 +21,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.TypeVariable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Bunch of methods to assert type descriptors in operators. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class TypePropagationAssert {
 
   public static <KeyT, ValueT, OutputT> void assertOperatorTypeAwareness(

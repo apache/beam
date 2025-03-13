@@ -21,11 +21,13 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
-import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 
 /** Tests for {@link FlinkKeyUtils}. */
@@ -52,12 +54,20 @@ public class FlinkKeyUtilsTest {
   @Test
   @SuppressWarnings("ByteBufferBackingArray")
   public void testCoderContext() throws Exception {
-    byte[] bytes = {1, 1, 1};
-    ByteString key = ByteString.copyFrom(bytes);
-    ByteStringCoder coder = ByteStringCoder.of();
+    String input = "hello world";
+    Coder<String> coder = StringUtf8Coder.of();
 
-    ByteBuffer encoded = FlinkKeyUtils.encodeKey(key, coder);
-    // Ensure outer context is used where no length encoding is used.
-    assertThat(encoded.array(), is(bytes));
+    ByteBuffer encoded = FlinkKeyUtils.encodeKey(input, coder);
+    // Ensure NESTED context is used
+    assertThat(
+        encoded.array(), is(CoderUtils.encodeToByteArray(coder, input, Coder.Context.NESTED)));
+  }
+
+  @Test
+  @SuppressWarnings("ByteBufferBackingArray")
+  public void testFromEncodedKey() {
+    ByteString input = ByteString.copyFrom("hello world".getBytes(StandardCharsets.UTF_8));
+    ByteBuffer encodedKey = FlinkKeyUtils.fromEncodedKey(input);
+    assertThat(encodedKey.array(), is(input.toByteArray()));
   }
 }

@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder} for {@code IntermediateT} and
@@ -122,7 +122,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == null || this.getClass() != o.getClass()) {
       return false;
     }
@@ -154,10 +154,6 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
     return typeDescriptor;
   }
 
-  private String delegateEncodingId(Class<?> delegateClass, String encodingId) {
-    return String.format("%s:%s", delegateClass.getName(), encodingId);
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   private <InputT, OutputT> OutputT applyAndWrapExceptions(
@@ -178,7 +174,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   // null unless the user explicitly provides a TypeDescriptor.
   // If null, then the machinery from the superclass (StructuredCoder) will be used
   // to try to deduce a good type descriptor.
-  @Nullable private final TypeDescriptor<T> typeDescriptor;
+  private final @Nullable TypeDescriptor<T> typeDescriptor;
 
   protected DelegateCoder(
       Coder<IntermediateT> coder,

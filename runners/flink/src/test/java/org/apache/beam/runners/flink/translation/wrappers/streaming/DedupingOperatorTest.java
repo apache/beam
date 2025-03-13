@@ -18,12 +18,13 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
-import static org.junit.Assert.assertThat;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -100,7 +101,7 @@ public class DedupingOperatorTest {
   private KeyedOneInputStreamOperatorTestHarness<
           ByteBuffer, WindowedValue<ValueWithRecordId<String>>, WindowedValue<String>>
       getDebupingHarness() throws Exception {
-    DedupingOperator<String> operator = new DedupingOperator<>();
+    DedupingOperator<String> operator = new DedupingOperator<>(PipelineOptionsFactory.create());
 
     return new KeyedOneInputStreamOperatorTestHarness<>(
         operator,

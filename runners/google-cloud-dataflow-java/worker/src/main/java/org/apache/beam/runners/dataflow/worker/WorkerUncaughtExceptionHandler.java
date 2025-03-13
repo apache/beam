@@ -21,23 +21,23 @@ import java.io.PrintStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.JvmRuntime;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 
 /**
  * This uncaught exception handler logs the {@link Throwable} to the logger, {@link System#err} and
  * exits the application with status code 1.
  */
-class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
+public final class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
+  @VisibleForTesting public static final int JVM_TERMINATED_STATUS_CODE = 1;
   private final JvmRuntime runtime;
   private final Logger logger;
 
-  WorkerUncaughtExceptionHandler(Logger logger) {
+  public WorkerUncaughtExceptionHandler(Logger logger) {
     this(JvmRuntime.INSTANCE, logger);
   }
 
-  @VisibleForTesting
-  WorkerUncaughtExceptionHandler(JvmRuntime runtime, Logger logger) {
+  public WorkerUncaughtExceptionHandler(JvmRuntime runtime, Logger logger) {
     this.runtime = runtime;
     this.logger = logger;
   }
@@ -59,7 +59,7 @@ class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
         t.printStackTrace(originalStdErr);
       }
     } finally {
-      runtime.halt(1);
+      runtime.halt(JVM_TERMINATED_STATUS_CODE);
     }
   }
 }

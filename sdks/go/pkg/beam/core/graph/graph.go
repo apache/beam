@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Graph represents an in-progress deferred execution graph and is easily
@@ -37,7 +37,7 @@ type Graph struct {
 
 // New returns an empty graph with the scope set to the root.
 func New() *Graph {
-	root := &Scope{0, "root", nil}
+	root := &Scope{id: 0, Label: "root", Parent: nil}
 	return &Graph{root: root}
 }
 

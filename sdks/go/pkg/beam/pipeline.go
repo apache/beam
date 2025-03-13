@@ -16,7 +16,10 @@
 package beam
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"context"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 )
 
 // Scope is a hierarchical grouping for composite transforms. Scopes can be
@@ -46,6 +49,19 @@ func (s Scope) Scope(name string) Scope {
 	return Scope{scope: scope, real: s.real}
 }
 
+// WithContext creates a named subscope with an attached context for the
+// represented composite transform. Values from that context may be
+// extracted and added to the composite PTransform or generate a new
+// environment for scoped transforms.
+//
+// If you're not sure whether these apply to your transform, use Scope
+// instead, and do not set a context.
+func (s Scope) WithContext(ctx context.Context, name string) Scope {
+	newS := s.Scope(name)
+	newS.scope.Context = ctx
+	return newS
+}
+
 func (s Scope) String() string {
 	if !s.IsValid() {
 		return "<invalid>"
@@ -56,7 +72,7 @@ func (s Scope) String() string {
 // Pipeline manages a directed acyclic graph of primitive PTransforms, and the
 // PCollections that the PTransforms consume and produce. Each Pipeline is
 // self-contained and isolated from any other Pipeline. The Pipeline owns the
-// PCollections and PTransforms and they can by used by that Pipeline only.
+// PCollections and PTransforms and they can be used by that Pipeline only.
 // Pipelines can safely be executed concurrently.
 type Pipeline struct {
 	// real is the deferred execution Graph as it is being constructed.
@@ -84,4 +100,10 @@ func (p *Pipeline) Build() ([]*graph.MultiEdge, []*graph.Node, error) {
 
 func (p *Pipeline) String() string {
 	return p.real.String()
+}
+
+// PipelineResult is the result of beamx.RunWithMetrics.
+type PipelineResult interface {
+	Metrics() metrics.Results
+	JobID() string
 }

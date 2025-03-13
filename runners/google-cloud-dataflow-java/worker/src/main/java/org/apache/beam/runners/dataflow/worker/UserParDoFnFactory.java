@@ -19,12 +19,11 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.DataflowRunner.StreamingPCollectionViewWriterFn;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -39,13 +38,18 @@ import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFnFactory} to create instances of user {@link GroupAlsoByWindowFn} according to
  * specifications from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class UserParDoFnFactory implements ParDoFnFactory {
   static UserParDoFnFactory createDefault() {
     return new UserParDoFnFactory(new UserDoFnExtractor(), SimpleDoFnRunnerFactory.INSTANCE);
@@ -90,7 +94,8 @@ class UserParDoFnFactory implements ParDoFnFactory {
     DoFnInstanceManager instanceManager =
         fnCache.get(
             operationContext.nameContext().systemName(),
-            () -> DoFnInstanceManagers.cloningPool(doFnExtractor.getDoFnInfo(cloudUserFn)));
+            () ->
+                DoFnInstanceManagers.cloningPool(doFnExtractor.getDoFnInfo(cloudUserFn), options));
 
     DoFnInfo<?, ?> doFnInfo = instanceManager.peek();
 
@@ -120,6 +125,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
               stepContext,
               operationContext,
               doFnInfo.getDoFnSchemaInformation(),
+              doFnInfo.getSideInputMapping(),
               runnerFactory));
 
     } else if (doFnInfo.getDoFn() instanceof StreamingPCollectionViewWriterFn) {
@@ -147,6 +153,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
           stepContext,
           operationContext,
           doFnInfo.getDoFnSchemaInformation(),
+          doFnInfo.getSideInputMapping(),
           runnerFactory);
     }
   }

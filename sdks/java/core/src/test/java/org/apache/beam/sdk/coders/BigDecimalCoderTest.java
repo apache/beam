@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -47,7 +47,7 @@ public class BigDecimalCoderTest {
           new BigDecimal(-1),
           BigDecimal.ZERO,
           BigDecimal.ONE,
-          new BigDecimal(13.258),
+          BigDecimal.valueOf(13.258),
           new BigDecimal(Double.MAX_VALUE),
           new BigDecimal(Double.MAX_VALUE).multiply(BigDecimal.TEN));
 
@@ -80,7 +80,7 @@ public class BigDecimalCoderTest {
           "AP8",
           "AAA",
           "AAE",
-          "MAkSTUgCATUf0ayu7f08NmBSpPU2dQ",
+          "AzPK",
           "AAD________4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
               + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
               + "AAAAAA",

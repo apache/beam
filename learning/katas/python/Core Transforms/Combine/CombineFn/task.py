@@ -14,9 +14,19 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: CombineFn
+#   description: Task from katas averaging.
+#   multifile: false
+#   context_line: 50
+#   categories:
+#     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 class AverageFn(beam.CombineFn):
@@ -37,10 +47,8 @@ class AverageFn(beam.CombineFn):
         return sum / count if count else float('NaN')
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([10, 20, 50, 70, 90])
-   | beam.CombineGlobally(AverageFn())
-   | LogElements())
-
-p.run()
+  (p | beam.Create([10, 20, 50, 70, 90])
+     | beam.CombineGlobally(AverageFn())
+     | beam.LogElements())

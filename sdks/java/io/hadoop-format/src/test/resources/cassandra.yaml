@@ -63,7 +63,7 @@ num_tokens: 1
 # See http://wiki.apache.org/cassandra/HintedHandoff
 # May either be "true" or "false" to enable globally
 hinted_handoff_enabled: true
-# When hinted_handoff_enabled is true, a black list of data centers that will not
+# When hinted_handoff_enabled is true, a blocklist of data centers that will not
 # perform hinted handoff
 #hinted_handoff_disabled_datacenters:
 #    - DC1
@@ -676,7 +676,7 @@ rpc_server_type: sync
 
 # Uncomment to set socket buffer size for internode communication
 # Note that when setting this, the buffer size is limited by net.core.wmem_max
-# and when not setting it it is defined by net.ipv4.tcp_wmem
+# and when not setting it, it is defined by net.ipv4.tcp_wmem
 # See:
 # /proc/sys/net/core/wmem_max
 # /proc/sys/net/core/rmem_max

@@ -18,22 +18,30 @@ package wordcount
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
-	"fmt"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
+	wordRE     = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty      = beam.NewCounter("extract", "emptyLines")
+	lineLen    = beam.NewDistribution("extract", "lineLenDistro")
+	smallWords = beam.NewCounter("extract", "smallWords")
 )
+
+func init() {
+	register.Function3x0(extractFn)
+	register.Function2x1(formatFn)
+
+	register.Emitter1[string]()
+}
 
 // CountWords is a composite transform that counts the words of a PCollection
 // of lines. It expects a PCollection of type string and returns a PCollection
@@ -56,6 +64,9 @@ func extractFn(ctx context.Context, line string, emit func(string)) {
 		empty.Inc(ctx, 1)
 	}
 	for _, word := range wordRE.FindAllString(line, -1) {
+		if len(word) < 6 {
+			smallWords.Inc(ctx, 1)
+		}
 		emit(word)
 	}
 }
@@ -74,8 +85,12 @@ func WordCount(glob, hash string, size int) *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := textio.Read(s, glob)
+	WordCountFromPCol(s, in, hash, size)
+	return p
+}
+
+// WordCountFromPCol counts the words from a PCollection and validates it.
+func WordCountFromPCol(s beam.Scope, in beam.PCollection, hash string, size int) {
 	out := Format(s, CountWords(s, in))
 	passert.Hash(s, out, "out", hash, size)
-
-	return p
 }

@@ -23,15 +23,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.TestSource;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +48,8 @@ import org.slf4j.LoggerFactory;
  * where not all the data is available immediately.
  */
 public class TestCountingSource
-    extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark> {
+    extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark>
+    implements TestSource {
   private static final Logger LOG = LoggerFactory.getLogger(TestCountingSource.class);
 
   private static List<Integer> finalizeTracker;
@@ -65,6 +69,12 @@ public class TestCountingSource
    */
   private static boolean thrown = false;
 
+  private final List<TestReader> createdReaders;
+
+  private int nextValueForValidating;
+
+  private long nextTimestampForValidating;
+
   public static void setFinalizeTracker(List<Integer> finalizeTracker) {
     TestCountingSource.finalizeTracker = finalizeTracker;
   }
@@ -77,7 +87,7 @@ public class TestCountingSource
     return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, -1);
   }
 
-  private TestCountingSource withShardNumber(int shardNumber) {
+  public TestCountingSource withShardNumber(int shardNumber) {
     return new TestCountingSource(
         numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, -1);
   }
@@ -107,6 +117,7 @@ public class TestCountingSource
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
     this.fixedNumSplits = fixedNumSplits;
+    this.createdReaders = new ArrayList<>();
   }
 
   /** Halts emission of elements until {@code continueEmission} is invoked. */
@@ -129,7 +140,7 @@ public class TestCountingSource
     return splits;
   }
 
-  static class CounterMark implements UnboundedSource.CheckpointMark {
+  public static class CounterMark implements UnboundedSource.CheckpointMark {
     int current;
 
     public CounterMark(int current) {
@@ -142,6 +153,35 @@ public class TestCountingSource
         finalizeTracker.add(current);
       }
     }
+  }
+
+  @Override
+  public List<TestReader> createdReaders() {
+    return createdReaders;
+  }
+
+  @Override
+  public boolean validateNextValue(int value) {
+    boolean result = value == nextValueForValidating;
+    nextValueForValidating++;
+    return result;
+  }
+
+  @Override
+  public boolean validateNextTimestamp(long timestamp) {
+    boolean result = timestamp == nextTimestampForValidating;
+    nextTimestampForValidating++;
+    return result;
+  }
+
+  @Override
+  public boolean isConsumptionCompleted() {
+    return nextValueForValidating == numMessagesPerShard;
+  }
+
+  @Override
+  public boolean allTimestampsReceived() {
+    return nextTimestampForValidating == nextValueForValidating;
   }
 
   @Override
@@ -158,11 +198,18 @@ public class TestCountingSource
    * Public only so that the checkpoint can be conveyed from {@link #getCheckpointMark()} to {@link
    * TestCountingSource#createReader(PipelineOptions, CounterMark)} without cast.
    */
-  public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
+  public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>>
+      implements TestReader {
+    public static final String ADVANCE_COUNTER_NAMESPACE = "testNameSpace";
+    public static final String ADVANCE_COUNTER_NAME = "advanceCounter";
+    private final Counter advanceCounter =
+        Metrics.counter(ADVANCE_COUNTER_NAMESPACE, ADVANCE_COUNTER_NAME);
     private int current;
+    private boolean closed;
 
     public CountingSourceReader(int startingPoint) {
       this.current = startingPoint;
+      this.closed = false;
     }
 
     @Override
@@ -172,6 +219,7 @@ public class TestCountingSource
 
     @Override
     public boolean advance() {
+      advanceCounter.inc();
       if (current >= numMessagesPerShard - 1 || haltEmission) {
         return false;
       }
@@ -203,7 +251,9 @@ public class TestCountingSource
     }
 
     @Override
-    public void close() {}
+    public void close() {
+      closed = true;
+    }
 
     @Override
     public TestCountingSource getCurrentSource() {
@@ -214,7 +264,7 @@ public class TestCountingSource
     public Instant getWatermark() {
       if (current >= numMessagesPerShard - 1) {
         // we won't emit further data, signal this with the final watermark
-        return new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE);
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
       }
 
       // The watermark is a promise about future elements, and the timestamps of elements are
@@ -238,6 +288,11 @@ public class TestCountingSource
     public long getSplitBacklogBytes() {
       return 7L;
     }
+
+    @Override
+    public boolean isClosed() {
+      return closed;
+    }
   }
 
   @Override
@@ -248,7 +303,10 @@ public class TestCountingSource
     } else {
       LOG.debug("restoring reader from checkpoint with current = {}", checkpointMark.current);
     }
-    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : -1);
+    CountingSourceReader reader =
+        new CountingSourceReader(checkpointMark != null ? checkpointMark.current : -1);
+    createdReaders.add(reader);
+    return reader;
   }
 
   @Override
@@ -269,7 +327,7 @@ public class TestCountingSource
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof FromCounterMark;
     }
   }
@@ -286,7 +344,7 @@ public class TestCountingSource
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof ToCounterMark;
     }
   }

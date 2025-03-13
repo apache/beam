@@ -21,7 +21,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.DebuggingWordCount.WordCountOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -44,10 +44,8 @@ public class DebuggingWordCountTest {
   public void testDebuggingWordCount() throws Exception {
     File inputFile = tmpFolder.newFile();
     File outputFile = tmpFolder.newFile();
-    Files.write(
-        "stomach secret Flourish message Flourish here Flourish",
-        inputFile,
-        StandardCharsets.UTF_8);
+    Files.asCharSink(inputFile, StandardCharsets.UTF_8)
+        .write("stomach secret Flourish message Flourish here Flourish");
     WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
     options.setInputFile(getFilePath(inputFile.getAbsolutePath()));
     options.setOutput(getFilePath(outputFile.getAbsolutePath()));

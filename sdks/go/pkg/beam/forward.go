@@ -18,9 +18,12 @@ package beam
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/genx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // IMPLEMENTATION NOTE: functions and types in this file are assumed to be
@@ -37,19 +40,52 @@ import (
 
 // RegisterType inserts "external" types into a global type registry to bypass
 // serialization and preserve full method information. It should be called in
-// init() only.
+// `init()` only.
 // TODO(wcn): the canonical definition of "external" is in v1.proto. We need user
 // facing copy for this important concept.
 func RegisterType(t reflect.Type) {
 	runtime.RegisterType(t)
+	if EnableSchemas {
+		schema.RegisterType(t)
+	}
+}
+
+func init() {
+	runtime.RegisterInit(func() {
+		if EnableSchemas {
+			schema.Initialize()
+		}
+	})
 }
 
 // RegisterFunction allows function registration. It is beneficial for performance
 // and is needed for functions -- such as custom coders -- serialized during unit
 // tests, where the underlying symbol table is not available. It should be called
-// in init() only. Returns the external key for the function.
-func RegisterFunction(fn interface{}) {
+// in `init()` only.
+func RegisterFunction(fn any) {
 	runtime.RegisterFunction(fn)
+}
+
+// RegisterDoFn is a convenience function to handle registering a DoFn and all
+// related types. Use this instead of calling RegisterType or RegisterFunction.
+// Like all the Register* functions, RegisterDoFn should be called in
+// `init()` only.
+//
+// In particular, it will call RegisterFunction for functional DoFns, and
+// RegisterType for the parameter and return types for that function.
+// StructuralDoFns will have RegisterType called for itself and the parameter and
+// return types.
+//
+// RegisterDoFn will panic if the argument type is not a DoFn.
+//
+// Usage:
+//
+//	   func init() {
+//		    beam.RegisterDoFn(FunctionalDoFn)
+//		    beam.RegisterDoFn(reflect.TypeOf((*StructuralDoFn)(nil)).Elem())
+//	   }
+func RegisterDoFn(dofn any) {
+	genx.RegisterDoFn(dofn)
 }
 
 // RegisterInit registers an Init hook. Hooks are expected to be able to
@@ -64,10 +100,10 @@ func RegisterInit(hook func()) {
 // Must be called prior to beam.Init(), preferably in an init() function.
 //
 // The coder used for a given type follows this ordering:
-//   1. Coders for Known Beam types.
-//   2. Coders registered for specific types
-//   3. Coders registered for interfaces types
-//   4. Default coder (JSON)
+//  1. Coders for Known Beam types.
+//  2. Coders registered for specific types
+//  3. Coders registered for interfaces types
+//  4. Default coder (JSON)
 //
 // Coders for interface types are iterated over to check if a type
 // satisfies them, and the most recent one registered will be used.
@@ -79,20 +115,20 @@ func RegisterInit(hook func()) {
 //
 // Supported Encoder Signatures
 //
-//  func(T) []byte
-//  func(reflect.Type, T) []byte
-//  func(T) ([]byte, error)
-//  func(reflect.Type, T) ([]byte, error)
+//	func(T) []byte
+//	func(reflect.Type, T) []byte
+//	func(T) ([]byte, error)
+//	func(reflect.Type, T) ([]byte, error)
 //
 // Supported Decoder Signatures
 //
-//  func([]byte) T
-//  func(reflect.Type, []byte) T
-//  func([]byte) (T, error)
-//  func(reflect.Type, []byte) (T, error)
+//	func([]byte) T
+//	func(reflect.Type, []byte) T
+//	func([]byte) (T, error)
+//	func(reflect.Type, []byte) (T, error)
 //
 // where T is the matching user type.
-func RegisterCoder(t reflect.Type, encoder, decoder interface{}) {
+func RegisterCoder(t reflect.Type, encoder, decoder any) {
 	runtime.RegisterType(t)
 	runtime.RegisterFunction(encoder)
 	runtime.RegisterFunction(decoder)
@@ -161,7 +197,15 @@ type Z = typex.Z
 // EventTime represents the time of the event that generated an element.
 // This is distinct from the time when an element is processed.
 type EventTime = typex.EventTime
+
+// Window represents the aggregation window of this element. An element can
+// be a part of multiple windows, based on the element's event time.
 type Window = typex.Window
+
+// BundleFinalization represents the parameter used to register callbacks to
+// be run once the runner has durably persisted output for a bundle.
+// See typex.BundleFinalization for more details.
+type BundleFinalization = typex.BundleFinalization
 
 // These are the reflect.Type instances of the universal types, which are used
 // when binding actual types to "generic" DoFns that use Universal Types.
@@ -177,3 +221,9 @@ var (
 
 // EventTimeType is the reflect.Type of EventTime.
 var EventTimeType = typex.EventTimeType
+
+// MetricResult represents a single metric value, for use in writing predicate functions to query PipelineResults.
+type MetricResult = metrics.SingleResult
+
+// PaneInfo represents a PaneInfo that provides information about current firing when triggers are used.
+type PaneInfo = typex.PaneInfo

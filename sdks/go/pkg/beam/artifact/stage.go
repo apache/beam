@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -29,16 +28,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
 
 // Commit commits a manifest with the given staged artifacts. It returns the
 // staging token, if successful.
-func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifacts []*pb.ArtifactMetadata, st string) (string, error) {
-	req := &pb.CommitManifestRequest{
-		Manifest: &pb.Manifest{
+func Commit(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient, artifacts []*jobpb.ArtifactMetadata, st string) (string, error) {
+	req := &jobpb.CommitManifestRequest{
+		Manifest: &jobpb.Manifest{
 			Artifact: artifacts,
 		},
 		StagingSessionToken: st,
@@ -51,7 +50,7 @@ func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifac
 }
 
 // StageDir stages a local directory with relative path keys. Convenience wrapper.
-func StageDir(ctx context.Context, client pb.ArtifactStagingServiceClient, src string, st string) ([]*pb.ArtifactMetadata, error) {
+func StageDir(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient, src string, st string) ([]*jobpb.ArtifactMetadata, error) {
 	list, err := scan(src)
 	if err != nil || len(list) == 0 {
 		return nil, err
@@ -62,7 +61,7 @@ func StageDir(ctx context.Context, client pb.ArtifactStagingServiceClient, src s
 // MultiStage stages a set of local files with the given keys. It returns
 // the full artifact metadate.  It retries each artifact a few times.
 // Convenience wrapper.
-func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpus int, list []KeyedFile, st string) ([]*pb.ArtifactMetadata, error) {
+func MultiStage(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient, cpus int, list []KeyedFile, st string) ([]*jobpb.ArtifactMetadata, error) {
 	if cpus < 1 {
 		cpus = 1
 	}
@@ -77,7 +76,7 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 	close(q)
 	var permErr errorx.GuardedError
 
-	ret := make(chan *pb.ArtifactMetadata, len(list))
+	ret := make(chan *jobpb.ArtifactMetadata, len(list))
 
 	var wg sync.WaitGroup
 	for i := 0; i < cpus; i++ {
@@ -119,7 +118,7 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 
 // Stage stages a local file as an artifact with the given key. It computes
 // the SHA256 and returns the full artifact metadata.
-func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, filename, st string) (*pb.ArtifactMetadata, error) {
+func Stage(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient, key, filename, st string) (*jobpb.ArtifactMetadata, error) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		return nil, err
@@ -128,12 +127,12 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 	if err != nil {
 		return nil, err
 	}
-	md := &pb.ArtifactMetadata{
+	md := &jobpb.ArtifactMetadata{
 		Name:        key,
 		Permissions: uint32(stat.Mode()),
 		Sha256:      hash,
 	}
-	pmd := &pb.PutArtifactMetadata{
+	pmd := &jobpb.PutArtifactMetadata{
 		Metadata:            md,
 		StagingSessionToken: st,
 	}
@@ -149,8 +148,8 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 		return nil, err
 	}
 
-	header := &pb.PutArtifactRequest{
-		Content: &pb.PutArtifactRequest_Metadata{
+	header := &jobpb.PutArtifactRequest{
+		Content: &jobpb.PutArtifactRequest_Metadata{
 			Metadata: pmd,
 		},
 	}
@@ -160,11 +159,11 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 	}
 	stagedHash, err := stageChunks(stream, fd)
 	if err != nil {
-		stream.CloseAndRecv() // ignore error
-		return nil, errors.Wrapf(err, "failed to send chunks for %v", filename)
+		_, errClose := stream.CloseAndRecv()
+		return nil, errors.Wrapf(err, "failed to send chunks for %v; close error: %v", filename, errClose)
 	}
-	if _, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
-		return nil, errors.Wrapf(err, "failed to close stream for %v", filename)
+	if resp, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
+		return nil, errors.Wrapf(err, "failed to close stream for %v; response: %v", filename, resp)
 	}
 	if hash != stagedHash {
 		return nil, errors.Errorf("unexpected SHA256 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
@@ -172,7 +171,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 	return md, nil
 }
 
-func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
+func stageChunks(stream jobpb.LegacyArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
 	sha256W := sha256.New()
 	data := make([]byte, 1<<20)
 	for {
@@ -182,14 +181,18 @@ func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader
 				panic(err) // cannot fail
 			}
 
-			chunk := &pb.PutArtifactRequest{
-				Content: &pb.PutArtifactRequest_Data{
-					Data: &pb.ArtifactChunk{
+			chunk := &jobpb.PutArtifactRequest{
+				Content: &jobpb.PutArtifactRequest_Data{
+					Data: &jobpb.ArtifactChunk{
 						Data: data[:n],
 					},
 				},
 			}
-			if err := stream.Send(chunk); err != nil {
+			err := stream.Send(chunk)
+			if err == io.EOF {
+				return "", err
+			}
+			if err != nil {
 				return "", errors.Wrap(err, "chunk send failed")
 			}
 		}
@@ -217,7 +220,7 @@ func scan(dir string) ([]KeyedFile, error) {
 }
 
 func walk(dir, key string, accum *[]KeyedFile) error {
-	list, err := ioutil.ReadDir(dir)
+	list, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}

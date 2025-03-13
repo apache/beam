@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /**
  * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;?&gt;}, {@link
@@ -29,6 +29,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
  * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
  * {@link ProcessFunction} using {@link MapElements#via(ProcessFunction)}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ToString {
   private ToString() {
     // do not instantiate

@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
@@ -73,20 +75,24 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ForwardingMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ForwardingMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class BatchViewOverrides {
   /**
    * Specialized implementation for {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap} for
@@ -113,8 +119,8 @@ class BatchViewOverrides {
    * </ul>
    *
    * <p>The {@code [META, Window, 0]} record stores the number of unique keys per window, while
-   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key.
-   * This allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
+   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This
+   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
    * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
    * size of map]}.
    *
@@ -122,7 +128,8 @@ class BatchViewOverrides {
    * org.apache.beam.sdk.transforms.View.AsSingleton View.AsSingleton} printing a warning to users
    * to specify a deterministic key coder.
    */
-  static class BatchViewAsMap<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<?>> {
+  static class BatchViewAsMap<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
 
     /**
      * A {@link DoFn} which groups elements by window boundaries. For each group, the group of
@@ -173,6 +180,7 @@ class BatchViewOverrides {
               "Multiple values [%s, %s] found for single key [%s] within window [%s].",
               map.get(kv.getValue().getValue().getKey()),
               kv.getValue().getValue().getValue(),
+              kv.getValue().getValue().getKey(),
               kv.getKey());
           map.put(
               kv.getValue().getValue().getKey(),
@@ -202,11 +210,12 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollection<?> expand(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollection<?> applyInternal(PCollection<KV<K, V>> input) {
+    private <W extends BoundedWindow> PCollectionView<Map<K, V>> applyInternal(
+        PCollection<KV<K, V>> input) {
       try {
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
       } catch (NonDeterministicException e) {
@@ -224,12 +233,15 @@ class BatchViewOverrides {
     }
 
     /** Transforms the input {@link PCollection} into a singleton {@link Map} per window. */
-    private <W extends BoundedWindow> PCollection<?> applyForSingletonFallback(
+    private <W extends BoundedWindow> PCollectionView<Map<K, V>> applyForSingletonFallback(
         PCollection<KV<K, V>> input) {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+        "unchecked"
+      })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -273,8 +285,8 @@ class BatchViewOverrides {
    * </ul>
    *
    * <p>The {@code [META, Window, 0]} record stores the number of unique keys per window, while
-   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key.
-   * This allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
+   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This
+   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
    * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
    * size of map]}.
    *
@@ -282,7 +294,8 @@ class BatchViewOverrides {
    * org.apache.beam.sdk.transforms.View.AsSingleton View.AsSingleton} printing a warning to users
    * to specify a deterministic key coder.
    */
-  static class BatchViewAsMultimap<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<?>> {
+  static class BatchViewAsMultimap<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
     /**
      * A {@link PTransform} that groups elements by the hash of window's byte representation if the
      * input {@link PCollection} is not within the global window. Otherwise by the hash of the
@@ -686,11 +699,12 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollection<?> expand(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollection<?> applyInternal(PCollection<KV<K, V>> input) {
+    private <W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> applyInternal(
+        PCollection<KV<K, V>> input) {
       try {
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
       } catch (NonDeterministicException e) {
@@ -703,12 +717,16 @@ class BatchViewOverrides {
     }
 
     /** Transforms the input {@link PCollection} into a singleton {@link Map} per window. */
-    private <W extends BoundedWindow> PCollection<?> applyForSingletonFallback(
-        PCollection<KV<K, V>> input) {
+    private <W extends BoundedWindow>
+        PCollectionView<Map<K, Iterable<V>>> applyForSingletonFallback(
+            PCollection<KV<K, V>> input) {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+        "unchecked"
+      })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -727,7 +745,7 @@ class BatchViewOverrides {
           runner, input, new ToMultimapDoFn<>(windowCoder), finalValueCoder, view);
     }
 
-    private static <K, V, W extends BoundedWindow, ViewT> PCollection<?> applyForMapLike(
+    private static <K, V, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForMapLike(
         DataflowRunner runner,
         PCollection<KV<K, V>> input,
         PCollectionView<ViewT> view,
@@ -737,7 +755,10 @@ class BatchViewOverrides {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+        "unchecked"
+      })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
 
       // If our key coder is deterministic, we can use the key portion of each KV
@@ -816,7 +837,7 @@ class BatchViewOverrides {
       PCollection<IsmRecord<WindowedValue<V>>> flattenedOutputs =
           Pipeline.applyTransform(outputs, Flatten.pCollections());
       flattenedOutputs.apply(CreateDataflowView.forBatch(view));
-      return flattenedOutputs;
+      return view;
     }
 
     @Override
@@ -849,7 +870,7 @@ class BatchViewOverrides {
    *   <li>Value: Windowed value
    * </ul>
    */
-  static class BatchViewAsSingleton<T> extends PTransform<PCollection<T>, PCollection<?>> {
+  static class BatchViewAsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
 
     /**
      * A {@link DoFn} that outputs {@link IsmRecord}s. These records are structured as follows:
@@ -911,7 +932,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollection<?> expand(PCollection<T> input) {
+    public PCollectionView<T> expand(PCollection<T> input) {
       input = input.apply(Combine.globally(combineFn).withoutDefaults().withFanout(fanout));
       @SuppressWarnings("unchecked")
       Coder<BoundedWindow> windowCoder =
@@ -925,7 +946,7 @@ class BatchViewOverrides {
           view);
     }
 
-    static <T, FinalT, ViewT, W extends BoundedWindow> PCollection<?> applyForSingleton(
+    static <T, FinalT, ViewT, W extends BoundedWindow> PCollectionView<ViewT> applyForSingleton(
         DataflowRunner runner,
         PCollection<T> input,
         DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>, IsmRecord<WindowedValue<FinalT>>> doFn,
@@ -946,7 +967,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       reifiedPerWindowAndSorted.apply(CreateDataflowView.forBatch(view));
-      return reifiedPerWindowAndSorted;
+      return view;
     }
 
     @Override
@@ -977,7 +998,7 @@ class BatchViewOverrides {
    *   <li>Value: Windowed value
    * </ul>
    */
-  static class BatchViewAsList<T> extends PTransform<PCollection<T>, PCollection<?>> {
+  static class BatchViewAsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     /**
      * A {@link DoFn} which creates {@link IsmRecord}s assuming that each element is within the
      * global window. Each {@link IsmRecord} has
@@ -1058,11 +1079,11 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollection<?> expand(PCollection<T> input) {
+    public PCollectionView<List<T>> expand(PCollection<T> input) {
       return applyForIterableLike(runner, input, view);
     }
 
-    static <T, W extends BoundedWindow, ViewT> PCollection<?> applyForIterableLike(
+    static <T, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForIterableLike(
         DataflowRunner runner, PCollection<T> input, PCollectionView<ViewT> view) {
 
       @SuppressWarnings("unchecked")
@@ -1082,7 +1103,7 @@ class BatchViewOverrides {
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
         reifiedPerWindowAndSorted.apply(CreateDataflowView.forBatch(view));
-        return reifiedPerWindowAndSorted;
+        return view;
       }
 
       PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted =
@@ -1093,7 +1114,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       reifiedPerWindowAndSorted.apply(CreateDataflowView.forBatch(view));
-      return reifiedPerWindowAndSorted;
+      return view;
     }
 
     @Override
@@ -1126,7 +1147,8 @@ class BatchViewOverrides {
    *   <li>Value: Windowed value
    * </ul>
    */
-  static class BatchViewAsIterable<T> extends PTransform<PCollection<T>, PCollection<?>> {
+  static class BatchViewAsIterable<T>
+      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Iterable<T>> view;
@@ -1139,7 +1161,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollection<?> expand(PCollection<T> input) {
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       return BatchViewAsList.applyForIterableLike(runner, input, view);
     }
   }
@@ -1154,8 +1176,11 @@ class BatchViewOverrides {
       return (WindowedValueToValue) INSTANCE;
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public V apply(WindowedValue<V> input) {
+    public V apply(@Nonnull WindowedValue<V> input) {
       return input.getValue();
     }
   }
@@ -1173,8 +1198,11 @@ class BatchViewOverrides {
       return (IterableWithWindowedValuesToIterable) INSTANCE;
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Iterable<V> apply(Iterable<WindowedValue<V>> input) {
+    public Iterable<V> apply(@Nonnull Iterable<WindowedValue<V>> input) {
       return Iterables.transform(input, WindowedValueToValue.of());
     }
   }
@@ -1377,7 +1405,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (o instanceof ValueInEmptyWindows) {
         ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
         return Objects.equals(that.getValue(), this.getValue());

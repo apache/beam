@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """A package defining several input sources and output sinks."""
 
 # pylint: disable=wildcard-import
-from __future__ import absolute_import
-
 from apache_beam.io.avroio import *
 from apache_beam.io.filebasedsink import *
 from apache_beam.io.iobase import Read
@@ -37,6 +36,7 @@ try:
   from apache_beam.io.gcp.bigquery import *
   from apache_beam.io.gcp.pubsub import *
   from apache_beam.io.gcp import gcsio
+  from apache_beam.transforms.xlang.io import *
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

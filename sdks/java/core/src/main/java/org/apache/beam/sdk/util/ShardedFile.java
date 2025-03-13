@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Bare-bones class for using sharded files.
@@ -27,6 +28,7 @@ import java.util.List;
  * <p>For internal use only; used only in SDK tests. Must be {@link Serializable} so it can be
  * shipped as a {@link org.apache.beam.sdk.testing.SerializableMatcher}.
  */
+@Internal
 public interface ShardedFile extends Serializable {
 
   /**

@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
 import static org.apache.beam.sdk.testing.SerializableMatchers.kvWithKey;
 import static org.apache.beam.sdk.testing.SerializableMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,7 +30,8 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -134,7 +135,7 @@ public class SerializableMatchersTest implements Serializable {
 
   private static class NotSerializableClass {
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof NotSerializableClass;
     }
 

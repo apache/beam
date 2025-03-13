@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -61,6 +61,9 @@ import org.joda.time.Duration;
  *
  * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /**
@@ -85,7 +88,7 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private static <T, W extends BoundedWindow> void validateWindowStrategy(
       WindowingStrategy<T, W> strategy) {
-    if (!strategy.getWindowFn().isNonMerging()
+    if (strategy.needsMerge()
         && (!strategy.getTrigger().getClass().equals(DefaultTrigger.class)
             || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
       throw new UnsupportedOperationException(
@@ -114,8 +117,7 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
                 Combine.perKey(
                     new SerializableFunction<Iterable<Void>, Void>() {
                       @Override
-                      @Nullable
-                      public Void apply(Iterable<Void> iter) {
+                      public @Nullable Void apply(Iterable<Void> iter) {
                         return null; // ignore input
                       }
                     }));

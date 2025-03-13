@@ -17,51 +17,44 @@
 
 """Ptransform overrides for DataflowRunner."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-from apache_beam.coders import typecoders
 from apache_beam.pipeline import PTransformOverride
 
 
-class CreatePTransformOverride(PTransformOverride):
-  """A ``PTransformOverride`` for ``Create`` in streaming mode."""
+class NativeReadPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``Read`` using native sources.
 
+  The DataflowRunner expects that the Read PTransform using native sources act
+  as a primitive. So this override replaces the Read with a primitive.
+  """
   def matches(self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam import Create
-    from apache_beam.options.pipeline_options import StandardOptions
-
-    if isinstance(applied_ptransform.transform, Create):
-      standard_options = (applied_ptransform
-                          .outputs[None]
-                          .pipeline._options
-                          .view_as(StandardOptions))
-      return standard_options.streaming
-    else:
-      return False
-
-  def get_replacement_transform(self, ptransform):
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.native_io.streaming_create import \
-      StreamingCreate
-    coder = typecoders.registry.get_coder(ptransform.get_output_type())
-    return StreamingCreate(ptransform.values, coder)
-
-
-class ReadPTransformOverride(PTransformOverride):
-  """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
-
-  def matches(self, applied_ptransform):
     from apache_beam.io import Read
-    from apache_beam.io.iobase import BoundedSource
-    # Only overrides Read(BoundedSource) transform
-    if isinstance(applied_ptransform.transform, Read):
-      if isinstance(applied_ptransform.transform.source, BoundedSource):
-        return True
-    return False
+
+    # Consider the native Read to be a primitive for Dataflow by replacing.
+    return (
+        isinstance(applied_ptransform.transform, Read) and
+        not getattr(applied_ptransform.transform, 'override', False) and
+        hasattr(applied_ptransform.transform.source, 'format'))
 
   def get_replacement_transform(self, ptransform):
-    from apache_beam.io.iobase import _SDFBoundedSourceWrapper
-    return _SDFBoundedSourceWrapper(ptransform.source)
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import pvalue
+    from apache_beam.io import iobase
+
+    # This is purposely subclassed from the Read transform to take advantage of
+    # the existing windowing, typing, and display data.
+    class Read(iobase.Read):
+      override = True
+
+      def expand(self, pbegin):
+        return pvalue.PCollection.from_(pbegin)
+
+    # Use the source's coder type hint as this replacement's output. Otherwise,
+    # the typing information is not properly forwarded to the DataflowRunner and
+    # will choose the incorrect coder for this transform.
+    return Read(ptransform.source).with_output_types(
+        ptransform.source.coder.to_type_hint())

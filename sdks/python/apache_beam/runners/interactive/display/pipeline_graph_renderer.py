@@ -20,32 +20,33 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
 import abc
 import os
 import subprocess
-
-from future.utils import with_metaclass
+from typing import TYPE_CHECKING
+from typing import Optional
+from typing import Type
 
 from apache_beam.utils.plugin import BeamPlugin
 
+if TYPE_CHECKING:
+  from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
 
-class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):
+
+class PipelineGraphRenderer(BeamPlugin, metaclass=abc.ABCMeta):
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
-
   @classmethod
   @abc.abstractmethod
-  def option(cls):
+  def option(cls) -> str:
     """The corresponding rendering option for the renderer.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
-  def render_pipeline_graph(self, pipeline_graph):
+  def render_pipeline_graph(self, pipeline_graph: 'PipelineGraph') -> str:
     """Renders the pipeline graph in HTML-compatible format.
 
     Args:
@@ -60,24 +61,22 @@ class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):
 class MuteRenderer(PipelineGraphRenderer):
   """Use this renderer to mute the pipeline display.
   """
-
   @classmethod
-  def option(cls):
+  def option(cls) -> str:
     return 'mute'
 
-  def render_pipeline_graph(self, pipeline_graph):
+  def render_pipeline_graph(self, pipeline_graph: 'PipelineGraph') -> str:
     return ''
 
 
 class TextRenderer(PipelineGraphRenderer):
   """This renderer simply returns the dot representation in text format.
   """
-
   @classmethod
-  def option(cls):
+  def option(cls) -> str:
     return 'text'
 
-  def render_pipeline_graph(self, pipeline_graph):
+  def render_pipeline_graph(self, pipeline_graph: 'PipelineGraph') -> str:
     return pipeline_graph.get_dot()
 
 
@@ -88,16 +87,15 @@ class PydotRenderer(PipelineGraphRenderer):
     1. The software Graphviz: https://www.graphviz.org/
     2. The python module pydot: https://pypi.org/project/pydot/
   """
-
   @classmethod
-  def option(cls):
+  def option(cls) -> str:
     return 'graph'
 
-  def render_pipeline_graph(self, pipeline_graph):
-    return pipeline_graph._get_graph().create_svg()  # pylint: disable=protected-access
+  def render_pipeline_graph(self, pipeline_graph: 'PipelineGraph') -> str:
+    return pipeline_graph._get_graph().create_svg().decode("utf-8")  # pylint: disable=protected-access
 
 
-def get_renderer(option=None):
+def get_renderer(option: Optional[str] = None) -> Type[PipelineGraphRenderer]:
   """Get an instance of PipelineGraphRenderer given rendering option.
 
   Args:
@@ -117,12 +115,13 @@ def get_renderer(option=None):
     else:
       option = 'text'
 
-  renderer = [r for r in PipelineGraphRenderer.get_all_subclasses()
-              if option == r.option()]
+  renderer = [
+      r for r in PipelineGraphRenderer.get_all_subclasses()
+      if option == r.option()
+  ]
   if len(renderer) == 0:
     raise ValueError()
   elif len(renderer) == 1:
     return renderer[0]()
   else:
-    raise ValueError('Found more than one renderer for option: %s',
-                     option)
+    raise ValueError('Found more than one renderer for option: %s', option)

@@ -17,10 +17,7 @@
 
 """JSON conversion utility functions."""
 
-from __future__ import absolute_import
-
-from past.builtins import long
-from past.builtins import unicode
+# pytype: skip-file
 
 from apache_beam.options.value_provider import ValueProvider
 
@@ -32,9 +29,8 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-
 _MAXINT64 = (1 << 63) - 1
-_MININT64 = - (1 << 63)
+_MININT64 = -(1 << 63)
 
 
 def get_typed_value_descriptor(obj):
@@ -50,10 +46,10 @@ def get_typed_value_descriptor(obj):
     the ``@type`` of appropriate type.
 
   Raises:
-    ~exceptions.TypeError: if the Python object has a type that is not
+    TypeError: if the Python object has a type that is not
       supported.
   """
-  if isinstance(obj, (bytes, unicode)):
+  if isinstance(obj, (bytes, str)):
     type_name = 'Text'
   elif isinstance(obj, bool):
     type_name = 'Boolean'
@@ -82,7 +78,7 @@ def to_json_value(obj, with_type=False):
     types for the corresponding values, lists, or dictionaries.
 
   Raises:
-    ~exceptions.TypeError: if the Python object contains a type that is not
+    TypeError: if the Python object contains a type that is not
       supported.
 
   The types supported are ``str``, ``bool``, ``list``, ``tuple``, ``dict``, and
@@ -105,13 +101,13 @@ def to_json_value(obj, with_type=False):
     return extra_types.JsonValue(object_value=json_object)
   elif with_type:
     return to_json_value(get_typed_value_descriptor(obj), with_type=False)
-  elif isinstance(obj, (str, unicode)):
+  elif isinstance(obj, str):
     return extra_types.JsonValue(string_value=obj)
   elif isinstance(obj, bytes):
     return extra_types.JsonValue(string_value=obj.decode('utf8'))
   elif isinstance(obj, bool):
     return extra_types.JsonValue(boolean_value=obj)
-  elif isinstance(obj, (int, long)):
+  elif isinstance(obj, int):
     if _MININT64 <= obj <= _MAXINT64:
       return extra_types.JsonValue(integer_value=obj)
     else:
@@ -139,7 +135,7 @@ def from_json_value(v):
     to ``JsonValue``, ``JsonArray`` and ``JsonObject`` types.
 
   Raises:
-    ~exceptions.TypeError: if the ``JsonValue`` object contains a type that is
+    TypeError: if the ``JsonValue`` object contains a type that is
       not supported.
 
   The types supported are ``str``, ``bool``, ``list``, ``dict``, and ``None``.

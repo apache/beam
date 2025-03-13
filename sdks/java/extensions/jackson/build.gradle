@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk.extensions.jackson',
     archivesBaseName: 'beam-sdks-java-extensions-json-jackson'
 )
 
@@ -25,11 +26,11 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
 ext.summary = "Jackson extension provides PTransforms for deserializing and generating JSON strings."
 
 dependencies {
-  compile library.java.vendored_guava_20_0
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.jackson_databind
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testRuntimeOnly project(":runners:direct-java")
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.jackson_databind
+  implementation library.java.jackson_core
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

@@ -25,15 +25,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.AtomicDouble;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.AtomicDouble;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Factory interface for creating counters. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CounterFactory {
 
   protected <InputT, AccumT> Counter<InputT, AccumT> createCounter(
@@ -376,15 +381,22 @@ public class CounterFactory {
   }
 
   /** Implements a {@link Counter} for tracking the sum of long values. */
-  public static class LongSumCounterValue extends LongCounterValue {
+  public static class LongSumCounterValue extends BaseCounterValue<Long, Long> {
+    private final LongAdder aggregate = new LongAdder();
+
+    @Override
+    public Long getAggregate() {
+      return aggregate.sum();
+    }
+
     @Override
     public void addValue(Long value) {
-      aggregate.addAndGet(value);
+      aggregate.add(value);
     }
 
     @Override
     public Long getAndReset() {
-      return aggregate.getAndSet(0);
+      return aggregate.sumThenReset();
     }
 
     @Override
@@ -709,7 +721,7 @@ public class CounterFactory {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       } else if (!(obj instanceof LongCounterMean)) {
@@ -764,7 +776,7 @@ public class CounterFactory {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       } else if (!(obj instanceof IntegerCounterMean)) {
@@ -819,7 +831,7 @@ public class CounterFactory {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       } else if (!(obj instanceof DoubleCounterMean)) {

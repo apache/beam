@@ -18,11 +18,11 @@
 package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.ACCUMULATOR_NAME;
 
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
@@ -31,6 +31,9 @@ import org.joda.time.Duration;
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This has methods to query
  * to job runtime and the final values of the accumulators.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkRunnerResult implements PipelineResult {
 
   private final Map<String, Object> accumulators;
@@ -77,6 +80,6 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   MetricsContainerStepMap getMetricsContainerStepMap() {
-    return (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME);
+    return (MetricsContainerStepMap) accumulators.get(ACCUMULATOR_NAME);
   }
 }

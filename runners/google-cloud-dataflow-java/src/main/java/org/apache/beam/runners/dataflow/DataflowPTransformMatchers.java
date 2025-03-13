@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.toStringHelper;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.toStringHelper;
 
 import java.util.ArrayDeque;
 import org.apache.beam.sdk.Pipeline;
@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  * A set of {@link PTransformMatcher PTransformMatchers} that are used in the Dataflow Runner and
  * not general enough to be shared between runners.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class DataflowPTransformMatchers {
   private DataflowPTransformMatchers() {}
 

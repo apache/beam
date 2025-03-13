@@ -36,7 +36,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,7 +50,8 @@ public class PartitioningShuffleReaderTest {
   private static final List<WindowedValue<KV<Integer, String>>> NO_KVS = Collections.emptyList();
 
   private static final Instant timestamp = new Instant(123000);
-  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final IntervalWindow window =
+      new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 
   private static final List<WindowedValue<KV<Integer, String>>> KVS =
       Arrays.asList(

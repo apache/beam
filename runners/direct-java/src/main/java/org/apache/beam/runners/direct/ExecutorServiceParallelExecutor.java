@@ -17,35 +17,40 @@
  */
 package org.apache.beam.runners.direct;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalListener;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -55,6 +60,9 @@ import org.slf4j.LoggerFactory;
  * An {@link PipelineExecutor} that uses an underlying {@link ExecutorService} and {@link
  * EvaluationContext} to execute a {@link Pipeline}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,
         BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
@@ -142,20 +150,29 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  // TODO: [https://github.com/apache/beam/issues/18968] Pass Future back to consumer to check for
+  // async errors
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);
-    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-        pendingRootBundles = ImmutableMap.builder();
+    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles =
+        ImmutableMap.builder();
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
-      ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
-      try {
+      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(root.getFullName());
+      Queue<CommittedBundle<?>> pending = Queues.newArrayDeque();
+      try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
         Collection<CommittedBundle<?>> initialInputs =
             rootProviderRegistry.getInitialInputs(root, numTargetSplits);
         pending.addAll(initialInputs);
       } catch (Exception e) {
         throw UserCodeException.wrap(e);
+      } finally {
+        //  Metrics emitted initial split are reported along with the first bundle
+        if (pending.peek() != null) {
+          evaluationContext
+              .getMetrics()
+              .commitPhysical(pending.peek(), metricsContainer.getCumulative());
+        }
       }
       pendingRootBundles.put(root, pending);
     }
@@ -168,7 +185,7 @@ final class ExecutorServiceParallelExecutor
           @Override
           public void run() {
             DriverState drive = executionDriver.drive();
-            if (drive.isTermainal()) {
+            if (drive.isTerminal()) {
               State newPipelineState = State.UNKNOWN;
               switch (drive) {
                 case FAILED:
@@ -239,28 +256,42 @@ final class ExecutorServiceParallelExecutor
       completionTime = Instant.now().plus(duration);
     }
 
-    VisibleExecutorUpdate update = null;
-    while (Instant.now().isBefore(completionTime)
-        && (update == null || isTerminalStateUpdate(update))) {
+    while (Instant.now().isBefore(completionTime)) {
       // Get an update; don't block forever if another thread has handled it. The call to poll will
       // wait the entire timeout; this call primarily exists to relinquish any core.
-      update = visibleUpdates.tryNext(Duration.millis(25L));
+      VisibleExecutorUpdate update = visibleUpdates.tryNext(Duration.millis(25L));
+
       if (update == null && pipelineState.get().isTerminal()) {
-        // there are no updates to process and no updates will ever be published because the
-        // executor is shutdown
-        return pipelineState.get();
-      } else if (update != null && update.thrown.isPresent()) {
-        Throwable thrown = update.thrown.get();
-        if (thrown instanceof Exception) {
-          throw (Exception) thrown;
-        } else if (thrown instanceof Error) {
-          throw (Error) thrown;
-        } else {
-          throw new Exception("Unknown Type of Throwable", thrown);
+        // state and updates have seperate locks so it is possible for an update
+        // to be posted in a race. updates should arrive before the status is set
+        // to a terminal state, so if there is one we should see it immediately.
+        update = visibleUpdates.tryNext(Duration.millis(1L));
+        if (update == null) {
+          // there are no updates to process and no updates will ever be published because the
+          // executor is shutdown
+          return pipelineState.get();
+        }
+      }
+
+      if (update != null) {
+        if (isTerminalStateUpdate(update)) {
+          return pipelineState.get();
+        }
+
+        if (update.thrown.isPresent()) {
+          Throwable thrown = update.thrown.get();
+          if (thrown instanceof Exception) {
+            throw (Exception) thrown;
+          } else if (thrown instanceof Error) {
+            throw (Error) thrown;
+          } else {
+            throw new Exception("Unknown Type of Throwable", thrown);
+          }
         }
       }
     }
-    return pipelineState.get();
+
+    return null;
   }
 
   @Override
@@ -269,7 +300,7 @@ final class ExecutorServiceParallelExecutor
   }
 
   private boolean isTerminalStateUpdate(VisibleExecutorUpdate update) {
-    return !(update.getNewState() == null && update.getNewState().isTerminal());
+    return update.getNewState() != null && update.getNewState().isTerminal();
   }
 
   @Override
@@ -338,7 +369,7 @@ final class ExecutorServiceParallelExecutor
    */
   private static class VisibleExecutorUpdate {
     private final Optional<? extends Throwable> thrown;
-    @Nullable private final State newState;
+    private final @Nullable State newState;
 
     public static VisibleExecutorUpdate fromException(Exception e) {
       return new VisibleExecutorUpdate(null, e);
@@ -357,7 +388,7 @@ final class ExecutorServiceParallelExecutor
     }
 
     private VisibleExecutorUpdate(State newState, @Nullable Throwable exception) {
-      this.thrown = Optional.fromNullable(exception);
+      this.thrown = Optional.ofNullable(exception);
       this.newState = newState;
     }
 
@@ -371,28 +402,39 @@ final class ExecutorServiceParallelExecutor
     private final BlockingQueue<VisibleExecutorUpdate> updates = new LinkedBlockingQueue<>();
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void failed(Exception e) {
       updates.offer(VisibleExecutorUpdate.fromException(e));
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void failed(Error e) {
       updates.offer(VisibleExecutorUpdate.fromError(e));
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void cancelled() {
       updates.offer(VisibleExecutorUpdate.cancelled());
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void completed() {
       updates.offer(VisibleExecutorUpdate.finished());
     }
 
     /** Try to get the next unconsumed message in this {@link QueueMessageReceiver}. */
-    @Nullable
-    private VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
+    private @Nullable VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
       return updates.poll(timeout.getMillis(), TimeUnit.MILLISECONDS);
     }
   }

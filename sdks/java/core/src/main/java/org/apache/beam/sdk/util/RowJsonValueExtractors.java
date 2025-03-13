@@ -20,9 +20,13 @@ package org.apache.beam.sdk.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
+import org.joda.time.DateTime;
 
 /**
  * Contains utilities for extracting primitive values from JSON nodes.
@@ -174,6 +178,54 @@ class RowJsonValueExtractors {
     return ValidatingValueExtractor.<BigDecimal>builder()
         .setExtractor(JsonNode::decimalValue)
         .setValidator(jsonNode -> jsonNode.isNumber())
+        .build();
+  }
+
+  /**
+   * Extracts DateTime from the JsonNode (ISO 8601 format string) if it is valid.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<DateTime> datetimeValueExtractor() {
+    return ValidatingValueExtractor.<DateTime>builder()
+        .setExtractor(jsonNode -> DateTime.parse(jsonNode.textValue()))
+        .setValidator(JsonNode::isTextual)
+        .build();
+  }
+
+  /**
+   * Extracts LocalDate from the JsonNode (ISO 8601 format string) if it is valid.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<LocalDate> dateValueExtractor() {
+    return ValidatingValueExtractor.<LocalDate>builder()
+        .setExtractor(jsonNode -> LocalDate.parse(jsonNode.textValue()))
+        .setValidator(JsonNode::isTextual)
+        .build();
+  }
+
+  /**
+   * Extracts LocalTime from the JsonNode (ISO 8601 format string) if it is valid.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<LocalTime> timeValueExtractor() {
+    return ValidatingValueExtractor.<LocalTime>builder()
+        .setExtractor(jsonNode -> LocalTime.parse(jsonNode.textValue()))
+        .setValidator(JsonNode::isTextual)
+        .build();
+  }
+
+  /**
+   * Extracts LocalDateTime from the JsonNode (ISO 8601 format string) if it is valid.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<LocalDateTime> localDatetimeValueExtractor() {
+    return ValidatingValueExtractor.<LocalDateTime>builder()
+        .setExtractor(jsonNode -> LocalDateTime.parse(jsonNode.textValue()))
+        .setValidator(JsonNode::isTextual)
         .build();
   }
 

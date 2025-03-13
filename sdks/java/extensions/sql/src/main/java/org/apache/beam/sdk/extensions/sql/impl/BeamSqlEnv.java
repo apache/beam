@@ -17,23 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
@@ -42,18 +42,22 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
  * query/validate/optimize/translate SQL statements.
  */
 @Internal
-@Experimental
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BeamSqlEnv {
   JdbcConnection connection;
   QueryPlanner planner;
@@ -98,16 +102,20 @@ public class BeamSqlEnv {
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
-    return planner.convertToBeamRel(query);
+    return planner.convertToBeamRel(query, QueryParameters.ofNone());
+  }
+
+  public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
+      throws ParseException {
+    return planner.convertToBeamRel(query, queryParameters);
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
-    return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+    return planner.parse(sqlStatement).getKind().belongsTo(SqlKind.DDL);
   }
 
   public void executeDdl(String sqlStatement) throws ParseException {
-    SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
-    ddl.execute(getContext());
+    BeamSqlParser.DDL_EXECUTOR.executeDdl(getContext(), planner.parse(sqlStatement));
   }
 
   public CalcitePrepare.Context getContext() {
@@ -120,7 +128,7 @@ public class BeamSqlEnv {
 
   public String explain(String sqlString) throws ParseException {
     try {
-      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString, QueryParameters.ofNone()));
     } catch (Exception e) {
       throw new ParseException("Unable to parse statement", e);
     }
@@ -135,9 +143,9 @@ public class BeamSqlEnv {
     private String currentSchemaName;
     private Map<String, TableProvider> schemaMap;
     private Set<Map.Entry<String, Function>> functionSet;
-    private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
     private PipelineOptions pipelineOptions;
+    private Collection<RuleSet> ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
@@ -147,8 +155,8 @@ public class BeamSqlEnv {
       schemaMap = new HashMap<>();
       functionSet = new HashSet<>();
       autoLoadUdfs = false;
-      autoLoadBuiltinFunctions = false;
       pipelineOptions = null;
+      ruleSets = BeamRuleSets.getRuleSets();
     }
 
     /** Add a top-level schema backed by the table provider. */
@@ -167,6 +175,11 @@ public class BeamSqlEnv {
       return this;
     }
 
+    /** Set the ruleSet used for query optimizer. */
+    public BeamSqlEnvBuilder setRuleSets(Collection<RuleSet> ruleSets) {
+      this.ruleSets = ruleSets;
+      return this;
+    }
     /** Register a UDF function which can be used in SQL expression. */
     public BeamSqlEnvBuilder addUdf(String functionName, Class<?> clazz, String method) {
       functionSet.add(new SimpleEntry<>(functionName, UdfImpl.create(clazz, method)));
@@ -199,12 +212,6 @@ public class BeamSqlEnv {
       return this;
     }
 
-    /** Load Beam SQL built-in functions defined in {@link BeamBuiltinFunctionProvider}. */
-    public BeamSqlEnvBuilder autoLoadBuiltinFunctions() {
-      autoLoadBuiltinFunctions = true;
-      return this;
-    }
-
     public BeamSqlEnvBuilder setQueryPlannerClassName(String name) {
       queryPlannerClassName = name;
       return this;
@@ -227,13 +234,12 @@ public class BeamSqlEnv {
 
       configureSchemas(jdbcConnection);
 
-      loadBeamBuiltinFunctions();
+      QueryPlanner planner = instantiatePlanner(jdbcConnection, ruleSets);
 
+      // The planner may choose to add its own builtin functions to the schema, so load user-defined
+      // functions second, in case there's a conflict.
       loadUdfs();
-
       addUdfsUdafs(jdbcConnection);
-
-      QueryPlanner planner = instantiatePlanner(jdbcConnection);
 
       return new BeamSqlEnv(jdbcConnection, planner);
     }
@@ -252,25 +258,6 @@ public class BeamSqlEnv {
         jdbcConnection.setSchema(currentSchemaName);
       } catch (SQLException e) {
         throw new RuntimeException(e);
-      }
-    }
-
-    private void loadBeamBuiltinFunctions() {
-      if (!autoLoadBuiltinFunctions) {
-        return;
-      }
-
-      for (BeamBuiltinFunctionProvider provider :
-          ServiceLoader.load(BeamBuiltinFunctionProvider.class)) {
-        loadBuiltinUdf(provider.getBuiltinMethods());
-      }
-    }
-
-    private void loadBuiltinUdf(Map<String, List<Method>> methods) {
-      for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
-        for (Method method : entry.getValue()) {
-          functionSet.add(new SimpleEntry<>(entry.getKey(), UdfImpl.create(method)));
-        }
       }
     }
 
@@ -294,21 +281,28 @@ public class BeamSqlEnv {
       }
     }
 
-    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection) {
-
-      if (queryPlannerClassName.equals(CALCITE_PLANNER)) {
-        return new CalciteQueryPlanner(jdbcConnection);
-      }
-
+    private QueryPlanner instantiatePlanner(
+        JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+      Class<?> queryPlannerClass;
       try {
-        return (QueryPlanner)
-            Class.forName(queryPlannerClassName)
-                .getConstructor(JdbcConnection.class)
-                .newInstance(jdbcConnection);
-      } catch (Exception e) {
+        queryPlannerClass = Class.forName(queryPlannerClassName);
+      } catch (ClassNotFoundException exc) {
         throw new RuntimeException(
-            String.format("Cannot construct query planner %s", queryPlannerClassName), e);
+            "Cannot find requested QueryPlanner class: " + queryPlannerClassName, exc);
       }
+
+      QueryPlanner.Factory factory;
+      try {
+        factory = (QueryPlanner.Factory) queryPlannerClass.getField("FACTORY").get(null);
+      } catch (NoSuchFieldException | IllegalAccessException exc) {
+        throw new RuntimeException(
+            String.format(
+                "QueryPlanner class %s does not have an accessible static field 'FACTORY' of type QueryPlanner.Factory",
+                queryPlannerClassName),
+            exc);
+      }
+
+      return factory.createPlanner(jdbcConnection, ruleSets);
     }
   }
 }

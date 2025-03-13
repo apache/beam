@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A source that reads from a key-sharded dataset, and returns KVs without any values grouping.
@@ -39,6 +39,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * @param <K> the type of the keys read from the shuffle
  * @param <V> the type of the values read from the shuffle
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, V>>> {
   final byte[] shuffleReaderConfig;
   final String startShufflePosition;
@@ -141,9 +144,9 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
         return false;
       }
       ShuffleEntry record = iterator.next();
-      K key = CoderUtils.decodeFromByteArray(shuffleReader.keyCoder, record.getKey());
+      K key = CoderUtils.decodeFromByteString(shuffleReader.keyCoder, record.getKey());
       WindowedValue<V> windowedValue =
-          CoderUtils.decodeFromByteArray(shuffleReader.windowedValueCoder, record.getValue());
+          CoderUtils.decodeFromByteString(shuffleReader.windowedValueCoder, record.getValue());
       shuffleReader.notifyElementRead(record.length());
       current = windowedValue.withValue(KV.of(key, windowedValue.getValue()));
       return true;

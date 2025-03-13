@@ -19,27 +19,32 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.calcite.adapter.enumerable.AggImplementor;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.AggregateFunction;
-import org.apache.calcite.schema.FunctionParameter;
-import org.apache.calcite.schema.ImplementableAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.AggImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.AggregateFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ImplementableAggFunction;
 
 /** Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF. */
-@Experimental
 @Internal
-public final class UdafImpl<InputT, AccumT, OutputT>
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;
 
-  UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
+  public UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
   }
 
@@ -65,23 +70,16 @@ public final class UdafImpl<InputT, AccumT, OutputT>
 
           @Override
           public RelDataType getType(RelDataTypeFactory typeFactory) {
-            ParameterizedType parameterizedType = findCombineFnSuperClass();
-            return CalciteUtils.sqlTypeWithAutoCast(
-                typeFactory, parameterizedType.getActualTypeArguments()[0]);
-          }
-
-          private ParameterizedType findCombineFnSuperClass() {
-            Class clazz = combineFn.getClass();
-            while (!clazz.getSuperclass().equals(CombineFn.class)) {
-              clazz = clazz.getSuperclass();
+            Type inputType = getInputType();
+            if (inputType instanceof TypeVariable) {
+              throw new IllegalArgumentException(
+                  "Unable to infer SQL type from type variable "
+                      + inputType
+                      + ". This usually means you are trying to use a generic type whose type information "
+                      + "is not known at runtime. You can wrap your CombineFn into typed subclass"
+                      + " by 'new TypedCombineFnDelegate<...>(combineFn) {}'");
             }
-
-            if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
-              throw new IllegalStateException(
-                  "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
-            } else {
-              return (ParameterizedType) clazz.getGenericSuperclass();
-            }
+            return CalciteUtils.sqlTypeWithAutoCast(typeFactory, inputType);
           }
 
           @Override
@@ -101,6 +99,34 @@ public final class UdafImpl<InputT, AccumT, OutputT>
 
   @Override
   public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, combineFn.getOutputType().getType());
+    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, getOutputType());
+  }
+
+  protected Type getInputType() {
+    @Nullable Type inputType = combineFn.getInputType().getType();
+    if (inputType != null && !(inputType instanceof TypeVariable)) {
+      return inputType;
+    }
+    ParameterizedType parameterizedType = findCombineFnSuperClass();
+    return parameterizedType.getActualTypeArguments()[0];
+  }
+
+  protected Type getOutputType() {
+    return combineFn.getOutputType().getType();
+  }
+
+  private ParameterizedType findCombineFnSuperClass() {
+
+    Class clazz = combineFn.getClass();
+
+    while (!clazz.getSuperclass().equals(CombineFn.class)) {
+      clazz = clazz.getSuperclass();
+    }
+
+    if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
+      throw new IllegalStateException(
+          "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
+    }
+    return (ParameterizedType) clazz.getGenericSuperclass();
   }
 }

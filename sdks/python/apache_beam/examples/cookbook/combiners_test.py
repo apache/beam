@@ -23,7 +23,7 @@ The input data is generated simply with a Create transform and the output is
 checked directly on the last PCollection produced.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import unittest
@@ -37,8 +37,7 @@ from apache_beam.testing.util import equal_to
 class CombinersTest(unittest.TestCase):
   """Tests showcasing Dataflow combiners."""
 
-  SAMPLE_DATA = [
-      ('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20), ('c', 100)]
+  SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20), ('c', 100)]
 
   def test_combine_per_key_with_callable(self):
     """CombinePerKey using a standard callable reducing iterables.
@@ -48,13 +47,13 @@ class CombinersTest(unittest.TestCase):
     functions. In fact, any function "reducing" an iterable to a single value
     can be used.
     """
-    result = (
-        TestPipeline()
-        | beam.Create(CombinersTest.SAMPLE_DATA)
-        | beam.CombinePerKey(sum))
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(CombinersTest.SAMPLE_DATA)
+          | beam.CombinePerKey(sum))
 
-    assert_that(result, equal_to([('a', 6), ('b', 30), ('c', 100)]))
-    result.pipeline.run()
+      assert_that(result, equal_to([('a', 6), ('b', 30), ('c', 100)]))
 
   def test_combine_per_key_with_custom_callable(self):
     """CombinePerKey using a custom function reducing iterables."""
@@ -64,13 +63,13 @@ class CombinersTest(unittest.TestCase):
         result *= v
       return result
 
-    result = (
-        TestPipeline()
-        | beam.Create(CombinersTest.SAMPLE_DATA)
-        | beam.CombinePerKey(multiply))
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(CombinersTest.SAMPLE_DATA)
+          | beam.CombinePerKey(multiply))
 
-    assert_that(result, equal_to([('a', 6), ('b', 200), ('c', 100)]))
-    result.pipeline.run()
+      assert_that(result, equal_to([('a', 6), ('b', 200), ('c', 100)]))
 
 
 if __name__ == '__main__':

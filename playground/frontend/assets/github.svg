@@ -1,0 +1,24 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+        d="M7.5 16.3334C3.91667 17.5 3.91667 14.25 2.5 13.8334M12.5 18V15.0834C12.5 14.25 12.5833 13.9167 12.0833 13.4167C14.4167 13.1667 16.6667 12.25 16.6667 8.41669C16.6657 7.42082 16.2771 6.46444 15.5833 5.75002C15.9087 4.88499 15.8788 3.92638 15.5 3.08335C15.5 3.08335 14.5833 2.83335 12.5833 4.16669C10.8894 3.72551 9.11063 3.72551 7.41667 4.16669C5.41667 2.83335 4.5 3.08335 4.5 3.08335C4.12123 3.92638 4.09128 4.88499 4.41667 5.75002C3.72288 6.46444 3.33435 7.42082 3.33333 8.41669C3.33333 12.25 5.58333 13.1667 7.91667 13.4167C7.41667 13.9167 7.41667 14.4167 7.5 15.0834V18"
+        stroke="#A0A4AB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="translate(0.5, -0.7) scale(1.2)" />
+</svg>

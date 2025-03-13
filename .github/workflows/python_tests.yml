@@ -1,0 +1,150 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Python tests
+
+on:
+  schedule:
+    - cron: '10 2 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: ['sdks/python/**', 'model/**']
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  cancel-in-progress: true
+
+jobs:
+
+  check_gcp_variables:
+    timeout-minutes: 5
+    name: "Check GCP variables"
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    outputs:
+      gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Check are GCP variables set"
+        run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
+        id: check_gcp_variables
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION }}
+          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+          GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
+          GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
+
+  build_python_sdk_source:
+    name: 'Build python source distribution'
+    if: |
+      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
+        ((github.event_name == 'push' || github.event_name == 'schedule') ||
+        github.event_name == 'workflow_dispatch')
+      )
+    needs:
+      - check_gcp_variables
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+      - name: Build source
+        working-directory: ./sdks/python
+        run: pip install -U build && python -m build --sdist
+      - name: Rename source file
+        working-directory: ./sdks/python/dist
+        run: mv $(ls | grep "apache-beam.*tar\.gz\|apache_beam.*tar\.gz") apache-beam-source.tar.gz
+      - name: Upload compressed sources as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python_sdk_source
+          path: sdks/python/dist/apache-beam-source.tar.gz
+
+  python_unit_tests:
+    name: 'Python Unit Tests'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        params: [
+          { "py_ver": "3.9", "tox_env": "py39" },
+          { "py_ver": "3.10", "tox_env": "py310" },
+          { "py_ver": "3.11", "tox_env": "py311" },
+          { "py_ver": "3.12", "tox_env": "py312" },
+        ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: ${{ matrix.params.py_ver }}
+      - name: Install tox
+        run: pip install tox
+      - name: Run tests basic linux
+        if: startsWith(matrix.os, 'ubuntu')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}
+      - name: Run tests basic macos
+        if: startsWith(matrix.os, 'macos')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-macos
+      - name: Run tests basic windows
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-win
+      - name: Upload test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
+          path: sdks/python/pytest**.xml
+
+  python_wordcount_direct_runner:
+    name: 'Python Wordcount Direct Runner'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
+        python: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install python
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install requirements
+        working-directory: ./sdks/python
+        run: pip install setuptools --upgrade && pip install -e .
+      - name: Run WordCount
+        working-directory: ./sdks/python
+        shell: bash
+        run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts

@@ -18,10 +18,11 @@
 package org.apache.beam.sdk.io.kafka;
 
 import java.util.Arrays;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.kafka.common.header.Headers;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,
@@ -35,7 +36,7 @@ public class KafkaRecord<K, V> {
   private final String topic;
   private final int partition;
   private final long offset;
-  private final Headers headers;
+  private final @Nullable Headers headers;
   private final KV<K, V> kv;
   private final long timestamp;
   private final KafkaTimestampType timestampType;
@@ -81,7 +82,8 @@ public class KafkaRecord<K, V> {
     return offset;
   }
 
-  public Headers getHeaders() {
+  @Pure
+  public @Nullable Headers getHeaders() {
     if (!ConsumerSpEL.hasHeaders()) {
       throw new RuntimeException(
           "The version kafka-clients does not support record headers, "
@@ -108,7 +110,7 @@ public class KafkaRecord<K, V> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof KafkaRecord) {
       @SuppressWarnings("unchecked")
       KafkaRecord<Object, Object> other = (KafkaRecord<Object, Object>) obj;

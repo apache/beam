@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.api.core.ApiFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListenableFuture;
 
 /** Adapts {@link ListenableFuture} from bigtable-client-core to vendored guava. */
 class VendoredListenableFutureAdapter<V> implements ListenableFuture<V> {
 
-  private final com.google.common.util.concurrent.ListenableFuture<V> underlying;
+  private final ApiFuture<Void> underlying;
 
-  VendoredListenableFutureAdapter(
-      com.google.common.util.concurrent.ListenableFuture<V> underlying) {
+  VendoredListenableFutureAdapter(ApiFuture<Void> underlying) {
     this.underlying = underlying;
   }
 
@@ -55,12 +55,12 @@ class VendoredListenableFutureAdapter<V> implements ListenableFuture<V> {
 
   @Override
   public V get() throws InterruptedException, ExecutionException {
-    return underlying.get();
+    return (V) underlying.get();
   }
 
   @Override
   public V get(long timeout, TimeUnit unit)
       throws InterruptedException, ExecutionException, TimeoutException {
-    return underlying.get(timeout, unit);
+    return (V) underlying.get(timeout, unit);
   }
 }

@@ -27,13 +27,16 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Visitor that zips schemas, and accepts pairs of fields and their types.
  *
  * <p>Values returned by `accept` are accumulated.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class SchemaZipFold<T> implements Serializable {
 
   public final T apply(Schema left, Schema right) {
@@ -82,6 +85,7 @@ public abstract class SchemaZipFold<T> implements Serializable {
 
     switch (left.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return zipFold.accumulate(
             zipFold.accept(context, left, right),
             visit(

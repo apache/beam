@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -78,7 +79,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
     // The global window is inclusive of max timestamp, while interval window excludes its
     // upper bound
-    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp().plus(1);
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
 
     // The end of the window is either start + size if that is within the allowable range, otherwise
     // the end of the global window. Truncating the window drives many other
@@ -132,7 +133,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (!(object instanceof FixedWindows)) {
       return false;
     }

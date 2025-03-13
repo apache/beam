@@ -55,6 +55,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for AvroByteReader. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class AvroByteReaderTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 

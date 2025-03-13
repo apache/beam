@@ -20,10 +20,9 @@ package org.apache.beam.sdk.io;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -95,10 +94,28 @@ public abstract class UnboundedSource<
   }
 
   /**
+   * If offsetBasedDeduplicationSupported returns true, then the UnboundedSource needs to provide
+   * the following:
+   *
+   * <ul>
+   *   <li>UnboundedReader which provides offsets that are unique for each element and
+   *       lexicographically ordered.
+   *   <li>CheckpointMark which provides an offset greater than all elements read and less than or
+   *       equal to the next offset that will be read.
+   * </ul>
+   */
+  public boolean offsetBasedDeduplicationSupported() {
+    return false;
+  }
+
+  /**
    * A marker representing the progress and state of an {@link
    * org.apache.beam.sdk.io.UnboundedSource.UnboundedReader}.
    *
    * <p>For example, this could be offsets in a set of files being read.
+   *
+   * <p>Note that: The implementations of this interface should be encodable (have an associated
+   * Coder).
    */
   public interface CheckpointMark {
     /**
@@ -137,6 +154,12 @@ public abstract class UnboundedSource<
         // nothing to do
       }
     }
+
+    /* Get offset limit for unbounded source split checkpoint. */
+    default byte[] getOffsetLimit() {
+      throw new RuntimeException(
+          "CheckpointMark must override getOffsetLimit() if offset-based deduplication is enabled for the UnboundedSource.");
+    }
   }
 
   /**
@@ -144,7 +167,6 @@ public abstract class UnboundedSource<
    *
    * <p>A given {@code UnboundedReader} object will only be accessed by a single thread at once.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class UnboundedReader<OutputT> extends Source.Reader<OutputT> {
     private static final byte[] EMPTY = new byte[0];
 
@@ -200,6 +222,12 @@ public abstract class UnboundedSource<
             "getCurrentRecordId() must be overridden if requiresDeduping returns true()");
       }
       return EMPTY;
+    }
+
+    /* Returns the offset for the current record of this unbounded reader. */
+    public byte[] getCurrentRecordOffset() {
+      throw new RuntimeException(
+          "UnboundedReader must override getCurrentRecordOffset() if offset-based deduplication is enabled for the UnboundedSource.");
     }
 
     /**

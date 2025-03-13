@@ -11,13 +11,14 @@
     { "name": "string", "type": ["string", "null"]},
     { "name": "bytes", "type": ["bytes", "null"]},
     { "name": "fixed", "type": {"type": "fixed", "size": 4, "name": "fixed4"} },
-    { "name": "timestampMillis", "type":
-      [ {"type": "long", "logicalType": "timestamp-millis"}, "null"]},
+    { "name": "date", "type": {"type": "int", "logicalType": "date"} },
+    { "name": "timestampMillis", "type": {"type": "long", "logicalType": "timestamp-millis"} },
+    { "name": "TestEnum", "type": {"name": "TestEnum", "type": "enum", "symbols": ["abc","cde"] } },
     { "name": "row", "type": ["null", {
      "type": "record",
      "name": "TestAvroNested",
       "fields": [
-        { "name": "bool_non_nullable", "type": "boolean"},
+        { "name": "BOOL_NON_NULLABLE", "type": "boolean"},
         { "name": "int", "type": ["int", "null"]}
          ]
        }]

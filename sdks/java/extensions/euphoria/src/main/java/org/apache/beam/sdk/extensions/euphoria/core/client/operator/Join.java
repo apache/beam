@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -44,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -68,6 +67,8 @@ import org.joda.time.Duration;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
@@ -77,6 +78,10 @@ import org.joda.time.Duration;
             + "complexity",
     state = StateComplexity.LINEAR,
     repartitions = 1)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class Join<LeftT, RightT, KeyT, OutputT>
     extends ShuffleOperator<Object, KeyT, KV<KeyT, OutputT>> {
 
@@ -163,10 +168,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
       extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, OutputT>>,
           OutputBuilder<KeyT, OutputT> {}
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
+  /** Last builder in a chain. It concludes this operators creation by calling {@link #output()}. */
   public interface OutputBuilder<KeyT, OutputT>
       extends Builders.Output<KV<KeyT, OutputT>>, Builders.OutputValues<KeyT, OutputT> {}
 
@@ -183,15 +185,15 @@ public class Join<LeftT, RightT, KeyT, OutputT>
 
     private final WindowBuilder<Object> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private final Type type;
     private PCollection<LeftT> left;
     private PCollection<RightT> right;
     private UnaryFunction<LeftT, KeyT> leftKeyExtractor;
     private UnaryFunction<RightT, KeyT> rightKeyExtractor;
-    @Nullable private TypeDescriptor<KeyT> keyType;
+    private @Nullable TypeDescriptor<KeyT> keyType;
     private BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
-    @Nullable private TypeDescriptor<OutputT> outputType;
+    private @Nullable TypeDescriptor<OutputT> outputType;
 
     Builder(@Nullable String name, Type type) {
       this.name = name;
@@ -278,7 +280,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
 
     @Override
-    public PCollection<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+    public PCollection<KV<KeyT, OutputT>> output() {
       @SuppressWarnings("unchecked")
       final PCollectionList<Object> inputs =
           PCollectionList.of(Arrays.asList((PCollection) left, (PCollection) right));
@@ -286,7 +288,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
 
     @Override
-    public PCollection<OutputT> outputValues(OutputHint... outputHints) {
+    public PCollection<OutputT> outputValues() {
       @SuppressWarnings("unchecked")
       final PCollectionList<Object> inputs =
           PCollectionList.of(Arrays.asList((PCollection) left, (PCollection) right));

@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.state;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** A specification for a {@link Timer}. This includes its {@link TimeDomain}. */
-@Experimental(Kind.TIMERS)
 public interface TimerSpec extends Serializable {
   TimeDomain getTimeDomain();
 }

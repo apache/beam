@@ -27,10 +27,14 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  *
  * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapper
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class DefaultObjectMapperFactory<T> implements SerializableFunction<Session, Mapper> {
 
   private transient MappingManager mappingManager;
-  Class<T> entity;
+  final Class<T> entity;
 
   DefaultObjectMapperFactory(Class<T> entity) {
     this.entity = entity;

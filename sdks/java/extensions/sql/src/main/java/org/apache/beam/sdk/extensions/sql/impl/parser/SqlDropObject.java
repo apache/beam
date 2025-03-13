@@ -17,27 +17,26 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.sql.SqlDrop;
-import org.apache.calcite.sql.SqlExecutableStatement;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDrop;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Base class for parse trees of {@code DROP TABLE}, {@code DROP VIEW} and {@code DROP MATERIALIZED
  * VIEW} statements.
  */
-abstract class SqlDropObject extends SqlDrop implements SqlExecutableStatement {
+abstract class SqlDropObject extends SqlDrop implements BeamSqlParser.ExecutableStatement {
   protected final SqlIdentifier name;
 
   /** Creates a SqlDropObject. */
@@ -66,6 +65,9 @@ abstract class SqlDropObject extends SqlDrop implements SqlExecutableStatement {
     CalciteSchema schema = context.getRootSchema();
     for (String p : path) {
       schema = schema.getSubSchema(p, true);
+      if (schema == null) {
+        throw new AssertionError(String.format("Got null sub-schema for path '%s' in %s", p, path));
+      }
     }
     final boolean existed;
     switch (getKind()) {

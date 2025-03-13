@@ -24,7 +24,6 @@ import org.junit.rules.ExternalResource;
 public class RestoreDataflowLoggingMDC extends ExternalResource {
   private String previousJobId;
   private String previousStageName;
-  private String previousStepName;
   private String previousWorkerId;
   private String previousWorkId;
 

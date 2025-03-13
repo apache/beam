@@ -20,11 +20,10 @@ package org.apache.beam.sdk.io;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Instant;
 
 /**
@@ -50,7 +49,6 @@ import org.joda.time.Instant;
  *
  * @param <T> Type of elements read by the source.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * Checks that this source is valid, before it can be used in a pipeline.

@@ -20,9 +20,14 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** Function taking three arguments. */
+/**
+ * Function taking three arguments.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface TernaryFunction<FirstT, SecondT, ThirdT, OutputT> extends Serializable {
 
   OutputT apply(FirstT first, SecondT second, ThirdT third);

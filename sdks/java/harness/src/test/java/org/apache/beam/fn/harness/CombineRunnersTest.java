@@ -18,37 +18,33 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Deque;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.ModelCoders;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -122,56 +118,41 @@ public class CombineRunnersTest {
    */
   @Test
   public void testPrecombine() throws Exception {
-    // Create a map of consumers and an output target to check output values.
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(TEST_COMBINE_ID, pTransform)
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(pProto.getComponents().getPcollectionsMap())
+                    .putAllCoders(pProto.getComponents().getCodersMap())
+                    .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                    .build())
+            .build();
+    // Add a consumer and output target to check output values.
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.register(
+    context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
-
     // Create runner.
-    new CombineRunners.PrecombineFactory<>()
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            null,
-            null,
-            TEST_COMBINE_ID,
-            pTransform,
-            null,
-            pProto.getComponents().getPcollectionsMap(),
-            pProto.getComponents().getCodersMap(),
-            pProto.getComponents().getWindowingStrategiesMap(),
-            consumers,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            null);
+    new CombineRunners.PrecombineFactory<>().createRunnerForPTransform(context);
 
-    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+    Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+    assertThat(
+        context.getPCollectionConsumers().keySet(),
+        containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", "1")));
     input.accept(valueInGlobalWindow(KV.of("A", "2")));
     input.accept(valueInGlobalWindow(KV.of("A", "6")));
     input.accept(valueInGlobalWindow(KV.of("B", "2")));
     input.accept(valueInGlobalWindow(KV.of("C", "3")));
 
-    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
 
     // Check that all values for "A" were converted to accumulators regardless of how they were
     // combined by the Precombine optimization.
@@ -196,50 +177,60 @@ public class CombineRunnersTest {
    */
   @Test
   public void testMergeAccumulators() throws Exception {
-    // Create a map of consumers and an output target to check output values.
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    // Create coder map for size estimation
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName(inputPCollectionId)
+            .setCoderId("coder-id")
+            .build();
+    Map<String, RunnerApi.PCollection> pCollectionMap =
+        new HashMap<>(pProto.getComponents().getPcollectionsMap());
+    pCollectionMap.put(inputPCollectionId, pCollection);
+    Map<String, RunnerApi.Coder> coderMap = new HashMap<>(pProto.getComponents().getCodersMap());
+    coderMap.put(
+        "coder-id",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .addComponentCoderIds("coder-id-iterable")
+            .build());
+    coderMap.put(
+        "coder-id-iterable",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(
+                RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.ITERABLE_CODER_URN).build())
+            .addComponentCoderIds("BigEndianIntegerCoder")
+            .build());
+
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(TEST_COMBINE_ID, pTransform)
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(pCollectionMap)
+                    .putAllCoders(coderMap)
+                    .build())
+            .build();
+    // Add a consumer and output target to check output values.
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.register(
+    context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
-
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            null,
-            null,
-            TEST_COMBINE_ID,
-            pTransform,
-            null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            consumers,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            null);
+        .createRunnerForPTransform(context);
 
-    assertThat(startFunctionRegistry.getFunctions(), empty());
-    assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(context.getStartBundleFunctions(), empty());
+    assertThat(context.getFinishBundleFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+    assertThat(
+        context.getPCollectionConsumers().keySet(),
+        containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList(1, 2, 6))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList(2, 3))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList(5, 2))));
@@ -258,50 +249,52 @@ public class CombineRunnersTest {
    */
   @Test
   public void testExtractOutputs() throws Exception {
-    // Create a map of consumers and an output target to check output values.
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    // Create coder map for size estimation
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName(inputPCollectionId)
+            .setCoderId("coder-id")
+            .build();
+    Map<String, RunnerApi.PCollection> pCollectionMap =
+        new HashMap<>(pProto.getComponents().getPcollectionsMap());
+    pCollectionMap.put(inputPCollectionId, pCollection);
+    Map<String, RunnerApi.Coder> coderMap = new HashMap<>(pProto.getComponents().getCodersMap());
+    coderMap.put(
+        "coder-id",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .addComponentCoderIds("BigEndianIntegerCoder")
+            .build());
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(TEST_COMBINE_ID, pTransform)
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(pCollectionMap)
+                    .putAllCoders(coderMap)
+                    .build())
+            .build();
+    // Add a consumer and output target to check output values.
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.register(
+    context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
-
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            null,
-            null,
-            TEST_COMBINE_ID,
-            pTransform,
-            null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            consumers,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            null);
+        .createRunnerForPTransform(context);
 
-    assertThat(startFunctionRegistry.getFunctions(), empty());
-    assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(context.getStartBundleFunctions(), empty());
+    assertThat(context.getFinishBundleFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+    assertThat(
+        context.getPCollectionConsumers().keySet(),
+        containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", 9)));
     input.accept(valueInGlobalWindow(KV.of("B", 5)));
     input.accept(valueInGlobalWindow(KV.of("C", 7)));
@@ -315,55 +308,110 @@ public class CombineRunnersTest {
   }
 
   /**
+   * Create a Convert To Accumulators function that is given keyed accumulators and validates that
+   * the input values were turned into the accumulator type.
+   */
+  @Test
+  public void testConvertToAccumulators() throws Exception {
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(TEST_COMBINE_ID, pTransform)
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(pProto.getComponents().getPcollectionsMap())
+                    .putAllCoders(pProto.getComponents().getCodersMap())
+                    .build())
+            .build();
+    // Add a consumer and output target to check output values.
+    Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
+    context.addPCollectionConsumer(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
+
+    // Create runner.
+    MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction)
+        .createRunnerForPTransform(context);
+
+    assertThat(context.getStartBundleFunctions(), empty());
+    assertThat(context.getFinishBundleFunctions(), empty());
+
+    // Send elements to runner and check outputs.
+    mainOutputValues.clear();
+    assertThat(
+        context.getPCollectionConsumers().keySet(),
+        containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+
+    FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer(inputPCollectionId);
+    input.accept(valueInGlobalWindow(KV.of("A", "9")));
+    input.accept(valueInGlobalWindow(KV.of("B", "5")));
+    input.accept(valueInGlobalWindow(KV.of("C", "7")));
+
+    assertThat(
+        mainOutputValues,
+        contains(
+            valueInGlobalWindow(KV.of("A", 9)),
+            valueInGlobalWindow(KV.of("B", 5)),
+            valueInGlobalWindow(KV.of("C", 7))));
+  }
+  /**
    * Create a Combine Grouped Values function that is given lists of values that are grouped by key
    * and validates that the lists are properly combined.
    */
   @Test
   public void testCombineGroupedValues() throws Exception {
-    // Create a map of consumers and an output target to check output values.
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    // Create coder map for size estimation
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName(inputPCollectionId)
+            .setCoderId("coder-id")
+            .build();
+    Map<String, RunnerApi.PCollection> pCollectionMap =
+        new HashMap<>(pProto.getComponents().getPcollectionsMap());
+    pCollectionMap.put(inputPCollectionId, pCollection);
+    Map<String, RunnerApi.Coder> coderMap = new HashMap<>(pProto.getComponents().getCodersMap());
+    coderMap.put(
+        "coder-id",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .addComponentCoderIds("coder-id-iterable")
+            .build());
+    coderMap.put(
+        "coder-id-iterable",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(
+                RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.ITERABLE_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .build());
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(TEST_COMBINE_ID, pTransform)
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(pCollectionMap)
+                    .putAllCoders(coderMap)
+                    .build())
+            .build();
+    // Add a consumer and output target to check output values.
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.register(
+    context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
-
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            null,
-            null,
-            TEST_COMBINE_ID,
-            pTransform,
-            null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            consumers,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            null);
+        .createRunnerForPTransform(context);
 
-    assertThat(startFunctionRegistry.getFunctions(), empty());
-    assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(context.getStartBundleFunctions(), empty());
+    assertThat(context.getFinishBundleFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+    assertThat(
+        context.getPCollectionConsumers().keySet(),
+        containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList("1", "2", "6"))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList("2", "3"))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList("5", "2"))));

@@ -19,9 +19,12 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for handling filepatterns. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Filepatterns {
   private static final Pattern AT_N_SPEC = Pattern.compile("@(?<N>\\d+)");
 

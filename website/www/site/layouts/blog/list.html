@@ -1,0 +1,123 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+
+{{ define "main" }}
+<div class="blog-content">
+    <h2>{{ T "blog-title" }}</h2>
+    {{ $data := index $.Site.Data.authors }}
+    {{ $pages := .Pages }}
+    {{ $.Scratch.Set "categories" (slice ) }}
+    {{ $.Scratch.Set "noCategories" 0 }}
+
+    {{ range .Pages}}
+        {{ with .Params.categories }}
+            {{ if eq ( printf "%T" . ) "string"  }}
+            {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
+                {{ $.Scratch.Add "categories" . }}
+            {{ end }}
+            {{ else if eq ( printf "%T" . ) "[]string" }}
+            {{ range . }}
+                {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
+                {{ $.Scratch.Add "categories" . }}
+                {{ end }}
+            {{ end }}
+            {{ end }}
+        {{ else }}
+            {{ $.Scratch.Add "noCategories" 1 }}
+        {{ end }}
+    {{ end }}
+
+    <div class="category-buttons restricted">
+      {{ range $.Scratch.Get "categories" }}
+        <button xx class="category-button" id='category-{{ . | replaceRE "[.]" "_" | urlize }}' onclick="applyFilter(this)">
+          {{ . }}
+        </button>
+      {{ end }}
+      {{ if gt ( $.Scratch.Get "noCategories") 0 }}
+      <button xx class="category-button" id="category-no-author" onclick='htf.checkFilter("no-author", "category-")'>
+        without category
+      </button>
+      {{ end }}
+    </div>
+
+    <div class="posts-list">
+        {{ range $pages.ByPublishDate.Reverse }}
+            <a class="post-card tf-filter-item" href="{{ .RelPermalink }}" data-categories='{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}'
+            >
+                <div class="post-info post-category">
+                    <p>
+                    {{ delimit .Params.categories ", " " & " }}
+                    </p>
+                    <p>{{ .Date.Format "2006/01/02" }}</p>
+                </div>
+                <p class="post-title">{{ .Title }}</p>
+                <p class="post-info">
+                  {{ $authors := .Params.authors }}
+                  {{ with $authors }}
+                  {{ range $i, $item := $authors }}
+                    {{ if not (isset $.Site.Data.authors $item) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $item }} {{end}}
+                      {{ $author := index $data $item }}
+                      {{ if eq $i (sub (len $authors) 1) }}
+                        {{ $author.name }}
+                      {{ else if eq $i (sub (len $authors) 2) }}
+                        {{ $author.name }} &amp;
+                      {{ else }}
+                        {{ $author.name }},
+                      {{ end }}
+                    {{ end }}
+                  {{ end }}
+                </p>
+                <div class="post-summary">{{ .Summary | plainify | chomp }}</div>
+            </a>
+        {{ end }}
+    </div>
+    <div class="category-buttons">
+        <button id="load-button" class="load-button">{{ T "blog-loadmore" }}</button>
+    </div>
+
+</div>
+{{ $categoriesFilter := resources.Get "js/categories-filter.js" | minify| fingerprint }}
+<script src="{{ $categoriesFilter.RelPermalink }}"></script>
+<script>
+var htfConfig = {
+  filters: [
+    {
+      name: 'categories',
+      prefix: 'category-',
+      buttonClass: 'category-button',
+      allSelector: '#selectAllAuthors',
+      attrName: 'data-categories',
+    }
+  ],
+  showItemClass: "show-item",
+  filterItemClass: "tf-filter-item",
+  activeButtonClass: "active",
+  populateCount: true,
+  setDisabledButtonClass: "disable-button"
+}
+var htf = new CategoriesFilter(htfConfig);
+$("#load-button").click(function(){
+    $(this).toggleClass('tf-filter-item');
+    htf.showMore();
+    htf.showCheck(htfConfig.filters[0].name, false);
+});
+
+function applyFilter (element) {
+  var category = element.id.split('category-');
+  htf.resetCount();
+  htf.checkFilter(category[1],'category-');
+}
+
+</script>
+
+{{ end }}

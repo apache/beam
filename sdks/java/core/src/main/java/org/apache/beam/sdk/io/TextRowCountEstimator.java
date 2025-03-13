@@ -18,16 +18,20 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This returns a row count estimation for files associated with a file pattern. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class TextRowCountEstimator {
   private static final long DEFAULT_NUM_BYTES_PER_FILE = 64 * 1024L;
   private static final Compression DEFAULT_COMPRESSION = Compression.AUTO;
@@ -39,9 +43,10 @@ public abstract class TextRowCountEstimator {
 
   public abstract long getNumSampledBytesPerFile();
 
-  @Nullable
   @SuppressWarnings("mutable")
-  public abstract byte[] getDelimiters();
+  public abstract byte @Nullable [] getDelimiters();
+
+  public abstract int getSkipHeaderLines();
 
   public abstract String getFilePattern();
 
@@ -54,12 +59,13 @@ public abstract class TextRowCountEstimator {
   public abstract FileIO.ReadMatches.DirectoryTreatment getDirectoryTreatment();
 
   public static TextRowCountEstimator.Builder builder() {
-    return (new AutoValue_TextRowCountEstimator.Builder())
+    return new AutoValue_TextRowCountEstimator.Builder()
         .setSamplingStrategy(DEFAULT_SAMPLING_STRATEGY)
         .setNumSampledBytesPerFile(DEFAULT_NUM_BYTES_PER_FILE)
         .setCompression(DEFAULT_COMPRESSION)
         .setDirectoryTreatment(DEFAULT_DIRECTORY_TREATMENT)
-        .setEmptyMatchTreatment(DEFAULT_EMPTY_MATCH_TREATMENT);
+        .setEmptyMatchTreatment(DEFAULT_EMPTY_MATCH_TREATMENT)
+        .setSkipHeaderLines(0);
   }
 
   /**
@@ -69,10 +75,13 @@ public abstract class TextRowCountEstimator {
    * has not sampled all the lines (due to sampling strategy) it throws Exception.
    *
    * @return Number of estimated rows.
-   * @throws org.apache.beam.sdk.io.TextRowCountEstimator.NoEstimationException if all the sampled
-   *     lines are empty and we have not read all the lines in the matched files.
+   * @throws NoEstimationException if all the sampled lines are empty and we have not read all the
+   *     lines in the matched files.
    */
-  public Long estimateRowCount(PipelineOptions pipelineOptions)
+  @SuppressFBWarnings(
+      value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
+      justification = "https://github.com/spotbugs/spotbugs/issues/756")
+  public Double estimateRowCount(PipelineOptions pipelineOptions)
       throws IOException, NoEstimationException {
     long linesSize = 0;
     int numberOfReadLines = 0;
@@ -108,7 +117,8 @@ public abstract class TextRowCountEstimator {
           new TextSource(
               ValueProvider.StaticValueProvider.of(file.getMetadata().resourceId().toString()),
               getEmptyMatchTreatment(),
-              getDelimiters());
+              getDelimiters(),
+              getSkipHeaderLines());
       FileBasedSource<String> source =
           CompressedSource.from(textSource).withCompression(file.getCompression());
       try (BoundedSource.BoundedReader<String> reader =
@@ -129,7 +139,7 @@ public abstract class TextRowCountEstimator {
     }
 
     if (numberOfReadLines == 0 && sampledEverything) {
-      return 0L;
+      return 0d;
     }
 
     if (numberOfReadLines == 0) {
@@ -138,7 +148,7 @@ public abstract class TextRowCountEstimator {
     }
 
     // This is total file sizes divided by average line size.
-    return totalFileSizes * numberOfReadLines / linesSize;
+    return (double) totalFileSizes * numberOfReadLines / linesSize;
   }
 
   /** Builder for {@link org.apache.beam.sdk.io.TextRowCountEstimator}. */
@@ -152,7 +162,9 @@ public abstract class TextRowCountEstimator {
 
     public abstract Builder setCompression(Compression compression);
 
-    public abstract Builder setDelimiters(byte[] delimiters);
+    public abstract Builder setDelimiters(byte @Nullable [] delimiters);
+
+    public abstract Builder setSkipHeaderLines(int skipHeaderLines);
 
     public abstract Builder setFilePattern(String filePattern);
 

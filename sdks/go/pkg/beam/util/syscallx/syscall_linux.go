@@ -13,16 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build linux
 // +build linux
 
 package syscallx
 
-import "syscall"
+import "golang.org/x/sys/unix"
 
 // PhysicalMemorySize returns the total physical memory size.
 func PhysicalMemorySize() (uint64, error) {
-	var info syscall.Sysinfo_t
-	if err := syscall.Sysinfo(&info); err != nil {
+	var info unix.Sysinfo_t
+	if err := unix.Sysinfo(&info); err != nil {
 		return 0, err
 	}
 	return info.Totalram, nil
@@ -30,9 +31,25 @@ func PhysicalMemorySize() (uint64, error) {
 
 // FreeDiskSpace returns the free disk space for a given path.
 func FreeDiskSpace(path string) (uint64, error) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
+	var stat unix.Statfs_t
+	if err := unix.Statfs(path, &stat); err != nil {
 		return 0, err
 	}
 	return stat.Bavail * uint64(stat.Bsize), nil
+}
+
+// SetProcessMemoryCeiling sets current and max process memory limit.
+func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
+	var rLimit unix.Rlimit
+
+	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit)
+
+	if err != nil {
+		return err
+	}
+
+	rLimit.Max = hardCeiling
+	rLimit.Cur = softCeiling
+
+	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
 }

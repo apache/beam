@@ -1,0 +1,461 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+evaluationDependsOn(':sdks:python:test-suites:xlang')
+
+def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
+def pythonContainerVersion = project.ext.pythonVersion
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--capture=no",  // print stdout instantly
+    "--numprocesses=8",  // run tests in parallel
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
+    "--log-cli-level=INFO" //log level info
+]
+
+tasks.register("postCommitIT") {
+  dependsOn 'installGcpTest'
+
+  // Run IT tests with TestDirectRunner in batch in Python 3.
+  doLast {
+    def batchTests = [
+        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
+        "apache_beam/io/gcp/big_query_query_to_table_it_test.py::BigQueryQueryToTableIT",
+        "apache_beam/io/gcp/bigquery_io_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_write_it_test.py",
+        "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+    ]
+    def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+                  ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
+tasks.register("spannerioIT") {
+  dependsOn 'installGcpTest'
+
+  // Run Spanner IO IT tests with TestDirectRunner in batch in Python 3.
+  doLast {
+    def batchTests = [
+        "apache_beam/io/gcp/experimental/spannerio_read_it_test.py",
+        "apache_beam/io/gcp/experimental/spannerio_write_it_test.py",
+    ]
+    def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+                  ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
+tasks.register("examples") {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    def testOpts = ["--log-cli-level=INFO"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitExamples-direct-py${pythonVersionSuffix}",
+                  "collect": "examples_postcommit and not sickbay_direct"
+    ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
+
+tasks.register("mongodbioIT") {
+  dependsOn 'setupVirtualenv'
+
+  Random r = new Random()
+  def port = r.nextInt(1000) + 27017
+  def containerName = "mongoioit" + port
+
+  def options = [
+          "--mongo_uri=mongodb://localhost:" + port
+  ]
+
+  // Pull the latest mongodb docker image and run
+  doFirst {
+    exec {
+      executable 'sh'
+      // TODO(https://github.com/apache/beam/issues/25359) switch back to use latest container when issue resolved.
+      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:6.0.3"
+    }
+  }
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -e ${rootDir}/sdks/python/[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
+    }
+    exec {
+      executable 'sh'
+      args '-c', "docker stop ${containerName} && docker rm ${containerName}"
+    }
+  }
+}
+
+tasks.register("directRunnerIT") {
+  dependsOn 'installGcpTest'
+
+  // Run IT tests with TestDirectRunner in batch.
+  doLast {
+    def tests = [
+        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
+        "apache_beam/io/gcp/big_query_query_to_table_it_test.py::BigQueryQueryToTableIT",
+        "apache_beam/io/gcp/bigquery_io_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_write_it_test.py",
+        "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+    ]
+    def batchTestOpts = basicTestOpts + ["${tests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": batchTestOpts,
+                  "suite": "directRunnerIT-batch",
+                  ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+
+  // Run IT tests with TestDirectRunner in streaming.
+  doLast {
+    def tests = [
+        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
+        "apache_beam/io/gcp/bigquery_test.py::BigQueryStreamingInsertTransformIntegrationTests::test_multiple_destinations_transform",
+        "apache_beam/io/gcp/bigquery_test.py::PubSubBigQueryIT",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_dynamic_destinations",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_copy_jobs",
+    ]
+    def streamingTestOpts = basicTestOpts + ["${tests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "streaming": "true",
+                  "test_opts": streamingTestOpts,
+                  "suite": "directRunnerIT-streaming",
+                ]
+    def streamingCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $streamingCmdArgs"
+    }
+  }
+}
+
+tasks.register("hdfsIntegrationTest") {
+  // needs generated srcs in sdks/python
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:${pythonContainerVersion}"
+    }
+  }
+}
+
+tasks.register("azureIntegrationTest") {
+  // needs generated srcs in sdks/python
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/azure/integration_test/azure_integration_test.sh python:${pythonContainerVersion}-bookworm"
+    }
+  }
+}
+
+// Pytorch RunInference IT tests
+task torchInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/torch_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_pytorch and it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && export FORCE_TORCH_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+
+}
+
+// Scikit-learn RunInference IT tests
+task sklearnInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  // TODO(https://github.com/apache/beam/issues/24787)
+  // Scikit learn tests fails from version 1.2.0
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install 'scikit-learn<1.2.0'"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_sklearn and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// TensorFlow Extended (TFX) RunInference IT tests
+task tfxInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/examples/inference/tfx_bsl/requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tensorflow and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// TensorFlow RunInference IT tests
+task tensorflowInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/tensorflow_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tf and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// XGBoost RunInference IT tests
+task xgboostInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/xgboost_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_xgboost and it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && export FORCE_XGBOOST_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+
+}
+
+// Transformers RunInference IT tests
+task transformersInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/huggingface_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_transformers and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// Integration tests that use testcontainers
+task testcontainersTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_testcontainer",
+          "runner": "TestDirectRunner",
+          "region": "us-central1",
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// Integration tests that uses feast
+task feastIntegrationTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/transforms/enrichment_handlers/feast_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_feast",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
+project.tasks.register("inferencePostCommitIT") {
+  dependsOn = [
+  'torchInferenceTest',
+  'sklearnInferenceTest',
+  'tensorflowInferenceTest',
+  'xgboostInferenceTest',
+  'transformersInferenceTest',
+  'testcontainersTest',
+  'feastIntegrationTest',
+  // (TODO) https://github.com/apache/beam/issues/25799
+   // uncomment tfx bsl tests once tfx supports protobuf 4.x
+  // 'tfxInferenceTest',
+  ]
+}
+
+// Create cross-language tasks for running tests against Java expansion service(s)
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+
+project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
+    createCrossLanguageUsingJavaExpansionTask(
+      name: taskMetadata.name,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
+      collectMarker: taskMetadata.collectMarker,
+      numParallelTests: 1,
+      pythonPipelineOptions: [
+        "--runner=TestDirectRunner",
+        "--project=${gcpProject}",
+        "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+      ],
+      pytestOptions: [
+        "--capture=no",  // print stdout instantly
+        "--timeout=4500", // timeout of whole command execution
+        "--color=yes", // console color
+        "--log-cli-level=INFO" //log level info
+      ],
+      additionalDeps: taskMetadata.additionalDeps,
+      additionalEnvs: taskMetadata.additionalEnvs
+    )
+}

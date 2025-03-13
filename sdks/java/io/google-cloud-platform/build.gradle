@@ -20,73 +20,178 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
+  classesTriggerCheckerBugs: [
+    'PubSubPayloadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:extensions:protobuf")
-  compile library.java.guava
-  compile library.java.jackson_databind
-  compile library.java.grpc_core
-  compile library.java.google_api_services_bigquery
-  compile library.java.gax_grpc
-  compile library.java.google_cloud_core_grpc
-  compile library.java.google_api_services_pubsub
-  compile library.java.grpc_google_cloud_pubsub_v1
-  compile library.java.proto_google_cloud_pubsub_v1
-  compile library.java.bigdataoss_util
-  compile library.java.datastore_v1_proto_client
-  compile library.java.datastore_v1_protos
-  compile library.java.grpc_auth
-  compile library.java.grpc_netty
-  compile library.java.netty_handler
-  compile library.java.grpc_stub
-  compile library.java.joda_time
-  compile library.java.google_cloud_bigquery_storage
-  compile library.java.google_cloud_bigquery_storage_proto
-  compile library.java.google_cloud_core
-  compile library.java.google_cloud_spanner
-  compile library.java.bigtable_protos
-  compile library.java.bigtable_client_core
-  compile library.java.google_api_client
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.slf4j_api
-  compile library.java.protobuf_java
-  compile library.java.avro
-  compile library.java.proto_google_cloud_spanner_admin_database_v1
-  compile library.java.proto_google_common_protos
-  compile library.java.grpc_all
-  compile library.java.netty_tcnative_boringssl_static
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testCompile library.java.powermock
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":runners:core-java")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:harness")
+  implementation project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:extensions:avro")
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:protobuf")
+  implementation project(":sdks:java:extensions:arrow")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.error_prone_annotations
+  implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  permitUnusedDeclared library.java.flogger_system_backend // BEAM-11010
+  implementation library.java.gax
+  implementation(library.java.gax_grpc) {
+    // BEAM-13781: gax-grpc's gRPC version was older than Beam declared
+    exclude group: 'io.grpc', module: 'grpc-netty-shaded'
+  }
+  implementation library.java.gax_grpc_test
+  implementation library.java.gax_httpjson
+  permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
+  implementation library.java.google_api_client
+  implementation library.java.google_api_common
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.google_api_services_healthcare
+  implementation library.java.google_api_services_pubsub
+  implementation library.java.google_api_services_storage
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_cloud_bigquery_storage
+  implementation(library.java.google_cloud_bigtable_client_core_config)
+  // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
+  // Java7 compatibility. The old google-cloud-bigtable is not compatible with
+  // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
+  // users receive newer google-cloud-bigtable. Beam doesn't directly use this
+  // artifact.
+  implementation library.java.google_cloud_bigtable
+  implementation library.java.google_cloud_core
+  implementation(library.java.google_cloud_core_grpc) {
+    exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
+  }
+  permitUnusedDeclared library.java.google_cloud_core_grpc // BEAM-11761
+  implementation library.java.google_cloud_datastore_v1_proto_client
+  implementation library.java.google_cloud_firestore
+  implementation library.java.google_cloud_pubsublite
+  // GCP PubSub client is used in TestPubSub
+  implementation library.java.google_cloud_pubsub
+  implementation library.java.google_cloud_spanner
+  implementation library.java.google_code_gson
+  implementation library.java.google_http_client
+  implementation library.java.google_http_client_gson
+  // bigdataoss_util declares old google_oauth_client version that does not have
+  // IdTokenVerifier.verifyPayload method. Let's declare the newer one.
+  implementation library.java.google_oauth_client
+  permitUnusedDeclared library.java.google_oauth_client
+  implementation library.java.grpc_alts
+  permitUnusedDeclared library.java.grpc_alts // BEAM-11761
+  implementation library.java.grpc_api
+  implementation library.java.grpc_auth
+  implementation library.java.grpc_core
+  implementation library.java.grpc_census
+  permitUnusedDeclared library.java.grpc_census // BEAM-11761
+  implementation library.java.grpc_context
+  permitUnusedDeclared library.java.grpc_context // BEAM-11761
+  implementation library.java.grpc_grpclb
+  permitUnusedDeclared library.java.grpc_grpclb // BEAM-11761
+  implementation library.java.grpc_netty
+  implementation library.java.grpc_netty_shaded
+  permitUnusedDeclared library.java.grpc_netty_shaded // BEAM-11761
+  implementation library.java.grpc_protobuf
+  implementation library.java.grpc_stub
+  permitUnusedDeclared library.java.grpc_stub // BEAM-11761
+  implementation library.java.grpc_xds
+  permitUnusedDeclared library.java.grpc_xds // BEAM-11761
+  implementation library.java.grpc_google_cloud_pubsub_v1
+  implementation library.java.grpc_google_cloud_pubsublite_v1
+  permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
+  implementation library.java.guava
+  implementation library.java.http_client
+  implementation library.java.hamcrest
+  implementation library.java.http_core
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.jackson_datatype_joda
+  implementation library.java.jackson_datatype_jsr310
+  implementation library.java.joda_time
+  provided library.java.junit
+  implementation library.java.netty_handler
+  implementation library.java.netty_tcnative_boringssl_static
+  permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
+  implementation library.java.proto_google_cloud_bigquery_storage_v1
+  implementation library.java.proto_google_cloud_bigtable_v2
+  implementation library.java.proto_google_cloud_datastore_v1
+  implementation library.java.proto_google_cloud_firestore_v1
+  implementation library.java.proto_google_cloud_pubsub_v1
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  implementation library.java.proto_google_cloud_spanner_admin_database_v1
+  implementation library.java.proto_google_cloud_spanner_v1
+  implementation library.java.proto_google_common_protos
+  implementation library.java.protobuf_java
+  implementation library.java.protobuf_java_util
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_69_0
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.arrow_memory_core
+  implementation library.java.arrow_vector
+
+  implementation 'com.google.http-client:google-http-client-gson:1.41.2'
+  implementation "org.threeten:threetenbp:1.4.4"
+
+  testImplementation library.java.arrow_memory_netty
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(":sdks:java:managed")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
+  testImplementation library.java.commons_math3
+  testImplementation library.java.google_cloud_bigquery
+  testImplementation library.java.mockito_core
+  testRuntimeOnly library.java.mockito_inline
+  testImplementation library.java.joda_time
+  testImplementation library.java.google_cloud_spanner_test
+  testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
+  // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
+}
+
+// Don't pull in newer versions of the checker framework from dependencies.
+// TODO(BEAM-11125) Remove this when Beam upgrades to newest checker framework version.
+configurations.implementation {
+  resolutionStrategy {
+    force library.java.checker_qual
+  }
 }
 
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
  */
-task integrationTest(type: Test) {
+task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
+  def firestoreHost = project.findProperty('firestoreHost') ?: 'batch-firestore.googleapis.com:443'
+  def bigtableChangeStreamInstanceId = project.findProperty('bigtableChangeStreamInstanceId') ?: 'beam-test'
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
+          "--tempLocation=${gcpTempRoot}",
+          "--firestoreDb=${firestoreDb}",
+          "--firestoreHost=${firestoreHost}",
+          "--bigtableChangeStreamInstanceId=${bigtableChangeStreamInstanceId}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
@@ -96,13 +201,19 @@ task integrationTest(type: Test) {
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
-  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
+
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
+
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // https://github.com/apache/beam/issues/32071
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableSegmentRead'
+    }
   }
 }
 
@@ -111,11 +222,15 @@ task integrationTestKms(type: Test) {
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
   def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+  def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
+  def firestoreHost = project.findProperty('firestoreHost') ?: 'batch-firestore.googleapis.com:443'
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
           "--dataflowKmsKey=${dataflowKmsKey}",
+          "--firestoreDb=${firestoreDb}",
+          "--firestoreHost=${firestoreHost}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
@@ -129,6 +244,105 @@ task integrationTestKms(type: Test) {
     includeCategories "org.apache.beam.sdk.testing.UsesKms"
   }
 }
+
+/*
+  Integration tests for BigQueryIO that run on BigQuery's early rollout region (us-east7)
+  with the intended purpose of catching breaking changes from new BigQuery releases.
+  If these tests fail here but not in `Java_GCP_IO_Direct`, there may be a new BigQuery change
+  that is breaking the connector. If this is the case, we should verify with the appropriate
+  BigQuery infrastructure API team.
+
+  To test in a BigQuery location, we just need to create our datasets in that location.
+ */
+task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?:  'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-bigquery-day0-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--bigQueryLocation=us-east7",
+  ])
+
+  outputs.upToDateWhen { false }
+
+  // export and direct read
+  include '**/BigQueryToTableIT.class'
+  include '**/BigQueryIOJsonIT.class'
+  include '**/BigQueryIOStorageReadTableRowIT.class'
+  // storage write api
+  include '**/StorageApiDirectWriteProtosIT.class'
+  include '**/StorageApiSinkFailedRowsIT.class'
+  include '**/StorageApiSinkRowUpdateIT.class'
+  include '**/StorageApiSinkSchemaUpdateIT.class'
+  include '**/TableRowToStorageApiProtoIT.class'
+  // file loads
+  include '**/BigQuerySchemaUpdateOptionsIT.class'
+  include '**/BigQueryTimePartitioningClusteringIT.class'
+  include '**/FileLoadsStreamingIT.class'
+
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+// path(s) for Cloud Spanner related classes
+def spannerIncludes = [
+        '**/org/apache/beam/sdk/io/gcp/spanner/**',
+]
+
+// exclude auto-generated classes and integration tests
+def jacocoExcludes = [
+        '**/AutoValue_*',
+        '**/*IT*',
+]
+
+task spannerCodeCoverageReport(type: JacocoReport, dependsOn: test) {
+  group = "Reporting"
+  description = "Generates code coverage report for Cloud Spanner related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+            project.fileTree(
+                    dir: it,
+                    includes: spannerIncludes,
+                    excludes: jacocoExcludes)
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  reports {
+    html.getRequired().set(true)
+    html.getOutputLocation().set(file("${buildDir}/reports/jacoco/spanner/"))
+  }
+}
+
+task spannerCodeCoverageVerification(type: JacocoCoverageVerification, dependsOn: spannerCodeCoverageReport) {
+  group = "Verification"
+  description = "Enforces code coverage verification for Cloud Spanner related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+    project.fileTree(
+            dir: it,
+            includes: spannerIncludes,
+            excludes: jacocoExcludes)
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  violationRules {
+    failOnViolation = true
+    rule {
+      element = 'BUNDLE'
+
+      limit {
+        value = 'COVEREDRATIO'
+        counter = 'INSTRUCTION'
+        minimum = 0.60
+      }
+    }
+  }
+}
+
+// make the check task depend on spannerCodeCoverageVerification so that the build
+// fails when the code coverage threshold is violated.
+project.check.dependsOn "spannerCodeCoverageVerification"
 
 task postCommit {
   group = "Verification"

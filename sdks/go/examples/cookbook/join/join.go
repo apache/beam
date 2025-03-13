@@ -22,24 +22,34 @@ import (
 
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 // See: https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/JoinExamples.java
 
 const (
-	gdeltEventsTable  = "clouddataflow-readonly:samples.gdelt_sample"
+	gdeltEventsTable  = "apache-beam-testing.samples.gdelt_sample"
 	countryCodesTable = "gdelt-bq:full.crosswalk_geocountrycodetohuman"
 )
 
 var (
 	output = flag.String("output", "", "Output filename")
 )
+
+func init() {
+	register.Function1x2(extractEventDataFn)
+	register.Function1x2(extractCountryInfoFn)
+	register.Function2x1(formatFn)
+	register.Function4x0(processFn)
+	register.Iter1[string]()
+	register.Emitter2[Code, string]()
+}
 
 type Code string
 

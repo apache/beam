@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * {@code PTransform}s for computing the sum of the elements in a {@code PCollection}, or the sum of
  * the values associated with each key in a {@code PCollection} of {@code KV}s.
@@ -139,7 +141,7 @@ public class Sum {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other != null && other.getClass().equals(this.getClass());
     }
 
@@ -162,7 +164,7 @@ public class Sum {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other != null && other.getClass().equals(this.getClass());
     }
 
@@ -185,7 +187,7 @@ public class Sum {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other != null && other.getClass().equals(this.getClass());
     }
 

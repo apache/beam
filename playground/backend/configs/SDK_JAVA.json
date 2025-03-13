@@ -1,0 +1,21 @@
+{
+  "compile_cmd": "javac",
+  "run_cmd": "java",
+  "test_cmd": "java",
+  "compile_args": [
+    "-d",
+    "bin",
+    "-parameters",
+    "-classpath"
+  ],
+  "run_args": [
+    "-cp",
+    "../bin:",
+    "-Djava.util.logging.config.file={logConfigFile}"
+  ],
+  "test_args": [
+    "-cp",
+    "bin:",
+    "org.junit.runner.JUnitCore"
+  ]
+}

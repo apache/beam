@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import java.nio.ByteBuffer;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.state.ValueState;
@@ -35,11 +38,15 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Duration;
 
 /** Remove values with duplicate ids. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>>
     implements OneInputStreamOperator<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>>,
-        Triggerable<ByteBuffer, VoidNamespace> {
+        Triggerable<FlinkKey, VoidNamespace> {
 
   private static final long MAX_RETENTION_SINCE_ACCESS = Duration.standardMinutes(10L).getMillis();
+  private final SerializablePipelineOptions options;
 
   // we keep the time when we last saw an element id for cleanup
   private ValueStateDescriptor<Long> dedupingStateDescriptor =
@@ -47,12 +54,23 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
 
   private transient InternalTimerService<VoidNamespace> timerService;
 
+  public DedupingOperator(PipelineOptions options) {
+    this.options = new SerializablePipelineOptions(options);
+  }
+
   @Override
   public void initializeState(StateInitializationContext context) throws Exception {
     super.initializeState(context);
 
     timerService =
         getInternalTimerService("dedup-cleanup-timer", VoidNamespaceSerializer.INSTANCE, this);
+  }
+
+  @Override
+  public void open() {
+    // Initialize FileSystems for any coders which may want to use the FileSystem,
+    // see https://issues.apache.org/jira/browse/BEAM-8303
+    FileSystems.setDefaultPipelineOptions(options.get());
   }
 
   @Override
@@ -76,12 +94,12 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
   }
 
   @Override
-  public void onEventTime(InternalTimer<ByteBuffer, VoidNamespace> internalTimer) {
+  public void onEventTime(InternalTimer<FlinkKey, VoidNamespace> internalTimer) {
     // will never happen
   }
 
   @Override
-  public void onProcessingTime(InternalTimer<ByteBuffer, VoidNamespace> internalTimer)
+  public void onProcessingTime(InternalTimer<FlinkKey, VoidNamespace> internalTimer)
       throws Exception {
     ValueState<Long> dedupingState = getPartitionedState(dedupingStateDescriptor);
 

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,17 +26,15 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder Coder&lt;T&gt;} defines how to encode and decode values of type {@code T} into
@@ -64,7 +62,6 @@ public abstract class Coder<T> implements Serializable {
    *     implementations for methods accepting a {@link Context}.
    */
   @Deprecated
-  @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
      * The outer context: the value being encoded or decoded takes up the remainder of the
@@ -94,7 +91,7 @@ public abstract class Coder<T> implements Serializable {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (!(obj instanceof Context)) {
         return false;
       }
@@ -115,7 +112,10 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * Encodes the given value of type {@code T} onto the given output stream.
+   * Encodes the given value of type {@code T} onto the given output stream. Multiple elements can
+   * be encoded next to each other on the output stream, each coder should encode information to
+   * know how many bytes to read when decoding. A common approach is to prefix the encoding with the
+   * element's encoded length.
    *
    * @throws IOException if writing to the {@code OutputStream} fails for some reason
    * @throws CoderException if the value could not be encoded for some reason
@@ -130,7 +130,6 @@ public abstract class Coder<T> implements Serializable {
    * @deprecated only implement and call {@link #encode(Object value, OutputStream)}
    */
   @Deprecated
-  @Experimental(Kind.CODER_CONTEXT)
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     encode(value, outStream);
@@ -138,7 +137,9 @@ public abstract class Coder<T> implements Serializable {
 
   /**
    * Decodes a value of type {@code T} from the given input stream in the given context. Returns the
-   * decoded value.
+   * decoded value. Multiple elements can be encoded next to each other on the input stream, each
+   * coder should encode information to know how many bytes to read when decoding. A common approach
+   * is to prefix the encoding with the element's encoded length.
    *
    * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
@@ -154,7 +155,6 @@ public abstract class Coder<T> implements Serializable {
    * @deprecated only implement and call {@link #decode(InputStream)}
    */
   @Deprecated
-  @Experimental(Kind.CODER_CONTEXT)
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     return decode(inStream);
   }
@@ -198,6 +198,10 @@ public abstract class Coder<T> implements Serializable {
     }
   }
 
+  public static <T> long getEncodedElementByteSizeUsingCoder(Coder<T> target, T value)
+      throws Exception {
+    return target.getEncodedElementByteSize(value);
+  }
   /**
    * Verifies all of the provided coders are deterministic. If any are not, throws a {@link
    * NonDeterministicException} for the {@code target} {@link Coder}.
@@ -303,7 +307,6 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /** Returns the {@link TypeDescriptor} for the type encoded. */
-  @Experimental(Kind.CODER_TYPE_ENCODING)
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return (TypeDescriptor<T>)
         TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());

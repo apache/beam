@@ -22,10 +22,10 @@ import java.io.OutputStreamWriter;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Implementation detail of {@link TextIO.Write}.
@@ -34,9 +34,13 @@ import org.apache.beam.sdk.util.MimeTypes;
  * '\n'} represented in {@code UTF-8} format as the record separator. Each record (including the
  * last) is terminated.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, String> {
-  @Nullable private final String header;
-  @Nullable private final String footer;
+  private final @Nullable String header;
+  private final @Nullable String footer;
   private final char[] delimiter;
 
   TextSink(
@@ -60,8 +64,8 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
   /** A {@link WriteOperation WriteOperation} for text files. */
   private static class TextWriteOperation<DestinationT>
       extends WriteOperation<DestinationT, String> {
-    @Nullable private final String header;
-    @Nullable private final String footer;
+    private final @Nullable String header;
+    private final @Nullable String footer;
     private final char[] delimiter;
 
     private TextWriteOperation(
@@ -80,13 +84,12 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
 
   /** A {@link Writer Writer} for text files. */
   private static class TextWriter<DestinationT> extends Writer<DestinationT, String> {
-    private static final String NEWLINE = "\n";
-    @Nullable private final String header;
-    @Nullable private final String footer;
+    private final @Nullable String header;
+    private final @Nullable String footer;
     private final char[] delimiter;
 
     // Initialized in prepareWrite
-    @Nullable private OutputStreamWriter out;
+    private @Nullable OutputStreamWriter out;
 
     public TextWriter(
         WriteOperation<DestinationT, String> writeOperation,

@@ -13,9 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore S1023 redundant return statements are generated
+
 package reflectx
 
-import "reflect"
+import (
+    "reflect"
+    "fmt"    
+)
 
 // Generated arity-specialized Func implementations to avoid runtime temporary
 // slices. Code that knows the arity can potentially avoid that overhead in
@@ -26,11 +31,11 @@ import "reflect"
 // also allows more specific intermediate interfaces, such as Func2xbool, to be added
 // later.
 
-{{range $in := upto 8}}
-{{range $out := upto 4}}
+{{range $in := upto 9}}
+{{range $out := upto 5}}
 type Func{{$in}}x{{$out}} interface {
     Func
-    Call{{$in}}x{{$out}}({{mktuple $in "interface{}"}}) ({{mktuple $out "interface{}"}})
+    Call{{$in}}x{{$out}}({{mktuple $in "any"}}) ({{mktuple $out "any"}})
 }
 
 type shimFunc{{$in}}x{{$out}} struct {
@@ -45,19 +50,19 @@ func (c *shimFunc{{$in}}x{{$out}}) Type() reflect.Type {
    return c.inner.Type()
 }
 
-func (c *shimFunc{{$in}}x{{$out}}) Call(args []interface{}) []interface{} {
+func (c *shimFunc{{$in}}x{{$out}}) Call(args []any) []any {
    return c.inner.Call(args)
 }
 
-func (c *shimFunc{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "interface{}"}}) ({{mktuple $out "interface{}"}}) {
-   ret := c.inner.Call([]interface{}{ {{mktuplef $in "arg%v"}} })
+func (c *shimFunc{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "any"}}) ({{mktuple $out "any"}}) {
+   ret := c.inner.Call([]any{ {{mktuplef $in "arg%v"}} })
    _ = ret
    return {{mktuplef $out "ret[%v]"}}
 }
 
 func ToFunc{{$in}}x{{$out}}(c Func) Func{{$in}}x{{$out}} {
     if c.Type().NumIn() != {{$in}} || c.Type().NumOut() != {{$out}} {
-        panic("incompatible func type")
+        panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want {{$in}} inputs and {{$out}} outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
     }
     if sc, ok := c.(Func{{$in}}x{{$out}}); ok {
         return sc
@@ -65,7 +70,7 @@ func ToFunc{{$in}}x{{$out}}(c Func) Func{{$in}}x{{$out}} {
     return &shimFunc{{$in}}x{{$out}}{inner: c}
 }
 
-func MakeFunc{{$in}}x{{$out}}(fn interface{}) Func{{$in}}x{{$out}} {
+func MakeFunc{{$in}}x{{$out}}(fn any) Func{{$in}}x{{$out}} {
     return ToFunc{{$in}}x{{$out}}(MakeFunc(fn))
 }
 {{end}}

@@ -23,7 +23,7 @@ import static org.hamcrest.Matchers.is;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;

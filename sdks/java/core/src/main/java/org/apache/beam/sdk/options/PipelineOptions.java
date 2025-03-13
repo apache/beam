@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -57,6 +57,9 @@ import org.joda.time.format.DateTimeFormatter;
  * PipelineOptionsFactory#fromArgs(String[])}. They can be converted to another type by invoking
  * {@link PipelineOptions#as(Class)} and can be accessed from within a {@link DoFn} by invoking
  * {@code getPipelineOptions()} on the input {@link DoFn.ProcessContext Context} object.
+ *
+ * <p>Please don't implement {@link PipelineOptions}, it implies that it is backwards-incompatible
+ * to add new options. User-implemented {@link PipelineOptions} is not accepted by {@link Pipeline}.
  *
  * <p>For example:
  *
@@ -133,6 +136,8 @@ import org.joda.time.format.DateTimeFormatter;
  *   <li>Only getters may be annotated with {@link JsonIgnore @JsonIgnore}.
  *   <li>If any getter is annotated with {@link JsonIgnore @JsonIgnore}, then all getters for this
  *       property must be annotated with {@link JsonIgnore @JsonIgnore}.
+ *   <li>If any getter is annotated with {@link JsonDeserialize} and {@link JsonSerialize}, then all
+ *       getters for this property must also be.
  * </ul>
  *
  * <h3>Annotations For PipelineOptions</h3>
@@ -157,6 +162,10 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <p>{@link JsonIgnore @JsonIgnore} is used to prevent a property from being serialized and
  * available during execution of {@link DoFn}. See the Serialization section below for more details.
+ *
+ * <p>{@link JsonSerialize @JsonSerialize} and {@link JsonDeserialize @JsonDeserialize} is used to
+ * control how a property is (de)serialized when the PipelineOptions are (de)serialized to JSON. See
+ * the Serialization section below for more details.
  *
  * <h2>Registration Of PipelineOptions</h2>
  *
@@ -194,6 +203,14 @@ import org.joda.time.format.DateTimeFormatter;
  * serialization support for your custom types. Note that {@link PipelineOptions} relies on
  * Jackson's ability to automatically configure the {@link ObjectMapper} with additional modules via
  * {@link ObjectMapper#findModules()}.
+ *
+ * <p>To further customize serialization, getter methods may be annotated with {@link
+ * JsonSerialize @JsonSerialize} and {@link JsonDeserialize @JsonDeserialize}. {@link
+ * JsonDeserialize @JsonDeserialize} is also used when parsing command line arguments.
+ *
+ * <p>Note: A property must be annotated with <b>BOTH</b>{@link JsonDeserialize @JsonDeserialize}
+ * and {@link JsonSerialize @JsonSerialize} or neither. It is an error to have a property annotated
+ * with only {@link JsonDeserialize @JsonDeserialize} or {@link JsonSerialize @JsonSerialize}.
  *
  * <p>Note: It is an error to have the same property available in multiple interfaces with only some
  * of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a setter
@@ -267,7 +284,7 @@ public interface PipelineOptions extends HasDisplayData {
 
   @Description(
       "Name of the pipeline execution."
-          + "It must match the regular expression '[a-z]([-a-z0-9]{0,38}[a-z0-9])?'."
+          + "It must match the regular expression '[a-z]([-a-z0-9]{0,1022}[a-z0-9])?'."
           + "It defaults to ApplicationName-UserName-Date-RandomInteger")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();
@@ -339,6 +356,12 @@ public interface PipelineOptions extends HasDisplayData {
    * keyed by the property name. The value is a map containing type and default information.
    */
   Map<String, Map<String, Object>> outputRuntimeOptions();
+
+  /**
+   * A monotonically increasing revision number of this {@link PipelineOptions} object that can be
+   * used to detect changes.
+   */
+  int revision();
 
   /**
    * Provides a process wide unique ID for this {@link PipelineOptions} object, assigned at graph

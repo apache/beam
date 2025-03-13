@@ -17,6 +17,23 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TfIdf
+//   description: An example that computes a basic TF-IDF search table for a directory or
+//     GCS prefix.
+//   multifile: true
+//   pipeline_options: --output output.txt
+//   context_line: 447
+//   categories:
+//     - Combiners
+//     - Options
+//     - Joins
+//   complexity: ADVANCED
+//   tags:
+//     - tfidf
+//     - count
+//     - strings
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -56,7 +73,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

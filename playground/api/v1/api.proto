@@ -1,0 +1,391 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+option go_package = "beam.apache.org/playground/backend/internal;playground";
+
+package api.v1;
+
+enum Sdk {
+  SDK_UNSPECIFIED = 0;
+  SDK_JAVA = 1;
+  SDK_GO = 2;
+  SDK_PYTHON = 3;
+  SDK_SCIO = 4;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_VALIDATING = 1;
+  STATUS_VALIDATION_ERROR = 2;
+  STATUS_PREPARING = 3;
+  STATUS_PREPARATION_ERROR = 4;
+  STATUS_COMPILING = 5;
+  STATUS_COMPILE_ERROR = 6;
+  STATUS_EXECUTING = 7;
+  STATUS_FINISHED = 8;
+  STATUS_RUN_ERROR = 9;
+  STATUS_ERROR = 10;
+  STATUS_RUN_TIMEOUT = 11;
+  STATUS_CANCELED = 12;
+}
+
+enum PrecompiledObjectType {
+  PRECOMPILED_OBJECT_TYPE_UNSPECIFIED = 0;
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE = 1;
+  PRECOMPILED_OBJECT_TYPE_KATA = 2;
+  PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
+}
+
+enum Complexity {
+  COMPLEXITY_UNSPECIFIED = 0;
+  COMPLEXITY_BASIC = 1;
+  COMPLEXITY_MEDIUM = 2;
+  COMPLEXITY_ADVANCED = 3;
+}
+
+enum EmulatorType {
+  EMULATOR_TYPE_UNSPECIFIED = 0;
+  EMULATOR_TYPE_KAFKA = 1;
+}
+
+message Dataset {
+  EmulatorType type = 1;
+  map<string, string> options = 2;
+  string dataset_path = 3;
+}
+
+// RunCodeRequest represents a code text and options of SDK which executes the code.
+message RunCodeRequest {
+  string code = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+  repeated Dataset datasets = 4;
+  repeated SnippetFile files = 5;
+}
+
+// RunCodeResponse contains information of the pipeline uuid.
+message RunCodeResponse {
+  string pipeline_uuid = 1;
+}
+
+// CheckStatusRequest contains information of the pipeline uuid.
+message CheckStatusRequest {
+  string pipeline_uuid = 1;
+}
+
+// StatusInfo contains information about the status of the code execution.
+message CheckStatusResponse {
+  Status status = 1;
+}
+
+// GetValidationOutputRequest contains information of the pipeline uuid.
+message GetValidationOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetValidationOutputResponse represents the result of the code validation.
+message GetValidationOutputResponse {
+  string output = 1;
+}
+
+// GetPreparationOutputRequest contains information of the pipeline uuid.
+message GetPreparationOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetPreparationOutputResponse represents the result of the code preparation.
+message GetPreparationOutputResponse {
+  string output = 1;
+}
+
+// GetCompileOutputRequest contains information of the pipeline uuid.
+message GetCompileOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetCompileOutputResponse represents the result of the compiled code.
+message GetCompileOutputResponse {
+  string output = 1;
+}
+
+// GetRunOutputRequest contains information of the pipeline uuid.
+message GetRunOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the result of the executed code.
+message GetRunOutputResponse {
+  string output = 1;
+}
+
+// GetRunErrorRequest contains information of the pipeline uuid.
+message GetRunErrorRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetRunErrorResponse represents the error of the executed code.
+message GetRunErrorResponse {
+  string output = 1;
+}
+
+// GetLogsRequest contains information of the pipeline uuid.
+message GetLogsRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the logs of the executed code.
+message GetLogsResponse {
+  string output = 1;
+}
+
+// GetGraphRequest contains information of the pipeline uuid.
+message GetGraphRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetGraphResponse represents the string representation of pipeline execution graph in DOT format.
+message GetGraphResponse {
+  string graph = 1;
+}
+
+// CancelRequest request to cancel code processing
+message CancelRequest {
+  string pipeline_uuid = 1;
+}
+
+// CancelResponse response for cancel request
+message CancelResponse {
+}
+
+// PrecompiledObject represents one PrecompiledObject with its information
+message PrecompiledObject{
+  string cloud_path = 1;
+  string name = 2;
+  string description = 3;
+  PrecompiledObjectType type = 4;
+  string pipeline_options = 5;
+  // TODO mark reserved after #24402 update sequence is done
+  string link = 6;
+  bool multifile = 7;
+  int32 context_line = 8;
+  bool default_example = 9;
+  Sdk sdk = 10;
+  Complexity complexity = 11;
+  repeated string tags = 12;
+  repeated Dataset datasets = 13;
+  
+  // Link to the example in the Beam repository
+  string url_vcs = 14;
+  string url_notebook = 15;
+  bool always_run = 16;
+  bool never_run = 17;
+}
+
+// Categories represent the array of messages with sdk and categories at this sdk
+message Categories{
+  message Category{
+    string category_name = 1;
+    repeated PrecompiledObject precompiled_objects = 2;
+  }
+  Sdk sdk = 1;
+  repeated Category categories = 2;
+}
+
+// GetPrecompiledObjectsRequest contains information of the needed PrecompiledObjects sdk and categories.
+message GetPrecompiledObjectsRequest{
+  Sdk sdk = 1;
+  string category = 2;
+}
+
+// GetPrecompiledObjectRequest contains information of the needed PrecompiledObject.
+message GetPrecompiledObjectRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectCodeRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectCodeRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectOutputRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectOutputRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectLogsRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectLogsRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject cloud path.
+message GetPrecompiledObjectGraphRequest{
+  string cloud_path = 1;
+}
+
+// GetDefaultPrecompiledObjectRequest contains information of the needed PrecompiledObject sdk.
+message GetDefaultPrecompiledObjectRequest {
+  Sdk sdk = 1;
+}
+
+// GetPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
+message GetPrecompiledObjectsResponse{
+  repeated Categories sdk_categories = 1;
+}
+
+// GetPrecompiledObjectResponse represent the PrecompiledObject.
+message GetPrecompiledObjectResponse{
+  PrecompiledObject precompiled_object = 1;
+}
+
+// GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
+message GetPrecompiledObjectCodeResponse{
+  string code = 1;
+  repeated SnippetFile files = 2;
+}
+
+// GetPrecompiledObjectOutputResponse represents the result of the executed code.
+message GetPrecompiledObjectOutputResponse {
+  string output = 1;
+}
+
+// GetPrecompiledObjectLogsResponse represents the result of the executed code.
+message GetPrecompiledObjectLogsResponse {
+  string output = 1;
+}
+
+// GetPrecompiledObjectGraphResponse represents the string representation of the executed code graph in DOT format.
+message GetPrecompiledObjectGraphResponse {
+  string graph = 1;
+}
+
+// GetDefaultPrecompiledObjectResponse represents the default PrecompiledObject and his category for the sdk.
+message GetDefaultPrecompiledObjectResponse {
+  PrecompiledObject precompiled_object = 1;
+}
+
+// SnippetFile represents the snippet file content and its name to save.
+message SnippetFile {
+  string name = 1;
+  string content = 2;
+  bool is_main = 3;
+}
+
+// SaveSnippetRequest represents a snippet content and options of SDK which executes the snippet.
+message SaveSnippetRequest {
+  repeated SnippetFile files = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+  Complexity complexity = 4;
+  string persistence_key = 5;
+}
+
+// SaveSnippetResponse contains information of the generated ID.
+message SaveSnippetResponse {
+  string id = 1;
+}
+
+// GetSnippetRequest represents the generated ID.
+message GetSnippetRequest {
+  string id = 1;
+}
+
+// GetSnippetResponse contains information of a snippet content and options of SDK which executes the snippet.
+message GetSnippetResponse {
+  repeated SnippetFile files = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+  Complexity complexity = 4;
+}
+
+// GetMetadataRequest represents request for runner metadata
+message GetMetadataRequest {}
+
+// GetMetadataResponse contains metadata about the runner
+message GetMetadataResponse {
+  string runner_sdk = 1;
+  string build_commit_hash = 2;
+  int64 build_commit_timestamp_seconds_since_epoch = 3;
+  string beam_sdk_version = 4;
+}
+
+service PlaygroundService {
+
+  // Submit the job for an execution and get the pipeline uuid.
+  rpc RunCode(RunCodeRequest) returns (RunCodeResponse);
+
+  // Get the status of pipeline execution.
+  rpc CheckStatus(CheckStatusRequest) returns (CheckStatusResponse);
+
+  // Get the result of pipeline execution.
+  rpc GetRunOutput(GetRunOutputRequest) returns (GetRunOutputResponse);
+
+  // Get the logs of pipeline execution.
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // Get the string representation of the pipeline execution graph in DOT format.
+  rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
+
+  // Get the error of pipeline execution.
+  rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
+
+  // Get the result of pipeline validation.
+  rpc GetValidationOutput(GetValidationOutputRequest) returns (GetValidationOutputResponse);
+
+  // Get the result of pipeline preparation.
+  rpc GetPreparationOutput(GetPreparationOutputRequest) returns (GetPreparationOutputResponse);
+
+  // Get the result of pipeline compilation.
+  rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
+
+  // Cancel code processing
+  rpc Cancel(CancelRequest) returns (CancelResponse);
+
+  // Get all precompiled objects from the cloud datastore.
+  rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
+
+  // Get precompiled object from the cloud datastore.
+  rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
+
+  // Get the code of an PrecompiledObject.
+  rpc GetPrecompiledObjectCode(GetPrecompiledObjectCodeRequest) returns (GetPrecompiledObjectCodeResponse);
+
+  // Get the precompiled details of an PrecompiledObject.
+  rpc GetPrecompiledObjectOutput(GetPrecompiledObjectOutputRequest) returns (GetPrecompiledObjectOutputResponse);
+
+  // Get the logs of an PrecompiledObject.
+  rpc GetPrecompiledObjectLogs(GetPrecompiledObjectLogsRequest) returns (GetPrecompiledObjectLogsResponse);
+
+  // Get the graph of an PrecompiledObject.
+  rpc GetPrecompiledObjectGraph(GetPrecompiledObjectGraphRequest) returns (GetPrecompiledObjectGraphResponse);
+
+  // Get the default precompile object for the sdk.
+  rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);
+
+  // Save the snippet required for the sharing.
+  rpc SaveSnippet(SaveSnippetRequest) returns (SaveSnippetResponse);
+
+  // Get the snippet of playground.
+  rpc GetSnippet(GetSnippetRequest) returns (GetSnippetResponse);
+
+  // Get the runner metadata.
+  rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
+}

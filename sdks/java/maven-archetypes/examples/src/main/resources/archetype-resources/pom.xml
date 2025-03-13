@@ -30,12 +30,14 @@
     <beam.version>@project.version@</beam.version>
 
     <bigquery.version>@bigquery.version@</bigquery.version>
-    <google-clients.version>@google-clients.version@</google-clients.version>
+    <google-api-client.version>@google-api-client.version@</google-api-client.version>
     <guava.version>@guava.version@</guava.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
     <junit.version>@junit.version@</junit.version>
+    <kafka.version>@kafka.version@</kafka.version>
+    <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
@@ -131,6 +133,9 @@
               </filters>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>reference.conf</resource>
+                </transformer>
               </transformers>
             </configuration>
           </execution>
@@ -178,54 +183,8 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-reference-java</artifactId>
+          <artifactId>beam-runners-portability-java</artifactId>
           <version>${beam.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>apex-runner</id>
-      <!-- Makes the ApexRunner available when running a pipeline. -->
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-apex</artifactId>
-          <version>${beam.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-        <!--
-          Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from
-          google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
-          can be removed when the project no longer has a dependency on a different httpclient version.
-        -->
-        <dependency>
-          <groupId>org.apache.httpcomponents</groupId>
-          <artifactId>httpclient</artifactId>
-          <version>4.3.6</version>
-          <scope>runtime</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>commons-codec</groupId>
-              <artifactId>commons-codec</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <!--
-          Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match
-          what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.
-        -->
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-yarn-client</artifactId>
-          <version>${hadoop.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-          <version>${hadoop.version}</version>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
@@ -262,17 +221,19 @@
 
     <profile>
       <id>spark-runner</id>
-      <!-- Makes the SparkRunner available when running a pipeline. Additionally,
-           overrides some Spark dependencies to Beam-compatible versions. -->
-      <properties>
-        <netty.version>4.1.17.Final</netty.version>
-      </properties>
+      <!-- Makes the SparkRunner available when running a pipeline. -->
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-spark</artifactId>
+          <artifactId>beam-runners-spark-3</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>jul-to-slf4j</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.beam</groupId>
@@ -282,7 +243,7 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.11</artifactId>
+          <artifactId>spark-streaming_2.12</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
@@ -294,35 +255,8 @@
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.module</groupId>
-          <artifactId>jackson-module-scala_2.11</artifactId>
+          <artifactId>jackson-module-scala_2.12</artifactId>
           <version>${jackson.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-        <!-- [BEAM-3519] GCP IO exposes netty on its API surface, causing conflicts with runners -->
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
-          <version>${beam.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>io.grpc</groupId>
-              <artifactId>grpc-netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-handler</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>gearpump-runner</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-gearpump</artifactId>
-          <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
@@ -333,6 +267,17 @@
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-samza</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>twister2-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-twister2</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -369,7 +314,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-jet-experimental</artifactId>
+          <artifactId>beam-runners-jet</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -393,11 +338,25 @@
       <version>${beam.version}</version>
     </dependency>
 
+    <!-- Adds a dependency on the Python Multi-language pipelines API module. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-python</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
+    <!-- Adds a dependency on the Beam Kafka IO module. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-kafka</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
     <!-- Dependencies below this line are specific dependencies needed by the examples code. -->
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-      <version>${google-clients.version}</version>
+      <version>${google-api-client.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -425,7 +384,6 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -457,9 +415,9 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka.version}</version>
     </dependency>
 
     <!-- Add slf4j API frontend binding with JUL backend -->
@@ -484,7 +442,7 @@
       <artifactId>hamcrest-core</artifactId>
       <version>${hamcrest.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
@@ -504,7 +462,7 @@
       <version>${beam.version}</version>
       <scope>test</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
@@ -512,4 +470,22 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>  <!-- "-jre" for Java 8 or higher -->
+      </dependency>
+      <!-- GCP libraries BOM sets the version for google http client -->
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>${libraries-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 </project>

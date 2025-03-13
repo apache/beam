@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.status;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.Key;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
@@ -30,12 +30,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +45,12 @@ import org.slf4j.LoggerFactory;
  * DebugCapture encapsulates a simple periodic sender for HTML pages to the debug capture service.
  * It is dynamically configured by the service.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DebugCapture {
   private static final Logger LOG = LoggerFactory.getLogger(DebugCapture.class);
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
+  private static final JsonFactory JSON_FACTORY = new GsonFactory();
   private static final String COMPONENT = "JavaHarness";
   // How often to refresh debug capture config.
   private static final long UPDATE_CONFIG_PERIOD_SEC = 60;
@@ -99,13 +103,13 @@ public class DebugCapture {
     private String project, job, host, region;
     private Dataflow client = null;
     private ScheduledExecutorService executor = null;
-    private List<Capturable> capturables;
+    private Collection<Capturable> capturables;
     private boolean enabled;
 
     private long lastCaptureUsec = 0;
     @VisibleForTesting Config captureConfig = new Config();
 
-    public Manager(DataflowWorkerHarnessOptions options, List<Capturable> capturables) {
+    public Manager(DataflowWorkerHarnessOptions options, Collection<Capturable> capturables) {
       try {
         client = options.getDataflowClient();
       } catch (Exception e) {
@@ -119,11 +123,14 @@ public class DebugCapture {
       region = options.getRegion();
       this.capturables = capturables;
       enabled = !capturables.isEmpty();
+
+      LOG.info("Created Debug Capture Manager");
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
     public void start() {
       if (!enabled) {
+        LOG.info("Debug Capture Manager disabled");
         return;
       }
 
@@ -132,6 +139,8 @@ public class DebugCapture {
           this::updateConfig, 0, UPDATE_CONFIG_PERIOD_SEC, TimeUnit.SECONDS);
       executor.scheduleAtFixedRate(
           this::maybeSendCapture, 0, SEND_CAPTURE_PERIOD_SEC, TimeUnit.SECONDS);
+
+      LOG.info("Debug Capture Manager initialized");
     }
 
     public void stop() {
@@ -207,6 +216,8 @@ public class DebugCapture {
         synchronized (lock) {
           lastCaptureUsec = DateTime.now().getMillis() * 1000;
         }
+
+        LOG.debug("Sent Debug Capture payload");
       } catch (Exception e) {
         LOG.info("Does not send debug capture data", e);
       }

@@ -20,29 +20,31 @@ package databaseio
 import (
 	"database/sql"
 	"fmt"
-	"golang.org/x/net/context"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"golang.org/x/net/context"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // Writer returns a row of data to be inserted into a table.
 type Writer interface {
-	SaveData() (map[string]interface{}, error)
+	SaveData() (map[string]any, error)
 }
 
 type writer struct {
-	batchSize    int
-	table        string
-	sqlTemplate  string
-	valueTempate string
-	binding      []interface{}
-	columnCount  int
-	rowCount     int
-	totalCount   int
+	batchSize              int
+	table                  string
+	sqlTemplate            string
+	valueTemplateGenerator *valueTemplateGenerator
+	binding                []any
+	columnCount            int
+	rowCount               int
+	totalCount             int
 }
 
-func (w *writer) add(row []interface{}) error {
+func (w *writer) add(row []any) error {
 	w.rowCount++
 	w.totalCount++
 	if len(row) != w.columnCount {
@@ -53,8 +55,12 @@ func (w *writer) add(row []interface{}) error {
 }
 
 func (w *writer) write(ctx context.Context, db *sql.DB) error {
-	values := strings.Repeat(w.valueTempate+",", w.rowCount)
-	SQL := w.sqlTemplate + string(values[:len(values)-1])
+	values := w.valueTemplateGenerator.generate(w.rowCount, w.columnCount)
+	if len(values) == 0 {
+		log.Info(ctx, "No value(s) to be written....")
+		return nil
+	}
+	SQL := w.sqlTemplate + values
 	resultSet, err := db.ExecContext(ctx, SQL, w.binding...)
 	if err != nil {
 		return err
@@ -63,7 +69,7 @@ func (w *writer) write(ctx context.Context, db *sql.DB) error {
 	if int(affected) != w.rowCount {
 		return errors.Errorf("expected to write: %v, but written: %v", w.rowCount, affected)
 	}
-	w.binding = []interface{}{}
+	w.binding = []any{}
 	w.rowCount = 0
 	return nil
 }
@@ -82,17 +88,46 @@ func (w *writer) writeIfNeeded(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func newWriter(batchSize int, table string, columns []string) (*writer, error) {
+func newWriter(driver string, batchSize int, table string, columns []string) (*writer, error) {
 	if len(columns) == 0 {
 		return nil, errors.New("columns were empty")
 	}
-	values := strings.Repeat("?,", len(columns))
 	return &writer{
-		batchSize:    batchSize,
-		columnCount:  len(columns),
-		table:        table,
-		binding:      make([]interface{}, 0),
-		sqlTemplate:  fmt.Sprintf("INSERT INTO %v(%v) VALUES", table, strings.Join(columns, ",")),
-		valueTempate: fmt.Sprintf("(%s)", values[:len(values)-1]),
+		batchSize:              batchSize,
+		columnCount:            len(columns),
+		table:                  table,
+		binding:                make([]any, 0),
+		sqlTemplate:            fmt.Sprintf("INSERT INTO %v(%v) VALUES", table, strings.Join(columns, ",")),
+		valueTemplateGenerator: &valueTemplateGenerator{driver},
 	}, nil
+}
+
+type valueTemplateGenerator struct {
+	driver string
+}
+
+func (v *valueTemplateGenerator) generate(rowCount int, columnColunt int) string {
+	switch v.driver {
+	case "postgres", "pgx":
+		// the point is to generate ($1,$2),($3,$4)
+		valueTemplates := make([]string, rowCount)
+		for i := 0; i < rowCount; i++ {
+			n := columnColunt * i
+			templates := make([]string, columnColunt)
+			for j := 0; j < columnColunt; j++ {
+				templates[j] = fmt.Sprintf("$%d", n+j+1)
+			}
+			valueTemplates[i] = fmt.Sprintf("(%s)", strings.Join(templates, ","))
+		}
+		return strings.Join(valueTemplates, ",")
+	default:
+		// the point is to generate (?,?),(?,?)
+		questions := strings.Repeat("?,", columnColunt)
+		valueTemplate := fmt.Sprintf("(%s)", questions[:len(questions)-1])
+		values := strings.Repeat(valueTemplate+",", rowCount)
+		if len(values) == 0 {
+			return values
+		}
+		return values[:len(values)-1]
+	}
 }

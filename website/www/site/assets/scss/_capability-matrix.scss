@@ -1,0 +1,336 @@
+/**
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+@import "media";
+
+.back-button {
+    font-size: 14px;
+    font-weight: 700;
+    padding-left: 15px;
+    line-height: 1.14;
+    letter-spacing: .6px;
+    color: #f26628;
+    text-transform: uppercase;
+    &:hover {
+        color: #f2804d;
+    }
+    i {
+        width: 26px;
+    }
+}
+
+.information-container {
+    display: flex;
+    -webkit-box-orient: horizontal;
+    -webkit-box-direction: normal;
+    flex-direction: row;
+    margin-bottom: 84px;
+
+    @media(max-width:$mobile) {
+        -webkit-box-orient: vertical;
+        -webkit-box-direction: normal;
+        flex-direction: column;
+    }
+    table {
+        margin: 0;
+    }
+    .read-tables {
+        table-layout: fixed;
+        position: relative;
+        th:first-of-type {
+            width: 22px;
+            min-width: 22px;
+        }
+        span {
+            font-weight: 500;
+        }
+    }
+    .second-container {
+        width: 270px;
+        margin-left: 100px;
+        @media(max-width:$mobile) {
+            margin-left: 0;
+        }
+        h5 {
+            margin-bottom: 22px;
+        }
+        .row {
+            display: -webkit-box;
+            display: flex;
+            margin-left: 0;
+        }
+        .box {
+            width: 71px;
+            height: 24px;
+            margin-bottom: 10px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        .white {
+            border: solid 1px #f6f6f6;
+            background-color: #fff;
+        }
+        .partial {
+            border: solid 1px #d8d8d8;
+            background-color: #f9f9f9;
+        }
+        .gray {
+            border: solid 1px #bcbcbc;
+            background-color: #e1e0e0;
+        }
+    }
+    .border-left {
+        border-left: 3px solid #ff6d05;
+        padding: 7px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.83;
+        letter-spacing: .43px;
+    }
+    .border-right {
+        transform: rotate(270deg);
+        height: 80px;
+        text-align: center;
+        padding: 0 !important;
+        width: 25px !important;
+        font-size: 12px;
+        font-weight: 500;
+        font-stretch: normal;
+        font-style: normal;
+        line-height: 1.57;
+        letter-spacing: .43px;
+        position: absolute;
+        top: 55px;
+        left: 24px;
+    }
+    .border-top {
+        border-top: 3px solid #ff6d05;
+        font-size: 14px;
+        font-weight: 400;
+        font-stretch: normal;
+        font-style: normal;
+        line-height: 1.57;
+        letter-spacing: .43px;
+        td {
+            width: 162px;
+            padding: 7px;
+        }
+    }
+}
+.table-container {
+    display: -webkit-box;
+    display: flex;
+    -webkit-box-orient: horizontal;
+    -webkit-box-direction: normal;
+    flex-direction: row;
+    margin-bottom: 32px;
+    table {
+        margin: 0;
+    }
+    .big-right {
+        max-width: 1240px;
+    }
+    .table-right {
+        overflow-x: scroll;
+        padding: 1px;
+        scrollbar-width: none;
+        &::-webkit-scrollbar {
+            width: 0;
+            background: 0 0;
+        }
+    }
+    .table-headers {
+        overflow-x: scroll;
+        border-spacing: 0;
+        border: solid 1px #d8d8d8;
+        border-bottom: none;
+        mix-blend-mode: multiply;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        scroll-behavior: auto;
+        &::-webkit-scrollbar {
+            width: 0;
+            background: 0 0;
+        }
+        table {
+            height: 48px;
+            table-layout: fixed;
+            width: 710px;
+            th {
+                text-align: center;
+                width: 142px;
+                font-size: 12px;
+                font-weight: 500;
+                line-height: normal;
+                letter-spacing: normal;
+                padding-left: 10px;
+                @media(max-width: $mobile) {
+                    width: 73px;
+                }
+            }
+        }
+    }
+    .big-headers table th {
+        width: 249px;
+    }
+    .table-center {
+        overflow-x: scroll;
+        border-spacing: 0;
+        border: solid 1px #d8d8d8;
+        border-collapse: separate;
+        transform: rotateX(180deg);
+        padding-bottom: 8px;
+        scrollbar-color: #ff6d00;
+        scroll-behavior: auto;
+        &::-webkit-scrollbar {
+            height: 8px;
+            width: 25px !important;
+        }
+        &::-webkit-scrollbar-track {
+            background-color: #efeded;
+            background-clip: content-box;
+        }
+        &::-webkit-scrollbar-thumb {
+            border-radius: 8px;
+            height: 6px !important;
+            background-color: #ff6d00;
+        }
+        table {
+            transform: rotateX(180deg);
+            border-collapse: separate;
+            table-layout: fixed;
+            width: 710px;
+            th, td {
+                width: 142px;
+                height: 48px;
+                font-size: 12px;
+                font-weight: 500;
+                line-height: normal;
+                letter-spacing: normal;
+                border: 1px solid #fff;
+                @media(max-width:640px) {
+                    width: 73px;
+                }
+            }
+        }
+    }
+    .big-center {
+        table {
+            tr {
+                vertical-align: baseline;
+                th,td {
+                    width: 249px;
+                    height: 352px;
+                    padding: 6px;
+                    font-weight: 400;
+                    p {
+                        font-size: 12px;
+                        font-weight: 500;
+                        line-height: normal;
+                        letter-spacing: normal;
+                        margin: 0;
+                    }
+                }
+            }
+        }
+    }
+    .table-left table {
+        width: 142px;
+        @media(max-width:640px) {
+            width: 73px;
+        }
+        tr:first-child th {
+            height: 83px;
+            border: none;
+            @media(max-width: $mobile) {
+                height: 119px;
+            }
+            @-moz-document url-prefix() {
+                height: 77px;
+            }
+        }
+        th {
+            height: 48px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: normal;
+            letter-spacing: normal;
+            border: solid 1px #f6f6f6;
+            border-right: none;
+            padding: 6px;
+        }
+    }
+    .big-left table {
+        text-align: start;
+        tr {
+            vertical-align: baseline;
+        }
+        th {
+            height: 352px;
+        }
+    }
+}
+#table-link {
+    margin-bottom: 84px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.14;
+    letter-spacing: .6px;
+    color: #f26628;
+    text-transform: uppercase;
+    &:hover {
+        text-decoration: none;
+        color: #f2804d;
+    }
+}
+
+[class*=-switcher],
+.language-switcher,
+nav.version-switcher,
+nav.runner-switcher {
+    ul li{
+        margin-bottom: 0 !important;
+        border: 1px solid #ff6d05;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom: none;
+        &:not(:last-child) {
+            border-right: none;
+        }
+        &:hover {
+            cursor: pointer
+        }
+        a {
+            border: none;
+            margin-right: 0;
+            color: #333;
+            &:hover {
+                background-color: #f2804d;
+            }
+        }
+        .active {
+            color: #fff;
+            a {
+                background-color: #ff6d05;
+                color: #fff;
+                border: none
+            }
+        }
+        ::before {
+            display: none
+        }
+    }
+}
+#copy:hover {
+    cursor: pointer
+}

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game.injector;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -47,7 +47,7 @@ class InjectorUtils {
     }
     if (credential.getClientAuthentication() != null) {
       System.out.println(
-          "\n***Warning! You are not using service account credentials to "
+          "\n***Error! You are not using service account credentials to "
               + "authenticate.\nYou need to use service account credentials for this example,"
               + "\nsince user-level credentials do not have enough pubsub quota,\nand so you will run "
               + "out of PubSub quota very quickly.\nSee "

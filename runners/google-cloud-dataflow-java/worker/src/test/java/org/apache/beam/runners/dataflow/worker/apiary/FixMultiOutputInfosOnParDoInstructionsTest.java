@@ -26,7 +26,7 @@ import com.google.api.services.dataflow.model.ParallelInstruction;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

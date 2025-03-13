@@ -17,13 +17,17 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -31,7 +35,12 @@ import org.apache.beam.runners.local.StructuralKey;
  * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class DirectExecutionContext {
+
   private final Clock clock;
   private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals existingState;
@@ -62,6 +71,7 @@ class DirectExecutionContext {
   public class DirectStepContext implements StepContext {
     private CopyOnAccessInMemoryStateInternals<?> stateInternals;
     private DirectTimerInternals timerInternals;
+    private InMemoryBundleFinalizer bundleFinalizer;
 
     public DirectStepContext() {}
 
@@ -79,6 +89,22 @@ class DirectExecutionContext {
         timerInternals = DirectTimerInternals.create(clock, watermarks, TimerUpdate.builder(key));
       }
       return timerInternals;
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      if (bundleFinalizer == null) {
+        bundleFinalizer = new InMemoryBundleFinalizer();
+      }
+      return bundleFinalizer;
+    }
+
+    /** Returns any pending finalizations clearing internal state. */
+    public List<InMemoryBundleFinalizer.Finalization> getAndClearFinalizations() {
+      if (bundleFinalizer == null) {
+        return Collections.EMPTY_LIST;
+      }
+      return bundleFinalizer.getAndClearFinalizations();
     }
 
     /**

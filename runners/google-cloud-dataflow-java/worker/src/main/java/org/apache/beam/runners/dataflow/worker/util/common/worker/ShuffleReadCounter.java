@@ -23,9 +23,12 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Counts the Bytes and MSECS spent within a shuffle read. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ShuffleReadCounter {
   private final String originalShuffleStepName;
   private final boolean experimentEnabled;

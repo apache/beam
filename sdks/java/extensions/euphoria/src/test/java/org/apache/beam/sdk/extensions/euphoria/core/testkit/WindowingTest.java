@@ -15,8 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.testkit;
-//
+package org.apache.beam.sdk.extensions.euphoria.core.testkit; //
 // import static org.junit.Assert.assertEquals;
 //
 // import java.time.Instant;
@@ -399,7 +398,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 //    }
 //
 //    @Override
-//    public boolean equals(Object o) {
+//    public boolean equals(@Nullable Object o) {
 //      if (o instanceof ComparableKV) {
 //        ComparableKV<?, ?> that = (ComparableKV<?, ?>) o;
 //        return Objects.equals(this.first, that.first) && Objects.equals(this.second, that.second);
@@ -472,7 +471,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 //    }
 //
 //    @Override
-//    public boolean equals(Object obj) {
+//    public boolean equals(@Nullable Object obj) {
 //      if (obj instanceof CSession) {
 //        CSession other = (CSession) obj;
 //        return other.wrap.equals(wrap);

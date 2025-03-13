@@ -19,20 +19,22 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.RichGroupCombineFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
- * This is is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
- * on Flink. The second part is {@link FlinkReduceFunction}. This function performs a local combine
+ * This is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey} on
+ * Flink. The second part is {@link FlinkReduceFunction}. This function performs a local combine
  * step before shuffling while the latter does the final combination after a shuffle.
  *
  * <p>The input to {@link #combine(Iterable, Collector)} are elements of the same key but for
@@ -50,16 +52,35 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
   // TODO: Remove side input functionality since liftable Combines no longer have side inputs.
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
+  /** WindowedValues has been exploded and pre-grouped by window. */
+  private final boolean groupedByWindow;
+
   public FlinkPartialReduceFunction(
       CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
       WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
+    this(combineFn, windowingStrategy, sideInputs, pipelineOptions, false);
+  }
 
+  public FlinkPartialReduceFunction(
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
+      WindowingStrategy<Object, W> windowingStrategy,
+      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
+      PipelineOptions pipelineOptions,
+      boolean groupedByWindow) {
     this.combineFn = combineFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
+    this.groupedByWindow = groupedByWindow;
+  }
+
+  @Override
+  public void open(Configuration parameters) {
+    // Initialize FileSystems for any coders which may want to use the FileSystem,
+    // see https://issues.apache.org/jira/browse/BEAM-8303
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
   }
 
   @Override
@@ -74,11 +95,14 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
     AbstractFlinkCombineRunner<K, InputT, AccumT, AccumT, W> reduceRunner;
 
-    if (!windowingStrategy.getWindowFn().isNonMerging()
-        && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-      reduceRunner = new HashingFlinkCombineRunner<>();
+    if (groupedByWindow) {
+      reduceRunner = new SingleWindowFlinkCombineRunner<>();
     } else {
-      reduceRunner = new SortingFlinkCombineRunner<>();
+      if (windowingStrategy.needsMerge() && windowingStrategy.getWindowFn() instanceof Sessions) {
+        reduceRunner = new SortingFlinkCombineRunner<>();
+      } else {
+        reduceRunner = new HashingFlinkCombineRunner<>();
+      }
     }
 
     reduceRunner.combine(

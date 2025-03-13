@@ -20,11 +20,15 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 import static java.util.stream.Collectors.toList;
 
 import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /** Util functions for BeamSqlLine related tests. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class BeamSqlLineTestingUtils {
 
   private static final String QUERY_ARG = "-e";
@@ -39,7 +43,12 @@ class BeamSqlLineTestingUtils {
   }
 
   public static List<List<String>> toLines(ByteArrayOutputStream outputStream) {
-    List<String> outputLines = Arrays.asList(outputStream.toString().split("\n"));
+    List<String> outputLines;
+    try {
+      outputLines = Arrays.asList(outputStream.toString("UTF-8").split("\n"));
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
     return outputLines.stream().map(BeamSqlLineTestingUtils::splitFields).collect(toList());
   }
 

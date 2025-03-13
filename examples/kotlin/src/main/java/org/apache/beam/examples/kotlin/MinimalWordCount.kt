@@ -96,7 +96,7 @@ public object MinimalWordCount {
                 // individual word in Shakespeare's collected texts.
                 .apply(
                         FlatMapElements.into(TypeDescriptors.strings())
-                                .via(ProcessFunction<String, List<String>> { input -> input.split("[^\\p{L}]+").toList() })
+                                .via(ProcessFunction<String, List<String>> { input -> input.split("[^\\p{L}]+".toRegex()).toList() })
                 )
                 // We use a Filter transform to avoid empty word
                 .apply(Filter.by(SerializableFunction<String, Boolean> { input -> !input.isEmpty() }))

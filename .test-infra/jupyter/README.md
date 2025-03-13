@@ -22,10 +22,10 @@ test metrics.
 
 # Jupyter Setup
 
-Instructions for installing on Linux using pip+virtualenv:
+Instructions for installing on Linux using pip+venv:
 
 ```shell
-virtualenv --python python3 ~/virtualenvs/jupyter
+python3 -m venv ~/virtualenvs/jupyter
 source ~/virtualenvs/jupyter/bin/activate
 pip install jupyter
 # Optional packages, for example:
@@ -37,4 +37,4 @@ jupyter notebook  # Should open a browser window.
 # Pull Requests
 
 To minimize file size, diffs, and ease reviews, please clear all cell output
-(cell -> all output -> clear) before commiting.
+(cell -> all output -> clear) before committing.

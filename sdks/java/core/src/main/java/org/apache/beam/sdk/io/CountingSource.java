@@ -17,17 +17,22 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.Counter;
@@ -35,7 +40,8 @@ import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -54,6 +60,9 @@ import org.joda.time.Instant;
  * <p>To produce a bounded source, use {@link #createSourceForSubrange(long, long)}. To produce an
  * unbounded source, use {@link #createUnboundedFrom(long)}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CountingSource {
   /**
    * Creates a {@link BoundedSource} that will produce the specified number of elements, from {@code
@@ -137,7 +146,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof NowTimestampFn;
     }
 
@@ -191,7 +200,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof BoundedCountingSource)) {
         return false;
       }
@@ -351,7 +360,7 @@ public class CountingSource {
 
     @Override
     public Coder<CountingSource.CounterMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(CountingSource.CounterMark.class);
+      return new CounterMarkCoder();
     }
 
     @Override
@@ -360,7 +369,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof UnboundedCountingSource)) {
         return false;
       }
@@ -388,10 +397,10 @@ public class CountingSource {
     private long current;
 
     // Initialized on first advance()
-    @Nullable private Instant currentTimestamp;
+    private @Nullable Instant currentTimestamp;
 
     // Initialized in start()
-    @Nullable private Instant firstStarted;
+    private @Nullable Instant firstStarted;
 
     private final Counter elementsRead = SourceMetrics.elementsRead();
 
@@ -432,7 +441,8 @@ public class CountingSource {
     }
 
     private long expectedValue() {
-      if (source.period.getMillis() == 0L) {
+      // Within the SDF unbounded wrapper, we will query the initial size before we start to read.
+      if (source.period.getMillis() == 0L || firstStarted == null) {
         return Long.MAX_VALUE;
       }
       double periodsElapsed =
@@ -481,7 +491,7 @@ public class CountingSource {
    * The checkpoint for an unbounded {@link CountingSource} is simply the last value produced. The
    * associated source object encapsulates the information needed to produce the next value.
    */
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(CounterMarkCoder.class)
   public static class CounterMark implements UnboundedSource.CheckpointMark {
     /** The last value emitted. */
     private final long lastEmitted;
@@ -514,5 +524,23 @@ public class CountingSource {
 
     @Override
     public void finalizeCheckpoint() throws IOException {}
+  }
+
+  /** A custom coder for {@code CounterMark}. */
+  public static class CounterMarkCoder extends CustomCoder<CounterMark> {
+    @Override
+    public void encode(CounterMark value, OutputStream outStream) throws IOException {
+      DataOutputStream stream = new DataOutputStream(outStream);
+      BigEndianLongCoder.of().encode(value.lastEmitted, stream);
+      InstantCoder.of().encode(value.startTime, stream);
+    }
+
+    @Override
+    public CounterMark decode(InputStream inStream) throws IOException {
+      DataInputStream stream = new DataInputStream(inStream);
+      long lastEmitted = BigEndianLongCoder.of().decode(stream);
+      Instant startTime = InstantCoder.of().decode(stream);
+      return new CounterMark(lastEmitted, startTime);
+    }
   }
 }

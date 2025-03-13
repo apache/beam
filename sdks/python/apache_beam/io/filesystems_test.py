@@ -18,7 +18,7 @@
 
 """Unit tests for LocalFileSystem."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import filecmp
 import logging
@@ -36,15 +36,13 @@ from apache_beam.io.filesystems import FileSystems
 
 def _gen_fake_join(separator):
   """Returns a callable that joins paths with the given separator."""
-
   def _join(first_path, *paths):
-    return separator.join((first_path.rstrip(separator),) + paths)
+    return separator.join((first_path.rstrip(separator), ) + paths)
 
   return _join
 
 
 class FileSystemsTest(unittest.TestCase):
-
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 
@@ -53,14 +51,18 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_get_scheme(self):
     self.assertIsNone(FileSystems.get_scheme('/abc/cdf'))
-    self.assertIsNone(FileSystems.get_scheme('c:\\abc\cdf'))  # pylint: disable=anomalous-backslash-in-string
+    self.assertIsNone(FileSystems.get_scheme('c:\\abc\\cdf'))
     self.assertEqual(FileSystems.get_scheme('gs://abc/cdf'), 'gs')
 
   def test_get_filesystem(self):
-    self.assertTrue(isinstance(FileSystems.get_filesystem('/tmp'),
-                               localfilesystem.LocalFileSystem))
-    self.assertTrue(isinstance(FileSystems.get_filesystem('c:\\abc\def'),  # pylint: disable=anomalous-backslash-in-string
-                               localfilesystem.LocalFileSystem))
+    self.assertTrue(
+        isinstance(
+            FileSystems.get_filesystem('/tmp'),
+            localfilesystem.LocalFileSystem))
+    self.assertTrue(
+        isinstance(
+            FileSystems.get_filesystem('c:\\abc\\def'),
+            localfilesystem.LocalFileSystem))
     with self.assertRaises(ValueError):
       FileSystems.get_filesystem('error://abc/def')
 
@@ -68,25 +70,26 @@ class FileSystemsTest(unittest.TestCase):
   def test_unix_path_join(self, *unused_mocks):
     # Test joining of Unix paths.
     localfilesystem.os.path.join.side_effect = _gen_fake_join('/')
-    self.assertEqual('/tmp/path/to/file',
-                     FileSystems.join('/tmp/path', 'to', 'file'))
-    self.assertEqual('/tmp/path/to/file',
-                     FileSystems.join('/tmp/path', 'to/file'))
-    self.assertEqual('/tmp/path/to/file',
-                     FileSystems.join('/', 'tmp/path', 'to/file'))
-    self.assertEqual('/tmp/path/to/file',
-                     FileSystems.join('/tmp/', 'path', 'to/file'))
+    self.assertEqual(
+        '/tmp/path/to/file', FileSystems.join('/tmp/path', 'to', 'file'))
+    self.assertEqual(
+        '/tmp/path/to/file', FileSystems.join('/tmp/path', 'to/file'))
+    self.assertEqual(
+        '/tmp/path/to/file', FileSystems.join('/', 'tmp/path', 'to/file'))
+    self.assertEqual(
+        '/tmp/path/to/file', FileSystems.join('/tmp/', 'path', 'to/file'))
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_windows_path_join(self, *unused_mocks):
     # Test joining of Windows paths.
     localfilesystem.os.path.join.side_effect = _gen_fake_join('\\')
-    self.assertEqual(r'C:\tmp\path\to\file',
-                     FileSystems.join(r'C:\tmp\path', 'to', 'file'))
-    self.assertEqual(r'C:\tmp\path\to\file',
-                     FileSystems.join(r'C:\tmp\path', r'to\file'))
-    self.assertEqual(r'C:\tmp\path\to\file',
-                     FileSystems.join(r'C:\tmp\path\\', 'to', 'file'))
+    self.assertEqual(
+        r'C:\tmp\path\to\file', FileSystems.join(r'C:\tmp\path', 'to', 'file'))
+    self.assertEqual(
+        r'C:\tmp\path\to\file', FileSystems.join(r'C:\tmp\path', r'to\file'))
+    self.assertEqual(
+        r'C:\tmp\path\to\file',
+        FileSystems.join(r'C:\tmp\path\\', 'to', 'file'))
 
   def test_mkdirs(self):
     path = os.path.join(self.tmpdir, 't1/t2')
@@ -123,12 +126,12 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_match_file_exception(self):
     # Match files with None so that it throws an exception
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Unable to get the Filesystem') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Unable to get the Filesystem') as error:
       FileSystems.match([None])
     self.assertEqual(list(error.exception.exception_details), [None])
 
-  def test_match_directory(self):
+  def test_match_directory_with_files(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
     open(path1, 'a').close()
@@ -138,7 +141,7 @@ class FileSystemsTest(unittest.TestCase):
     path = os.path.join(self.tmpdir, '*')
     result = FileSystems.match([path])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertEqual(files, [path1, path2])
+    self.assertCountEqual(files, [path1, path2])
 
   def test_match_directory(self):
     result = FileSystems.match([self.tmpdir])[0]
@@ -157,11 +160,11 @@ class FileSystemsTest(unittest.TestCase):
   def test_copy_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Copy operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Copy operation failed') as error:
       FileSystems.copy([path1], [path2])
-    self.assertEqual(list(error.exception.exception_details.keys()),
-                     [(path1, path2)])
+    self.assertEqual(
+        list(error.exception.exception_details.keys()), [(path1, path2)])
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -190,11 +193,11 @@ class FileSystemsTest(unittest.TestCase):
   def test_rename_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Rename operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Rename operation failed') as error:
       FileSystems.rename([path1], [path2])
-    self.assertEqual(list(error.exception.exception_details.keys()),
-                     [(path1, path2)])
+    self.assertEqual(
+        list(error.exception.exception_details.keys()), [(path1, path2)])
 
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -232,8 +235,8 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_delete_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       FileSystems.delete([path1])
     self.assertEqual(list(error.exception.exception_details.keys()), [path1])
 

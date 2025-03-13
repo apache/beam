@@ -18,15 +18,30 @@
 
 package org.apache.beam.learning.katas.coretransforms.branching;
 
+// beam-playground:
+//   name: Branching
+//   description: Task from katas to branch out the numbers to two different transforms, one transform
+//     is multiplying each number by 5 and the other transform is multiplying each number by 10.
+//   multifile: false
+//   context_line: 48
+//   categories:
+//     - Branching
+//     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - branch
+//     - transforms
+//     - numbers
+
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
-import util.Log;
 
 public class Task {
 

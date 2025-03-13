@@ -17,20 +17,16 @@
  */
 package org.apache.beam.runners.samza;
 
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 
 /** Samza pipeline option that contains portability specific logic. For internal usage only. */
-public interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
-  @Description("The job service port. (Default: 11440) ")
-  @Default.Integer(11440)
-  int getJobPort();
+public interface SamzaPortablePipelineOptions
+    extends SamzaPipelineOptions, PortablePipelineOptions {
+  @Description(
+      "The file path for the local file system token. If not set (by default), then the runner would"
+          + " not use secure server factory.")
+  String getFsTokenPath();
 
-  void setJobPort(int port);
-
-  @Description("The FnControl port. (Default: 11441) ")
-  @Default.Integer(11441)
-  int getControlPort();
-
-  void setControlPort(int port);
+  void setFsTokenPath(String path);
 }

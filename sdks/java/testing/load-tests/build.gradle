@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    publish: false,
     archivesBaseName: 'beam-sdks-java-load-tests',
     exportJavadoc: false
 )
@@ -26,10 +27,9 @@ description = "Apache Beam :: SDKs :: Java :: Load Tests"
 
 
 def mainClassProperty = "loadTest.mainClass"
-def mainClass = project.findProperty(mainClassProperty)
 
 // When running via Gradle, this property can be used to pass commandline arguments
-// to the nexmark launch
+// to the load-tests launch
 def loadTestArgsProperty = "loadTest.args"
 
 // When running via Gradle, this property sets the runner dependency
@@ -37,9 +37,12 @@ def runnerProperty = "runner"
 def runnerDependency = (project.hasProperty(runnerProperty)
         ? project.getProperty(runnerProperty)
         : ":runners:direct-java")
-
-def shouldProvideSpark = ":runners:spark".equals(runnerDependency)
+def loadTestRunnerVersionProperty = "runner.version"
+def loadTestRunnerVersion = project.findProperty(loadTestRunnerVersionProperty)
+def isSparkRunner = runnerDependency.startsWith(":runners:spark:")
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(runnerDependency)
+def isDataflowRunnerV2 = isDataflowRunner && "V2".equals(loadTestRunnerVersion)
+def runnerConfiguration = ":runners:direct-java".equals(runnerDependency) ? "shadow" : null
 
 if (isDataflowRunner) {
   /*
@@ -47,7 +50,11 @@ if (isDataflowRunner) {
    * the following projects are evaluated before we evaluate this project. This is because
    * we are attempting to reference a property from the project directly.
    */
-  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+  if (isDataflowRunnerV2) {
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+  } else {
+    evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
+  }
 }
 
 configurations {
@@ -57,55 +64,78 @@ configurations {
   gradleRun
 }
 
-dependencies {
-  compile library.java.kafka_clients
-
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  compile project(":sdks:java:io:synthetic")
-  compile project(":sdks:java:testing:test-utils")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:io:kinesis")
-
-  gradleRun project(project.path)
-  gradleRun project(runnerDependency)
-
-  // The Spark runner requires the user to provide a Spark dependency. For self-contained
-  // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
-  // to not hardcode any runner other than :runners:direct-java
-  if (shouldProvideSpark) {
-    gradleRun library.java.spark_streaming
-    gradleRun library.java.spark_core, {
-      exclude group:"org.slf4j", module:"jul-to-slf4j"
-    }
-  }
+def excludeNetty = {
+  exclude group: "io.netty", module: "*" // exclude more recent Netty version
 }
 
-if (shouldProvideSpark) {
+dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
+  implementation library.java.kafka_clients
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:synthetic")
+  implementation project(":sdks:java:testing:test-utils")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:amazon-web-services2")
+  implementation library.java.aws_java_sdk2_auth, excludeNetty
+  implementation library.java.aws_java_sdk2_regions, excludeNetty
+  implementation library.java.google_cloud_core
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.slf4j_api
+
+  gradleRun project(project.path)
+  gradleRun project(path: runnerDependency, configuration: runnerConfiguration)
+}
+
+if (isSparkRunner) {
   configurations.gradleRun {
     // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
     exclude group: "org.slf4j", module: "slf4j-jdk14"
   }
 }
 
-task run(type: JavaExec) {
+def getLoadTestArgs = {
   def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
+  def loadTestArgsList = new ArrayList<String>()
+  Collections.addAll(loadTestArgsList as Collection<? super Collection>, loadTestArgs.split())
 
   if (isDataflowRunner) {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-    // Provide job with a customizable worker jar.
-    // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
-    // More context and discussions can be found in PR#6694.
-    loadTestArgs = loadTestArgs +
-            " --dataflowWorkerJar=${dataflowWorkerJar} " +
-            " --workerHarnessContainerImage="
+    if (isDataflowRunnerV2) {
+      loadTestArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
+      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
+      loadTestArgsList.add("--sdkContainerImage=${sdkContainerImage}")
+    } else {
+      def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+      // Provide job with a customizable worker jar.
+      // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+      // More context and discussions can be found in PR#6694.
+      loadTestArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}")
+      loadTestArgsList.add("--workerHarnessContainerImage=")
+    }
   }
-
-  main = mainClass
-  classpath = configurations.gradleRun
-  args loadTestArgs.split()
+  return loadTestArgsList
 }
 
+task run(type: JavaExec) {
+  def loadTestArgsList = getLoadTestArgs()
+  if (isDataflowRunner) {
+    if (isDataflowRunnerV2){
+      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+    } else {
+      dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    }
+  }
+
+  if(isSparkRunner){
+    // Disable UI
+    systemProperty "spark.ui.enabled", "false"
+    systemProperty "spark.ui.showConsoleProgress", "false"
+  }
+
+  mainClass = project.findProperty(mainClassProperty)
+  classpath = configurations.gradleRun
+  args loadTestArgsList.toArray()
+}

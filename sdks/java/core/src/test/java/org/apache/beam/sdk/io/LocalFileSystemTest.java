@@ -17,13 +17,18 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -32,6 +37,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -41,12 +47,12 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.LineReader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.LineReader;
 import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -55,6 +61,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /** Tests for {@link LocalFileSystem}. */
 @RunWith(JUnit4.class)
@@ -80,6 +88,29 @@ public class LocalFileSystemTest {
     testCreate(temporaryFolder.getRoot().toPath().resolve("non-existent-dir").resolve("file.txt"));
   }
 
+  @Test
+  public void testCreateFilesException() throws Exception {
+    File mockParentFile = mock(File.class);
+    when(mockParentFile.mkdirs()).thenThrow(new RuntimeException("exception when creating files"));
+
+    File mockAbsoluteFile = mock(File.class);
+    when(mockAbsoluteFile.getParentFile()).thenReturn(mockParentFile);
+
+    File mockFile = mock(File.class);
+    when(mockFile.getAbsoluteFile()).thenReturn(mockAbsoluteFile);
+
+    Path mockPath = mock(Path.class);
+    when(mockPath.toFile()).thenReturn(mockFile);
+
+    LocalResourceId mockResourceId = mock(LocalResourceId.class);
+    when(mockResourceId.getPath()).thenReturn(mockPath);
+
+    thrown.expect(RuntimeException.class);
+
+    localFileSystem.create(
+        mockResourceId, StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build());
+  }
+
   private void testCreate(Path path) throws Exception {
     String expected = "my test string";
     // First with the path string
@@ -100,7 +131,7 @@ public class LocalFileSystemTest {
   public void testReadWithExistingFile() throws Exception {
     String expected = "my test string";
     File existingFile = temporaryFolder.newFile();
-    Files.write(expected, existingFile, StandardCharsets.UTF_8);
+    Files.asCharSink(existingFile, StandardCharsets.UTF_8).write(expected);
     String data;
     try (Reader reader =
         Channels.newReader(
@@ -151,6 +182,23 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testCopyWithNonExistingSrcFile() throws Exception {
+    thrown.expect(NoSuchFileException.class);
+
+    Path existentSrc = temporaryFolder.newFile().toPath();
+    Path nonExistentSrc = temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt");
+
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath2 = destPath1.resolveSibling("dest2");
+
+    createFileWithContent(existentSrc, "content");
+
+    localFileSystem.copy(
+        toLocalResourceIds(ImmutableList.of(existentSrc, nonExistentSrc), false /* isDirectory */),
+        toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+  }
+
+  @Test
   public void testMoveWithExistingSrcFile() throws Exception {
     Path srcPath1 = temporaryFolder.newFile().toPath();
     Path srcPath2 = temporaryFolder.newFile().toPath();
@@ -173,6 +221,50 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMoveWithNonExistingSrcFile() throws Exception {
+    Path existingSrc = temporaryFolder.newFile().toPath();
+    Path nonExistingSrc = temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt");
+
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath2 = destPath1.resolveSibling("dest2");
+
+    createFileWithContent(existingSrc, "content1");
+
+    thrown.expect(NoSuchFileException.class);
+
+    localFileSystem.rename(
+        toLocalResourceIds(ImmutableList.of(existingSrc, nonExistingSrc), false /* isDirectory */),
+        toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+  }
+
+  @Test
+  public void testMoveFilesWithException() throws Exception {
+    Path srcPath1 = temporaryFolder.newFile().toPath();
+    Path srcPath2 = temporaryFolder.newFile().toPath();
+
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath2 = srcPath2.resolveSibling("dest2");
+
+    createFileWithContent(srcPath1, "content1");
+    createFileWithContent(srcPath2, "content2");
+
+    try (MockedStatic<java.nio.file.Files> mockFiles =
+        Mockito.mockStatic(java.nio.file.Files.class)) {
+      System.out.println(srcPath1 + " plus " + destPath1);
+
+      mockFiles
+          .when(() -> java.nio.file.Files.move(any(), any(), any(), any()))
+          .thenThrow(new RuntimeException("exception while moving files"));
+
+      thrown.expect(RuntimeException.class);
+
+      localFileSystem.rename(
+          toLocalResourceIds(ImmutableList.of(srcPath1, srcPath2), false /* isDirectory */),
+          toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+    }
+  }
+
+  @Test
   public void testDelete() throws Exception {
     File f1 = temporaryFolder.newFile("file1");
     File f2 = temporaryFolder.newFile("file2");
@@ -182,6 +274,51 @@ public class LocalFileSystemTest {
     assertFalse(f1.exists());
     assertFalse(f2.exists());
     assertTrue(f3.exists());
+  }
+
+  @Test
+  public void testMatchWithGlob() throws Exception {
+    String globPattern = "/A/a=[0-9][0-9][0-9]/*/*";
+    File baseFolder = temporaryFolder.newFolder("A");
+    File folder1 = new File(baseFolder, "a=100");
+    File folder2 = new File(baseFolder, "a=233");
+    File dataFolder1 = new File(folder1, "data1");
+    File dataFolder2 = new File(folder2, "data_dir");
+    File expectedFile1 = new File(dataFolder1, "file1");
+    File expectedFile2 = new File(dataFolder2, "data_file2");
+
+    createEmptyFile(expectedFile1);
+    createEmptyFile(expectedFile2);
+
+    List<String> expected =
+        ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
+
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchRelativeWildcardPath() throws Exception {
+    File baseFolder = temporaryFolder.newFolder("A");
+    File expectedFile1 = new File(baseFolder, "file1");
+
+    expectedFile1.createNewFile();
+
+    List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath());
+
+    // This no longer works:
+    //     System.setProperty("user.dir", temporaryFolder.getRoot().toString());
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> matchResults =
+        localFileSystem.match(temporaryFolder.getRoot().toString(), ImmutableList.of("A/*"));
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
@@ -270,8 +407,11 @@ public class LocalFileSystemTest {
     }
     String directory = expectedFile.substring(0, slashIndex);
     String relative = expectedFile.substring(slashIndex + 1);
-    System.setProperty("user.dir", directory);
-    List<MatchResult> results = localFileSystem.match(ImmutableList.of(relative));
+    // This no longer works:
+    //     System.setProperty("user.dir", directory);
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> results = localFileSystem.match(directory, ImmutableList.of(relative));
     assertThat(
         toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
@@ -358,6 +498,8 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20478
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     Path pattern =
         LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
             .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
@@ -367,7 +509,9 @@ public class LocalFileSystemTest {
   }
 
   @Test
-  public void testMatchNewResource() throws Exception {
+  public void testMatchNewResource() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20461
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
     LocalResourceId dirResource =
@@ -384,6 +528,29 @@ public class LocalFileSystemTest {
             .resolve("path", StandardResolveOptions.RESOLVE_DIRECTORY),
         equalTo(dirResource.getCurrentDirectory()));
     assertThat(dirResource.toString(), equalTo("/some/test/resource/path/"));
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> localFileSystem.matchNewResource("/some/test/resource/path/", false));
+    assertTrue(exception.getMessage().startsWith("Expected file path but received directory path"));
+  }
+
+  @Test
+  public void testGetDefaultFileSystemException() throws Exception {
+    temporaryFolder.newFile("a");
+
+    try (MockedStatic<java.nio.file.FileSystems> mockFileSystems =
+        Mockito.mockStatic(java.nio.file.FileSystems.class)) {
+      mockFileSystems
+          .when(java.nio.file.FileSystems::getDefault)
+          .thenThrow(new RuntimeException("exception finding filesystem"));
+
+      thrown.expect(RuntimeException.class);
+
+      localFileSystem.match(
+          ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    }
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {
@@ -421,5 +588,11 @@ public class LocalFileSystemTest {
             })
         .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
+  }
+
+  private static void createEmptyFile(File file) throws IOException {
+    if (!file.getParentFile().mkdirs() || !file.createNewFile()) {
+      throw new IOException("Failed creating empty file " + file.getAbsolutePath());
+    }
   }
 }

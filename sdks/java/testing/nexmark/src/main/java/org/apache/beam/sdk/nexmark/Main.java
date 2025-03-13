@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.nexmark.NexmarkUtils.processingMode;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,14 +37,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher.DataPoint;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -64,6 +69,10 @@ import org.joda.time.Instant;
  * href="https://web.archive.org/web/20100620010601/http://datalab.cs.pdx.edu/niagaraST/NEXMark/">
  * Nexmark website</a>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Main {
 
   private static class Result {
@@ -139,28 +148,18 @@ public class Main {
         appendPerf(options.getPerfFilename(), configuration, perf);
         actual.put(configuration, perf);
         // Summarize what we've run so far.
-        saveSummary(null, configurations, actual, baseline, start, options);
+        saveSummary(null, configurations, actual, baseline, start);
       }
 
-      if (options.getExportSummaryToBigQuery()) {
-        ImmutableMap<String, String> schema =
-            ImmutableMap.<String, String>builder()
-                .put("timestamp", "timestamp")
-                .put("runtimeSec", "float")
-                .put("eventsPerSec", "float")
-                .put("numResults", "integer")
-                .build();
-
-        savePerfsToBigQuery(
-            BigQueryResultsPublisher.create(options.getBigQueryDataset(), schema),
-            options,
-            actual,
-            start);
+      if (options.getExportSummaryToInfluxDB()) {
+        final long timestamp = start.getMillis() / 1000; // seconds
+        savePerfsToInfluxDB(options, actual, timestamp);
       }
+
     } finally {
       if (options.getMonitorJobs()) {
         // Report overall performance.
-        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
 
@@ -171,21 +170,50 @@ public class Main {
     }
   }
 
-  @VisibleForTesting
-  static void savePerfsToBigQuery(
-      BigQueryResultsPublisher publisher,
-      NexmarkOptions options,
-      Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      Instant start) {
+  private static void savePerfsToInfluxDB(
+      final NexmarkOptions options,
+      final Map<NexmarkConfiguration, NexmarkPerf> results,
+      final long timestamp) {
+    final InfluxDBSettings settings = getInfluxSettings(options);
+    final Map<String, String> tags =
+        options.getInfluxTags() != null ? new HashMap<>(options.getInfluxTags()) : new HashMap<>();
+    tags.put("runner", options.getRunner().getSimpleName());
 
-    for (Map.Entry<NexmarkConfiguration, NexmarkPerf> entry : perfs.entrySet()) {
-      String queryName =
-          NexmarkUtils.fullQueryName(
-              options.getQueryLanguage(), entry.getKey().query.getNumberOrName());
-      String tableName = NexmarkUtils.tableName(options, queryName, 0L, null);
+    final List<DataPoint> dataPoints =
+        results.entrySet().stream()
+            .map(entry -> createInfluxDBDataPoint(options, entry, tags, timestamp))
+            .collect(toList());
+    InfluxDBPublisher.publish(settings, dataPoints);
+  }
 
-      publisher.publish(entry.getValue(), tableName, start.getMillis());
-    }
+  private static InfluxDBSettings getInfluxSettings(final NexmarkOptions options) {
+    return InfluxDBSettings.builder()
+        .withHost(options.getInfluxHost())
+        .withDatabase(options.getInfluxDatabase())
+        .withMeasurement(options.getBaseInfluxMeasurement())
+        .withRetentionPolicy(options.getInfluxRetentionPolicy())
+        .get();
+  }
+
+  private static String generateMeasurementName(
+      final NexmarkOptions options, NexmarkConfiguration config) {
+    final String queryName =
+        NexmarkUtils.fullQueryName(options.getQueryLanguage(), config.query.getNumberOrName());
+    return String.format(
+        "%s_%s_%s",
+        options.getBaseInfluxMeasurement(), queryName, processingMode(options.isStreaming()));
+  }
+
+  private static InfluxDBPublisher.DataPoint createInfluxDBDataPoint(
+      final NexmarkOptions options,
+      final Map.Entry<NexmarkConfiguration, NexmarkPerf> entry,
+      final Map<String, String> tags,
+      final long timestamp) {
+    String measurement = generateMeasurementName(options, entry.getKey());
+    int runtimeMs = (int) (entry.getValue().runtimeSec * 1000); // change sec to ms
+    Map<String, Number> fields =
+        ImmutableMap.of("runtimeMs", runtimeMs, "numResults", entry.getValue().numResults);
+    return InfluxDBPublisher.dataPoint(measurement, tags, fields, timestamp);
   }
 
   /** Append the pair of {@code configuration} and {@code perf} to perf file. */
@@ -214,8 +242,7 @@ public class Main {
   }
 
   /** Load the baseline perf. */
-  @Nullable
-  private static Map<NexmarkConfiguration, NexmarkPerf> loadBaseline(
+  private static @Nullable Map<NexmarkConfiguration, NexmarkPerf> loadBaseline(
       @Nullable String baselineFilename) {
     if (baselineFilename == null) {
       return null;
@@ -249,8 +276,7 @@ public class Main {
       Iterable<NexmarkConfiguration> configurations,
       Map<NexmarkConfiguration, NexmarkPerf> actual,
       @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
-      Instant start,
-      NexmarkOptions options) {
+      Instant start) {
 
     List<String> lines = new ArrayList<>();
 

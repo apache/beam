@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
  * A {@link SideInputReader} representing a well-defined set of views, but not storing any values
@@ -29,10 +29,13 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
  */
 public class NullSideInputReader implements SideInputReader {
 
+  /** The default empty instance. */
+  private static final NullSideInputReader EMPTY_INSTANCE = of(Collections.emptySet());
+
   private Set<PCollectionView<?>> views;
 
   public static NullSideInputReader empty() {
-    return new NullSideInputReader(Collections.emptySet());
+    return EMPTY_INSTANCE;
   }
 
   public static NullSideInputReader of(Iterable<? extends PCollectionView<?>> views) {

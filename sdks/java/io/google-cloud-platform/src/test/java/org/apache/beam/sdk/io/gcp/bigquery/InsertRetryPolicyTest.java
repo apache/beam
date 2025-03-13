@@ -25,7 +25,7 @@ import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -56,6 +56,34 @@ public class InsertRetryPolicyTest {
     assertFalse(
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
     assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "parseError"))));
+  }
+
+  static class RetryAllExceptInvalidQuery extends InsertRetryPolicy {
+    @Override
+    public boolean shouldRetry(Context context) {
+      if (context.getInsertErrors().getErrors() != null) {
+        for (ErrorProto error : context.getInsertErrors().getErrors()) {
+          if (error.getReason() != null && error.getReason().equals("invalidQuery")) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  @Test
+  public void testCustomRetryPolicy() {
+    InsertRetryPolicy policy = new RetryAllExceptInvalidQuery();
+    assertTrue(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "unavailable"))));
+    assertTrue(policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalid"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
+    assertTrue(
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
   }
 

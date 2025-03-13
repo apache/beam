@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,8 +35,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -48,15 +46,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for coder exception handling in runners. */
 @RunWith(JUnit4.class)
 public class PCollectionCustomCoderTest {
-  private static final Logger LOG = LoggerFactory.getLogger(PCollectionCustomCoderTest.class);
   /**
    * A custom test coder that can throw various exceptions during:
    *
@@ -72,6 +68,7 @@ public class PCollectionCustomCoderTest {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   /** Wrapper of StringUtf8Coder with customizable exception-throwing. */
   public static class CustomTestCoder extends CustomCoder<String> {
@@ -225,7 +222,7 @@ public class PCollectionCustomCoderTest {
     p.run().waitUntilFinish();
   }
 
-  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  // TODO(https://github.com/apache/beam/issues/19185) Have DirectRunner trigger deserialization.
   @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)
@@ -237,7 +234,7 @@ public class PCollectionCustomCoderTest {
     p.run().waitUntilFinish();
   }
 
-  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  // TODO(https://github.com/apache/beam/issues/19185) Have DirectRunner trigger deserialization.
   @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)

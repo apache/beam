@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import java.lang.reflect.Type;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.type.BasicSqlType;
-import org.apache.calcite.sql.type.IntervalSqlType;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.IntervalSqlType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /** customized data type in Beam. */
 public class BeamJavaTypeFactory extends JavaTypeFactoryImpl {
@@ -39,6 +39,12 @@ public class BeamJavaTypeFactory extends JavaTypeFactoryImpl {
       if (type.getSqlTypeName() == SqlTypeName.FLOAT) {
         return type.isNullable() ? Float.class : float.class;
       }
+    }
+    // Map BINARY and VARBINARY to byte[] instead of ByteString so UDFs over these types don't
+    // require vendored Calcite.
+    if (type.getSqlTypeName() == SqlTypeName.BINARY
+        || type.getSqlTypeName() == SqlTypeName.VARBINARY) {
+      return byte[].class;
     }
     return super.getJavaClass(type);
   }

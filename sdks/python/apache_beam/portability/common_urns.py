@@ -17,72 +17,78 @@
 
 """ Accessors for URNs of common Beam entities. """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-from builtins import object
+from .api import beam_runner_api_pb2_urns
+from .api import external_transforms_pb2_urns
+from .api import metrics_pb2_urns
+from .api import schema_pb2_urns
+from .api import standard_window_fns_pb2_urns
 
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import metrics_pb2
-from apache_beam.portability.api import standard_window_fns_pb2
+BeamConstants = beam_runner_api_pb2_urns.BeamConstants
+StandardArtifacts = beam_runner_api_pb2_urns.StandardArtifacts
+StandardCoders = beam_runner_api_pb2_urns.StandardCoders
+StandardDisplayData = beam_runner_api_pb2_urns.StandardDisplayData
+StandardEnvironments = beam_runner_api_pb2_urns.StandardEnvironments
+StandardProtocols = beam_runner_api_pb2_urns.StandardProtocols
+StandardPTransforms = beam_runner_api_pb2_urns.StandardPTransforms
+StandardRequirements = beam_runner_api_pb2_urns.StandardRequirements
+StandardResourceHints = beam_runner_api_pb2_urns.StandardResourceHints
+StandardRunnerProtocols = beam_runner_api_pb2_urns.StandardRunnerProtocols
+StandardSideInputTypes = beam_runner_api_pb2_urns.StandardSideInputTypes
+StandardUserStateTypes = beam_runner_api_pb2_urns.StandardUserStateTypes
+ExpansionMethods = external_transforms_pb2_urns.ExpansionMethods
+ManagedTransforms = external_transforms_pb2_urns.ManagedTransforms
+MonitoringInfo = metrics_pb2_urns.MonitoringInfo
+MonitoringInfoSpecs = metrics_pb2_urns.MonitoringInfoSpecs
+MonitoringInfoTypeUrns = metrics_pb2_urns.MonitoringInfoTypeUrns
+LogicalTypes = schema_pb2_urns.LogicalTypes
+FixedWindowsPayload = standard_window_fns_pb2_urns.FixedWindowsPayload
+GlobalWindowsPayload = standard_window_fns_pb2_urns.GlobalWindowsPayload
+SessionWindowsPayload = standard_window_fns_pb2_urns.SessionWindowsPayload
+SlidingWindowsPayload = standard_window_fns_pb2_urns.SlidingWindowsPayload
 
+primitives = StandardPTransforms.Primitives
+deprecated_primitives = StandardPTransforms.DeprecatedPrimitives
+composites = StandardPTransforms.Composites
+combine_components = StandardPTransforms.CombineComponents
+sdf_components = StandardPTransforms.SplittableParDoComponents
+group_into_batches_components = StandardPTransforms.GroupIntoBatchesComponents
+executable_stage = "beam:runner:executable_stage:v1"
 
-class PropertiesFromEnumValue(object):
-  def __init__(self, value_descriptor):
-    self.urn = (value_descriptor.GetOptions().Extensions[
-        beam_runner_api_pb2.beam_urn])
-    self.constant = (value_descriptor.GetOptions().Extensions[
-        beam_runner_api_pb2.beam_constant])
-    self.spec = (value_descriptor.GetOptions().Extensions[
-        metrics_pb2.monitoring_info_spec])
-    self.label_props = (value_descriptor.GetOptions().Extensions[
-        metrics_pb2.label_props])
+user_state = StandardUserStateTypes.Enum
+side_inputs = StandardSideInputTypes.Enum
+coders = StandardCoders.Enum
+constants = BeamConstants.Constants
 
+environments = StandardEnvironments.Environments
+artifact_types = StandardArtifacts.Types
+artifact_roles = StandardArtifacts.Roles
+resource_hints = StandardResourceHints.Enum
 
-class PropertiesFromEnumType(object):
-  def __init__(self, enum_type):
-    for v in enum_type.DESCRIPTOR.values:
-      setattr(self, v.name, PropertiesFromEnumValue(v))
+global_windows = GlobalWindowsPayload.Enum.PROPERTIES
+fixed_windows = FixedWindowsPayload.Enum.PROPERTIES
+sliding_windows = SlidingWindowsPayload.Enum.PROPERTIES
+session_windows = SessionWindowsPayload.Enum.PROPERTIES
 
+monitoring_info_specs = MonitoringInfoSpecs.Enum
+monitoring_info_types = MonitoringInfoTypeUrns.Enum
+monitoring_info_labels = MonitoringInfo.MonitoringInfoLabels
 
-primitives = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.Primitives)
-deprecated_primitives = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.DeprecatedPrimitives)
-composites = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.Composites)
-combine_components = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.CombineComponents)
-sdf_components = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.SplittableParDoComponents)
+protocols = StandardProtocols.Enum
+runner_protocols = StandardRunnerProtocols.Enum
+requirements = StandardRequirements.Enum
 
-side_inputs = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardSideInputTypes.Enum)
+displayData = StandardDisplayData.DisplayData
 
-coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
+java_class_lookup = ExpansionMethods.Enum.JAVA_CLASS_LOOKUP
+schematransform_based_expand = ExpansionMethods.Enum.SCHEMA_TRANSFORM
 
-constants = PropertiesFromEnumType(
-    beam_runner_api_pb2.BeamConstants.Constants)
-
-environments = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardEnvironments.Environments)
-
-
-def PropertiesFromPayloadType(payload_type):
-  return PropertiesFromEnumType(payload_type.Enum).PROPERTIES
-
-
-global_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.GlobalWindowsPayload)
-fixed_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.FixedWindowsPayload)
-sliding_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.SlidingWindowsPayload)
-session_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.SessionsPayload)
-
-monitoring_info_specs = PropertiesFromEnumType(
-    metrics_pb2.MonitoringInfoSpecs.Enum)
-monitoring_info_types = PropertiesFromEnumType(
-    metrics_pb2.MonitoringInfoTypeUrns.Enum)
-monitoring_info_labels = PropertiesFromEnumType(
-    metrics_pb2.MonitoringInfo.MonitoringInfoLabels)
+decimal = LogicalTypes.Enum.DECIMAL
+micros_instant = LogicalTypes.Enum.MICROS_INSTANT
+millis_instant = LogicalTypes.Enum.MILLIS_INSTANT
+python_callable = LogicalTypes.Enum.PYTHON_CALLABLE
+fixed_bytes = LogicalTypes.Enum.FIXED_BYTES
+var_bytes = LogicalTypes.Enum.VAR_BYTES
+fixed_char = LogicalTypes.Enum.FIXED_CHAR
+var_char = LogicalTypes.Enum.VAR_CHAR

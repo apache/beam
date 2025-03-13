@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kudu;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,6 +45,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An implementation of the {@link KuduService} that uses a Kudu instance. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class KuduServiceImpl<T> implements KuduService<T> {
   private static final Logger LOG = LoggerFactory.getLogger(KuduServiceImpl.class);
 

@@ -32,7 +32,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -93,6 +93,7 @@ public class ValueProviderTest {
     assertEquals("foo", provider.get());
     assertTrue(provider.isAccessible());
     assertEquals("foo", provider.toString());
+    assertEquals(provider, StaticValueProvider.of("foo"));
   }
 
   @Test
@@ -120,6 +121,7 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
     assertFalse(provider.isAccessible());
+    assertEquals(provider, options.getBar());
   }
 
   @Test
@@ -232,11 +234,13 @@ public class ValueProviderTest {
 
   @Test
   public void testNestedValueProviderStatic() throws Exception {
+    SerializableFunction<String, String> function = from -> from + "bar";
     ValueProvider<String> svp = StaticValueProvider.of("foo");
-    ValueProvider<String> nvp = NestedValueProvider.of(svp, from -> from + "bar");
+    ValueProvider<String> nvp = NestedValueProvider.of(svp, function);
     assertTrue(nvp.isAccessible());
     assertEquals("foobar", nvp.get());
     assertEquals("foobar", nvp.toString());
+    assertEquals(nvp, NestedValueProvider.of(svp, function));
   }
 
   @Test

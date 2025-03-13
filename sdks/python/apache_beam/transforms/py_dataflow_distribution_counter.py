@@ -17,18 +17,33 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
-from __future__ import absolute_import
-
-from builtins import object
-from builtins import range
+# pytype: skip-file
 
 globals()['INT64_MAX'] = 2**63 - 1
 globals()['INT64_MIN'] = -2**63
 
-POWER_TEN = [10e-1, 10e0, 10e1, 10e2, 10e3, 10e4, 10e5,
-             10e6, 10e7, 10e8, 10e9, 10e10, 10e11,
-             10e12, 10e13, 10e14, 10e15, 10e16, 10e17,
-             10e18]
+POWER_TEN = [
+    10e-1,
+    10e0,
+    10e1,
+    10e2,
+    10e3,
+    10e4,
+    10e5,
+    10e6,
+    10e7,
+    10e8,
+    10e9,
+    10e10,
+    10e11,
+    10e12,
+    10e13,
+    10e14,
+    10e15,
+    10e16,
+    10e17,
+    10e18
+]
 
 
 def get_log10_round_to_floor(element):
@@ -82,6 +97,16 @@ class DataflowDistributionCounter(object):
     bucket_index = self.calculate_bucket_index(element)
     self.buckets[bucket_index] += 1
 
+  def add_input_n(self, element, n):
+    if element < 0:
+      raise ValueError('Distribution counters support only non-negative value')
+    self.min = min(self.min, element)
+    self.max = max(self.max, element)
+    self.count += n
+    self.sum += element * n
+    bucket_index = self.calculate_bucket_index(element)
+    self.buckets[bucket_index] += n
+
   def calculate_bucket_index(self, element):
     """Calculate the bucket index for the given element."""
     if element == 0:
@@ -117,6 +142,16 @@ class DataflowDistributionCounter(object):
     histogram.firstBucketOffset = first_bucket_offset
     histogram.bucketCounts = (
         self.buckets[first_bucket_offset:last_bucket_offset + 1])
+
+  def extract_output(self):
+    global INT64_MIN  # pylint: disable=global-variable-not-assigned
+    global INT64_MAX  # pylint: disable=global-variable-not-assigned
+    if not INT64_MIN <= self.sum <= INT64_MAX:
+      self.sum %= 2**64
+      if self.sum >= INT64_MAX:
+        self.sum -= 2**64
+    mean = self.sum // self.count if self.count else float('nan')
+    return mean, self.sum, self.count, self.min, self.max
 
   def merge(self, accumulators):
     raise NotImplementedError()

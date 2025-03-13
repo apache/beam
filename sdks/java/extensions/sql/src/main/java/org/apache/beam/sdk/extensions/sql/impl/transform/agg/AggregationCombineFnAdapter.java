@@ -17,20 +17,25 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.AggregateCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper {@link CombineFn}s for aggregation function calls. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AggregationCombineFnAdapter<T> {
   private abstract static class WrappedCombinerBase<T> extends CombineFn<T, Object, Object> {
     CombineFn<T, Object, Object> combineFn;
@@ -46,10 +51,7 @@ public class AggregationCombineFnAdapter<T> {
 
     @Override
     public Object addInput(Object accumulator, T input) {
-      T processedInput = getInput(input);
-      return (processedInput == null)
-          ? accumulator
-          : combineFn.addInput(accumulator, getInput(input));
+      return combineFn.addInput(accumulator, getInput(input));
     }
 
     @Override
@@ -62,8 +64,7 @@ public class AggregationCombineFnAdapter<T> {
       return combineFn.extractOutput(accumulator);
     }
 
-    @Nullable
-    abstract T getInput(T input);
+    abstract @Nullable T getInput(T input);
 
     @Override
     public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder)
@@ -99,10 +100,10 @@ public class AggregationCombineFnAdapter<T> {
     }
   }
 
-  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
-    private static final Schema EMPTY_SCHEMA = Schema.builder().build();
-    private static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
+  public static final Schema EMPTY_SCHEMA = Schema.builder().build();
+  public static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
 
+  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
     public static final ConstantEmpty INSTANCE = new ConstantEmpty();
 
     @Override
@@ -141,7 +142,7 @@ public class AggregationCombineFnAdapter<T> {
   public static CombineFn<?, ?, ?> createCombineFn(
       AggregateCall call, Schema.Field field, String functionName) {
     if (call.isDistinct()) {
-      throw new IllegalArgumentException(
+      throw new UnsupportedOperationException(
           "Does not support " + call.getAggregation().getName() + " DISTINCT");
     }
 
@@ -160,6 +161,23 @@ public class AggregationCombineFnAdapter<T> {
     }
   }
 
+  /** Creates either a UDAF or a built-in {@link CombineFn} for Analytic Functions. */
+  public static CombineFn<?, ?, ?> createCombineFnAnalyticsFunctions(
+      AggregateCall call, Schema.Field field, String functionName) {
+    if (call.isDistinct()) {
+      throw new UnsupportedOperationException(
+          "Does not support " + call.getAggregation().getName() + " DISTINCT");
+    }
+
+    CombineFn combineFn;
+    if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
+      combineFn = getUdafCombineFn(call);
+    } else {
+      combineFn = BeamBuiltinAnalyticFunctions.create(functionName, field.getType());
+    }
+    return combineFn;
+  }
+
   public static CombineFn<Row, ?, Row> createConstantCombineFn() {
     return ConstantEmpty.INSTANCE;
   }
@@ -169,7 +187,7 @@ public class AggregationCombineFnAdapter<T> {
       return ((UdafImpl) ((SqlUserDefinedAggFunction) call.getAggregation()).function)
           .getCombineFn();
     } catch (Exception e) {
-      throw new IllegalStateException(e);
+      throw new UnsupportedOperationException(e);
     }
   }
 }

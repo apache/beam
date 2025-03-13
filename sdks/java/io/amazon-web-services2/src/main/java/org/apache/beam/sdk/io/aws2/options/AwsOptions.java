@@ -17,59 +17,147 @@
  */
 package org.apache.beam.sdk.io.aws2.options;
 
-import org.apache.beam.sdk.annotations.Experimental;
+import java.net.URI;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public interface AwsOptions extends PipelineOptions {
 
-  /** AWS region used by the AWS client. */
-  @Description("AWS region used by the AWS client")
-  @Validation.Required
-  String getRegion();
+  /** Region used to configure AWS service clients. */
+  @Description("Region used by AWS service clients")
+  @Default.InstanceFactory(AwsRegionFactory.class)
+  Region getAwsRegion();
 
-  void setRegion(String value);
+  void setAwsRegion(Region region);
 
-  /** The AWS service endpoint used by the AWS client. */
-  @Description("AWS service endpoint used by the AWS client")
-  String getEndpoint();
+  /** Attempt to load default region. */
+  class AwsRegionFactory implements DefaultValueFactory<@Nullable Region> {
+    @Override
+    @Nullable
+    public Region create(PipelineOptions options) {
+      try {
+        return new DefaultAwsRegionProviderChain().getRegion();
+      } catch (SdkClientException e) {
+        return null;
+      }
+    }
+  }
 
-  void setEndpoint(String value);
+  /** Endpoint used to configure AWS service clients. */
+  @Description("Endpoint used by AWS service clients")
+  URI getEndpoint();
+
+  void setEndpoint(URI uri);
 
   /**
-   * The credential instance that should be used to authenticate against AWS services. The option
-   * value must contain a "@type" field and an AWS Credentials Provider class as the field value.
-   * Refer to {@link DefaultCredentialsProvider} Javadoc for usage help.
+   * {@link AwsCredentialsProvider} used to configure AWS service clients.
    *
-   * <p>For example, to specify the AWS key ID and secret, specify the following: <code>
-   * {"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value",
-   * "awsSecretKey" : "secret_value"}
-   * </code>
+   * <p>The class name of the provider must be set in the {@code @type} field. Note: Not all
+   * available providers are supported and some configuration options might be ignored.
+   *
+   * <p>Most providers must use the system environment following AWS conventions. Programmatic
+   * configuration for these providers is NOT supported:
+   * <li>{@link DefaultCredentialsProvider}
+   * <li>{@link EnvironmentVariableCredentialsProvider}
+   * <li>{@link SystemPropertyCredentialsProvider}
+   * <li>{@link ContainerCredentialsProvider}
+   *
+   *     <p>Example:
+   *
+   *     <pre>{@code --awsCredentialsProvider={"@type": "EnvironmentVariableCredentialsProvider"}}
+   *     </pre>
+   *
+   *     <p>Some other providers support additional configuration:
+   * <li>{@link StaticCredentialsProvider}
+   *
+   *     <p>Examples:
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "StaticCredentialsProvider",
+   *   "accessKeyId": "key_id_value",
+   *   "secretAccessKey": "secret_value"
+   * }
+   *
+   * --awsCredentialsProvider={
+   *   "@type": "StaticCredentialsProvider",
+   *   "accessKeyId": "key_id_value",
+   *   "secretAccessKey": "secret_value",
+   *   "sessionToken": "token_value"
+   * }}</pre>
+   *
+   * <li>{@link ProfileCredentialsProvider}
+   *
+   *     <p>{@code profileName} is optional, if not set the environment default is used. Be careful
+   *     if using this provider programmatically, it can behave unexpectedly.
+   *
+   *     <p>Examples:
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "ProfileCredentialsProvider"
+   * }
+   *
+   * --awsCredentialsProvider={
+   *   "@type": "ProfileCredentialsProvider",
+   *   "profileName": "my_profile"
+   * }}</pre>
+   *
+   * <li>{@link StsAssumeRoleCredentialsProvider}
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "StsAssumeRoleCredentialsProvider",
+   *   "roleArn": "role_arn_Value",
+   *   "roleSessionName": "session_name_value",
+   *   "policy": "policy_value",
+   *   "durationSeconds": 3600
+   * }}</pre>
+   *
+   * <li>{@link StsAssumeRoleWithWebIdentityCredentialsProvider}
+   *
+   *     <p>Please note that this works for batch pipelines which can be completed within the
+   *     expiration of the web identity token. Long batch or streaming pipelines wouldn't work with
+   *     this Provider.
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "StsAssumeRoleWithWebIdentityCredentialsProvider",
+   *   "roleArn": "role_arn_Value",
+   *   "roleSessionName": "session_name_value",
+   *   "webIdentityToken": "web_identity_token_value",
+   *   "durationSeconds": 3600
+   * }}</pre>
+   *
+   * @see DefaultCredentialsProvider
    */
   @Description(
-      "The credential instance that should be used to authenticate "
-          + "against AWS services. The option value must contain \"@type\" field "
-          + "and an AWS Credentials Provider class name as the field value. "
-          + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
-          + "For example, to specify the AWS key ID and secret, specify the following: "
-          + "{\"@type\": \"StaticCredentialsProvider\", "
-          + "\"accessKeyId\":\"<key_id>\", \"secretAccessKey\":\"<secret_key>\"}")
+      "The credentials provider used to authenticate against AWS services. "
+          + "The provider class must be specified in the \"@type\" field, check the Javadocs for further examples. "
+          + "Example: {\"@type\": \"StaticCredentialsProvider\", \"accessKeyId\":\"<key>\", \"secretAccessKey\":\"<secret>\"}")
   @Default.InstanceFactory(AwsUserCredentialsFactory.class)
   AwsCredentialsProvider getAwsCredentialsProvider();
 
   void setAwsCredentialsProvider(AwsCredentialsProvider value);
 
-  /** Attempts to load AWS credentials. */
+  /** Return {@link DefaultCredentialsProvider} as default provider. */
   class AwsUserCredentialsFactory implements DefaultValueFactory<AwsCredentialsProvider> {
     @Override
     public AwsCredentialsProvider create(PipelineOptions options) {
@@ -78,24 +166,43 @@ public interface AwsOptions extends PipelineOptions {
   }
 
   /**
-   * The client configuration instance that should be used to configure AWS service clients. Please
-   * note that the configuration deserialization only allows one to specify proxy settings.
+   * {@link ProxyConfiguration} used to configure AWS service clients.
    *
-   * <p>For example, to specify the proxy endpoint, username and password, specify the following:
-   * <code>
-   * --proxyConfiguration={
+   * <p>Note, only the options shown in the example below are supported. <code>username</code> and
+   * <code>password</code> are optional.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code --proxyConfiguration={
    *   "endpoint": "http://hostname:port",
    *   "username": "username",
    *   "password": "password"
-   * }
-   * </code>
+   * }}</pre>
    */
   @Description(
-      "The proxy configuration instance that should be used to configure AWS service "
-          + "clients. Please note that the configuration deserialization only allows one to specify "
-          + "proxy settings. For example, to specify the proxy endpoint, username and password, "
-          + "specify the following: --proxyConfiguration={\"endpoint\":\"http://hostname:port\", \"username\":\"username\", \"password\":\"password\"}")
+      "The proxy configuration used to configure AWS service clients. Example: "
+          + "--proxyConfiguration={\"endpoint\":\"http://hostname:port\", \"username\":\"username\", \"password\":\"password\"}")
   ProxyConfiguration getProxyConfiguration();
 
   void setProxyConfiguration(ProxyConfiguration value);
+
+  /**
+   * {@link HttpClientConfiguration} used to configure AWS service clients.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code --httpClientConfiguration={"socketTimeout":1000, "maxConnections":10}}</pre>
+   */
+  @Description(
+      "The HTTP client configuration used to configure AWS service clients. Example: "
+          + "--httpClientConfiguration={\"socketTimeout\":1000,\"maxConnections\":10}")
+  HttpClientConfiguration getHttpClientConfiguration();
+
+  void setHttpClientConfiguration(HttpClientConfiguration value);
+
+  @Description("Factory class to configure AWS client builders")
+  @Default.Class(ClientBuilderFactory.DefaultClientBuilder.class)
+  Class<? extends ClientBuilderFactory> getClientBuilderFactory();
+
+  void setClientBuilderFactory(Class<? extends ClientBuilderFactory> clazz);
 }

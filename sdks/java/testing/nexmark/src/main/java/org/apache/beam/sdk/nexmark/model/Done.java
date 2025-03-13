@@ -28,9 +28,13 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of query 10. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Done implements KnownSize, Serializable {
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
@@ -83,7 +87,7 @@ public class Done implements KnownSize, Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

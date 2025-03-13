@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files.fileTreeTraverser;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files.fileTraverser;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -40,15 +40,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,17 +81,28 @@ import org.slf4j.LoggerFactory;
  *   <li>file:///C:/Users/beam/Documents/pom.xml
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
+
+  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
+  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   LocalFileSystem() {}
 
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
+    return match(new File(".").getAbsolutePath(), specs);
+  }
+
+  @VisibleForTesting
+  List<MatchResult> match(String baseDir, List<String> specs) throws IOException {
     ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
     for (String spec : specs) {
-      ret.add(matchOne(spec));
+      ret.add(matchOne(baseDir, spec));
     }
     return ret.build();
   }
@@ -149,8 +163,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   @Override
-  protected void rename(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
+  protected void rename(
+      List<LocalResourceId> srcResourceIds,
+      List<LocalResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source files %s must equal number of destination files %s",
@@ -185,13 +205,23 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         Files.delete(resourceId.getPath());
       } catch (NoSuchFileException e) {
         LOG.info(
-            "Ignoring failed deletion of file {} which already does not exist: {}", resourceId, e);
+            "Ignoring failed deletion of file {} which already does not exist.", resourceId, e);
       }
     }
   }
 
   @Override
   protected LocalResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    if (isDirectory) {
+      if (!singleResourceSpec.endsWith(File.separator)) {
+        singleResourceSpec += File.separator;
+      }
+    } else {
+      checkArgument(
+          !singleResourceSpec.endsWith(File.separator),
+          "Expected file path but received directory path [%s].",
+          singleResourceSpec);
+    }
     Path path = Paths.get(singleResourceSpec);
     return LocalResourceId.fromPath(path, isDirectory);
   }
@@ -201,7 +231,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     return "file";
   }
 
-  private MatchResult matchOne(String spec) throws IOException {
+  private MatchResult matchOne(String baseDir, String spec) {
     if (spec.toLowerCase().startsWith("file:")) {
       spec = spec.substring("file:".length());
     }
@@ -219,12 +249,22 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     // it considers it an invalid file system pattern. We should use
     // new File(spec) to avoid such validation.
     // See https://bugs.openjdk.java.net/browse/JDK-8197918
-    final File file = new File(spec);
-    if (file.exists()) {
-      return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
+    // However, new File(parent, child) resolves absolute `child` in a system-dependent
+    // way that is generally incorrect, for example new File($PWD, "/tmp/foo") resolves
+    // to $PWD/tmp/foo on many systems, unlike Paths.get($PWD).resolve("/tmp/foo") which
+    // correctly resolves to "/tmp/foo". We add just this one piece of logic here, without
+    // switching to Paths which could require a rewrite of this module to support
+    // both Windows and correct file resolution.
+    // The root cause is that globs are not files but we are using file manipulation libraries
+    // to work with them.
+    final File specAsFile = new File(spec);
+    final File absoluteFile = specAsFile.isAbsolute() ? specAsFile : new File(baseDir, spec);
+
+    if (absoluteFile.exists()) {
+      return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(absoluteFile)));
     }
 
-    File parent = file.getAbsoluteFile().getParentFile();
+    File parent = getSpecNonGlobPrefixParentFile(absoluteFile.getAbsolutePath());
     if (!parent.exists()) {
       return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
     }
@@ -237,19 +277,21 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     // backslash as a part of the filename, because Globs.toRegexPattern will
     // eat one backslash.
     String pathToMatch =
-        file.getAbsolutePath()
+        absoluteFile
+            .getAbsolutePath()
             .replaceAll(Matcher.quoteReplacement("\\"), Matcher.quoteReplacement("\\\\"));
 
     final PathMatcher matcher =
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
-    // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
-    Iterable<File> files = fileTreeTraverser().preOrderTraversal(parent);
+    // TODO: Avoid iterating all files: https://github.com/apache/beam/issues/18193
+    Iterable<File> files = fileTraverser().depthFirstPreOrder(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
             .filter(
                 Predicates.and(
-                        org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files.isFile(),
+                        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
+                            .isFile(),
                         input -> matcher.matches(input.toPath()))
                     ::apply)
             .collect(Collectors.toList());
@@ -262,10 +304,19 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       // TODO: consider to return Status.OK for globs.
       return MatchResult.create(
           Status.NOT_FOUND,
-          new FileNotFoundException(String.format("No files found for spec: %s.", spec)));
+          new FileNotFoundException(
+              String.format("No files found for spec: %s in working directory %s", spec, baseDir)));
     } else {
       return MatchResult.create(Status.OK, result);
     }
+  }
+
+  private File getSpecNonGlobPrefixParentFile(String spec) {
+    String specNonWildcardPrefix = getNonWildcardPrefix(spec);
+    File file = new File(specNonWildcardPrefix);
+    return specNonWildcardPrefix.endsWith(File.separator)
+        ? file.getAbsoluteFile()
+        : file.getAbsoluteFile().getParentFile();
   }
 
   private Metadata toMetadata(File file) {
@@ -275,5 +326,10 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         .setSizeBytes(file.length())
         .setLastModifiedMillis(file.lastModified())
         .build();
+  }
+
+  private static String getNonWildcardPrefix(String globExp) {
+    Matcher m = GLOB_PREFIX.matcher(globExp);
+    return !m.matches() ? globExp : m.group("PREFIX");
   }
 }

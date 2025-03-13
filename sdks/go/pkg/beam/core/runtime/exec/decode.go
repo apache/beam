@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-// Decoder is a uniform custom encoder interface. It wraps various
+// Decoder is a uniform custom decoder interface. It wraps various
 // forms of reflectx.Funcs.
 type Decoder interface {
 	// Decode decodes the []byte in to a value of the given type.
-	Decode(reflect.Type, []byte) (interface{}, error)
+	Decode(reflect.Type, []byte) (any, error)
 }
 
 func makeDecoder(fn reflectx.Func) Decoder {
@@ -65,7 +65,7 @@ type decoder1x1 struct {
 	fn reflectx.Func1x1
 }
 
-func (d *decoder1x1) Decode(t reflect.Type, data []byte) (interface{}, error) {
+func (d *decoder1x1) Decode(t reflect.Type, data []byte) (any, error) {
 	return d.fn.Call1x1(data), nil
 }
 
@@ -73,7 +73,7 @@ type decoder1x2 struct {
 	fn reflectx.Func1x2
 }
 
-func (d *decoder1x2) Decode(t reflect.Type, data []byte) (interface{}, error) {
+func (d *decoder1x2) Decode(t reflect.Type, data []byte) (any, error) {
 	val, err := d.fn.Call1x2(data)
 	if err != nil {
 		return nil, err.(error)
@@ -85,7 +85,7 @@ type decoder2x1 struct {
 	fn reflectx.Func2x1
 }
 
-func (d *decoder2x1) Decode(t reflect.Type, data []byte) (interface{}, error) {
+func (d *decoder2x1) Decode(t reflect.Type, data []byte) (any, error) {
 	return d.fn.Call2x1(t, data), nil
 }
 
@@ -93,7 +93,7 @@ type decoder2x2 struct {
 	fn reflectx.Func2x2
 }
 
-func (d *decoder2x2) Decode(t reflect.Type, data []byte) (interface{}, error) {
+func (d *decoder2x2) Decode(t reflect.Type, data []byte) (any, error) {
 	val, err := d.fn.Call2x2(t, data)
 	if err != nil {
 		return nil, err.(error)

@@ -18,15 +18,18 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
-import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.sdk.util.construction.UnsupportedOverrideFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SamzaTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides() {
     return ImmutableList.<PTransformOverride>builder()
@@ -34,6 +37,11 @@ public class SamzaTransformOverrides {
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
                 new SamzaPublishViewTransformOverride()))
+
+        // Note that we have a direct replacement for SplittableParDo.ProcessKeyedElements
+        // for unbounded splittable DoFns and do not need to rely on
+        // SplittableParDoViaKeyedWorkItems override. Once this direct replacement supports side
+        // inputs we can remove the SplittableParDoNaiveBounded override.
         .add(
             PTransformOverride.of(
                 PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
@@ -41,7 +49,9 @@ public class SamzaTransformOverrides {
             PTransformOverride.of(
                 PTransformMatchers.splittableProcessKeyedBounded(),
                 new SplittableParDoNaiveBounded.OverrideFactory()))
-        // TODO: [BEAM-5362] Support @RequiresStableInput on Samza runner
+
+        // TODO: [https://github.com/apache/beam/issues/19132] Support @RequiresStableInput on Samza
+        // runner
         .add(
             PTransformOverride.of(
                 PTransformMatchers.requiresStableInputParDoMulti(),

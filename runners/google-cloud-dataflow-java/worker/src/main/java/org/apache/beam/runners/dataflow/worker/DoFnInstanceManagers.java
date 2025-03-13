@@ -18,20 +18,27 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Common {@link DoFnInstanceManager} implementations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DoFnInstanceManagers {
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnInstanceManagers.class);
   /**
    * Returns a {@link DoFnInstanceManager} that returns {@link DoFnInfo} instances obtained by
    * deserializing the provided bytes. {@link DoFnInstanceManager} will call {@link DoFn.Setup} as
    * required before returning the {@link DoFnInfo}, and {@link DoFn.Teardown} as appropriate.
    */
-  public static DoFnInstanceManager cloningPool(DoFnInfo<?, ?> info) {
-    return new ConcurrentQueueInstanceManager(info);
+  public static DoFnInstanceManager cloningPool(DoFnInfo<?, ?> info, PipelineOptions options) {
+    return new ConcurrentQueueInstanceManager(info, options);
   }
 
   /**
@@ -49,10 +56,12 @@ public class DoFnInstanceManagers {
   private static class ConcurrentQueueInstanceManager implements DoFnInstanceManager {
     private final byte[] serializedFnInfo;
     private final ConcurrentLinkedQueue<DoFnInfo<?, ?>> fns;
+    private final PipelineOptions options;
 
-    private ConcurrentQueueInstanceManager(DoFnInfo<?, ?> info) {
+    private ConcurrentQueueInstanceManager(DoFnInfo<?, ?> info, PipelineOptions options) {
       this.serializedFnInfo = SerializableUtils.serializeToByteArray(info);
-      fns = new ConcurrentLinkedQueue<>();
+      this.fns = new ConcurrentLinkedQueue<>();
+      this.options = options;
     }
 
     @Override
@@ -77,7 +86,18 @@ public class DoFnInstanceManagers {
     private DoFnInfo<?, ?> deserializeCopy() throws Exception {
       DoFnInfo<?, ?> fn;
       fn = (DoFnInfo<?, ?>) SerializableUtils.deserializeFromByteArray(serializedFnInfo, null);
-      DoFnInvokers.invokerFor(fn.getDoFn()).invokeSetup();
+      long startMillis = System.currentTimeMillis();
+      DoFnInvokers.tryInvokeSetupFor(fn.getDoFn(), options);
+      long elapsed = System.currentTimeMillis() - startMillis;
+      if (elapsed > 180_000) { // 3 min
+        // Work item could fail for long-running setup due to Dataflow worker lease timeout
+        LOG.warn(
+            String.format(
+                "DoFn.setup for %s ran for %d seconds.\nThis could cause Dataflow worker "
+                    + "lease expire and failing the job. DoFn.Setup should not contain long "
+                    + "running operations.",
+                fn.getDoFn().getClass(), elapsed / 1_000));
+      }
       return fn;
     }
 

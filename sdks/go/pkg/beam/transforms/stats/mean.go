@@ -18,8 +18,8 @@ package stats
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // Mean returns the arithmetic mean (or average) of the elements in a collection.
@@ -28,9 +28,8 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    mean := stats.Mean(s, col)   // PCollection<float64> with 6.8 as the only element.
-//
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	mean := stats.Mean(s, col)   // PCollection<float64> with 6.8 as the only element.
 func Mean(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Mean")
 
@@ -70,7 +69,7 @@ func (f *meanFn) CreateAccumulator() meanAccum {
 
 func (f *meanFn) AddInput(a meanAccum, val beam.T) meanAccum {
 	a.Count++
-	a.Sum += reflect.ValueOf(val.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+	a.Sum += reflect.ValueOf(val.(any)).Convert(reflectx.Float64).Interface().(float64)
 	return a
 }
 

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -37,9 +37,10 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
+import org.apache.beam.sdk.testing.PAssert.MatcherCheckerFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -56,9 +57,12 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -70,6 +74,9 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link PAssert}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class PAssertTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -79,7 +86,7 @@ public class PAssertTest implements Serializable {
   private static class NotSerializableObject {
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return (other instanceof NotSerializableObject);
     }
 
@@ -170,7 +177,7 @@ public class PAssertTest implements Serializable {
    * the {@link PCollection} to be serializable.
    */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testContainsInAnyOrderNotSerializable() throws Exception {
     PCollection<NotSerializableObject> pcollection =
         pipeline.apply(
@@ -188,7 +195,7 @@ public class PAssertTest implements Serializable {
    * arbitrary {@link SerializableFunction}, though.
    */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testSerializablePredicate() throws Exception {
     PCollection<NotSerializableObject> pcollection =
         pipeline.apply(
@@ -209,7 +216,7 @@ public class PAssertTest implements Serializable {
    * arbitrary {@link SerializableFunction}, though.
    */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testWindowedSerializablePredicate() throws Exception {
     PCollection<NotSerializableObject> pcollection =
         pipeline
@@ -244,7 +251,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsSingletonUnsupported() throws Exception {
@@ -261,7 +269,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsIterableUnsupported() throws Exception {
@@ -276,7 +285,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsSingletonUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored",
+  })
   @Test
   public void testPAssertHashCodeSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -290,7 +302,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatIterable().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsIterableUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored" // verify exception is thrown
+  })
   @Test
   public void testPAssertHashCodeIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -372,6 +387,36 @@ public class PAssertTest implements Serializable {
     assertThat(message, containsString("but: was <42>"));
   }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertEqualsSingletonFailsForEmptyPCollection() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.empty(VarIntCoder.of()));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("expected singleton PCollection"));
+    assertThat(message, containsString("but was: empty PCollection"));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertEqualsSingletonFailsForNonSingletonPCollection() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(44, 44));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("expected one element"));
+    assertThat(message, containsString("but was: <44, 44>"));
+  }
+
   /** Test that we throw an error for false assertion on singleton. */
   @Test
   @Category({ValidatesRunner.class, UsesFailureMessage.class})
@@ -383,7 +428,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Create.Values/Read(CreateSource).out"));
+    assertThat(message, containsString("Create.Values/"));
     assertThat(message, containsString("Expected: <44>"));
     assertThat(message, containsString("but: was <42>"));
   }
@@ -394,6 +439,19 @@ public class PAssertTest implements Serializable {
   public void testContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testContainsInAnyOrderWithMatchers() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
+    PAssert.that(pcollection)
+        .containsInAnyOrder(
+            SerializableMatchers.equalTo(2),
+            SerializableMatchers.equalTo(1),
+            SerializableMatchers.equalTo(4),
+            SerializableMatchers.equalTo(3));
     pipeline.run();
   }
 
@@ -498,7 +556,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource).out"));
+    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource)"));
     assertThat(message, containsString("Expected: iterable with items [] in any order"));
   }
 
@@ -591,5 +649,147 @@ public class PAssertTest implements Serializable {
         .isEqualTo(Collections.singletonMap(1, 2));
 
     assertThat(PAssert.countAsserts(pipeline), equalTo(3));
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testPAssertThatFlattened() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatFlattened(collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
+
+    pipeline.run();
+  }
+
+  /** Test that we throw an error for false assertion on flattened. */
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertThatFlattenedFalse() throws Exception {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatFlattened(collectionList).containsInAnyOrder(7);
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Expected: iterable with items [<7>] in any order"));
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testPAssertThatListSatisfiesOneMatcher() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            input -> {
+              for (Integer element : input) {
+                assertTrue(element > 0);
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  /** Test that we throw an error for false assertion on list with one matcher. */
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertThatListSatisfiesOneMatcherFalse() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    String expectedAssertionFailMessage = "Elements should be less than 0";
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            input -> {
+              for (Integer element : input) {
+                assertTrue(expectedAssertionFailMessage, element < 0);
+              }
+              return null;
+            });
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+    String stackTrace = Throwables.getStackTraceAsString(thrown);
+
+    assertThat(stackTrace, containsString(expectedAssertionFailMessage));
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testPAssertThatListSatisfiesMultipleMatchers() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            ImmutableList.of(
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(element < 4);
+                  }
+                  return null;
+                },
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(element < 7);
+                  }
+                  return null;
+                }));
+
+    pipeline.run();
+  }
+
+  /** Test that we throw an error for false assertion on list with multiple matchers. */
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertThatListSatisfiesMultipleMatchersFalse() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    String expectedAssertionFailMessage = "Elements should be less than 0";
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            ImmutableList.of(
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(expectedAssertionFailMessage, element < 0);
+                  }
+                  return null;
+                },
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(expectedAssertionFailMessage, element < 0);
+                  }
+                  return null;
+                }));
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+    String stackTrace = Throwables.getStackTraceAsString(thrown);
+
+    assertThat(stackTrace, containsString(expectedAssertionFailMessage));
   }
 }

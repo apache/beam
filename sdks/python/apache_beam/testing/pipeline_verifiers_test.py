@@ -17,13 +17,12 @@
 
 """Unit tests for the test pipeline verifiers"""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import os
 import tempfile
 import unittest
-from builtins import range
 
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock
@@ -42,11 +41,10 @@ try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   HttpError = None
-  GCSFileSystem = None
+  GCSFileSystem = None  # type: ignore
 
 
 class PipelineVerifiersTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_result = Mock()
     patch_retry(self, verifiers)
@@ -61,18 +59,19 @@ class PipelineVerifiersTest(unittest.TestCase):
   def test_pipeline_state_matcher_given_state(self):
     """Test PipelineStateMatcher successes when matches given state"""
     pipeline_result = PipelineResult(PipelineState.FAILED)
-    hc_assert_that(pipeline_result,
-                   verifiers.PipelineStateMatcher(PipelineState.FAILED))
+    hc_assert_that(
+        pipeline_result, verifiers.PipelineStateMatcher(PipelineState.FAILED))
 
   def test_pipeline_state_matcher_fails(self):
     """Test PipelineStateMatcher fails when using default expected state
-    and job actually finished in CANCELLED/DRAINED/FAILED/STOPPED/UNKNOWN
+    and job actually finished in CANCELLED/DRAINED/FAILED/UNKNOWN
     """
-    failed_state = [PipelineState.CANCELLED,
-                    PipelineState.DRAINED,
-                    PipelineState.FAILED,
-                    PipelineState.STOPPED,
-                    PipelineState.UNKNOWN]
+    failed_state = [
+        PipelineState.CANCELLED,
+        PipelineState.DRAINED,
+        PipelineState.FAILED,
+        PipelineState.UNKNOWN
+    ]
 
     for state in failed_state:
       pipeline_result = PipelineResult(state)
@@ -80,15 +79,21 @@ class PipelineVerifiersTest(unittest.TestCase):
         hc_assert_that(pipeline_result, verifiers.PipelineStateMatcher())
 
   test_cases = [
-      {'content': 'Test FileChecksumMatcher with single file',
-       'num_files': 1,
-       'expected_checksum': 'ebe16840cc1d0b4fe1cf71743e9d772fa31683b8'},
-      {'content': 'Test FileChecksumMatcher with multiple files',
-       'num_files': 3,
-       'expected_checksum': '58b3d3636de3891ac61afb8ace3b5025c3c37d44'},
-      {'content': '',
-       'num_files': 1,
-       'expected_checksum': 'da39a3ee5e6b4b0d3255bfef95601890afd80709'},
+      {
+          'content': 'Test FileChecksumMatcher with single file',
+          'num_files': 1,
+          'expected_checksum': 'ebe16840cc1d0b4fe1cf71743e9d772fa31683b8'
+      },
+      {
+          'content': 'Test FileChecksumMatcher with multiple files',
+          'num_files': 3,
+          'expected_checksum': '58b3d3636de3891ac61afb8ace3b5025c3c37d44'
+      },
+      {
+          'content': '',
+          'num_files': 1,
+          'expected_checksum': 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+      },
   ]
 
   def create_temp_file(self, content, directory=None):
@@ -101,8 +106,8 @@ class PipelineVerifiersTest(unittest.TestCase):
       temp_dir = tempfile.mkdtemp()
       for _ in range(case['num_files']):
         self.create_temp_file(case['content'], temp_dir)
-      matcher = verifiers.FileChecksumMatcher(os.path.join(temp_dir, '*'),
-                                              case['expected_checksum'])
+      matcher = verifiers.FileChecksumMatcher(
+          os.path.join(temp_dir, '*'), case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
   @patch.object(LocalFileSystem, 'match')
@@ -119,7 +124,9 @@ class PipelineVerifiersTest(unittest.TestCase):
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_file_checksum_matcher_service_error(self, mock_match):
     mock_match.side_effect = HttpError(
-        response={'status': '404'}, url='', content='Not Found',
+        response={'status': '404'},
+        url='',
+        content='Not Found',
     )
     matcher = verifiers.FileChecksumMatcher('gs://dummy/path', Mock())
     with self.assertRaises(HttpError):
@@ -129,22 +136,21 @@ class PipelineVerifiersTest(unittest.TestCase):
 
   def test_file_checksum_matchcer_invalid_sleep_time(self):
     with self.assertRaises(ValueError) as cm:
-      verifiers.FileChecksumMatcher('file_path',
-                                    'expected_checksum',
-                                    'invalid_sleep_time')
-    self.assertEqual(cm.exception.args[0],
-                     'Sleep seconds, if received, must be int. '
-                     'But received: \'invalid_sleep_time\', '
-                     '{}'.format(str))
+      verifiers.FileChecksumMatcher(
+          'file_path', 'expected_checksum', 'invalid_sleep_time')
+    self.assertEqual(
+        cm.exception.args[0],
+        'Sleep seconds, if received, must be int. '
+        'But received: \'invalid_sleep_time\', '
+        '{}'.format(str))
 
   @patch('time.sleep', return_value=None)
   def test_file_checksum_matcher_sleep_before_verify(self, mocked_sleep):
     temp_dir = tempfile.mkdtemp()
     case = self.test_cases[0]
     self.create_temp_file(case['content'], temp_dir)
-    matcher = verifiers.FileChecksumMatcher(os.path.join(temp_dir, '*'),
-                                            case['expected_checksum'],
-                                            10)
+    matcher = verifiers.FileChecksumMatcher(
+        os.path.join(temp_dir, '*'), case['expected_checksum'], 10)
     hc_assert_that(self._mock_result, matcher)
     self.assertTrue(mocked_sleep.called)
 

@@ -28,11 +28,12 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Singleton keyed work item coder. */
 public class SingletonKeyedWorkItemCoder<K, ElemT>
-    extends StructuredCoder<SingletonKeyedWorkItem<K, ElemT>> {
+    extends StructuredCoder<KeyedWorkItem<K, ElemT>> {
+
   /**
    * Create a new {@link KeyedWorkItemCoder} with the provided key coder, element coder, and window
    * coder.
@@ -64,17 +65,17 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
   }
 
   @Override
-  public void encode(SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream)
+  public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream)
       throws CoderException, IOException {
     encode(value, outStream, Context.NESTED);
   }
 
   @Override
-  public void encode(
-      SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream, Context context)
+  public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream, Context context)
       throws CoderException, IOException {
-    keyCoder.encode(value.key(), outStream);
-    valueCoder.encode(value.value(), outStream, context);
+    final SingletonKeyedWorkItem<K, ElemT> cast = (SingletonKeyedWorkItem<K, ElemT>) value;
+    keyCoder.encode(cast.key(), outStream);
+    valueCoder.encode(cast.value(), outStream, context);
   }
 
   @Override

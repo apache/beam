@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.model.Objects;
@@ -36,7 +37,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
@@ -46,17 +46,32 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link FileSystem} implementation for Google Cloud Storage. */
+/**
+ * {@link FileSystem} implementation for Google Cloud Storage.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/extensions/google-cloud-platform-core/OWNERS">
+ * here</a>.
+ */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class GcsFileSystem extends FileSystem<GcsResourceId> {
   private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystem.class);
 
@@ -65,14 +80,22 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   /** Number of copy operations performed. */
   private Counter numCopies;
 
+  /** Number of renames operations performed. */
+  private Counter numRenames;
+
   /** Time spent performing copies. */
   private Counter copyTimeMsec;
+
+  /** Time spent performing renames. */
+  private Counter renameTimeMsec;
 
   GcsFileSystem(GcsOptions options) {
     this.options = checkNotNull(options, "options");
     if (options.getGcsPerformanceMetrics()) {
       numCopies = Metrics.counter(GcsFileSystem.class, "num_copies");
       copyTimeMsec = Metrics.counter(GcsFileSystem.class, "copy_time_msec");
+      numRenames = Metrics.counter(GcsFileSystem.class, "num_renames");
+      renameTimeMsec = Metrics.counter(GcsFileSystem.class, "rename_time_msec");
     }
   }
 
@@ -108,24 +131,28 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         ret.add(nonGlobsMatchResults.next());
       }
     }
-    checkState(!globsMatchResults.hasNext(), "Expect no more elements in globsMatchResults.");
-    checkState(!nonGlobsMatchResults.hasNext(), "Expect no more elements in nonGlobsMatchResults.");
+    checkState(
+        !globsMatchResults.hasNext(),
+        "Internal error encountered in GcsFilesystem: expected no more elements in globsMatchResults.");
+    checkState(
+        !nonGlobsMatchResults.hasNext(),
+        "Internal error encountered in GcsFilesystem: expected no more elements in globsMatchResults.");
     return ret.build();
   }
 
   @Override
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
+    GcsUtil.CreateOptions.Builder builder =
+        GcsUtil.CreateOptions.builder()
+            .setContentType(createOptions.mimeType())
+            .setExpectFileToNotExist(createOptions.expectFileToNotExist());
     if (createOptions instanceof GcsCreateOptions) {
-      return options
-          .getGcsUtil()
-          .create(
-              resourceId.getGcsPath(),
-              createOptions.mimeType(),
+      builder =
+          builder.setUploadBufferSizeBytes(
               ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
-    } else {
-      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
     }
+    return options.getGcsUtil().create(resourceId.getGcsPath(), builder.build());
   }
 
   @Override
@@ -134,10 +161,20 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   @Override
-  protected void rename(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
+  protected void rename(
+      List<GcsResourceId> srcResourceIds,
+      List<GcsResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
-    copy(srcResourceIds, destResourceIds);
-    delete(srcResourceIds);
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    options
+        .getGcsUtil()
+        .rename(toFilenames(srcResourceIds), toFilenames(destResourceIds), moveOptions);
+    stopwatch.stop();
+    if (options.getGcsPerformanceMetrics()) {
+      numRenames.inc(srcResourceIds.size());
+      renameTimeMsec.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
   }
 
   @Override
@@ -178,6 +215,26 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     return "gs";
   }
 
+  @Override
+  protected void reportLineage(GcsResourceId resourceId, Lineage lineage) {
+    reportLineage(resourceId, lineage, LineageLevel.FILE);
+  }
+
+  @Override
+  protected void reportLineage(GcsResourceId resourceId, Lineage lineage, LineageLevel level) {
+    GcsPath path = resourceId.getGcsPath();
+    if (!path.getBucket().isEmpty()) {
+      ImmutableList.Builder<String> segments =
+          ImmutableList.<String>builder().add(path.getBucket());
+      if (level != LineageLevel.TOP_LEVEL && !path.getObject().isEmpty()) {
+        segments.add(path.getObject());
+      }
+      lineage.add("gcs", segments.build());
+    } else {
+      LOG.warn("Report Lineage on relative path {} is unsupported", path.getObject());
+    }
+  }
+
   private List<MatchResult> matchGlobs(List<GcsPath> globs) {
     // TODO: Executes in parallel, address https://issues.apache.org/jira/browse/BEAM-1503.
     return FluentIterable.from(globs)
@@ -200,7 +257,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @VisibleForTesting
   MatchResult expand(GcsPath gcsPattern) throws IOException {
     String prefix = GcsUtil.getNonWildcardPrefix(gcsPattern.getObject());
-    Pattern p = Pattern.compile(GcsUtil.wildcardToRegexp(gcsPattern.getObject()));
+    Pattern p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
 
     LOG.debug(
         "matching files in bucket {}, prefix {} against pattern {}",
@@ -267,6 +324,9 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         Metadata.builder()
             .setIsReadSeekEfficient(true)
             .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
+    if (storageObject.getMd5Hash() != null) {
+      ret.setChecksum(storageObject.getMd5Hash());
+    }
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
     DateTime lastModified = firstNonNull(storageObject.getUpdated(), new DateTime(0L));

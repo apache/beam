@@ -20,10 +20,11 @@ package org.apache.beam.runners.flink.translation.functions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /** {@link org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext} for Flink functions. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 class FlinkAssignContext<InputT, W extends BoundedWindow>
     extends WindowFn<InputT, W>.AssignContext {
   private final WindowedValue<InputT> value;

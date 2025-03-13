@@ -30,17 +30,15 @@ Run as
    python -m apache_beam.tools.map_fn_microbenchmark
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
+import logging
 import time
-from builtins import range
-from builtins import zip
+
+from scipy import stats
 
 import apache_beam as beam
 from apache_beam.tools import utils
-from scipy import stats
 
 
 def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
@@ -51,10 +49,13 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
     with beam.Pipeline() as p:
       pc = p | beam.Create(list(range(num_elements)))
       for ix in range(num_maps):
-        pc = pc | 'Map%d' % ix >> beam.FlatMap(lambda x: (None,))
+        pc = pc | 'Map%d' % ix >> beam.FlatMap(lambda x: (None, ))
     timings[num_elements] = time.time() - start
-    print("%6d element%s %g sec" % (
-        num_elements, " " if num_elements == 1 else "s", timings[num_elements]))
+    print(
+        "%6d element%s %g sec" % (
+            num_elements,
+            " " if num_elements == 1 else "s",
+            timings[num_elements]))
 
   print()
   # pylint: disable=unused-variable
@@ -66,5 +67,6 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled('apache_beam.runners.common')
   run_benchmark()

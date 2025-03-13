@@ -18,10 +18,9 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -48,8 +47,18 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Translator for {@code ReduceByKey} operator. */
+/**
+ * Translator for {@code ReduceByKey} operator.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Deprecated
 public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
     implements OperatorTranslator<
         InputT, KV<KeyT, OutputT>, ReduceByKey<InputT, KeyT, ValueT, ?, OutputT>> {

@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +31,13 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -48,36 +49,43 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.adapter.enumerable.EnumerableRel;
-import org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
-import org.apache.calcite.adapter.enumerable.PhysType;
-import org.apache.calcite.adapter.enumerable.PhysTypeImpl;
-import org.apache.calcite.linq4j.Enumerable;
-import org.apache.calcite.linq4j.Linq4j;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterImpl;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableRel;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.PhysType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Linq4j;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCost;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.convert.ConverterImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace a {@code Enumerable} node. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
   private static final Logger LOG = LoggerFactory.getLogger(BeamEnumerableConverter.class);
 
@@ -119,11 +127,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   public static List<Row> toRowList(BeamRelNode node) {
+    return toRowList(node, Collections.emptyMap());
+  }
+
+  public static List<Row> toRowList(BeamRelNode node, Map<String, String> otherOptions) {
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
-      return toRowList(options, node);
+      final Map<String, String> optionsMap = new HashMap<>();
+      optionsMap.putAll(node.getPipelineOptions());
+      optionsMap.putAll(otherOptions);
+      return toRowList(createPipelineOptions(optionsMap), node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
@@ -136,6 +150,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
     }
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+    FileSystems.setDefaultPipelineOptions(options);
     options.as(ApplicationNameOptions.class).setAppName("BeamSql");
     return options;
   }
@@ -155,7 +170,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     } else if (isLimitQuery(node)) {
       return limitCollect(options, node);
     }
-    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues((collectRows(options, node))));
+    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(collectRows(options, node)));
   }
 
   private static PipelineResult limitRun(
@@ -176,6 +191,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       // Check pipeline state in every second
       state = result.waitUntilFinish(Duration.standardSeconds(1));
       if (state != null && state.isTerminal()) {
+        if (PipelineResult.State.FAILED.equals(state)) {
+          throw new RuntimeException("Pipeline failed for unknown reason");
+        }
         break;
       }
 
@@ -198,7 +216,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
     resultCollection.apply(ParDo.of(new Collector()));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+      throw new RuntimeException("Pipeline failed for unknown reason");
+    }
   }
 
   private static Queue<Row> collectRows(PipelineOptions options, BeamRelNode node) {
@@ -250,7 +270,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Row>> globalValues = new ConcurrentHashMap<>();
 
-    @Nullable private volatile Queue<Row> values;
+    private volatile @Nullable Queue<Row> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
@@ -286,7 +306,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Object[] convertedColumns = new Object[schema.getFields().size()];
     int i = 0;
     for (Schema.Field field : schema.getFields()) {
-      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getBaseValue(i, Object.class));
       ++i;
     }
     return convertedColumns;
@@ -299,15 +319,25 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
-        String logicalId = type.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimeType.IDENTIFIER)) {
-          return (int) ((ReadableInstant) beamValue).getMillis();
-        } else if (logicalId.equals(DateType.IDENTIFIER)) {
-          return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
-        } else if (logicalId.equals(CharType.IDENTIFIER)) {
+        LogicalType<?, ?> logicalType = type.getLogicalType();
+        assert logicalType != null;
+        String logicalId = logicalType.getIdentifier();
+        if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Long) { // base type
+            return (Long) beamValue;
+          } else { // input type
+            return ((LocalTime) beamValue).toNanoOfDay();
+          }
+        } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Long) { // base type
+            return ((Long) beamValue).intValue();
+          } else { // input type
+            return (int) ((LocalDate) beamValue).toEpochDay();
+          }
+        } else if (logicalType instanceof PassThroughLogicalType) {
           return beamValue;
         } else {
-          throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
+          throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
         }
       case DATETIME:
         return ((ReadableInstant) beamValue).getMillis();
@@ -327,6 +357,10 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             .stream()
                 .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
                 .collect(Collectors.toList());
+      case ITERABLE:
+        return StreamSupport.stream(((Iterable<?>) beamValue).spliterator(), false)
+            .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
+            .collect(Collectors.toList());
       case MAP:
         return ((Map<?, ?>) beamValue)
             .entrySet().stream()
@@ -351,7 +385,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     long count = 0;
     if (!containsUnboundedPCollection(pipeline)) {
-      result.waitUntilFinish();
+      if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+        throw new RuntimeException("Pipeline failed for unknown reason");
+      }
       MetricQueryResults metrics =
           result
               .metrics()
@@ -378,17 +414,18 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static boolean isLimitQuery(BeamRelNode node) {
     return (node instanceof BeamSortRel && ((BeamSortRel) node).isLimitOnly())
-        || (node instanceof BeamCalcRel && ((BeamCalcRel) node).isInputSortRelAndLimitOnly());
+        || (node instanceof AbstractBeamCalcRel
+            && ((AbstractBeamCalcRel) node).isInputSortRelAndLimitOnly());
   }
 
   private static int getLimitCount(BeamRelNode node) {
     if (node instanceof BeamSortRel) {
       return ((BeamSortRel) node).getCount();
-    } else if (node instanceof BeamCalcRel) {
-      return ((BeamCalcRel) node).getLimitCountOfSortRel();
+    } else if (node instanceof AbstractBeamCalcRel) {
+      return ((AbstractBeamCalcRel) node).getLimitCountOfSortRel();
     }
 
-    throw new RuntimeException(
+    throw new IllegalArgumentException(
         "Cannot get limit count from RelNode tree with root " + node.getRelTypeName());
   }
 

@@ -21,34 +21,31 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.function.Strict;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 
 /** BuiltinStringFunctions. */
 @AutoService(BeamBuiltinFunctionProvider.class)
 public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
 
-  // return a explicitly null for Boolean has NP_BOOLEAN_RETURN_NULL warning.
-  // return null for boolean is not allowed.
-  // TODO: handle null input.
   @UDF(
       funcName = "ENDS_WITH",
       parameterArray = {TypeName.STRING},
       returnType = TypeName.STRING)
+  @Strict
   public Boolean endsWith(String str1, String str2) {
     return str1.endsWith(str2);
   }
 
-  // return a explicitly null for Boolean has NP_BOOLEAN_RETURN_NULL warning.
-  // return null for boolean is not allowed.
-  // TODO: handle null input.
   @UDF(
       funcName = "STARTS_WITH",
       parameterArray = {TypeName.STRING},
       returnType = TypeName.STRING)
+  @Strict
   public Boolean startsWith(String str1, String str2) {
     return str1.startsWith(str2);
   }
@@ -57,10 +54,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "LENGTH",
       parameterArray = {TypeName.STRING},
       returnType = TypeName.INT64)
+  @Strict
   public Long lengthString(String str) {
-    if (str == null) {
-      return null;
-    }
     return (long) str.length();
   }
 
@@ -68,10 +63,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "LENGTH",
       parameterArray = {TypeName.BYTES},
       returnType = TypeName.INT64)
+  @Strict
   public Long lengthBytes(byte[] bytes) {
-    if (bytes == null) {
-      return null;
-    }
     return (long) bytes.length;
   }
 
@@ -79,10 +72,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "REVERSE",
       parameterArray = {TypeName.STRING},
       returnType = TypeName.STRING)
+  @Strict
   public String reverseString(String str) {
-    if (str == null) {
-      return null;
-    }
     return new StringBuilder(str).reverse().toString();
   }
 
@@ -90,10 +81,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "REVERSE",
       parameterArray = {TypeName.BYTES},
       returnType = TypeName.BYTES)
+  @Strict
   public byte[] reverseBytes(byte[] bytes) {
-    if (bytes == null) {
-      return null;
-    }
     byte[] ret = Arrays.copyOf(bytes, bytes.length);
     ArrayUtils.reverse(ret);
     return ret;
@@ -103,11 +92,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "FROM_HEX",
       parameterArray = {TypeName.STRING},
       returnType = TypeName.BYTES)
+  @Strict
   public byte[] fromHex(String str) {
-    if (str == null) {
-      return null;
-    }
-
     try {
       return Hex.decodeHex(str.toCharArray());
     } catch (DecoderException e) {
@@ -119,11 +105,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "TO_HEX",
       parameterArray = {TypeName.BYTES},
       returnType = TypeName.STRING)
+  @Strict
   public String toHex(byte[] bytes) {
-    if (bytes == null) {
-      return null;
-    }
-
     return Hex.encodeHexString(bytes);
   }
 
@@ -131,6 +114,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "LPAD",
       parameterArray = {TypeName.STRING, TypeName.INT64},
       returnType = TypeName.STRING)
+  @Strict
   public String lpad(String originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ");
   }
@@ -139,11 +123,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "LPAD",
       parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
       returnType = TypeName.STRING)
+  @Strict
   public String lpad(String originalValue, Long returnLength, String pattern) {
-    if (originalValue == null || returnLength == null || pattern == null) {
-      return null;
-    }
-
     if (returnLength < -1 || pattern.isEmpty()) {
       throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
     }
@@ -162,6 +143,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "LPAD",
       parameterArray = {TypeName.BYTES, TypeName.INT64},
       returnType = TypeName.BYTES)
+  @Strict
   public byte[] lpad(byte[] originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
   }
@@ -170,10 +152,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "LPAD",
       parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
       returnType = TypeName.BYTES)
+  @Strict
   public byte[] lpad(byte[] originalValue, Long returnLength, byte[] pattern) {
-    if (originalValue == null || returnLength == null || pattern == null) {
-      return null;
-    }
     if (returnLength < -1 || pattern.length == 0) {
       throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
     }
@@ -205,6 +185,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "RPAD",
       parameterArray = {TypeName.STRING, TypeName.INT64},
       returnType = TypeName.STRING)
+  @Strict
   public String rpad(String originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ");
   }
@@ -213,11 +194,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "RPAD",
       parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
       returnType = TypeName.STRING)
+  @Strict
   public String rpad(String originalValue, Long returnLength, String pattern) {
-    if (originalValue == null || returnLength == null || pattern == null) {
-      return null;
-    }
-
     if (returnLength < -1 || pattern.isEmpty()) {
       throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
     }
@@ -236,6 +214,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "RPAD",
       parameterArray = {TypeName.BYTES, TypeName.INT64},
       returnType = TypeName.BYTES)
+  @Strict
   public byte[] rpad(byte[] originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
   }
@@ -244,10 +223,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       funcName = "RPAD",
       parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
       returnType = TypeName.BYTES)
+  @Strict
   public byte[] rpad(byte[] originalValue, Long returnLength, byte[] pattern) {
-    if (originalValue == null || returnLength == null || pattern == null) {
-      return null;
-    }
     if (returnLength < -1 || pattern.length == 0) {
       throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
     }

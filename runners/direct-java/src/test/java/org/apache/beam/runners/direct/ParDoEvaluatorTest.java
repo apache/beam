@@ -17,16 +17,16 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -50,9 +50,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -66,6 +67,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ParDoEvaluator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"keyfor"})
 public class ParDoEvaluatorTest {
   @Mock private EvaluationContext evaluationContext;
   private PCollection<Integer> inputPc;
@@ -161,6 +163,7 @@ public class ParDoEvaluatorTest {
         additionalOutputTags,
         ImmutableMap.of(mainOutputTag, output),
         DoFnSchemaInformation.create(),
+        Collections.emptyMap(),
         ParDoEvaluator.defaultRunnerFactory());
   }
 
@@ -182,8 +185,7 @@ public class ParDoEvaluatorTest {
 
   private static class ReadyInGlobalWindowReader implements ReadyCheckingSideInputReader {
     @Override
-    @Nullable
-    public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+    public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
       if (window.equals(GlobalWindow.INSTANCE)) {
         return (T) (Integer) 5;
       }

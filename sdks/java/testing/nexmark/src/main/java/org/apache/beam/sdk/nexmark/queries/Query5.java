@@ -18,12 +18,18 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.queries.Query5.TopCombineFn.Accum;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -31,6 +37,10 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -53,6 +63,80 @@ import org.joda.time.Duration;
 public class Query5 extends NexmarkQueryTransform<AuctionCount> {
   private final NexmarkConfiguration configuration;
 
+  /** CombineFn that takes bidders with counts and keeps all bidders with the top count. */
+  public static class TopCombineFn
+      extends AccumulatingCombineFn<KV<Long, Long>, Accum, KV<Long, List<Long>>> {
+    @Override
+    public Accum createAccumulator() {
+      return new Accum();
+    }
+
+    @Override
+    public Coder<Accum> getAccumulatorCoder(
+        @NonNull CoderRegistry registry, @NonNull Coder<KV<Long, Long>> inputCoder) {
+      JavaFieldSchema provider = new JavaFieldSchema();
+      TypeDescriptor<Accum> typeDescriptor = new TypeDescriptor<Accum>() {};
+      return SchemaCoder.of(
+          provider.schemaFor(typeDescriptor),
+          typeDescriptor,
+          provider.toRowFunction(typeDescriptor),
+          provider.fromRowFunction(typeDescriptor));
+    }
+
+    /** Accumulator that takes bidders with counts and keeps all bidders with the top count. */
+    public static class Accum
+        implements AccumulatingCombineFn.Accumulator<KV<Long, Long>, Accum, KV<Long, List<Long>>> {
+
+      public ArrayList<Long> auctions = new ArrayList<>();
+      public long count = 0;
+
+      @Override
+      public void addInput(KV<Long, Long> input) {
+        if (input.getValue() > count) {
+          count = input.getValue();
+          auctions.clear();
+          auctions.add(input.getKey());
+        } else if (input.getValue() == count) {
+          auctions.add(input.getKey());
+        }
+      }
+
+      @Override
+      public void mergeAccumulator(Accum other) {
+        if (other.count > this.count) {
+          this.count = other.count;
+          this.auctions.clear();
+          this.auctions.addAll(other.auctions);
+        } else if (other.count == this.count) {
+          this.auctions.addAll(other.auctions);
+        }
+      }
+
+      @Override
+      public KV<Long, List<Long>> extractOutput() {
+        return KV.of(count, auctions);
+      }
+
+      @Override
+      public boolean equals(@Nullable Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+          return false;
+        }
+
+        Accum other = (Accum) o;
+        return this.count == other.count && Iterables.elementsEqual(this.auctions, other.auctions);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(count, auctions);
+      }
+    }
+  }
+
   public Query5(NexmarkConfiguration configuration) {
     super("Query5");
     this.configuration = configuration;
@@ -74,58 +158,19 @@ public class Query5 extends NexmarkQueryTransform<AuctionCount> {
         // Count the number of bids per auction id.
         .apply(Count.perElement())
 
-        // We'll want to keep all auctions with the maximal number of bids.
-        // Start by lifting each into a singleton list.
-        // need to do so because bellow combine returns a list of auctions in the key in case of
-        // equal number of bids. Combine needs to have same input type and return type.
-        .apply(
-            name + ".ToSingletons",
-            ParDo.of(
-                new DoFn<KV<Long, Long>, KV<List<Long>, Long>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(
-                        KV.of(
-                            Collections.singletonList(c.element().getKey()),
-                            c.element().getValue()));
-                  }
-                }))
-
         // Keep only the auction ids with the most bids.
         .apply(
-            Combine.globally(
-                    new Combine.BinaryCombineFn<KV<List<Long>, Long>>() {
-                      @Override
-                      public KV<List<Long>, Long> apply(
-                          KV<List<Long>, Long> left, KV<List<Long>, Long> right) {
-                        List<Long> leftBestAuctions = left.getKey();
-                        long leftCount = left.getValue();
-                        List<Long> rightBestAuctions = right.getKey();
-                        long rightCount = right.getValue();
-                        if (leftCount > rightCount) {
-                          return left;
-                        } else if (leftCount < rightCount) {
-                          return right;
-                        } else {
-                          List<Long> newBestAuctions = new ArrayList<>();
-                          newBestAuctions.addAll(leftBestAuctions);
-                          newBestAuctions.addAll(rightBestAuctions);
-                          return KV.of(newBestAuctions, leftCount);
-                        }
-                      }
-                    })
-                .withoutDefaults()
-                .withFanout(configuration.fanout))
+            Combine.globally(new TopCombineFn()).withoutDefaults().withFanout(configuration.fanout))
 
         // Project into result.
         .apply(
             name + ".Select",
             ParDo.of(
-                new DoFn<KV<List<Long>, Long>, AuctionCount>() {
+                new DoFn<KV<Long, List<Long>>, AuctionCount>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    long count = c.element().getValue();
-                    for (long auction : c.element().getKey()) {
+                    long count = c.element().getKey();
+                    for (long auction : c.element().getValue()) {
                       c.output(new AuctionCount(auction, count));
                     }
                   }

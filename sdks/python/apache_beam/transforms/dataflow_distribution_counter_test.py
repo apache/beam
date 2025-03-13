@@ -14,7 +14,7 @@ When Cython is available, unit tests will test on cythonized module,
 otherwise, test on pure python module
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.triggers;
 
 import java.util.Set;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /** An implementation of {@link FinishedTriggers} atop a user-provided mutable {@link Set}. */
 public class FinishedTriggersSet implements FinishedTriggers {

@@ -17,17 +17,18 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -40,7 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -53,13 +54,11 @@ public class SparkCoGroupByKeyStreamingTest {
   private static final TupleTag<Integer> INPUT1_TAG = new TupleTag<>("input1");
   private static final TupleTag<Integer> INPUT2_TAG = new TupleTag<>("input2");
 
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
-
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.fromOptions(streamingOptions());
 
   private Duration batchDuration() {
     return Duration.millis(
-        (pipeline.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
+        pipeline.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
   }
 
   @Category(StreamingTest.class)
@@ -167,5 +166,11 @@ public class SparkCoGroupByKeyStreamingTest {
                   return null;
                 });
     pipeline.run();
+  }
+
+  private static PipelineOptions streamingOptions() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(TestSparkPipelineOptions.class).setStreaming(true);
+    return options;
   }
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -39,6 +39,8 @@ import org.joda.time.Instant;
  * @param <InputT> type of input
  * @param <OutputT> type of output
  */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class FlatMapTranslator<InputT, OutputT>
     implements OperatorTranslator<InputT, OutputT, FlatMap<InputT, OutputT>> {
 
@@ -94,7 +96,7 @@ public class FlatMapTranslator<InputT, OutputT>
   private static class Collector<InputT, OutputT>
       implements CollectorAdapter<InputT, OutputT, OutputT> {
 
-    @Nullable private final ExtractEventTime<InputT> eventTimeExtractor;
+    private final @Nullable ExtractEventTime<InputT> eventTimeExtractor;
 
     private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;

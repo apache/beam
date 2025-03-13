@@ -17,19 +17,20 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Create a composite {@link TriggerStateMachine} that fires once after at least one of its
  * sub-triggers have fired.
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AfterFirstStateMachine extends TriggerStateMachine {
 
   AfterFirstStateMachine(List<TriggerStateMachine> subTriggers) {
@@ -48,9 +49,23 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnElement(c.forTrigger(subTrigger));
+    }
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
       subTrigger.invokeOnElement(c);
+    }
+  }
+
+  @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnMerge(c.forTrigger(subTrigger));
     }
   }
 
@@ -60,6 +75,13 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
       subTrigger.invokeOnMerge(c);
     }
     updateFinishedStatus(c);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchShouldFire(c.forTrigger(subTrigger));
+    }
   }
 
   @Override

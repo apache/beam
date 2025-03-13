@@ -27,16 +27,16 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toC
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
 import static org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -65,7 +65,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils.TestReader;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -74,7 +74,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReadOperationTest {
 
-  private static final String COUNTER_PREFIX = "test-";
   private final CounterSet counterSet = new CounterSet();
   private OperationContext context =
       TestOperationContext.create(
@@ -125,7 +124,7 @@ public class ReadOperationTest {
       executor = mock(ScheduledExecutorService.class);
       when(executor.scheduleAtFixedRate(
               any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
-          .then(invocation -> schedule(invocation.getArgumentAt(0, Runnable.class)));
+          .then(invocation -> schedule(invocation.getArgument(0, Runnable.class)));
     }
 
     public ScheduledExecutorService getExecutor() {

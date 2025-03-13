@@ -17,33 +17,35 @@
  */
 package org.apache.beam.runners.fnexecution.translation;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.auto.value.AutoValue;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
-import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.IterableSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.sdk.util.construction.graph.SideInputReference;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** {@link StateRequestHandler} that uses a {@link SideInputGetter} to access side inputs. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BatchSideInputHandlerFactory implements SideInputHandlerFactory {
 
   // Map from side input id to global PCollection id.
@@ -80,68 +82,52 @@ public class BatchSideInputHandlerFactory implements SideInputHandlerFactory {
   }
 
   @Override
-  public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
-      String transformId,
-      String sideInputId,
-      RunnerApi.FunctionSpec accessPattern,
-      Coder<T> elementCoder,
-      Coder<W> windowCoder) {
+  public <V, W extends BoundedWindow> IterableSideInputHandler<V, W> forIterableSideInput(
+      String transformId, String sideInputId, Coder<V> elementCoder, Coder<W> windowCoder) {
 
     PCollectionNode collectionNode =
         sideInputToCollection.get(
             SideInputId.newBuilder().setTransformId(transformId).setLocalName(sideInputId).build());
     checkArgument(collectionNode != null, "No side input for %s/%s", transformId, sideInputId);
 
-    if (PTransformTranslation.ITERABLE_SIDE_INPUT.equals(accessPattern.getUrn())) {
-      @SuppressWarnings("unchecked") // T == V
-      Coder<V> outputCoder = (Coder<V>) elementCoder;
-      return forIterableSideInput(
-          sideInputGetter.getSideInput(collectionNode.getId()), outputCoder, windowCoder);
-    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())) {
-      @SuppressWarnings("unchecked") // T == KV<?, V>
-      KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
-      return forMultimapSideInput(
-          sideInputGetter.getSideInput(collectionNode.getId()),
-          kvCoder.getKeyCoder(),
-          kvCoder.getValueCoder(),
-          windowCoder);
-    } else {
-      throw new IllegalArgumentException(
-          String.format("Unknown side input access pattern: %s", accessPattern));
-    }
-  }
-
-  private <T, W extends BoundedWindow> SideInputHandler<T, W> forIterableSideInput(
-      List<WindowedValue<T>> broadcastVariable, Coder<T> elementCoder, Coder<W> windowCoder) {
-    ImmutableMultimap.Builder<Object, T> windowToValuesBuilder = ImmutableMultimap.builder();
-    for (WindowedValue<T> windowedValue : broadcastVariable) {
+    ImmutableMultimap.Builder<Object, V> windowToValuesBuilder = ImmutableMultimap.builder();
+    List<WindowedValue<V>> broadcastVariable = sideInputGetter.getSideInput(collectionNode.getId());
+    for (WindowedValue<V> windowedValue : broadcastVariable) {
       for (BoundedWindow boundedWindow : windowedValue.getWindows()) {
         @SuppressWarnings("unchecked")
         W window = (W) boundedWindow;
         windowToValuesBuilder.put(windowCoder.structuralValue(window), windowedValue.getValue());
       }
     }
-    ImmutableMultimap<Object, T> windowToValues = windowToValuesBuilder.build();
+    ImmutableMultimap<Object, V> windowToValues = windowToValuesBuilder.build();
 
-    return new SideInputHandler<T, W>() {
+    return new IterableSideInputHandler<V, W>() {
       @Override
-      public Iterable<T> get(byte[] key, W window) {
+      public Iterable<V> get(W window) {
         return windowToValues.get(windowCoder.structuralValue(window));
       }
 
       @Override
-      public Coder<T> resultCoder() {
+      public Coder<V> elementCoder() {
         return elementCoder;
       }
     };
   }
 
-  private <K, V, W extends BoundedWindow> SideInputHandler<V, W> forMultimapSideInput(
-      List<WindowedValue<KV<K, V>>> broadcastVariable,
-      Coder<K> keyCoder,
-      Coder<V> valueCoder,
-      Coder<W> windowCoder) {
-    ImmutableMultimap.Builder<SideInputKey, V> multimap = ImmutableMultimap.builder();
+  @Override
+  public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+      String transformId, String sideInputId, KvCoder<K, V> elementCoder, Coder<W> windowCoder) {
+
+    PCollectionNode collectionNode =
+        sideInputToCollection.get(
+            SideInputId.newBuilder().setTransformId(transformId).setLocalName(sideInputId).build());
+    checkArgument(collectionNode != null, "No side input for %s/%s", transformId, sideInputId);
+
+    Coder<K> keyCoder = elementCoder.getKeyCoder();
+    Map<Object /* structural window */, Map<Object /* structural key */, KV<K, List<V>>>> data =
+        new HashMap<>();
+    List<WindowedValue<KV<K, V>>> broadcastVariable =
+        sideInputGetter.getSideInput(collectionNode.getId());
     for (WindowedValue<KV<K, V>> windowedValue : broadcastVariable) {
       K key = windowedValue.getValue().getKey();
       V value = windowedValue.getValue().getValue();
@@ -149,62 +135,44 @@ public class BatchSideInputHandlerFactory implements SideInputHandlerFactory {
       for (BoundedWindow boundedWindow : windowedValue.getWindows()) {
         @SuppressWarnings("unchecked")
         W window = (W) boundedWindow;
-        multimap.put(
-            SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)),
-            value);
+        Object structuralW = windowCoder.structuralValue(window);
+        Object structuralK = keyCoder.structuralValue(key);
+        KV<K, List<V>> records =
+            data.computeIfAbsent(structuralW, o -> new HashMap<>())
+                .computeIfAbsent(structuralK, o -> KV.of(key, new ArrayList<>()));
+        records.getValue().add(value);
       }
     }
 
-    return new MultimapSideInputHandler<>(multimap.build(), keyCoder, valueCoder, windowCoder);
-  }
-
-  private static class MultimapSideInputHandler<K, V, W extends BoundedWindow>
-      implements SideInputHandler<V, W> {
-
-    private final Multimap<SideInputKey, V> collection;
-    private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
-    private final Coder<W> windowCoder;
-
-    private MultimapSideInputHandler(
-        Multimap<SideInputKey, V> collection,
-        Coder<K> keyCoder,
-        Coder<V> valueCoder,
-        Coder<W> windowCoder) {
-      this.collection = collection;
-      this.keyCoder = keyCoder;
-      this.valueCoder = valueCoder;
-      this.windowCoder = windowCoder;
-    }
-
-    @Override
-    public Iterable<V> get(byte[] keyBytes, W window) {
-      K key;
-      try {
-        // TODO: We could skip decoding and just compare encoded values for deterministic keyCoders.
-        key = keyCoder.decode(new ByteArrayInputStream(keyBytes));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+    return new MultimapSideInputHandler<K, V, W>() {
+      @Override
+      public Iterable<V> get(K key, W window) {
+        KV<K, List<V>> records =
+            data.getOrDefault(windowCoder.structuralValue(window), Collections.emptyMap())
+                .get(keyCoder.structuralValue(key));
+        if (records == null) {
+          return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(records.getValue());
       }
-      return collection.get(
-          SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)));
-    }
 
-    @Override
-    public Coder<V> resultCoder() {
-      return valueCoder;
-    }
-  }
+      @Override
+      public Coder<V> valueCoder() {
+        return elementCoder.getValueCoder();
+      }
 
-  @AutoValue
-  abstract static class SideInputKey {
-    static SideInputKey of(Object key, Object window) {
-      return new AutoValue_BatchSideInputHandlerFactory_SideInputKey(key, window);
-    }
+      @Override
+      public Iterable<K> get(W window) {
+        Map<Object, KV<K, List<V>>> records =
+            data.getOrDefault(windowCoder.structuralValue(window), Collections.emptyMap());
+        return Iterables.unmodifiableIterable(
+            FluentIterable.concat(records.values()).transform(kListKV -> kListKV.getKey()));
+      }
 
-    @Nullable
-    abstract Object key();
-
-    abstract Object window();
+      @Override
+      public Coder<K> keyCoder() {
+        return elementCoder.getKeyCoder();
+      }
+    };
   }
 }

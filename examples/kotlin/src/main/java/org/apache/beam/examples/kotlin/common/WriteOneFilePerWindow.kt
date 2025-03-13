@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow
 import org.apache.beam.sdk.transforms.windowing.PaneInfo
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PDone
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull
 import org.joda.time.format.ISODateTimeFormat
 
 /**
@@ -45,13 +45,12 @@ class WriteOneFilePerWindow(private val filenamePrefix: String, private val numS
 
     override fun expand(input: PCollection<String>): PDone {
         val resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix)
-        var write = TextIO.write()
+        val write = TextIO.write()
                 .to(PerWindowFiles(resource))
                 .withTempDirectory(resource.currentDirectory)
                 .withWindowedWrites()
 
-        write = numShards?.let { write.withNumShards(it) }
-        return input.apply(write)
+        return input.apply(numShards?.let { write.withNumShards(it) } ?: write)
     }
 
     /**
@@ -62,7 +61,7 @@ class WriteOneFilePerWindow(private val filenamePrefix: String, private val numS
      */
     class PerWindowFiles(private val baseFilename: ResourceId) : FilenamePolicy() {
 
-        fun filenamePrefixForWindow(window: IntervalWindow): String {
+        private fun filenamePrefixForWindow(window: IntervalWindow): String {
             val prefix = if (baseFilename.isDirectory) "" else firstNonNull(baseFilename.filename, "")
             return "$prefix-${FORMATTER.print(window.start())}-${FORMATTER.print(window.end())}"
         }

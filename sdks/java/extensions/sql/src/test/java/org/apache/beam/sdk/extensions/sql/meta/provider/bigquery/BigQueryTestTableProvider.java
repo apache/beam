@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A test table provider for BigQueryRowCountIT. */
 public class BigQueryTestTableProvider extends BigQueryTableProvider {
@@ -42,9 +40,8 @@ public class BigQueryTestTableProvider extends BigQueryTableProvider {
     tableSpecMap.put(name, table);
   }
 
-  @Nullable
   @Override
-  public Table getTable(String tableName) {
+  public @Nullable Table getTable(String tableName) {
     return tableSpecMap.get(tableName);
   }
 
@@ -60,7 +57,7 @@ public class BigQueryTestTableProvider extends BigQueryTableProvider {
             table,
             BigQueryUtils.ConversionOptions.builder()
                 .setTruncateTimestamps(
-                    firstNonNull(table.getProperties().getBoolean("truncateTimestamps"), false)
+                    table.getProperties().path("truncateTimestamps").asBoolean(false)
                         ? BigQueryUtils.ConversionOptions.TruncateTimestamps.TRUNCATE
                         : BigQueryUtils.ConversionOptions.TruncateTimestamps.REJECT)
                 .build());

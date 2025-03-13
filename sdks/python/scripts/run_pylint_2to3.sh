@@ -47,29 +47,6 @@ if test $# -gt 0; then
   esac
 fi
 
-EXCLUDED_FROM_FUTURIZE_CHECK=(
-# "apache_beam/path/to/excluded/file.py"
-)
-FUTURIZE_FILTER=$( IFS='|'; echo "${EXCLUDED_FROM_FUTURIZE_CHECK[*]}" )
-echo "Checking for files requiring stage 1 refactoring from futurize"
-futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 | grep Refactored \
-  || echo "")
-if [ -n "$FUTURIZE_FILTER" ]; then
-  futurize_filtered=$(echo "$futurize_results" | grep -Ev "$FUTURIZE_FILTER" \
-  || echo "")
-else
-  futurize_filtered=${futurize_results}
-fi
-count=${#futurize_filtered}
-if [ "$count" != "0" ]; then
-  echo "Some of the changes require futurize stage 1 changes."
-  echo "The files with required changes:"
-  echo "$futurize_filtered"
-  echo "You can run futurize apache_beam --stage1 to see the proposed changes."
-  exit 1
-fi
-echo "No future changes needed"
-
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py"
@@ -79,8 +56,12 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
-apache_beam/portability/api/*pb2*.py
 )
+
+# more portable than shopt -s globstar
+while IFS= read -d $'\0' -r file ; do
+    EXCLUDED_GENERATED_FILES+=("$file")
+done < <(find apache_beam/portability/api -type f -name "*pb2*.py" -print0)
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do

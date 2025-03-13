@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.seqgen;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -34,7 +36,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-class GenerateSequenceTable extends BaseBeamTable implements Serializable {
+class GenerateSequenceTable extends SchemaBaseBeamTable implements Serializable {
   public static final Schema TABLE_SCHEMA =
       Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
 
@@ -42,8 +44,8 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
 
   GenerateSequenceTable(Table table) {
     super(TABLE_SCHEMA);
-    if (table.getProperties().containsKey("elementsPerSecond")) {
-      elementsPerSecond = table.getProperties().getInteger("elementsPerSecond");
+    if (table.getProperties().has("elementsPerSecond")) {
+      elementsPerSecond = table.getProperties().get("elementsPerSecond").asInt();
     }
   }
 
@@ -60,6 +62,11 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
             MapElements.into(TypeDescriptor.of(Row.class))
                 .via(elm -> Row.withSchema(TABLE_SCHEMA).addValues(elm, Instant.now()).build()))
         .setRowSchema(getSchema());
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return BeamTableStatistics.createUnboundedTableStatistics((double) elementsPerSecond);
   }
 
   @Override

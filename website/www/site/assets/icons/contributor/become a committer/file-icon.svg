@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="45" height="45" fill="none" viewBox="0 0 45 45">
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M26.167 6.41v7.332c0 .487.193.953.537 1.297.343.344.81.537 1.296.537h7.333"/>
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M31.667 39.41H13.333c-.972 0-1.905-.387-2.592-1.075-.688-.687-1.074-1.62-1.074-2.593V10.076c0-.973.386-1.905 1.074-2.593.687-.688 1.62-1.074 2.592-1.074h12.834l9.166 9.167v20.166c0 .973-.386 1.906-1.074 2.593-.687.688-1.62 1.074-2.592 1.074zM17 17.41h1.833M17 24.742h11M17 32.076h11"/>
+</svg>

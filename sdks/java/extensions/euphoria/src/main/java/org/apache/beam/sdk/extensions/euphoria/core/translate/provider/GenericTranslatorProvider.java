@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
@@ -37,7 +36,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTranslator
 import org.apache.beam.sdk.extensions.euphoria.core.translate.ReduceByKeyTranslator;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.TranslatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.UnionTranslator;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * Adjustable {@link TranslatorProvider} that selects first suitable translation for the registered
@@ -46,8 +45,13 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
  * <p>{@link OperatorTranslator Translators} can be added by calling variants of {@link
  * GenericTranslatorProvider.Builder#register(Class, OperatorTranslator) register} method during
  * build. Order of registration is important. Building is started by {@link #newBuilder()}.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
-@Experimental
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
+@Deprecated
 public class GenericTranslatorProvider implements TranslatorProvider {
 
   public static GenericTranslatorProvider createWithDefaultTranslators() {
@@ -56,7 +60,7 @@ public class GenericTranslatorProvider implements TranslatorProvider {
         .register(Union.class, new UnionTranslator<>())
         .register(ReduceByKey.class, new ReduceByKeyTranslator<>())
         .register(Join.class, new JoinTranslator<>())
-        // register fallback operator translator to decompose composit operators
+        // register fallback operator translator to decompose composite operators
         .register(op -> op instanceof CompositeOperator, new CompositeOperatorTranslator<>())
         .build();
   }

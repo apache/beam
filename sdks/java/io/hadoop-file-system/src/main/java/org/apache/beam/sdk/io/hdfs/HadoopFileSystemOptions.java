@@ -18,19 +18,19 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -40,8 +40,10 @@ import org.slf4j.LoggerFactory;
  * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration} for the
  * {@link HadoopFileSystem}.
  */
-@SuppressWarnings("WeakerAccess")
-@Experimental(Kind.FILESYSTEM)
+@SuppressWarnings({
+  "WeakerAccess",
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public interface HadoopFileSystemOptions extends PipelineOptions {
   @Description(
       "A list of Hadoop configurations used to configure zero or more Hadoop filesystems. "
@@ -87,8 +89,34 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
         }
       }
 
+      /*
+       * Explode the paths by ":" to handle the case in which the environment variables
+       * contains multiple paths.
+       *
+       * This happens on Cloudera 6.x, in which the spark-env.sh script sets
+       * HADOOP_CONF_DIR by appending also the Hive configuration folder:
+       *
+       * if [ -d "$HIVE_CONF_DIR" ]; then
+       *   HADOOP_CONF_DIR="$HADOOP_CONF_DIR:$HIVE_CONF_DIR"
+       * fi
+       * export HADOOP_CONF_DIR
+       *
+       */
+      Set<String> explodedConfDirs = Sets.newHashSet();
       for (String confDir : confDirs) {
-        if (new File(confDir).exists()) {
+        Iterable<String> paths = Splitter.on(':').split(confDir);
+        for (String p : paths) {
+          explodedConfDirs.add(p);
+        }
+      }
+
+      // Set used to dedup same config paths
+      Set<java.nio.file.Path> confPaths = Sets.newHashSet();
+      // Load the configuration from paths found (if exists and not loaded yet)
+      for (String confDir : explodedConfDirs) {
+        java.nio.file.Path path = Paths.get(confDir).normalize();
+        if (new File(confDir).exists() && !confPaths.contains(path)) {
+          confPaths.add(path);
           Configuration conf = new Configuration(false);
           boolean confLoaded = false;
           for (String confName : Lists.newArrayList("core-site.xml", "hdfs-site.xml")) {

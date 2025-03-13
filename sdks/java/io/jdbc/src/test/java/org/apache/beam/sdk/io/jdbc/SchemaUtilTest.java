@@ -18,15 +18,16 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.Array;
-import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -34,9 +35,12 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
@@ -154,6 +158,14 @@ public class SchemaUtilTest {
   @Test
   public void testBeamRowMapperPrimitiveTypes() throws Exception {
     ResultSet mockResultSet = mock(ResultSet.class);
+    AtomicBoolean isNull = new AtomicBoolean(false);
+    when(mockResultSet.wasNull())
+        .thenAnswer(
+            x -> {
+              boolean val = isNull.get();
+              isNull.set(false);
+              return val;
+            });
     when(mockResultSet.getLong(eq(1))).thenReturn(42L);
     when(mockResultSet.getBytes(eq(2))).thenReturn("binary".getBytes(Charset.forName("UTF-8")));
     when(mockResultSet.getBoolean(eq(3))).thenReturn(true);
@@ -172,6 +184,18 @@ public class SchemaUtilTest {
     when(mockResultSet.getShort(eq(15))).thenReturn((short) 4);
     when(mockResultSet.getBytes(eq(16))).thenReturn("varbinary".getBytes(Charset.forName("UTF-8")));
     when(mockResultSet.getString(eq(17))).thenReturn("varchar");
+    when(mockResultSet.getBoolean(eq(18)))
+        .thenAnswer(
+            x -> {
+              isNull.set(true);
+              return false;
+            });
+    when(mockResultSet.getInt(eq(19)))
+        .thenAnswer(
+            x -> {
+              isNull.set(true);
+              return 0;
+            });
 
     Schema wantSchema =
         Schema.builder()
@@ -192,6 +216,8 @@ public class SchemaUtilTest {
             .addField("tinyint_col", Schema.FieldType.INT16)
             .addField("varbinary_col", Schema.FieldType.BYTES)
             .addField("varchar_col", Schema.FieldType.STRING)
+            .addField("nullable_boolean_col", Schema.FieldType.BOOLEAN.withNullable(true))
+            .addField("another_int_col", Schema.FieldType.INT32.withNullable(true))
             .build();
     Row wantRow =
         Row.withSchema(wantSchema)
@@ -212,7 +238,9 @@ public class SchemaUtilTest {
                 (short) 8,
                 (short) 4,
                 "varbinary".getBytes(Charset.forName("UTF-8")),
-                "varchar")
+                "varchar",
+                null,
+                null)
             .build();
 
     SchemaUtil.BeamRowMapper beamRowMapper = SchemaUtil.BeamRowMapper.of(wantSchema);
@@ -222,11 +250,74 @@ public class SchemaUtilTest {
   }
 
   @Test
+  public void testJdbcLogicalTypesMapValidAvroSchemaIT() {
+    String expectedAvroSchema =
+        "{"
+            + " \"type\": \"record\","
+            + " \"name\": \"topLevelRecord\","
+            + " \"fields\": [{"
+            + "  \"name\": \"longvarchar_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"varchar\","
+            + "   \"maxLength\": 50"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"varchar_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"varchar\","
+            + "   \"maxLength\": 15"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"fixedlength_char_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"char\","
+            + "   \"maxLength\": 25"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"date_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"int\","
+            + "   \"logicalType\": \"date\""
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"time_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"int\","
+            + "   \"logicalType\": \"time-millis\""
+            + "  }"
+            + " }]"
+            + "}";
+
+    Schema jdbcRowSchema =
+        Schema.builder()
+            .addField(
+                "longvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGVARCHAR, 50))
+            .addField("varchar_col", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 15))
+            .addField("fixedlength_char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 25))
+            .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
+            .addField("time_col", LogicalTypes.JDBC_TIME_TYPE)
+            .build();
+
+    System.out.println(AvroUtils.toAvroSchema(jdbcRowSchema));
+
+    assertEquals(
+        new org.apache.avro.Schema.Parser().parse(expectedAvroSchema),
+        AvroUtils.toAvroSchema(jdbcRowSchema));
+  }
+
+  @Test
   public void testBeamRowMapperDateTime() throws Exception {
     long epochMilli = 1558719710000L;
 
     ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.getDate(eq(1), any())).thenReturn(new Date(epochMilli));
+    when(mockResultSet.getObject(eq(1), eq(java.time.LocalDate.class)))
+        .thenReturn(
+            java.time.Instant.ofEpochMilli(epochMilli)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate());
     when(mockResultSet.getTime(eq(2), any())).thenReturn(new Time(epochMilli));
     when(mockResultSet.getTimestamp(eq(3), any())).thenReturn(new Timestamp(epochMilli));
     when(mockResultSet.getTimestamp(eq(4), any())).thenReturn(new Timestamp(epochMilli));
@@ -285,6 +376,7 @@ public class SchemaUtilTest {
       return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable, 0, 0);
     }
 
+    @SuppressWarnings("unused")
     private static JdbcFieldInfo of(String columnLabel, int columnType, boolean nullable) {
       return new JdbcFieldInfo(columnLabel, columnType, null, nullable, 0, 0);
     }
@@ -300,5 +392,44 @@ public class SchemaUtilTest {
     private static JdbcFieldInfo of(String columnLabel, int columnType, int precision, int scale) {
       return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, scale);
     }
+  }
+
+  @Test
+  public void testSchemaFieldComparator() {
+    assertTrue(
+        SchemaUtil.compareSchemaField(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("name", Schema.FieldType.STRING)));
+    assertFalse(
+        SchemaUtil.compareSchemaField(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("anotherName", Schema.FieldType.STRING)));
+    assertFalse(
+        SchemaUtil.compareSchemaField(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("name", Schema.FieldType.INT64)));
+  }
+
+  @Test
+  public void testSchemaFieldTypeComparator() {
+    assertTrue(SchemaUtil.compareSchemaFieldType(Schema.FieldType.STRING, Schema.FieldType.STRING));
+    assertFalse(SchemaUtil.compareSchemaFieldType(Schema.FieldType.STRING, Schema.FieldType.INT16));
+    assertTrue(
+        SchemaUtil.compareSchemaFieldType(
+            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
+            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+    assertFalse(
+        SchemaUtil.compareSchemaFieldType(
+            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
+            LogicalTypes.fixedLengthBytes(JDBCType.BIT, 255)));
+    assertTrue(
+        SchemaUtil.compareSchemaFieldType(
+            Schema.FieldType.STRING, LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+    assertFalse(
+        SchemaUtil.compareSchemaFieldType(
+            Schema.FieldType.INT16, LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+    assertTrue(
+        SchemaUtil.compareSchemaFieldType(
+            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255), Schema.FieldType.STRING));
   }
 }

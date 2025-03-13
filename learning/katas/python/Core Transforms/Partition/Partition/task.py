@@ -14,9 +14,20 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: Partition
+#   description: Task from katas that splits a PCollection of numbers into two PCollections. The first PCollection
+#     contains numbers greater than 100, and the second PCollection contains the remaining numbers.
+#   multifile: false
+#   context_line: 40
+#   categories:
+#     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - split
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 def partition_fn(number, num_partitions):
@@ -26,13 +37,11 @@ def partition_fn(number, num_partitions):
         return 1
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-results = \
-    (p | beam.Create([1, 2, 3, 4, 5, 100, 110, 150, 250])
-       | beam.Partition(partition_fn, 2))
+  results = \
+      (p | beam.Create([1, 2, 3, 4, 5, 100, 110, 150, 250])
+         | beam.Partition(partition_fn, 2))
 
-results[0] | 'Log numbers > 100' >> LogElements(prefix='Number > 100: ')
-results[1] | 'Log numbers <= 100' >> LogElements(prefix='Number <= 100: ')
-
-p.run()
+  results[0] | 'Log numbers > 100' >> beam.LogElements(prefix='Number > 100: ')
+  results[1] | 'Log numbers <= 100' >> beam.LogElements(prefix='Number <= 100: ')

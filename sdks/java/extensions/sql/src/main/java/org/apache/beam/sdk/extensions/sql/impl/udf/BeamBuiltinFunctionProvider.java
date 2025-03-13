@@ -24,6 +24,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /** BeamBuiltinFunctionClass interface. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class BeamBuiltinFunctionProvider {
   public Map<String, List<Method>> getBuiltinMethods() {
     List<Method> methods = Arrays.asList(getClass().getMethods());

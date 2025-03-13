@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.GroupAlsoByWindowParDoFnFactory.MergingCombineFn;
@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,6 +40,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link GroupAlsoByWindowParDoFnFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class GroupAlsoByWindowParDoFnFactoryTest {
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 

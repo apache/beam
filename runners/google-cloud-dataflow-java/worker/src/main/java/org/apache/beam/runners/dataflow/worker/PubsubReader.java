@@ -18,13 +18,12 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -37,9 +36,14 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Reader that receives elements from Pubsub, via a Windmill server. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> coder;
   private final StreamingModeExecutionContext context;
@@ -71,10 +75,6 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
   }
 
   static class Factory implements ReaderFactory {
-    // Findbugs does not correctly understand inheritance + nullability.
-    //
-    // coder may be null due to parent class signature, and must be checked,
-    // despite not being nullable here
     @Override
     public NativeReader<?> create(
         CloudObject cloudSourceSpec,
@@ -83,7 +83,7 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      checkArgument(coder != null, "coder must not be null");
+      coder = checkArgumentNotNull(coder);
       @SuppressWarnings("unchecked")
       Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
       SimpleFunction<PubsubMessage, Object> parseFn = null;
@@ -104,12 +104,20 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new PubsubReaderIterator(context.getWork());
+    return new PubsubReaderIterator(context.getWorkItem());
   }
 
   class PubsubReaderIterator extends WindmillReaderIteratorBase<T> {
     protected PubsubReaderIterator(Windmill.WorkItem work) {
       super(work);
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        return false;
+      }
+      return super.advance();
     }
 
     @Override
@@ -122,7 +130,9 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
         value =
             parseFn.apply(
                 new PubsubMessage(
-                    pubsubMessage.getData().toByteArray(), pubsubMessage.getAttributes()));
+                    pubsubMessage.getData().toByteArray(),
+                    pubsubMessage.getAttributesMap(),
+                    pubsubMessage.getMessageId()));
       } else {
         value = coder.decode(data, Coder.Context.OUTER);
       }

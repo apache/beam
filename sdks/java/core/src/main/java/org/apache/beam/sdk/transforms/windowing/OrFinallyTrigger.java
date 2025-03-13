@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 /**
@@ -57,6 +57,11 @@ public class OrFinallyTrigger extends Trigger {
     Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window);
     Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window);
     return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
+  }
+
+  @Override
+  public boolean mayFinish() {
+    return subTriggers.get(ACTUAL).mayFinish() || subTriggers.get(UNTIL).mayFinish();
   }
 
   @Override

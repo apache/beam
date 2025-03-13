@@ -1,0 +1,292 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+aizhamal:
+  name: Aizhamal Nurmamat kyzy
+  email: aizhamal@google.com
+  twitter: iamaijamal
+aljoscha:
+  name: Aljoscha Krettek
+  email: aljoscha@apache.org
+  twitter: aljoscha
+altay:
+  name: Ahmet Altay
+  email: altay@apache.org
+  twitter: iridium77
+angoenka:
+  name: Ankur Goenka
+  email: goenka@apache.org
+anton:
+  name: Anton Kedin
+  email: anton@apache.org
+bvolpato:
+  name: Bruno Volpato
+  email: bvolpato@google.com
+ccy:
+  name: Charles Chen
+  email: ccy@apache.org
+chadrik:
+  name: Chad Dombrova
+  email: chadrik@apache.org
+chamikara:
+  name: Chamikara Jayalath
+  email: chamikara@apache.org
+damccorm:
+  name: Danny McCormick
+  email: dannymccormick@google.com
+davidcavazos:
+  name: David Cavazos
+  email: dcavazos@google.com
+davor:
+  name: Davor Bonaci
+  email: davor@apache.org
+  twitter: BonaciDavor
+dhalperi:
+  name: Dan Halperin
+  email: dhalperi@apache.org
+  twitter:
+emilymye:
+  name: Emily Ye
+  email: emilyye@apache.org
+  twitter:
+fjp:
+  name: Frances Perry
+  email: frances@apache.org
+  twitter: francesjperry
+harshithdwivedi:
+  name: Harshit Dwivedi
+  email: harshithdwivedi@gmail.com
+  twitter: harshithdwivedi
+heejong:
+  name: Heejong Lee
+  email: heejong@apache.org
+henryken:
+  name: Henry Suryawirawan
+  email: henry.ken@gmail.com
+  twitter: henry_ken
+iemejia:
+  name: Ismaël Mejía
+  email: iemejia@apache.org
+  twitter: iemejia
+jamesmalone:
+  name: James Malone
+  email: jamesmalone@apache.org
+  twitter: chimerasaurus
+jesseanderson:
+  name: Jesse Anderson
+  twitter: jessetanderson
+johncasey:
+  name: John Casey
+  email: johncasey@apache.org
+jphalip:
+  name: Julien Phalip
+  email: jphalip@google.com
+  twitter: julienphalip
+jrmccluskey:
+  name: Jack R. McCluskey
+  email: jrmccluskey@apache.org
+  twitter: jrmccluskey
+kileysok:
+  name: Kiley Sok
+  email: kileysok@apache.org
+  twitter:
+klk:
+  name: Kenneth Knowles
+  email: kenn@apache.org
+  twitter: KennKnowles
+lkuligin:
+  name: Leonid Kuligin
+  email: kuligin@google.com
+  twitter: lkulighin
+liferoad:
+  name: XQ Hu
+  email: xqhu@google.com
+markliu:
+  name: Mark Liu
+  email: markliu@apache.org
+  twitter:
+ardagan:
+  name: Mikhail Gryzykhin
+  email: mikhail@apache.org
+  twitter:
+robertwb:
+  name: Robert Bradshaw
+  email: robertwb@apache.org
+  twitter:
+takidau:
+  name: Tyler Akidau
+  email: takidau@apache.org
+  twitter: takidau
+tgroh:
+  name: Thomas Groh
+  email: tgroh@google.com
+thw:
+  name: Thomas Weise
+  email: thw@apache.org
+  twitter: thweise
+jkff:
+  name: Eugene Kirpichov
+  email: ekirpichov@gmail.com
+  twitter:
+jbonofre:
+  name: Jean-Baptiste Onofré
+  email: jbonofre@apache.org
+  twitter: jbonofre
+ianand:
+  name: Anand Iyer
+  email: ianand@google.com
+  twitter:
+aromanenko:
+  name: Alexey Romanenko
+  email: aromanenko@apache.org
+  twitter: alexromdev
+pabloem:
+  name: Pablo Estrada
+  email: pabloem@apache.org
+  twitter: polecitoem
+rfernand:
+  name: Rafael Fernández
+  email: rfernand@google.com
+mbaetens:
+  name: Matthias Baetens
+  email: baetensmatthias@gmail.com
+  twitter: matthiasbaetens
+rez:
+  name: Reza Rokni
+  email: rez@google.com
+  twitter: rarokni
+ttanay:
+  name: Tanay Tummalapalli
+  email: ttanay100@gmail.com
+  twitter: ttanay100
+udim:
+  name: Udi Meiri
+  email: udim@apache.org
+  twitter: udim
+boyuanzz:
+  name: Boyuan Zhang
+  email: boyuanz@apache.org
+  twitter:
+amaliujia:
+  name: Rui Wang
+  email: amaliujia@apache.org
+  twitter:
+mxm:
+  name: Maximilian Michels
+  email: mxm@apache.org
+  twitter: stadtlegende
+ningk:
+  name: Ning Kang
+  email: ningkang0957@gmail.com
+  twitter: ningkang0957
+pedro:
+  name: Pedro Galvan
+  email: pedro@sg.com.mx
+  twitter: pedrogk
+rionmonster:
+  name: Rion Williams
+  email: rionmonster@gmail.com
+  twitter: rionmonster
+saavannanavati:
+  name: Saavan Nanavati
+  email: saavan.nanavati@utexas.edu
+  twitter:
+bhulette:
+  name: Brian Hulette
+  email: bhulette@apache.org
+  twitter: BrianHulette
+lostluck:
+  name: Robert Burke
+  email: lostluck@apache.org
+  twitter: lostluck
+tvalentyn:
+  name: Valentyn Tymofieiev
+  email: tvalentyn@apache.org
+  twitter:
+apilloud:
+  name: Andrew Pilloud
+  email: apilloud@apache.org
+  twitter:
+ibzib:
+  name: Kyle Weaver
+  email: ibzib@apache.org
+  twitter:
+danoliveira:
+  name: Daniel Oliviera
+  email: danoliveira@apache.org
+  twitter:
+robinyq:
+  name: Robin Qiu
+  email: robinyq@apache.org
+  twitter:
+markzeng:
+  name: Mark Zeng
+  email:
+  twitter:
+yifanzou:
+  name: Yifan Zou
+  email: yifanzou@apache.org
+  twitter:
+arturkhanin:
+  name: Artur Khanin
+  email: artur.khanin@akvelon.com
+  twitter:
+ilyakozyrev:
+  name: Ilya Kozyrev
+  email: ilya.kozyrev@akvelon.com
+  twitter:
+alexkosolapov:
+  name: Alex Kosolapov
+  email: alex.kosolapov@akvelon.com
+  twitter:
+hermannb:
+  name: Brittany Hermann
+  email: hermannb@google.com
+svetakvsundhar:
+  name: Svetak Sundhar
+  email: svetaksundhar@google.com
+  twitter: svetaksundhar
+iht:
+  name: Israel Herraiz
+  email: ihr@google.com
+  twitter: herraiz
+yichi:
+  name: Yichi Zhang
+  email: yichi@apache.org
+sysede:
+  name: Danielle Syse
+  email: syse@google.com
+  linkedin: desyse
+riteshghorse:
+  name: Ritesh Ghorse
+  email: riteshghorse@apache.org
+yhu:
+  name: Yi Hu
+  email: yhu@apache.org
+pabs:
+  name: Pablo Rodriguez Defino
+  email: prodriguezdefino@gmail.com
+namitasharma:
+  name: Namita Sharma
+  email: namitasharma@google.com
+talat:
+  name: Talat Uyarer
+  email: talat@apache.org
+jkinard:
+  name: Jeff Kinard
+  email: jkinard@google.com
+jkim:
+  name: Jaehyeon Kim
+  email: dottami@gmail.com
+ffernandez92:
+  name: Ferran Fernandez
+  email: ffernandez.upc@gmail.com

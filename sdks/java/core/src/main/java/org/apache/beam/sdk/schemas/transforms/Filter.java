@@ -21,11 +21,9 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,7 +31,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PTransform} for filtering a collection of schema types.
@@ -54,7 +53,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
  *
  * <pre>{@code
  * PCollection<Location> locations = readLocations();
- * locations.apply(Filter
+ * locations.apply(Filter.create()
  *    .whereFieldName("latitude", lat -> lat < 40.720 && lat > 40.699)
  *    .whereFieldName("longitude", long -> long < -73.969 && long > -74.747));
  * }</pre>
@@ -74,12 +73,15 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
  *
  * <pre>{@code
  * PCollection<UserAccount> users = readUsers();
- * users.apply(Filter
+ * users.apply(Filter.create()
  *    .whereFieldNames(Lists.newArrayList("spendOnBooks", "spendOnMovies"),
  *        row -> return row.getDouble("spendOnBooks") + row.getDouble("spendOnMovies") > 100.00));
  * }</pre>
  */
-@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class Filter {
   public static <T> Inner<T> create() {
     return new Inner<T>();
@@ -87,16 +89,18 @@ public class Filter {
 
   /** Implementation of the filter. */
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<T>> {
+
     @AutoValue
     abstract static class FilterDescription<FieldT> implements Serializable {
       abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
       abstract SerializableFunction<FieldT, Boolean> getPredicate();
 
-      @Nullable
-      abstract Schema getSelectedSchema();
+      abstract @Nullable Schema getSelectedSchema();
 
       abstract boolean getSelectsSingleField();
+
+      abstract @Nullable Schema getInputSchema();
 
       abstract Builder<FieldT> toBuilder();
 
@@ -111,7 +115,19 @@ public class Filter {
 
         abstract Builder<FieldT> setSelectsSingleField(boolean unbox);
 
+        abstract Builder<FieldT> setInputSchema(@Nullable Schema inputSchema);
+
         abstract FilterDescription<FieldT> build();
+      }
+
+      private transient RowSelector rowSelector;
+
+      public RowSelector getRowSelector() {
+        if (rowSelector == null) {
+          rowSelector =
+              SelectHelpers.getRowSelectorOptimized(getInputSchema(), getFieldAccessDescriptor());
+        }
+        return rowSelector;
       }
     }
 
@@ -179,6 +195,7 @@ public class Filter {
               .map(
                   f ->
                       f.toBuilder()
+                          .setInputSchema(inputSchema)
                           .setSelectedSchema(
                               SelectHelpers.getOutputSchema(
                                   inputSchema, f.getFieldAccessDescriptor()))
@@ -191,12 +208,7 @@ public class Filter {
                 @ProcessElement
                 public void process(@Element Row row, OutputReceiver<Row> o) {
                   for (FilterDescription filter : resolvedFilters) {
-                    Row selected =
-                        SelectHelpers.selectRow(
-                            row,
-                            filter.getFieldAccessDescriptor(),
-                            inputSchema,
-                            filter.getSelectedSchema());
+                    Row selected = filter.getRowSelector().select(row);
                     if (filter.getSelectsSingleField()) {
                       SerializableFunction<Object, Boolean> predicate =
                           (SerializableFunction<Object, Boolean>) filter.getPredicate();

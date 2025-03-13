@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;

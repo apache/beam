@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -37,9 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.FileSystem.LineageLevel;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -47,30 +47,40 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
 
 /** Clients facing {@link FileSystem} utility. */
-@Experimental(Kind.FILESYSTEM)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "file";
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):/.*");
   private static final Pattern GLOB_PATTERN = Pattern.compile("[*?{}]");
+
+  private static final AtomicReference<KV<Long, Integer>> FILESYSTEM_REVISION =
+      new AtomicReference<>();
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<>(ImmutableMap.of(DEFAULT_SCHEME, new LocalFileSystem()));
@@ -269,23 +279,13 @@ public class FileSystems {
       throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
-      // Short-circuit.
       return;
     }
-
-    List<ResourceId> srcToCopy = srcResourceIds;
-    List<ResourceId> destToCopy = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      KV<List<ResourceId>, List<ResourceId>> existings =
-          filterMissingFiles(srcResourceIds, destResourceIds);
-      srcToCopy = existings.getKey();
-      destToCopy = existings.getValue();
+    FileSystem fileSystem = getFileSystemInternal(srcResourceIds.iterator().next().getScheme());
+    FilterResult filtered = filterFiles(fileSystem, srcResourceIds, destResourceIds, moveOptions);
+    if (!filtered.resultSources.isEmpty()) {
+      fileSystem.copy(filtered.resultSources, filtered.resultDestinations);
     }
-    if (srcToCopy.isEmpty()) {
-      return;
-    }
-    getFileSystemInternal(srcToCopy.iterator().next().getScheme()).copy(srcToCopy, destToCopy);
   }
 
   /**
@@ -298,6 +298,8 @@ public class FileSystems {
    *
    * <p>It doesn't support renaming globs.
    *
+   * <p>Src files will be removed, even if the copy is skipped due to specified move options.
+   *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
    */
@@ -306,24 +308,35 @@ public class FileSystems {
       throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
-      // Short-circuit.
       return;
     }
+    renameInternal(
+        getFileSystemInternal(srcResourceIds.iterator().next().getScheme()),
+        srcResourceIds,
+        destResourceIds,
+        moveOptions);
+  }
 
-    List<ResourceId> srcToRename = srcResourceIds;
-    List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      KV<List<ResourceId>, List<ResourceId>> existings =
-          filterMissingFiles(srcResourceIds, destResourceIds);
-      srcToRename = existings.getKey();
-      destToRename = existings.getValue();
+  @VisibleForTesting
+  static void renameInternal(
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException {
+    try {
+      fileSystem.rename(srcResourceIds, destResourceIds, moveOptions);
+    } catch (UnsupportedOperationException e) {
+      // Some file systems do not yet support specifying the move options. Instead we
+      // perform filtering using match calls before renaming.
+      FilterResult filtered = filterFiles(fileSystem, srcResourceIds, destResourceIds, moveOptions);
+      if (!filtered.resultSources.isEmpty()) {
+        fileSystem.rename(filtered.resultSources, filtered.resultDestinations);
+      }
+      if (!filtered.filteredExistingSrcs.isEmpty()) {
+        fileSystem.delete(filtered.filteredExistingSrcs);
+      }
     }
-    if (srcToRename.isEmpty()) {
-      return;
-    }
-    getFileSystemInternal(srcToRename.iterator().next().getScheme())
-        .rename(srcToRename, destToRename);
   }
 
   /**
@@ -348,6 +361,9 @@ public class FileSystems {
               .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
               .transformAndConcat(
                   new Function<MatchResult, Iterable<Metadata>>() {
+                    @SuppressFBWarnings(
+                        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                        justification = "https://github.com/google/guava/issues/920")
                     @Nonnull
                     @Override
                     public Iterable<Metadata> apply(@Nonnull MatchResult input) {
@@ -362,6 +378,9 @@ public class FileSystems {
                   })
               .transform(
                   new Function<Metadata, ResourceId>() {
+                    @SuppressFBWarnings(
+                        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                        justification = "https://github.com/google/guava/issues/920")
                     @Nonnull
                     @Override
                     public ResourceId apply(@Nonnull Metadata input) {
@@ -379,25 +398,107 @@ public class FileSystems {
         .delete(resourceIdsToDelete);
   }
 
-  private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
-      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
-    validateSrcDestLists(srcResourceIds, destResourceIds);
-    if (srcResourceIds.isEmpty()) {
-      // Short-circuit.
-      return KV.of(Collections.<ResourceId>emptyList(), Collections.<ResourceId>emptyList());
+  /** Report source {@link Lineage} metrics for resource id. */
+  public static void reportSourceLineage(ResourceId resourceId) {
+    reportSourceLineage(resourceId, LineageLevel.FILE);
+  }
+
+  /** Report sink {@link Lineage} metrics for resource id. */
+  public static void reportSinkLineage(ResourceId resourceId) {
+    reportSinkLineage(resourceId, LineageLevel.FILE);
+  }
+
+  /**
+   * Report source {@link Lineage} metrics for resource id at given level.
+   *
+   * <p>Internal API, no backward compatibility guaranteed.
+   */
+  public static void reportSourceLineage(ResourceId resourceId, LineageLevel level) {
+    reportLineage(resourceId, Lineage.getSources(), level);
+  }
+
+  /**
+   * Report source {@link Lineage} metrics for resource id at given level.
+   *
+   * <p>Internal API, no backward compatibility guaranteed.
+   */
+  public static void reportSinkLineage(ResourceId resourceId, LineageLevel level) {
+    reportLineage(resourceId, Lineage.getSinks(), level);
+  }
+
+  /** Report {@link Lineage} metrics for resource id at given level to given Lineage container. */
+  private static void reportLineage(ResourceId resourceId, Lineage lineage, LineageLevel level) {
+    FileSystem fileSystem = getFileSystemInternal(resourceId.getScheme());
+    fileSystem.reportLineage(resourceId, lineage, level);
+  }
+
+  private static class FilterResult {
+    public List<ResourceId> resultSources = new ArrayList();
+    public List<ResourceId> resultDestinations = new ArrayList();
+    public List<ResourceId> filteredExistingSrcs = new ArrayList();
+  };
+
+  private static FilterResult filterFiles(
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException {
+    FilterResult result = new FilterResult();
+    if (moveOptions.length == 0 || srcResourceIds.isEmpty()) {
+      // Nothing will be filtered.
+      result.resultSources = srcResourceIds;
+      result.resultDestinations = destResourceIds;
+      return result;
     }
+    Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
+    final boolean ignoreMissingSrc =
+        moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES);
+    final boolean skipExistingDest =
+        moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+    final int size = srcResourceIds.size();
 
-    List<ResourceId> srcToHandle = new ArrayList<>();
-    List<ResourceId> destToHandle = new ArrayList<>();
+    // Match necessary srcs and dests with a single match call.
+    List<ResourceId> matchResources = new ArrayList<>();
+    if (ignoreMissingSrc) {
+      matchResources.addAll(srcResourceIds);
+    }
+    if (skipExistingDest) {
+      matchResources.addAll(destResourceIds);
+    }
+    List<MatchResult> matchResults =
+        fileSystem.match(
+            FluentIterable.from(matchResources).transform(ResourceId::toString).toList());
+    List<MatchResult> matchSrcResults = ignoreMissingSrc ? matchResults.subList(0, size) : null;
+    List<MatchResult> matchDestResults =
+        skipExistingDest
+            ? matchResults.subList(matchResults.size() - size, matchResults.size())
+            : null;
 
-    List<MatchResult> matchResults = matchResources(srcResourceIds);
-    for (int i = 0; i < matchResults.size(); ++i) {
-      if (!matchResults.get(i).status().equals(Status.NOT_FOUND)) {
-        srcToHandle.add(srcResourceIds.get(i));
-        destToHandle.add(destResourceIds.get(i));
+    for (int i = 0; i < size; ++i) {
+      if (matchSrcResults != null && matchSrcResults.get(i).status().equals(Status.NOT_FOUND)) {
+        // If the source is not found, and we are ignoring missing source files, then we skip it.
+        continue;
       }
+      if (matchDestResults != null
+          && matchSrcResults != null
+          && matchDestResults.get(i).status().equals(Status.OK)
+          && checksumMatch(
+              matchDestResults.get(i).metadata().get(0),
+              matchSrcResults.get(i).metadata().get(0))) {
+        // If the destination exists, and we are skipping when destinations exist, then we skip
+        // the copy but note that the source exists in case it should be deleted.
+        result.filteredExistingSrcs.add(srcResourceIds.get(i));
+        continue;
+      }
+      result.resultSources.add(srcResourceIds.get(i));
+      result.resultDestinations.add(destResourceIds.get(i));
     }
-    return KV.of(srcToHandle, destToHandle);
+    return result;
+  }
+
+  private static boolean checksumMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
+    return first.checksum() != null && first.checksum().equals(second.checksum());
   }
 
   private static void validateSrcDestLists(
@@ -465,18 +566,54 @@ public class FileSystems {
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    *
-   * <p>This is expected only to be used by runners after {@code Pipeline.run}, or in tests.
+   * <p>Outside of workers where Beam FileSystem API is used (e.g. test methods, user code executed
+   * during pipeline submission), consider use {@link #registerFileSystemsOnce} if initialize
+   * FileSystem of supported schema is the main goal.
    */
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
-    checkNotNull(options, "options");
-    Set<FileSystemRegistrar> registrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    registrars.addAll(
-        Lists.newArrayList(
-            ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
+    checkNotNull(options, "options cannot be null");
+    long id = options.getOptionsId();
+    int nextRevision = options.revision();
 
-    SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
+    // entry to set other PipelineOption determined flags
+    Metrics.setDefaultPipelineOptions(options);
+
+    while (true) {
+      KV<Long, Integer> revision = FILESYSTEM_REVISION.get();
+      // only update file systems if the pipeline changed or the options revision increased
+      if (revision != null && revision.getKey().equals(id) && revision.getValue() >= nextRevision) {
+        return;
+      }
+
+      if (FILESYSTEM_REVISION.compareAndSet(revision, KV.of(id, nextRevision))) {
+        Set<FileSystemRegistrar> registrars =
+            Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+        registrars.addAll(
+            Lists.newArrayList(
+                ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
+
+        SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
+        return;
+      }
+    }
+  }
+
+  /**
+   * Register file systems once if never done before.
+   *
+   * <p>This method executes {@link #setDefaultPipelineOptions} only if it has never been run,
+   * otherwise it returns immediately.
+   *
+   * <p>It is internally used by test setup to avoid repeated filesystem registrations (involves
+   * expensive ServiceLoader calls) when there are multiple pipeline and PipelineOptions object
+   * initialized, which is commonly seen in test execution.
+   */
+  @Internal
+  public static synchronized void registerFileSystemsOnce(PipelineOptions options) {
+    if (FILESYSTEM_REVISION.get() == null) {
+      setDefaultPipelineOptions(options);
+    }
   }
 
   @VisibleForTesting
@@ -525,5 +662,21 @@ public class FileSystems {
   public static ResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
     return getFileSystemInternal(parseScheme(singleResourceSpec))
         .matchNewResource(singleResourceSpec, isDirectory);
+  }
+
+  /**
+   * Returns a new {@link ResourceId} that represents the named directory resource.
+   *
+   * @param singleResourceSpec the root directory, for example "/abc"
+   * @param baseNames a list of named directory, for example ["d", "e", "f"]
+   * @return the ResourceId for the resolved directory. In same example as above, it corresponds to
+   *     "/abc/d/e/f".
+   */
+  public static ResourceId matchNewDirectory(String singleResourceSpec, String... baseNames) {
+    ResourceId currentDir = matchNewResource(singleResourceSpec, true);
+    for (String dir : baseNames) {
+      currentDir = currentDir.resolve(dir, StandardResolveOptions.RESOLVE_DIRECTORY);
+    }
+    return currentDir;
   }
 }

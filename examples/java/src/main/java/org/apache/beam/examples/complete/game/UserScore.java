@@ -23,8 +23,8 @@ import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -70,6 +70,9 @@ import org.slf4j.LoggerFactory;
  * value for example batch data file, or use {@code injector.Injector} to generate your own batch
  * data.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class UserScore {
 
   /** Class to hold info about a game event. */
@@ -205,8 +208,11 @@ public class UserScore {
   public interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
-    // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
-    // day's worth (roughly) of data.
+    /* The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
+    day's worth (roughly) of data.
+
+    Note: You may want to use a small sample dataset to test it locally/quickly : gs://apache-beam-samples/game/small/gaming_data.csv
+    You can also download it via the command line gsutil cp gs://apache-beam-samples/game/small/gaming_data.csv ./destination_folder/gaming_data.csv */
     @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
 

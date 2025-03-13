@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -39,7 +39,7 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.dataflow.worker.StateFetcher.SideInputState;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -63,13 +63,15 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -79,7 +81,7 @@ import org.mockito.MockitoAnnotations;
 /** Unit tests for {@link StreamingSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
 public class StreamingSideInputDoFnRunnerTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
 
   static TupleTag<String> mainOutputTag = new TupleTag<>();
@@ -408,7 +410,8 @@ public class StreamingSideInputDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(windowFn),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
     return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
   }
 

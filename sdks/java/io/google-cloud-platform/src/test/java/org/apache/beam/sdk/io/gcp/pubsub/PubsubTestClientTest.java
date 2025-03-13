@@ -20,8 +20,9 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.Clock;
+import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
@@ -29,9 +30,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,9 +55,8 @@ public class PubsubTestClientTest {
     final AtomicLong now = new AtomicLong();
     Clock clock = now::get;
     IncomingMessage expectedIncomingMessage =
-        new IncomingMessage(
-            DATA.getBytes(StandardCharsets.UTF_8),
-            null,
+        IncomingMessage.of(
+            PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build(),
             MESSAGE_TIME,
             REQ_TIME,
             ACK_ID,
@@ -75,7 +75,14 @@ public class PubsubTestClientTest {
         client.advance();
         incomingMessages = client.pull(now.get(), SUBSCRIPTION, 1, true);
         assertEquals(1, incomingMessages.size());
-        assertEquals(expectedIncomingMessage.withRequestTime(now.get()), incomingMessages.get(0));
+        assertEquals(
+            IncomingMessage.of(
+                expectedIncomingMessage.message(),
+                expectedIncomingMessage.timestampMsSinceEpoch(),
+                now.get(),
+                expectedIncomingMessage.ackId(),
+                expectedIncomingMessage.recordId()),
+            incomingMessages.get(0));
         now.addAndGet(10 * 1000);
         client.advance();
         // Extend ack
@@ -85,7 +92,14 @@ public class PubsubTestClientTest {
         client.advance();
         incomingMessages = client.pull(now.get(), SUBSCRIPTION, 1, true);
         assertEquals(1, incomingMessages.size());
-        assertEquals(expectedIncomingMessage.withRequestTime(now.get()), incomingMessages.get(0));
+        assertEquals(
+            IncomingMessage.of(
+                expectedIncomingMessage.message(),
+                expectedIncomingMessage.timestampMsSinceEpoch(),
+                now.get(),
+                expectedIncomingMessage.ackId(),
+                expectedIncomingMessage.recordId()),
+            incomingMessages.get(0));
         // Extend ack
         client.modifyAckDeadline(SUBSCRIPTION, ImmutableList.of(ACK_ID), 20);
         // Ack
@@ -99,12 +113,62 @@ public class PubsubTestClientTest {
   @Test
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage =
-        new OutgoingMessage(DATA.getBytes(StandardCharsets.UTF_8), null, MESSAGE_TIME, MESSAGE_ID);
+        OutgoingMessage.of(
+            PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build(),
+            MESSAGE_TIME,
+            MESSAGE_ID,
+            null);
     try (PubsubTestClientFactory factory =
         PubsubTestClient.createFactoryForPublish(
             TOPIC, Sets.newHashSet(expectedOutgoingMessage), ImmutableList.of())) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
+      }
+    }
+  }
+
+  @Test
+  public void testPullThenPublish() throws IOException {
+    AtomicLong now = new AtomicLong();
+    Clock clock = now::get;
+    PubsubMessage message =
+        PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build();
+    IncomingMessage expectedIncomingMessage =
+        IncomingMessage.of(message, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
+    OutgoingMessage expectedOutgoingMessage =
+        OutgoingMessage.of(message, MESSAGE_TIME, MESSAGE_ID, null);
+
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPullAndPublish(
+            SUBSCRIPTION,
+            TOPIC,
+            clock,
+            ACK_TIMEOUT_S,
+            ImmutableList.of(expectedIncomingMessage),
+            ImmutableList.of(expectedOutgoingMessage),
+            ImmutableList.of())) {
+      try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
+        // Pull
+        now.set(REQ_TIME);
+        client.advance();
+        List<IncomingMessage> actualIncomingMessages =
+            client.pull(now.get(), SUBSCRIPTION, 1, true);
+        now.addAndGet(ACK_TIMEOUT_S - 10);
+        client.advance();
+        client.acknowledge(SUBSCRIPTION, ImmutableList.of(ACK_ID));
+
+        assertEquals(1, actualIncomingMessages.size());
+        assertEquals(expectedIncomingMessage, actualIncomingMessages.get(0));
+
+        // Publish
+        IncomingMessage incomingMessage = actualIncomingMessages.get(0);
+        OutgoingMessage actualOutgoingMessage =
+            OutgoingMessage.of(
+                incomingMessage.message(),
+                incomingMessage.timestampMsSinceEpoch(),
+                incomingMessage.recordId(),
+                null);
+        client.publish(TOPIC, ImmutableList.of(actualOutgoingMessage));
       }
     }
   }

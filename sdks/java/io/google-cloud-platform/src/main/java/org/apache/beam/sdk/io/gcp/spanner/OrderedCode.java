@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Longs;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedInteger;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
 
 /**
  * This module provides routines for encoding a sequence of typed entities into a byte array. The
@@ -379,7 +379,7 @@ class OrderedCode {
   }
 
   private byte[] readBytes(boolean invert) {
-    if (encodedArrays.isEmpty() || ((encodedArrays.get(0)).length - firstArrayPosition <= 0)) {
+    if (encodedArrays.isEmpty() || (encodedArrays.get(0).length - firstArrayPosition <= 0)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -465,7 +465,7 @@ class OrderedCode {
    * @see #writeNumIncreasing(long)
    */
   public long readNumIncreasing() {
-    if (encodedArrays.isEmpty() || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
+    if (encodedArrays.isEmpty() || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -500,7 +500,7 @@ class OrderedCode {
    * @see #writeNumDecreasing(long)
    */
   public long readNumDecreasing() {
-    if (encodedArrays.isEmpty() || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
+    if (encodedArrays.isEmpty() || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -535,7 +535,7 @@ class OrderedCode {
    * @see #writeSignedNumIncreasing(long)
    */
   public long readSignedNumIncreasing() {
-    if (encodedArrays.isEmpty() || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
+    if (encodedArrays.isEmpty() || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -628,7 +628,7 @@ class OrderedCode {
   }
 
   private boolean readInfinityInternal(byte[] codes) {
-    if (encodedArrays.isEmpty() || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
+    if (encodedArrays.isEmpty() || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
     byte[] store = encodedArrays.get(0);

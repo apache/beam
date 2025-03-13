@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -52,13 +51,15 @@ public class BigQueryTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    return new BigQueryTable(
-        table,
-        ConversionOptions.builder()
-            .setTruncateTimestamps(
-                firstNonNull(table.getProperties().getBoolean("truncateTimestamps"), false)
-                    ? TruncateTimestamps.TRUNCATE
-                    : TruncateTimestamps.REJECT)
-            .build());
+    return new BigQueryTable(table, getConversionOptions(table.getProperties()));
+  }
+
+  protected static ConversionOptions getConversionOptions(ObjectNode properties) {
+    return ConversionOptions.builder()
+        .setTruncateTimestamps(
+            properties.path("truncateTimestamps").asBoolean(false)
+                ? TruncateTimestamps.TRUNCATE
+                : TruncateTimestamps.REJECT)
+        .build();
   }
 }

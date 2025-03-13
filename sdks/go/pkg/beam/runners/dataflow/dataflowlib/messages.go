@@ -13,19 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 ignore the unused functions
+
 package dataflowlib
 
 import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
 
 // newMsg creates a json-encoded RawMessage. Panics if encoding fails.
-func newMsg(msg interface{}) googleapi.RawMessage {
+func newMsg(msg any) googleapi.RawMessage {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		panic(err)
@@ -36,7 +38,7 @@ func newMsg(msg interface{}) googleapi.RawMessage {
 // pipelineOptions models Job/Environment/SdkPipelineOptions
 type pipelineOptions struct {
 	DisplayData []*displayData     `json:"display_data,omitempty"`
-	Options     interface{}        `json:"options,omitempty"`
+	Options     any                `json:"options,omitempty"`
 	GoOptions   runtime.RawOptions `json:"beam:option:go_options:v1,omitempty"`
 }
 
@@ -44,20 +46,22 @@ type pipelineOptions struct {
 // blobs. We manually add them here for convenient and safer use.
 
 // userAgent models Job/Environment/UserAgent. Example value:
-//    "userAgent": {
-//        "name": "Apache Beam SDK for Python",
-//        "version": "0.6.0.dev"
-//    },
+//
+//	"userAgent": {
+//	    "name": "Apache Beam SDK for Python",
+//	    "version": "0.6.0.dev"
+//	},
 type userAgent struct {
 	Name    string `json:"name,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 
 // version models Job/Environment/Version. Example value:
-//    "version": {
-//       "job_type": "PYTHON_BATCH",
-//       "major": "5"
-//    },
+//
+//	"version": {
+//	   "job_type": "PYTHON_BATCH",
+//	   "major": "5"
+//	},
 type version struct {
 	JobType string `json:"job_type,omitempty"`
 	Major   string `json:"major,omitempty"`
@@ -80,6 +84,7 @@ type properties struct {
 	NonParallelInputs       map[string]*outputReference `json:"non_parallel_inputs,omitempty"`       // ParDo
 	OutputInfo              []output                    `json:"output_info,omitempty"`               // Source, ParDo, GBK, Flatten, Combine, WindowInto
 	ParallelInput           *outputReference            `json:"parallel_input,omitempty"`            // ParDo, GBK, Flatten, Combine, WindowInto
+	RestrictionEncoder      *graphx.CoderRef            `json:"restriction_encoding,omitempty"`      // ParDo (Splittable DoFn)
 	SerializedFn            string                      `json:"serialized_fn,omitempty"`             // ParDo, GBK, Combine, WindowInto
 
 	PubSubTopic          string `json:"pubsub_topic,omitempty"`           // Read,Write
@@ -97,9 +102,10 @@ type propertiesWithPubSubMessage struct {
 }
 
 type output struct {
-	UserName   string           `json:"user_name,omitempty"`
-	OutputName string           `json:"output_name,omitempty"`
-	Encoding   *graphx.CoderRef `json:"encoding,omitempty"`
+	UserName         string           `json:"user_name,omitempty"`
+	OutputName       string           `json:"output_name,omitempty"`
+	Encoding         *graphx.CoderRef `json:"encoding,omitempty"`
+	UseIndexedFormat bool             `json:"use_indexed_format,omitempty"`
 }
 
 type integer struct {
@@ -155,15 +161,15 @@ func newOutputReference(step, output string) *outputReference {
 }
 
 type displayData struct {
-	Key        string      `json:"key,omitempty"`
-	Label      string      `json:"label,omitempty"`
-	Namespace  string      `json:"namespace,omitempty"`
-	ShortValue string      `json:"shortValue,omitempty"`
-	Type       string      `json:"type,omitempty"`
-	Value      interface{} `json:"value,omitempty"`
+	Key        string `json:"key,omitempty"`
+	Label      string `json:"label,omitempty"`
+	Namespace  string `json:"namespace,omitempty"`
+	ShortValue string `json:"shortValue,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Value      any    `json:"value,omitempty"`
 }
 
-func findDisplayDataType(value interface{}) (string, interface{}) {
+func findDisplayDataType(value any) (string, any) {
 	switch value.(type) {
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return "INTEGER", value
@@ -176,7 +182,7 @@ func findDisplayDataType(value interface{}) (string, interface{}) {
 	}
 }
 
-func newDisplayData(key, label, namespace string, value interface{}) *displayData {
+func newDisplayData(key, label, namespace string, value any) *displayData {
 	t, v := findDisplayDataType(value)
 
 	return &displayData{

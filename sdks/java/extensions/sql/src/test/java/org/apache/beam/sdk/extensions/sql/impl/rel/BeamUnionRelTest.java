@@ -19,12 +19,16 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -98,5 +102,59 @@ public class BeamUnionRelTest extends BaseRelTest {
                     new BigDecimal(2.0))
                 .getRows());
     pipeline.run();
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS ";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamUnionRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(2., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(2., estimate.getWindow(), 0.01);
+  }
+
+  @Test
+  public void testNodeStatsEstimationUnionAll() {
+    String sql =
+        "SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + " UNION ALL SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS ";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamUnionRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(4., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(4., estimate.getWindow(), 0.01);
   }
 }

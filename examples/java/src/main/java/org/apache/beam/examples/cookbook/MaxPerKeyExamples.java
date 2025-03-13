@@ -59,13 +59,13 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations }
- * and can be overridden with {@code --input}.
+ * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations } and
+ * can be overridden with {@code --input}.
  */
 public class MaxPerKeyExamples {
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
 
   /**
    * Examines each row (weather reading) in the input table. Output the month of the reading, and
@@ -136,6 +136,10 @@ public class MaxPerKeyExamples {
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    runMaxPerKeyExamples(options);
+  }
+
+  static void runMaxPerKeyExamples(Options options) {
     Pipeline p = Pipeline.create(options);
 
     // Build the table schema for the output table.

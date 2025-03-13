@@ -25,14 +25,14 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.operators.KV;
 import org.apache.samza.serializers.KVSerde;
 import org.apache.samza.serializers.NoOpSerde;
@@ -54,9 +54,9 @@ public class ReadTranslator<T> implements TransformTranslator<PTransform<PBegin,
     final PCollection<T> output = ctx.getOutput(transform);
     final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
     final Source<?> source =
-        transform instanceof Read.Unbounded
-            ? ((Read.Unbounded) transform).getSource()
-            : ((Read.Bounded) transform).getSource();
+        transform instanceof SplittableParDo.PrimitiveBoundedRead
+            ? ((SplittableParDo.PrimitiveBoundedRead) transform).getSource()
+            : ((SplittableParDo.PrimitiveUnboundedRead) transform).getSource();
     final String id = ctx.getIdForPValue(output);
 
     // Create system descriptor

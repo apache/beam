@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 /**
  * A metric that reports the latest value out of reported values.
  *
  * <p>Since metrics are collected from many workers the value may not be the absolute last, but one
  * of the latest values.
  */
-@Experimental(Experimental.Kind.METRICS)
 public interface Gauge extends Metric {
   /** Set current value for this gauge. */
   void set(long value);

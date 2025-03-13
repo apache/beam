@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.BufferedElementCountingOutputStream.BUFFER_POOL;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -29,25 +29,33 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Tests for {@link BufferedElementCountingOutputStream}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class BufferedElementCountingOutputStreamTest {
   @Rule public final ExpectedException expectedException = ExpectedException.none();
   private static final int BUFFER_SIZE = 8;
+
+  @Parameterized.Parameters
+  public static Iterable<Object[]> data() {
+    return ImmutableList.<Object[]>builder().add(new Object[] {0L}).add(new Object[] {-1L}).build();
+  }
+
+  @Parameterized.Parameter(0)
+  public long terminatorValue;
 
   @Test
   public void testEmptyValues() throws Exception {
@@ -157,7 +165,7 @@ public class BufferedElementCountingOutputStreamTest {
   public void testWritingBytesWhenFinishedThrows() throws Exception {
     expectedException.expect(IOException.class);
     expectedException.expectMessage("Stream has been finished.");
-    testValues(toBytes("a")).write("b".getBytes(Charsets.UTF_8));
+    testValues(toBytes("a")).write("b".getBytes(StandardCharsets.UTF_8));
   }
 
   @Test
@@ -195,7 +203,7 @@ public class BufferedElementCountingOutputStreamTest {
   private List<byte[]> toBytes(String... values) {
     ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
     for (String value : values) {
-      builder.add(value.getBytes(Charsets.UTF_8));
+      builder.add(value.getBytes(StandardCharsets.UTF_8));
     }
     return builder.build();
   }
@@ -219,6 +227,8 @@ public class BufferedElementCountingOutputStreamTest {
       }
     } while (count > 0);
 
+    assertEquals(terminatorValue, count);
+
     if (expectedValues.isEmpty()) {
       assertTrue(values.isEmpty());
     } else {
@@ -229,7 +239,7 @@ public class BufferedElementCountingOutputStreamTest {
   private BufferedElementCountingOutputStream createAndWriteValues(
       List<byte[]> values, OutputStream output) throws Exception {
     BufferedElementCountingOutputStream os =
-        new BufferedElementCountingOutputStream(output, BUFFER_SIZE);
+        new BufferedElementCountingOutputStream(output, BUFFER_SIZE, terminatorValue);
 
     for (byte[] value : values) {
       os.markElementStart();

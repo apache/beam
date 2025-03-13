@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
@@ -31,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -62,7 +63,7 @@ public class DataflowWorkerHarnessHelperTest {
 
     DataflowWorkerHarnessOptions generatedOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            DataflowBatchWorkerHarnessTest.class);
+            DataflowBatchWorkerHarnessTest.class, DataflowWorkerHarnessOptions.class);
     // Assert that the returned options are correct.
     assertThat(generatedOptions.getJobId(), equalTo(JOB_ID));
     assertThat(generatedOptions.getWorkerId(), equalTo(WORKER_ID));
@@ -81,5 +82,37 @@ public class DataflowWorkerHarnessHelperTest {
 
     assertThat(decoded, equalTo(descriptor));
     assertThat(decoded.getUrl(), equalTo("some_test_url"));
+  }
+
+  @Test
+  public void testParseStatusApiDescriptor() throws TextFormat.ParseException {
+    assertNull(DataflowWorkerHarnessHelper.getStatusDescriptor());
+  }
+
+  @Test
+  public void testStreamingStreamingConfiguration() throws Exception {
+    DataflowWorkerHarnessOptions pipelineOptions =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    int activeWorkRefreshPeriodMillis = 12345;
+    pipelineOptions.setActiveWorkRefreshPeriodMillis(activeWorkRefreshPeriodMillis);
+    int stuckCommitDurationMillis = 23456;
+    pipelineOptions.setStuckCommitDurationMillis(stuckCommitDurationMillis);
+    String serializedOptions = new ObjectMapper().writeValueAsString(pipelineOptions);
+    File file = tmpFolder.newFile();
+    Files.write(Paths.get(file.getPath()), serializedOptions.getBytes(StandardCharsets.UTF_8));
+    System.setProperty("sdk_pipeline_options_file", file.getPath());
+
+    DataflowWorkerHarnessOptions generatedOptions =
+        DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
+            DataflowBatchWorkerHarnessTest.class, DataflowWorkerHarnessOptions.class);
+    // Assert that the returned options are correct.
+    assertThat(generatedOptions.getJobId(), equalTo(JOB_ID));
+    assertThat(generatedOptions.getWorkerId(), equalTo(WORKER_ID));
+    assertThat(
+        generatedOptions.getActiveWorkRefreshPeriodMillis(),
+        equalTo(activeWorkRefreshPeriodMillis));
+    assertThat(generatedOptions.getStuckCommitDurationMillis(), equalTo(stuckCommitDurationMillis));
   }
 }

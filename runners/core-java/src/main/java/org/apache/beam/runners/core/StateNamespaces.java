@@ -24,7 +24,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Factory methods for creating the {@link StateNamespace StateNamespaces}. */
 public class StateNamespaces {
@@ -66,7 +67,7 @@ public class StateNamespaces {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj == this || obj instanceof GlobalNamespace;
     }
 
@@ -89,8 +90,8 @@ public class StateNamespaces {
   /** {@link StateNamespace} that is scoped to a specific window. */
   public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
-    private Coder<W> windowCoder;
-    private W window;
+    private final Coder<W> windowCoder;
+    private final W window;
 
     private WindowNamespace(Coder<W> windowCoder, W window) {
       this.windowCoder = windowCoder;
@@ -123,7 +124,7 @@ public class StateNamespaces {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -204,7 +205,7 @@ public class StateNamespaces {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }

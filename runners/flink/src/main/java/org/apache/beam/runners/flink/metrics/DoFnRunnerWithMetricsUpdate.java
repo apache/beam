@@ -26,7 +26,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.joda.time.Instant;
 
 /**
@@ -40,10 +39,10 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   private final DoFnRunner<InputT, OutputT> delegate;
 
   public DoFnRunnerWithMetricsUpdate(
-      String stepName, DoFnRunner<InputT, OutputT> delegate, RuntimeContext runtimeContext) {
+      String stepName, DoFnRunner<InputT, OutputT> delegate, FlinkMetricContainer metricContainer) {
     this.stepName = stepName;
     this.delegate = delegate;
-    container = new FlinkMetricContainer(runtimeContext);
+    this.container = metricContainer;
   }
 
   @Override
@@ -67,14 +66,17 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       final String timerId,
+      final String timerFamilyId,
+      final KeyT key,
       final BoundedWindow window,
       final Instant timestamp,
+      final Instant outputTimestamp,
       final TimeDomain timeDomain) {
     try (Closeable ignored =
         MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
-      delegate.onTimer(timerId, window, timestamp, timeDomain);
+      delegate.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -91,6 +93,11 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
 
     // update metrics
     container.updateMetrics(stepName);
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    delegate.onWindowExpiration(window, timestamp, key);
   }
 
   @Override

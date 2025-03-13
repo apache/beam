@@ -18,14 +18,13 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform that performs equijoins across two schema {@link PCollection}s.
@@ -51,37 +50,42 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>Full outer joins, left outer joins, and right outer joins are also supported.
  */
-@Experimental(Experimental.Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class Join {
   public static final String LHS_TAG = "lhs";
   public static final String RHS_TAG = "rhs";
 
   /** Predicate object to specify fields to compare when doing an equi-join. */
   public static class FieldsEqual {
-    public static Impl left(String... fieldNames) {
-      return new Impl(
+    public static FieldsEqual.Impl left(String... fieldNames) {
+      return new FieldsEqual.Impl(
           FieldAccessDescriptor.withFieldNames(fieldNames), FieldAccessDescriptor.create());
     }
 
-    public static Impl left(Integer... fieldIds) {
-      return new Impl(FieldAccessDescriptor.withFieldIds(fieldIds), FieldAccessDescriptor.create());
+    public static FieldsEqual.Impl left(Integer... fieldIds) {
+      return new FieldsEqual.Impl(
+          FieldAccessDescriptor.withFieldIds(fieldIds), FieldAccessDescriptor.create());
     }
 
-    public static Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Impl(fieldAccessDescriptor, FieldAccessDescriptor.create());
+    public static FieldsEqual.Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new FieldsEqual.Impl(fieldAccessDescriptor, FieldAccessDescriptor.create());
     }
 
-    public Impl right(String... fieldNames) {
-      return new Impl(
+    public FieldsEqual.Impl right(String... fieldNames) {
+      return new FieldsEqual.Impl(
           FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldNames(fieldNames));
     }
 
-    public Impl right(Integer... fieldIds) {
-      return new Impl(FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldIds(fieldIds));
+    public FieldsEqual.Impl right(Integer... fieldIds) {
+      return new FieldsEqual.Impl(
+          FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldIds(fieldIds));
     }
 
-    public Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Impl(FieldAccessDescriptor.create(), fieldAccessDescriptor);
+    public FieldsEqual.Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new FieldsEqual.Impl(FieldAccessDescriptor.create(), fieldAccessDescriptor);
     }
 
     /** Implementation class for FieldsEqual. */
@@ -94,32 +98,32 @@ public class Join {
         this.rhs = rhs;
       }
 
-      public Impl left(String... fieldNames) {
-        return new Impl(FieldAccessDescriptor.withFieldNames(fieldNames), rhs);
+      public FieldsEqual.Impl left(String... fieldNames) {
+        return new FieldsEqual.Impl(FieldAccessDescriptor.withFieldNames(fieldNames), rhs);
       }
 
-      public Impl left(Integer... fieldIds) {
-        return new Impl(FieldAccessDescriptor.withFieldIds(fieldIds), rhs);
+      public FieldsEqual.Impl left(Integer... fieldIds) {
+        return new FieldsEqual.Impl(FieldAccessDescriptor.withFieldIds(fieldIds), rhs);
       }
 
-      public Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
-        return new Impl(fieldAccessDescriptor, rhs);
+      public FieldsEqual.Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
+        return new FieldsEqual.Impl(fieldAccessDescriptor, rhs);
       }
 
-      public Impl right(String... fieldNames) {
-        return new Impl(lhs, FieldAccessDescriptor.withFieldNames(fieldNames));
+      public FieldsEqual.Impl right(String... fieldNames) {
+        return new FieldsEqual.Impl(lhs, FieldAccessDescriptor.withFieldNames(fieldNames));
       }
 
-      public Impl right(Integer... fieldIds) {
-        return new Impl(lhs, FieldAccessDescriptor.withFieldIds(fieldIds));
+      public FieldsEqual.Impl right(Integer... fieldIds) {
+        return new FieldsEqual.Impl(lhs, FieldAccessDescriptor.withFieldIds(fieldIds));
       }
 
-      public Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
-        return new Impl(lhs, fieldAccessDescriptor);
+      public FieldsEqual.Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
+        return new FieldsEqual.Impl(lhs, fieldAccessDescriptor);
       }
 
       private Impl resolve(Schema lhsSchema, Schema rhsSchema) {
-        return new Impl(lhs.resolve(lhsSchema), rhs.resolve(rhsSchema));
+        return new FieldsEqual.Impl(lhs.resolve(lhsSchema), rhs.resolve(rhsSchema));
       }
     }
   }
@@ -144,18 +148,30 @@ public class Join {
     return new Impl<>(JoinType.RIGHT_OUTER, rhs);
   };
 
+  /** Perform an inner join, broadcasting the right side. */
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> innerBroadcastJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.INNER_BROADCAST, rhs);
+  }
+
+  /** Perform a left outer join, broadcasting the right side. */
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> leftOuterBroadcastJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.LEFT_OUTER_BROADCAST, rhs);
+  }
+
   private enum JoinType {
     INNER,
     OUTER,
     LEFT_OUTER,
-    RIGHT_OUTER
+    RIGHT_OUTER,
+    INNER_BROADCAST,
+    LEFT_OUTER_BROADCAST,
   };
 
   /** Implementation class . */
   public static class Impl<LhsT, RhsT> extends PTransform<PCollection<LhsT>, PCollection<Row>> {
     private final JoinType joinType;
     private final transient PCollection<RhsT> rhs;
-    @Nullable private final FieldsEqual.Impl predicate;
+    private final FieldsEqual.@Nullable Impl predicate;
 
     private Impl(JoinType joinType, PCollection<RhsT> rhs) {
       this(joinType, rhs, null);
@@ -171,30 +187,30 @@ public class Join {
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Impl<LhsT, RhsT> using(String... fieldNames) {
-      return new Impl<>(joinType, rhs, FieldsEqual.left(fieldNames).right(fieldNames));
+    public Join.Impl<LhsT, RhsT> using(String... fieldNames) {
+      return new Join.Impl<>(joinType, rhs, FieldsEqual.left(fieldNames).right(fieldNames));
     }
 
     /**
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Impl<LhsT, RhsT> using(Integer... fieldIds) {
-      return new Impl<>(joinType, rhs, FieldsEqual.left(fieldIds).right(fieldIds));
+    public Join.Impl<LhsT, RhsT> using(Integer... fieldIds) {
+      return new Join.Impl<>(joinType, rhs, FieldsEqual.left(fieldIds).right(fieldIds));
     }
 
     /**
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Impl<LhsT, RhsT> using(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Impl<>(
+    public Join.Impl<LhsT, RhsT> using(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new Join.Impl<>(
           joinType, rhs, FieldsEqual.left(fieldAccessDescriptor).right(fieldAccessDescriptor));
     }
 
     /** Join the PCollections using the provided predicate. */
-    public Impl<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
-      return new Impl<>(joinType, rhs, predicate);
+    public Join.Impl<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
+      return new Join.Impl<>(joinType, rhs, predicate);
     }
 
     @Override
@@ -206,6 +222,13 @@ public class Join {
           return tuple.apply(
               CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
                   .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs))
+                  .crossProductJoin());
+        case INNER_BROADCAST:
+          return tuple.apply(
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(
+                      RHS_TAG,
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs).withSideInput())
                   .crossProductJoin());
         case OUTER:
           return tuple.apply(
@@ -225,6 +248,15 @@ public class Join {
                       RHS_TAG,
                       CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
                           .withOptionalParticipation())
+                  .crossProductJoin());
+        case LEFT_OUTER_BROADCAST:
+          return tuple.apply(
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(
+                      RHS_TAG,
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
+                          .withOptionalParticipation()
+                          .withSideInput())
                   .crossProductJoin());
         case RIGHT_OUTER:
           return tuple.apply(

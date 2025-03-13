@@ -19,12 +19,16 @@ package org.apache.beam.runners.dataflow.worker;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.StringSet;
+import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * An implementation of {@link MetricsContainer} that reads the current execution state (tracked in
@@ -32,8 +36,11 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  * updated once on entry to the entire stage, rather than in between every step.
  */
 // not clear why the interface extends Serializable
-// https://issues.apache.org/jira/browse/BEAM-6573
+// https://github.com/apache/beam/issues/19328
 @SuppressFBWarnings("SE_BAD_FIELD")
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowMetricsContainer implements MetricsContainer {
 
   private final ExecutionStateTracker executionStateTracker;
@@ -54,6 +61,11 @@ public class DataflowMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public Counter getPerWorkerCounter(MetricName metricName) {
+    return getCurrentContainer().getPerWorkerCounter(metricName);
+  }
+
+  @Override
   public Distribution getDistribution(MetricName metricName) {
     return getCurrentContainer().getDistribution(metricName);
   }
@@ -61,5 +73,20 @@ public class DataflowMetricsContainer implements MetricsContainer {
   @Override
   public Gauge getGauge(MetricName metricName) {
     return getCurrentContainer().getGauge(metricName);
+  }
+
+  @Override
+  public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+    return getCurrentContainer().getHistogram(metricName, bucketType);
+  }
+
+  @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return getCurrentContainer().getStringSet(metricName);
+  }
+
+  @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return getCurrentContainer().getBoundedTrie(metricName);
   }
 }

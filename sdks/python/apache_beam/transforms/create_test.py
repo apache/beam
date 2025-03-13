@@ -16,15 +16,15 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import logging
 import unittest
-from builtins import range
 
 from apache_beam import Create
+from apache_beam import coders
 from apache_beam.coders import FastPrimitivesCoder
+from apache_beam.internal import pickler
 from apache_beam.io import source_test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -65,8 +65,8 @@ class CreateTest(unittest.TestCase):
     # multiple values with uneven sized splits.
     self.check_read_with_initial_splits(values, self.coder, num_splits=4)
     # multiple values with num splits equal to num values.
-    self.check_read_with_initial_splits(values, self.coder,
-                                        num_splits=len(values))
+    self.check_read_with_initial_splits(
+        values, self.coder, num_splits=len(values))
     # multiple values with num splits greater than to num values.
     self.check_read_with_initial_splits(values, self.coder, num_splits=30)
 
@@ -78,9 +78,8 @@ class CreateTest(unittest.TestCase):
     source = Create._create_source_from_iterable(values, coder)
     desired_bundle_size = source._total_size // num_splits
     splits = source.split(desired_bundle_size)
-    splits_info = [
-        (split.source, split.start_position, split.stop_position)
-        for split in splits]
+    splits_info = [(split.source, split.start_position, split.stop_position)
+                   for split in splits]
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), splits_info)
 
@@ -91,9 +90,8 @@ class CreateTest(unittest.TestCase):
   def test_create_source_read_reentrant_with_initial_splits(self):
     source = Create._create_source_from_iterable(range(24), self.coder)
     for split in source.split(desired_bundle_size=5):
-      source_test_utils.assert_reentrant_reads_succeed((split.source,
-                                                        split.start_position,
-                                                        split.stop_position))
+      source_test_utils.assert_reentrant_reads_succeed(
+          (split.source, split.start_position, split.stop_position))
 
   def test_create_source_dynamic_splitting(self):
     # 2 values
@@ -117,16 +115,52 @@ class CreateTest(unittest.TestCase):
       fraction_consumed_report.append(range_tracker.fraction_consumed())
       split_points_report.append(range_tracker.split_points())
 
-    self.assertEqual(
-        [float(i) / num_values for i in range(num_values)],
-        fraction_consumed_report)
+    self.assertEqual([float(i) / num_values for i in range(num_values)],
+                     fraction_consumed_report)
 
-    expected_split_points_report = [
-        ((i - 1), num_values - (i - 1))
-        for i in range(1, num_values + 1)]
+    expected_split_points_report = [((i - 1), num_values - (i - 1))
+                                    for i in range(1, num_values + 1)]
 
+    self.assertEqual(expected_split_points_report, split_points_report)
+
+  def test_create_uses_coder_for_pickling(self):
+    coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    create = Create([_Unpicklable(1), _Unpicklable(2), _Unpicklable(3)])
+    unpickled_create = pickler.loads(pickler.dumps(create))
     self.assertEqual(
-        expected_split_points_report, split_points_report)
+        sorted(create.values, key=lambda v: v.value),
+        sorted(unpickled_create.values, key=lambda v: v.value))
+
+    with self.assertRaises(NotImplementedError):
+      # As there is no special coder for Union types, this will fall back to
+      # FastPrimitivesCoder, which in turn falls back to pickling.
+      create_mixed_types = Create([_Unpicklable(1), 2])
+      pickler.dumps(create_mixed_types)
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __eq__(self, other):
+    return self.value == other.value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
 
 
 if __name__ == '__main__':

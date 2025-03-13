@@ -18,41 +18,41 @@ package regression
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
+
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 )
 
 func TestDirectParDo(t *testing.T) {
-	if err := ptest.Run(DirectParDo()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, DirectParDo())
 }
 
 func TestEmitParDo(t *testing.T) {
-	if err := ptest.Run(EmitParDo()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, EmitParDo())
 }
 
 func TestMultiEmitParDo(t *testing.T) {
-	if err := ptest.Run(MultiEmitParDo()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, MultiEmitParDo())
 }
 
 func TestMixedOutputParDo(t *testing.T) {
-	if err := ptest.Run(MixedOutputParDo()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, MixedOutputParDo())
 }
 
 func TestDirectParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(DirectParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, DirectParDoAfterGBK())
 }
 
 func TestEmitParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(EmitParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, EmitParDoAfterGBK())
 }

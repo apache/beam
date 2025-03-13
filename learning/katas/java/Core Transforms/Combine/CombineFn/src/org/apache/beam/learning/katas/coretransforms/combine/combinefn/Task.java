@@ -18,8 +18,23 @@
 
 package org.apache.beam.learning.katas.coretransforms.combine.combinefn;
 
+// beam-playground:
+//   name: CombineFn
+//   description: Task from katas averaging.
+//   multifile: false
+//   context_line: 48
+//   categories:
+//     - Combiners
+//     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - transforms
+//     - numbers
+
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -27,7 +42,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import util.Log;
 
 public class Task {
 

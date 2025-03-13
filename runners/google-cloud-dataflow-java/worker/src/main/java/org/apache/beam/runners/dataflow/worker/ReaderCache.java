@@ -18,16 +18,16 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.io.IOException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalCause;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalCause;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +37,14 @@ import org.slf4j.LoggerFactory;
  * minute expiration timeout and the reader will be closed if it is not used within this period.
  */
 @ThreadSafe
-class ReaderCache {
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+@Internal
+public class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);
+  private final Executor invalidationExecutor;
 
   // Note on thread safety. This class is thread safe because:
   //   - Guava Cache is thread safe.
@@ -51,68 +56,71 @@ class ReaderCache {
   private static class CacheEntry {
 
     final UnboundedSource.UnboundedReader<?> reader;
-    final long token;
+    final long cacheToken;
+    final long workToken;
 
-    CacheEntry(UnboundedSource.UnboundedReader<?> reader, long token) {
+    CacheEntry(UnboundedSource.UnboundedReader<?> reader, long cacheToken, long workToken) {
       this.reader = reader;
-      this.token = token;
+      this.cacheToken = cacheToken;
+      this.workToken = workToken;
     }
   }
 
-  private final Cache<KV<String, ByteString>, CacheEntry> cache;
+  private final Cache<WindmillComputationKey, CacheEntry> cache;
 
-  /** ReaderCache with default 1 minute expiration for readers. */
-  ReaderCache() {
-    this(Duration.standardMinutes(1));
-  }
-
-  /** Cache reader for {@code cacheDuration}. */
-  ReaderCache(Duration cacheDuration) {
+  /** Cache reader for {@code cacheDuration}. Readers will be closed on {@code executor}. */
+  ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
+    this.invalidationExecutor = invalidationExecutor;
     this.cache =
         CacheBuilder.newBuilder()
             .expireAfterWrite(cacheDuration.getMillis(), TimeUnit.MILLISECONDS)
             .removalListener(
-                (RemovalNotification<KV<String, ByteString>, CacheEntry> notification) -> {
+                (RemovalNotification<WindmillComputationKey, CacheEntry> notification) -> {
                   if (notification.getCause() != RemovalCause.EXPLICIT) {
-                    LOG.info("Closing idle reader for {}", keyToString(notification.getKey()));
-                    closeReader(notification.getKey(), notification.getValue());
+                    LOG.info(
+                        "Asynchronously closing reader for {} as it has been idle for over {}",
+                        notification.getKey(),
+                        cacheDuration);
+                    asyncCloseReader(notification.getKey(), notification.getValue());
                   }
                 })
             .build();
   }
 
-  private static String keyToString(KV<String, ByteString> key) {
-    return key.getKey() + "-" + key.getValue().toStringUtf8();
-  }
-
   /** Close the reader and log a warning if close fails. */
-  private void closeReader(KV<String, ByteString> key, CacheEntry entry) {
-    try {
-      entry.reader.close();
-    } catch (IOException e) {
-      LOG.warn("Failed to close UnboundedReader for {}", keyToString(key), e);
-    }
+  private void asyncCloseReader(WindmillComputationKey key, CacheEntry entry) {
+    invalidationExecutor.execute(
+        () -> {
+          try {
+            entry.reader.close();
+            LOG.info("Finished closing reader for {}", key);
+          } catch (IOException e) {
+            LOG.warn("Failed to close UnboundedReader for {}", key, e);
+          }
+        });
   }
 
   /**
-   * If there is a cached reader for this split and the cache token matches, the reader is
+   * If there is a cached reader for this computationKey and the cache token matches, the reader is
    * <i>removed</i> from the cache and returned. Cache the reader using cacheReader() as required.
    * Note that cache will expire in one minute. If cacheToken does not match the token already
    * cached, it is assumed that the cached reader (if any) is no longer relevant and will be closed.
    * Return null in case of a cache miss.
    */
   UnboundedSource.UnboundedReader<?> acquireReader(
-      String computationId, ByteString splitId, long cacheToken) {
-    KV<String, ByteString> key = KV.of(computationId, splitId);
-    CacheEntry entry = cache.asMap().remove(key);
+      WindmillComputationKey computationKey, long cacheToken, long workToken) {
+    CacheEntry entry = cache.asMap().remove(computationKey);
 
     cache.cleanUp();
 
     if (entry != null) {
-      if (entry.token == cacheToken) {
+      if (entry.cacheToken == cacheToken && workToken > entry.workToken) {
         return entry.reader;
-      } else { // new cacheToken invalidates old one. close the reader.
-        closeReader(key, entry);
+      } else {
+        // new cacheToken invalidates old one or this is a retried or stale request,
+        // close the reader.
+        LOG.info("Asynchronously closing reader for {} as it is no longer valid", computationKey);
+        asyncCloseReader(computationKey, entry);
       }
     }
     return null;
@@ -120,21 +128,19 @@ class ReaderCache {
 
   /** Cache the reader for a minute. It will be closed if it is not acquired with in a minute. */
   void cacheReader(
-      String computationId,
-      ByteString splitId,
+      WindmillComputationKey computationKey,
       long cacheToken,
+      long workToken,
       UnboundedSource.UnboundedReader<?> reader) {
     CacheEntry existing =
-        cache
-            .asMap()
-            .putIfAbsent(KV.of(computationId, splitId), new CacheEntry(reader, cacheToken));
+        cache.asMap().putIfAbsent(computationKey, new CacheEntry(reader, cacheToken, workToken));
     Preconditions.checkState(existing == null, "Overwriting existing readers is not allowed");
     cache.cleanUp();
   }
 
   /** If a reader is cached for this key, remove and close it. */
-  void invalidateReader(String computationId, ByteString splitId) {
+  void invalidateReader(WindmillComputationKey computationKey) {
     // use an invalid cache token that will trigger close.
-    acquireReader(computationId, splitId, -1L);
+    acquireReader(computationKey, -1L, -1);
   }
 }

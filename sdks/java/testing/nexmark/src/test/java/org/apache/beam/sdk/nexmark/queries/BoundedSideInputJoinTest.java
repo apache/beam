@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertThat;
 
 import java.util.Random;
 import org.apache.beam.sdk.PipelineResult;
@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,6 +49,9 @@ import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class BoundedSideInputJoinTest {
 
   @Rule public TestPipeline p = TestPipeline.create();

@@ -26,21 +26,13 @@ import org.apache.spark.api.java.function.Function;
  * Simple {@link Function} to bring the windowing information into the value from the implicit
  * background representation of the {@link PCollection}.
  */
-class ReifyTimestampsAndWindowsFunction<K, V>
-    implements Function<WindowedValue<KV<K, V>>, WindowedValue<KV<K, WindowedValue<V>>>> {
+public class ReifyTimestampsAndWindowsFunction<K, V>
+    implements Function<WindowedValue<KV<K, V>>, KV<K, WindowedValue<V>>> {
   @Override
-  public WindowedValue<KV<K, WindowedValue<V>>> call(WindowedValue<KV<K, V>> elem)
-      throws Exception {
-    return WindowedValue.of(
-        KV.of(
-            elem.getValue().getKey(),
-            WindowedValue.of(
-                elem.getValue().getValue(),
-                elem.getTimestamp(),
-                elem.getWindows(),
-                elem.getPane())),
-        elem.getTimestamp(),
-        elem.getWindows(),
-        elem.getPane());
+  public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
+    return KV.of(
+        elem.getValue().getKey(),
+        WindowedValue.of(
+            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPane()));
   }
 }

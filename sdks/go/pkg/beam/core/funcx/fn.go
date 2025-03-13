@@ -19,9 +19,12 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Note that we can't tell the difference between K, V and V, S before binding.
@@ -66,6 +69,25 @@ const (
 	FnType FnParamKind = 0x40
 	// FnWindow indicates a function input parameter that implements typex.Window.
 	FnWindow FnParamKind = 0x80
+	// FnRTracker indicates a function input parameter that implements
+	// sdf.RTracker.
+	FnRTracker FnParamKind = 0x100
+	// FnMultiMap indicates a function input parameter that is a multimap.
+	// The function signature is a function taking a value and returning a function
+	// matching the iterator signature.
+	// Example:
+	//				"func(string) func (*int) bool"
+	FnMultiMap FnParamKind = 0x200
+	// FnPane indicates a function input parameter that is a PaneInfo
+	FnPane FnParamKind = 0x400
+	// FnBundleFinalization indicates a function input parameter that implements typex.BundleFinalization.
+	FnBundleFinalization FnParamKind = 0x800
+	// FnWatermarkEstimator indicates a function input parameter that implements sdf.WatermarkEstimator
+	FnWatermarkEstimator FnParamKind = 0x1000
+	// FnStateProvider indicates a function input parameter that implements state.Provider
+	FnStateProvider FnParamKind = 0x2000
+	// FnTimerProvider indicates a function input parameter that implements timer.Provider
+	FnTimerProvider FnParamKind = 0x4000
 )
 
 func (k FnParamKind) String() string {
@@ -86,6 +108,20 @@ func (k FnParamKind) String() string {
 		return "Type"
 	case FnWindow:
 		return "Window"
+	case FnRTracker:
+		return "RTracker"
+	case FnMultiMap:
+		return "MultiMap"
+	case FnPane:
+		return "Pane"
+	case FnBundleFinalization:
+		return "BundleFinalization"
+	case FnWatermarkEstimator:
+		return "WatermarkEstimator"
+	case FnStateProvider:
+		return "StateProvider"
+	case FnTimerProvider:
+		return "TimerProvider"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -102,20 +138,26 @@ type ReturnKind int
 
 // The supported types of ReturnKind.
 const (
-	RetIllegal   ReturnKind = 0x0
-	RetEventTime ReturnKind = 0x1
-	RetValue     ReturnKind = 0x2
-	RetError     ReturnKind = 0x4
+	RetIllegal             ReturnKind = 0x0
+	RetEventTime           ReturnKind = 0x1
+	RetValue               ReturnKind = 0x2
+	RetError               ReturnKind = 0x4
+	RetRTracker            ReturnKind = 0x8
+	RetProcessContinuation ReturnKind = 0x10
 )
 
 func (k ReturnKind) String() string {
 	switch k {
 	case RetError:
 		return "Error"
+	case RetRTracker:
+		return "RTracker"
 	case RetEventTime:
 		return "EventTime"
 	case RetValue:
 		return "Value"
+	case RetProcessContinuation:
+		return "ProcessContinuation"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -145,6 +187,55 @@ func (u *Fn) Context() (pos int, exists bool) {
 		}
 	}
 	return -1, false
+}
+
+// Emits returns (index, num, true) iff the function expects one or more
+// emitters. The index returned is the index of the first emitter param in the
+// signature. The num return value is the number of emitters in the signature.
+// When there are multiple emitters in the signature, they will all be located
+// contiguously, so the range of emitter params is [index, index+num).
+func (u *Fn) Emits() (pos int, num int, exists bool) {
+	pos = -1
+	exists = false
+	for i, p := range u.Param {
+		if !exists && p.Kind == FnEmit {
+			// This should execute when hitting the first emitter.
+			pos = i
+			num = 1
+			exists = true
+		} else if exists && p.Kind == FnEmit {
+			// Subsequent emitters after the first.
+			num++
+		} else if exists {
+			// Breaks out when no emitters are left.
+			break
+		}
+	}
+	return pos, num, exists
+}
+
+// Inputs returns (index, num, true) iff the function expects one or more
+// inputs, consisting of the main input followed by any number of side inputs.
+// The index returned is the index of the first input, which is always the main
+// input. The num return value is the number of total inputs in the signature.
+// The main input and all side inputs are located contiguously
+func (u *Fn) Inputs() (pos int, num int, exists bool) {
+	pos = -1
+	exists = false
+	for i, p := range u.Param {
+		if !exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter || p.Kind == FnMultiMap) {
+			// This executes on hitting the first input.
+			pos = i
+			num = 1
+			exists = true
+		} else if exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter || p.Kind == FnMultiMap) {
+			// Subsequent inputs after the first.
+			num++
+		} else if exists {
+			break
+		}
+	}
+	return pos, num, exists
 }
 
 // Type returns (index, true) iff the function expects a reflect.FullType.
@@ -177,6 +268,70 @@ func (u *Fn) Window() (pos int, exists bool) {
 	return -1, false
 }
 
+// Pane returns (index, true) iff the function expects a PaneInfo.
+func (u *Fn) Pane() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnPane {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// RTracker returns (index, true) iff the function expects an sdf.RTracker.
+func (u *Fn) RTracker() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnRTracker {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// BundleFinalization returns (index, true) iff the function expects a
+// parameter that implements typex.BundleFinalization.
+func (u *Fn) BundleFinalization() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnBundleFinalization {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// StateProvider returns (index, true) iff the function expects a
+// parameter that implements state.Provider.
+func (u *Fn) StateProvider() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnStateProvider {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// TimerProvider returns (index, true) iff the function expects a
+// parameter that implements timers.Provider.
+func (u *Fn) TimerProvider() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnTimerProvider {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// WatermarkEstimator returns (index, true) iff the function expects a
+// parameter that implements sdf.WatermarkEstimator.
+func (u *Fn) WatermarkEstimator() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnWatermarkEstimator {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // Error returns (index, true) iff the function returns an error.
 func (u *Fn) Error() (pos int, exists bool) {
 	for i, p := range u.Ret {
@@ -191,6 +346,16 @@ func (u *Fn) Error() (pos int, exists bool) {
 func (u *Fn) OutEventTime() (pos int, exists bool) {
 	for i, p := range u.Ret {
 		if p.Kind == RetEventTime {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// ProcessContinuation returns (index, true) iff the function returns a process continuation.
+func (u *Fn) ProcessContinuation() (pos int, exists bool) {
+	for i, p := range u.Ret {
+		if p.Kind == RetProcessContinuation {
 			return i, true
 		}
 	}
@@ -239,8 +404,18 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnEventTime
 		case t.Implements(typex.WindowType):
 			kind = FnWindow
+		case t == typex.BundleFinalizationType:
+			kind = FnBundleFinalization
+		case t == state.ProviderType:
+			kind = FnStateProvider
+		case t == timers.ProviderType:
+			kind = FnTimerProvider
 		case t == reflectx.Type:
 			kind = FnType
+		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
+			kind = FnRTracker
+		case t.Implements(reflect.TypeOf((*sdf.WatermarkEstimator)(nil)).Elem()):
+			kind = FnWatermarkEstimator
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = FnValue
 		case IsEmit(t):
@@ -249,7 +424,24 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnIter
 		case IsReIter(t):
 			kind = FnReIter
+		case IsMultiMap(t):
+			kind = FnMultiMap
+		case t == typex.PaneInfoType:
+			kind = FnPane
 		default:
+			// Error cases
+			if ok, err := IsMalformedEmit(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedIter(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedReIter(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedMultiMap(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
 			return nil, errors.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
 
@@ -264,6 +456,10 @@ func New(fn reflectx.Func) (*Fn, error) {
 		switch {
 		case t == reflectx.Error:
 			kind = RetError
+		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
+			kind = RetRTracker
+		case t.Implements(reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem()):
+			kind = RetProcessContinuation
 		case t == typex.EventTimeType:
 			kind = RetEventTime
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
@@ -304,9 +500,11 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
-//     where ? indicates 0 or 1, and * indicates any number.
-//     and  a SideInput is one of FnValue or FnIter or FnReIter
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnWatermarkEstimator?, FnType?, FnBundleFinalization?, FnRTracker?, FnStateProvider?, FnTimerProvider?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+//
+//	where ? indicates 0 or 1, and * indicates any number.
+//	and  a SideInput is one of FnValue or FnIter or FnReIter
+//
 // Note: Fns with inputs must have at least one FnValue as the main input.
 func validateOrder(u *Fn) error {
 	paramState := psStart
@@ -328,12 +526,17 @@ func validateOrder(u *Fn) error {
 }
 
 var (
-	errContextParam             = errors.New("may only have a single context.Context parameter and it must be the first parameter")
-	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
-	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
-	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errSideInputPrecedence      = errors.New("side input parameters must follow main input parameter")
-	errInputPrecedence          = errors.New("inputs parameters must precede emit function parameters")
+	errContextParam                      = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errPaneParamPrecedence               = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
+	errWindowParamPrecedence             = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
+	errEventTimeParamPrecedence          = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
+	errWatermarkEstimatorParamPrecedence = errors.New("may only have a single sdf.WatermarkEstimator parameter and it must precede the main input parameter")
+	errReflectTypePrecedence             = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
+	errRTrackerPrecedence                = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
+	errBundleFinalizationPrecedence      = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
+	errStateProviderPrecedence           = errors.New("may only have a single state.Provider parameter and it must precede the main input parameter")
+	errTimerProviderPrecedence           = errors.New("may only have a single timer.Provider parameter and it must precede the main input parameter")
+	errInputPrecedence                   = errors.New("inputs parameters must precede emit function parameters")
 )
 
 type paramState int
@@ -341,11 +544,17 @@ type paramState int
 const (
 	psStart paramState = iota
 	psContext
+	psPane
 	psWindow
 	psEventTime
+	psWatermarkEstimator
 	psType
 	psInput
 	psOutput
+	psRTracker
+	psBundleFinalization
+	psStateProvider
+	psTimerProvider
 )
 
 func nextParamState(cur paramState, transition FnParamKind) (paramState, error) {
@@ -354,35 +563,143 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		switch transition {
 		case FnContext:
 			return psContext, nil
+		case FnPane:
+			return psPane, nil
 		case FnWindow:
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
 		}
 	case psContext:
+		switch transition {
+		case FnPane:
+			return psPane, nil
+		case FnWindow:
+			return psWindow, nil
+		case FnEventTime:
+			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
+		case FnType:
+			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
+		}
+	case psPane:
 		switch transition {
 		case FnWindow:
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
 		}
 	case psWindow:
 		switch transition {
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
 		}
 	case psEventTime:
 		switch transition {
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
+		}
+	case psWatermarkEstimator:
+		switch transition {
+		case FnType:
+			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
 		}
 	case psType:
+		switch transition {
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
+		}
+	case psBundleFinalization:
+		switch transition {
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
+		}
+	case psRTracker:
+		switch transition {
+		case FnStateProvider:
+			return psStateProvider, nil
+		case FnTimerProvider:
+			return psTimerProvider, nil
+		}
+	case psStateProvider:
+		switch transition {
+		case FnTimerProvider:
+			return psTimerProvider, nil
+		}
+	case psTimerProvider:
 		// Completely handled by the default clause
 	case psInput:
 		switch transition {
@@ -399,16 +716,26 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 	switch transition {
 	case FnContext:
 		return -1, errContextParam
+	case FnPane:
+		return -1, errPaneParamPrecedence
 	case FnWindow:
 		return -1, errWindowParamPrecedence
 	case FnEventTime:
 		return -1, errEventTimeParamPrecedence
+	case FnWatermarkEstimator:
+		return -1, errWatermarkEstimatorParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
-	case FnValue:
+	case FnBundleFinalization:
+		return -1, errBundleFinalizationPrecedence
+	case FnRTracker:
+		return -1, errRTrackerPrecedence
+	case FnStateProvider:
+		return -1, errStateProviderPrecedence
+	case FnTimerProvider:
+		return -1, errTimerProviderPrecedence
+	case FnIter, FnReIter, FnValue, FnMultiMap:
 		return psInput, nil
-	case FnIter, FnReIter:
-		return -1, errSideInputPrecedence
 	case FnEmit:
 		return psOutput, nil
 	default:
@@ -417,8 +744,9 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 }
 
 var (
-	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
-	errErrorPrecedence        = errors.New("error must be the final return parameter")
+	errEventTimeRetPrecedence        = errors.New("beam.EventTime must be first return parameter")
+	errErrorPrecedence               = errors.New("error must be the final return parameter")
+	errProcessContinuationPrecedence = errors.New("ProcessContinuation must be the final non-error return parameter")
 )
 
 type retState int
@@ -428,6 +756,7 @@ const (
 	rsEventTime
 	rsOutput
 	rsError
+	rsProcessContinuation
 )
 
 func nextRetState(cur retState, transition ReturnKind) (retState, error) {
@@ -439,6 +768,13 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		}
 	case rsEventTime, rsOutput:
 		// Identical to the default cases.
+	case rsProcessContinuation:
+		switch transition {
+		case RetError:
+			return rsError, nil
+		default:
+			return -1, errProcessContinuationPrecedence
+		}
 	case rsError:
 		// This is a terminal state. No valid transitions. error must be the final return value.
 		return -1, errErrorPrecedence
@@ -447,8 +783,10 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 	switch transition {
 	case RetEventTime:
 		return -1, errEventTimeRetPrecedence
-	case RetValue:
+	case RetValue, RetRTracker:
 		return rsOutput, nil
+	case RetProcessContinuation:
+		return rsProcessContinuation, nil
 	case RetError:
 		return rsError, nil
 	default:

@@ -21,14 +21,14 @@ import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,7 +53,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -80,10 +79,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -92,6 +92,7 @@ import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -103,6 +104,8 @@ public class CombineTest implements Serializable {
   /** Base class to share setup/teardown and helpers. */
   public abstract static class SharedTestBase {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
     protected void runTestSimpleCombine(
         List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines) {
@@ -239,7 +242,7 @@ public class CombineTest implements Serializable {
         }
 
         @Override
-        public boolean equals(Object otherObj) {
+        public boolean equals(@Nullable Object otherObj) {
           if (otherObj instanceof Counter) {
             Counter other = (Counter) otherObj;
             return (sum == other.sum
@@ -550,7 +553,7 @@ public class CombineTest implements Serializable {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
           if (obj == this) {
             return true;
           }
@@ -651,12 +654,11 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
     })
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
       runTestSimpleCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -665,11 +667,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSimpleCombineEmpty() {
       runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
     }
@@ -706,7 +704,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testHotKeyCombining() {
       PCollection<KV<String, Integer>> input =
           copy(
@@ -751,7 +749,7 @@ public class CombineTest implements Serializable {
                   Window.<Integer>into(new GlobalWindows())
                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .accumulatingFiredPanes()
-                      .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+                      .withAllowedLateness(Duration.ZERO, ClosingBehavior.FIRE_ALWAYS))
               .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
               .apply(ParDo.of(new GetLast()));
 
@@ -992,7 +990,10 @@ public class CombineTest implements Serializable {
   public static class CombineWithContextTests extends SharedTestBase {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    })
     public void testSimpleCombineWithContext() {
       runTestSimpleCombineWithContext(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -1030,13 +1031,37 @@ public class CombineTest implements Serializable {
 
       assertEquals(Collections.singletonList(view), combine.getSideInputs());
     }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testHotKeyCombineWithSideInputs() {
+      PCollection<KV<String, Integer>> input =
+          createInput(
+              pipeline,
+              Arrays.asList(
+                  KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)));
+      PCollection<Integer> sum =
+          input.apply(Values.create()).apply("Sum", Combine.globally(new SumInts()));
+      PCollectionView<Integer> sumView = sum.apply(View.asSingleton());
+
+      PCollection<KV<String, String>> combinePerKeyWithSideInputsAndHotKey =
+          input.apply(
+              Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(sumView))
+                  .withSideInputs(sumView)
+                  .withHotKeyFanout(1));
+
+      PAssert.that(combinePerKeyWithSideInputsAndHotKey)
+          .containsInAnyOrder(Arrays.asList(KV.of("a", "20:114"), KV.of("b", "20:113")));
+
+      pipeline.run();
+    }
   }
 
   /** Tests validating windowing behaviors. */
   @RunWith(JUnit4.class)
   public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testFixedWindowsCombine() {
       PCollection<KV<String, Integer>> input =
           pipeline
@@ -1225,7 +1250,7 @@ public class CombineTest implements Serializable {
                   Window.<Integer>into(new GlobalWindows())
                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .accumulatingFiredPanes()
-                      .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+                      .withAllowedLateness(Duration.ZERO, ClosingBehavior.FIRE_ALWAYS))
               .apply(Sum.integersGlobally())
               .apply(ParDo.of(new FormatPaneInfo()));
 
@@ -1319,7 +1344,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testWindowedCombineEmpty() {
       PCollection<Double> mean =
           pipeline
@@ -1440,11 +1465,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class AccumulationTests extends SharedTestBase {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testAccumulatingCombine() {
       runTestAccumulatingCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -1453,11 +1474,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testAccumulatingCombineEmpty() {
       runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
     }

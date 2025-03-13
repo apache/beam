@@ -21,31 +21,50 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import java.util.Objects;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Converts an iterator to an iterable lazily loading values from the underlying iterator and
  * caching them to support reiteration.
  */
-class LazyCachingIteratorToIterable<T> implements Iterable<T> {
+class LazyCachingIteratorToIterable<T> extends PrefetchableIterables.Default<T> {
   private final List<T> cachedElements;
-  private final Iterator<T> iterator;
+  private final PrefetchableIterator<T> iterator;
 
-  public LazyCachingIteratorToIterable(Iterator<T> iterator) {
+  public LazyCachingIteratorToIterable(PrefetchableIterator<T> iterator) {
     this.cachedElements = new ArrayList<>();
     this.iterator = iterator;
   }
 
   @Override
-  public Iterator<T> iterator() {
+  public PrefetchableIterator<T> createIterator() {
     return new CachingIterator();
   }
 
   /** An {@link Iterator} which adds and fetched values into the cached elements list. */
-  private class CachingIterator implements Iterator<T> {
+  private class CachingIterator implements PrefetchableIterator<T> {
     private int position = 0;
 
     private CachingIterator() {}
+
+    @Override
+    public boolean isReady() {
+      if (position < cachedElements.size()) {
+        return true;
+      }
+      return iterator.isReady();
+    }
+
+    @Override
+    public void prefetch() {
+      if (!isReady()) {
+        iterator.prefetch();
+      }
+    }
 
     @Override
     public boolean hasNext() {
@@ -72,11 +91,11 @@ class LazyCachingIteratorToIterable<T> implements Iterable<T> {
 
   @Override
   public int hashCode() {
-    return iterator.hasNext() ? iterator.next().hashCode() : -1789023489;
+    return iterator.hasNext() ? Objects.hashCode(iterator.next()) : -1789023489;
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj instanceof Iterable && Iterables.elementsEqual(this, (Iterable) obj);
   }
 

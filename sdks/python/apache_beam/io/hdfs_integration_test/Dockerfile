@@ -19,26 +19,18 @@
 # This image contains a Python SDK build and dependencies.
 # By default it runs wordcount against a locally accessible HDFS service.
 # See hdfs_integration_test.sh for example usage.
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 
-FROM python:2
 WORKDIR /app
 ENV HDFSCLI_CONFIG /app/sdks/python/apache_beam/io/hdfs_integration_test/hdfscli.cfg
-RUN pip install --no-cache-dir holdup gsutil
-RUN gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt .
 
-# Install Beam and dependencies.
-ADD sdks/python /app/sdks/python
-ADD model /app/model
-RUN cd sdks/python && \
-    python setup.py sdist && \
-    pip install --no-cache-dir $(ls dist/apache-beam-*.tar.gz | tail -n1)[gcp]
+# Add Beam SDK sources.
+COPY sdks/python /app/sdks/python
+COPY model /app/model
+
+# This step should look like setupVirtualenv minus virtualenv creation.
+RUN pip install --no-cache-dir tox
 
 # Run wordcount, and write results to HDFS.
-CMD holdup -t 45 http://namenode:50070 http://datanode:50075 && \
-    echo "Waiting for safe mode to end." && \
-    sleep 45 && \
-    hdfscli -v -v -v upload -f kinglear.txt / && \
-    python -m apache_beam.examples.wordcount \
-        --input hdfs://kinglear* \
-        --output hdfs://py-wordcount-integration \
-        --hdfs_host namenode --hdfs_port 50070 --hdfs_user root
+CMD cd sdks/python && tox -e hdfs_integration_test

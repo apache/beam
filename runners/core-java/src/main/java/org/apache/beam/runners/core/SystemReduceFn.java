@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -27,7 +28,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * {@link ReduceFn} implementing the default reduction behaviors of {@link GroupByKey}.
@@ -37,6 +38,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends ReduceFn<K, InputT, OutputT, W> {
   private static final String BUFFER_NAME = "buf";
@@ -116,6 +120,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   @Override
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void prefetchOnTrigger(StateAccessor<K> state) {
     state.access(bufferTag).readLater();
   }

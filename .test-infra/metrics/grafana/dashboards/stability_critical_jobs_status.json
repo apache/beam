@@ -1,0 +1,458 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 3,
+        "w": 10,
+        "x": 0,
+        "y": 0
+      },
+      "id": 8,
+      "links": [],
+      "options": {
+        "content": "The graph shows: average greenness of critical post-commit tests jobs per week. This graph show health of our project.\n\nTable shows list of relevant jobs failures during selected time interval (You can change time interval on top-right corner of the dashboard). Please, triage failed jobs and update or create corresponding issues. You can utilized provided links to help with this.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.2",
+      "title": "Dashboard guidelines",
+      "type": "text"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Time"
+              },
+              {
+                "id": "unit",
+                "value": "time: YYYY-MM-DD HH:mm:ss"
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_url"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Build Url"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Link to Jenkins job.",
+                    "url": "${__cell:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 14,
+        "x": 10,
+        "y": 0
+      },
+      "hideTimeOverride": false,
+      "id": 4,
+      "links": [],
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT \n  build_timestamp,\n  job_name,\n  build_url\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java_GradleBuild') \n     OR (job_name LIKE 'beam_PostCommit_Go_GradleBuild') \n     OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n     OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeShift": null,
+      "title": "Failed builds",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {
+            "reducers": []
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 3,
+        "w": 10,
+        "x": 0,
+        "y": 3
+      },
+      "id": 6,
+      "links": [],
+      "options": {
+        "content": "[List existing issues](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Atest-failures)\n\n[Create new Issue](https://github.com/apache/beam/issues/new/choose)",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.2",
+      "title": "Useful links",
+      "type": "text"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "description": "Each data point shows aggregation for corresponding week.\nLatest (rightmost) data point aggregates all data available for current week, so it may change based on new data and should not be considered a final value.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3f6833",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 10,
+        "x": 0,
+        "y": 6
+      },
+      "id": 2,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n    We perform a union here to create a fake \"Python_All\" job_name in\n    order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Greenness per Week (in %)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "description": "Each data point shows aggregation for corresponding month.\nLatest (rightmost) data point aggregates all data available for current month, so it may change based on new data and should not be considered a final value.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3f6833",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 14,
+        "x": 10,
+        "y": 6
+      },
+      "id": 10,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
+      "targets": [
+        {
+          "alias": "",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n  We perform a union here to create a fake \"Python_All\" job_name in\n  order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Greenness per Month (in %)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "utc",
+  "title": "Stability critical jobs status",
+  "uid": "McTAiu0ik",
+  "version": 2
+}

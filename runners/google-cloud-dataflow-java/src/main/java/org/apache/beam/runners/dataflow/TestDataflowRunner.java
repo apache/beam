@@ -17,31 +17,32 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,9 @@ import org.slf4j.LoggerFactory;
  *
  * @see TestPipeline
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
@@ -71,8 +75,15 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   public static TestDataflowRunner fromOptions(PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
     String tempLocation =
-        Joiner.on("/")
-            .join(dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results");
+        FileSystems.matchNewDirectory(
+                dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results")
+            .toString();
+    // to keep exact same behavior prior to matchNewDirectory introduced
+    if (tempLocation.endsWith("/")) {
+      tempLocation = tempLocation.substring(0, tempLocation.length() - 1);
+    } else if (tempLocation.endsWith(File.separator)) {
+      tempLocation = tempLocation.substring(0, tempLocation.length() - File.separator.length());
+    }
     dataflowOptions.setTempLocation(tempLocation);
 
     return new TestDataflowRunner(
@@ -111,7 +122,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
     if (options.isStreaming()) {
-      jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      if (options.isBlockOnRun()) {
+        jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      } else {
+        jobSuccess = true;
+      }
       // No metrics in streaming
       allAssertionsPassed = Optional.absent();
     } else {
@@ -143,6 +158,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
   @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
@@ -200,21 +216,22 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static String errorMessage(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
-    return Strings.isNullOrEmpty(messageHandler.getErrorMessage())
-        ? String.format(
-            "Dataflow job %s terminated in state %s but did not return a failure reason.",
-            job.getJobId(), job.getState())
-        : messageHandler.getErrorMessage();
+    if (!Strings.isNullOrEmpty(messageHandler.getErrorMessage())) {
+      return messageHandler.getErrorMessage();
+    } else {
+      State state = job.getState();
+      return String.format(
+          "Dataflow job %s terminated in state %s but did not return a failure reason.",
+          job.getJobId(),
+          state == State.UNRECOGNIZED
+              ? String.format("UNRECOGNIZED (%s)", job.getLatestStateString())
+              : state.toString());
+    }
   }
 
   @VisibleForTesting
   void updatePAssertCount(Pipeline pipeline) {
-    if (hasExperiment(options, "beam_fn_api")) {
-      // TODO[BEAM-1866]: FnAPI does not support metrics, so expect 0 assertions.
-      expectedNumberOfAssertions = 0;
-    } else {
-      expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
-    }
+    expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
   }
 
   /**
@@ -292,8 +309,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.absent();
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {

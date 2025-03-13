@@ -19,6 +19,11 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** Used in user defined functions to access environment methods. */
+/**
+ * Used in user defined functions to access environment methods.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public interface Context extends Environment {}

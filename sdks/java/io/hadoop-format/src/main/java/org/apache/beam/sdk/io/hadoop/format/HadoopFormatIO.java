@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.hadoop.format;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.DataInputStream;
@@ -43,8 +43,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -75,9 +74,9 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.AtomicDouble;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.AtomicDouble;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.ObjectWritable;
@@ -100,6 +99,7 @@ import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,6 +198,21 @@ import org.slf4j.LoggerFactory;
  *              .withValueTranslation(myOutputValueType);
  * }</pre>
  *
+ * <p>Hadoop formats typically work with Writable data structures which are mutable and instances
+ * are reused by the input format reader. Therefore, to not to have elements which can change value
+ * after they are emitted from read, this IO will clone each key value read from underlying hadoop
+ * input format (unless they are in the list of well known immutable types). However, in cases where
+ * used input format does not reuse instances for key/value or translation functions are used which
+ * already output immutable types, such clone of values can be needless penalty. In these cases IO
+ * can be instructed to skip key/value cloning.
+ *
+ * <pre>{@code
+ * HadoopFormatIO.Read<InputFormatKeyClass, MyValueClass> read = ...
+ * p.apply("read", read
+ *     .withSkipKeyClone(true)
+ *     .withSkipValueClone(true));
+ * }</pre>
+ *
  * <p>IMPORTANT! In case of using {@code DBInputFormat} to read data from RDBMS, Beam parallelizes
  * the process by using LIMIT and OFFSET clauses of SQL query to fetch different ranges of records
  * (as a split) by different workers. To guarantee the same order and proper split of results you
@@ -294,7 +309,10 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HadoopFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopFormatIO.class);
 
@@ -326,7 +344,10 @@ public class HadoopFormatIO {
    * HadoopFormatIO.Read#withKeyTranslation}/ {@link HadoopFormatIO.Read#withValueTranslation}.
    */
   public static <K, V> Read<K, V> read() {
-    return new AutoValue_HadoopFormatIO_Read.Builder<K, V>().build();
+    return new AutoValue_HadoopFormatIO_Read.Builder<K, V>()
+        .setSkipKeyClone(false)
+        .setSkipValueClone(false)
+        .build();
   }
 
   /**
@@ -354,29 +375,30 @@ public class HadoopFormatIO {
   public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
     // Returns the Hadoop Configuration which contains specification of source.
-    @Nullable
-    public abstract SerializableConfiguration getConfiguration();
 
-    @Nullable
-    public abstract SimpleFunction<?, K> getKeyTranslationFunction();
+    public abstract @Nullable SerializableConfiguration getConfiguration();
 
-    @Nullable
-    public abstract SimpleFunction<?, V> getValueTranslationFunction();
+    public abstract @Nullable SimpleFunction<?, K> getKeyTranslationFunction();
 
-    @Nullable
-    public abstract TypeDescriptor<K> getKeyTypeDescriptor();
+    public abstract @Nullable SimpleFunction<?, V> getValueTranslationFunction();
 
-    @Nullable
-    public abstract TypeDescriptor<V> getValueTypeDescriptor();
+    public abstract @Nullable TypeDescriptor<K> getKeyTypeDescriptor();
 
-    @Nullable
-    public abstract TypeDescriptor<?> getinputFormatClass();
+    public abstract @Nullable Coder<K> getKeyCoder();
 
-    @Nullable
-    public abstract TypeDescriptor<?> getinputFormatKeyClass();
+    public abstract @Nullable TypeDescriptor<V> getValueTypeDescriptor();
 
-    @Nullable
-    public abstract TypeDescriptor<?> getinputFormatValueClass();
+    public abstract @Nullable Coder<V> getValueCoder();
+
+    public abstract @Nullable Boolean getSkipKeyClone();
+
+    public abstract @Nullable Boolean getSkipValueClone();
+
+    public abstract @Nullable TypeDescriptor<?> getinputFormatClass();
+
+    public abstract @Nullable TypeDescriptor<?> getinputFormatKeyClass();
+
+    public abstract @Nullable TypeDescriptor<?> getinputFormatValueClass();
 
     public abstract Builder<K, V> toBuilder();
 
@@ -390,7 +412,15 @@ public class HadoopFormatIO {
 
       abstract Builder<K, V> setKeyTypeDescriptor(TypeDescriptor<K> keyTypeDescriptor);
 
+      abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
+
       abstract Builder<K, V> setValueTypeDescriptor(TypeDescriptor<V> valueTypeDescriptor);
+
+      abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
+
+      abstract Builder<K, V> setSkipKeyClone(Boolean value);
+
+      abstract Builder<K, V> setSkipValueClone(Boolean value);
 
       abstract Builder<K, V> setInputFormatClass(TypeDescriptor<?> inputFormatClass);
 
@@ -440,7 +470,15 @@ public class HadoopFormatIO {
       return toBuilder()
           .setKeyTranslationFunction(function)
           .setKeyTypeDescriptor(function.getOutputTypeDescriptor())
+          .setKeyCoder(null)
           .build();
+    }
+
+    /** Transforms the keys read from the source using the given key translation function. */
+    public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function, Coder<K> coder) {
+      checkArgument(function != null, "function can not be null");
+      checkArgument(coder != null, "coder can not be null");
+      return withKeyTranslation(function).toBuilder().setKeyCoder(coder).build();
     }
 
     /** Transforms the values read from the source using the given value translation function. */
@@ -450,7 +488,25 @@ public class HadoopFormatIO {
       return toBuilder()
           .setValueTranslationFunction(function)
           .setValueTypeDescriptor(function.getOutputTypeDescriptor())
+          .setValueCoder(null)
           .build();
+    }
+
+    /** Transforms the values read from the source using the given value translation function. */
+    public Read<K, V> withValueTranslation(SimpleFunction<?, V> function, Coder<V> coder) {
+      checkArgument(function != null, "function can not be null");
+      checkArgument(coder != null, "coder can not be null");
+      return withValueTranslation(function).toBuilder().setValueCoder(coder).build();
+    }
+
+    /** Determines if key clone should be skipped or not (default is 'false'). */
+    public Read<K, V> withSkipKeyClone(boolean value) {
+      return toBuilder().setSkipKeyClone(value).build();
+    }
+
+    /** Determines if value clone should be skipped or not (default is 'false'). */
+    public Read<K, V> withSkipValueClone(boolean value) {
+      return toBuilder().setSkipValueClone(value).build();
     }
 
     @Override
@@ -458,15 +514,24 @@ public class HadoopFormatIO {
       validateTransform();
       // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-      Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
-      Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
+      Coder<K> keyCoder = getKeyCoder();
+      if (keyCoder == null) {
+        keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
+      }
+      Coder<V> valueCoder = getValueCoder();
+      if (valueCoder == null) {
+        valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
+      }
+
       HadoopInputFormatBoundedSource<K, V> source =
           new HadoopInputFormatBoundedSource<>(
               getConfiguration(),
               keyCoder,
               valueCoder,
               getKeyTranslationFunction(),
-              getValueTranslationFunction());
+              getValueTranslationFunction(),
+              getSkipKeyClone(),
+              getSkipValueClone());
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -551,9 +616,11 @@ public class HadoopFormatIO {
     private final SerializableConfiguration conf;
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
-    @Nullable private final SimpleFunction<?, K> keyTranslationFunction;
-    @Nullable private final SimpleFunction<?, V> valueTranslationFunction;
+    private final @Nullable SimpleFunction<?, K> keyTranslationFunction;
+    private final @Nullable SimpleFunction<?, V> valueTranslationFunction;
     private final SerializableSplit inputSplit;
+    private final boolean skipKeyClone;
+    private final boolean skipValueClone;
     private transient List<SerializableSplit> inputSplits;
     private long boundedSourceEstimatedSize = 0;
     private transient InputFormat<?, ?> inputFormatObj;
@@ -577,8 +644,18 @@ public class HadoopFormatIO {
         Coder<K> keyCoder,
         Coder<V> valueCoder,
         @Nullable SimpleFunction<?, K> keyTranslationFunction,
-        @Nullable SimpleFunction<?, V> valueTranslationFunction) {
-      this(conf, keyCoder, valueCoder, keyTranslationFunction, valueTranslationFunction, null);
+        @Nullable SimpleFunction<?, V> valueTranslationFunction,
+        boolean skipKeyClone,
+        boolean skipValueClone) {
+      this(
+          conf,
+          keyCoder,
+          valueCoder,
+          keyTranslationFunction,
+          valueTranslationFunction,
+          null,
+          skipKeyClone,
+          skipValueClone);
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -588,13 +665,17 @@ public class HadoopFormatIO {
         Coder<V> valueCoder,
         @Nullable SimpleFunction<?, K> keyTranslationFunction,
         @Nullable SimpleFunction<?, V> valueTranslationFunction,
-        SerializableSplit inputSplit) {
+        SerializableSplit inputSplit,
+        boolean skipKeyClone,
+        boolean skipValueClone) {
       this.conf = conf;
       this.inputSplit = inputSplit;
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
       this.keyTranslationFunction = keyTranslationFunction;
       this.valueTranslationFunction = valueTranslationFunction;
+      this.skipKeyClone = skipKeyClone;
+      this.skipValueClone = skipValueClone;
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -619,6 +700,12 @@ public class HadoopFormatIO {
                     "mapreduce.job.inputformat.class",
                     hadoopConfig.get("mapreduce.job.inputformat.class"))
                 .withLabel("InputFormat Class"));
+        builder.addIfNotNull(
+            DisplayData.item(
+                    "mapreduce.input.fileinputformat.inputdir",
+                    StringUtils.abbreviate(
+                        hadoopConfig.get("mapreduce.input.fileinputformat.inputdir"), 250))
+                .withLabel("Input Directory"));
         builder.addIfNotNull(
             DisplayData.item("key.class", hadoopConfig.get("key.class")).withLabel("Key Class"));
         builder.addIfNotNull(
@@ -650,7 +737,9 @@ public class HadoopFormatIO {
                       valueCoder,
                       keyTranslationFunction,
                       valueTranslationFunction,
-                      serializableInputSplit))
+                      serializableInputSplit,
+                      skipKeyClone,
+                      skipValueClone))
           .collect(Collectors.toList());
     }
 
@@ -771,8 +860,8 @@ public class HadoopFormatIO {
     class HadoopInputFormatReader<T1, T2> extends BoundedSource.BoundedReader<KV<K, V>> {
 
       private final HadoopInputFormatBoundedSource<K, V> source;
-      @Nullable private final SimpleFunction<T1, K> keyTranslationFunction;
-      @Nullable private final SimpleFunction<T2, V> valueTranslationFunction;
+      private final @Nullable SimpleFunction<T1, K> keyTranslationFunction;
+      private final @Nullable SimpleFunction<T2, V> valueTranslationFunction;
       private final SerializableSplit split;
       private RecordReader<T1, T2> recordReader;
       private volatile boolean doneReading = false;
@@ -853,11 +942,16 @@ public class HadoopFormatIO {
         V value;
         try {
           // Transform key if translation function is provided.
-          key = transformKeyOrValue(recordReader.getCurrentKey(), keyTranslationFunction, keyCoder);
+          key =
+              transformKeyOrValue(
+                  recordReader.getCurrentKey(), keyTranslationFunction, keyCoder, skipKeyClone);
           // Transform value if translation function is provided.
           value =
               transformKeyOrValue(
-                  recordReader.getCurrentValue(), valueTranslationFunction, valueCoder);
+                  recordReader.getCurrentValue(),
+                  valueTranslationFunction,
+                  valueCoder,
+                  skipValueClone);
         } catch (IOException | InterruptedException e) {
           LOG.error("Unable to read data: ", e);
           throw new IllegalStateException("Unable to read data: " + "{}", e);
@@ -868,7 +962,10 @@ public class HadoopFormatIO {
       /** Returns the serialized output of transformed key or value object. */
       @SuppressWarnings("unchecked")
       private <T, T3> T3 transformKeyOrValue(
-          T input, @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder)
+          T input,
+          @Nullable SimpleFunction<T, T3> simpleFunction,
+          Coder<T3> coder,
+          boolean skipClone)
           throws CoderException, ClassCastException {
         T3 output;
         if (null != simpleFunction) {
@@ -876,7 +973,7 @@ public class HadoopFormatIO {
         } else {
           output = (T3) input;
         }
-        return cloneIfPossiblyMutable(output, coder);
+        return skipClone || output == null ? output : cloneIfPossiblyMutable(output, coder);
       }
 
       /**
@@ -1047,10 +1144,9 @@ public class HadoopFormatIO {
    */
   public static class Write<KeyT, ValueT> extends PTransform<PCollection<KV<KeyT, ValueT>>, PDone> {
 
-    @Nullable private final transient Configuration configuration;
+    private final transient @Nullable Configuration configuration;
 
-    @Nullable
-    private final PTransform<
+    private final @Nullable PTransform<
             PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
         configTransform;
 

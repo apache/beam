@@ -31,6 +31,10 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** SparkPCollectionView is used to pass serialized views to lambdas. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkPCollectionView implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkPCollectionView.class);

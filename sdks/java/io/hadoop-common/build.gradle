@@ -16,19 +16,62 @@
  * limitations under the License.
  */
 
+import java.util.stream.Collectors
+
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.hadoop.common')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 ext.summary = "Library to add shared Hadoop classes among Beam IOs."
 
+def hadoopVersions = [
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    // "341": "3.4.1", // tests already exercised on the default version
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
   provided library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile library.java.commons_lang3
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
+  testImplementation library.java.junit
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_mapreduce_client_core
+  testImplementation library.java.hamcrest
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+  }
+}
+
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Hadoop common tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs Hadoop common tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
 }

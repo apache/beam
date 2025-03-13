@@ -17,25 +17,28 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.sdk.util.MoreFutures;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -45,16 +48,18 @@ import org.mockito.MockitoAnnotations;
 /** Unit tests for {@link FnApiControlClient}. */
 @RunWith(JUnit4.class)
 public class FnApiControlClientTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock public StreamObserver<BeamFnApi.InstructionRequest> mockObserver;
   private FnApiControlClient client;
+  private ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    client = FnApiControlClient.forRequestObserver("DUMMY", mockObserver);
+    processBundleDescriptors = new ConcurrentHashMap<>();
+    client = FnApiControlClient.forRequestObserver("DUMMY", mockObserver, processBundleDescriptors);
   }
 
   @Test

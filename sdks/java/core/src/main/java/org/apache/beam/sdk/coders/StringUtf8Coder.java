@@ -27,8 +27,8 @@ import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 /**
  * A {@link Coder} that encodes {@link String Strings} in UTF-8 encoding. If in a nested context,
@@ -127,7 +127,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   /**
    * {@inheritDoc}
    *
-   * @return the byte size of the UTF-8 encoding of the a string or, in a nested context, the byte
+   * @return the byte size of the UTF-8 encoding of the string or, in a nested context, the byte
    *     size of the encoding plus the encoded length prefix.
    */
   @Override

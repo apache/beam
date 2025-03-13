@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.apiary;
 
 import java.util.List;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Static convenience methods to work around default encodings done by Apiary for default fields.

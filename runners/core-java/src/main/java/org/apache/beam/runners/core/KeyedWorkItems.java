@@ -21,8 +21,9 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods that provide {@link KeyedWorkItem} implementations. */
 public class KeyedWorkItems {
@@ -93,7 +94,7 @@ public class KeyedWorkItems {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == null || !(other instanceof ComposedKeyedWorkItem)) {
         return false;
       }

@@ -17,43 +17,51 @@
 
 """Test for the minimal wordcount example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import collections
 import logging
 import re
-import tempfile
 import unittest
+import uuid
+
+import pytest
 
 from apache_beam.examples import wordcount_minimal
-from apache_beam.testing.util import open_shards
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
+@pytest.mark.examples_postcommit
 class WordCountMinimalTest(unittest.TestCase):
   """Unit test for wordcount_minimal example with direct runner."""
 
   SAMPLE_TEXT = 'a b c a b a\n aa bb cc aa bb aa'
 
-  def create_temp_file(self, contents):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents.encode('utf-8'))
-      return f.name
-
   def test_basics(self):
-    temp_path = self.create_temp_file(self.SAMPLE_TEXT)
+    test_pipeline = TestPipeline(is_integration_test=True)
+
+    # Setup the files with expected content.
+    temp_location = test_pipeline.get_option('temp_location')
+    temp_path = '/'.join([temp_location, str(uuid.uuid4())])
+    input = create_file('/'.join([temp_path, 'input.txt']), self.SAMPLE_TEXT)
+
+    extra_opts = {'input': input, 'output': '%s.result' % temp_path}
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'\w+', self.SAMPLE_TEXT):
       expected_words[word] += 1
-    wordcount_minimal.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
+    wordcount_minimal.main(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
     # Parse result file and compare.
     results = []
-    with open_shards(temp_path + '.result-*-of-*') as result_file:
-      for line in result_file:
-        match = re.search(r'([a-z]+): ([0-9]+)', line)
-        if match is not None:
-          results.append((match.group(1), int(match.group(2))))
+    lines = read_files_from_pattern(temp_path + '.result*').splitlines()
+    for line in lines:
+      match = re.search(r'([a-z]+): ([0-9]+)', line)
+      if match is not None:
+        results.append((match.group(1), int(match.group(2))))
     self.assertEqual(sorted(results), sorted(expected_words.items()))
 
 

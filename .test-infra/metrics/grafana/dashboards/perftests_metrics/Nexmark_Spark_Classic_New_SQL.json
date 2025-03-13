@@ -1,0 +1,427 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "$$hashKey": "object:2584",
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 28,
+  "iteration": 1600336844189,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "panels": [],
+      "title": "Latest Run",
+      "type": "row"
+    },
+    {
+      "cacheTimeout": null,
+      "datasource": "BeamInfluxDB",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "links": [],
+      "maxPerRow": 6,
+      "options": {
+        "displayMode": "basic",
+        "fieldOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "defaults": {
+            "mappings": [
+              {
+                "$$hashKey": "object:1164",
+                "id": 0,
+                "op": "=",
+                "text": "N/A",
+                "type": 1,
+                "value": "null"
+              }
+            ],
+            "nullValueMode": "connected",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "ms"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "orientation": "vertical",
+        "showUnfilled": true
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": "ID",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "ID": {
+          "$$hashKey": "object:5009",
+          "selected": false,
+          "text": "0",
+          "value": "0"
+        }
+      },
+      "targets": [
+        {
+          "alias": "Classic",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "New",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "rawQuery": true,
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Query ${ID}",
+      "transparent": true,
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 3,
+      "panels": [],
+      "title": "All results",
+      "type": "row"
+    },
+    {
+      "aliasColors": {
+        "DataflowRunner": "#7eb26d",
+        "DirectRunner": "#eab839",
+        "FlinkRunner": "#6ed0e0",
+        "SparkRunner": "#ef843c",
+        "SparkStructuredStreamingRunner": "#e24d42"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "hiddenSeries": false,
+      "id": 4,
+      "interval": "1d",
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "hideEmpty": false,
+        "max": false,
+        "min": false,
+        "rightSide": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 2,
+      "maxPerRow": 2,
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": true,
+      "renderer": "flot",
+      "repeat": "ID",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "ID": {
+          "$$hashKey": "object:5009",
+          "selected": false,
+          "text": "0",
+          "value": "0"
+        }
+      },
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_runner",
+          "groupBy": [],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkRunner' OR \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter GROUP BY \"runner\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Query ${ID}",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1048",
+          "decimals": null,
+          "format": "ms",
+          "label": "",
+          "logBase": 2,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1049",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 22,
+  "style": "dark",
+  "tags": [
+    "performance tests",
+    "nexmark"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "tags": [],
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Query",
+        "multi": true,
+        "name": "ID",
+        "options": [
+          {
+            "$$hashKey": "object:5008",
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "$$hashKey": "object:5009",
+            "selected": false,
+            "text": "0",
+            "value": "0"
+          },
+          {
+            "$$hashKey": "object:5010",
+            "selected": false,
+            "text": "1",
+            "value": "1"
+          },
+          {
+            "$$hashKey": "object:5011",
+            "selected": false,
+            "text": "2",
+            "value": "2"
+          },
+          {
+            "$$hashKey": "object:5012",
+            "selected": false,
+            "text": "3",
+            "value": "3"
+          },
+          {
+            "$$hashKey": "object:5013",
+            "selected": false,
+            "text": "7",
+            "value": "7"
+          },
+          {
+            "$$hashKey": "object:5014",
+            "selected": false,
+            "text": "13",
+            "value": "13"
+          }
+        ],
+        "query": "0,1,2,3,7,13",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "Nexmark | Spark | Classic/New | SQL",
+  "uid": "tkqc0AdGk",
+  "variables": {
+    "list": []
+  },
+  "version": 1
+}

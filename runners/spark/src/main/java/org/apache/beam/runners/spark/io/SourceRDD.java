@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.io;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.Dependency;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.InterruptibleIterator;
@@ -52,6 +52,10 @@ import scala.Option;
 import scala.collection.JavaConversions;
 
 /** Classes implementing Beam {@link Source} {@link RDD}s. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SourceRDD {
 
   /**
@@ -326,7 +330,8 @@ public class SourceRDD {
     @Override
     public Option<Partitioner> partitioner() {
       // setting the partitioner helps to "keep" the same partitioner in the following
-      // mapWithState read for Read.Unbounded, preventing a post-mapWithState shuffle.
+      // mapWithState read for SplittableParDo.PrimitiveUnboundedRead, preventing a
+      // post-mapWithState shuffle.
       return scala.Some.apply(partitioner);
     }
 

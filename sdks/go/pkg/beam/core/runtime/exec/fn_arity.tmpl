@@ -20,8 +20,8 @@ package exec
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // initCall initializes the caller for the invoker, avoiding slice allocation for the 
@@ -29,13 +29,13 @@ import (
 // return cases.
 func (n *invoker) initCall() {
 	switch fn := n.fn.Fn.(type) {
-{{range $out := upto 4}}
-{{range $in := upto 8}}
+{{range $out := upto 5}}
+{{range $in := upto 9}}
 	case reflectx.Func{{$in}}x{{$out}}:
-		n.call = func(ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			{{if $out}}{{mktuplef $out "r%v"}} := {{end}}fn.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
 			{{- if $out}}
-			return n.ret{{$out}}(ws, ts, {{mktuplef $out "r%v"}})
+			return n.ret{{$out}}(pn, ws, ts, {{mktuplef $out "r%v"}})
 			{{- else}}
 			return nil, nil
 			{{- end}}
@@ -43,11 +43,8 @@ func (n *invoker) initCall() {
 {{end}}
 {{end}}
 	default:
-		n.call = func(ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			ret := n.fn.Fn.Call(n.args)
-			if n.outErrIdx >= 0 && ret[n.outErrIdx] != nil {
-				return nil, ret[n.outErrIdx].(error)
-			}
 
 			// (5) Return direct output, if any. Input timestamp and windows are implicitly
 			// propagated.
@@ -55,15 +52,17 @@ func (n *invoker) initCall() {
 			case 0:
 				return nil, nil
 			case 1:
-				return n.ret1(ws, ts, ret[0])
+				return n.ret1(pn, ws, ts, ret[0])
 			case 2:
-				return n.ret2(ws, ts, ret[0], ret[1])
+				return n.ret2(pn, ws, ts, ret[0], ret[1])
 			case 3:
-				return n.ret3(ws, ts, ret[0], ret[1], ret[2])
+				return n.ret3(pn, ws, ts, ret[0], ret[1], ret[2])
 			case 4:
-				return n.ret4(ws, ts, ret[0], ret[1], ret[2], ret[3])
+				return n.ret4(pn, ws, ts, ret[0], ret[1], ret[2], ret[3])
+			case 5:
+				return n.ret5(pn, ws, ts, ret[0], ret[1], ret[2], ret[3], ret[4])
 			}
-			panic(fmt.Sprintf("invoker: %v has > 4 return values, which is not permitted", n.fn.Fn.Name()))
+			panic(fmt.Sprintf("invoker: %v has > 5 return values, which is not permitted", n.fn.Fn.Name()))
 		} 
 	}
 }

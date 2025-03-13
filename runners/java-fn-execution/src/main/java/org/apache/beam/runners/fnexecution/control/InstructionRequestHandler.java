@@ -20,7 +20,12 @@ package org.apache.beam.runners.fnexecution.control;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
-/** Interface for any function that can handle a Fn API {@link BeamFnApi.InstructionRequest}. */
+/**
+ * Interface for any function that can handle a Fn API {@link BeamFnApi.InstructionRequest}. Any
+ * error responses will be converted to exceptionally completed futures.
+ */
 public interface InstructionRequestHandler extends AutoCloseable {
+  void registerProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor processBundleDescriptor);
+
   CompletionStage<BeamFnApi.InstructionResponse> handle(BeamFnApi.InstructionRequest request);
 }

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.hamcrest.Matchers;
@@ -48,7 +49,7 @@ public class DoFnLifecycleManagerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private TestFn fn = new TestFn();
-  private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn);
+  private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn, PipelineOptionsFactory.create());
 
   @Test
   public void setupOnGet() throws Exception {

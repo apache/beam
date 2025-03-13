@@ -17,7 +17,7 @@
 
 """Unit tests for the json_value module."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
@@ -37,7 +37,6 @@ except ImportError:
 
 @unittest.skipIf(JsonValue is None, 'GCP dependencies are not installed')
 class JsonValueTest(unittest.TestCase):
-
   def test_string_to(self):
     self.assertEqual(JsonValue(string_value='abc'), to_json_value('abc'))
 
@@ -61,9 +60,11 @@ class JsonValueTest(unittest.TestCase):
     self.assertEqual(JsonValue(string_value=svp.value), to_json_value(svp))
 
   def test_runtime_value_provider_to(self):
-    RuntimeValueProvider.runtime_options = None
+    RuntimeValueProvider.set_runtime_options(None)
     rvp = RuntimeValueProvider('arg', 123, int)
     self.assertEqual(JsonValue(is_null=True), to_json_value(rvp))
+    # Reset runtime options to avoid side-effects in other tests.
+    RuntimeValueProvider.set_runtime_options(None)
 
   def test_none_to(self):
     self.assertEqual(JsonValue(is_null=True), to_json_value(None))

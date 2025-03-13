@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -27,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Internal;
@@ -45,12 +45,15 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -97,8 +100,9 @@ import org.junit.runners.model.Statement;
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
  * the message from the {@link PAssert} that failed.
  *
- * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
- * section.
+ * <p>See also the <a
+ * href="https://beam.apache.org/documentation/pipelines/test-your-pipeline/">Testing</a>
+ * documentation section.
  */
 public class TestPipeline extends Pipeline implements TestRule {
 
@@ -137,7 +141,7 @@ public class TestPipeline extends Pipeline implements TestRule {
   private static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
 
     // Null until the pipeline has been run
-    @Nullable private List<TransformHierarchy.Node> runVisitedNodes;
+    private @MonotonicNonNull List<TransformHierarchy.Node> runVisitedNodes;
 
     private final Predicate<TransformHierarchy.Node> isPAssertNode =
         node ->
@@ -178,29 +182,37 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     private void verifyPipelineExecution() {
-      if (!isEmptyPipeline(pipeline)) {
-        if (!runAttempted && !enableAutoRunIfMissing) {
-          throw new PipelineRunMissingException("The pipeline has not been run.");
-
-        } else {
-          final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
-          if (pipelineRunSucceeded() && !visitedAll(pipelineNodes)) {
-            final boolean hasDanglingPAssert =
-                FluentIterable.from(pipelineNodes)
-                    .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                    .anyMatch(isPAssertNode);
-            if (hasDanglingPAssert) {
-              throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
-            } else {
-              throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
-            }
-          }
-        }
+      if (isEmptyPipeline(pipeline)) {
+        return;
       }
-    }
 
-    private boolean visitedAll(final List<TransformHierarchy.Node> pipelineNodes) {
-      return runVisitedNodes.equals(pipelineNodes);
+      if (!runAttempted && !enableAutoRunIfMissing) {
+        throw new PipelineRunMissingException("The pipeline has not been run.");
+      }
+
+      if (!pipelineRunSucceeded()) {
+        return; // this method is to protect against spurious success, so failure is fine
+      }
+
+      final List<TransformHierarchy.Node> runVisitedNodes =
+          checkStateNotNull(
+              this.runVisitedNodes,
+              "Internal error: non-empty pipeline has been visited but still no runVisitedNodes");
+      final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
+      if (runVisitedNodes.equals(pipelineNodes)) {
+        return;
+      }
+
+      final boolean hasDanglingPAssert =
+          pipelineNodes.stream()
+              .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+              .anyMatch(isPAssertNode);
+
+      if (hasDanglingPAssert) {
+        throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
+      } else {
+        throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
+      }
     }
 
     private boolean pipelineRunSucceeded() {
@@ -331,6 +343,48 @@ public class TestPipeline extends Pipeline implements TestRule {
     return run(getOptions());
   }
 
+  /**
+   * Runs this {@link TestPipeline} with additional cmd pipeline option args.
+   *
+   * <p>This is useful when using {@link PipelineOptions#as(Class)} directly introduces circular
+   * dependency.
+   *
+   * <p>Most of logic is similar to {@link #testingPipelineOptions}.
+   */
+  public PipelineResult runWithAdditionalOptionArgs(List<String> additionalArgs) {
+    try {
+      String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS, "");
+      List<String> args = new ArrayList<>();
+      if (!beamTestPipelineOptions.isEmpty()) {
+        args.addAll(MAPPER.readValue(beamTestPipelineOptions, List.class));
+      }
+      args.addAll(additionalArgs);
+      String[] newArgs = Iterables.toArray(args, String.class);
+      PipelineOptions newOptions =
+          PipelineOptionsFactory.fromArgs(newArgs).as(TestPipelineOptions.class);
+
+      // If no options were specified, set some reasonable defaults
+      if (beamTestPipelineOptions.isEmpty()) {
+        // If there are no provided options, check to see if a dummy runner should be used.
+        String useDefaultDummy = System.getProperty(PROPERTY_USE_DEFAULT_DUMMY_RUNNER);
+        if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
+          newOptions.setRunner(CrashingRunner.class);
+        }
+      }
+      newOptions.setStableUniqueNames(CheckEnabled.ERROR);
+
+      FileSystems.registerFileSystemsOnce(options);
+      return run(newOptions);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          "Unable to instantiate test options from system property "
+              + PROPERTY_BEAM_TEST_PIPELINE_OPTIONS
+              + ":"
+              + System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS),
+          e);
+    }
+  }
+
   /** Like {@link #run} but with the given potentially modified options. */
   @Override
   public PipelineResult run(PipelineOptions options) {
@@ -378,7 +432,9 @@ public class TestPipeline extends Pipeline implements TestRule {
    */
   public <T> ValueProvider<T> newProvider(T runtimeValue) {
     String uuid = UUID.randomUUID().toString();
-    providerRuntimeValues.put(uuid, runtimeValue);
+    if (runtimeValue != null) {
+      providerRuntimeValues.put(uuid, runtimeValue);
+    }
     return ValueProvider.NestedValueProvider.of(
         options.as(TestValueProviderOptions.class).getProviderRuntimeValues(),
         new GetFromRuntimeValues<T>(uuid));
@@ -440,18 +496,17 @@ public class TestPipeline extends Pipeline implements TestRule {
   /** Creates {@link PipelineOptions} for testing. */
   public static PipelineOptions testingPipelineOptions() {
     try {
-      @Nullable
-      String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+      String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS, "");
 
       PipelineOptions options =
-          Strings.isNullOrEmpty(beamTestPipelineOptions)
+          beamTestPipelineOptions.isEmpty()
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
                       MAPPER.readValue(beamTestPipelineOptions, String[].class))
                   .as(TestPipelineOptions.class);
 
       // If no options were specified, set some reasonable defaults
-      if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
+      if (beamTestPipelineOptions.isEmpty()) {
         // If there are no provided options, check to see if a dummy runner should be used.
         String useDefaultDummy = System.getProperty(PROPERTY_USE_DEFAULT_DUMMY_RUNNER);
         if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
@@ -460,7 +515,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
 
-      FileSystems.setDefaultPipelineOptions(options);
+      FileSystems.registerFileSystemsOnce(options);
       return options;
     } catch (IOException e) {
       throw new RuntimeException(
@@ -476,10 +531,10 @@ public class TestPipeline extends Pipeline implements TestRule {
   private String getAppName(Description description) {
     String methodName = description.getMethodName();
     Class<?> testClass = description.getTestClass();
-    if (testClass.isMemberClass()) {
+    @Nullable Class<?> enclosingClass = testClass.getEnclosingClass();
+    if (enclosingClass != null) {
       return String.format(
-          "%s$%s-%s",
-          testClass.getEnclosingClass().getSimpleName(), testClass.getSimpleName(), methodName);
+          "%s$%s-%s", enclosingClass.getSimpleName(), testClass.getSimpleName(), methodName);
     } else {
       return String.format("%s-%s", testClass.getSimpleName(), methodName);
     }

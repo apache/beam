@@ -24,11 +24,11 @@
  * used as part of the beam-site source tree.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(publish: false)
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
-  if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+  if (!p.path.equals(project.path) && !p.path.startsWith(':sdks:java:bom')) {
     evaluationDependsOn(p.path)
   }
 }
@@ -36,7 +36,7 @@ for (p in rootProject.subprojects) {
 ext.getExportedJavadocProjects = {
   def exportedJavadocProjects = new ArrayList<>();
   for (p in rootProject.subprojects) {
-    if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+    if (!p.path.equals(project.path) && !p.path.startsWith(':sdks:java:bom')) {
       def subproject = p // project(':' + p.name)
       if (subproject.ext.properties.containsKey('exportJavadoc') &&
           subproject.ext.properties.exportJavadoc) {
@@ -62,10 +62,10 @@ task aggregateJavadoc(type: Javadoc) {
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
   destinationDir = file("${buildDir}/docs/javadoc")
+  failOnError = false
 
   exclude "org/apache/beam/examples/*"
   exclude "org/apache/beam/fn/harness/*"
-  exclude "org/apache/beam/runners/apex/translation/*"
   exclude "org/apache/beam/runners/core/*"
   exclude "org/apache/beam/runners/dataflow/internal/*"
   exclude "org/apache/beam/runners/flink/examples/*"
@@ -77,7 +77,6 @@ task aggregateJavadoc(type: Javadoc) {
   exclude "org/apache/beam/sdk/util/*"
 
   options.with {
-    failOnError false
     title "Apache Beam " + project.version
     overview 'overview.html'
     for (dep in project.library.java.values()) {

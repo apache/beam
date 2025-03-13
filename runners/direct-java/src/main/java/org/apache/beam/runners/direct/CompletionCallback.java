@@ -20,6 +20,9 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /** A callback for completing a bundle of input. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 interface CompletionCallback {
   /** Handle a successful result, returning the committed outputs of the result. */
   CommittedResult handleResult(CommittedBundle<?> inputBundle, TransformResult<?> result);

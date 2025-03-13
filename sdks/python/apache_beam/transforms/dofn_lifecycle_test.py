@@ -14,13 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """UnitTests for DoFn lifecycle and bundle methods"""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -73,16 +74,31 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._teardown_called = True
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class DoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
-    p = TestPipeline()
-    _ = (p
-         | 'Start' >> beam.Create([1, 2, 3])
-         | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
-    result = p.run()
-    result.wait_until_finish()
+    with TestPipeline() as p:
+      _ = (
+          p
+          | 'Start' >> beam.Create([1, 2, 3])
+          | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
     # Assumes that the worker is run in the same process as the test.
+
+
+class LocalDoFnLifecycleTest(unittest.TestCase):
+  def test_dofn_lifecycle(self):
+    from apache_beam.runners.direct import direct_runner
+    from apache_beam.runners.portability import fn_api_runner
+    runners = [
+        direct_runner.BundleBasedDirectRunner(), fn_api_runner.FnApiRunner()
+    ]
+    for r in runners:
+      with TestPipeline(runner=r) as p:
+        _ = (
+            p
+            | 'Start' >> beam.Create([1, 2, 3])
+            | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
+      # Assumes that the worker is run in the same process as the test.
 
 
 if __name__ == '__main__':

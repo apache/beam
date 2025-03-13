@@ -19,9 +19,12 @@ package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,9 +36,12 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.TestSamzaRunner;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValue;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValueSerdeFactory;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -45,6 +51,7 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -53,12 +60,14 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.samza.context.ContainerContext;
 import org.apache.samza.context.JobContext;
 import org.apache.samza.metrics.MetricsRegistry;
+import org.apache.samza.serializers.Serde;
 import org.apache.samza.storage.StorageEngineFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
@@ -67,11 +76,28 @@ import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
 import org.apache.samza.system.SystemStreamPartition;
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for SamzaStoreStateInternals. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class SamzaStoreStateInternalsTest implements Serializable {
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final transient TestPipeline pipeline =
+      TestPipeline.fromOptions(
+          PipelineOptionsFactory.fromArgs("--runner=TestSamzaRunner").create());
+
+  @BeforeClass
+  public static void beforeClass() {
+    // TODO(https://github.com/apache/beam/issues/32208)
+    assumeTrue(System.getProperty("java.version").startsWith("1."));
+  }
 
   @Test
   public void testMapStateIterator() {
@@ -125,11 +151,7 @@ public class SamzaStoreStateInternalsTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
 
-    TestSamzaRunner.fromOptions(
-            PipelineOptionsFactory.fromArgs(
-                    "--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-                .create())
-        .run(pipeline);
+    pipeline.run();
   }
 
   @Test
@@ -180,11 +202,107 @@ public class SamzaStoreStateInternalsTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(Sets.newHashSet(97, 42, 12));
 
-    TestSamzaRunner.fromOptions(
-            PipelineOptionsFactory.fromArgs(
-                    "--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-                .create())
-        .run(pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testValueStateSameIdAcrossParDo() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @StateId(stateId) ValueState<Integer> state, OutputReceiver<KV<String, Integer>> r) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            r.output(KV.of("sizzle", currentValue));
+            state.write(currentValue + 1);
+          }
+        };
+
+    DoFn<KV<String, Integer>, Integer> fn2 =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
+            r.output(currentValue);
+            state.write(currentValue + 13);
+          }
+        };
+
+    PCollection<KV<String, Integer>> intermediate =
+        pipeline
+            .apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply("First stateful ParDo", ParDo.of(fn));
+
+    PCollection<Integer> output = intermediate.apply("Second stateful ParDo", ParDo.of(fn2));
+
+    PAssert.that(intermediate)
+        .containsInAnyOrder(KV.of("sizzle", 0), KV.of("sizzle", 1), KV.of("sizzle", 2));
+    PAssert.that(output).containsInAnyOrder(13, 26, 39);
+    pipeline.run();
+  }
+
+  @Test
+  public void testValueStateSameIdAcrossParDoWithSameName() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @StateId(stateId) ValueState<Integer> state, OutputReceiver<KV<String, Integer>> r) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            r.output(KV.of("hello", currentValue));
+            state.write(currentValue + 1);
+          }
+        };
+
+    DoFn<KV<String, Integer>, Integer> fn2 =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
+            r.output(currentValue);
+            state.write(currentValue + 13);
+          }
+        };
+
+    PCollection<KV<String, Integer>> intermediate =
+        pipeline
+            .apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply("Stateful ParDo with Same Name", ParDo.of(fn));
+
+    PCollection<Integer> output =
+        intermediate.apply("Stateful ParDo with Same Name", ParDo.of(fn2));
+
+    PAssert.that(intermediate)
+        .containsInAnyOrder(KV.of("hello", 0), KV.of("hello", 1), KV.of("hello", 2));
+
+    PAssert.that(output).containsInAnyOrder(13, 26, 39);
+    pipeline.run();
   }
 
   /** A storage engine to create test stores. */
@@ -207,16 +325,9 @@ public class SamzaStoreStateInternalsTest implements Serializable {
   /** A test store based on InMemoryKeyValueStore. */
   public static class TestStore extends InMemoryKeyValueStore {
     static List<TestKeyValueIteraor> iterators = Collections.synchronizedList(new ArrayList<>());
-    private final KeyValueStoreMetrics metrics;
 
     public TestStore(KeyValueStoreMetrics metrics) {
       super(metrics);
-      this.metrics = metrics;
-    }
-
-    @Override
-    public KeyValueStoreMetrics metrics() {
-      return metrics;
     }
 
     @Override
@@ -288,15 +399,34 @@ public class SamzaStoreStateInternalsTest implements Serializable {
 
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     options.setRunner(TestSamzaRunner.class);
-    Map<String, String> configs = new HashMap(ConfigBuilder.localRunConfig());
+    Map<String, String> configs = new HashMap<>(ConfigBuilder.localRunConfig());
     configs.put("stores.foo.factory", TestStorageEngine.class.getName());
-    options.setConfigOverride(configs);
-
-    TestSamzaRunner.fromOptions(options).run(pipeline).waitUntilFinish();
+    pipeline.getOptions().as(SamzaPipelineOptions.class).setConfigOverride(configs);
+    pipeline.run();
 
     // The test code creates 7 underlying iterators, and 1 more is created during state.clear()
     // Verify all of them are closed
     assertEquals(8, TestStore.iterators.size());
     TestStore.iterators.forEach(iter -> assertTrue(iter.closed));
+  }
+
+  @Test
+  public void testStateValueSerde() throws IOException {
+    StateValueSerdeFactory stateValueSerdeFactory = new StateValueSerdeFactory();
+    Serde<StateValue<Integer>> serde = (Serde) stateValueSerdeFactory.getSerde("Test", null);
+    int value = 123;
+    Coder<Integer> coder = VarIntCoder.of();
+
+    byte[] valueBytes = serde.toBytes(StateValue.of(value, coder));
+    StateValue<Integer> stateValue1 = serde.fromBytes(valueBytes);
+    StateValue<Integer> stateValue2 = StateValue.of(valueBytes);
+    assertEquals(stateValue1.getValue(coder).intValue(), value);
+    assertEquals(stateValue2.getValue(coder).intValue(), value);
+
+    Integer nullValue = null;
+    byte[] nullBytes = serde.toBytes(StateValue.of(nullValue, coder));
+    StateValue<Integer> nullStateValue = serde.fromBytes(nullBytes);
+    assertNull(nullBytes);
+    assertNull(nullStateValue.getValue(coder));
   }
 }

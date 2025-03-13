@@ -17,13 +17,19 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.hamcrest.Description;
+import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -40,6 +46,29 @@ public class InMemoryMultimapSideInputViewTest {
     assertEquals(view.get(new byte[] {0x00}), ImmutableList.of(0));
     assertEquals(view.get(new byte[] {0x01}), ImmutableList.of(1));
     assertEquals(view.get(new byte[] {0x02}), ImmutableList.of());
+    assertThat(
+        view.get(),
+        Matchers.containsInAnyOrder(
+            new ByteArrayMatcher(new byte[] {0x00}), new ByteArrayMatcher(new byte[] {0x01})));
+  }
+
+  /** A matcher for byte[]s since primitive arrays only support reference equality by default. */
+  private static class ByteArrayMatcher extends TypeSafeMatcher<byte[]> {
+    private final byte[] expected;
+
+    public ByteArrayMatcher(byte[] expected) {
+      this.expected = expected;
+    }
+
+    @Override
+    protected boolean matchesSafely(byte[] item) {
+      return Arrays.equals(expected, item);
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendValue(expected);
+    }
   }
 
   @Test
@@ -51,5 +80,6 @@ public class InMemoryMultimapSideInputViewTest {
     assertEquals(view.get("A"), ImmutableList.of("a1", "a2"));
     assertEquals(view.get("B"), ImmutableList.of("b1"));
     assertEquals(view.get("C"), ImmutableList.of());
+    assertThat(view.get(), containsInAnyOrder("A", "B"));
   }
 }

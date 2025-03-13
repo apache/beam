@@ -18,10 +18,11 @@
 package org.apache.beam.runners.dataflow.internal;
 
 import static com.google.api.client.util.Base64.encodeBase64String;
+import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.addStringList;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.SourceMetadata;
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +47,17 @@ public class CustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";
 
+  @VisibleForTesting
+  static final String SERIALIZED_OFFSET_BASED_DEDUPLICATION =
+      "serialized_offset_based_deduplication";
+
   private static final Logger LOG = LoggerFactory.getLogger(CustomSources.class);
 
   private static int getDesiredNumUnboundedSourceSplits(DataflowPipelineOptions options) {
+    if (options.getDesiredNumUnboundedSourceSplits() > 0) {
+      return options.getDesiredNumUnboundedSourceSplits();
+    }
+
     int cores = 4; // TODO: decide at runtime?
     if (options.getMaxNumWorkers() > 0) {
       return options.getMaxNumWorkers() * cores;
@@ -89,6 +98,10 @@ public class CustomSources {
       }
       checkArgument(!encodedSplits.isEmpty(), "UnboundedSources must have at least one split");
       addStringList(cloudSource.getSpec(), SERIALIZED_SOURCE_SPLITS, encodedSplits);
+      addBoolean(
+          cloudSource.getSpec(),
+          SERIALIZED_OFFSET_BASED_DEDUPLICATION,
+          unboundedSource.offsetBasedDeduplicationSupported());
     } else {
       throw new IllegalArgumentException("Unexpected source kind: " + source.getClass());
     }

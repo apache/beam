@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs;
@@ -31,10 +31,13 @@ import com.google.api.services.dataflow.model.ReportWorkItemStatusRequest;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
 import java.io.IOException;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper around the generated {@link Dataflow} client to provide common functionality. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowClient {
 
   public static DataflowClient create(DataflowPipelineOptions options) {

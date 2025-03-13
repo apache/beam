@@ -19,11 +19,16 @@ package org.apache.beam.sdk.util;
 
 import java.util.Arrays;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * An exception that was thrown in user-code. Sets the stack trace from the first time execution
  * enters user code down through the rest of the user's stack frames until the exception is reached.
  */
+@Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class UserCodeException extends RuntimeException {
 
   public static UserCodeException wrap(Throwable t) {

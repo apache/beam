@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -34,22 +31,25 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MapElements<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  @Nullable private final transient TypeDescriptor<InputT> inputType;
-  @Nullable private final transient TypeDescriptor<OutputT> outputType;
-  @Nullable private final transient Object originalFnForDisplayData;
-  @Nullable private final Contextful<Fn<InputT, OutputT>> fn;
+
+  private final transient @Nullable TypeDescriptor<InputT> inputType;
+  private final transient TypeDescriptor<OutputT> outputType;
+
+  private final @Nullable Object fn;
 
   private MapElements(
-      @Nullable Contextful<Fn<InputT, OutputT>> fn,
-      @Nullable Object originalFnForDisplayData,
+      @Nullable Object fn,
       @Nullable TypeDescriptor<InputT> inputType,
       TypeDescriptor<OutputT> outputType) {
     this.fn = fn;
-    this.originalFnForDisplayData = originalFnForDisplayData;
     this.inputType = inputType;
     this.outputType = outputType;
   }
@@ -77,8 +77,7 @@ public class MapElements<InputT, OutputT>
    */
   public static <InputT, OutputT> MapElements<InputT, OutputT> via(
       final InferableFunction<InputT, OutputT> fn) {
-    return new MapElements<>(
-        Contextful.fn(fn), fn, fn.getInputTypeDescriptor(), fn.getOutputTypeDescriptor());
+    return new MapElements<>(fn, fn.getInputTypeDescriptor(), fn.getOutputTypeDescriptor());
   }
 
   /** Binary compatibility adapter for {@link #via(InferableFunction)}. */
@@ -92,7 +91,7 @@ public class MapElements<InputT, OutputT>
    * but the mapping function yet to be specified using {@link #via(ProcessFunction)}.
    */
   public static <OutputT> MapElements<?, OutputT> into(final TypeDescriptor<OutputT> outputType) {
-    return new MapElements<>(null, null, null, outputType);
+    return new MapElements<>(null, null, outputType);
   }
 
   /**
@@ -109,7 +108,7 @@ public class MapElements<InputT, OutputT>
    * }</pre>
    */
   public <NewInputT> MapElements<NewInputT, OutputT> via(ProcessFunction<NewInputT, OutputT> fn) {
-    return new MapElements<>(Contextful.fn(fn), fn, TypeDescriptors.inputOf(fn), outputType);
+    return new MapElements<>(fn, TypeDescriptors.inputOf(fn), outputType);
   }
 
   /** Binary compatibility adapter for {@link #via(ProcessFunction)}. */
@@ -119,58 +118,86 @@ public class MapElements<InputT, OutputT>
   }
 
   /** Like {@link #via(ProcessFunction)}, but supports access to context, such as side inputs. */
-  @Experimental(Kind.CONTEXTFUL)
   public <NewInputT> MapElements<NewInputT, OutputT> via(Contextful<Fn<NewInputT, OutputT>> fn) {
-    return new MapElements<>(
-        fn, fn.getClosure(), TypeDescriptors.inputOf(fn.getClosure()), outputType);
+    return new MapElements<>(fn, TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
     checkNotNull(fn, "Must specify a function on MapElements using .via()");
-    return input.apply(
-        "Map",
-        ParDo.of(
-                new DoFn<InputT, OutputT>() {
-                  @ProcessElement
-                  public void processElement(
-                      @Element InputT element, OutputReceiver<OutputT> receiver, ProcessContext c)
-                      throws Exception {
-                    receiver.output(
-                        fn.getClosure().apply(element, Fn.Context.wrapProcessContext(c)));
-                  }
+    if (fn instanceof Contextful) {
+      return input.apply(
+          "Map",
+          ParDo.of(
+                  new MapDoFn() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) throws Exception {
+                      c.output(
+                          ((Contextful<Fn<InputT, OutputT>>) fn)
+                              .getClosure()
+                              .apply(c.element(), Fn.Context.wrapProcessContext(c)));
+                    }
+                  })
+              .withSideInputs(
+                  ((Contextful<Fn<InputT, OutputT>>) fn).getRequirements().getSideInputs()));
+    } else if (fn instanceof ProcessFunction) {
+      return input.apply(
+          "Map",
+          ParDo.of(
+              new MapDoFn() {
+                @ProcessElement
+                public void processElement(
+                    @Element InputT element, OutputReceiver<OutputT> receiver) throws Exception {
+                  receiver.output(((ProcessFunction<InputT, OutputT>) fn).apply(element));
+                }
+              }));
+    } else {
+      throw new IllegalArgumentException(
+          String.format("Unknown type of fn class %s", fn.getClass()));
+    }
+  }
 
-                  @Override
-                  public void populateDisplayData(DisplayData.Builder builder) {
-                    builder.delegate(MapElements.this);
-                  }
+  /** A DoFn implementation that handles a trivial map call. */
+  private abstract class MapDoFn extends DoFn<InputT, OutputT> {
 
-                  @Override
-                  public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                    return inputType;
-                  }
+    /** Holds {@link MapDoFn#outer instance} of enclosing class, used by runner implementations. */
+    final MapElements<InputT, OutputT> outer = MapElements.this;
 
-                  @Override
-                  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                    checkState(
-                        outputType != null,
-                        "%s output type descriptor was null; "
-                            + "this probably means that getOutputTypeDescriptor() was called after "
-                            + "serialization/deserialization, but it is only available prior to "
-                            + "serialization, for constructing a pipeline and inferring coders",
-                        MapElements.class.getSimpleName());
-                    return outputType;
-                  }
-                })
-            .withSideInputs(fn.getRequirements().getSideInputs()));
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.delegate(MapElements.this);
+    }
+
+    @Override
+    public TypeDescriptor<InputT> getInputTypeDescriptor() {
+      return inputType;
+    }
+
+    @Override
+    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+      checkState(
+          outputType != null,
+          "%s output type descriptor was null; "
+              + "this probably means that getOutputTypeDescriptor() was called after "
+              + "serialization/deserialization, but it is only available prior to "
+              + "serialization, for constructing a pipeline and inferring coders",
+          MapElements.class.getSimpleName());
+      return outputType;
+    }
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
-    if (originalFnForDisplayData instanceof HasDisplayData) {
-      builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+    Object fnForDisplayData;
+    if (fn instanceof Contextful) {
+      fnForDisplayData = ((Contextful<?>) fn).getClosure();
+    } else {
+      fnForDisplayData = fn;
+    }
+    builder.add(DisplayData.item("class", fnForDisplayData.getClass()));
+    if (fnForDisplayData instanceof HasDisplayData) {
+      builder.include("fn", (HasDisplayData) fnForDisplayData);
     }
   }
 
@@ -182,11 +209,9 @@ public class MapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
   public <NewFailureT> MapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
-    return new MapWithFailures<>(
-        fn, originalFnForDisplayData, inputType, outputType, null, failureTypeDescriptor);
+    return new MapWithFailures<>(fn, inputType, outputType, null, failureTypeDescriptor);
   }
 
   /**
@@ -212,39 +237,29 @@ public class MapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
   public <FailureT> MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new MapWithFailures<>(
-        fn,
-        originalFnForDisplayData,
-        inputType,
-        outputType,
-        exceptionHandler,
-        exceptionHandler.getOutputTypeDescriptor());
+        fn, inputType, outputType, exceptionHandler, exceptionHandler.getOutputTypeDescriptor());
   }
 
   /** A {@code PTransform} that adds exception handling to {@link MapElements}. */
-  @Experimental(Kind.WITH_EXCEPTIONS)
   public static class MapWithFailures<InputT, OutputT, FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
-    private final transient Object originalFnForDisplayData;
-    private final Contextful<Fn<InputT, OutputT>> fn;
-    @Nullable private final ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
+    private final Object fn;
+    private final @Nullable ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
 
     MapWithFailures(
-        Contextful<Fn<InputT, OutputT>> fn,
-        Object originalFnForDisplayData,
+        Object fn,
         TypeDescriptor<InputT> inputType,
         TypeDescriptor<OutputT> outputType,
         @Nullable ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler,
         @Nullable TypeDescriptor<FailureT> failureType) {
       this.fn = fn;
-      this.originalFnForDisplayData = originalFnForDisplayData;
       this.inputType = inputType;
       this.outputType = outputType;
       this.exceptionHandler = exceptionHandler;
@@ -271,29 +286,98 @@ public class MapElements<InputT, OutputT>
      */
     public MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
         ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
-      return new MapWithFailures<>(
-          fn, originalFnForDisplayData, inputType, outputType, exceptionHandler, failureType);
+      return new MapWithFailures<>(fn, inputType, outputType, exceptionHandler, failureType);
     }
 
     @Override
     public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
       checkArgument(exceptionHandler != null, ".exceptionsVia() is required");
-      MapFn doFn = new MapFn();
-      PCollectionTuple tuple =
-          input.apply(
-              MapWithFailures.class.getSimpleName(),
-              ParDo.of(doFn)
-                  .withOutputTags(doFn.outputTag, TupleTagList.of(doFn.failureTag))
-                  .withSideInputs(this.fn.getRequirements().getSideInputs()));
+      MapWithFailuresDoFn doFn;
+      PCollectionTuple tuple;
+      if (fn instanceof Contextful) {
+        doFn =
+            new MapWithFailuresDoFn() {
+              @ProcessElement
+              public void processElement(@Element InputT element, ProcessContext c)
+                  throws Exception {
+                boolean exceptionWasThrown = false;
+                OutputT result = null;
+                try {
+                  result =
+                      ((Contextful<Fn<InputT, OutputT>>) fn)
+                          .getClosure()
+                          .apply(element, Fn.Context.wrapProcessContext(c));
+                } catch (Exception e) {
+                  exceptionWasThrown = true;
+                  ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
+                  c.output(failureTag, exceptionHandler.apply(exceptionElement));
+                }
+                // We make sure our output occurs outside the try block, since runners may implement
+                // fusion by having output() directly call the body of another DoFn, potentially
+                // catching
+                // exceptions unrelated to this transform.
+                if (!exceptionWasThrown) {
+                  c.output(result);
+                }
+              }
+            };
+        tuple =
+            input.apply(
+                MapWithFailures.class.getSimpleName(),
+                ParDo.of(doFn)
+                    .withOutputTags(doFn.outputTag, TupleTagList.of(doFn.failureTag))
+                    .withSideInputs(
+                        ((Contextful<Fn<InputT, OutputT>>) fn).getRequirements().getSideInputs()));
+
+      } else if (fn instanceof ProcessFunction) {
+        ProcessFunction<InputT, OutputT> closure = (ProcessFunction<InputT, OutputT>) fn;
+        doFn =
+            new MapWithFailuresDoFn() {
+              @ProcessElement
+              public void processElement(@Element InputT element, ProcessContext c)
+                  throws Exception {
+                boolean exceptionWasThrown = false;
+                OutputT result;
+                try {
+                  result = closure.apply(element);
+                } catch (Exception e) {
+                  result = null;
+                  exceptionWasThrown = true;
+                  ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
+                  c.output(failureTag, exceptionHandler.apply(exceptionElement));
+                }
+                // We make sure our output occurs outside the try block, since runners may implement
+                // fusion by having output() directly call the body of another DoFn, potentially
+                // catching
+                // exceptions unrelated to this transform.
+                if (!exceptionWasThrown) {
+                  c.output(result);
+                }
+              }
+            };
+        tuple =
+            input.apply(
+                MapWithFailures.class.getSimpleName(),
+                ParDo.of(doFn).withOutputTags(doFn.outputTag, TupleTagList.of(doFn.failureTag)));
+      } else {
+        throw new IllegalArgumentException(
+            String.format("Unknown type of fn class %s", fn.getClass()));
+      }
       return WithFailures.Result.of(tuple, doFn.outputTag, doFn.failureTag);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
-      if (originalFnForDisplayData instanceof HasDisplayData) {
-        builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+      Object fnForDisplayData;
+      if (fn instanceof Contextful) {
+        fnForDisplayData = ((Contextful<?>) fn).getClosure();
+      } else {
+        fnForDisplayData = fn;
+      }
+      builder.add(DisplayData.item("class", fnForDisplayData.getClass()));
+      if (fnForDisplayData instanceof HasDisplayData) {
+        builder.include("fn", (HasDisplayData) fnForDisplayData);
       }
       builder.add(DisplayData.item("exceptionHandler.class", exceptionHandler.getClass()));
       if (exceptionHandler instanceof HasDisplayData) {
@@ -310,30 +394,9 @@ public class MapElements<InputT, OutputT>
     }
 
     /** A DoFn implementation that handles exceptions and outputs a secondary failure collection. */
-    private class MapFn extends DoFn<InputT, OutputT> {
-
+    private abstract class MapWithFailuresDoFn extends DoFn<InputT, OutputT> {
       final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
       final TupleTag<FailureT> failureTag = new FailureTag();
-
-      @ProcessElement
-      public void processElement(@Element InputT element, MultiOutputReceiver r, ProcessContext c)
-          throws Exception {
-        boolean exceptionWasThrown = false;
-        OutputT result = null;
-        try {
-          result = fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c));
-        } catch (Exception e) {
-          exceptionWasThrown = true;
-          ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
-          r.get(failureTag).output(exceptionHandler.apply(exceptionElement));
-        }
-        // We make sure our output occurs outside the try block, since runners may implement
-        // fusion by having output() directly call the body of another DoFn, potentially catching
-        // exceptions unrelated to this transform.
-        if (!exceptionWasThrown) {
-          r.get(outputTag).output(result);
-        }
-      }
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {

@@ -18,22 +18,21 @@
 package org.apache.beam.sdk.values;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Concrete subclass of {@link Row} that explicitly stores all fields of the row. */
 public class RowWithStorage extends Row {
-  private final List<Object> values;
+  private final List<@Nullable Object> values;
 
-  RowWithStorage(Schema schema, List<Object> values) {
+  RowWithStorage(Schema schema, List<@Nullable Object> values) {
     super(schema);
     this.values = values;
   }
 
   @Override
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(int fieldIdx) {
+  public <T extends @Nullable Object> T getValue(int fieldIdx) {
     if (values.size() > fieldIdx) {
       return (T) values.get(fieldIdx);
     } else {
@@ -42,7 +41,7 @@ public class RowWithStorage extends Row {
   }
 
   @Override
-  public List<Object> getValues() {
+  public List<@Nullable Object> getValues() {
     return values;
   }
 

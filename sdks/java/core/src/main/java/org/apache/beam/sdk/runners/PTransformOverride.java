@@ -29,9 +29,12 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 @Internal
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public abstract class PTransformOverride {
   public static PTransformOverride of(
-      PTransformMatcher matcher, PTransformOverrideFactory factory) {
+      PTransformMatcher matcher, PTransformOverrideFactory<?, ?, ?> factory) {
     return new AutoValue_PTransformOverride(matcher, factory);
   }
 
@@ -39,5 +42,5 @@ public abstract class PTransformOverride {
   public abstract PTransformMatcher getMatcher();
 
   /** Gets the {@link PTransformOverrideFactory} of this override. */
-  public abstract PTransformOverrideFactory getOverrideFactory();
+  public abstract PTransformOverrideFactory<?, ?, ?> getOverrideFactory();
 }

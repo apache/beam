@@ -16,10 +16,10 @@
 package protox
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/golang/protobuf/proto"
-	protobuf "github.com/golang/protobuf/ptypes/any"
-	protobufw "github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/proto"
+	protobuf "google.golang.org/protobuf/types/known/anypb"
+	protobufw "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (

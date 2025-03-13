@@ -17,104 +17,85 @@
  */
 package org.apache.beam.runners.samza;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
-import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.jobsubmission.JobServerDriver;
+import org.apache.beam.sdk.fn.server.ServerFactory;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Driver program that starts a job server. */
-// TODO extend JobServerDriver
-public class SamzaJobServerDriver {
+/** Driver program that starts a job server for the Samza runner. */
+public class SamzaJobServerDriver extends JobServerDriver {
+
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
-  private final SamzaPortablePipelineOptions pipelineOptions;
+  /** Samza runner-specific Configuration for the jobServer. */
+  public static class SamzaServerConfiguration extends ServerConfiguration {}
 
-  private SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
-    this.pipelineOptions = pipelineOptions;
+  public static void main(String[] args) {
+    // TODO: Expose the fileSystem related options.
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(options);
+    fromParams(args).run();
   }
 
-  public static void main(String[] args) throws Exception {
-    SamzaPortablePipelineOptions pipelineOptions =
-        PipelineOptionsFactory.fromArgs(args).as(SamzaPortablePipelineOptions.class);
-    fromOptions(pipelineOptions).run();
+  private static SamzaJobServerDriver fromParams(String[] args) {
+    return fromConfig(parseArgs(args));
   }
 
-  public static SamzaJobServerDriver fromOptions(SamzaPortablePipelineOptions pipelineOptions) {
-    Map<String, String> overrideConfig =
-        pipelineOptions.getConfigOverride() != null
-            ? pipelineOptions.getConfigOverride()
-            : new HashMap<>();
-    overrideConfig.put(SamzaRunnerOverrideConfigs.IS_PORTABLE_MODE, String.valueOf(true));
-    overrideConfig.put(
-        SamzaRunnerOverrideConfigs.FN_CONTROL_PORT,
-        String.valueOf(pipelineOptions.getControlPort()));
-    pipelineOptions.setConfigOverride(overrideConfig);
-    return new SamzaJobServerDriver(pipelineOptions);
+  private static void printUsage(CmdLineParser parser) {
+    System.err.printf("Usage: java %s arguments...%n", SamzaJobServerDriver.class.getSimpleName());
+    parser.printUsage(System.err);
+    System.err.println();
   }
 
-  private static InMemoryJobService createJobService(SamzaPortablePipelineOptions pipelineOptions)
-      throws IOException {
-    JobInvoker jobInvoker =
-        new JobInvoker("samza-job-invoker") {
-          @Override
-          protected JobInvocation invokeWithExecutor(
-              RunnerApi.Pipeline pipeline,
-              Struct options,
-              @Nullable String retrievalToken,
-              ListeningExecutorService executorService)
-              throws IOException {
-            String invocationId =
-                String.format("%s_%s", pipelineOptions.getJobName(), UUID.randomUUID().toString());
-            SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(pipelineOptions);
-            JobInfo jobInfo =
-                JobInfo.create(
-                    invocationId,
-                    pipelineOptions.getJobName(),
-                    retrievalToken,
-                    PipelineOptionsTranslation.toProto(pipelineOptions));
-            return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
-          }
-        };
-    return InMemoryJobService.create(
-        null,
-        (String session) -> {
-          try {
-            return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
-                session, "/tmp/beam-artifact-staging");
-          } catch (Exception exn) {
-            throw new RuntimeException(exn);
-          }
-        },
-        stagingSessionToken -> {},
-        jobInvoker);
+  private static SamzaJobServerDriver fromConfig(SamzaServerConfiguration configuration) {
+    return create(
+        configuration,
+        createJobServerFactory(configuration),
+        createArtifactServerFactory(configuration));
   }
 
-  public void run() throws Exception {
-    final InMemoryJobService service = createJobService(pipelineOptions);
-    final GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            service, ServerFactory.createWithPortSupplier(pipelineOptions::getJobPort));
-    LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+  public static SamzaServerConfiguration parseArgs(String[] args) {
+    SamzaServerConfiguration configuration = new SamzaServerConfiguration();
+    CmdLineParser parser = new CmdLineParser(configuration);
     try {
-      jobServiceGrpcFnServer.getServer().awaitTermination();
-    } finally {
-      LOG.info("JobServer closing");
-      jobServiceGrpcFnServer.close();
+      parser.parseArgument(args);
+    } catch (CmdLineException e) {
+      LOG.error("Unable to parse command line arguments.", e);
+      printUsage(parser);
+      throw new IllegalArgumentException("Unable to parse command line arguments.", e);
     }
+    return configuration;
+  }
+
+  private static SamzaJobServerDriver create(
+      SamzaServerConfiguration configuration,
+      ServerFactory jobServerFactory,
+      ServerFactory artifactServerFactory) {
+    return new SamzaJobServerDriver(configuration, jobServerFactory, artifactServerFactory);
+  }
+
+  private SamzaJobServerDriver(
+      SamzaServerConfiguration configuration,
+      ServerFactory jobServerFactory,
+      ServerFactory artifactServerFactory) {
+    this(
+        configuration,
+        jobServerFactory,
+        artifactServerFactory,
+        () -> SamzaJobInvoker.create(configuration));
+  }
+
+  protected SamzaJobServerDriver(
+      ServerConfiguration configuration,
+      ServerFactory jobServerFactory,
+      ServerFactory artifactServerFactory,
+      JobInvokerFactory jobInvokerFactory) {
+    super(configuration, jobServerFactory, artifactServerFactory, jobInvokerFactory);
   }
 }

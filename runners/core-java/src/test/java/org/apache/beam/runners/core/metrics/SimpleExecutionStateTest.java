@@ -54,6 +54,9 @@ public class SimpleExecutionStateTest {
     assertEquals(10, testObject.getTotalMillis());
     testObject.takeSample(5);
     assertEquals(15, testObject.getTotalMillis());
+
+    testObject.reset();
+    assertEquals(0, testObject.getTotalMillis());
   }
 
   @Test

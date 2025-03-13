@@ -25,6 +25,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -37,6 +39,10 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
 
 /** Represents a Spark pipeline execution result. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class SparkPipelineResult implements PipelineResult {
 
   final Future pipelineExecution;
@@ -83,7 +89,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State waitUntilFinish() {
-    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
+    return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
@@ -133,8 +139,26 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected State awaitTermination(final Duration duration)
         throws TimeoutException, ExecutionException, InterruptedException {
-      pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      if (duration.getMillis() > 0) {
+        pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      } else {
+        pipelineExecution.get();
+      }
       return PipelineResult.State.DONE;
+    }
+  }
+
+  static class PortableBatchMode extends BatchMode implements PortablePipelineResult {
+
+    PortableBatchMode(Future<?> pipelineExecution, JavaSparkContext javaSparkContext) {
+      super(pipelineExecution, javaSparkContext);
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
     }
   }
 
@@ -186,6 +210,20 @@ public abstract class SparkPipelineResult implements PipelineResult {
           break;
       }
       return terminationState;
+    }
+  }
+
+  static class PortableStreamingMode extends StreamingMode implements PortablePipelineResult {
+
+    PortableStreamingMode(Future<?> pipelineExecution, JavaStreamingContext javaStreamingContext) {
+      super(pipelineExecution, javaStreamingContext);
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
     }
   }
 

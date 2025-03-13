@@ -17,23 +17,21 @@
 #
 
 """Unit tests for filesystem module."""
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import bz2
 import gzip
 import logging
+import lzma
 import ntpath
 import os
 import posixpath
-import sys
 import tempfile
 import unittest
 import zlib
-from builtins import range
 from io import BytesIO
 
-from future.utils import iteritems
+import zstandard
 from parameterized import param
 from parameterized import parameterized
 
@@ -44,9 +42,8 @@ from apache_beam.io.filesystem import FileSystem
 
 
 class TestingFileSystem(FileSystem):
-
   def __init__(self, pipeline_options, has_dirs=False):
-    super(TestingFileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     self._has_dirs = has_dirs
     self._files = {}
 
@@ -71,16 +68,22 @@ class TestingFileSystem(FileSystem):
     self._files[path] = size
 
   def _list(self, dir_or_prefix):
-    for path, size in iteritems(self._files):
+    for path, size in self._files.items():
       if path.startswith(dir_or_prefix):
         yield FileMetadata(path, size)
 
-  def create(self, path, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     raise NotImplementedError
 
-  def open(self, path, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     raise NotImplementedError
 
   def copy(self, source_file_names, destination_file_names):
@@ -101,94 +104,98 @@ class TestingFileSystem(FileSystem):
   def checksum(self, path):
     raise NotImplementedError
 
+  def metadata(self, path):
+    raise NotImplementedError
+
   def delete(self, paths):
     raise NotImplementedError
 
 
 class TestFileSystem(unittest.TestCase):
-
   def setUp(self):
     self.fs = TestingFileSystem(pipeline_options=None)
 
   def _flatten_match(self, match_results):
-    return [file_metadata
-            for match_result in match_results
-            for file_metadata in match_result.metadata_list]
+    return [
+        file_metadata for match_result in match_results
+        for file_metadata in match_result.metadata_list
+    ]
 
   @parameterized.expand([
       ('gs://gcsio-test/**', all),
       # Does not match root-level files
       ('gs://gcsio-test/**/*', lambda n, i: n not in ['cat.png']),
       # Only matches root-level files
-      ('gs://gcsio-test/*', [
-          ('cat.png', 19)
-      ]),
-      ('gs://gcsio-test/cow/**', [
-          ('cow/cat/fish', 2),
-          ('cow/cat/blubber', 3),
-          ('cow/dog/blubber', 4),
-      ]),
-      ('gs://gcsio-test/cow/ca**', [
-          ('cow/cat/fish', 2),
-          ('cow/cat/blubber', 3),
-      ]),
-      ('gs://gcsio-test/apple/[df]ish/ca*', [
-          ('apple/fish/cat', 10),
-          ('apple/fish/cart', 11),
-          ('apple/fish/carl', 12),
-          ('apple/dish/cat', 14),
-          ('apple/dish/carl', 15),
-      ]),
-      ('gs://gcsio-test/apple/?ish/?a?', [
-          ('apple/fish/cat', 10),
-          ('apple/dish/bat', 13),
-          ('apple/dish/cat', 14),
-      ]),
-      ('gs://gcsio-test/apple/fish/car?', [
-          ('apple/fish/cart', 11),
-          ('apple/fish/carl', 12),
-      ]),
-      ('gs://gcsio-test/apple/fish/b*', [
-          ('apple/fish/blubber', 6),
-          ('apple/fish/blowfish', 7),
-          ('apple/fish/bambi', 8),
-          ('apple/fish/balloon', 9),
-      ]),
-      ('gs://gcsio-test/apple/f*/b*', [
-          ('apple/fish/blubber', 6),
-          ('apple/fish/blowfish', 7),
-          ('apple/fish/bambi', 8),
-          ('apple/fish/balloon', 9),
-      ]),
-      ('gs://gcsio-test/apple/dish/[cb]at', [
-          ('apple/dish/bat', 13),
-          ('apple/dish/cat', 14),
-      ]),
-      ('gs://gcsio-test/banana/cyrano.m?', [
-          ('banana/cyrano.md', 17),
-          ('banana/cyrano.mb', 18),
-      ]),
+      ('gs://gcsio-test/*', [('cat.png', 19)]),
+      (
+          'gs://gcsio-test/cow/**', [
+              ('cow/cat/fish', 2),
+              ('cow/cat/blubber', 3),
+              ('cow/dog/blubber', 4),
+          ]),
+      (
+          'gs://gcsio-test/cow/ca**', [
+              ('cow/cat/fish', 2),
+              ('cow/cat/blubber', 3),
+          ]),
+      (
+          'gs://gcsio-test/apple/[df]ish/ca*',
+          [
+              ('apple/fish/cat', 10),
+              ('apple/fish/cart', 11),
+              ('apple/fish/carl', 12),
+              ('apple/dish/cat', 14),
+              ('apple/dish/carl', 15),
+          ]),
+      (
+          'gs://gcsio-test/apple/?ish/?a?',
+          [
+              ('apple/fish/cat', 10),
+              ('apple/dish/bat', 13),
+              ('apple/dish/cat', 14),
+          ]),
+      (
+          'gs://gcsio-test/apple/fish/car?', [
+              ('apple/fish/cart', 11),
+              ('apple/fish/carl', 12),
+          ]),
+      (
+          'gs://gcsio-test/apple/fish/b*',
+          [
+              ('apple/fish/blubber', 6),
+              ('apple/fish/blowfish', 7),
+              ('apple/fish/bambi', 8),
+              ('apple/fish/balloon', 9),
+          ]),
+      (
+          'gs://gcsio-test/apple/f*/b*',
+          [
+              ('apple/fish/blubber', 6),
+              ('apple/fish/blowfish', 7),
+              ('apple/fish/bambi', 8),
+              ('apple/fish/balloon', 9),
+          ]),
+      (
+          'gs://gcsio-test/apple/dish/[cb]at', [
+              ('apple/dish/bat', 13),
+              ('apple/dish/cat', 14),
+          ]),
+      (
+          'gs://gcsio-test/banana/cyrano.m?', [
+              ('banana/cyrano.md', 17),
+              ('banana/cyrano.mb', 18),
+          ]),
   ])
   def test_match_glob(self, file_pattern, expected_object_names):
     objects = [
-        ('cow/cat/fish', 2),
-        ('cow/cat/blubber', 3),
-        ('cow/dog/blubber', 4),
-        ('apple/dog/blubber', 5),
-        ('apple/fish/blubber', 6),
-        ('apple/fish/blowfish', 7),
-        ('apple/fish/bambi', 8),
-        ('apple/fish/balloon', 9),
-        ('apple/fish/cat', 10),
-        ('apple/fish/cart', 11),
-        ('apple/fish/carl', 12),
-        ('apple/dish/bat', 13),
-        ('apple/dish/cat', 14),
-        ('apple/dish/carl', 15),
-        ('banana/cat', 16),
-        ('banana/cyrano.md', 17),
-        ('banana/cyrano.mb', 18),
-        ('cat.png', 19)
+        ('cow/cat/fish', 2), ('cow/cat/blubber', 3), ('cow/dog/blubber', 4),
+        ('apple/dog/blubber', 5), ('apple/fish/blubber', 6),
+        ('apple/fish/blowfish', 7), ('apple/fish/bambi', 8),
+        ('apple/fish/balloon', 9), ('apple/fish/cat', 10),
+        ('apple/fish/cart', 11), ('apple/fish/carl', 12),
+        ('apple/dish/bat', 13), ('apple/dish/cat', 14), ('apple/dish/carl', 15),
+        ('banana/cat', 16), ('banana/cyrano.md', 17), ('banana/cyrano.mb',
+                                                       18), ('cat.png', 19)
     ]
     bucket_name = 'gcsio-test'
 
@@ -203,17 +210,17 @@ class TestFileSystem(unittest.TestCase):
         # It's a filter function of type (str, int) -> bool
         # that returns true for expected objects
         filter_func = expected_object_names
-        expected_object_names = [
-            (short_path, size) for short_path, size in objects
-            if filter_func(short_path, size)
-        ]
+        expected_object_names = [(short_path, size) for short_path,
+                                 size in objects
+                                 if filter_func(short_path, size)]
 
     for object_name, size in objects:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
       self.fs._insert_random_file(file_name, size)
 
     expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
-                           for object_name, size in expected_object_names]
+                           for object_name,
+                           size in expected_object_names]
     actual_file_names = [
         (file_metadata.path, file_metadata.size_in_bytes)
         for file_metadata in self._flatten_match(self.fs.match([file_pattern]))
@@ -229,10 +236,7 @@ class TestFileSystem(unittest.TestCase):
         expected_num_items)
 
   @parameterized.expand([
-      param(os_path=posixpath,
-            # re.escape does not escape forward slashes since Python 3.7
-            # https://docs.python.org/3/whatsnew/3.7.html ("bpo-29995")
-            sep_re='\\/' if sys.version_info < (3, 7, 0) else '/'),
+      param(os_path=posixpath, sep_re='/'),
       param(os_path=ntpath, sep_re='\\\\'),
   ])
   def test_translate_pattern(self, os_path, sep_re):
@@ -248,13 +252,12 @@ class TestFileSystem(unittest.TestCase):
         (join('d', '**', '*'), sep_re.join(['d', double_star, star])),
     ]
     for pattern, expected in pattern__expected:
-      expected += r'\Z(?ms)'
+      expected = r'(?ms)' + expected + r'\Z'
       result = self.fs.translate_pattern(pattern)
-      self.assertEqual(result, expected)
+      self.assertEqual(expected, result)
 
 
 class TestFileSystemWithDirs(TestFileSystem):
-
   def setUp(self):
     self.fs = TestingFileSystem(pipeline_options=None, has_dirs=True)
 
@@ -305,6 +308,14 @@ atomized in instants hammered around the
           else gzip.open
       with compress_open(file_name, 'wb') as f:
         f.write(content)
+    elif compression_type == CompressionTypes.ZSTD:
+      compress_open = zstandard.open
+      with compress_open(file_name, 'wb') as f:
+        f.write(content)
+    elif compression_type == CompressionTypes.LZMA:
+      compress_open = lzma.open
+      with compress_open(file_name, 'wb') as f:
+        f.write(content)
     else:
       assert False, "Invalid compression type: %s" % compression_type
 
@@ -326,12 +337,15 @@ atomized in instants hammered around the
       self.assertFalse(writeable.seekable)
 
   def test_seek_set(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
-        compressed_fd = CompressedFile(f, compression_type,
-                                       read_size=self.read_block_size)
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
         reference_fd = BytesIO(self.content)
 
         # Note: BytesIO's tell() reports out of bound positions (if we seek
@@ -340,8 +354,10 @@ atomized in instants hammered around the
         # uncompressed content.
         # Negative seek position argument is not supported for BytesIO with
         # whence set to SEEK_SET.
-        for seek_position in (0, 1,
-                              len(self.content)-1, len(self.content),
+        for seek_position in (0,
+                              1,
+                              len(self.content) - 1,
+                              len(self.content),
                               len(self.content) + 1):
           compressed_fd.seek(seek_position, os.SEEK_SET)
           reference_fd.seek(seek_position, os.SEEK_SET)
@@ -357,19 +373,24 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_seek_cur(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
-        compressed_fd = CompressedFile(f, compression_type,
-                                       read_size=self.read_block_size)
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
         reference_fd = BytesIO(self.content)
 
         # Test out of bound, inbound seeking in both directions
         # Note: BytesIO's seek() reports out of bound positions (if we seek
         # beyond the file), therefore we need to cap it to max_position (to
         # make it consistent with the old StringIO behavior
-        for seek_position in (-1, 0, 1,
+        for seek_position in (-1,
+                              0,
+                              1,
                               len(self.content) // 2,
                               len(self.content) // 2,
                               -1 * len(self.content) // 2):
@@ -388,12 +409,15 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_read_from_end_returns_no_data(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
-        compressed_fd = CompressedFile(f, compression_type,
-                                       read_size=self.read_block_size)
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
 
         seek_position = 0
         compressed_fd.seek(seek_position, os.SEEK_END)
@@ -404,12 +428,15 @@ atomized in instants hammered around the
         self.assertEqual(uncompressed_data, expected_data)
 
   def test_seek_outside(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
-        compressed_fd = CompressedFile(f, compression_type,
-                                       read_size=self.read_block_size)
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
 
         for whence in (os.SEEK_CUR, os.SEEK_SET, os.SEEK_END):
           seek_position = -1 * len(self.content) - 10
@@ -427,12 +454,15 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, expected_position)
 
   def test_read_and_seek_back_to_beginning(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
-        compressed_fd = CompressedFile(f, compression_type,
-                                       read_size=self.read_block_size)
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
 
         first_pass = compressed_fd.readline()
         compressed_fd.seek(0, os.SEEK_SET)
@@ -477,24 +507,26 @@ atomized in instants hammered around the
     from six import int2byte
     num_test_lines = 10
     timeout = 30
-    read_size = (64<<10) # set much smaller than the line size
+    read_size = (64 << 10)  # set much smaller than the line size
     byte_table = tuple(int2byte(i) for i in range(32, 96))
 
     def generate_random_line():
-      byte_list = list(b
-                       for i in range(4096)
-                       for b in random.sample(byte_table, 64)
-                      )
+      byte_list = list(
+          b for i in range(4096) for b in random.sample(byte_table, 64))
       byte_list.append(b'\n')
       return b''.join(byte_list)
 
     def create_test_file(compression_type, lines):
-      filenames = list()
+      filenames = []
       file_name = self._create_temp_file()
       if compression_type == CompressionTypes.BZIP2:
         compress_factory = bz2.BZ2File
       elif compression_type == CompressionTypes.GZIP:
         compress_factory = gzip.open
+      elif compression_type == CompressionTypes.ZSTD:
+        compress_factory = zstandard.open
+      elif compression_type == CompressionTypes.LZMA:
+        compress_factory = lzma.open
       else:
         assert False, "Invalid compression type: %s" % compression_type
       for line in lines:
@@ -520,7 +552,10 @@ atomized in instants hammered around the
     timer = threading.Timer(timeout, timeout_handler)
     try:
       test_lines = tuple(generate_random_line() for i in range(num_test_lines))
-      for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+      for compression_type in [CompressionTypes.BZIP2,
+                               CompressionTypes.GZIP,
+                               CompressionTypes.ZSTD,
+                               CompressionTypes.LZMA]:
         file_name = create_test_file(compression_type, test_lines)
         timer.start()
         with open(file_name, 'rb') as f:

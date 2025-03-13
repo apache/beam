@@ -20,9 +20,11 @@ package org.apache.beam.runners.flink.translation.wrappers;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -39,6 +41,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing a {@link Source} as a Flink {@link InputFormat}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
@@ -52,6 +58,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   private boolean inputAvailable = false;
 
   private transient ReaderInvocationUtil<T, BoundedSource.BoundedReader<T>> readerInvoker;
+  private transient FlinkMetricContainer metricContainer;
 
   public SourceInputFormat(
       String stepName, BoundedSource<T> initialSource, PipelineOptions options) {
@@ -67,7 +74,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+    metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     readerInvoker = new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
@@ -97,18 +104,36 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
         }
       };
     } catch (Exception e) {
-      LOG.warn("Could not read Source statistics: {}", e);
+      LOG.warn("Could not read Source statistics.", e);
     }
 
     return null;
+  }
+
+  private long getDesiredSizeBytes(int numSplits) throws Exception {
+    long totalSize = initialSource.getEstimatedSizeBytes(options);
+    long defaultSplitSize = totalSize / numSplits;
+    long maxSplitSize = 0;
+    if (options != null) {
+      maxSplitSize = options.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeMB();
+    }
+    if (initialSource instanceof FileBasedSource && maxSplitSize > 0) {
+      // Most of the time parallelism is < number of files in source.
+      // Each file becomes a unique split which commonly create skew.
+      // This limits the size of splits to reduce skew.
+      return Math.min(defaultSplitSize, maxSplitSize * 1024 * 1024);
+    } else {
+      return defaultSplitSize;
+    }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
     try {
-      long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
+      long desiredSizeBytes = getDesiredSizeBytes(numSplits);
       List<? extends Source<T>> shards = initialSource.split(desiredSizeBytes, options);
+
       int numShards = shards.size();
       SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
       for (int i = 0; i < numShards; i++) {
@@ -126,7 +151,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   }
 
   @Override
-  public boolean reachedEnd() throws IOException {
+  public boolean reachedEnd() {
     return !inputAvailable;
   }
 
@@ -145,6 +170,9 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void close() throws IOException {
+    if (metricContainer != null) {
+      metricContainer.registerMetricsForPipelineResult();
+    }
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
       reader.close();

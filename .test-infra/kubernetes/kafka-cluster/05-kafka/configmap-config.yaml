@@ -16,7 +16,6 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  namespace: kafka
   name: kafka-config
 data:
   runtimeConfig.sh: |
@@ -34,5 +33,9 @@ data:
       sleep 20
     done
     echo "Applying runtime configuration using confluentinc/cp-kafka:5.0.1"
-    kafka-topics --zookeeper zookeeper:2181 --create --if-not-exists --force --topic apache-beam-load-test --partitions 3 --replication-factor 2
-    kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name apache-beam-load-test --describe
+    kafka-topics --zookeeper zookeeper:2181 --create --if-not-exists --force --topic beam --partitions 1 --replication-factor 3
+    kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name beam --describe
+    kafka-topics --zookeeper zookeeper:2181 --create --if-not-exists --force --topic beam-batch --partitions 1 --replication-factor 3
+    kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name beam-batch --describe
+    kafka-topics --zookeeper zookeeper:2181 --create --if-not-exists --force --topic beam-sdf --partitions 1 --replication-factor 3
+    kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name beam-sdf --describe

@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /** ShuffleReader reads chunks of data from a shuffle dataset for a given position range. */
-interface ShuffleReader {
+interface ShuffleReader extends Closeable {
   /** Represents a chunk of data read from a shuffle dataset. */
-  public static class ReadChunkResult {
+  class ReadChunkResult {
     public final byte[] chunk;
     public final byte[] nextStartPosition;
 
@@ -41,6 +42,6 @@ interface ShuffleReader {
    * @param startPosition the start of the requested range (inclusive)
    * @param endPosition the end of the requested range (exclusive)
    */
-  public ReadChunkResult readIncludingPosition(byte[] startPosition, byte[] endPosition)
+  ReadChunkResult readIncludingPosition(byte[] startPosition, byte[] endPosition)
       throws IOException;
 }

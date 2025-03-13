@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
 import java.util.List;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -43,41 +42,13 @@ public class GcsStager implements Stager {
   }
 
   /**
-   * Stages {@link DataflowPipelineOptions#getFilesToStage()}, which defaults to every file on the
-   * classpath unless overridden, as well as {@link
-   * DataflowPipelineDebugOptions#getOverrideWindmillBinary()} if specified.
-   *
-   * @see #stageFiles(List)
-   */
-  @Override
-  public List<DataflowPackage> stageDefaultFiles() {
-    checkNotNull(options.getStagingLocation());
-    String windmillBinary =
-        options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
-    String dataflowWorkerJar = options.getDataflowWorkerJar();
-    List<String> filesToStage = options.getFilesToStage();
-
-    if (windmillBinary != null) {
-      filesToStage.add("windmill_main=" + windmillBinary);
-    }
-
-    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty()) {
-      // Put the user specified worker jar at the start of the classpath, to be consistent with the
-      // built in worker order.
-      filesToStage.add(0, "dataflow-worker.jar=" + dataflowWorkerJar);
-    }
-
-    return stageFiles(filesToStage);
-  }
-
-  /**
    * Stages files to {@link DataflowPipelineOptions#getStagingLocation()}, suffixed with their md5
    * hash to avoid collisions.
    *
    * <p>Uses {@link DataflowPipelineOptions#getGcsUploadBufferSizeBytes()}.
    */
   @Override
-  public List<DataflowPackage> stageFiles(List<String> filesToStage) {
+  public List<DataflowPackage> stageFiles(List<StagedFile> filesToStage) {
     try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
       return packageUtil.stageClasspathElements(
           filesToStage, options.getStagingLocation(), buildCreateOptions());
@@ -93,9 +64,10 @@ public class GcsStager implements Stager {
   }
 
   private GcsCreateOptions buildCreateOptions() {
+    // Default is 1M, to avoid excessive memory use when uploading, but can be changed with
+    // {@link DataflowPipelineOptions#getGcsUploadBufferSizeBytes()}.
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
-    uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
 
     return GcsCreateOptions.builder()
         .setGcsUploadBufferSizeBytes(uploadSizeBytes)

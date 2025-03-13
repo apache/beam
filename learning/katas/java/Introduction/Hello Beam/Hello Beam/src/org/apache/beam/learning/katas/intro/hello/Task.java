@@ -18,12 +18,23 @@
 
 package org.apache.beam.learning.katas.intro.hello;
 
+// beam-playground:
+//   name: Hello Beam
+//   description: Task from katas to create a simple pipeline that takes a hardcoded input element "Hello Beam".
+//   multifile: false
+//   context_line: 41
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - pipeline
+
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import util.Log;
 
 public class Task {
 

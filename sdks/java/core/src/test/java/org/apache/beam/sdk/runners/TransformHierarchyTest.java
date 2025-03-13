@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -60,7 +61,7 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -81,7 +82,7 @@ public class TransformHierarchyTest implements Serializable {
 
   @Before
   public void setup() {
-    hierarchy = new TransformHierarchy();
+    hierarchy = new TransformHierarchy(ResourceHints.create());
   }
 
   @Test
@@ -162,7 +163,7 @@ public class TransformHierarchyTest implements Serializable {
           }
         });
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("contains a primitive POutput produced by it");
+    thrown.expectMessage("contains a PCollection produced by it");
     thrown.expectMessage("AddPc");
     thrown.expectMessage("Create");
     thrown.expectMessage(appended.expand().toString());
@@ -189,7 +190,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("contains a primitive POutput produced by it");
+    thrown.expectMessage("contains a PCollection produced by it");
     thrown.expectMessage("primitive transforms are permitted to produce");
     thrown.expectMessage("Composite");
     hierarchy.setOutput(comp);
@@ -227,7 +228,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.setOutput(replacementOutput);
 
     TaggedPValue taggedReplacement = TaggedPValue.ofExpandedValue(replacementOutput);
-    Map<PValue, ReplacementOutput> replacementOutputs =
+    Map<PCollection<?>, ReplacementOutput> replacementOutputs =
         Collections.singletonMap(
             replacementOutput,
             ReplacementOutput.of(TaggedPValue.ofExpandedValue(originalOutput), taggedReplacement));
@@ -294,8 +295,8 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
     hierarchy.setOutput(replacementOutput.get(longs));
 
-    Entry<TupleTag<?>, PValue> replacementLongs =
-        Iterables.getOnlyElement(replacementOutput.expand().entrySet());
+    Entry<TupleTag<?>, PCollection<?>> replacementLongs =
+        (Map.Entry) Iterables.getOnlyElement(replacementOutput.expand().entrySet());
     hierarchy.replaceOutputs(
         Collections.singletonMap(
             replacementOutput.get(longs),
@@ -456,8 +457,9 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
     hierarchy.setOutput(replacementOutput.get(longs));
 
-    Entry<TupleTag<?>, PValue> replacementLongs =
-        Iterables.getOnlyElement(replacementOutput.expand().entrySet());
+    Map<TupleTag<?>, PCollection<?>> expandedReplacementOutput = (Map) replacementOutput.expand();
+    Entry<TupleTag<?>, PCollection<?>> replacementLongs =
+        Iterables.getOnlyElement(expandedReplacementOutput.entrySet());
     hierarchy.replaceOutputs(
         Collections.singletonMap(
             replacementOutput.get(longs),

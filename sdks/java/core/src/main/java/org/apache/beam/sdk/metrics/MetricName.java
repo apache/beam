@@ -17,63 +17,60 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import java.util.Map;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * The name of a metric consists of a {@link #getNamespace} and a {@link #getName}. The {@link
  * #getNamespace} allows grouping related metrics together and also prevents collisions between
  * multiple metrics with the same name.
  */
-@Experimental(Kind.METRICS)
+@SuppressWarnings("AutoValueFinalMethods")
 @AutoValue
 public abstract class MetricName implements Serializable {
 
   /** The namespace associated with this metric. */
   public abstract String getNamespace();
 
-  /**
-   * The namespace associated with this metric.
-   *
-   * @deprecated to be removed once Dataflow no longer requires this method.
-   */
-  @Deprecated
-  public String namespace() {
-    return getNamespace();
-  }
-
   /** The name of this metric. */
   public abstract String getName();
 
-  @Override
-  public String toString() {
-    return String.format("%s:%s", getNamespace(), getName());
-  }
+  /** Associated labels for the metric. */
+  public abstract Map<String, String> getLabels();
 
-  /**
-   * The name of this metric.
-   *
-   * @deprecated to be removed once Dataflow no longer requires this method.
-   */
-  @Deprecated
-  public String name() {
-    return getName();
+  @Override
+  @Memoized
+  public String toString() {
+    return getNamespace() + ":" + getName();
   }
 
   public static MetricName named(String namespace, String name) {
     checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return new AutoValue_MetricName(namespace, name);
+    return new AutoValue_MetricName(namespace, name, ImmutableMap.of());
+  }
+
+  public static MetricName named(String namespace, String name, Map<String, String> labels) {
+    checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
+    return new AutoValue_MetricName(namespace, name, ImmutableMap.copyOf(labels));
   }
 
   public static MetricName named(Class<?> namespace, String name) {
     checkArgument(namespace != null, "Metric namespace must be non-null");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return new AutoValue_MetricName(namespace.getName(), name);
+    return new AutoValue_MetricName(namespace.getName(), name, ImmutableMap.of());
+  }
+
+  public static MetricName named(Class<?> namespace, String name, Map<String, String> labels) {
+    checkArgument(namespace != null, "Metric namespace must be non-null");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
+    return new AutoValue_MetricName(namespace.getName(), name, ImmutableMap.copyOf(labels));
   }
 }

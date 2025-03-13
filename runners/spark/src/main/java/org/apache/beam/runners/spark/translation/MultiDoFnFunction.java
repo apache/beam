@@ -42,12 +42,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.util.AccumulatorV2;
 import scala.Tuple2;
@@ -59,6 +57,9 @@ import scala.Tuple2;
  * @param <InputT> Input type for DoFunction.
  * @param <OutputT> Output type for DoFunction.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
 
@@ -75,6 +76,8 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
+  private final boolean useBoundedConcurrentOutput;
 
   /**
    * @param metricsAccum The Spark {@link AccumulatorV2} that backs the Beam metrics.
@@ -87,6 +90,7 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
    * @param stateful Stateful {@link DoFn}.
+   * @param useBoundedConcurrentOutput If it should use bounded output for processing.
    */
   public MultiDoFnFunction(
       MetricsContainerStepMapAccumulator metricsAccum,
@@ -100,7 +104,9 @@ public class MultiDoFnFunction<InputT, OutputT>
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping,
+      boolean useBoundedConcurrentOutput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -113,23 +119,37 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.windowingStrategy = windowingStrategy;
     this.stateful = stateful;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
+    this.useBoundedConcurrentOutput = useBoundedConcurrentOutput;
   }
 
   @Override
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
-    if (!wasSetupCalled && iter.hasNext()) {
-      DoFnInvokers.tryInvokeSetupFor(doFn);
-      wasSetupCalled = true;
+
+    if (iter.hasNext()) {
+      if (!wasSetupCalled) {
+        DoFnInvokers.tryInvokeSetupFor(doFn, options.get());
+        wasSetupCalled = true;
+      }
+    } else {
+      // empty bundle
+      return Collections.emptyIterator();
     }
 
-    DoFnOutputManager outputManager = new DoFnOutputManager();
+    SparkInputDataProcessor<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> processor;
+    if (useBoundedConcurrentOutput) {
+      processor = SparkInputDataProcessor.createBounded();
+    } else {
+      processor = SparkInputDataProcessor.createUnbounded();
+    }
 
     final InMemoryTimerInternals timerInternals;
     final StepContext context;
     // Now only implements the StatefulParDo in Batch mode.
+    Object key = null;
+
     if (stateful) {
-      Object key = null;
       if (iter.hasNext()) {
         WindowedValue<InputT> currentValue = iter.next();
         key = ((KV) currentValue.getValue()).getKey();
@@ -151,7 +171,7 @@ public class MultiDoFnFunction<InputT, OutputT>
           };
     } else {
       timerInternals = null;
-      context = new SparkProcessContext.NoOpStepContext();
+      context = new SparkNoOpStepContext();
     }
 
     final DoFnRunner<InputT, OutputT> doFnRunner =
@@ -159,25 +179,28 @@ public class MultiDoFnFunction<InputT, OutputT>
             options.get(),
             doFn,
             CachedSideInputReader.of(new SparkSideInputReader(sideInputs)),
-            outputManager,
+            processor.getOutputManager(),
             mainOutputTag,
             additionalOutputTags,
             context,
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-    return new SparkProcessContext<>(
+    SparkProcessContext<Object, InputT, OutputT> ctx =
+        new SparkProcessContext<>(
+            stepName,
             doFn,
             doFnRunnerWithMetrics,
-            outputManager,
-            stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator())
-        .processPartition(iter)
-        .iterator();
+            key,
+            stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator());
+
+    return processor.createOutputIterator(iter, ctx);
   }
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {
@@ -228,29 +251,16 @@ public class MultiDoFnFunction<InputT, OutputT>
     }
   }
 
-  private class DoFnOutputManager
-      implements SparkProcessContext.SparkOutputManager<Tuple2<TupleTag<?>, WindowedValue<?>>> {
-
-    private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
+  private static class SparkNoOpStepContext implements StepContext {
 
     @Override
-    public void clear() {
-      outputs.clear();
+    public StateInternals stateInternals() {
+      throw new UnsupportedOperationException("stateInternals not supported");
     }
 
     @Override
-    public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> iterator() {
-      Iterator<Map.Entry<TupleTag<?>, WindowedValue<?>>> entryIter = outputs.entries().iterator();
-      return Iterators.transform(entryIter, this.entryToTupleFn());
-    }
-
-    private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {
-      return en -> new Tuple2<>(en.getKey(), en.getValue());
-    }
-
-    @Override
-    public synchronized <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      outputs.put(tag, output);
+    public TimerInternals timerInternals() {
+      throw new UnsupportedOperationException("timerInternals not supported");
     }
   }
 }

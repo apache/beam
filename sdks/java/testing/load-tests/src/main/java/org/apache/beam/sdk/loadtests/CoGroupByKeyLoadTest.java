@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 
 import java.io.IOException;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.options.Default;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Load test for {@link CoGroupByKey} operation.

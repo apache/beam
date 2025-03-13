@@ -25,7 +25,6 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -41,6 +40,9 @@ import org.apache.beam.sdk.metrics.MetricsSink;
  * {@code beam.counter.throughput.nbRecords.attempted.value} Or {@code
  * beam.distribution.throughput.nbRecordsPerSec.attempted.mean}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MetricsGraphiteSink implements MetricsSink {
   private static final Charset UTF_8 = Charset.forName("UTF-8");
   private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
@@ -55,7 +57,6 @@ public class MetricsGraphiteSink implements MetricsSink {
     this.charset = UTF_8;
   }
 
-  @Experimental(Experimental.Kind.METRICS)
   @Override
   public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     final long metricTimestamp = System.currentTimeMillis() / 1000L;
@@ -293,10 +294,11 @@ public class MetricsGraphiteSink implements MetricsSink {
       CommittedOrAttemped committedOrAttemped) {
     String metricName =
         String.format(
-            "beam.%s.%s.%s.%s.%s",
+            "beam.%s.%s.%s.%s.%s.%s",
             metricType,
             metric.getName().getNamespace(),
             metric.getName().getName(),
+            metric.getKey().stepName(),
             committedOrAttemped,
             valueType);
 

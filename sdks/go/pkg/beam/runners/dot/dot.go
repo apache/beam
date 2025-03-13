@@ -21,11 +21,11 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"io/ioutil"
+	"os"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	dotlib "github.com/apache/beam/sdks/go/pkg/beam/core/util/dot"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	dotlib "github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/dot"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 func init() {
@@ -37,19 +37,19 @@ func init() {
 var dotFile = flag.String("dot_file", "", "DOT output file to create")
 
 // Execute produces a DOT representation of the pipeline.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if *dotFile == "" {
-		return errors.New("must supply dot_file argument")
+		return nil, errors.New("must supply dot_file argument")
 	}
 
 	edges, nodes, err := p.Build()
 	if err != nil {
-		return errors.New("can't get data to render")
+		return nil, errors.New("can't get data to render")
 	}
 
 	var buf bytes.Buffer
 	if err := dotlib.Render(edges, nodes, &buf); err != nil {
-		return err
+		return nil, err
 	}
-	return ioutil.WriteFile(*dotFile, buf.Bytes(), 0644)
+	return nil, os.WriteFile(*dotFile, buf.Bytes(), 0644)
 }

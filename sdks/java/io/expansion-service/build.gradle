@@ -1,0 +1,80 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
+
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.expansion.service',
+  exportJavadoc: false,
+  validateShadowJar: false,
+  shadowClosure: {},
+)
+
+// We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
+// We set this for python and cross-lang since it cannot be overwritten and version 3.4.0>= is required in order to
+// take advantage of OAuth authentication with all providers.
+configurations.runtimeClasspath {
+  // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
+  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
+}
+
+shadowJar {
+  manifest {
+    attributes(["Multi-Release": true])
+  }
+  mergeServiceFiles()
+  outputs.upToDateWhen { false }
+}
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
+ext.summary = "Expansion service serving several Java IOs"
+
+dependencies {
+  implementation project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:managed")
+  permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
+  implementation project(":sdks:java:io:iceberg")
+  permitUnusedDeclared project(":sdks:java:io:iceberg") // BEAM-11761
+  implementation project(":sdks:java:io:kafka")
+  permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
+  implementation project(":sdks:java:io:kafka:upgrade")
+  permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
+
+  // **** IcebergIO runtime dependencies ****
+  runtimeOnly library.java.hadoop_auth
+  runtimeOnly library.java.hadoop_client
+  // For writing to GCS
+  runtimeOnly library.java.bigdataoss_gcs_connector
+  // HiveCatalog
+  runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
+  runtimeOnly project(path: ":sdks:java:io:iceberg:hive")
+  // BigQueryMetastoreCatalog (Java 11+)
+  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+
+  runtimeOnly library.java.kafka_clients
+  runtimeOnly library.java.slf4j_jdk14
+}
+
+task runExpansionService (type: JavaExec) {
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  classpath = sourceSets.test.runtimeClasspath
+  args = [project.findProperty("constructionService.port") ?: "8097"]
+}

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.runtime;
 
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -25,6 +26,9 @@ import org.joda.time.Instant;
  * contains either an element of main inputs or the collection results from a view (used as side
  * input).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class OpMessage<T> {
   /**
    * Type of the element(s) in the message.
@@ -103,7 +107,7 @@ public class OpMessage<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

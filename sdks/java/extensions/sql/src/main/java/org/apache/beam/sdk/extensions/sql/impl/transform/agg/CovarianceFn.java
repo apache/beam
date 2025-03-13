@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Covariance</em> on {@link Number} types.
@@ -43,6 +43,10 @@ import org.apache.calcite.runtime.SqlFunctions;
  * Statistical Moments".
  */
 @Internal
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CovarianceFn<T extends Number>
     extends Combine.CombineFn<Row, CovarianceAccumulator, T> {
 
@@ -94,8 +98,8 @@ public class CovarianceFn<T extends Number>
 
     return currentVariance.combineWith(
         CovarianceAccumulator.ofSingleElement(
-            SqlFunctions.toBigDecimal((Object) rawInput.getValue(0)),
-            SqlFunctions.toBigDecimal((Object) rawInput.getValue(1))));
+            SqlFunctions.toBigDecimal((Object) rawInput.getBaseValue(0, Object.class)),
+            SqlFunctions.toBigDecimal((Object) rawInput.getBaseValue(1, Object.class))));
   }
 
   @Override
@@ -119,6 +123,11 @@ public class CovarianceFn<T extends Number>
 
     BigDecimal adjustedCount =
         this.isSample ? covariance.count().subtract(BigDecimal.ONE) : covariance.count();
+
+    // Avoid ArithmeticException: Division is undefined when adjustedCount is 0
+    if (adjustedCount.equals(BigDecimal.ZERO)) {
+      return BigDecimal.ZERO;
+    }
 
     return covariance.covariance().divide(adjustedCount, MATH_CTX);
   }

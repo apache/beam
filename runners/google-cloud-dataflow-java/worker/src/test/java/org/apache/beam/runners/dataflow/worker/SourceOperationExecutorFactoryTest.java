@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -60,20 +59,5 @@ public class SourceOperationExecutorFactoryTest {
         SourceOperationExecutorFactory.create(
             PipelineOptionsFactory.create(), request, null, executionContext, "STAGE");
     assertThat(sourceOperationExecutor, instanceOf(WorkerCustomSourceOperationExecutor.class));
-  }
-
-  @Test
-  public void testCreateWithFnApi() throws Exception {
-    SourceOperationRequest request =
-        new SourceOperationRequest()
-            .setName("name")
-            .setOriginalName("original")
-            .setSystemName("system")
-            .setStageName("stage");
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs(new String[] {"--experiments=beam_fn_api"}).create();
-    assertThat(
-        SourceOperationExecutorFactory.create(options, request, null, executionContext, "STAGE"),
-        instanceOf(NoOpSourceOperationExecutor.class));
   }
 }

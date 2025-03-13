@@ -59,14 +59,13 @@ python hourly_team_score.py \
 # DataflowRunner
 python hourly_team_score.py \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \
     --temp_location gs://$BUCKET/user_score/temp
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
 import argparse
 import csv
@@ -106,7 +105,9 @@ class ParseGameEventFn(beam.DoFn):
   The human-readable time string is not used here.
   """
   def __init__(self):
-    super(ParseGameEventFn, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super().__init__()
+    beam.DoFn.__init__(self)
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
   def process(self, elem):
@@ -130,13 +131,16 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    super(ExtractAndSumScore, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super().__init__()
+    beam.PTransform.__init__(self)
     self.field = field
 
   def expand(self, pcoll):
-    return (pcoll
-            | beam.Map(lambda elem: (elem[self.field], elem['score']))
-            | beam.CombinePerKey(sum))
+    return (
+        pcoll
+        | beam.Map(lambda elem: (elem[self.field], elem['score']))
+        | beam.CombinePerKey(sum))
 
 
 class TeamScoresDict(beam.DoFn):
@@ -167,7 +171,9 @@ class WriteToBigQuery(beam.PTransform):
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
       project: Name of the Cloud project containing BigQuery table.
     """
-    super(WriteToBigQuery, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super().__init__()
+    beam.PTransform.__init__(self)
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
@@ -175,14 +181,14 @@ class WriteToBigQuery(beam.PTransform):
 
   def get_schema(self):
     """Build the output table schema."""
-    return ', '.join(
-        '%s:%s' % (col, self.schema[col]) for col in self.schema)
+    return ', '.join('%s:%s' % (col, self.schema[col]) for col in self.schema)
 
   def expand(self, pcoll):
     return (
         pcoll
-        | 'ConvertToRow' >> beam.Map(
-            lambda elem: {col: elem[col] for col in self.schema})
+        | 'ConvertToRow' >>
+        beam.Map(lambda elem: {col: elem[col]
+                               for col in self.schema})
         | beam.io.WriteToBigQuery(
             self.table_name, self.dataset, self.project, self.get_schema()))
 
@@ -190,7 +196,9 @@ class WriteToBigQuery(beam.PTransform):
 # [START main]
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
-    super(HourlyTeamScore, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super().__init__()
+    beam.PTransform.__init__(self)
     self.start_timestamp = str2timestamp(start_min)
     self.stop_timestamp = str2timestamp(stop_min)
     self.window_duration_in_seconds = window_duration * 60
@@ -209,10 +217,10 @@ class HourlyTeamScore(beam.PTransform):
         # need to weed out events that fall after the time period we want to
         # analyze.
         # [START filter_by_time_range]
-        | 'FilterStartTime' >> beam.Filter(
-            lambda elem: elem['timestamp'] > self.start_timestamp)
-        | 'FilterEndTime' >> beam.Filter(
-            lambda elem: elem['timestamp'] < self.stop_timestamp)
+        | 'FilterStartTime' >>
+        beam.Filter(lambda elem: elem['timestamp'] > self.start_timestamp)
+        | 'FilterEndTime' >>
+        beam.Filter(lambda elem: elem['timestamp'] < self.stop_timestamp)
         # [END filter_by_time_range]
 
         # [START add_timestamp_and_window]
@@ -228,44 +236,50 @@ class HourlyTeamScore(beam.PTransform):
         | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
 
   # The default maps to two large Google Cloud Storage files (each ~12GB)
   # holding two subsequent day's worth (roughly) of data.
-  parser.add_argument('--input',
-                      type=str,
-                      default='gs://apache-beam-samples/game/gaming_data*.csv',
-                      help='Path to the data file(s) containing game data.')
-  parser.add_argument('--dataset',
-                      type=str,
-                      required=True,
-                      help='BigQuery Dataset to write tables to. '
-                      'Must already exist.')
-  parser.add_argument('--table_name',
-                      default='leader_board',
-                      help='The BigQuery table name. Should not already exist.')
-  parser.add_argument('--window_duration',
-                      type=int,
-                      default=60,
-                      help='Numeric value of fixed window duration, in minutes')
-  parser.add_argument('--start_min',
-                      type=str,
-                      default='1970-01-01-00-00',
-                      help='String representation of the first minute after '
-                           'which to generate results in the format: '
-                           'yyyy-MM-dd-HH-mm. Any input data timestamped '
-                           'prior to that minute won\'t be included in the '
-                           'sums.')
-  parser.add_argument('--stop_min',
-                      type=str,
-                      default='2100-01-01-00-00',
-                      help='String representation of the first minute for '
-                           'which to generate results in the format: '
-                           'yyyy-MM-dd-HH-mm. Any input data timestamped '
-                           'after to that minute won\'t be included in the '
-                           'sums.')
+  parser.add_argument(
+      '--input',
+      type=str,
+      default='gs://apache-beam-samples/game/gaming_data*.csv',
+      help='Path to the data file(s) containing game data.')
+  parser.add_argument(
+      '--dataset',
+      type=str,
+      required=True,
+      help='BigQuery Dataset to write tables to. '
+      'Must already exist.')
+  parser.add_argument(
+      '--table_name',
+      default='leader_board',
+      help='The BigQuery table name. Should not already exist.')
+  parser.add_argument(
+      '--window_duration',
+      type=int,
+      default=60,
+      help='Numeric value of fixed window duration, in minutes')
+  parser.add_argument(
+      '--start_min',
+      type=str,
+      default='1970-01-01-00-00',
+      help='String representation of the first minute after '
+      'which to generate results in the format: '
+      'yyyy-MM-dd-HH-mm. Any input data timestamped '
+      'prior to that minute won\'t be included in the '
+      'sums.')
+  parser.add_argument(
+      '--stop_min',
+      type=str,
+      default='2100-01-01-00-00',
+      help='String representation of the first minute for '
+      'which to generate results in the format: '
+      'yyyy-MM-dd-HH-mm. Any input data timestamped '
+      'after to that minute won\'t be included in the '
+      'sums.')
 
   args, pipeline_args = parser.parse_known_args(argv)
 
@@ -279,22 +293,27 @@ def run(argv=None):
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
-  options.view_as(SetupOptions).save_main_session = True
+  options.view_as(SetupOptions).save_main_session = save_main_session
 
   with beam.Pipeline(options=options) as p:
-    (p  # pylint: disable=expression-not-assigned
-     | 'ReadInputText' >> beam.io.ReadFromText(args.input)
-     | 'HourlyTeamScore' >> HourlyTeamScore(
-         args.start_min, args.stop_min, args.window_duration)
-     | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
-     | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name, args.dataset, {
-             'team': 'STRING',
-             'total_score': 'INTEGER',
-             'window_start': 'STRING',
-         }, options.view_as(GoogleCloudOptions).project))
-# [END main]
+    (  # pylint: disable=expression-not-assigned
+        p
+        | 'ReadInputText' >> beam.io.ReadFromText(args.input)
+        | 'HourlyTeamScore' >> HourlyTeamScore(
+            args.start_min, args.stop_min, args.window_duration)
+        | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
+        | 'WriteTeamScoreSums' >> WriteToBigQuery(
+            args.table_name,
+            args.dataset,
+            {
+                'team': 'STRING',
+                'total_score': 'INTEGER',
+                'window_start': 'STRING',
+            },
+            options.view_as(GoogleCloudOptions).project))
 
+
+# [END main]
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

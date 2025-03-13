@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.api.services.dataflow.model.Source;
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -39,6 +41,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ReaderFactory. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ReaderFactoryTest {
 
   static class TestReaderFactory implements ReaderFactory {
@@ -134,7 +139,7 @@ public class ReaderFactoryTest {
             PipelineOptionsFactory.create(),
             BatchModeExecutionContext.forTesting(options, "testStage"),
             null);
-    Assert.assertThat(reader, new IsInstanceOf(TestReader.class));
+    assertThat(reader, new IsInstanceOf(TestReader.class));
   }
 
   @Test
@@ -153,7 +158,7 @@ public class ReaderFactoryTest {
               null);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Reader"));
+      assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Reader"));
     }
   }
 }

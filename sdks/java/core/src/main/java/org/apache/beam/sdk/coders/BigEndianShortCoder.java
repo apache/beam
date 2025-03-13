@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +24,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 4 bytes, big-endian. */
+/** A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 2 bytes, big-endian. */
 public class BigEndianShortCoder extends AtomicCoder<Short> {
 
   public static BigEndianShortCoder of() {
@@ -45,13 +43,13 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
     if (value == null) {
       throw new CoderException("cannot encode a null Short");
     }
-    new DataOutputStream(outStream).writeShort(value);
+    BitConverters.writeBigEndianShort(value, outStream);
   }
 
   @Override
   public Short decode(InputStream inStream) throws IOException, CoderException {
     try {
-      return new DataInputStream(inStream).readShort();
+      return BitConverters.readBigEndianShort(inStream);
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.

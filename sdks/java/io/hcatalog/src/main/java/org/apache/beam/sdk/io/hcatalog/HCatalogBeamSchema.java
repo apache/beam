@@ -17,18 +17,17 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import com.sun.istack.Nullable;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Adapter from HCatalog table schema to Beam {@link org.apache.beam.sdk.schemas.Schema}.
@@ -38,10 +37,12 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
  *
  * <p>One of the use cases is to perform the schema conversion without leaking any HCatalog types.
  */
-@Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HCatalogBeamSchema {
 
-  private @Nullable final IMetaStoreClient metastore;
+  private final @Nullable IMetaStoreClient metastore;
 
   private HCatalogBeamSchema(IMetaStoreClient metastore) {
     this.metastore = metastore;

@@ -17,225 +17,96 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-
-import java.math.BigDecimal;
 import java.sql.JDBCType;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Objects;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType} implementations of JDBC types. */
-public class LogicalTypes {
-  public static final Schema.FieldType JDBC_BIT_TYPE =
+class LogicalTypes {
+  // Logical types of the following static members are not portable and are preserved for
+  // compatibility reason. Consider using portable logical types when adding new ones.
+  static final Schema.FieldType JDBC_BIT_TYPE =
       Schema.FieldType.logicalType(
-          new org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType<Boolean>(
-              JDBCType.BIT.getName(), "", Schema.FieldType.BOOLEAN) {});
+          new PassThroughLogicalType<Boolean>(
+              JDBCType.BIT.getName(), FieldType.STRING, "", Schema.FieldType.BOOLEAN) {});
 
-  public static final Schema.FieldType JDBC_DATE_TYPE =
+  static final Schema.FieldType JDBC_DATE_TYPE =
       Schema.FieldType.logicalType(
-          new org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType<Instant>(
-              JDBCType.DATE.getName(), "", Schema.FieldType.DATETIME) {});
+          new PassThroughLogicalType<Instant>(
+              JDBCType.DATE.getName(), FieldType.STRING, "", Schema.FieldType.DATETIME) {});
 
-  public static final Schema.FieldType JDBC_FLOAT_TYPE =
+  static final Schema.FieldType JDBC_FLOAT_TYPE =
       Schema.FieldType.logicalType(
-          new org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType<Double>(
-              JDBCType.FLOAT.getName(), "", Schema.FieldType.DOUBLE) {});
+          new PassThroughLogicalType<Double>(
+              JDBCType.FLOAT.getName(), FieldType.STRING, "", Schema.FieldType.DOUBLE) {});
 
-  public static final Schema.FieldType JDBC_TIME_TYPE =
+  static final Schema.FieldType JDBC_TIME_TYPE =
       Schema.FieldType.logicalType(
-          new org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType<Instant>(
-              JDBCType.TIME.getName(), "", Schema.FieldType.DATETIME) {});
+          new PassThroughLogicalType<Instant>(
+              JDBCType.TIME.getName(), FieldType.STRING, "", Schema.FieldType.DATETIME) {});
 
-  public static final Schema.FieldType JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE =
+  static final Schema.FieldType JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE =
       Schema.FieldType.logicalType(
-          new org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType<Instant>(
-              JDBCType.TIMESTAMP_WITH_TIMEZONE.getName(), "", Schema.FieldType.DATETIME) {});
+          new PassThroughLogicalType<Instant>(
+              JDBCType.TIMESTAMP_WITH_TIMEZONE.getName(),
+              FieldType.STRING,
+              "",
+              Schema.FieldType.DATETIME) {});
+
+  static final Schema.FieldType JDBC_UUID_TYPE =
+      Schema.FieldType.logicalType(new UuidLogicalType());
+
+  static final Schema.FieldType OTHER_AS_STRING_TYPE =
+      Schema.FieldType.logicalType(
+          new PassThroughLogicalType<String>(
+              JDBCType.OTHER.getName(), FieldType.STRING, "", FieldType.STRING) {});
 
   @VisibleForTesting
   static Schema.FieldType fixedLengthString(JDBCType jdbcType, int length) {
-    return Schema.FieldType.logicalType(FixedLengthString.of(jdbcType.getName(), length));
+    return Schema.FieldType.logicalType(FixedString.of(jdbcType.getName(), length));
   }
 
   @VisibleForTesting
   static Schema.FieldType fixedLengthBytes(JDBCType jdbcType, int length) {
-    return Schema.FieldType.logicalType(FixedLengthBytes.of(jdbcType.getName(), length));
+    return Schema.FieldType.logicalType(FixedBytes.of(jdbcType.getName(), length));
   }
 
   @VisibleForTesting
   static Schema.FieldType variableLengthString(JDBCType jdbcType, int length) {
-    return Schema.FieldType.logicalType(VariableLengthString.of(jdbcType.getName(), length));
+    return Schema.FieldType.logicalType(VariableString.of(jdbcType.getName(), length));
   }
 
   @VisibleForTesting
   static Schema.FieldType variableLengthBytes(JDBCType jdbcType, int length) {
-    return Schema.FieldType.logicalType(VariableLengthBytes.of(jdbcType.getName(), length));
+    return Schema.FieldType.logicalType(VariableBytes.of(jdbcType.getName(), length));
   }
 
   @VisibleForTesting
   static Schema.FieldType numeric(int precision, int scale) {
-    return Schema.FieldType.logicalType(
-        FixedPrecisionNumeric.of(JDBCType.NUMERIC.getName(), precision, scale));
+    return Schema.FieldType.logicalType(FixedPrecisionNumeric.of(precision, scale));
   }
 
-  /** Base class for JDBC logical types. */
-  public abstract static class JdbcLogicalType<T> implements Schema.LogicalType<T, T> {
-    protected final String identifier;
-    protected final Schema.FieldType baseType;
-    protected final String argument;
-
-    protected JdbcLogicalType(String identifier, Schema.FieldType baseType, String argument) {
-      this.identifier = identifier;
-      this.baseType = baseType;
-      this.argument = argument;
-    }
-
-    @Override
-    public String getIdentifier() {
-      return identifier;
-    }
-
-    @Override
-    public String getArgument() {
-      return argument;
-    }
-
-    @Override
-    public Schema.FieldType getBaseType() {
-      return baseType;
-    }
-
-    @Override
-    public T toBaseType(T input) {
-      return input;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof JdbcLogicalType)) {
-        return false;
-      }
-      JdbcLogicalType<?> that = (JdbcLogicalType<?>) o;
-      return Objects.equals(identifier, that.identifier)
-          && Objects.equals(baseType, that.baseType)
-          && Objects.equals(argument, that.argument);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(identifier, baseType, argument);
-    }
-  }
-
-  /** Fixed length string types such as CHAR. */
-  public static final class FixedLengthString extends JdbcLogicalType<String> {
-    private final int length;
-
-    public static FixedLengthString of(String identifier, int length) {
-      return new FixedLengthString(identifier, length);
-    }
-
-    private FixedLengthString(String identifier, int length) {
-      super(identifier, Schema.FieldType.STRING, String.valueOf(length));
-      this.length = length;
-    }
-
-    @Override
-    public String toInputType(String base) {
-      checkArgument(base == null || base.length() <= length);
-      return StringUtils.rightPad(base, length);
-    }
-  }
-
-  /** Fixed length byte types such as BINARY. */
-  public static final class FixedLengthBytes extends JdbcLogicalType<byte[]> {
-    private final int length;
-
-    public static FixedLengthBytes of(String identifier, int length) {
-      return new FixedLengthBytes(identifier, length);
-    }
-
-    private FixedLengthBytes(String identifier, int length) {
-      super(identifier, Schema.FieldType.BYTES, String.valueOf(length));
-      this.length = length;
-    }
-
-    @Override
-    public byte[] toInputType(byte[] base) {
-      checkArgument(base == null || base.length <= length);
-      if (base == null || base.length == length) {
-        return base;
-      } else {
-        return Arrays.copyOf(base, length);
-      }
-    }
-  }
-
-  /** Variable length string types such as VARCHAR and LONGVARCHAR. */
-  public static final class VariableLengthString extends JdbcLogicalType<String> {
-    private final int maxLength;
-
-    public static VariableLengthString of(String identifier, int maxLength) {
-      return new VariableLengthString(identifier, maxLength);
-    }
-
-    private VariableLengthString(String identifier, int maxLength) {
-      super(identifier, Schema.FieldType.STRING, String.valueOf(maxLength));
-      this.maxLength = maxLength;
-    }
-
-    @Override
-    public String toInputType(String base) {
-      checkArgument(base == null || base.length() <= maxLength);
-      return base;
-    }
-  }
-
-  /** Variable length bytes types such as VARBINARY and LONGVARBINARY. */
-  public static final class VariableLengthBytes extends JdbcLogicalType<byte[]> {
-    private final int maxLength;
-
-    public static VariableLengthBytes of(String identifier, int maxLength) {
-      return new VariableLengthBytes(identifier, maxLength);
-    }
-
-    private VariableLengthBytes(String identifier, int maxLength) {
-      super(identifier, Schema.FieldType.BYTES, String.valueOf(maxLength));
-      this.maxLength = maxLength;
-    }
-
-    @Override
-    public byte[] toInputType(byte[] base) {
-      checkArgument(base == null || base.length <= maxLength);
-      return base;
-    }
-  }
-
-  /** Fixed precision numeric types such as NUMERIC. */
-  public static final class FixedPrecisionNumeric extends JdbcLogicalType<BigDecimal> {
-    private final int precision;
-    private final int scale;
-
-    public static FixedPrecisionNumeric of(String identifier, int precision, int scale) {
-      return new FixedPrecisionNumeric(identifier, precision, scale);
-    }
-
-    private FixedPrecisionNumeric(String identifier, int precision, int scale) {
-      super(identifier, Schema.FieldType.DECIMAL, precision + ":" + scale);
-      this.precision = precision;
-      this.scale = scale;
-    }
-
-    @Override
-    public BigDecimal toInputType(BigDecimal base) {
-      checkArgument(base == null || (base.precision() == precision && base.scale() == scale));
-      return base;
+  /**
+   * Returns a {@link FixedBytes}, or {@link VariableBytes} when length is Integer.MAX_VALUE.
+   *
+   * <p>In some database, certain variable bytes type (e.g. bytea in postgresql) also returns BINARY
+   * jdbc type. This helper method make BINARY(Integer.MAX_VALUE) returns a variable bytes logical
+   * type thus avoid out-of-memory due to padding in fixed-length bytes.
+   */
+  static Schema.LogicalType<byte[], byte[]> fixedOrVariableBytes(String name, int length) {
+    if (length == Integer.MAX_VALUE) {
+      return VariableBytes.of(name, length);
+    } else {
+      return FixedBytes.of(name, length);
     }
   }
 }

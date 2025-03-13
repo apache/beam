@@ -17,25 +17,25 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -105,6 +105,28 @@ public class WindowMergingFnRunnerTest {
         Iterables.getOnlyElement(output.getValue().getValue());
     assertEquals(new IntervalWindow(new Instant(7L), new Instant(11L)), mergedOutput.getKey());
     assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMerged));
+
+    // Process a new group of windows, make sure that previous result has been cleaned up.
+    BoundedWindow[] expectedToBeMergedGroup2 =
+        new BoundedWindow[] {
+          new IntervalWindow(new Instant(15L), new Instant(17L)),
+          new IntervalWindow(new Instant(16L), new Instant(18L))
+        };
+
+    input =
+        KV.of(
+            "abc",
+            ImmutableList.<BoundedWindow>builder()
+                .add(expectedToBeMergedGroup2)
+                .addAll(expectedToBeUnmerged)
+                .build());
+
+    output = mapFunction.apply(input);
+    assertEquals(input.getKey(), output.getKey());
+    assertEquals(expectedToBeUnmerged, output.getValue().getKey());
+    mergedOutput = Iterables.getOnlyElement(output.getValue().getValue());
+    assertEquals(new IntervalWindow(new Instant(15L), new Instant(18L)), mergedOutput.getKey());
+    assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMergedGroup2));
   }
 
   private static <W extends BoundedWindow> RunnerApi.PTransform createMergeTransformForWindowFn(

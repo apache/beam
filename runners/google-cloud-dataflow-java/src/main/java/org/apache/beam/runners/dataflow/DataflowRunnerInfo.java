@@ -17,18 +17,21 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Populates versioning and other information for {@link DataflowRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class DataflowRunnerInfo extends ReleaseInfo {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerInfo.class);
 
@@ -38,7 +41,9 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
       "fnapi.environment.major.version";
   private static final String LEGACY_ENVIRONMENT_MAJOR_VERSION_KEY =
       "legacy.environment.major.version";
-  private static final String CONTAINER_VERSION_KEY = "container.version";
+  private static final String CONTAINER_FNAPI_VERSION_KEY = "fnapi.container.version";
+  private static final String CONTAINER_LEGACY_VERSION_KEY = "legacy.container.version";
+  private static final String CONTAINER_BASE_REPOSITORY_KEY = "container.base_repository";
 
   private static class LazyInit {
     private static final DataflowRunnerInfo INSTANCE;
@@ -96,10 +101,25 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
     return properties.get(FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY);
   }
 
-  /** Provides the container version that will be used for constructing harness image paths. */
-  public String getContainerVersion() {
-    checkState(properties.containsKey(CONTAINER_VERSION_KEY), "Unknown container version");
-    return properties.get(CONTAINER_VERSION_KEY);
+  /** Provides the version/tag for dev SDK FnAPI container image. */
+  public String getFnApiDevContainerVersion() {
+    checkState(
+        properties.containsKey(CONTAINER_FNAPI_VERSION_KEY), "Unknown FnAPI container version");
+    return properties.get(CONTAINER_FNAPI_VERSION_KEY);
+  }
+
+  /** Provides the version/tag for legacy SDK FnAPI container image. */
+  public String getLegacyDevContainerVersion() {
+    checkState(
+        properties.containsKey(CONTAINER_LEGACY_VERSION_KEY), "Unknown legacy container version");
+    return properties.get(CONTAINER_LEGACY_VERSION_KEY);
+  }
+
+  /** Provides the version/tag for constructing the container image path. */
+  public String getContainerImageBaseRepository() {
+    checkState(
+        properties.containsKey(CONTAINER_BASE_REPOSITORY_KEY), "Unknown container base repository");
+    return properties.get(CONTAINER_BASE_REPOSITORY_KEY);
   }
 
   @Override
