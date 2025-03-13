@@ -27,7 +27,6 @@ from typing import Sequence
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.cloud import aiplatform
-import requests
 
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
@@ -289,7 +288,7 @@ class VertexAITritonModelHandler(ModelHandler[Any,
         self.throttler = AdaptiveThrottler(
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
-    def load_model(self) -> str:
+    def load_model(self) -> aiplatform.Endpoint:
         """Loads the Endpoint object used to build and send prediction request to
             Vertex AI.
         """
