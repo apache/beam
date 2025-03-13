@@ -270,13 +270,17 @@ class VertexAITritonModelHandler(ModelHandler[Any,
                  project_id: str,
                  region: str,
                  endpoint_name: str,
+                 location: str,
                  payload_config: Optional[Dict[str,Any]] = None,
+                 private: bool = False,
+                 
                  ):
         self.project_id = project_id
         self.region = region
         self.endpoint_name = endpoint_name
         self.endpoint_url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/endpoints/{endpoint_name}:predict"
-        
+        self.is_private = private
+        self.location = location
         self.payload_config = payload_config if payload_config else {}
         
         # Configure AdaptiveThrottler and throttling metrics for client-side
