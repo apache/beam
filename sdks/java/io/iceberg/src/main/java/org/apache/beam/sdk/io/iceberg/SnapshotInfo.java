@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -26,8 +28,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /**
  * This is an AutoValue representation of an Iceberg {@link Snapshot}.
@@ -39,7 +45,12 @@ import org.apache.iceberg.Snapshot;
 @AutoValue
 public abstract class SnapshotInfo {
   public static SnapshotInfo fromSnapshot(Snapshot snapshot) {
+    return fromSnapshot(snapshot, null);
+  }
+
+  public static SnapshotInfo fromSnapshot(Snapshot snapshot, @Nullable String tableIdentifier) {
     return SnapshotInfo.builder()
+        .setTableIdentifierString(tableIdentifier)
         .setSequenceNumber(snapshot.sequenceNumber())
         .setSnapshotId(snapshot.snapshotId())
         .setParentId(snapshot.parentId())
@@ -63,21 +74,28 @@ public abstract class SnapshotInfo {
     }
   }
 
-  public static final SchemaCoder<SnapshotInfo> CODER;
-  public static final Schema SCHEMA;
+  private static @MonotonicNonNull SchemaCoder<SnapshotInfo> coder;
+  private static @MonotonicNonNull Schema schema;
 
-  static {
-    try {
-      SchemaRegistry registry = SchemaRegistry.createDefault();
-      CODER = registry.getSchemaCoder(SnapshotInfo.class);
-      SCHEMA = registry.getSchema(SnapshotInfo.class).sorted().toSnakeCase();
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException(e);
+  static SchemaCoder<SnapshotInfo> getCoder() {
+    if (coder == null) {
+      initSchemaAndCoder();
     }
+    return checkStateNotNull(coder);
   }
+
+  private transient @MonotonicNonNull TableIdentifier cachedTableIdentifier;
 
   public static Builder builder() {
     return new AutoValue_SnapshotInfo.Builder();
+  }
+
+  @SchemaIgnore
+  public TableIdentifier getTableIdentifier() {
+    if (cachedTableIdentifier == null) {
+      cachedTableIdentifier = TableIdentifier.parse(checkStateNotNull(getTableIdentifierString()));
+    }
+    return cachedTableIdentifier;
   }
 
   public abstract long getSequenceNumber();
@@ -95,6 +113,8 @@ public abstract class SnapshotInfo {
   public abstract @Nullable String getManifestListLocation();
 
   public abstract @Nullable Integer getSchemaId();
+
+  public abstract @Nullable String getTableIdentifierString();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -114,6 +134,26 @@ public abstract class SnapshotInfo {
 
     public abstract Builder setSchemaId(Integer schemaId);
 
+    abstract Builder setTableIdentifierString(@Nullable String table);
+
     public abstract SnapshotInfo build();
+  }
+
+  @VisibleForTesting
+  static Schema getSchema() {
+    if (schema == null) {
+      initSchemaAndCoder();
+    }
+    return checkStateNotNull(schema);
+  }
+
+  private static void initSchemaAndCoder() {
+    try {
+      SchemaRegistry registry = SchemaRegistry.createDefault();
+      coder = registry.getSchemaCoder(SnapshotInfo.class);
+      schema = registry.getSchema(SnapshotInfo.class).sorted().toSnakeCase();
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

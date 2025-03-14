@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.apache.iceberg.hadoop.HadoopOutputFile.fromPath;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
@@ -107,6 +111,11 @@ public class TestDataWarehouse extends ExternalResource {
     }
   }
 
+  public DataFile writeData(String filename, Schema schema, List<Map<String, Object>> data)
+      throws IOException {
+    return writeRecords(filename, schema, Lists.transform(data, d -> createRecord(schema, d)));
+  }
+
   public DataFile writeRecords(String filename, Schema schema, List<Record> records)
       throws IOException {
     return writeRecords(filename, schema, PartitionSpec.unpartitioned(), null, records);
@@ -169,5 +178,56 @@ public class TestDataWarehouse extends ExternalResource {
 
   public Table loadTable(TableIdentifier tableId) {
     return catalog.loadTable(tableId);
+  }
+
+  public List<List<Record>> commitData(Table simpleTable) throws IOException {
+    List<List<Record>> data =
+        Arrays.asList(
+            TestFixtures.FILE1SNAPSHOT1,
+            TestFixtures.FILE2SNAPSHOT1,
+            TestFixtures.FILE3SNAPSHOT1,
+            TestFixtures.FILE1SNAPSHOT2,
+            TestFixtures.FILE2SNAPSHOT2,
+            TestFixtures.FILE3SNAPSHOT2,
+            TestFixtures.FILE1SNAPSHOT3,
+            TestFixtures.FILE2SNAPSHOT3,
+            TestFixtures.FILE3SNAPSHOT3,
+            TestFixtures.FILE1SNAPSHOT4,
+            TestFixtures.FILE2SNAPSHOT4,
+            TestFixtures.FILE3SNAPSHOT4);
+
+    // first snapshot
+    simpleTable
+        .newFastAppend()
+        .appendFile(writeRecords("file1s1.parquet", simpleTable.schema(), data.get(0)))
+        .appendFile(writeRecords("file2s1.parquet", simpleTable.schema(), data.get(1)))
+        .appendFile(writeRecords("file3s1.parquet", simpleTable.schema(), data.get(2)))
+        .commit();
+
+    // second snapshot
+    simpleTable
+        .newFastAppend()
+        .appendFile(writeRecords("file1s2.parquet", simpleTable.schema(), data.get(3)))
+        .appendFile(writeRecords("file2s2.parquet", simpleTable.schema(), data.get(4)))
+        .appendFile(writeRecords("file3s2.parquet", simpleTable.schema(), data.get(5)))
+        .commit();
+
+    // third snapshot
+    simpleTable
+        .newFastAppend()
+        .appendFile(writeRecords("file1s3.parquet", simpleTable.schema(), data.get(6)))
+        .appendFile(writeRecords("file2s3.parquet", simpleTable.schema(), data.get(7)))
+        .appendFile(writeRecords("file3s3.parquet", simpleTable.schema(), data.get(8)))
+        .commit();
+
+    // fourth snapshot
+    simpleTable
+        .newFastAppend()
+        .appendFile(writeRecords("file1s4.parquet", simpleTable.schema(), data.get(9)))
+        .appendFile(writeRecords("file2s4.parquet", simpleTable.schema(), data.get(10)))
+        .appendFile(writeRecords("file3s4.parquet", simpleTable.schema(), data.get(11)))
+        .commit();
+
+    return data;
   }
 }
