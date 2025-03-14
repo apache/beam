@@ -16,16 +16,20 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  groovy
+  id("org.apache.beam.module")
+}
 
-applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.kafka.jmh',
-  enableJmh: true,
-  publish: false)
+val applyJavaNature: groovy.lang.Closure<Any?> by extra
+applyJavaNature(mapOf(
+  "automaticModuleName" to "org.apache.beam.sdk.io.kafka.jmh",
+  "enableJmh" to true,
+  "publish" to false))
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka :: JMH"
-ext.summary = "This contains JMH benchmarks for the Kafka IO connector for Beam Java"
+val summary by extra("This contains JMH benchmarks for the Kafka IO connector for Beam Java")
 
 dependencies {
-  implementation project(path: ":sdks:java:io:kafka")
+  implementation(project(":sdks:java:io:kafka"))
 }
