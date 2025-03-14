@@ -119,14 +119,14 @@ class InputConverterTest(unittest.TestCase):
   def test_convert_to_torch(self):
     result = InputConverter.convert_to(self.input_data, torch.Tensor)
     self.assertTrue(isinstance(result, torch.Tensor))
-    self.assertTrue(torch.equal(result, torch.Tensor([1, 2, 3])))
+    self.assertTrue(torch.equal(result, torch.tensor([1, 2, 3])))
 
   @unittest.skipIf(torch is None, "torch is not installed")
   def test_convert_to_keyed_torch(self):
     result = InputConverter.convert_to(self.input_data, Dict[str, torch.Tensor])
     self.assertTrue(isinstance(result, dict))
     expected = {
-        'a': torch.Tensor(1), 'b': torch.Tensor(2), 'c': torch.Tensor(3)
+        'a': torch.tensor(1), 'b': torch.tensor(2), 'c': torch.tensor(3)
     }
     for key, value in result.items():
       self.assertTrue(torch.equal(value, expected[key]))

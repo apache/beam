@@ -56,12 +56,12 @@ def _to_pandas_dataframe(row: beam.Row):
 
 def _to_pytorch_tensor(row: beam.Row):
   """Converts an Apache Beam Row to a PyTorch Tensor."""
-  return torch.Tensor(list(row))
+  return torch.tensor(list(row))
 
 
 def _to_pytorch_keyed_tensor(row: beam.Row):
   """Converts an Apache Beam Row to a dictionary of PyTorch Tensors."""
-  return {str(k): torch.Tensor(v) for k, v in row._asdict().items()}
+  return {str(k): torch.tensor(v) for k, v in row._asdict().items()}
 
 
 def _to_tensorflow_tensor(row: beam.Row):
