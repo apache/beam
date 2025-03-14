@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.CREATED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -69,8 +68,7 @@ public class ChildPartitionsRecordActionTest {
     interrupter = mock(RestrictionInterrupter.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
 
-    when(dao.runInTransaction(any(), anyObject()))
-        .thenAnswer(new TestTransactionAnswer(transaction));
+    when(dao.runInTransaction(any(), any())).thenAnswer(new TestTransactionAnswer(transaction));
   }
 
   @Test

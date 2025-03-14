@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -61,6 +62,7 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
+  private final Map<PCollection<?>, Integer> pCollectionConsumptionMap = new HashMap<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
@@ -305,6 +307,45 @@ public class EvaluationContext {
    */
   public <K, V> boolean isCandidateForGroupByKeyAndWindow(GroupByKey<K, V> transform) {
     return groupByKeyCandidatesForMemoryOptimizedTranslation.containsKey(transform);
+  }
+
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionConsumed(PCollection<?> pCollection) {
+    int count = this.pCollectionConsumptionMap.getOrDefault(pCollection, 0);
+    this.pCollectionConsumptionMap.put(pCollection, count + 1);
+  }
+
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionProduced(PCollection<?> pCollection) {
+    this.pCollectionConsumptionMap.computeIfAbsent(pCollection, k -> 0);
+  }
+
+  /**
+   * Get the map of {@link PCollection} to the number of {@link PTransform} consuming it.
+   *
+   * @return
+   */
+  public Map<PCollection<?>, Integer> getPCollectionConsumptionMap() {
+    return Collections.unmodifiableMap(pCollectionConsumptionMap);
+  }
+
+  /**
+   * Check if given {@link PCollection} is a leaf or not. {@link PCollection} is a leaf when there
+   * is no other {@link PTransform} consuming it / depending on it.
+   *
+   * @param pCollection to be checked if it is a leaf
+   * @return true if pCollection is leaf; otherwise false
+   */
+  public boolean isLeaf(PCollection<?> pCollection) {
+    return this.pCollectionConsumptionMap.get(pCollection) == 0;
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {

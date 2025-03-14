@@ -24,10 +24,9 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
 import java.io.IOException;
 import java.util.List;
-
-import com.google.cloud.bigquery.storage.v1.Exceptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -212,12 +211,12 @@ public class StorageApiSinkRowUpdateIT {
       while (root != null && root.getCause() != null) {
         root = root.getCause();
       }
-      // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been flushed.
+      // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been
+      // flushed.
       if (root instanceof Exceptions.StreamWriterClosedException) {
         return;
       }
       throw e;
     }
   }
-
 }

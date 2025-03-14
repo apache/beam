@@ -20,8 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.mockito.Mockito.mockStatic;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,12 +35,11 @@ import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
 
 /** Tests for {@link ProducerRecordCoder}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ConsumerSpEL.class)
+@RunWith(JUnit4.class)
 public class ProducerRecordCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
@@ -113,11 +111,13 @@ public class ProducerRecordCoderTest {
     ProducerRecord<byte[], byte[]> producerRecord =
         new ProducerRecord<>(
             "topic", 1, null, "key".getBytes(UTF_8), "value".getBytes(UTF_8), headers);
-    mockStatic(ConsumerSpEL.class);
-    when(ConsumerSpEL.hasHeaders()).thenReturn(false);
-    ProducerRecord<byte[], byte[]> testProducerRecord =
-        (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
-    assertEquals(testProducerRecord.headers(), new RecordHeaders());
+    try (MockedStatic<ConsumerSpEL> staticMock = mockStatic(ConsumerSpEL.class)) {
+      staticMock.when(ConsumerSpEL::hasHeaders).thenReturn(false);
+      ProducerRecord<byte[], byte[]> testProducerRecord =
+          (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
+
+      assertEquals(testProducerRecord.headers(), new RecordHeaders());
+    }
   }
 
   private ProducerRecord<String, String> verifySerialization(Integer partition, Long timestamp)

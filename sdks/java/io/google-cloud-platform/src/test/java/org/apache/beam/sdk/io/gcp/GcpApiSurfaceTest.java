@@ -124,6 +124,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("javax"),
             classesInPackage("org.apache.avro"),
             classesInPackage("org.apache.beam"),
+            classesInPackage("org.apache.beam.model.pipeline.v1"),
             classesInPackage("org.joda.time"),
             classesInPackage("org.threeten.bp"),
             classesInPackage("com.google.gson"));

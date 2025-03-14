@@ -16,8 +16,10 @@
 #
 
 import argparse
+import glob
 import io
 import itertools
+import os
 import re
 
 import docstring_parser
@@ -258,19 +260,7 @@ def transform_docs(transform_base, transforms, providers, extra_docs=''):
   ])
 
 
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--markdown_file')
-  parser.add_argument('--html_file')
-  parser.add_argument('--schema_file')
-  parser.add_argument('--include', default='.*')
-  parser.add_argument('--exclude', default='')
-  options = parser.parse_args()
-  include = re.compile(options.include).match
-  exclude = (
-      re.compile(options.exclude).match
-      if options.exclude else lambda x: x in SKIP)
-
+def create_index(include, exclude, options):
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
     markdown_out = io.StringIO()
@@ -322,29 +312,78 @@ def main():
                       }
                   }
               })
+    return json_config_schemas, markdown_out.getvalue()
 
-    if options.schema_file:
-      with open(options.schema_file, 'w') as fout:
-        yaml.dump(json_config_schemas, fout, sort_keys=False)
 
-    if options.markdown_file:
-      with open(options.markdown_file, 'w') as fout:
-        fout.write(markdown_out.getvalue())
+def create_examples_markdown():
+  markdown_out = io.StringIO()
+  base = os.path.join(os.path.dirname(__file__), 'examples')
+  section = last_section = ''
+  for path in sorted(glob.glob(os.path.join(base, '**', '*.yaml'),
+                               recursive=True),
+                     key=lambda path: (path.count(os.sep), path)):
+    short_path = path[len(base):].replace('transforms', '').strip(os.sep)
 
-    if options.html_file:
-      import markdown
-      import markdown.extensions.toc
-      import pygments.formatters
+    def to_title(path):
+      base, _ = os.path.splitext(path)
+      nice = base.replace('_', ' ').replace(os.sep, ' ').title()
+      # These acronyms should be upper, not title.
+      nice = re.sub(r'\bMl\b', 'ML', nice)
+      nice = re.sub(r'\bIo\b', 'IO', nice)
+      return nice
 
-      title = 'Beam YAML Transform Index'
-      md = markdown.Markdown(
-          extensions=[
-              markdown.extensions.toc.TocExtension(toc_depth=2),
-              'codehilite',
-          ])
-      pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
-          '.codehilite')
-      extra_style = '''
+    def clean_yaml(content):
+      content = re.sub(
+          '# Licensed to the Apache Software Foundation.*'
+          '# limitations under the License.',
+          '',
+          content,
+          flags=re.MULTILINE | re.DOTALL)
+      content = re.sub('# coding=.*', '', content)
+      return content
+
+    def split_header(yaml):
+      lines = yaml.split('\n')
+      ix = 0  # make lint happy
+      for ix, line in enumerate(lines):
+        if not line.strip():
+          continue
+        if not line.startswith('#'):
+          break
+      return (
+          '\n'.join([line[1:].strip() for line in lines[:ix]]),
+          '\n'.join(lines[ix:]))
+
+    if os.sep in short_path:
+      section = to_title(short_path.split(os.sep)[0])
+      if section != last_section:
+        markdown_out.write(f'# {section}\n\n')
+        last_section = section
+    title = to_title(short_path)[len(section):]
+    markdown_out.write(f'## {title}\n\n')
+    with open(path) as fin:
+      content = fin.read()
+    header, body = split_header(clean_yaml(content))
+    markdown_out.write(header)
+    markdown_out.write('\n\n    :::yaml\n\n')
+    markdown_out.write('    ' + body.replace('\n', '\n    '))
+    markdown_out.write('\n')
+  return markdown_out.getvalue()
+
+
+def markdown_to_html(title, markdown_content, header=''):
+  import markdown
+  import markdown.extensions.toc
+  import pygments.formatters
+
+  md = markdown.Markdown(
+      extensions=[
+          markdown.extensions.toc.TocExtension(toc_depth=2),
+          'codehilite',
+      ])
+  pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
+      '.codehilite')
+  extra_style = '''
           * {
             box-sizing: border-box;
           }
@@ -476,10 +515,8 @@ def main():
           }
           '''
 
-      html = md.convert(markdown_out.getvalue())
-      with open(options.html_file, 'w') as html_out:
-        html_out.write(
-            f'''
+  html = md.convert(markdown_content)
+  return f'''
             <html>
               <head>
                 <title>{title}</title>
@@ -492,7 +529,7 @@ def main():
                 <div class="grid-for-nav">
                   <nav class="nav-side">
                     <div class="nav-header">
-                      <a href=#>Beam YAML Transform Index</a>
+                      <a href=#>{title}</a>
                       <div class="version">
                         {beam_version}
                       </div>
@@ -502,13 +539,61 @@ def main():
                   <section class="transform-content-wrap">
                     <div class="transform-content">
                       <h1>{title}</h1>
+                      {header}
                       {html.replace('<h2', '<hr><h2')}
                     </div>
                   </section>
                 </div>
               </body>
             </html>
-            ''')
+            '''
+
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--examples_file')
+  parser.add_argument('--markdown_file')
+  parser.add_argument('--html_file')
+  parser.add_argument('--schema_file')
+  parser.add_argument('--include', default='.*')
+  parser.add_argument('--exclude', default='')
+  options = parser.parse_args()
+  include = re.compile(options.include).match
+  exclude = (
+      re.compile(options.exclude).match
+      if options.exclude else lambda x: x in SKIP)
+
+  json_config_schemas, markdown_content = create_index(
+      include, exclude, options)
+
+  if options.schema_file:
+    with open(options.schema_file, 'w') as fout:
+      yaml.dump(json_config_schemas, fout, sort_keys=False)
+
+  if options.markdown_file:
+    with open(options.markdown_file, 'w') as fout:
+      fout.write(markdown_content)
+
+  if options.html_file:
+    with open(options.html_file, 'w') as html_out:
+      html_out.write(
+          markdown_to_html('Beam YAML Transform Index', markdown_content))
+
+  if options.examples_file:
+    with open(options.examples_file, 'w') as html_out:
+      html_out.write(
+          markdown_to_html(
+              'Beam YAML Examples',
+              create_examples_markdown(),
+              header='''
+                <p>Example pipelines using the
+                <a href="https://beam.apache.org/documentation/sdks/yaml/">
+                Beam YAML API</a>.
+                These examples can also be found on
+                <a href="https://github.com/apache/beam/tree/master/sdks/'''
+              '''python/apache_beam/yaml/examples">github</a>.
+                </p>
+          '''))
 
 
 if __name__ == '__main__':

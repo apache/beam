@@ -23,6 +23,7 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.transforms import resources
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_transform
@@ -140,6 +141,12 @@ def run(argv=None):
                       'yaml_jinja_variables': json.dumps(
                           known_args.jinja_variables)}) as p:
       print("Building pipeline...")
+      if 'resource_hints' in pipeline_spec.get('pipeline', {}):
+        # Add the declared resource hints to the "root" spec.
+        p._current_transform().resource_hints.update(
+            resources.parse_resource_hints(
+                yaml_transform.SafeLineLoader.strip_metadata(
+                    pipeline_spec['pipeline']['resource_hints'])))
       yaml_transform.expand_pipeline(
           p,
           pipeline_spec,

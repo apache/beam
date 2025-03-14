@@ -318,7 +318,7 @@ def assert_that(
       # PCollection is empty.
       plain_actual = ((keyed_singleton, keyed_actual)
                       | 'Group' >> CoGroupByKey()
-                      | 'Unkey' >> Map(lambda k_values: k_values[1][1]))
+                      | 'Unkey' >> Map(lambda k_values: list(k_values[1][1])))
 
       if not use_global_window:
         plain_actual = plain_actual | 'AddWindow' >> ParDo(AddWindow())

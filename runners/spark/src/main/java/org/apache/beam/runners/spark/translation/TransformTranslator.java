@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.runners.spark.translation.TranslationUtils.canAvoidRddSerialization;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Arrays;
@@ -70,6 +71,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
@@ -77,6 +79,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Fluent
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -428,13 +431,14 @@ public final class TransformTranslator {
         Map<String, PCollectionView<?>> sideInputMapping =
             ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
+        TupleTag<OutputT> mainOutputTag = transform.getMainOutputTag();
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
                 metricsAccum,
                 stepName,
                 doFn,
                 context.getSerializableOptions(),
-                transform.getMainOutputTag(),
+                mainOutputTag,
                 transform.getAdditionalOutputTags().getAll(),
                 inputCoder,
                 outputCoders,
@@ -460,7 +464,13 @@ public final class TransformTranslator {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
         }
 
-        Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
+        // Filter out obsolete PCollections to only cache when absolutely necessary
+        Map<TupleTag<?>, PCollection<?>> outputs =
+            skipUnconsumedOutputs(
+                context.getOutputs(transform),
+                mainOutputTag,
+                transform.getAdditionalOutputTags(),
+                context);
         if (hasMultipleOutputs(outputs)) {
           StorageLevel level = StorageLevel.fromString(context.storageLevel());
           if (canAvoidRddSerialization(level)) {
@@ -496,6 +506,37 @@ public final class TransformTranslator {
 
       private boolean hasMultipleOutputs(Map<TupleTag<?>, PCollection<?>> outputs) {
         return outputs.size() > 1;
+      }
+
+      /**
+       * Filter out output tags which are not consumed by any transform, except for {@code mainTag}.
+       *
+       * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
+       * mainTag} is consumed.
+       */
+      private Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
+          Map<TupleTag<?>, PCollection<?>> outputs,
+          TupleTag<?> mainTag,
+          TupleTagList otherTags,
+          EvaluationContext cxt) {
+        switch (outputs.size()) {
+          case 1:
+            return outputs; // always keep main output
+          case 2:
+            TupleTag<?> otherTag = otherTags.get(0);
+            return cxt.isLeaf(checkStateNotNull(outputs.get(otherTag)))
+                ? Collections.singletonMap(mainTag, checkStateNotNull(outputs.get(mainTag)))
+                : outputs;
+          default:
+            Map<TupleTag<?>, PCollection<?>> filtered =
+                Maps.newHashMapWithExpectedSize(outputs.size());
+            for (Map.Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
+              if (e.getKey().equals(mainTag) || !cxt.isLeaf(e.getValue())) {
+                filtered.put(e.getKey(), e.getValue());
+              }
+            }
+            return filtered;
+        }
       }
 
       @Override

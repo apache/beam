@@ -536,10 +536,16 @@ public class TableRowToStorageApiProto {
         // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
         // supplier (in case we encounter unknown nested fields). If the placeholder comes out
         // to be empty, we should clean it up
-        if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
-            && unknownFields != null
-            && unknownFields.get(key) instanceof Map
-            && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
+        if ((fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
+                && unknownFields != null)
+            && ((unknownFields.get(key) instanceof Map
+                    && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) // single struct, empty
+                || (unknownFields.get(key)
+                        instanceof List // repeated struct, empty list or list with empty structs
+                    && (((List<?>) unknownFields.get(key)).isEmpty()
+                        || ((List<?>) unknownFields.get(key))
+                            .stream()
+                                .allMatch(row -> row == null || ((Map<?, ?>) row).isEmpty()))))) {
           unknownFields.remove(key);
         }
       } catch (Exception e) {
@@ -551,7 +557,6 @@ public class TableRowToStorageApiProto {
             e);
       }
     }
-
     if (changeType != null) {
       builder.setField(
           Preconditions.checkStateNotNull(

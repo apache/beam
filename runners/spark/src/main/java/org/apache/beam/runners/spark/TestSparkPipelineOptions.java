@@ -48,6 +48,12 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
 
   void setStopPipelineWatermark(Long stopPipelineWatermark);
 
+  @Description("Whether to delete the checkpoint directory after the pipeline execution.")
+  @Default.Boolean(true)
+  boolean isDeleteCheckpointDir();
+
+  void setDeleteCheckpointDir(boolean deleteCheckpointDir);
+
   /**
    * A factory to provide the default watermark to stop a pipeline that reads from an unbounded
    * source.

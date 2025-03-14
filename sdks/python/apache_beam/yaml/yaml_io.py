@@ -24,7 +24,6 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import os
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -44,6 +43,7 @@ from apache_beam.typehints import schemas
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_utils
 
 
 def read_from_text(path: str):
@@ -573,4 +573,4 @@ def write_to_iceberg(
 
 def io_providers():
   return yaml_provider.load_providers(
-      os.path.join(os.path.dirname(__file__), 'standard_io.yaml'))
+      yaml_utils.locate_data_file('standard_io.yaml'))

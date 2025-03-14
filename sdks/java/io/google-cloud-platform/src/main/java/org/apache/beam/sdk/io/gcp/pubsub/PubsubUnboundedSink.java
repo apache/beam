@@ -218,7 +218,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   // ================================================================================
 
   /** Publish messages to Pubsub in batches. */
-  private static class WriterFn extends DoFn<Iterable<OutgoingMessage>, Void> {
+  @VisibleForTesting
+  static class WriterFn extends DoFn<Iterable<OutgoingMessage>, Void> {
     private final PubsubClientFactory pubsubFactory;
     private final @Nullable ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
@@ -266,6 +267,16 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = pubsubRootUrl;
+    }
+
+    @VisibleForTesting
+    String getIdAttribute() {
+      return idAttribute;
+    }
+
+    @VisibleForTesting
+    ValueProvider<TopicPath> getTopic() {
+      return topic;
     }
 
     /** BLOCKING Send {@code messages} as a batch to Pubsub. */

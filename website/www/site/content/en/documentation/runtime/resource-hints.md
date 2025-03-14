@@ -21,7 +21,7 @@ Resource hints let pipeline authors provide information to a runner about comput
 
 Resource hints can be nested. For example, resource hints can be specified on subtransforms of a composite transform, and that composite transform can also have resource hints applied. By default, the innermost hint takes precedence. However, hints can define custom reconciliation behavior. For example,  `min_ram` takes the maximum value for all `min_ram` values set on a given step in the pipeline.
 
-{{< language-switcher java py >}}
+{{< language-switcher java py yaml >}}
 
 ## Available hints
 
@@ -49,6 +49,13 @@ python my_pipeline.py \
     --resource_hints min_ram=<N>GB \
     --resource_hints accelerator="hint"
 {{< /highlight >}}
+{{< highlight yaml >}}
+python -m apache_beam.yaml.main
+    ... \
+    --resource_hints min_ram=<N>GB \
+    --resource_hints accelerator="hint"
+{{< /highlight >}}
+
 
 ## Specifying resource hints for a transform
 
@@ -58,6 +65,10 @@ You can set resource hints programmatically on pipeline transforms using [setRes
 
 {{< paragraph class="language-py" >}}
 You can set resource hints programmatically on pipeline transforms using [PTransforms.with_resource_hints](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform.with_resource_hints) (also see [ResourceHint](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/resources.py#L51)).
+{{< /paragraph >}}
+
+{{< paragraph class="language-yaml" >}}
+You can set resource hints pipeline transforms using a `resource_hints` attribute.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -71,6 +82,7 @@ pcoll.apply(ParDo.of(new BigMemFn())
     .setResourceHints(
         ResourceHints.create().withMinRam("30GB")))
 {{< /highlight >}}
+
 {{< highlight py >}}
 pcoll | MyPTransform().with_resource_hints(
     min_ram="4GB",
@@ -79,3 +91,23 @@ pcoll | MyPTransform().with_resource_hints(
 pcoll | beam.ParDo(BigMemFn()).with_resource_hints(
     min_ram="30GB")
 {{< /highlight >}}
+
+{{< highlight yaml >}}
+  - type: RunInference
+    config:
+      ...
+    resource_hints:
+      min_ram: 4GB
+      accelerator: "type:nvidia-tesla-k80;count:1;install-nvidia-driver"
+
+  - type: MapToFields
+    config:
+      ...
+    resource_hints:
+      min_ram: 30GB
+{{< /highlight >}}
+
+{{< paragraph class="language-yaml" >}}
+Such a `resource_hints` attribute can also be placed on the top-level pipeline
+object to apply to the entire pipeline.
+{{< /paragraph >}}

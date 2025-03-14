@@ -378,6 +378,16 @@ message MonitoringInfoSpecs {
         }
       ]
     }];
+
+    USER_HISTOGRAM = 23 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:histogram_int64:v1",
+      type: "beam:metrics:histogram_int64:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report histogram metric."
+      }]
+    }];
   }
 }
 
@@ -447,6 +457,9 @@ message MonitoringInfo {
     SPANNER_TABLE_ID = 25 [(label_props) = { name: "SPANNER_TABLE_ID" }];
     SPANNER_INSTANCE_ID = 26 [(label_props) = { name: "SPANNER_INSTANCE_ID" }];
     SPANNER_QUERY_NAME = 27 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
+    // Label which if has a "true" value indicates that the metric is intended 
+    // to be aggregated per-worker.
+    PER_WORKER_METRIC = 28 [(label_props) = { name: "PER_WORKER_METRIC" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For
@@ -592,6 +605,10 @@ message MonitoringInfoTypeUrns {
     // Encoding: BoundedTrie proto
     BOUNDED_TRIE_TYPE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:bounded_trie:v1"];
+
+    // Represents a histogram.
+    HISTOGRAM = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:metrics:histogram_int64:v1"];
 
     // General monitored state information which contains structured information
     // which does not fit into a typical metric format. See MonitoringTableData

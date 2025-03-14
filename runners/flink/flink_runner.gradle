@@ -201,7 +201,8 @@ dependencies {
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  testImplementation library.java.powermock
+  // TODO(https://github.com/apache/beam/issues/34056) remove powermock once remove Whitebox usages
+  testImplementation "org.powermock:powermock-reflect:2.0.9"
   testImplementation library.java.google_api_services_bigquery
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml

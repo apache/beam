@@ -23,8 +23,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -256,7 +256,7 @@ public class SparkExecutableStageFunctionTest {
   public void testNoCallOnEmptyInputIterator() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     function.call(Collections.emptyIterator());
-    verifyZeroInteractions(stageBundleFactory);
+    verifyNoInteractions(stageBundleFactory);
   }
 
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(

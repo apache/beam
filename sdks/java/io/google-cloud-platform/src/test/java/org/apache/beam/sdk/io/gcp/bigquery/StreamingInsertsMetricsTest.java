@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics.RowStatus;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 public class StreamingInsertsMetricsTest {
@@ -132,7 +133,10 @@ public class StreamingInsertsMetricsTest {
 
     // Validate RPC latency metric.
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:STREAMING_INSERTS;");
+        MetricName.named(
+            "BigQuerySink",
+            "RpcLatency*rpc_method:STREAMING_INSERTS;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
     testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 10.0, 20.0, 30.0, 40.0);
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -24,12 +25,13 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.either;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -46,15 +48,19 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.types.Conversions;
+import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -153,7 +159,8 @@ public class RecordWriterManagerTest {
     assertEquals(3, writerManager.openWriters);
 
     // dest4
-    // This is a new destination, but the writer manager is saturated with 3 writers. reject the
+    // This is a new destination, but the writer manager is saturated with 3
+    // writers. reject the
     // record
     row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     writeSuccess = writerManager.write(dest4, row);
@@ -161,7 +168,8 @@ public class RecordWriterManagerTest {
     assertEquals(3, writerManager.openWriters);
 
     // dest3, partition: [aaa, false]
-    // new partition, but the writer manager is saturated with 3 writers. reject the record
+    // new partition, but the writer manager is saturated with 3 writers. reject the
+    // record
     row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", false).build();
     writeSuccess = writerManager.write(dest3, row);
     assertFalse(writeSuccess);
@@ -214,7 +222,8 @@ public class RecordWriterManagerTest {
     assertEquals(3, writerManager.openWriters);
 
     // partition: [aaa, false].
-    // The writerManager is already saturated with three writers. This record is rejected.
+    // The writerManager is already saturated with three writers. This record is
+    // rejected.
     row = Row.withSchema(BEAM_SCHEMA).addValues(5, "aaa123", false).build();
     writeSuccess = writerManager.write(windowedDestination, row);
     assertFalse(writeSuccess);
@@ -508,7 +517,7 @@ public class RecordWriterManagerTest {
     for (Schema.Field field : primitiveTypeSchema.getFields()) {
       Object val = checkStateNotNull(row.getValue(field.getName()));
       if (dateTypes.contains(field.getName())) {
-        val = URLEncoder.encode(val.toString(), StandardCharsets.UTF_8.toString());
+        val = URLEncoder.encode(val.toString(), UTF_8.toString());
       }
       expectedPartitions.add(field.getName() + "=" + val);
     }
@@ -717,6 +726,171 @@ public class RecordWriterManagerTest {
     @Override
     public void close() throws IOException {
       throw new IOException("I am failing!");
+    }
+  }
+
+  @Test
+  public void testColumnSpecificMetricsCollection() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "test_column_metrics");
+    Table table = warehouse.createTable(tableId, ICEBERG_SCHEMA); // Unpartitioned table
+    table
+        .updateProperties()
+        .set("write.metadata.metrics.column.id", "counts")
+        .set("write.metadata.metrics.column.name", "counts")
+        .commit();
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setTableIdentifier(tableId)
+            .setFileFormat(FileFormat.PARQUET)
+            .build();
+    WindowedValue<IcebergDestination> singleDestination =
+        WindowedValue.valueInGlobalWindow(destination);
+
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
+    assertTrue("Write operation should succeed", writerManager.write(singleDestination, row1));
+    assertTrue("Write operation should succeed", writerManager.write(singleDestination, row2));
+    assertTrue("Write operation should succeed", writerManager.write(singleDestination, row3));
+    writerManager.close();
+
+    Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>> dataFiles =
+        writerManager.getSerializableDataFiles();
+    assertFalse("Data files should not be empty", dataFiles.isEmpty());
+    assertEquals(
+        "Should have exactly one data file for an unpartitioned table", 1, dataFiles.size());
+
+    for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>> entry :
+        dataFiles.entrySet()) {
+      AppendFiles appendFiles = table.newAppend();
+      for (SerializableDataFile dataFile : entry.getValue()) {
+        appendFiles.appendFile(dataFile.createDataFile(table.specs()));
+      }
+      appendFiles.commit();
+    }
+    table.refresh();
+
+    Snapshot snapshot = table.currentSnapshot();
+    assertNotNull("Table should have a snapshot after writing data", snapshot);
+    DataFile dataFile = snapshot.addedDataFiles(table.io()).iterator().next();
+
+    Map<Integer, Long> valueCounts = dataFile.valueCounts();
+    assertNotNull("Value counts should not be null", valueCounts);
+    assertTrue("Value counts should exist for id (column 1)", valueCounts.containsKey(1));
+    assertEquals("Value count for id should be 3 in this file", 3L, valueCounts.get(1).longValue());
+    assertTrue("Value counts should exist for name (column 2)", valueCounts.containsKey(2));
+    assertEquals(
+        "Value count for name should be 3 in this file", 3L, valueCounts.get(2).longValue());
+
+    assertNotNull(dataFile.nullValueCounts());
+    assertNotNull(dataFile.columnSizes());
+    Map<Integer, Long> nullValueCounts = dataFile.nullValueCounts();
+    Map<Integer, Long> columnSizes = dataFile.columnSizes();
+    for (int i = 1; i <= ICEBERG_SCHEMA.columns().size(); i++) {
+      assertTrue(
+          "Null value counts should be collected for column " + i, nullValueCounts.containsKey(i));
+      assertTrue("Column sizes should be collected for column " + i, columnSizes.containsKey(i));
+    }
+  }
+
+  @Test
+  public void testDefaultMetrics() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "test_default_metrics");
+    Table table = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+    table.updateProperties().set("write.metadata.metrics.default", "full").commit();
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setTableIdentifier(tableId)
+            .setFileFormat(FileFormat.PARQUET)
+            .build();
+    WindowedValue<IcebergDestination> singleDestination =
+        WindowedValue.valueInGlobalWindow(destination);
+
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
+    assertTrue("Write operation should succeed", writerManager.write(singleDestination, row1));
+    assertTrue("Write operation should succeed", writerManager.write(singleDestination, row2));
+    assertTrue("Write operation should succeed", writerManager.write(singleDestination, row3));
+    writerManager.close();
+
+    Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>> dataFiles =
+        writerManager.getSerializableDataFiles();
+    assertFalse("Data files should not be empty", dataFiles.isEmpty());
+    assertEquals(
+        "Should have exactly one data file for an unpartitioned table", 1, dataFiles.size());
+
+    for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>> entry :
+        dataFiles.entrySet()) {
+      AppendFiles appendFiles = table.newAppend();
+      for (SerializableDataFile dataFile : entry.getValue()) {
+        appendFiles.appendFile(dataFile.createDataFile(table.specs()));
+      }
+      appendFiles.commit();
+    }
+    table.refresh();
+
+    Snapshot snapshot = table.currentSnapshot();
+    assertNotNull("Table should have a snapshot after writing data", snapshot);
+    DataFile dataFile = snapshot.addedDataFiles(table.io()).iterator().next();
+
+    assertNotNull(dataFile.valueCounts());
+    assertNotNull(dataFile.nullValueCounts());
+    assertNotNull(dataFile.columnSizes());
+    assertNotNull(dataFile.lowerBounds());
+    assertNotNull(dataFile.upperBounds());
+
+    Map<Integer, Long> valueCounts = dataFile.valueCounts();
+    Map<Integer, Long> nullValueCounts = dataFile.nullValueCounts();
+    Map<Integer, Long> columnSizes = dataFile.columnSizes();
+    Map<Integer, ByteBuffer> lowerBounds = dataFile.lowerBounds();
+    Map<Integer, ByteBuffer> upperBounds = dataFile.upperBounds();
+
+    for (int i = 1; i <= ICEBERG_SCHEMA.columns().size(); i++) {
+      assertTrue("Value counts should be collected for column " + i, valueCounts.containsKey(i));
+      long expectedCount = 3L;
+      assertEquals(
+          "Value count for column " + i + " should match total values in this file",
+          expectedCount,
+          valueCounts.get(i).longValue());
+
+      assertTrue(
+          "Null value counts should be collected for column " + i, nullValueCounts.containsKey(i));
+      assertTrue("Column sizes should be collected for column " + i, columnSizes.containsKey(i));
+      assertTrue("Lower bounds should be collected for column " + i, lowerBounds.containsKey(i));
+      assertTrue("Upper bounds should be collected for column " + i, upperBounds.containsKey(i));
+
+      ByteBuffer lower = lowerBounds.get(i);
+      ByteBuffer upper = upperBounds.get(i);
+      assertNotNull("Lower bound for column " + i + " should not be null", lower);
+      assertNotNull("Upper bound for column " + i + " should not be null", upper);
+
+      switch (i) {
+        case 1:
+          Integer lowerId = Conversions.fromByteBuffer(Types.IntegerType.get(), lower);
+          Integer upperId = Conversions.fromByteBuffer(Types.IntegerType.get(), upper);
+          assertEquals("Lower bound for id should be min value", 1, lowerId.intValue());
+          assertEquals("Upper bound for id should be max value", 3, upperId.intValue());
+          break;
+        case 2:
+          CharSequence lowerName = Conversions.fromByteBuffer(Types.StringType.get(), lower);
+          CharSequence upperName = Conversions.fromByteBuffer(Types.StringType.get(), upper);
+          assertEquals("Lower bound for name should be min value", "aaa", lowerName.toString());
+          assertEquals("Upper bound for name should be max value", "ccc", upperName.toString());
+          break;
+        case 3:
+          Boolean lowerBool = Conversions.fromByteBuffer(Types.BooleanType.get(), lower);
+          Boolean upperBool = Conversions.fromByteBuffer(Types.BooleanType.get(), upper);
+          assertEquals("Lower bound for bool should be min value", false, lowerBool);
+          assertEquals("Upper bound for bool should be max value", true, upperBool);
+          break;
+        default:
+          throw new IllegalStateException("Unexpected column index: " + i);
+      }
     }
   }
 }

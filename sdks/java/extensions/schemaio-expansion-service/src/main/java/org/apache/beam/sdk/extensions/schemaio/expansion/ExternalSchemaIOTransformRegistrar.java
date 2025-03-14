@@ -54,29 +54,14 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     Map<String, ExternalTransformBuilder<?, ?, ?>> providers = new HashMap<>();
     try {
       for (SchemaIOProvider provider : ServiceLoader.load(SchemaIOProvider.class)) {
-        // Avro provider is treated as a special case since two Avro providers may want to be loaded
-        // from "core" (deprecated) and from "extensions/avro" (actual) - but only one must succeed.
-        // TODO: we won't need this check once all Avro providers from "core" will be
-        // removed
-        if (provider.identifier().equals("avro")) {
-          // Avro provider from "extensions/avro" must have a priority.
-          if (provider.getClass().getName().startsWith("org.apache.beam.sdk.extensions.avro")) {
-            // Load Avro provider from "extensions/avro" by any case.
-            registerProvider(providers, provider);
-          } else {
-            // Load Avro provider from "core" if it was not loaded from Avro extension before.
-            registerProviderOptionally(providers, provider);
-          }
-        } else {
-          final String identifier =
-              "beam:transform:org.apache.beam:schemaio_" + provider.identifier() + "_read:v1";
-          checkState(
-              !providers.containsKey(identifier),
-              "Duplicate providers exist with identifier `%s` for class %s.",
-              identifier,
-              SchemaIOProvider.class);
-          registerProvider(providers, provider);
-        }
+        final String identifier =
+            "beam:transform:org.apache.beam:schemaio_" + provider.identifier() + "_read:v1";
+        checkState(
+            !providers.containsKey(identifier),
+            "Duplicate providers exist with identifier `%s` for class %s.",
+            identifier,
+            SchemaIOProvider.class);
+        registerProvider(providers, provider);
       }
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage());
@@ -90,16 +75,6 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
         "beam:transform:org.apache.beam:schemaio_" + provider.identifier() + "_read:v1",
         new ReaderBuilder(provider));
     providers.put(
-        "beam:transform:org.apache.beam:schemaio_" + provider.identifier() + "_write:v1",
-        new WriterBuilder(provider));
-  }
-
-  private void registerProviderOptionally(
-      Map<String, ExternalTransformBuilder<?, ?, ?>> providers, SchemaIOProvider provider) {
-    providers.putIfAbsent(
-        "beam:transform:org.apache.beam:schemaio_" + provider.identifier() + "_read:v1",
-        new ReaderBuilder(provider));
-    providers.putIfAbsent(
         "beam:transform:org.apache.beam:schemaio_" + provider.identifier() + "_write:v1",
         new WriterBuilder(provider));
   }

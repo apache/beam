@@ -484,8 +484,7 @@ public class Read {
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
     private final Coder<CheckpointT> checkpointCoder;
-    private final MemoizingPerInstantiationSerializableSupplier<
-            Cache<Object, UnboundedReader<OutputT>>>
+    private final MemoizingPerInstantiationSerializableSupplier<Cache<Object, CacheState<OutputT>>>
         readerCacheSupplier;
     private static final Executor closeExecutor =
         Executors.newCachedThreadPool(
@@ -501,13 +500,15 @@ public class Read {
                   CacheBuilder.newBuilder()
                       .expireAfterWrite(1, TimeUnit.MINUTES)
                       .removalListener(
-                          (RemovalListener<Object, UnboundedReader<OutputT>>)
+                          (RemovalListener<Object, CacheState<OutputT>>)
                               removalNotification -> {
                                 if (removalNotification.getCause() != RemovalCause.EXPLICIT) {
                                   closeExecutor.execute(
                                       () -> {
                                         try {
-                                          checkStateNotNull(removalNotification.getValue()).close();
+                                          checkStateNotNull(removalNotification.getValue())
+                                              .getReader()
+                                              .close();
                                         } catch (IOException e) {
                                           LOG.warn("Failed to close UnboundedReader.", e);
                                         }
@@ -568,7 +569,7 @@ public class Read {
             PipelineOptions pipelineOptions) {
       Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder =
           checkStateNotNull(this.restrictionCoder);
-      Cache<Object, UnboundedReader<OutputT>> cachedReaders =
+      Cache<Object, CacheState<OutputT>> cachedReaders =
           checkStateNotNull(this.readerCacheSupplier.get());
       return new UnboundedSourceAsSDFRestrictionTracker<>(
           restriction, pipelineOptions, cachedReaders, restrictionCoder);
@@ -675,6 +676,20 @@ public class Read {
       public abstract Instant getTimestamp();
 
       public abstract Instant getWatermark();
+    }
+
+    /** A POJO representing the state cached across DoFn invocations. */
+    @AutoValue
+    abstract static class CacheState<OutputT> {
+      public static <OutputT> CacheState<OutputT> create(
+          UnboundedReader<OutputT> reader, boolean isStarted) {
+        return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_CacheState<OutputT>(
+            reader, isStarted);
+      }
+
+      public abstract UnboundedReader<OutputT> getReader();
+
+      public abstract boolean isStarted();
     }
 
     /**
@@ -853,7 +868,7 @@ public class Read {
         implements HasProgress {
       private final UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
-      private final Cache<Object, UnboundedReader<OutputT>> cachedReaders;
+      private final Cache<Object, CacheState<OutputT>> cachedReaders;
       private final Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
       private UnboundedSource.@Nullable UnboundedReader<OutputT> currentReader;
@@ -862,7 +877,7 @@ public class Read {
       UnboundedSourceAsSDFRestrictionTracker(
           UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction,
           PipelineOptions pipelineOptions,
-          Cache<Object, UnboundedReader<OutputT>> cachedReaders,
+          Cache<Object, CacheState<OutputT>> cachedReaders,
           Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder) {
         this.initialRestriction = initialRestriction;
         this.pipelineOptions = pipelineOptions;
@@ -885,17 +900,17 @@ public class Read {
         Object cacheKey =
             createCacheKey(initialRestriction.getSource(), initialRestriction.getCheckpoint());
         // We remove the reader if cached so that it is not possibly claimed by multiple DoFns.
-        UnboundedReader<OutputT> cachedReader = cachedReaders.asMap().remove(cacheKey);
+        CacheState<OutputT> cachedState = cachedReaders.asMap().remove(cacheKey);
 
-        if (cachedReader == null) {
+        if (cachedState == null) {
           this.currentReader =
               initialRestriction
                   .getSource()
                   .createReader(pipelineOptions, initialRestriction.getCheckpoint());
         } else {
           // If the reader is from cache, then we know that the reader has been started.
-          readerHasBeenStarted = true;
-          this.currentReader = cachedReader;
+          readerHasBeenStarted = cachedState.isStarted();
+          this.currentReader = cachedState.getReader();
         }
       }
 
@@ -906,7 +921,8 @@ public class Read {
           // We only put the reader into the cache when we know it possibly will be reused by
           // residuals.
           cachedReaders.put(
-              createCacheKey(restriction.getSource(), restriction.getCheckpoint()), reader);
+              createCacheKey(restriction.getSource(), restriction.getCheckpoint()),
+              CacheState.create(reader, readerHasBeenStarted));
         }
       }
 
@@ -959,7 +975,7 @@ public class Read {
       /** The value is invalid if {@link #tryClaim} has ever thrown an exception. */
       @Override
       public UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction() {
-        if (currentReader == null) {
+        if (currentReader == null || !readerHasBeenStarted) {
           return initialRestriction;
         }
         UnboundedReader<OutputT> currentReader = this.currentReader;
@@ -991,6 +1007,10 @@ public class Read {
         // Don't split if we have the empty sources since the SDF wrapper will be finishing soon.
         UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction = currentRestriction();
         if (currentRestriction.getSource() instanceof EmptyUnboundedSource) {
+          return null;
+        }
+        // Ignore the split request if we didn't yet attempt to process anything.
+        if (!readerHasBeenStarted) {
           return null;
         }
 
@@ -1026,21 +1046,32 @@ public class Read {
 
       @Override
       public Progress getProgress() {
+        try {
+          return tryGetProgressOrThrow();
+        } catch (IOException e) {
+          if (this.currentReader != null) {
+            try {
+              currentReader.close();
+            } catch (IOException closeException) {
+              e.addSuppressed(closeException);
+            } finally {
+              this.currentReader = null;
+            }
+          }
+          throw new RuntimeException(e);
+        }
+      }
+
+      private Progress tryGetProgressOrThrow() throws IOException {
         // We treat the empty source as implicitly done.
         if (currentRestriction().getSource() instanceof EmptyUnboundedSource) {
           return Progress.from(1, 0);
         }
-
         boolean resetReaderAfter = false;
         if (currentReader == null) {
-          try {
-            initializeCurrentReader();
-            resetReaderAfter = true;
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+          initializeCurrentReader();
+          resetReaderAfter = true;
         }
-
         checkStateNotNull(currentReader, "reader null after initialization");
         try {
           long size = currentReader.getSplitBacklogBytes();

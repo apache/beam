@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -174,19 +175,21 @@ public class AvroGenericRecordToStorageApiProto {
 
   static Long convertTime(Object value, boolean micros) {
     if (value instanceof org.joda.time.LocalTime) {
-      return 1_000L * (long) ((org.joda.time.LocalTime) value).getMillisOfDay();
+      return CivilTimeEncoder.encodePacked64TimeMicros((org.joda.time.LocalTime) value);
     } else if (value instanceof java.time.LocalTime) {
-      return java.util.concurrent.TimeUnit.NANOSECONDS.toMicros(
-          ((java.time.LocalTime) value).toNanoOfDay());
+      return CivilTimeEncoder.encodePacked64TimeMicros((java.time.LocalTime) value);
     } else {
       if (micros) {
         Preconditions.checkArgument(
             value instanceof Long, "Expecting a value as Long type (time).");
-        return (Long) value;
+        return CivilTimeEncoder.encodePacked64TimeMicros(
+            java.time.LocalTime.ofNanoOfDay((TimeUnit.MICROSECONDS.toNanos((long) value))));
       } else {
         Preconditions.checkArgument(
             value instanceof Integer, "Expecting a value as Integer type (time).");
-        return 1_000L * (Integer) value;
+        return CivilTimeEncoder.encodePacked64TimeMicros(
+            java.time.LocalTime.ofNanoOfDay(
+                (TimeUnit.MILLISECONDS).toNanos(((Integer) value).longValue())));
       }
     }
   }
@@ -308,6 +311,7 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
+  @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
@@ -347,10 +351,11 @@ public class AvroGenericRecordToStorageApiProto {
           throw new RuntimeException("Unexpected null element type!");
         }
         TableFieldSchema keyFieldSchema =
-            fieldDescriptorFromAvroField(new Schema.Field("key", keyType, "key of the map entry"));
+            fieldDescriptorFromAvroField(
+                new Schema.Field("key", keyType, "key of the map entry", null));
         TableFieldSchema valueFieldSchema =
             fieldDescriptorFromAvroField(
-                new Schema.Field("value", valueType, "value of the map entry"));
+                new Schema.Field("value", valueType, "value of the map entry", null));
         builder =
             builder
                 .setType(TableFieldSchema.Type.STRUCT)
@@ -368,7 +373,8 @@ public class AvroGenericRecordToStorageApiProto {
             elementType.getType() != Schema.Type.UNION,
             "Multiple non-null union types are not supported.");
         TableFieldSchema unionFieldSchema =
-            fieldDescriptorFromAvroField(new Schema.Field(field.name(), elementType, field.doc()));
+            fieldDescriptorFromAvroField(
+                new Schema.Field(field.name(), elementType, field.doc(), null));
         builder =
             builder
                 .setType(unionFieldSchema.getType())

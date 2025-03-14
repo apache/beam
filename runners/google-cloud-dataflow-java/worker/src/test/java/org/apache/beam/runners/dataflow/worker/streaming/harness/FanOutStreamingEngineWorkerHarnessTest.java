@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -99,7 +100,9 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           .setClientId(1L)
           .build();
 
-  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(1, TimeUnit.MINUTES);
+
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final ChannelCachingStubFactory stubFactory =
@@ -167,7 +170,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   public void cleanUp() {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     stubFactory.shutdown();
-    fakeStreamingEngineServer.shutdownNow();
+    fakeStreamingEngineServer.shutdown();
   }
 
   private FanOutStreamingEngineWorkerHarness newFanOutStreamingEngineWorkerHarness(

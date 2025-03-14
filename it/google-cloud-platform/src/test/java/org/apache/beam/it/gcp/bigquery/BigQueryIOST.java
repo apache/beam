@@ -84,6 +84,8 @@ public final class BigQueryIOST extends IOStressTestBase {
   private static final String STORAGE_WRITE_API_METHOD = "STORAGE_WRITE_API";
   private static final String STORAGE_API_AT_LEAST_ONCE_METHOD = "STORAGE_API_AT_LEAST_ONCE";
   private static final double STORAGE_API_AT_LEAST_ONCE_MAX_ALLOWED_DIFFERENCE_FRACTION = 0.00001;
+  private static final int TRIGGERING_FREQUENCY_SECONDS = 60;
+  private static final int STORAGE_WRITE_API_STREAMS_NUMBER = 5;
 
   private static BigQueryResourceManager resourceManager;
   private static String tableName;
@@ -255,7 +257,11 @@ public final class BigQueryIOST extends IOStressTestBase {
         break;
     }
     if (configuration.writeMethod.equals(STORAGE_WRITE_API_METHOD)) {
-      writeIO = writeIO.withTriggeringFrequency(org.joda.time.Duration.standardSeconds(60));
+      writeIO =
+          writeIO
+              .withTriggeringFrequency(
+                  org.joda.time.Duration.standardSeconds(TRIGGERING_FREQUENCY_SECONDS))
+              .withNumStorageWriteApiStreams(STORAGE_WRITE_API_STREAMS_NUMBER);
     }
     generateDataAndWrite(writeIO);
   }
