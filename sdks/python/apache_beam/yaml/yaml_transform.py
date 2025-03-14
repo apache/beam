@@ -1075,6 +1075,10 @@ def expand_pipeline(
     providers=None,
     validate_schema='generic' if jsonschema is not None else None,
     pipeline_path=''):
+  if isinstance(pipeline, beam.pvalue.PBegin):
+    root = pipeline
+  else:
+    root = beam.pvalue.PBegin(pipeline)
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
@@ -1087,4 +1091,4 @@ def expand_pipeline(
       yaml_provider.merge_providers(
           yaml_provider.parse_providers(
               pipeline_path, pipeline_spec.get('providers', [])),
-          providers or {})).expand(beam.pvalue.PBegin(pipeline))
+          providers or {})).expand(root)

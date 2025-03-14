@@ -122,37 +122,59 @@ def _fix_xlang_instant_coding():
 
 
 def run(argv=None):
+  options, constructor, display_data = build_pipeline_components_from_argv(argv)
+  with _fix_xlang_instant_coding():
+    with beam.Pipeline(options=options, display_data=display_data) as p:
+      print('Building pipeline...')
+      constructor(p)
+      print('Running pipeline...')
+
+
+def build_pipeline_components_from_argv(argv):
   argv = _preparse_jinja_flags(argv)
   known_args, pipeline_args = _parse_arguments(argv)
   pipeline_template = _pipeline_spec_from_args(known_args)
   pipeline_yaml = yaml_transform.expand_jinja(
       pipeline_template, known_args.jinja_variables or {})
+  display_data = {
+      'yaml': pipeline_yaml,
+      'yaml_jinja_template': pipeline_template,
+      'yaml_jinja_variables': json.dumps(known_args.jinja_variables),
+  }
+  options, constructor = build_pipeline_components_from_yaml(
+      pipeline_yaml,
+      pipeline_args,
+      known_args.json_schema_validation,
+      known_args.yaml_pipeline_file,
+  )
+  return options, constructor, display_data
+
+
+def build_pipeline_components_from_yaml(
+    pipeline_yaml, pipeline_args, validate_schema='generic', pipeline_path=''):
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
-  with _fix_xlang_instant_coding():
-    with beam.Pipeline(  # linebreak for better yapf formatting
-        options=beam.options.pipeline_options.PipelineOptions(
-            pipeline_args,
-            pickle_library='cloudpickle',
-            **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
-                'options', {}))),
-        display_data={'yaml': pipeline_yaml,
-                      'yaml_jinja_template': pipeline_template,
-                      'yaml_jinja_variables': json.dumps(
-                          known_args.jinja_variables)}) as p:
-      print("Building pipeline...")
-      if 'resource_hints' in pipeline_spec.get('pipeline', {}):
-        # Add the declared resource hints to the "root" spec.
-        p._current_transform().resource_hints.update(
-            resources.parse_resource_hints(
-                yaml_transform.SafeLineLoader.strip_metadata(
-                    pipeline_spec['pipeline']['resource_hints'])))
-      yaml_transform.expand_pipeline(
-          p,
-          pipeline_spec,
-          validate_schema=known_args.json_schema_validation,
-          pipeline_path=known_args.yaml_pipeline_file)
-      print("Running pipeline...")
+  options = beam.options.pipeline_options.PipelineOptions(
+      pipeline_args,
+      pickle_library='cloudpickle',
+      **yaml_transform.SafeLineLoader.strip_metadata(
+          pipeline_spec.get('options', {})))
+
+  def constructor(root):
+    if 'resource_hints' in pipeline_spec.get('pipeline', {}):
+      # Add the declared resource hints to the "root" spec.
+      root._current_transform().resource_hints.update(
+          resources.parse_resource_hints(
+              yaml_transform.SafeLineLoader.strip_metadata(
+                  pipeline_spec['pipeline']['resource_hints'])))
+    yaml_transform.expand_pipeline(
+        root,
+        pipeline_spec,
+        validate_schema=validate_schema,
+        pipeline_path=pipeline_path,
+    )
+
+  return options, constructor
 
 
 if __name__ == '__main__':
