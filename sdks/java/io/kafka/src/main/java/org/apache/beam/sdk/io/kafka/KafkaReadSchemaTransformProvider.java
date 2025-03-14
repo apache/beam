@@ -103,6 +103,17 @@ public class KafkaReadSchemaTransformProvider
     };
   }
 
+  public static SerializableFunction<byte[], Row> getRawStringToRowFunction(Schema stringSchema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        return Row.withSchema(stringSchema)
+            .addValue(new String(input, StandardCharsets.UTF_8))
+            .build();
+      }
+    };
+  }
+
   @Override
   public String identifier() {
     return getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ);
@@ -193,6 +204,9 @@ public class KafkaReadSchemaTransformProvider
       if ("RAW".equals(format)) {
         beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
         valueMapper = getRawBytesToRowFunction(beamSchema);
+      } else if ("STRING".equals(format)) {
+        beamSchema = Schema.builder().addField("payload", Schema.FieldType.STRING).build();
+        valueMapper = getRawStringToRowFunction(beamSchema);
       } else if ("PROTO".equals(format)) {
         String fileDescriptorPath = configuration.getFileDescriptorPath();
         String messageName = checkArgumentNotNull(configuration.getMessageName());
