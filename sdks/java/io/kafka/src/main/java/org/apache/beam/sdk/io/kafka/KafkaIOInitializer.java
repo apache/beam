@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.harness.JvmInitializer;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** Initialize KafkaIO feature flags on worker. */
@@ -26,6 +27,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class KafkaIOInitializer implements JvmInitializer {
   @Override
   public void beforeProcessing(PipelineOptions options) {
-    KafkaSinkMetrics.setSupportKafkaMetrics(true);
+    if (!ExperimentalOptions.hasExperiment(options, "disable_kafka_metrics")) {
+      KafkaSinkMetrics.setSupportKafkaMetrics(true);
+    }
   }
 }
