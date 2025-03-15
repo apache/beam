@@ -17,9 +17,11 @@
 
 import dataclasses
 import uuid
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -33,8 +35,10 @@ from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.base import ThresholdFn
+from apache_beam.ml.anomaly.detectors.custom import CustomDetector
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 KeyT = TypeVar('KeyT')
@@ -97,9 +101,11 @@ class _ScoreAndLearnDoFn(beam.DoFn):
     yield k1, (k2,
                AnomalyResult(
                    example=data,
-                   predictions=[AnomalyPrediction(
-                       model_id=self._underlying._model_id,
-                       score=self.score_and_learn(data))]))
+                   predictions=[
+                       AnomalyPrediction(
+                           model_id=self._underlying._model_id,
+                           score=self.score_and_learn(data))
+                   ]))
 
     model_state.write(self._underlying)
 
@@ -325,7 +331,8 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     if self._aggregation_fn is None:
       # simply put predictions into an iterable (list)
       ret = (
-          post_gbk | beam.MapTuple(
+          post_gbk
+          | beam.MapTuple(
               lambda k,
               v: (
                   k[0],
@@ -353,7 +360,8 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     # We use (original_key, temp_key) as the key for GroupByKey() so that
     # scores from multiple detectors per data point are grouped.
     ret = (
-        post_gbk | beam.MapTuple(
+        post_gbk
+        | beam.MapTuple(
             lambda k,
             v,
             agg=aggregation_fn: (
@@ -406,6 +414,77 @@ class RunOneDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     return ret
 
 
+class RunCustomDetector(beam.PTransform[beam.PCollection[KeyedInputT],
+                                        beam.PCollection[KeyedOutputT]]):
+  """Runs a custom anomaly detector on a PCollection of data.
+
+  This PTransform applies a `CustomDetector` to the input data, handling
+  custom input/output conversion and inference.
+
+  Args:
+    custom_detector: The `CustomDetector` to run.
+  """
+  def __init__(self, custom_detector: CustomDetector):
+    self._custom_detector = custom_detector
+
+  def unnest_and_convert(
+      self, nested: Tuple[Tuple[Any, Any], dict[str, List]]) -> KeyedOutputT:
+    """Unnests and converts the model output to AnomalyResult.
+
+    Args:
+      nested: A tuple containing the combined key (origin key, temp key) and
+        a dictionary of input and output from RunInference.
+
+    Returns:
+      A tuple containing the original key and AnomalyResult.
+    """
+    key, value_dict = nested
+    score = self._custom_detector.convert_output(value_dict['output'][0])
+    result = AnomalyResult(
+        example=value_dict['input'][0],
+        predictions=[
+            AnomalyPrediction(
+                model_id=self._custom_detector._model_id, score=score)
+        ])
+    return key[0], (key[1], result)
+
+  def expand(
+      self,
+      input: beam.PCollection[KeyedInputT]) -> beam.PCollection[KeyedOutputT]:
+    model_uuid = f"{self._custom_detector._model_id}:{uuid.uuid4().hex[:6]}"
+
+    # Call RunInference Transform with the keyed model handler
+    run_inference = RunInference(
+        self._custom_detector._keyed_model_handler,
+        **self._custom_detector._run_inference_args)
+
+    # ((orig_key, temp_key), beam.Row)
+    rekeyed_model_input = input | "Rekey" >> beam.Map(
+        lambda x: ((x[0], x[1][0]), x[1][1]))
+
+    # ((orig_key, temp_key), PredictionResult)
+    rekeyed_model_output = (
+        rekeyed_model_input | "Convert beam row to model input" >>
+        beam.Map(lambda x: (x[0], self._custom_detector.convert_input(x[1])))
+        | f"Call RunInference ({model_uuid})" >> run_inference)
+
+    # ((orig_key, temp_key), {'input':[row], 'output:[PredictionResult]})
+    rekeyed_cogrouped = {
+        'input': rekeyed_model_input, 'output': rekeyed_model_output
+    } | beam.CoGroupByKey()
+
+    ret = (
+        rekeyed_cogrouped |
+        "Unnest and convert model output" >> beam.Map(self.unnest_and_convert))
+
+    if self._custom_detector._threshold_criterion:
+      ret = (
+          ret | f"Run Threshold Criterion ({model_uuid})" >>
+          RunThresholdCriterion(self._custom_detector._threshold_criterion))
+
+    return ret
+
+
 class RunEnsembleDetector(beam.PTransform[beam.PCollection[KeyedInputT],
                                           beam.PCollection[KeyedOutputT]]):
   """Runs an ensemble of anomaly detectors on a PCollection of data.
@@ -432,8 +511,14 @@ class RunEnsembleDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     for idx, detector in enumerate(self._ensemble_detector._sub_detectors):
       if isinstance(detector, EnsembleAnomalyDetector):
         results.append(
-            input | f"Run Ensemble Detector at index {idx} ({model_uuid})" >>
+            input
+            | f"Run Ensemble Detector at index {idx} ({model_uuid})" >>
             RunEnsembleDetector(detector))
+      elif isinstance(detector, CustomDetector):
+        results.append(
+            input
+            | f"Run Custom Detector at index {idx} ({model_uuid})" >>
+            RunCustomDetector(detector))
       else:
         results.append(
             input
@@ -518,6 +603,8 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[InputT],
 
     if isinstance(self._root_detector, EnsembleAnomalyDetector):
       keyed_output = (keyed_input | RunEnsembleDetector(self._root_detector))
+    elif isinstance(self._root_detector, CustomDetector):
+      keyed_output = (keyed_input | RunCustomDetector(self._root_detector))
     else:
       keyed_output = (keyed_input | RunOneDetector(self._root_detector))
 
