@@ -17,6 +17,7 @@
 
 import logging
 import time
+import json
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -258,7 +259,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     return self._batching_kwargs
 
 
-class VertexAITritonModelHandler(ModelHandler[Any,
+class TritonModelHandler(ModelHandler[Any,
                                             PredictionResult,
                                             aiplatform.Endpoint]):
     """
@@ -270,25 +271,27 @@ class VertexAITritonModelHandler(ModelHandler[Any,
                  project_id: str,
                  region: str,
                  endpoint_name: str,
+                 name:str,
                  location: str,
+                 datatype: str,
                  payload_config: Optional[Dict[str,Any]] = None,
                  private: bool = False,
-                 
                  ):
         self.project_id = project_id
         self.region = region
         self.endpoint_name = endpoint_name
+        self.input_name = name
         self.endpoint_url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/endpoints/{endpoint_name}:predict"
         self.is_private = private
         self.location = location
+        self.datatype = datatype
         self.payload_config = payload_config if payload_config else {}
-        
         # Configure AdaptiveThrottler and throttling metrics for client-side
         # throttling behavior.
         # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
         # for more details.
         self.throttled_secs = Metrics.counter(
-        VertexAIModelHandlerJSON, "cumulativeThrottlingSeconds")
+        TritonModelHandler, "cumulativeThrottlingSeconds")
         self.throttler = AdaptiveThrottler(
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
@@ -338,6 +341,39 @@ class VertexAITritonModelHandler(ModelHandler[Any,
 
       return endpoint
 
+    def get_request(
+        self,
+        batch: Sequence[Any],
+        model: aiplatform.Endpoint,
+        throttle_delay_secs: int,
+        inference_agrs: Optional[Dict[str,Any]]):
+      while self.throttler.throttle_request(time.time() * MSEC_TO_SEC):
+        LOGGER.info(
+            "Delaying request for %d seconds due to previous failures",
+            throttle_delay_secs)
+        time.sleep(throttle_delay_secs)
+        self.throttled_secs.inc(throttle_delay_secs)
+      
+      triton_request = {
+        "inputs": [
+          {
+            "name": self.input_name,
+            "shape": [len(batch),1],
+            "datatype": self.datatype,
+            "data": batch
+          }
+        ]
+      }
+      body = json.dumps(triton_request).encode("utf-8")
+      api_endpoint = f"{self.region}-aiplatform.googleapis.com"
+      client_options = {"api_endpoint": api_endpoint}
+      pred_client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
+      request = aiplatform.gapic.RawPredictRequest(endpoint=model.resource_name,
+            http_body=aiplatform.gapic.HttpBody(data=body, content_type="application/json"),)
+      response = pred_client.raw_predict(request = request)
+      response_data = json.loads(response.data.decode('utf-8'))
+      return response_data
+
     def run_inference(
         self,
         batch: Sequence[Any],
@@ -346,23 +382,25 @@ class VertexAITritonModelHandler(ModelHandler[Any,
     ) -> Iterable[PredictionResult]:
         """
         Sends a prediction request with the Triton-specific payload structure.
-        """
-        
-        config = self.payload_config.copy()
-        if inference_args:
-          config.update(inference_args)
 
-        payload = {
-            "inputs": [
-                {
-                    "name": config.get("name", "name"),
-                    "shape": config.get("shape", [1, 1]),  
-                    "datatype": config.get("datatype", "BYTES"),
-                    "data": batch,
-                }
-            ]
-        }
-        client = aiplatform.gapic.PredictionServiceClient()
-        predict_response = client.predict(model_name=model, instances=[payload])
-        for inp, pred in zip(batch, predict_response.predictions):
-            yield PredictionResult(inp, pred)
+        Args:
+        batch: a sequence of any values to be passed to the Vertex AI endpoint.
+            Should be encoded as the model expects.
+        model: an aiplatform.Endpoint object configured to access the desired
+            model.
+        inference_args: any additional arguments to send as part of the
+            prediction request.
+
+        Returns:
+        An iterable of Predictions.
+        """
+        prediction = self.get_request(
+          batch,model,throttle_delay_secs=5,inference_args=inference_args
+        )
+        if "outputs" not in prediction or not prediction["outputs"]:
+            raise ValueError("Unexpected response format from Triton server: no outputs found.")
+        output_data = prediction["outputs"][0]["data"]
+        predictions = [output_data[i:i+1] for i in range(0, len(output_data), 1)]
+        
+        return utils._convert_to_result(
+        batch, predictions, model.deployed_model_id)
