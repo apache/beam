@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
@@ -49,6 +50,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,6 +172,9 @@ class DataflowMetrics extends MetricResults {
         // counter metric
         Long value = getCounterValue(committed);
         counterResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
+      } else if (committed.getGauge() != null && attempted.getGauge() != null) {
+        GaugeResult value = getGaugeValue(committed);
+        gaugeResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else if (committed.getSet() != null && attempted.getSet() != null) {
         // stringset metric
         StringSetResult value = getStringSetValue(committed);
@@ -223,6 +228,40 @@ class DataflowMetrics extends MetricResults {
       long max = checkArgumentNotNull(((Number) distributionMap.get("max"))).longValue();
       long sum = checkArgumentNotNull(((Number) distributionMap.get("sum"))).longValue();
       return DistributionResult.create(sum, count, min, max);
+    }
+
+    private GaugeResult getGaugeValue(MetricUpdate metricUpdate) {
+      if (metricUpdate.getGauge() == null) {
+        return GaugeResult.empty();
+      }
+      Object gaugeValue = metricUpdate.getGauge();
+      if (gaugeValue instanceof Number) {
+        long value = ((Number) gaugeValue).longValue();
+        Instant timestamp = new Instant(System.currentTimeMillis());
+        String tsStr = metricUpdate.getName().getContext().get("timestamp");
+        if (tsStr != null) {
+          try {
+            timestamp =
+                Instant.parse(tsStr); // Expecting ISO-8601 format, e.g., "2025-03-15T10:00:00Z"
+          } catch (IllegalArgumentException e) {
+            LOG.warn("Failed to parse gauge timestamp '{}': {}", tsStr, e.getMessage());
+          }
+        }
+        return GaugeResult.create(value, timestamp);
+      } else if (gaugeValue instanceof Map) {
+        Map<?, ?> gaugeData = (Map<?, ?>) gaugeValue;
+        Object valueObj = gaugeData.get("value");
+        Object tsObj = gaugeData.get("timestamp");
+        if (valueObj instanceof Number && tsObj instanceof Number) {
+          long value = ((Number) valueObj).longValue();
+          Instant timestamp = new Instant(((Number) tsObj).longValue());
+          return GaugeResult.create(value, timestamp);
+        }
+      }
+      LOG.warn(
+          "Gauge value {} is not a number or recognized structure, returning empty result",
+          gaugeValue);
+      return GaugeResult.empty();
     }
 
     public Iterable<MetricResult<DistributionResult>> getDistributionResults() {
