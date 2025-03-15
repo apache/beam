@@ -371,7 +371,6 @@ public class StreamingStepMetricsContainerTest {
             .setBoundedTrie(
                 MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1.toProto()));
 
-    ((StreamingStepMetricsContainer) c1).populateBoundedTrieMetrics = true;
     Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
 
@@ -400,7 +399,6 @@ public class StreamingStepMetricsContainerTest {
             .setBoundedTrie(
                 MetricsToCounterUpdateConverter.getBoundedTrie(expectedName2.toProto()));
 
-    ((StreamingStepMetricsContainer) c2).populateBoundedTrieMetrics = true;
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name2Update));
 
@@ -412,7 +410,6 @@ public class StreamingStepMetricsContainerTest {
     name1Update.setBoundedTrie(
         MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1.toProto()));
 
-    ((StreamingStepMetricsContainer) c1).populateBoundedTrieMetrics = true;
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
   }
