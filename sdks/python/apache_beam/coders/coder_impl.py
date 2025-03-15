@@ -758,6 +758,22 @@ class NullableCoderImpl(StreamCoderImpl):
         if unused_value is not None else 0)
 
 
+class BigEndianInt32CoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    out.write_bigendian_int32(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    return in_stream.read_bigendian_int32()
+
+  def estimate_size(self, unused_value, nested=False):
+    # type: (Any, bool) -> int
+    # An int32 is encoded as 4 bytes, regardless of nesting.
+    return 4
+
+
 class BigEndianShortCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode_to_stream(self, value, out, nested):
