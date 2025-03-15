@@ -244,6 +244,22 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda a,
         b: a + b, [typehints.List[int], typehints.List[str]])
 
+  def testBinOpPromotion(self):
+    self.assertReturnType(int, lambda a, b: a + b, [int, bool])
+    self.assertReturnType(float, lambda a, b: a + b, [int, float])
+    self.assertReturnType(complex, lambda a, b: a + b, [int, complex])
+
+  def testBinOpSequenceMul(self):
+    self.assertReturnType(str, lambda a, b: a * b, [int, str])
+    self.assertReturnType(bytes, lambda a, b: a * b, [bytes, int])
+    self.assertReturnType(
+        typehints.List[float], lambda a, b: a * b, [int, typehints.List[float]])
+
+  def testDiv(self):
+    # We only support Python 3 now.
+    self.assertReturnType(float, lambda a, b: a / b, [int, int])
+    self.assertReturnType(int, lambda a, b: a // b, [int, int])
+
   def testCall(self):
     f = lambda x, *args: x
     self.assertReturnType(
