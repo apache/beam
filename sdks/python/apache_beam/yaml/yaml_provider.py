@@ -37,6 +37,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import docstring_parser
 import yaml
@@ -61,12 +62,25 @@ from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
+
+
+class NotAvailableWithReason:
+  """A False value that provides additional content.
+
+  Primarily used to return a value from Provider.available().
+  """
+  def __init__(self, reason):
+    self.reason = reason
+
+  def __bool__(self):
+    return False
 
 
 class Provider:
   """Maps transform types names and args to concrete PTransform instances."""
-  def available(self) -> bool:
+  def available(self) -> Union[bool, NotAvailableWithReason]:
     """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
 
@@ -307,6 +321,7 @@ class RemoteProvider(ExternalProvider):
 
   def __init__(self, urns, address: str):
     super().__init__(urns, service=address)
+    self._address = address
 
   def available(self):
     if self._is_available is None:
@@ -315,7 +330,8 @@ class RemoteProvider(ExternalProvider):
           service.ready(1)
           self._is_available = True
       except Exception:
-        self._is_available = False
+        self._is_available = NotAvailableWithReason(
+            f'Remote provider not reachable at {self._address}.')
     return self._is_available
 
   def cache_artifacts(self):
@@ -330,8 +346,20 @@ class ExternalJavaProvider(ExternalProvider):
 
   def available(self):
     # pylint: disable=subprocess-run-check
-    return subprocess.run(['which', 'java'],
-                          capture_output=True).returncode == 0
+    trial = subprocess.run(['which', 'java'], capture_output=True)
+    if trial.returncode == 0:
+      return True
+    else:
+
+      def try_decode(bs):
+        try:
+          return bs.decode()
+        except UnicodeError:
+          return bs
+
+      return NotAvailableWithReason(
+          f'Unable to locate java executable: '
+          f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}')
 
   def cache_artifacts(self):
     return [self._jar_provider()]
@@ -1361,8 +1389,7 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
-      load_providers(
-          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
+      load_providers(yaml_utils.locate_data_file('standard_providers.yaml')))
 
 
 def _file_digest(fileobj, digest):

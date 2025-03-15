@@ -37,6 +37,10 @@ __all__ = [
     "EnsembleAnomalyDetector"
 ]
 
+DEFAULT_NORMAL_LABEL = 0
+DEFAULT_OUTLIER_LABEL = 1
+DEFAULT_MISSING_LABEL = -2
+
 
 @dataclass(frozen=True)
 class AnomalyPrediction():
@@ -79,9 +83,9 @@ class ThresholdFn(abc.ABC):
   """
   def __init__(
       self,
-      normal_label: int = 0,
-      outlier_label: int = 1,
-      missing_label: int = -2):
+      normal_label: int = DEFAULT_NORMAL_LABEL,
+      outlier_label: int = DEFAULT_OUTLIER_LABEL,
+      missing_label: int = DEFAULT_MISSING_LABEL):
     self._normal_label = normal_label
     self._outlier_label = outlier_label
     self._missing_label = missing_label
@@ -165,14 +169,15 @@ class AnomalyDetector(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def score_one(self, x: beam.Row) -> float:
+  def score_one(self, x: beam.Row) -> Optional[float]:
     """Scores a single data instance for anomalies.
 
     Args:
       x: A `beam.Row` representing the data instance.
 
     Returns:
-      The outlier score as a float.
+      The outlier score as a float. None if an exception occurs during scoring,
+      and NaN if the model is not ready.
     """
     raise NotImplementedError
 

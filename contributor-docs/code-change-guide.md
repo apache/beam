@@ -632,7 +632,7 @@ Tips for using the Dataflow runner:
 
 * If you run into some strange errors such as `java.lang.NoClassDefFoundError` or errors related to proto changes, try these:
   * run `./gradlew clean`
-  * remove the gradle cache, e.g., `rm -fr ~/.gradle`
+  * remove the gradle cache, e.g., `rm -fr ~/.gradle` and `rm -fr <beam-repo-dir>/.gradle`
   * remove the `build` directory at the repo root
 * To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
