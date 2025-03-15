@@ -17,20 +17,45 @@
 
 import logging
 import math
+import os
+import pickle
+import shutil
+import tempfile
 import unittest
+from typing import Any
+from typing import Dict
 from typing import Iterable
+from typing import Optional
+from typing import Sequence
+from typing import SupportsFloat
+from typing import Tuple
+
+import mock
+import numpy
+from sklearn.base import BaseEstimator
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.aggregations import AnyVote
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
+from apache_beam.ml.anomaly.detectors.offline import OfflineDetector
 from apache_beam.ml.anomaly.detectors.zscore import ZScore
+from apache_beam.ml.anomaly.specifiable import Spec
+from apache_beam.ml.anomaly.specifiable import Specifiable
+from apache_beam.ml.anomaly.specifiable import _spec_type_to_subspace
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.thresholds import FixedThreshold
 from apache_beam.ml.anomaly.thresholds import QuantileThreshold
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import _StatefulThresholdDoFn
 from apache_beam.ml.anomaly.transforms import _StatelessThresholdDoFn
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.base import _PostProcessingModelHandler
+from apache_beam.ml.inference.base import _PreProcessingModelHandler
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -251,6 +276,178 @@ class TestAnomalyDetection(unittest.TestCase):
               AnomalyResult(example=input[1], predictions=[prediction]))
                     for input,
                     prediction in zip(self._input, aggregated)]))
+
+
+class FakeNumpyModel():
+  def __init__(self):
+    self.total_predict_calls = 0
+
+  def predict(self, input_vector: numpy.ndarray):
+    self.total_predict_calls += 1
+    return [input_vector[0][0] * 10 - input_vector[0][1]]
+
+
+def alternate_numpy_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[numpy.ndarray],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  return [0]
+
+
+def _to_keyed_numpy_array(t: Tuple[Any, beam.Row]):
+  """Converts an Apache Beam Row to a NumPy array."""
+  return t[0], numpy.array(list(t[1]))
+
+
+def _from_keyed_numpy_array(t: Tuple[Any, PredictionResult]):
+  assert isinstance(t[1].inference, SupportsFloat)
+  return t[0], float(t[1].inference)
+
+
+class TestOfflineDetector(unittest.TestCase):
+  def setUp(self):
+    global SklearnModelHandlerNumpy, KeyedModelHandler
+    global _PreProcessingModelHandler, _PostProcessingModelHandler
+    # Make model handlers into Specifiable
+    SklearnModelHandlerNumpy = specifiable(SklearnModelHandlerNumpy)
+    KeyedModelHandler = specifiable(KeyedModelHandler)
+    _PreProcessingModelHandler = specifiable(_PreProcessingModelHandler)
+    _PostProcessingModelHandler = specifiable(_PostProcessingModelHandler)
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+    # Make the model handlers back to normal
+    SklearnModelHandlerNumpy.unspecifiable()
+    KeyedModelHandler.unspecifiable()
+    _PreProcessingModelHandler.unspecifiable()
+    _PostProcessingModelHandler.unspecifiable()
+
+  def test_default_inference_fn(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakeNumpyModel(), file)
+
+    keyed_model_handler = KeyedModelHandler(
+        SklearnModelHandlerNumpy(model_uri=temp_file_name)).with_preprocess_fn(
+            _to_keyed_numpy_array).with_postprocess_fn(_from_keyed_numpy_array)
+
+    detector = OfflineDetector(keyed_model_handler=keyed_model_handler)
+    detector_spec = detector.to_spec()
+    expected_spec = Spec(
+        type='OfflineDetector',
+        config={
+            'keyed_model_handler': Spec(
+                type='_PostProcessingModelHandler',
+                config={
+                    'base': Spec(
+                        type='_PreProcessingModelHandler',
+                        config={
+                            'base': Spec(
+                                type='KeyedModelHandler',
+                                config={
+                                    'unkeyed': Spec(
+                                        type='SklearnModelHandlerNumpy',
+                                        config={'model_uri': temp_file_name})
+                                }),
+                            'preprocess_fn': Spec(
+                                type='_to_keyed_numpy_array', config=None)
+                        }),
+                    'postprocess_fn': Spec(
+                        type='_from_keyed_numpy_array', config=None)
+                })
+        })
+    self.assertEqual(detector_spec, expected_spec)
+
+    self.assertEqual(_spec_type_to_subspace('SklearnModelHandlerNumpy'), '*')
+    self.assertEqual(_spec_type_to_subspace('_PreProcessingModelHandler'), '*')
+    self.assertEqual(_spec_type_to_subspace('_PostProcessingModelHandler'), '*')
+    self.assertEqual(_spec_type_to_subspace('_to_keyed_numpy_array'), '*')
+    self.assertEqual(_spec_type_to_subspace('_from_keyed_numpy_array'), '*')
+
+    # Make sure the spec from the detector can be used to reconstruct the same
+    # detector
+    detector_new = Specifiable.from_spec(detector_spec)
+
+    input = [
+        (1, beam.Row(x=1, y=2)),
+        (1, beam.Row(x=2, y=4)),
+        (1, beam.Row(x=3, y=6)),
+    ]
+    expected_predictions = [
+        AnomalyPrediction(
+            model_id='OfflineDetector',
+            score=8.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+        AnomalyPrediction(
+            model_id='OfflineDetector',
+            score=16.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+        AnomalyPrediction(
+            model_id='OfflineDetector',
+            score=24.0,
+            label=None,
+            threshold=None,
+            info='',
+            source_predictions=None),
+    ]
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create(input)
+          # TODO: get rid of this conversion between BeamSchema to beam.Row.
+          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
+          | AnomalyDetection(detector_new))
+
+      assert_that(
+          result,
+          equal_to([(
+              input[0],
+              AnomalyResult(example=input[1], predictions=[prediction]))
+                    for input,
+                    prediction in zip(input, expected_predictions)]))
+
+  def test_run_inference_args(self):
+    model_handler = SklearnModelHandlerNumpy(model_uri="unused")
+    detector = OfflineDetector(
+        keyed_model_handler=model_handler,
+        run_inference_args={"inference_args": {
+            "multiplier": 10
+        }})
+
+    p = TestPipeline()
+
+    input = [
+        (1, beam.Row(x=1, y=2)),
+        (1, beam.Row(x=2, y=4)),
+        (1, beam.Row(x=3, y=6)),
+    ]
+
+    # patch the RunInference in "apache_beam.ml.anomaly.transforms" where
+    # it is imported and call
+    with mock.patch('apache_beam.ml.anomaly.transforms.RunInference') as mock_run_inference:  # pylint: disable=line-too-long
+      # make the actual RunInference as the sideeffect, so we record the call
+      # information but also create the true RunInference instance.
+      mock_run_inference.side_effect = RunInference
+      try:
+        p = TestPipeline()
+        _ = (p | beam.Create(input) | AnomalyDetection(detector))
+      except:  # pylint: disable=bare-except
+        pass
+      call_args = mock_run_inference.call_args[1]
+      self.assertEqual(
+          call_args,
+          {
+              'inference_args': {
+                  'multiplier': 10
+              },
+              'model_identifier': 'OfflineDetector'
+          })
 
 
 R = beam.Row(x=10, y=20)
