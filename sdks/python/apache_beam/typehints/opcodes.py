@@ -54,13 +54,13 @@ from apache_beam.typehints.typehints import Union
 # method on a C-implemented type will do.
 _MethodDescriptorType = type(str.upper)
 
-try:
+if sys.version_info >= (3, 11):
   import opcode
   _div_binop_args = frozenset([
       ix for (ix, (argname, _)) in enumerate(opcode._nb_ops)
       if 'TRUE_DIVIDE' in argname
   ])
-except ImportError:
+else:
   _div_binop_args = frozenset()
 
 
