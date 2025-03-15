@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} for continuously querying Kafka for new partitions, and emitting those
@@ -68,6 +71,8 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
   private final @Nullable Pattern topicPattern;
   private final @Nullable Instant startReadTime;
   private final @Nullable Instant stopReadTime;
+
+  private static final Logger LOG = LoggerFactory.getLogger(WatchForKafkaTopicPartitions.class);
 
   public WatchForKafkaTopicPartitions(
       @Nullable Duration checkDuration,
@@ -189,7 +194,12 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {
       if (topics != null && !topics.isEmpty()) {
         for (String topic : topics) {
-          for (PartitionInfo partition : kafkaConsumer.partitionsFor(topic)) {
+          List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);
+          checkState(
+                  partitionInfoList != null,
+                  "Could not find any partitions info for topic " + topic + ". Please check Kafka configuration and make sure "
+                          + "that provided topics exist.");
+          for (PartitionInfo partition : partitionInfoList) {
             current.add(new TopicPartition(topic, partition.partition()));
           }
         }
@@ -197,6 +207,11 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         for (Map.Entry<String, List<PartitionInfo>> topicInfo :
             kafkaConsumer.listTopics().entrySet()) {
           if (topicPattern == null || topicPattern.matcher(topicInfo.getKey()).matches()) {
+            List<PartitionInfo> partitionInfoList = topicInfo.getValue();
+            if (partitionInfoList == null) {
+              LOG.warn("Could not find any partitions info for topic {}. Please check Kafka configuration and make sure "
+                      + "that provided topics exist.", topicInfo.getKey());
+            }
             for (PartitionInfo partition : topicInfo.getValue()) {
               current.add(new TopicPartition(partition.topic(), partition.partition()));
             }
