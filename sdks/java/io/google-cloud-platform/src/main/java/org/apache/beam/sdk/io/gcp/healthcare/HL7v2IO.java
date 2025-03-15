@@ -97,9 +97,10 @@ import org.slf4j.LoggerFactory;
  * cases where you want to process all the messages in an HL7v2 store or those matching a filter
  *
  * @see <a
- *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
- *     This paginates through results of a Messages.List call @see <a
- *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list</a>
+ *     href="https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters"></a>
+ *     This paginates through results of a Messages.List call
+ * @see <a
+ *     href="https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list"></a>
  *     and outputs directly to a {@link PCollection} of {@link HL7v2Message}. In these use cases,
  *     the error handling similar to above is unnecessary because we are listing from the source of
  *     truth the pipeline should fail transparently if this transform fails to paginate through all
