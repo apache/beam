@@ -252,11 +252,17 @@ func main() {
 	sort.Strings(properties)
 	args = append(args, properties...)
 
-	// Open modules specified in pipeline options
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		// Open modules specified in pipeline options
 		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddOpenModules"]; ok {
 			for _, module := range modules.GetListValue().GetValues() {
 				args = append(args, "--add-opens="+module.GetStringValue())
+			}
+		}
+		// Add modules specified in pipeline options
+		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddRootModules"]; ok {
+			for _, module := range modules.GetListValue().GetValues() {
+				args = append(args, "--add-modules="+module.GetStringValue())
 			}
 		}
 	}
