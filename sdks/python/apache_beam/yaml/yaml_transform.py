@@ -237,13 +237,26 @@ class Scope(LightweightScope):
       spec = t
     else:
       spec = self._transforms_by_uuid[self.get_transform_id(t)]
-    possible_providers = [
-        p for p in self.providers[spec['type']] if p.available()
-    ]
+    possible_providers = []
+    unavailable_provider_messages = []
+    for p in self.providers[spec['type']]:
+      is_available = p.available()
+      if is_available:
+        possible_providers.append(p)
+      else:
+        reason = getattr(is_available, 'reason', 'no reason given')
+        unavailable_provider_messages.append(
+            f'{p.__class__.__name__} ({reason})')
     if not possible_providers:
+      if unavailable_provider_messages:
+        unavailable_provider_message = (
+            '\nThe following providers were found but not available: ' +
+            '\n'.join(unavailable_provider_messages))
+      else:
+        unavailable_provider_message = ''
       raise ValueError(
-          'No available provider for type %r at %s' %
-          (spec['type'], identify_object(spec)))
+          'No available provider for type %r at %s%s' %
+          (spec['type'], identify_object(spec), unavailable_provider_message))
     # From here on, we have the invariant that possible_providers is not empty.
 
     # Only one possible provider, no need to rank further.

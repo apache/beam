@@ -534,7 +534,7 @@ class ErrorHandlingTest(unittest.TestCase):
               config:
                   language: python
                   fields:
-                    out: "1/(1-len(element))"
+                    out: "1.0/(1-len(element))"
                   error_handling:
                     output: errors
             - type: StripErrorMetadata
