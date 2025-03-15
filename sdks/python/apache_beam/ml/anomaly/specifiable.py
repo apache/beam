@@ -21,21 +21,22 @@ A module that provides utilities to turn a class into a Specifiable subclass.
 
 from __future__ import annotations
 
+import abc
 import collections
 import dataclasses
 import inspect
 import logging
 import os
 from typing import Any
+from typing import Callable
 from typing import ClassVar
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Protocol
 from typing import Type
 from typing import TypeVar
 from typing import Union
-from typing import runtime_checkable
+from typing import overload
 
 from typing_extensions import Self
 
@@ -59,7 +60,7 @@ _ACCEPTED_SUBSPACES = [
 #: `spec_type` when applying the `specifiable` decorator to an existing class.
 _KNOWN_SPECIFIABLE = collections.defaultdict(dict)
 
-SpecT = TypeVar('SpecT', bound='Specifiable')
+T = TypeVar('T', bound=type)
 
 
 def _class_to_subspace(cls: Type) -> str:
@@ -104,8 +105,7 @@ class Spec():
   config: Optional[Dict[str, Any]] = dataclasses.field(default_factory=dict)
 
 
-@runtime_checkable
-class Specifiable(Protocol):
+class Specifiable(abc.ABC):
   """Protocol that a specifiable class needs to implement."""
   #: The value of the `type` field in the object's spec for this class.
   spec_type: ClassVar[str]
@@ -130,7 +130,9 @@ class Specifiable(Protocol):
     return v
 
   @classmethod
-  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Union[Self, type]:
+  def from_spec(cls,
+                spec: Spec,
+                _run_init: bool = True) -> Union[Self, type[Self]]:
     """Generate a `Specifiable` subclass object based on a spec.
 
     Args:
@@ -250,13 +252,35 @@ def _get_init_kwargs(inst, init_method, *args, **kwargs):
   return params
 
 
+@overload
 def specifiable(
-    my_cls=None,
+    my_cls: None = None,
     /,
     *,
-    spec_type=None,
-    on_demand_init=True,
-    just_in_time_init=True):
+    spec_type: Optional[str] = None,
+    on_demand_init: bool = True,
+    just_in_time_init: bool = True) -> Callable[[T], T]:
+  ...
+
+
+@overload
+def specifiable(
+    my_cls: T,
+    /,
+    *,
+    spec_type: Optional[str] = None,
+    on_demand_init: bool = True,
+    just_in_time_init: bool = True) -> T:
+  ...
+
+
+def specifiable(
+    my_cls: Optional[T] = None,
+    /,
+    *,
+    spec_type: Optional[str] = None,
+    on_demand_init: bool = True,
+    just_in_time_init: bool = True) -> Union[T, Callable[[T], T]]:
   """A decorator that turns a class into a `Specifiable` subclass by
   implementing the `Specifiable` protocol.
 
@@ -285,8 +309,8 @@ def specifiable(
       original `__init__` method will be called when the first time an attribute
       is accessed.
   """
-  def _wrapper(cls):
-    def new_init(self: Specifiable, *args, **kwargs):
+  def _wrapper(cls: T) -> T:
+    def new_init(self, *args, **kwargs):
       self._initialized = False
       self._in_init = False
 
@@ -361,9 +385,14 @@ def specifiable(
     # start of the function body of _wrapper
     _register(cls, spec_type)
 
+    # register the original class as a virtual subclass of Specifiable
+    # so issubclass(cls, Specifiable) and isinstance(cls(), Specifiable) are
+    # true
+    Specifiable.register(cls)
+
     class_name = cls.__name__
-    original_init = cls.__init__
-    cls.__init__ = new_init
+    original_init = cls.__init__  # type: ignore[misc]
+    cls.__init__ = new_init  # type: ignore[misc]
     if just_in_time_init:
       cls.__getattr__ = new_getattr
 
