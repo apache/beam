@@ -236,14 +236,20 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
-  public final synchronized void maybeSendHealthCheck(Instant lastSendThreshold) {
-    if (!clientClosed && debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()) {
-      try {
-        sendHealthCheck();
-      } catch (Exception e) {
-        logger.debug("Received exception sending health check.", e);
-      }
-    }
+  public final void maybeSendHealthCheck(Instant lastSendThreshold) {
+    // Don't block other streams when sending health check.
+    executeSafely(
+        () -> {
+          synchronized (this) {
+            if (!clientClosed && debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()) {
+              try {
+                sendHealthCheck();
+              } catch (Exception e) {
+                logger.debug("Received exception sending health check.", e);
+              }
+            }
+          }
+        });
   }
 
   protected abstract void sendHealthCheck() throws WindmillStreamShutdownException;
