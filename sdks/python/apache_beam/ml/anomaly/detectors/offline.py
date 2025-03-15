@@ -30,7 +30,8 @@ class OfflineDetector(AnomalyDetector):
   """A offline anomaly detector that uses a provided model handler for scoring.
 
   Args:
-    keyed_model_handler: The KeyedModelHandler to use for inference.
+    keyed_model_handler: The model handler to use for inference.
+      Requires a `KeyModelHandler[Any, Row, float, Any]` instance.
     run_inference_args: Optional arguments to pass to RunInference
     **kwargs: Additional keyword arguments to pass to the base
       AnomalyDetector class.

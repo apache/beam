@@ -462,18 +462,18 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     rekeyed_model_input = input | "Rekey" >> beam.Map(
         lambda x: ((x[0], x[1][0]), x[1][1]))
 
-    # ((orig_key, temp_key), PredictionResult)
+    # ((orig_key, temp_key), float)
     rekeyed_model_output = (
         rekeyed_model_input
         | f"Call RunInference ({model_uuid})" >> run_inference)
 
     # ((orig_key, temp_key), {'input':[row], 'output:[float]})
-    rekeyed_cogrouped = {
+    rekeyed_cogbk = {
         'input': rekeyed_model_input, 'output': rekeyed_model_output
     } | beam.CoGroupByKey()
 
     ret = (
-        rekeyed_cogrouped |
+        rekeyed_cogbk |
         "Unnest and convert model output" >> beam.Map(self.unnest_and_convert))
 
     if self._offline_detector._threshold_criterion:
