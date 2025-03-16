@@ -593,8 +593,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Get.side_effect = [
         job_1_waiting, job_2_done, job_1_done, job_2_done
     ]
-    partition_1 = ('project:dataset.table0', (0, ['file0']))
-    partition_2 = ('project:dataset.table1', (1, ['file1']))
+    partition_1 = ('project:dataset.table0', (0, ['file0'], 0))
+    partition_2 = ('project:dataset.table1', (1, ['file1'], 0))
     bq_client.jobs.Insert.side_effect = [job_1, job_2]
     test_job_prefix = "test_job"
 
@@ -636,8 +636,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Get.side_effect = [
         job_1_waiting, job_2_done, job_1_error, job_2_done
     ]
-    partition_1 = ('project:dataset.table0', (0, ['file0']))
-    partition_2 = ('project:dataset.table1', (1, ['file1']))
+    partition_1 = ('project:dataset.table0', (0, ['file0'], 0))
+    partition_2 = ('project:dataset.table1', (1, ['file1'], 0))
     bq_client.jobs.Insert.side_effect = [job_1, job_2]
     test_job_prefix = "test_job"
 
