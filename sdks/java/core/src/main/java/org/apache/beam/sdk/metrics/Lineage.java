@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -40,10 +41,17 @@ public class Lineage {
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
-  private final BoundedTrie metric;
+  private final Metric metric;
 
   private Lineage(Type type) {
-    this.metric = Metrics.boundedTrie(LINEAGE_NAMESPACE, type.toString());
+    if (MetricsFlag.lineageRollupEnabled()) {
+      this.metric =
+          Metrics.boundedTrie(
+              LINEAGE_NAMESPACE,
+              type == Type.SOURCE ? Type.SOURCEV2.toString() : Type.SINKV2.toString());
+    } else {
+      this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
+    }
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
@@ -92,7 +100,6 @@ public class Lineage {
         }
       }
     }
-
     return parts;
   }
 
@@ -134,7 +141,11 @@ public class Lineage {
    */
   public void add(Iterable<String> rollupSegments) {
     ImmutableList<String> segments = ImmutableList.copyOf(rollupSegments);
-    this.metric.add(segments);
+    if (MetricsFlag.lineageRollupEnabled()) {
+      ((BoundedTrie) this.metric).add(segments);
+    } else {
+      ((StringSet) this.metric).add(String.join("", segments));
+    }
   }
 
   /**
@@ -183,8 +194,13 @@ public class Lineage {
 
   /** Lineage metrics resource types. */
   public enum Type {
-    SOURCE("sources_v2"),
-    SINK("sinks_v2");
+    // Used by StringSet to report lineage metrics
+    SOURCE("sources"),
+    SINK("sinks"),
+
+    // Used by BoundedTrie to report lineage metrics
+    SOURCEV2("sources_v2"),
+    SINKV2("sinks_v2");
 
     private final String name;
 
