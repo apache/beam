@@ -24,7 +24,7 @@ from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
-
+from google.api import httpbody_pb2
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.cloud import aiplatform
@@ -346,7 +346,7 @@ class VertexAITritonModelHandler(ModelHandler[Any,
         batch: Sequence[Any],
         model: aiplatform.Endpoint,
         throttle_delay_secs: int,
-        inference_agrs: Optional[Dict[str,Any]]):
+        inference_args: Optional[Dict[str,Any]]):
       while self.throttler.throttle_request(time.time() * MSEC_TO_SEC):
         LOGGER.info(
             "Delaying request for %d seconds due to previous failures",
@@ -369,7 +369,7 @@ class VertexAITritonModelHandler(ModelHandler[Any,
       client_options = {"api_endpoint": api_endpoint}
       pred_client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
       request = aiplatform.gapic.RawPredictRequest(endpoint=model.resource_name,
-            http_body=aiplatform.gapic.HttpBody(data=body, content_type="application/json"),)
+            http_body=httpbody_pb2.HttpBody(data=body, content_type="application/json"),)
       response = pred_client.raw_predict(request = request)
       response_data = json.loads(response.data.decode('utf-8'))
       return response_data
@@ -394,6 +394,8 @@ class VertexAITritonModelHandler(ModelHandler[Any,
         Returns:
         An iterable of Predictions.
         """
+        if not batch:
+          return []
         prediction = self.get_request(
           batch,model,throttle_delay_secs=5,inference_args=inference_args
         )

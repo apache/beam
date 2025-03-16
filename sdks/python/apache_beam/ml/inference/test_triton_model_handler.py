@@ -1,123 +1,121 @@
-import json
-import time
-
-import pytest
-from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSON
-from apache_beam.ml.inference.vertex_ai_inference import VertexAITritonModelHandler
+import unittest
+from unittest.mock import MagicMock, patch
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.vertex_ai_inference import VertexAITritonModelHandler
+import json
+from google.cloud import aiplatform
+from google.cloud.aiplatform.gapic import PredictionServiceClient
 
-# Define a fake endpoint class to simulate a live AI Platform endpoint.
-class FakeEndpoint:
-    def __init__(self):
-        self.resource_name = "projects/test/locations/us-central1/endpoints/12345"
-        self.deployed_model_id = "deployed_model_1"
+class TestVertexAITritonModelHandler(unittest.TestCase):
+    def setUp(self):
+        """Initialize the handler with test parameters before each test."""
+        self.handler = VertexAITritonModelHandler(
+            project_id="test-project",
+            region="us-central1",
+            endpoint_name="test-endpoint",
+            name="input__0",
+            location="us-central1",
+            datatype="FP32",
+            private=False,
+        )
+        self.handler.throttler = MagicMock()
+        self.handler.throttler.throttle_request = MagicMock(return_value=False)
+        self.handler.throttled_secs = MagicMock()
 
-    def list_models(self):
-        return [{"dummy": "model"}]
+    def test_load_model_public_endpoint(self):
+        """Test loading a public endpoint and verifying deployed models."""
+        mock_endpoint = MagicMock(spec=aiplatform.Endpoint)
+        mock_endpoint.list_models.return_value = [MagicMock()]
+        with patch('google.cloud.aiplatform.Endpoint', return_value=mock_endpoint):
+            model = self.handler.load_model()
+            self.assertEqual(model, mock_endpoint)
+            mock_endpoint.list_models.assert_called_once()
 
+    def test_load_model_no_deployed_models(self):
+        """Test that an endpoint with no deployed models raises ValueError."""
+        mock_endpoint = MagicMock(spec=aiplatform.Endpoint)
+        mock_endpoint.list_models.return_value = []
+        with patch('google.cloud.aiplatform.Endpoint', return_value=mock_endpoint):
+            with self.assertRaises(ValueError) as cm:
+                self.handler.load_model()
+            self.assertIn("no models deployed", str(cm.exception))
 
-# Define a fake PredictionServiceClient to simulate the behavior of the AI Platform client.
-class FakePredictionServiceClient:
-    def __init__(self, client_options=None):
-        self.client_options = client_options
-
-    def raw_predict(self, request):
-        # Simulate a response. The true handler expects the response data to be a JSON
-        # string containing an "outputs" field.
-        fake_resp_content = {
-            "outputs": [{"data": [["result1"], ["result2"]]}]
+    def test_get_request_payload_scalar(self):
+        """Test payload construction for a batch of scalar inputs."""
+        batch = [1.0, 2.0, 3.0]
+        expected_payload = {
+            "inputs": [
+                {
+                    "name": "input__0",
+                    "shape": [3, 1],
+                    "datatype": "FP32",
+                    "data": [1.0, 2.0, 3.0],
+                }
+            ]
         }
-        class FakeResponse:
-            pass
-        fake_response = FakeResponse()
-        fake_response.data = json.dumps(fake_resp_content).encode("utf-8")
-        return fake_response
+        model = MagicMock(resource_name="test-resource")
+        mock_client = MagicMock(spec=PredictionServiceClient)
+        mock_response = MagicMock()
+        mock_response.data.decode.return_value = json.dumps({"outputs": [{"data": [0.5, 0.6, 0.7]}]})
+        mock_client.raw_predict.return_value = mock_response
 
+        with patch('google.cloud.aiplatform.gapic.PredictionServiceClient', return_value=mock_client):
+            self.handler.get_request(batch, model, throttle_delay_secs=5, inference_args=None)
+            request = mock_client.raw_predict.call_args[1]["request"]
+            self.assertEqual(json.loads(request.http_body.data.decode("utf-8")), expected_payload)
 
-@pytest.fixture(autouse=True)
-def patch_prediction_service_client(monkeypatch):
-    # Replace the PredictionServiceClient with our fake implementation.
-    monkeypatch.setattr(
-        "apache_beam.ml.inference.vertex_ai_inference.aiplatform.gapic.PredictionServiceClient",
-        lambda client_options=None: FakePredictionServiceClient(client_options)
-    )
+    def test_run_inference_parse_response(self):
+        """Test parsing of a Triton response into PredictionResult objects."""
+        batch = [1.0, 2.0]
+        mock_response = {
+            "outputs": [
+                {
+                    "name": "output__0",
+                    "shape": [2, 1],
+                    "datatype": "FP32",
+                    "data": [0.5, 0.6],
+                }
+            ]
+        }
+        model = MagicMock(resource_name="test-resource", deployed_model_id="model-123")
+        with patch.object(self.handler, 'get_request', return_value=mock_response):
+            results = self.handler.run_inference(batch, model)
+            expected_results = [
+                PredictionResult(example=1.0, inference=[0.5], model_id="model-123"),
+                PredictionResult(example=2.0, inference=[0.6], model_id="model-123"),
+            ]
+            self.assertEqual(list(results), expected_results)
 
+    def test_run_inference_empty_batch(self):
+        """Test that an empty batch returns an empty list."""
+        batch = []
+        model = MagicMock()
+        results = self.handler.run_inference(batch, model)
+        self.assertEqual(list(results), [])
 
-@pytest.fixture(autouse=True)
-def patch_retrieve_endpoint(monkeypatch):
-    # Patch the _retrieve_endpoint() to always return our fake endpoint.
-    monkeypatch.setattr(
-        VertexAITritonModelHandler,
-        "_retrieve_endpoint",
-        lambda self: FakeEndpoint()
-    )
+    def test_run_inference_malformed_response(self):
+        """Test that a malformed response raises an error."""
+        batch = [1.0]
+        mock_response = {"unexpected": "data"}
+        model = MagicMock()
+        with patch.object(self.handler, 'get_request', return_value=mock_response):
+            with self.assertRaises(ValueError) as cm:
+                list(self.handler.run_inference(batch, model))
+            self.assertIn("no outputs found", str(cm.exception))
 
+    def test_throttling_delays_request(self):
+        """Test that the handler delays requests when throttled."""
+        batch = [1.0]
+        model = MagicMock(resource_name="test-resource")
+        self.handler.throttler.throttle_request = MagicMock(side_effect=[True, False])
+        mock_response = {"outputs": [{"data": [0.5]}]}
 
-@pytest.fixture(autouse=True)
-def patch_convert_to_result(monkeypatch):
-    # Override the conversion utility to a simple function for testing.
-    from apache_beam.ml.inference import utils
-    def fake_convert_to_result(batch, predictions, deployed_model_id):
-        # In our simple conversion, we return a tuple: (input, prediction, deployed_model_id)
-        return [(inp, pred, deployed_model_id) for inp, pred in zip(batch, predictions)]
-    monkeypatch.setattr(utils, "_convert_to_result", fake_convert_to_result)
+        with patch('time.sleep') as mock_sleep:
+            with patch('google.cloud.aiplatform.gapic.PredictionServiceClient') as mock_client:
+                mock_client.return_value.raw_predict.return_value.data.decode.return_value = json.dumps(mock_response)
+                self.handler.run_inference(batch, model)
+                mock_sleep.assert_called_with(5)
+                self.handler.throttled_secs.inc.assert_called_with(5)
 
-
-def test_get_request(monkeypatch):
-    """
-    Test that the get_request method constructs the request properly,
-    calls the fake PredictionServiceClient, and returns the expected response data.
-    """
-    # Create a TritonModelHandler instance.
-    handler = VertexAITritonModelHandler(
-        project_id="test-project",
-        region="us-central1",
-        endpoint_name="12345",
-        name="input_field",
-        location="us-central1",
-        datatype="BYTES"
-    )
-
-    # Create a fake endpoint to pass into get_request.
-    fake_endpoint = FakeEndpoint()
-    batch = ["test_input"]
-
-    # Call get_request.
-    response_data = handler.get_request(batch, fake_endpoint, throttle_delay_secs=1, inference_agrs={})
-
-    # Validate the response structure.
-    assert "outputs" in response_data
-    outputs = response_data["outputs"]
-    assert isinstance(outputs, list)
-    assert "data" in outputs[0]
-    # The fake client returns a list with two prediction results.
-    assert outputs[0]["data"] == [["result1"], ["result2"]]
-
-
-def test_run_inference(monkeypatch):
-    """
-    Test that run_inference converts the raw response into PredictionResult objects.
-    """
-    handler = VertexAITritonModelHandler(
-        project_id="test-project",
-        region="us-central1",
-        endpoint_name="12345",
-        name="input_field",
-        location="us-central1",
-        datatype="BYTES"
-    )
-
-    # load_model() is patched via _retrieve_endpoint so it returns our FakeEndpoint.
-    model = handler.load_model()
-    batch = ["input1", "input2"]
-
-    # Call run_inference and collect the results.
-    results = list(handler.run_inference(batch, model, inference_args={"payload_config": {}}))
-    
-    # With our fake response (2 predictions) and a batch of 2 inputs,
-    # the conversion utility should yield 2 PredictionResult tuples.
-    # For our fake_convert_to_result, each result is a tuple: (input, prediction, deployed_model_id).
-    assert len(results) == len(batch)
-    for inp, pred, deployed_id in results:
-        assert inp in batch
-        assert deployed_id == model.deployed_model_id 
+if __name__ == "__main__":
+    unittest.main()
