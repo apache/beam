@@ -259,7 +259,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     return self._batching_kwargs
 
 
-class TritonModelHandler(ModelHandler[Any,
+class VertexAITritonModelHandler(ModelHandler[Any,
                                             PredictionResult,
                                             aiplatform.Endpoint]):
     """
@@ -291,7 +291,7 @@ class TritonModelHandler(ModelHandler[Any,
         # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
         # for more details.
         self.throttled_secs = Metrics.counter(
-        TritonModelHandler, "cumulativeThrottlingSeconds")
+        VertexAITritonModelHandler, "cumulativeThrottlingSeconds")
         self.throttler = AdaptiveThrottler(
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
