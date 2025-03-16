@@ -298,8 +298,8 @@ class JavaJarServer(SubprocessServer):
         if java_home:
           raise RuntimeError(
               'Java is not correctly installed in JAVA_HOME=%s to use this '
-              'transform/runner. Please check if JAVA_HOME is correctly set and '
-              'points to your Java installation directory.' % java_home)
+              'transform/runner. Please check if JAVA_HOME is correctly set and'
+              ' points to your Java installation directory.' % java_home)
         else:
           raise RuntimeError(
               'Java must be installed on this system to use this '
