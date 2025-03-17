@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
@@ -47,6 +48,7 @@ public abstract class WindmillEndpoints {
           .setVersion(Long.MAX_VALUE)
           .setWindmillEndpoints(ImmutableSet.of())
           .setGlobalDataEndpoints(ImmutableMap.of())
+          .setEndpointType(EndpointType.UNKNOWN)
           .build();
 
   public static WindmillEndpoints none() {
@@ -71,11 +73,16 @@ public abstract class WindmillEndpoints {
                 endpointProto ->
                     Endpoint.from(endpointProto, workerMetadataResponseProto.getExternalEndpoint()))
             .collect(toImmutableSet());
-
+    EndpointType endpointType =
+        Arrays.stream(EndpointType.values())
+            .filter(e -> e.name().equals(workerMetadataResponseProto.getEndpointType().name()))
+            .findFirst()
+            .orElse(EndpointType.UNKNOWN);
     return WindmillEndpoints.builder()
         .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
         .setWindmillEndpoints(windmillServers)
+        .setEndpointType(endpointType)
         .build();
   }
 
@@ -156,6 +163,15 @@ public abstract class WindmillEndpoints {
    */
   public abstract ImmutableSet<Endpoint> windmillEndpoints();
 
+  public abstract EndpointType endpointType();
+
+  public enum EndpointType {
+    UNKNOWN,
+    CLOUDPATH,
+    BORG,
+    DIRECTPATH
+  }
+
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
    * the worker_token field, and direct_endpoint field parsed into a {@link WindmillServiceAddress}
@@ -227,6 +243,8 @@ public abstract class WindmillEndpoints {
 
     public abstract Builder setWindmillEndpoints(
         ImmutableSet<WindmillEndpoints.Endpoint> windmillServers);
+
+    public abstract Builder setEndpointType(EndpointType endpointType);
 
     abstract ImmutableSet.Builder<WindmillEndpoints.Endpoint> windmillEndpointsBuilder();
 

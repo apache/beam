@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.EndpointType;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -118,6 +119,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   @GuardedBy("metadataLock")
   private long pendingMetadataVersion;
+
+  @GuardedBy("metadataLock")
+  private EndpointType activeEndpointType = EndpointType.DIRECTPATH;
 
   @GuardedBy("this")
   private boolean started;
@@ -198,9 +202,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         workCommitterFactory,
         getDataMetricTracker,
         Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder()
-                .setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME)
-                .build()));
+            new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build()),
+        streamPoolWorkCommitter,
+        streamPoolGetDataClient,
+        streamPoolHeartbeatSender,
+        streamingWorkScheduler,
+        waitForResources,
+        computationStateFetcher);
   }
 
   @VisibleForTesting
@@ -213,7 +221,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      ThrottlingGetDataMetricTracker getDataMetricTracker) {
+      ThrottlingGetDataMetricTracker getDataMetricTracker,
+      WorkCommitter streamPoolWorkCommitter,
+      GetDataClient streamPoolGetDataClient,
+      HeartbeatSender streamPoolHeartbeatSender,
+      StreamingWorkScheduler streamingWorkScheduler,
+      Runnable waitForResources,
+      Function<String, Optional<ComputationState>> computationStateFetcher) {
     FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider =
         new FanOutStreamingEngineWorkerHarness(
             jobHeader,
@@ -230,7 +244,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             // blocked by the consumeWorkerMetadata() task. Test suites run in different
             // environments and non-determinism has lead to past flakiness. See
             // https://github.com/apache/beam/issues/28957.
-            MoreExecutors.newDirectExecutorService());
+            MoreExecutors.newDirectExecutorService(),
+            streamPoolWorkCommitter,
+            streamPoolGetDataClient,
+            streamPoolHeartbeatSender,
+            streamingWorkScheduler,
+            waitForResources,
+            computationStateFetcher);
     fanOutStreamingEngineWorkProvider.start();
     return fanOutStreamingEngineWorkProvider;
   }
@@ -296,10 +316,14 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   private void consumeWorkerMetadata(WindmillEndpoints windmillEndpoints) {
+    LOG.info("DEBUG LOG: consumeWorkerMetadata called with endpoints: {}", windmillEndpoints);
     synchronized (metadataLock) {
       // Only process versions greater than what we currently have to prevent double processing of
       // metadata. workerMetadataConsumer is single-threaded so we maintain ordering.
-      if (windmillEndpoints.version() > pendingMetadataVersion) {
+      // But in case the endpoint type in worker metadata is different from the active endpoint
+      // type, also process those endpoints
+      if (windmillEndpoints.version() > pendingMetadataVersion
+          || windmillEndpoints.endpointType() != activeEndpointType) {
         pendingMetadataVersion = windmillEndpoints.version();
         workerMetadataConsumer.execute(() -> consumeWindmillWorkerEndpoints(windmillEndpoints));
       }
@@ -309,11 +333,14 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private synchronized void consumeWindmillWorkerEndpoints(WindmillEndpoints newWindmillEndpoints) {
     // Since this is run on a single threaded executor, multiple versions of the metadata maybe
     // queued up while a previous version of the windmillEndpoints were being consumed. Only consume
-    // the endpoints if they are the most current version.
+    // the endpoints if they are the most current version, or if the endpoint type is different
+    // from currently active endpoints.
     synchronized (metadataLock) {
-      if (newWindmillEndpoints.version() < pendingMetadataVersion) {
+      if (newWindmillEndpoints.version() < pendingMetadataVersion
+          && newWindmillEndpoints.endpointType() == activeEndpointType) {
         return;
       }
+      activeEndpointType = newWindmillEndpoints.endpointType();
     }
 
     LOG.debug(
@@ -323,7 +350,10 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         newWindmillEndpoints.version());
     closeStreamsNotIn(newWindmillEndpoints).join();
     ImmutableMap<Endpoint, WindmillStreamSender> newStreams =
-        createAndStartNewStreams(newWindmillEndpoints.windmillEndpoints()).join();
+        createAndStartNewStreams(
+                newWindmillEndpoints.windmillEndpoints(), newWindmillEndpoints.endpointType())
+            .join();
+
     StreamingEngineBackends newBackends =
         StreamingEngineBackends.builder()
             .setWindmillStreams(newStreams)
@@ -349,7 +379,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 entry ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(entry.getKey(), entry.getValue()),
+                        () -> closeStreamSender(entry.getKey(), (StreamSender) entry.getValue()),
                         windmillStreamManager));
 
     Set<Endpoint> newGlobalDataEndpoints =
@@ -360,7 +390,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 sender ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager));
+                        () -> closeStreamSender(sender.endpoint(), (StreamSender) sender),
+                        windmillStreamManager));
 
     return CompletableFuture.allOf(
         Streams.concat(closeStreamFutures, closeGlobalDataStreamFutures)
@@ -379,11 +410,15 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   private synchronized CompletableFuture<ImmutableMap<Endpoint, WindmillStreamSender>>
-      createAndStartNewStreams(ImmutableSet<Endpoint> newWindmillEndpoints) {
+      createAndStartNewStreams(
+          ImmutableSet<Endpoint> newWindmillEndpoints, EndpointType endpointType) {
     ImmutableMap<Endpoint, WindmillStreamSender> currentStreams = backends.get().windmillStreams();
     return MoreFutures.allAsList(
             newWindmillEndpoints.stream()
-                .map(endpoint -> getOrCreateWindmillStreamSenderFuture(endpoint, currentStreams))
+                .map(
+                    endpoint ->
+                        getOrCreateWindmillStreamSenderFuture(
+                            endpoint, currentStreams, endpointType))
                 .collect(Collectors.toList()))
         .thenApply(
             backends -> backends.stream().collect(toImmutableMap(Pair::getLeft, Pair::getRight)))
@@ -392,13 +427,18 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   private CompletionStage<Pair<Endpoint, WindmillStreamSender>>
       getOrCreateWindmillStreamSenderFuture(
-          Endpoint endpoint, ImmutableMap<Endpoint, WindmillStreamSender> currentStreams) {
+          Endpoint endpoint,
+          ImmutableMap<Endpoint, WindmillStreamSender> currentStreams,
+          EndpointType endpointType) {
     return Optional.ofNullable(currentStreams.get(endpoint))
         .map(backend -> CompletableFuture.completedFuture(Pair.of(endpoint, backend)))
         .orElseGet(
             () ->
                 MoreFutures.supplyAsync(
-                        () -> Pair.of(endpoint, createAndStartWindmillStreamSender(endpoint)),
+                        () ->
+                            Pair.of(
+                                endpoint,
+                                createAndStartWindmillStreamSender(endpoint, endpointType)),
                         windmillStreamManager)
                     .toCompletableFuture());
   }
@@ -437,23 +477,44 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                     keyedEndpoint.getValue()));
   }
 
-  private WindmillStreamSender createAndStartWindmillStreamSender(Endpoint endpoint) {
-    WindmillStreamSender windmillStreamSender =
-        WindmillStreamSender.create(
-            WindmillConnection.from(endpoint, this::createWindmillStub),
-            GetWorkRequest.newBuilder()
-                .setClientId(jobHeader.getClientId())
-                .setJobId(jobHeader.getJobId())
-                .setProjectId(jobHeader.getProjectId())
-                .setWorkerId(jobHeader.getWorkerId())
-                .build(),
-            GetWorkBudget.noBudget(),
-            streamFactory,
-            workItemScheduler,
-            getDataStream ->
-                StreamGetDataClient.create(
-                    getDataStream, this::getGlobalDataStream, getDataMetricTracker),
-            workCommitterFactory);
+  private WindmillStreamSender createAndStartWindmillStreamSender(
+      Endpoint endpoint, EndpointType enpointType) {
+    WindmillStreamSender windmillStreamSender;
+    windmillStreamSender =
+        enpointType == EndpointType.DIRECTPATH
+            ? WindmillDirectStreamSender.create(
+                WindmillConnection.from(endpoint, this::createWindmillStub),
+                GetWorkRequest.newBuilder()
+                    .setClientId(jobHeader.getClientId())
+                    .setJobId(jobHeader.getJobId())
+                    .setProjectId(jobHeader.getProjectId())
+                    .setWorkerId(jobHeader.getWorkerId())
+                    .build(),
+                GetWorkBudget.noBudget(),
+                streamFactory,
+                workItemScheduler,
+                getDataStream ->
+                    StreamGetDataClient.create(
+                        getDataStream, this::getGlobalDataStream, getDataMetricTracker),
+                workCommitterFactory)
+            : WindmillStreamPoolSender.create(
+                WindmillConnection.from(endpoint, this::createWindmillStub),
+                GetWorkRequest.newBuilder()
+                    .setClientId(jobHeader.getClientId())
+                    .setJobId(jobHeader.getJobId())
+                    .setProjectId(jobHeader.getProjectId())
+                    .setWorkerId(jobHeader.getWorkerId())
+                    .setMaxItems(totalGetWorkBudget.items())
+                    .setMaxBytes(totalGetWorkBudget.bytes())
+                    .build(),
+                GetWorkBudget.noBudget(),
+                streamFactory,
+                streamPoolWorkCommitter,
+                streamPoolGetDataClient,
+                streamPoolHeartbeatSender,
+                streamingWorkScheduler,
+                waitForResources,
+                computationStateFetcher);
     windmillStreamSender.start();
     return windmillStreamSender;
   }

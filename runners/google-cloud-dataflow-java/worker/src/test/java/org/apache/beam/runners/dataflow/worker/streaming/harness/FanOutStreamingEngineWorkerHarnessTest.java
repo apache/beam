@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -45,8 +46,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse.EndpointType;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
@@ -58,6 +61,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
@@ -83,7 +88,9 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   private static final long WAIT_FOR_METADATA_INJECTIONS_SECONDS = 5;
   private static final long SERVER_SHUTDOWN_TIMEOUT_SECONDS = 30;
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
-      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannels.LOCALHOST, 443));
+      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
+  private static final String AUTHENTICATING_SERVICE = "test.googleapis.com";
+
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
       ImmutableMap.of(
           "global_data",
@@ -194,7 +201,13 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             getWorkBudgetDistributor,
             dispatcherClient,
             ignored -> mock(WorkCommitter.class),
-            new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)));
+            new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)),
+            mock(WorkCommitter.class),
+            mock(GetDataClient.class),
+            mock(HeartbeatSender.class),
+            mock(StreamingWorkScheduler.class),
+            () -> {},
+            ignored -> Optional.empty());
     getWorkerMetadataReady.await();
     return harness;
   }
@@ -220,6 +233,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             .setMetadataVersion(1)
             .addWorkEndpoints(metadataResponseEndpoint(workerToken))
             .addWorkEndpoints(metadataResponseEndpoint(workerToken2))
+            // .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build());
 
@@ -271,6 +286,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken2)
                     .build())
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
     WorkerMetadataResponse secondWorkerMetadata =
@@ -280,6 +297,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken3)
                     .build())
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.DIRECTPATH)
             .build();
 
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
@@ -308,6 +327,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken)
                     .build())
+             .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
     WorkerMetadataResponse secondWorkerMetadata =
@@ -317,6 +338,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken2)
                     .build())
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 

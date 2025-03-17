@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 
+/** Superclass for stream senders used to communicate with Windmill */
 public interface WindmillStreamSender extends GetWorkBudgetSpender {
   void start();
 

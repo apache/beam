@@ -50,7 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class WindmillStreamSenderTest {
+public class WindmillDirectStreamSenderTest {
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -77,7 +77,9 @@ public class WindmillStreamSenderTest {
   public void setUp() {
     inProcessChannel =
         grpcCleanup.register(
-            InProcessChannelBuilder.forName("WindmillStreamSenderTest").directExecutor().build());
+            InProcessChannelBuilder.forName("WindmillDirectStreamSenderTest")
+                .directExecutor()
+                .build());
     grpcCleanup.register(inProcessChannel);
     connection =
         WindmillConnection.builder()
@@ -280,7 +282,7 @@ public class WindmillStreamSenderTest {
 
   private WindmillStreamSender newWindmillStreamSender(
       GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
-    return WindmillStreamSender.create(
+    return WindmillDirectStreamSender.create(
         connection,
         GET_WORK_REQUEST,
         budget,
