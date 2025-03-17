@@ -35,6 +35,14 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 
+/**
+ * An implementation of {@link TypedSchemaTransformProvider} for jobs reading data from AWS SQS
+ * queues and configured via {@link SqsReadConfiguration}.
+ *
+ * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
+ * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
+ * repository.
+ */
 @AutoService(SchemaTransformProvider.class)
 public class SqsReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<SqsReadConfiguration> {
