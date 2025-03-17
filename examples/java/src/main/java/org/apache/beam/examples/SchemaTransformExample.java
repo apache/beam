@@ -31,29 +31,30 @@ package org.apache.beam.examples;
 //     - transforms
 //     - numbers
 
-//gradle clean execute -DmainClass=org.apache.beam.examples.SchemaTransformExample --args="--runner=DirectRunner" -Pdirect-runner
+// gradle clean execute -DmainClass=org.apache.beam.examples.SchemaTransformExample
+// --args="--runner=DirectRunner" -Pdirect-runner
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.transforms.Select;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * An example that uses Schema transforms to apply multiple combiners (Sum, Min, Max) on the 
- * input PCollection.
- * 
+ * An example that uses Schema transforms to apply multiple combiners (Sum, Min, Max) on the input
+ * PCollection.
+ *
  * <p>For a detailed documentation of Schemas, see <a
  * href="https://beam.apache.org/documentation/programming-guide/#schemas">
  * https://beam.apache.org/documentation/programming-guide/#schemas </a>
@@ -64,29 +65,27 @@ public class SchemaTransformExample {
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
     // define the input row schema
-    Schema inputSchema =
-      Schema.builder()
-          .addInt32Field("k")
-          .addInt32Field("n")
-          .build();
+    Schema inputSchema = Schema.builder().addInt32Field("k").addInt32Field("n").build();
     // Create input
-    PCollection<Row> input = pipeline.apply(
-        Create.of(
-          Row.withSchema(inputSchema).addValues(1,1).build(),
-          Row.withSchema(inputSchema).addValues(1,5).build(),
-          Row.withSchema(inputSchema).addValues(2,10).build(),
-          Row.withSchema(inputSchema).addValues(2,20).build(),
-          Row.withSchema(inputSchema).addValues(3,1).build()
-        ))
-      .setRowSchema(inputSchema);
-    
-    PCollection<Row> result = input.apply(Select.fieldNames("n",",k"))
-      .apply(Group.<Row>byFieldNames("k")
-            .aggregateField("n", Min.ofIntegers(), "min_n")
-            .aggregateField("n", Max.ofIntegers(), "max_n")
-            .aggregateField("n", Sum.ofIntegers(), "sum_n")
-        )
-    ;
+    PCollection<Row> input =
+        pipeline
+            .apply(
+                Create.of(
+                    Row.withSchema(inputSchema).addValues(1, 1).build(),
+                    Row.withSchema(inputSchema).addValues(1, 5).build(),
+                    Row.withSchema(inputSchema).addValues(2, 10).build(),
+                    Row.withSchema(inputSchema).addValues(2, 20).build(),
+                    Row.withSchema(inputSchema).addValues(3, 1).build()))
+            .setRowSchema(inputSchema);
+
+    PCollection<Row> result =
+        input
+            .apply(Select.fieldNames("n", ",k"))
+            .apply(
+                Group.<Row>byFieldNames("k")
+                    .aggregateField("n", Min.ofIntegers(), "min_n")
+                    .aggregateField("n", Max.ofIntegers(), "max_n")
+                    .aggregateField("n", Sum.ofIntegers(), "sum_n"));
     // [END main_section]
     // Log values
     result.apply(ParDo.of(new LogOutput<>("PCollection values after Schema transform: ")));

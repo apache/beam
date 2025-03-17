@@ -31,26 +31,27 @@ package org.apache.beam.examples;
 //     - transforms
 //     - numbers
 
-//gradle clean execute -DmainClass=org.apache.beam.examples.SqlTransformExample --args="--runner=DirectRunner" -Pdirect-runner
+// gradle clean execute -DmainClass=org.apache.beam.examples.SqlTransformExample
+// --args="--runner=DirectRunner" -Pdirect-runner
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.Row;
 
 /**
- * An example that uses Beam SQL transformation to apply multiple combiners (Min, Max, Sum) on the 
+ * An example that uses Beam SQL transformation to apply multiple combiners (Min, Max, Sum) on the
  * input PCollection.
- * 
- * <p> Using SQL syntax to define a transform than can be integrated in a Java pipeline.
+ *
+ * <p>Using SQL syntax to define a transform than can be integrated in a Java pipeline.
  *
  * <p>For a detailed documentation of Beam SQL, see <a
  * href="https://beam.apache.org/documentation/dsls/sql/overview/">
@@ -62,25 +63,23 @@ public class SqlTransformExample {
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
     // define the input row format
-    Schema inputSchema =
-      Schema.builder()
-          .addInt32Field("k")
-          .addInt32Field("n")
-          .build();
+    Schema inputSchema = Schema.builder().addInt32Field("k").addInt32Field("n").build();
     // Create input
-    PCollection<Row> input = pipeline.apply(
-        Create.of(
-          Row.withSchema(inputSchema).addValues(1,1).build(),
-          Row.withSchema(inputSchema).addValues(1,5).build(),
-          Row.withSchema(inputSchema).addValues(2,10).build(),
-          Row.withSchema(inputSchema).addValues(2,20).build(),
-          Row.withSchema(inputSchema).addValues(3,1).build()
-        ))
-      .setRowSchema(inputSchema);
-    
+    PCollection<Row> input =
+        pipeline
+            .apply(
+                Create.of(
+                    Row.withSchema(inputSchema).addValues(1, 1).build(),
+                    Row.withSchema(inputSchema).addValues(1, 5).build(),
+                    Row.withSchema(inputSchema).addValues(2, 10).build(),
+                    Row.withSchema(inputSchema).addValues(2, 20).build(),
+                    Row.withSchema(inputSchema).addValues(3, 1).build()))
+            .setRowSchema(inputSchema);
 
-    PCollection<Row> result = input.apply(
-      SqlTransform.query("select k, min(n) as min_n, max(n) as max_n, sum(n) as sum_n from PCOLLECTION group by k"));
+    PCollection<Row> result =
+        input.apply(
+            SqlTransform.query(
+                "select k, min(n) as min_n, max(n) as max_n, sum(n) as sum_n from PCOLLECTION group by k"));
     // [END main_section]
     // Log values
     result.apply(ParDo.of(new LogOutput<>("PCollection values after SQL transform: ")));

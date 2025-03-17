@@ -31,7 +31,8 @@ package org.apache.beam.examples;
 //     - transforms
 //     - numbers
 
-// gradle clean execute -DmainClass=org.apache.beam.examples.CoCombineTransformExample --args="--runner=DirectRunner" -Pdirect-runner
+// gradle clean execute -DmainClass=org.apache.beam.examples.CoCombineTransformExample
+// --args="--runner=DirectRunner" -Pdirect-runner
 
 import java.util.ArrayList;
 import org.apache.beam.sdk.Pipeline;
@@ -53,69 +54,138 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An example that uses Composed combiners to apply multiple combiners (Sum, Min, Max) on the 
- * input PCollection.
- * 
+ * An example that uses Composed combiners to apply multiple combiners (Sum, Min, Max) on the input
+ * PCollection.
+ *
  * <p>For a detailed documentation of Composed Combines, see <a
  * href="https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/transforms/CombineFns.html">
- * https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/transforms/CombineFns.html </a>
+ * https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/transforms/CombineFns.html
+ * </a>
+ *
+ * <p>Remark, the combiners are wrapped in a DropNullFn, because when cobining the input usually has
+ * many null values that need to be handled by the combiner.
  */
 public class CoCombineTransformExample {
+
+  /**
+   * A wrapper for combiners, that will drop the null elements before applying the combiner. Similar
+   * to <a
+   * href="https://github.com/apache/beam/blob/e75577c80795e716172602f352b81d6aa764bb83/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/transform/BeamBuiltinAggregations.java#L366">org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations
+   * private DropNullFn()</a>
+   */
+  public static class DropNullFn<InputT, AccumT, OutputT>
+      extends Combine.CombineFn<InputT, AccumT, OutputT> {
+
+    protected final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
+
+    public DropNullFn(Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+      this.combineFn = combineFn;
+    }
+
+    @Override
+    public AccumT createAccumulator() {
+      return null;
+    }
+
+    @Override
+    public AccumT addInput(AccumT accumulator, InputT input) {
+      if (input == null) {
+        return accumulator;
+      }
+
+      if (accumulator == null) {
+        accumulator = combineFn.createAccumulator();
+      }
+      return combineFn.addInput(accumulator, input);
+    }
+
+    @Override
+    public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
+      // filter out nulls
+      accumulators = Iterables.filter(accumulators, Predicates.notNull());
+
+      // handle only nulls
+      if (!accumulators.iterator().hasNext()) {
+        return null;
+      }
+
+      return combineFn.mergeAccumulators(accumulators);
+    }
+
+    @Override
+    public OutputT extractOutput(AccumT accumulator) {
+      if (accumulator == null) {
+        return null;
+      }
+      return combineFn.extractOutput(accumulator);
+    }
+
+    @Override
+    public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+        throws CannotProvideCoderException {
+      Coder<AccumT> coder = combineFn.getAccumulatorCoder(registry, inputCoder);
+      if (coder instanceof NullableCoder) {
+        return coder;
+      }
+      return NullableCoder.of(coder);
+    }
+  }
+
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
     // Create input
     PCollection<KV<Long, Long>> inputKV =
-        pipeline.apply(Create.of(
-            KV.of(1L, 1L),
-            KV.of(1L, 5L),
-            KV.of(2L, 10L),
-            KV.of(2L, 20L),
-            KV.of(3L, 1L)
-          ));
-    /** 
-     * Define the function used to filter elements before sending them to the Combiner. 
-     * With identityFn all elements (here perKey) will be combined.
+        pipeline.apply(
+            Create.of(KV.of(1L, 1L), KV.of(1L, 5L), KV.of(2L, 10L), KV.of(2L, 20L), KV.of(3L, 1L)));
+    /**
+     * Define the function used to filter elements before sending them to the Combiner. With
+     * identityFn all elements (here perKey) will be combined.
      */
     SimpleFunction<Long, Long> identityFn =
-      new SimpleFunction<Long, Long>() {
-       @Override
-        public Long apply(Long input) {
+        new SimpleFunction<Long, Long>() {
+          @Override
+          public Long apply(Long input) {
             return input;
-        }};
+          }
+        };
 
     // tuple tags to identify the outputs of the Composed Combine
     TupleTag<Long> sumTag = new TupleTag<Long>("sum_n");
     TupleTag<Long> minTag = new TupleTag<Long>("min_n");
     TupleTag<Long> maxTag = new TupleTag<Long>("max_n");
 
-    CombineFns.ComposedCombineFn<Long> composedCombine = 
-      CombineFns.compose()
-        .with(identityFn, Sum.ofLongs(), sumTag) //elements filtered by the identityFn, will be combined in a Sum and the output will be tagged 
-        .with(identityFn, Min.ofLongs(), minTag)
-        .with(identityFn, Max.ofLongs(), maxTag)
-        ;
+    CombineFns.ComposedCombineFn<Long> composedCombine =
+        CombineFns.compose()
+            .with(
+                identityFn,
+                new DropNullFn(Sum.ofLongs()),
+                sumTag) // elements filtered by the identityFn, will be combined in a Sum and the
+            // output will be tagged
+            .with(identityFn, new DropNullFn(Min.ofLongs()), minTag)
+            .with(identityFn, new DropNullFn(Max.ofLongs()), maxTag);
 
-    PCollection<KV<Long,CombineFns.CoCombineResult>> combinedData = 
-      inputKV
-        .apply("Combine all", Combine.perKey(composedCombine));
-    
+    PCollection<KV<Long, CombineFns.CoCombineResult>> combinedData =
+        inputKV.apply("Combine all", Combine.perKey(composedCombine));
+
     // transform the CoCombineResult output into a KV format, simpler to use for printing
-    PCollection<KV<Long,Iterable<KV<String,Long>>>> result = combinedData
-        .apply(ParDo.of(
-         new DoFn<KV<Long,CombineFns.CoCombineResult>, KV<Long,Iterable<KV<String,Long>>>>() {
-          @ProcessElement
-           public void processElement(ProcessContext c) throws Exception {
-             CombineFns.CoCombineResult e = c.element().getValue();
-             ArrayList<KV<String,Long>> o = new ArrayList<KV<String,Long>>();
-             o.add(KV.of(minTag.getId(), e.get(minTag)));
-             o.add(KV.of(maxTag.getId(), e.get(maxTag)));
-             o.add(KV.of(sumTag.getId(), e.get(sumTag)));
-             c.output(KV.of(c.element().getKey(),o));
-           }
-         }));
-    
+    PCollection<KV<Long, Iterable<KV<String, Long>>>> result =
+        combinedData.apply(
+            ParDo.of(
+                new DoFn<
+                    KV<Long, CombineFns.CoCombineResult>, KV<Long, Iterable<KV<String, Long>>>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    CombineFns.CoCombineResult e = c.element().getValue();
+                    ArrayList<KV<String, Long>> o = new ArrayList<KV<String, Long>>();
+                    o.add(KV.of(minTag.getId(), e.get(minTag)));
+                    o.add(KV.of(maxTag.getId(), e.get(maxTag)));
+                    o.add(KV.of(sumTag.getId(), e.get(sumTag)));
+                    c.output(KV.of(c.element().getKey(), o));
+                  }
+                }));
+
     // [END main_section]
     // Log values
     result.apply(ParDo.of(new LogOutput<>("PCollection values after CoCombine transform: ")));
