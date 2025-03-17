@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Demonstration of Composed Combine transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 64
+//   context_line: 143
 //   categories:
 //     - Schemas
 //     - Combiners
@@ -71,6 +71,9 @@ import org.slf4j.LoggerFactory;
  * <p>Remark, the combiners are wrapped in a DropNullFn, because when cobining the input usually has
  * many null values that need to be handled by the combiner.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CoCombineTransformExample {
 
   /**
@@ -166,11 +169,11 @@ public class CoCombineTransformExample {
         CombineFns.compose()
             .with(
                 identityFn,
-                new DropNullFn(Sum.ofLongs()),
+                new DropNullFn<Long, long[], Long>(Sum.ofLongs()),
                 sumTag) // elements filtered by the identityFn, will be combined in a Sum and the
             // output will be tagged
-            .with(identityFn, new DropNullFn(Min.ofLongs()), minTag)
-            .with(identityFn, new DropNullFn(Max.ofLongs()), maxTag);
+            .with(identityFn, new DropNullFn<Long, long[], Long>(Min.ofLongs()), minTag)
+            .with(identityFn, new DropNullFn<Long, long[], Long>(Max.ofLongs()), maxTag);
 
     PCollection<KV<Long, CombineFns.CoCombineResult>> combinedData =
         inputKV.apply("Combine all", Combine.perKey(composedCombine));
