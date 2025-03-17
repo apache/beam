@@ -34,8 +34,14 @@ package org.apache.beam.examples;
 // gradle clean execute -DmainClass=org.apache.beam.examples.CoCombineTransformExample
 // --args="--runner=DirectRunner" -Pdirect-runner
 
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
