@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -39,8 +39,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.Streamin
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Owns and maintains a set of streams used to communicate with a specific Windmill worker.
@@ -64,8 +62,8 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSender {
-  private static final Logger LOG = LoggerFactory.getLogger(WindmillStreamPoolSender.class);
-  private final AtomicBoolean started;
+  // private static final java.util.logging.Logger LOG =
+  //     LoggerFactory.getLogger(WindmillStreamPoolSender.class);
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final GetWorkStream getWorkStream;
   private final WorkCommitter workCommitter;
@@ -75,6 +73,9 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
   private final StreamingWorkScheduler streamingWorkScheduler;
   private final Runnable waitForResources;
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
+
+  @GuardedBy("this")
+  private boolean started;
 
   private WindmillStreamPoolSender(
       WindmillConnection connection,
@@ -87,7 +88,7 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher) {
-    this.started = new AtomicBoolean(false);
+    this.started = false;
     this.getWorkBudget = getWorkBudget;
     this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
     this.getDataClient = getDataClient;
@@ -102,6 +103,7 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
             inputDataWatermark,
             synchronizedProcessingTime,
             workItem,
+            serializedWorkItemSize,
             getWorkStreamLatencies) ->
             this.computationStateFetcher
                 .apply(computationId)
@@ -111,6 +113,7 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
                       this.streamingWorkScheduler.scheduleWork(
                           computationState,
                           workItem,
+                          serializedWorkItemSize,
                           Watermarks.builder()
                               .setInputDataWatermark(Preconditions.checkNotNull(inputDataWatermark))
                               .setSynchronizedProcessingTime(synchronizedProcessingTime)
@@ -157,30 +160,29 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
 
   @SuppressWarnings("ReturnValueIgnored")
   @Override
-  public void start() {
-    LOG.info(
-        "DEBUG LOG: Inside start of WindmillStreamPoolSender. Starting getWorkStream and"
-            + " workCommitter");
-    getWorkStream.start();
-    workCommitter.start();
+  public synchronized void start() {
+    // LOG.info("Starting Stream Pool Sender");
+    if (!started) {
+      getWorkStream.start();
+      workCommitter.start();
 
-    started.set(true);
+      started = true;
+    }
   }
 
   @Override
-  public void close() {
-
-    if (started.get()) {
+  public synchronized void close() {
+    if (started) {
       getWorkStream.shutdown();
       workCommitter.stop();
     }
   }
 
   @Override
-  public void setBudget(long items, long bytes) {
+  public synchronized void setBudget(long items, long bytes) {
     GetWorkBudget budget = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
     getWorkBudget.set(budget);
-    if (started.get()) {
+    if (started) {
       getWorkStream.setBudget(budget);
     }
   }

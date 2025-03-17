@@ -37,7 +37,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -56,7 +55,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
  */
 @Internal
 @ThreadSafe
-final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
+final class WindmillDirectStreamSender implements WindmillStreamSender, StreamSender {
   private static final String STREAM_STARTER_THREAD_NAME = "StartWindmillStreamThread-%d";
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
@@ -67,7 +66,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
   private final ExecutorService streamStarter;
 
-  private WindmillStreamSender(
+  private WindmillDirectStreamSender(
       WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
@@ -80,7 +79,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
 
     // Stream instances connect/reconnect internally, so we can reuse the same instance through the
-    // entire lifecycle of WindmillStreamSender.
+    // entire lifecycle of WindmillDirectStreamSender.
     this.getDataStream =
         streamingEngineStreamFactory.createDirectGetDataStream(
             connection, streamingEngineThrottleTimers.getDataThrottleTimer());
@@ -103,7 +102,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
             3, new ThreadFactoryBuilder().setNameFormat(STREAM_STARTER_THREAD_NAME).build());
   }
 
-  static WindmillStreamSender create(
+  static WindmillDirectStreamSender create(
       WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
@@ -111,7 +110,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
       WorkItemScheduler workItemScheduler,
       Function<GetDataStream, GetDataClient> getDataClientFactory,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
-    return new WindmillStreamSender(
+    return new WindmillDirectStreamSender(
         connection,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
@@ -125,7 +124,8 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     return request.toBuilder().setMaxItems(budget.items()).setMaxBytes(budget.bytes()).build();
   }
 
-  synchronized void start() {
+  @Override
+  public synchronized void start() {
     if (!started.get()) {
       checkState(!streamStarter.isShutdown(), "WindmillStreamSender has already been shutdown.");
 
@@ -158,11 +158,13 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     }
   }
 
-  long getAndResetThrottleTime() {
+  @Override
+  public long getAndResetThrottleTime() {
     return streamingEngineThrottleTimers.getAndResetThrottleTime();
   }
 
-  long getCurrentActiveCommitBytes() {
+  @Override
+  public long getCurrentActiveCommitBytes() {
     return workCommitter.currentActiveCommitBytes();
   }
 }
