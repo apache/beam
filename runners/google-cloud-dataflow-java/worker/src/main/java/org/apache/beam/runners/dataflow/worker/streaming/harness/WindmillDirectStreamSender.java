@@ -37,7 +37,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataCl
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -98,7 +97,7 @@ final class WindmillDirectStreamSender implements WindmillStreamSender, StreamSe
             3, new ThreadFactoryBuilder().setNameFormat(STREAM_STARTER_THREAD_NAME).build());
   }
 
-  static WindmillStreamSender create(
+  static WindmillDirectStreamSender create(
       WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
@@ -106,7 +105,7 @@ final class WindmillDirectStreamSender implements WindmillStreamSender, StreamSe
       WorkItemScheduler workItemScheduler,
       Function<GetDataStream, GetDataClient> getDataClientFactory,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
-    return new WindmillStreamSender(
+    return new WindmillDirectStreamSender(
         connection,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
