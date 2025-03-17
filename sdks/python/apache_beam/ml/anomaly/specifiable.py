@@ -105,23 +105,25 @@ class Spec():
   config: Optional[Dict[str, Any]] = dataclasses.field(default_factory=dict)
 
 
-def _from_spec_helper(v, _run_init):
+def _specifiable_from_spec_helper(v, _run_init):
   if isinstance(v, Spec):
     return Specifiable.from_spec(v, _run_init)
 
   if isinstance(v, List):
-    return [_from_spec_helper(e, _run_init) for e in v]
+    return [_specifiable_from_spec_helper(e, _run_init) for e in v]
 
+  # TODO: support spec treatment for more types
   return v
 
 
-def _to_spec_helper(v):
+def _specifiable_to_spec_helper(v):
   if isinstance(v, Specifiable):
     return v.to_spec()
 
   if isinstance(v, List):
-    return [_to_spec_helper(e) for e in v]
+    return [_specifiable_to_spec_helper(e) for e in v]
 
+  # TODO: support spec treatment for more types
   if inspect.isfunction(v):
     if not hasattr(v, "spec_type"):
       _register(v, inject_spec_type=False)
@@ -140,7 +142,7 @@ class Specifiable(Protocol):
   """Protocol that a specifiable class needs to implement."""
   @classmethod
   def spec_type(cls) -> str:
-    ...
+    pass
 
   @classmethod
   def from_spec(cls,
@@ -170,8 +172,9 @@ class Specifiable(Protocol):
       return subclass
 
     kwargs = {
-        k: _from_spec_helper(v, _run_init)
-        for k, v in spec.config.items()
+        k: _specifiable_from_spec_helper(v, _run_init)
+        for k,
+        v in spec.config.items()
     }
 
     if _run_init:
@@ -189,7 +192,10 @@ class Specifiable(Protocol):
           f"'{type(self).__name__}' not registered as Specifiable. "
           f"Decorate ({type(self).__name__}) with @specifiable")
 
-    args = {k: _to_spec_helper(v) for k, v in self.init_kwargs.items()}
+    args = {
+        k: _specifiable_to_spec_helper(v)
+        for k, v in self.init_kwargs.items()
+    }
 
     return Spec(type=self.spec_type(), config=args)
 
@@ -258,7 +264,7 @@ def specifiable(
     spec_type: Optional[str] = None,
     on_demand_init: bool = True,
     just_in_time_init: bool = True) -> Callable[[T], T]:
-  ...
+  pass
 
 
 @overload
@@ -269,7 +275,7 @@ def specifiable(
     spec_type: Optional[str] = None,
     on_demand_init: bool = True,
     just_in_time_init: bool = True) -> T:
-  ...
+  pass
 
 
 def specifiable(
