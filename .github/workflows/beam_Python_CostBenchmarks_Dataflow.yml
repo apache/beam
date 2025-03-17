@@ -80,6 +80,7 @@ jobs:
           argument-file-paths: |
             ${{ github.workspace }}/.github/workflows/cost-benchmarks-pipeline-options/python_wordcount.txt
             ${{ github.workspace }}/.github/workflows/cost-benchmarks-pipeline-options/python_tf_mnist_classification.txt
+            ${{ github.workspace }}/.github/workflows/cost-benchmarks-pipeline-options/python_torch_lang_modeling_bert_base_uncased.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
@@ -93,6 +94,17 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             '-PloadTest.args=${{ env.beam_Python_Cost_Benchmarks_Dataflow_test_arguments_1 }} --job_name=benchmark-tests-wordcount-python-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/wordcount/result_wordcount-${{env.NOW_UTC}}.txt' \
+      - name: run Pytorch Language Modeling using Hugging face bert-base-uncased model
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_language_modeling_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Python_Cost_Benchmarks_Dataflow_test_arguments_3 }} --job_name=benchmark-tests-pytorch-language-modeling-bert-base-uncased-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased-${{env.NOW_UTC}}.txt' \
       - name: Run Tensorflow MNIST Image Classification on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 30
