@@ -139,7 +139,8 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withSerializer(serializer);
 
       if (configuration.aggregationEnabled) {
-        writeTransform = writeTransform.withRecordAggregation(RecordAggregation.builder().build());
+        writeTransform =
+            writeTransform.withRecordAggregation(KinesisIO.RecordAggregation.builder().build());
       } else {
         writeTransform = writeTransform.withRecordAggregationDisabled();
       }
