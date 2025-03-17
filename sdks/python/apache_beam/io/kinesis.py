@@ -112,6 +112,7 @@ WriteToKinesisSchema = NamedTuple(
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
+        ('aggregation_enabled', Optional[bool]),
     ],
 )
 
@@ -135,6 +136,7 @@ class WriteToKinesis(ExternalTransform):
       verify_certificate=None,
       producer_properties=None,
       expansion_service=None,
+      aggregation_enabled=None,
   ):
     """
     Initializes a write operation to Kinesis.
@@ -167,6 +169,7 @@ class WriteToKinesis(ExternalTransform):
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
+                aggregation_enabled=aggregation_enabled,
             )),
         expansion_service or default_io_expansion_service(),
     )

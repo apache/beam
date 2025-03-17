@@ -64,6 +64,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String region;
     @Nullable String serviceEndpoint;
     boolean verifyCertificate;
+    boolean aggregationEnabled;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -87,6 +88,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
     public void setVerifyCertificate(@Nullable Boolean verifyCertificate) {
       this.verifyCertificate = verifyCertificate == null || verifyCertificate;
+    }
+
+    public void setAggregationEnabled(@Nullable Boolean aggregationEnabled) {
+      this.aggregationEnabled = aggregationEnabled != null && aggregationEnabled;
     }
   }
 
@@ -131,8 +136,13 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .skipCertificateVerification(!configuration.verifyCertificate)
                       .build())
               .withPartitioner(p -> pk)
-              .withRecordAggregationDisabled()
               .withSerializer(serializer);
+
+      if (configuration.aggregationEnabled) {
+        writeTransform = writeTransform.withRecordAggregation(RecordAggregation.builder().build());
+      } else {
+        writeTransform = writeTransform.withRecordAggregationDisabled();
+      }
 
       return writeTransform;
     }
