@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import software.amazon.awssdk.regions.Region;
 
+/** Configuration class for reading data from an AWS SQS queue. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class SqsReadConfiguration {
