@@ -261,7 +261,14 @@ public class AvroUtilsTest {
     r.put("fixedDecimalSmall", bigDecimalPrecision5Scale2);
     r.put("fixedDecimalMedium", bigDecimalPrecision10Scale4);
     r.put("fixedDecimalLarge", bigDecimalPrecision20Scale6);
-    r.put("uuidField", uuid.toString());
+
+    try {
+      r.put("uuidField", uuid.toString());
+    } catch (ClassCastException e) {
+      // the avro tools version used by gradle-avro-plugin is more recent and uses UUID, while the
+      // ones used for backward compatibility tests (1.8.2, 1.9.2 and 1.10.2) use CharSequence
+      r.put("uuidField", uuid);
+    }
 
     return r;
   }

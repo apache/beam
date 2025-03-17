@@ -54,6 +54,8 @@ dependencies {
     permitUnusedDeclared 'com.oracle.database.jdbc:ojdbc8:23.2.0.0' // BEAM-11761
     implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
     permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
+    implementation 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
+    permitUnusedDeclared 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
 }

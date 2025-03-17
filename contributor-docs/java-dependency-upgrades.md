@@ -116,3 +116,14 @@ In the case of modifying the script or diagnose, the following commands may be u
     mvn help:effective-pom -f base.pom -Doutput=effective.pom && cat effective.pom | \
     grep -v 'dependencyManagement' > cleanup.pom && \
     mvn dependency:tree -f cleanup.pom
+
+# Protobuf Upgrades
+
+There are 2 versions of Protobuf used in Beam:
+
+1) The version driven by the GCP BOM version (see previous section). This version is defined as `protobuf_version` in `BeamModulePlugin.groovy` (example [update PR](protobuf_version)).
+2) The version driven by the vendored grpc version. This version is defined as `protobuf_version` in `buildSrc/src/main/groovy/org/apache/beam/gradle/GrpcVendoring_<version>.groovy` (example [PR #1](https://github.com/apache/beam/pull/33553) and [PR #2](https://github.com/apache/beam/pull/33555) to update).
+
+These versions should be compatible. This usually means they must be on the same major version, unless cross-version compatibility is explicitly guaranteed.
+
+Other dependencies are similarly defined with imported GRPC and may have similar requirements. For more info on vendoring dependencies see https://github.com/apache/beam/blob/master/vendor/README.md
