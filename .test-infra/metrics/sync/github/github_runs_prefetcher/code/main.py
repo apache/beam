@@ -188,6 +188,9 @@ async def check_workflow_flakiness(workflow):
 
     print(f"Success rate: {success_rate}")
 
+    # Sort runs by date (latest first)
+    workflow_runs.sort(key=lambda r: r.started_at, reverse=True)
+
     # Check if last 5 runs are all failures
     last_5_failed = len(workflow_runs) >= 5 and all(run.status == "failure" for run in workflow_runs[:5])
     if last_5_failed:
