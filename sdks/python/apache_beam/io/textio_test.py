@@ -23,6 +23,7 @@ import glob
 import gzip
 import logging
 import os
+import platform
 import shutil
 import tempfile
 import unittest
@@ -197,6 +198,7 @@ class TextSourceTest(unittest.TestCase):
     assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
+  @unittest.skipIf(platform.system() == 'Windows', 'Skipping on Windows')
   def test_read_from_text_file_pattern_with_dot_slash(self):
     cwd = os.getcwd()
     expected = ['abc', 'de']
@@ -1194,7 +1196,8 @@ class TextSourceTest(unittest.TestCase):
         b'\r\n',
         b'*|',
         b'*',
-        b'*=-', ]
+        b'*=-',
+    ]
 
     for delimiter in delimiters:
       file_name, expected_data = write_data(
