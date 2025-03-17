@@ -325,9 +325,8 @@ public class Metrics {
 
     @Override
     public void add(Iterable<String> values) {
-      // If lineageRollupEnabled is not set explicitly then lineage is
-      // not emitted as BounedTrie.
-      if (MetricsFlag.boundedTrieDisabled() || !MetricsFlag.lineageRollupEnabled()) {
+      // If BoundedTrie metrics are disabled explicitly then do not emit them.
+      if (MetricsFlag.boundedTrieDisabled()) {
         return;
       }
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
