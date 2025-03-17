@@ -186,6 +186,7 @@ binary_floor_divide = inplace_floor_divide = symmetric_binary_op
 def binary_true_divide(state, arg):
   return symmetric_binary_op(state, arg, True)
 
+
 inplace_true_divide = binary_true_divide
 
 binary_modulo = inplace_modulo = symmetric_binary_op
