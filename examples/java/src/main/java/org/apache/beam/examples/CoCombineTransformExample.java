@@ -64,8 +64,8 @@ import org.slf4j.LoggerFactory;
  * PCollection.
  *
  * <p>For a detailed documentation of Composed Combines, see <a
- * href="https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/transforms/CombineFns.html">
- * https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/transforms/CombineFns.html
+ * href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFns.html">
+ * https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFns.html
  * </a>
  *
  * <p>Remark, the combiners are wrapped in a DropNullFn, because when cobining the input usually has
