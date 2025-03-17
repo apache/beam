@@ -193,7 +193,7 @@ async def check_workflow_flakiness(workflow):
     if last_5_failed:
         print(f"The last 5 workflow runs for {workflow.name} have all failed")
 
-    return True if success_rate < workflow.threshold or last_5_failed else False
+    return success_rate < workflow.threshold or last_5_failed
 
 
 def github_workflows_dashboard_sync(request):
