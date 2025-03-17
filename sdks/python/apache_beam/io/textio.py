@@ -781,6 +781,9 @@ class ReadFromText(PTransform):
     """
 
     super().__init__(**kwargs)
+    import os
+    if file_pattern and not os.path.dirname(file_pattern):
+        file_pattern = os.path.join('.', file_pattern)
     self._source = self._source_class(
         file_pattern,
         min_bundle_size,

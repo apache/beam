@@ -197,6 +197,22 @@ class TextSourceTest(unittest.TestCase):
     assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
+  def test_read_from_text_file_pattern_with_dot_slash(self):
+    cwd = os.getcwd()
+    expected = ['abc', 'de']
+    with TempDir() as temp_dir:
+      temp_dir.create_temp_file(suffix='.txt', lines=[b'a', b'b', b'c'])
+      temp_dir.create_temp_file(suffix='.txt', lines=[b'd', b'e'])
+
+      os.chdir(temp_dir.get_path())
+      with TestPipeline() as p:
+        dot_slash = p | 'ReadDotSlash' >> ReadFromText('./*.txt')
+        no_dot_slash = p | 'ReadNoSlash' >> ReadFromText('*.txt')
+
+        assert_that(dot_slash, equal_to(expected))
+        assert_that(no_dot_slash, equal_to(expected))
+      os.chdir(cwd)
+
   def test_read_single_file_smaller_than_default_buffer(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
     self._run_read_test(
@@ -1178,8 +1194,7 @@ class TextSourceTest(unittest.TestCase):
         b'\r\n',
         b'*|',
         b'*',
-        b'*=-',
-    ]
+        b'*=-', ]
 
     for delimiter in delimiters:
       file_name, expected_data = write_data(
