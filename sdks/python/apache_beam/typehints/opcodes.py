@@ -149,11 +149,11 @@ def get_iter(state, unused_arg):
 _NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
 
 
-def symmetric_binary_op(state, arg):
+def symmetric_binary_op(state, arg, is_true_div=None):
   # TODO(robertwb): This may not be entirely correct...
   b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
-    if a is int and b is int and arg in _div_binop_args:
+    if a is int and b is int and (arg in _div_binop_args or is_true_div):
       state.stack.append(float)
     else:
       state.stack.append(a)
@@ -181,7 +181,12 @@ binary_power = inplace_power = symmetric_binary_op
 binary_multiply = inplace_multiply = symmetric_binary_op
 binary_divide = inplace_divide = symmetric_binary_op
 binary_floor_divide = inplace_floor_divide = symmetric_binary_op
-binary_true_divide = inplace_true_divide = symmetric_binary_op
+
+
+def binary_true_divide(state, arg):
+  return symmetric_binary_op(state, arg, True)
+
+inplace_true_divide = binary_true_divide
 
 binary_modulo = inplace_modulo = symmetric_binary_op
 # TODO(robertwb): Tuple add.
