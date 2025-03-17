@@ -108,13 +108,11 @@ public class CoCombineTransformExample {
           @ProcessElement
            public void processElement(ProcessContext c) throws Exception {
              CombineFns.CoCombineResult e = c.element().getValue();
-             c.output(KV.of(c.element().getKey(),
-                new ArrayList<KV<String,Long>>() {{
-                  add(KV.of(minTag.getId(), e.get(minTag)));
-                  add(KV.of(maxTag.getId(), e.get(maxTag)));
-                  add(KV.of(sumTag.getId(), e.get(sumTag)));
-                }}
-             ));
+             ArrayList<KV<String,Long>> o = new ArrayList<KV<String,Long>>();
+             o.add(KV.of(minTag.getId(), e.get(minTag)));
+             o.add(KV.of(maxTag.getId(), e.get(maxTag)));
+             o.add(KV.of(sumTag.getId(), e.get(sumTag)));
+             c.output(KV.of(c.element().getKey(),o));
            }
          }));
     
