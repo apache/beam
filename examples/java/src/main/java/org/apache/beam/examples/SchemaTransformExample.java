@@ -80,7 +80,7 @@ public class SchemaTransformExample {
 
     PCollection<Row> result =
         input
-            .apply(Select.fieldNames("n", ",k"))
+            .apply(Select.fieldNames("n", "k"))
             .apply(
                 Group.<Row>byFieldNames("k")
                     .aggregateField("n", Min.ofIntegers(), "min_n")
