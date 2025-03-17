@@ -34,8 +34,6 @@ package org.apache.beam.examples;
 // gradle clean execute -DmainClass=org.apache.beam.examples.CoCombineTransformExample
 // --args="--runner=DirectRunner" -Pdirect-runner
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -56,6 +54,8 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
