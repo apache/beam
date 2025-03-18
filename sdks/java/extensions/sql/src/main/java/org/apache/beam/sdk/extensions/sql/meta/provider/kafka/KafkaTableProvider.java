@@ -148,7 +148,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     while (properties.fields().hasNext()) {
       Entry<String, JsonNode> field = properties.fields().next();
       if (field.getKey().startsWith("properties.")) {
-        configUpdates.put(field.getKey(), field.getValue().textValue());
+        configUpdates.put(field.getKey().replace("properties.", ""), field.getValue().textValue());
       }
     }
 

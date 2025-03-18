@@ -105,9 +105,9 @@ public class KafkaTableProviderTest {
     assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
     assertEquals(
         ImmutableMap.of(
-            "properties.ssl.truststore.location",
+            "ssl.truststore.location",
             "/path/to/kafka.client.truststore.jks",
-            "properties.security.protocol",
+            "security.protocol",
             "SASL_SSL"),
         kafkaTable.getConfigUpdates());
   }
