@@ -221,6 +221,7 @@ public class ReadOperation extends Operation {
         readerIterator.setProgressFromIterator();
       } finally {
         scheduler.shutdown();
+        scheduler.purge();
         scheduler.awaitTermination(1, TimeUnit.MINUTES);
         if (!scheduler.isTerminated()) {
           LOG.error(
