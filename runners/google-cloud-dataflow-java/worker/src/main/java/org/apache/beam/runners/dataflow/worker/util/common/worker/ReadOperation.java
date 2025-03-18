@@ -228,9 +228,10 @@ public class ReadOperation extends Operation {
                   + "Waiting for it to terminate 10 minutes before forcing");
           scheduler.awaitTermination(10, TimeUnit.MINUTES);
           if (!scheduler.isTerminated()) {
-            LOG.error("Failed to terminate periodic progress reporting in 10 "
-                      + "minutes. Trying to force termination then waiting "
-                      + "indefinitely...");
+            LOG.error(
+                "Failed to terminate periodic progress reporting in 10 "
+                    + "minutes. Trying to force termination then waiting "
+                    + "indefinitely...");
             scheduler.shutdownNow();
             scheduler.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
           }
