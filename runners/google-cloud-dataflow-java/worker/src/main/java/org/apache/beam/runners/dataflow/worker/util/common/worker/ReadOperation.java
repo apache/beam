@@ -221,13 +221,19 @@ public class ReadOperation extends Operation {
         readerIterator.setProgressFromIterator();
       } finally {
         scheduler.shutdown();
-        scheduler.purge();
         scheduler.awaitTermination(1, TimeUnit.MINUTES);
         if (!scheduler.isTerminated()) {
           LOG.error(
               "Failed to terminate periodic progress reporting in 1 minute. "
-                  + "Waiting for it to terminate indefinitely...");
-          scheduler.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+                  + "Waiting for it to terminate 10 minutes before forcing");
+          scheduler.awaitTermination(10, TimeUnit.MINUTES);
+          if (!scheduler.isTerminated()) {
+            LOG.error("Failed to terminate periodic progress reporting in 10 "
+                      + "minutes. Trying to force termination then waiting "
+                      + "indefinitely...");
+            scheduler.shutdownNow();
+            scheduler.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+          }
           LOG.info("Periodic progress reporting terminated.");
         }
       }
