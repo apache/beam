@@ -47,7 +47,7 @@ import org.joda.time.Duration;
 public class SqsReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<SqsReadConfiguration> {
 
-  private static final String OUTPUT_TAG = "output";
+  public static final String OUTPUT_TAG = "output";
 
   public static final Schema OUTPUT_ROW_SCHEMA =
       Schema.builder()
