@@ -19,9 +19,11 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.FileScanTask;
@@ -34,7 +36,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Bounded read implementation.
  *
  * <p>For each {@link ReadTask}, reads Iceberg {@link Record}s, and converts to Beam {@link Row}s.
+ *
+ * <p>Implemented as an SDF to leverage communicating bundle size (i.e. {@link DoFn.GetSize}) to the
+ * runner, to help with scaling decisions.
  */
+@DoFn.BoundedPerElement
 class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
   private final IcebergScanConfig scanConfig;
   private final Counter scanTasksCompleted =
@@ -45,15 +51,20 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
   }
 
   @ProcessElement
-  public void process(@Element KV<ReadTaskDescriptor, ReadTask> element, OutputReceiver<Row> out)
-      throws IOException, ExecutionException {
+  public void process(
+      @Element KV<ReadTaskDescriptor, ReadTask> element,
+      RestrictionTracker<OffsetRange, Long> tracker,
+      OutputReceiver<Row> out)
+      throws IOException, ExecutionException, InterruptedException {
+    if (!tracker.tryClaim(0L)) {
+      return;
+    }
     ReadTask readTask = element.getValue();
     Table table =
         TableCache.get(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
     FileScanTask task = readTask.getFileScanTask();
     @Nullable String operation = readTask.getOperation();
-
     try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
       for (Record record : reader) {
         Row row =
@@ -65,5 +76,15 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       }
     }
     scanTasksCompleted.inc();
+  }
+
+  @GetSize
+  public double getSize(@Element KV<ReadTaskDescriptor, ReadTask> element) {
+    return element.getValue().getByteSize();
+  }
+
+  @GetInitialRestriction
+  public OffsetRange getInitialRange() {
+    return new OffsetRange(0, 1);
   }
 }

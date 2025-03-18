@@ -47,9 +47,6 @@ class CreateReadTasksDoFn
   private static final Logger LOG = LoggerFactory.getLogger(CreateReadTasksDoFn.class);
   private static final Counter totalScanTasks =
       Metrics.counter(CreateReadTasksDoFn.class, "totalScanTasks");
-  // TODO(ahmedabu98): should we expose a metric that tracks the latest observed snapshot sequence
-  // number?
-
   private final IcebergScanConfig scanConfig;
 
   CreateReadTasksDoFn(IcebergScanConfig scanConfig) {
@@ -63,10 +60,9 @@ class CreateReadTasksDoFn
       throws IOException, ExecutionException {
     Table table =
         TableCache.getRefreshed(element.getKey(), scanConfig.getCatalogConfig().catalog());
-    List<SnapshotInfo> snapshots = element.getValue();
 
     // scan snapshots individually and assign commit timestamp to files
-    for (SnapshotInfo snapshot : snapshots) {
+    for (SnapshotInfo snapshot : element.getValue()) {
       @Nullable Long fromSnapshot = snapshot.getParentId();
       long toSnapshot = snapshot.getSnapshotId();
 
@@ -101,7 +97,7 @@ class CreateReadTasksDoFn
           ReadTask task =
               ReadTask.builder()
                   .setFileScanTaskJson(ScanTaskParser.toJson(fileScanTask))
-                  .setByteSize(fileScanTask.file().fileSizeInBytes())
+                  .setByteSize(fileScanTask.length())
                   .setOperation(snapshot.getOperation())
                   .setSnapshotTimestampMillis(snapshot.getTimestampMillis())
                   .build();

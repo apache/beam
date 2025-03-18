@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,8 +27,13 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -64,16 +70,21 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
     return input
         .apply(Create.of(scanConfig.getTableIdentifier()))
         .apply(
-            "Watch for Snapshots",
+            "Scan Table Snapshots",
             Watch.growthOf(new SnapshotPollFn(scanConfig))
                 .withPollInterval(pollInterval)
-                .withOutputCoder(ListCoder.of(SnapshotInfo.getCoder())));
+                .withOutputCoder(ListCoder.of(SnapshotInfo.getCoder())))
+        .apply("Persist Snapshot Progress", ParDo.of(new PersistSnapshotProgress()));
   }
 
+  /**
+   * Periodically scans the table for new snapshots, emitting a list for each new snapshot range.
+   *
+   * <p>This tracks progress locally but is not resilient to retries -- upon worker failure, it will
+   * restart from the initial starting strategy. Resilience is handled downstream by {@link
+   * PersistSnapshotProgress}.
+   */
   private static class SnapshotPollFn extends Watch.Growth.PollFn<String, List<SnapshotInfo>> {
-    private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
-    private final Counter snapshotsObserved =
-        Metrics.counter(SnapshotPollFn.class, "snapshotsObserved");
     private final IcebergScanConfig scanConfig;
     private @Nullable Long fromSnapshotId;
 
@@ -83,12 +94,14 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
     @Override
     public PollResult<List<SnapshotInfo>> apply(String tableIdentifier, Context c) {
-      // fetch a fresh table to catch updated snapshots
+      // fetch a fresh table to catch new snapshots
       Table table =
           TableCache.getRefreshed(tableIdentifier, scanConfig.getCatalogConfig().catalog());
+
       @Nullable Long userSpecifiedToSnapshot = ReadUtils.getToSnapshot(table, scanConfig);
       boolean isComplete = userSpecifiedToSnapshot != null;
       if (fromSnapshotId == null) {
+        // first scan, initialize starting point with user config
         fromSnapshotId = ReadUtils.getFromSnapshotExclusive(table, scanConfig);
       }
 
@@ -97,19 +110,18 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
         // no new snapshots since last poll. return empty result.
         return getPollResult(null, isComplete);
       }
-      Long currentSnapshotId = currentSnapshot.snapshotId();
 
+      Long currentSnapshotId = currentSnapshot.snapshotId();
       // if no upper bound is specified, we poll up to the current snapshot
       long toSnapshotId = MoreObjects.firstNonNull(userSpecifiedToSnapshot, currentSnapshotId);
-      latestSnapshot.set(toSnapshotId);
 
       List<SnapshotInfo> snapshots =
           ReadUtils.snapshotsBetween(table, tableIdentifier, fromSnapshotId, toSnapshotId);
+
       fromSnapshotId = currentSnapshotId;
       return getPollResult(snapshots, isComplete);
     }
 
-    /** Returns an appropriate PollResult based on the requested boundedness. */
     private PollResult<List<SnapshotInfo>> getPollResult(
         @Nullable List<SnapshotInfo> snapshots, boolean isComplete) {
       List<TimestampedValue<List<SnapshotInfo>>> timestampedSnapshots = new ArrayList<>(1);
@@ -117,16 +129,63 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
         // watermark based on the oldest observed snapshot in this poll interval
         Instant watermark = Instant.ofEpochMilli(snapshots.get(0).getTimestampMillis());
         timestampedSnapshots.add(TimestampedValue.of(snapshots, watermark));
-        LOG.info(
-            "New poll fetched {} snapshots: {}",
-            snapshots.size(),
-            snapshots.stream().map(SnapshotInfo::getSnapshotId).collect(Collectors.toList()));
-        snapshotsObserved.inc(snapshots.size());
       }
 
       return isComplete
           ? PollResult.complete(timestampedSnapshots) // stop at specified snapshot
           : PollResult.incomplete(timestampedSnapshots); // continue forever
+    }
+  }
+
+  /**
+   * Stateful DoFn that persists the latest observed snapshot ID to state, making sure we pick up
+   * where we left off in case of a worker crash.
+   */
+  // Ideally, Watch.Growth would support state out of the box, but that is a bigger change.
+  static class PersistSnapshotProgress
+      extends DoFn<KV<String, List<SnapshotInfo>>, KV<String, List<SnapshotInfo>>> {
+    private final Gauge latestSnapshot = Metrics.gauge(SnapshotPollFn.class, "latestSnapshot");
+    private final Counter snapshotsObserved =
+        Metrics.counter(SnapshotPollFn.class, "snapshotsObserved");
+
+    @StateId("latestObservedSnapshotId")
+    @SuppressWarnings("UnusedVariable")
+    private final StateSpec<ValueState<Long>> latestObservedSnapshotId = StateSpecs.value();
+
+    @ProcessElement
+    public void process(
+        @Element KV<String, List<SnapshotInfo>> element,
+        final @AlwaysFetched @StateId("latestObservedSnapshotId") ValueState<Long>
+                latestObservedSnapshotId,
+        OutputReceiver<KV<String, List<SnapshotInfo>>> out) {
+      List<SnapshotInfo> snapshots = element.getValue();
+
+      @Nullable Long latest = latestObservedSnapshotId.read();
+      if (latest != null) {
+        int newSnapshotIndex = 0;
+        for (int i = 0; i < snapshots.size(); i++) {
+          if (snapshots.get(i).getSnapshotId() == latest) {
+            newSnapshotIndex = i + 1;
+            break;
+          }
+        }
+        if (newSnapshotIndex > 0) {
+          snapshots = snapshots.subList(newSnapshotIndex, snapshots.size());
+        }
+      }
+
+      SnapshotInfo checkpoint = Iterables.getLast(snapshots);
+      out.output(KV.of(element.getKey(), snapshots));
+      LOG.info(
+          "New poll fetched {} snapshots: {}. Checkpointing at snapshot {} of timestamp {}.",
+          snapshots.size(),
+          snapshots.stream().map(SnapshotInfo::getSnapshotId).collect(Collectors.toList()),
+          checkpoint.getSnapshotId(),
+          checkpoint.getTimestampMillis());
+
+      latestObservedSnapshotId.write(checkpoint.getSnapshotId());
+      latestSnapshot.set(checkpoint.getSnapshotId());
+      snapshotsObserved.inc(snapshots.size());
     }
   }
 }

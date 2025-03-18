@@ -63,12 +63,11 @@ import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /** Helper class for source operations. */
 public class ReadUtils {
   // default is 8MB. keep this low to avoid overwhelming memory
-  static final int MAX_FILE_BUFFER_SIZE = 1 << 20; // 1MB
+  static final int MAX_FILE_BUFFER_SIZE = 1 << 18; // 256KB
   private static final Collection<String> READ_PROPERTIES_TO_REMOVE =
       Sets.newHashSet(
           "parquet.read.filter",
@@ -234,8 +233,8 @@ public class ReadUtils {
 
     static class ExtractRecordsDoFn extends DoFn<Row, Row> {
       @ProcessElement
-      public void process(@Element Row row, @Timestamp Instant timestamp, OutputReceiver<Row> out) {
-        out.outputWithTimestamp(checkStateNotNull(row.getRow(RECORD)), timestamp);
+      public void process(@Element Row row, OutputReceiver<Row> out) {
+        out.output(checkStateNotNull(row.getRow(RECORD)));
       }
     }
   }
