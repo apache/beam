@@ -21,8 +21,8 @@ import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import java.io.Serializable;
 import java.util.Set;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A retry policy for streaming BigQuery inserts. */
 public abstract class InsertRetryPolicy implements Serializable {
@@ -54,7 +54,8 @@ public abstract class InsertRetryPolicy implements Serializable {
     }
 
     // Constructor for both per-element errors and exceptions
-    public Context(TableDataInsertAllResponse.@Nullable InsertErrors errors, @Nullable Throwable exception) {
+    public Context(
+        TableDataInsertAllResponse.@Nullable InsertErrors errors, @Nullable Throwable exception) {
       this.errors = errors;
       this.exception = exception;
     }

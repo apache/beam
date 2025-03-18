@@ -984,8 +984,20 @@ public class BigQueryServicesImpl implements BigQueryServices {
           AtomicLong maxThrottlingMsec,
           Sleeper sleeper,
           StreamingInsertsMetrics result) {
-        this(ref, skipInvalidRows, ignoreUnknownValues, client, rateLimitBackoffFactory, rows,
-            maxThrottlingMsec, sleeper, result, null, null, null, null);
+        this(
+            ref,
+            skipInvalidRows,
+            ignoreUnknownValues,
+            client,
+            rateLimitBackoffFactory,
+            rows,
+            maxThrottlingMsec,
+            sleeper,
+            result,
+            null,
+            null,
+            null,
+            null);
       }
 
       InsertBatchofRowsCallable(
@@ -1080,7 +1092,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       && failedInserts != null
                       && errorContainer != null
                       && i < originalRows.size()) {
-                    ((ErrorContainer) errorContainer).add((List) failedInserts, error, ref, originalRows.get(i));
+                    ((ErrorContainer) errorContainer)
+                        .add((List) failedInserts, error, ref, originalRows.get(i));
                   }
                 }
                 return syntheticErrors;
@@ -1100,10 +1113,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
             }
 
             try (QuotaEventCloseable qec =
-                     new QuotaEvent.Builder()
-                         .withOperation("insert_all")
-                         .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
-                         .create()) {
+                new QuotaEvent.Builder()
+                    .withOperation("insert_all")
+                    .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
+                    .create()) {
               LOG.info(
                   String.format(
                       "BigQuery insertAll error, retrying: %s",
