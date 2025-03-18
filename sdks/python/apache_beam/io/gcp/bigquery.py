@@ -1184,7 +1184,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       storage_client = bq_storage.BigQueryReadClient()
       stream_count = 0
       if desired_bundle_size > 0:
-        table_size = self._get_table_size(bq, self.table_reference)
+        table_size = self._get_table_size(bq, self.table_reference) or 0
         stream_count = min(
             int(table_size / desired_bundle_size),
             _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
