@@ -57,7 +57,7 @@ the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
 ## Java 17 support
 
-Java 17 is already supported and Java's next LTS (Long Term Support) 
+Java 17 is already supported and Java's next LTS (Long Term Support)
 version (21) is already on roadmap. See details on
 the [Java SDK's Roadmap](/roadmap/java-sdk).
 
