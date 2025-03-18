@@ -106,3 +106,99 @@ looks:
         title: AvgInputThroughputBytesPerSec by Version
       - id: fVVHhXCrHNgBG52TJsTjR8VbmWCCQnVN
         title: AvgInputThroughputElementsPerSec by Version
+  pytorchbertbase:
+    write:
+      folder: 40
+      cost:
+        - id: TBD
+          title: RunTime and EstimatedCost
+      date:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Date
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Version
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Version
+  pytorchbertlarge:
+    write:
+      folder: 41
+      cost:
+        - id: TBD
+          title: RunTime and EstimatedCost
+      date:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Date
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Version
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Version
+  pytorchresnet101:
+    write:
+      folder: 42
+      cost:
+        - id: TBD
+          title: RunTime and EstimatedCost
+      date:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Date
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Version
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Version
+  pytorchresnet152:
+    write:
+      folder: 43
+      cost:
+        - id: TBD
+          title: RunTime and EstimatedCost
+      date:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Date
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Version
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Version
+  pytorchresnet152tesla:
+    write:
+      folder: 44
+      cost:
+        - id: TBD
+          title: RunTime and EstimatedCost
+      date:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Date
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: TBD
+          title: AvgThroughputBytesPerSec by Version
+        - id: TBD
+          title: AvgThroughputElementsPerSec by Version
+    tensorflowmnist:
+      write:
+        folder: 45
+        cost:
+          - id: TBD
+            title: RunTime and EstimatedCost
+        date:
+          - id: TBD
+            title: AvgThroughputBytesPerSec by Date
+          - id: TBD
+            title: AvgThroughputElementsPerSec by Date
+        version:
+          - id: TBD
+            title: AvgThroughputBytesPerSec by Version
+          - id: TBD
+            title: AvgThroughputElementsPerSec by Version
