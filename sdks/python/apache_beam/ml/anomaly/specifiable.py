@@ -61,6 +61,7 @@ _ACCEPTED_SUBSPACES = [
 _KNOWN_SPECIFIABLE = collections.defaultdict(dict)
 
 T = TypeVar('T', bound=type)
+BUILTIN_TYPES_IN_SPEC = (int, float, complex, str, bytes, bytearray)
 
 
 def _class_to_subspace(cls: Type) -> str:
@@ -113,6 +114,11 @@ def _specifiable_from_spec_helper(v, _run_init):
     return [_specifiable_from_spec_helper(e, _run_init) for e in v]
 
   # TODO: support spec treatment for more types
+  if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
+    logging.warning(
+        "Type %s is not a recognized supported type for the"
+        "specification. It will be included without conversion.",
+        str(type(v)))
   return v
 
 
@@ -123,7 +129,6 @@ def _specifiable_to_spec_helper(v):
   if isinstance(v, List):
     return [_specifiable_to_spec_helper(e) for e in v]
 
-  # TODO: support spec treatment for more types
   if inspect.isfunction(v):
     if not hasattr(v, "spec_type"):
       _register(v, inject_spec_type=False)
@@ -134,6 +139,12 @@ def _specifiable_to_spec_helper(v):
       _register(v, inject_spec_type=False)
     return Spec(type=_get_default_spec_type(v), config=None)
 
+  # TODO: support spec treatment for more types
+  if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
+    logging.warning(
+        "Type %s is not a recognized supported type for the"
+        "specification. It will be included without conversion.",
+        str(type(v)))
   return v
 
 
