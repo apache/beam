@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "no-matching-label": "lostluck"
+    "no-matching-label": "damondouglas"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": true,
+  "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
