@@ -1010,10 +1010,7 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 // FailBundle clears the extant data allowing the execution to shut down.
 func (em *ElementManager) FailBundle(rb RunBundle) {
 	stage := em.stages[rb.StageID]
-	if !stage.mu.TryLock() {
-		slog.Error("failing bundle: engine state is corrupted with a locked mutex.", "bundle", rb)
-		return
-	}
+	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
 	em.addPending(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
