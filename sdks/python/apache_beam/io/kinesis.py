@@ -113,6 +113,9 @@ WriteToKinesisSchema = NamedTuple(
         ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
         ('aggregation_enabled', Optional[bool]),
+        ('aggregation_max_bytes', Optional[int]),
+        ('aggregation_max_buffered_time', Optional[int]),
+        ('aggregation_shard_refresh_interval', Optional[int]),
     ],
 )
 
@@ -137,6 +140,9 @@ class WriteToKinesis(ExternalTransform):
       producer_properties=None,
       expansion_service=None,
       aggregation_enabled=None,
+      aggregation_max_bytes=51200,
+      aggregation_max_buffered_time=100,
+      aggregation_shard_refresh_interval=2,
   ):
     """
     Initializes a write operation to Kinesis.
@@ -170,6 +176,9 @@ class WriteToKinesis(ExternalTransform):
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
                 aggregation_enabled=aggregation_enabled,
+                aggregation_max_bytes=aggregation_max_bytes,
+                aggregation_max_buffered_time=aggregation_max_buffered_time,
+                aggregation_shard_refresh_interval=aggregation_shard_refresh_interval,
             )),
         expansion_service or default_io_expansion_service(),
     )
