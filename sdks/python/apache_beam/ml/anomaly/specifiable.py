@@ -25,12 +25,16 @@ import collections
 import dataclasses
 import inspect
 import logging
+import os
 from typing import Any
 from typing import ClassVar
+from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Protocol
 from typing import Type
 from typing import TypeVar
+from typing import Union
 from typing import runtime_checkable
 
 from typing_extensions import Self
@@ -65,9 +69,11 @@ def _class_to_subspace(cls: Type) -> str:
   subspace list. This is usually called when registering a new specifiable
   class.
   """
-  for c in cls.mro():
-    if c.__name__ in _ACCEPTED_SUBSPACES:
-      return c.__name__
+  if hasattr(cls, "mro"):
+    # some classes do not have "mro", such as functions.
+    for c in cls.mro():
+      if c.__name__ in _ACCEPTED_SUBSPACES:
+        return c.__name__
 
   return _FALLBACK_SUBSPACE
 
@@ -92,8 +98,10 @@ class Spec():
   """
   #: A string indicating the concrete `Specifiable` class
   type: str
-  #: A dictionary of keyword arguments for the `__init__` method of the class.
-  config: dict[str, Any] = dataclasses.field(default_factory=dict)
+  #: An optional dictionary of keyword arguments for the `__init__` method of
+  #: the class. If None, when we materialize this Spec, we only return the
+  #: class without instantiate any objects from it.
+  config: Optional[Dict[str, Any]] = dataclasses.field(default_factory=dict)
 
 
 @runtime_checkable
@@ -122,7 +130,7 @@ class Specifiable(Protocol):
     return v
 
   @classmethod
-  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Self:
+  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Union[Self, type]:
     """Generate a `Specifiable` subclass object based on a spec.
 
     Args:
@@ -137,8 +145,14 @@ class Specifiable(Protocol):
 
     subspace = _spec_type_to_subspace(spec.type)
     subclass: Type[Self] = _KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
+
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
+
+    if spec.config is None:
+      # when functions or classes are used as arguments, we won't try to
+      # create an instance.
+      return subclass
 
     kwargs = {
         k: Specifiable._from_spec_helper(v, _run_init)
@@ -157,6 +171,16 @@ class Specifiable(Protocol):
 
     if isinstance(v, List):
       return [Specifiable._to_spec_helper(e) for e in v]
+
+    if inspect.isfunction(v):
+      if not hasattr(v, "spec_type"):
+        _register(v, inject_spec_type=False)
+      return Spec(type=_get_default_spec_type(v), config=None)
+
+    if inspect.isclass(v):
+      if not hasattr(v, "spec_type"):
+        _register(v, inject_spec_type=False)
+      return Spec(type=_get_default_spec_type(v), config=None)
 
     return v
 
@@ -180,23 +204,40 @@ class Specifiable(Protocol):
     pass
 
 
+def _get_default_spec_type(cls):
+  spec_type = cls.__name__
+  if inspect.isfunction(cls) and cls.__name__ == "<lambda>":
+    # for lambda functions, we need to include more information to distinguish
+    # among them
+    spec_type = '<lambda at %s:%s>' % (
+        os.path.basename(cls.__code__.co_filename), cls.__code__.co_firstlineno)
+
+  return spec_type
+
+
 # Register a `Specifiable` subclass in `KNOWN_SPECIFIABLE`
-def _register(cls, spec_type=None) -> None:
+def _register(cls, spec_type=None, inject_spec_type=True) -> None:
+  assert spec_type is None or inject_spec_type, \
+      "need to inject spec_type to class if spec_type is not None"
   if spec_type is None:
-    # By default, spec type is the class name. Users can override this with
-    # other unique identifier.
-    spec_type = cls.__name__
+    # Use default spec_type for a class if users do not specify one.
+    spec_type = _get_default_spec_type(cls)
 
   subspace = _class_to_subspace(cls)
   if spec_type in _KNOWN_SPECIFIABLE[subspace]:
-    raise ValueError(
-        f"{spec_type} is already registered for "
-        f"specifiable class {_KNOWN_SPECIFIABLE[subspace][spec_type]}. "
-        "Please specify a different spec_type by @specifiable(spec_type=...).")
+    if cls is not _KNOWN_SPECIFIABLE[subspace][spec_type]:
+      # only raise exception if we register the same spec type with a different
+      # class
+      raise ValueError(
+          f"{spec_type} is already registered for "
+          f"specifiable class {_KNOWN_SPECIFIABLE[subspace][spec_type]}. "
+          "Please specify a different spec_type by @specifiable(spec_type=...)."
+      )
   else:
     _KNOWN_SPECIFIABLE[subspace][spec_type] = cls
 
-  cls.spec_type = spec_type
+  if inject_spec_type:
+    cls.spec_type = spec_type
 
 
 # Keep a copy of arguments that are used to call the `__init__` method when the
@@ -331,6 +372,7 @@ def specifiable(
     cls._to_spec_helper = staticmethod(Specifiable._to_spec_helper)
     cls.from_spec = Specifiable.from_spec
     cls._from_spec_helper = staticmethod(Specifiable._from_spec_helper)
+
     return cls
     # end of the function body of _wrapper
 

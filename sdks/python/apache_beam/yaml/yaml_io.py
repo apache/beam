@@ -224,6 +224,12 @@ def _create_parser(
     return (
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
+  if format == 'STRING':
+    if schema:
+      raise ValueError('STRING format does not take a schema')
+    return (
+        schema_pb2.Schema(fields=[schemas.schema_field('payload', str)]),
+        lambda payload: beam.Row(payload=payload.decode('utf-8')))
   elif format == 'JSON':
     _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
@@ -313,6 +319,7 @@ def read_from_pubsub(
 
         - RAW: Produces records with a single `payload` field whose contents
             are the raw bytes of the pubsub message.
+        - STRING: Like RAW, but the bytes are decoded as a UTF-8 string.
         - AVRO: Parses records with a given Avro schema.
         - JSON: Parses records with a given JSON schema.
 

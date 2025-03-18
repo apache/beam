@@ -18,6 +18,7 @@
 import dataclasses
 import uuid
 from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
@@ -55,6 +56,8 @@ class _ScoreAndLearnDoFn(beam.DoFn):
 
   def __init__(self, detector_spec: Spec):
     self._detector_spec = detector_spec
+
+    assert isinstance(self._detector_spec.config, Dict)
     self._detector_spec.config["_run_init"] = True
 
   def score_and_learn(self, data):
@@ -172,8 +175,10 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
       creation of a stateful `ThresholdFn`.
   """
   def __init__(self, threshold_fn_spec: Spec):
+    assert isinstance(threshold_fn_spec.config, Dict)
     threshold_fn_spec.config["_run_init"] = True
     self._threshold_fn = Specifiable.from_spec(threshold_fn_spec)
+    assert isinstance(self._threshold_fn, ThresholdFn)
     assert not self._threshold_fn.is_stateful, \
       "This DoFn can only take stateless function as threshold_fn"
 
@@ -217,8 +222,10 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
   THRESHOLD_STATE_INDEX = ReadModifyWriteStateSpec('saved_tracker', DillCoder())
 
   def __init__(self, threshold_fn_spec: Spec):
+    assert isinstance(threshold_fn_spec.config, Dict)
     threshold_fn_spec.config["_run_init"] = True
     threshold_fn = Specifiable.from_spec(threshold_fn_spec)
+    assert isinstance(threshold_fn, ThresholdFn)
     assert threshold_fn.is_stateful, \
       "This DoFn can only take stateful function as threshold_fn"
     self._threshold_fn_spec = threshold_fn_spec
