@@ -52,7 +52,7 @@ public abstract class InsertRetryPolicy implements Serializable {
       this(errors, null);
     }
 
-    // New constructor for both per-element errors and exceptions
+    // Constructor for both per-element errors and exceptions
     public Context(TableDataInsertAllResponse.InsertErrors errors, Throwable exception) {
       this.errors = errors;
       this.exception = exception;
