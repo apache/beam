@@ -1033,6 +1033,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       }
 
       @Override
+      @SuppressWarnings({"rawtypes", "unchecked"}) // Suppress rawtypes and unchecked warnings for CI
       public List<TableDataInsertAllResponse.InsertErrors> call() throws Exception {
         TableDataInsertAllRequest content = new TableDataInsertAllRequest();
         content.setRows(rows);
@@ -1095,11 +1096,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       && failedInserts != null
                       && errorContainer != null
                       && i < originalRows.size()) {
-                    @SuppressWarnings("unchecked")
-                    List rawFailedInserts = (List) failedInserts;
-                    @SuppressWarnings("unchecked")
-                    ErrorContainer rawErrorContainer = (ErrorContainer) errorContainer;
-                    rawErrorContainer.add(rawFailedInserts, error, ref, originalRows.get(i));
+                    // Use raw types inline with method-level suppression
+                    ((ErrorContainer) errorContainer).add((List) failedInserts, error, ref, originalRows.get(i));
                   }
                 }
                 return syntheticErrors; // Return errors to mark batch as failed
@@ -1120,10 +1118,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
             }
 
             try (QuotaEventCloseable qec =
-                new QuotaEvent.Builder()
-                    .withOperation("insert_all")
-                    .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
-                    .create()) {
+                     new QuotaEvent.Builder()
+                         .withOperation("insert_all")
+                         .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
+                         .create()) {
               LOG.info(
                   String.format(
                       "BigQuery insertAll error, retrying: %s",
