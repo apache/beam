@@ -279,10 +279,9 @@ public class MapTaskExecutorTest {
    * containers returned by {@link getMetricContainers}.
    */
   public void testGetMetricContainers() throws Exception {
-    ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
     ExecutionStateTracker stateTracker =
         new DataflowExecutionStateTracker(
-            sampler,
+            ExecutionStateSampler.newForTest(),
             new TestDataflowExecutionState(
                 NameContext.forStage("testStage"),
                 "other",
@@ -329,7 +328,8 @@ public class MapTaskExecutorTest {
                 }
               }
             });
-    sampler.start();
+
+    assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());
     try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
       // Call execute so that we run all the counters
       executor.execute();
@@ -344,7 +344,6 @@ public class MapTaskExecutorTest {
           context3.metricsContainer().getUpdates().counterUpdates(),
           contains(metricUpdate("TestMetric", "MetricCounter", o3, 3L)));
       assertEquals(0, stateTracker.getMillisSinceBundleStart());
-      assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());
     }
   }
 
