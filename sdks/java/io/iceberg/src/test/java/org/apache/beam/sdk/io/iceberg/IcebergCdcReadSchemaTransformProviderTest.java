@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.CatalogUtil;
-import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -114,15 +112,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
             .getSinglePCollection();
 
     assertThat(output.isBounded(), equalTo(BOUNDED));
-    PAssert.that(output)
-        .satisfies(
-            (Iterable<Row> rows) -> {
-              for (Row row : rows) {
-                assertEquals(DataOperations.APPEND, row.getString(ReadUtils.OPERATION));
-              }
-              return null;
-            });
-    PAssert.that(output.apply(ReadUtils.extractRecords())).containsInAnyOrder(expectedRows);
+    PAssert.that(output).containsInAnyOrder(expectedRows);
 
     testPipeline.run();
   }
@@ -162,8 +152,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     PCollection<Row> output =
         testPipeline
             .apply(Managed.read(Managed.ICEBERG_CDC).withConfig(configMap))
-            .getSinglePCollection()
-            .apply(ReadUtils.extractRecords());
+            .getSinglePCollection();
 
     assertThat(output.isBounded(), equalTo(UNBOUNDED));
     PAssert.that(output).containsInAnyOrder(expectedRows);

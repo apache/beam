@@ -40,13 +40,6 @@ import org.joda.time.Duration;
  * An Iceberg source that reads a table incrementally using range(s) of table snapshots. The bounded
  * source creates a single range, while the unbounded implementation continuously polls for new
  * snapshots at the specified interval.
- *
- * <p>Outputs CDC Rows with the following schema:
- *
- * <ul>
- *   <li>"record" [Row]: the data record itself
- *   <li>"operation" [String]: the operation associated with this record
- * </ul>
  */
 class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
@@ -74,7 +67,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(Redistribute.arbitrarily())
         .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig)))
-        .setRowSchema(ReadUtils.outputCdcSchema(table.schema()));
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
   }
 
   /** Continuously watches for new snapshots. */

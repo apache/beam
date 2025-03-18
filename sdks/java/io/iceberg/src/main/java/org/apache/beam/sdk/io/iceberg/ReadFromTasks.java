@@ -30,7 +30,6 @@ import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Bounded read implementation.
@@ -64,14 +63,9 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
         TableCache.get(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
 
     FileScanTask task = readTask.getFileScanTask();
-    @Nullable String operation = readTask.getOperation();
     try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
       for (Record record : reader) {
-        Row row =
-            Row.withSchema(scanConfig.getCdcSchema())
-                .addValue(IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record))
-                .addValue(operation)
-                .build();
+        Row row = IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record);
         out.output(row);
       }
     }

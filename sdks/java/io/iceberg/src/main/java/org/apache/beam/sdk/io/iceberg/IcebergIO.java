@@ -134,7 +134,7 @@ import org.joda.time.Duration;
  *
  * <h3>Source-only Options</h3>
  *
- * <h4>CDC Source options</h4>
+ * <h4>ICEBERG_CDC Source options</h4>
  *
  * <table border="1" cellspacing="1">
  *   <tr>
@@ -409,21 +409,18 @@ import org.joda.time.Duration;
  *     .getSinglePCollection();
  * }</pre>
  *
- * Example of a simple CDC read:
+ * Example of a simple CDC streaming read:
  *
  * <pre>{@code
- * PCollection<Row> output = pipeline
+ * PCollection<Row> rows = pipeline
  *     .apply(Managed.read(ICEBERG_CDC).withConfig(config))
  *     .getSinglePCollection();
- *
- * PCollection<Row> rows = output
- *     .apply(ReadUtils.extractRecords());
  * }</pre>
  *
  * <p><b>Note</b>: This reads <b>append-only</b> snapshots. Full CDC is not supported yet.
  *
  * <p>The CDC <b>streaming</b> source (enabled with {@code streaming=true}) continuously polls the
- * table for new snapshots, with a default interval of 60 seconds. This can be overridden using
+ * table for new snapshots, with a default interval of 60 seconds. This can be overridden with
  * <b>{@code poll_interval_seconds}</b>:
  *
  * <pre>{@code
@@ -431,35 +428,7 @@ import org.joda.time.Duration;
  * config.put("poll_interval_seconds", 10);
  * }</pre>
  *
- * <h3>Output Schema</h3>
- *
- * <p>Reading with <b>{@code Managed.read(ICEBERG)}</b> produces a <b>{@code PCollection<Row>}</b>
- * containing data records that conform to the table schema.
- *
- * <p>Reading with <b>{@code Managed.read(ICEBERG_CDC)}</b> produces a <b>{@code
- * PCollection<Row>}</b> with the following schema:
- *
- * <table border="1" cellspacing="1">
- *   <tr>
- *     <td> <b>Field</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
- *   </tr>
- *   <tr>
- *     <td> {@code record} </td>
- *     <td> {@code Beam Row} </td>
- *     <td>
- *       The data record.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code operation} </td>
- *     <td> {@code string} </td>
- *     <td>
- *       The snapshot <a href="https://iceberg.apache.org/javadoc/0.11.0/org/apache/iceberg/DataOperations">operation</a> associated with this record. For now, only "append" is supported.
- *     </td>
- *   </tr>
- * </table>
- *
- * <h3>Choosing a Starting Point (CDC only)</h3>
+ * <h3>Choosing a Starting Point (ICEBERG_CDC only)</h3>
  *
  * By default, a batch read will start reading from the earliest (oldest) table snapshot. A
  * streaming read will start reading from the latest (most recent) snapshot. This behavior can be
@@ -488,7 +457,7 @@ import org.joda.time.Duration;
  *     .getSinglePCollection();
  * }</pre>
  *
- * <h3>Choosing an End Point (CDC only)</h3>
+ * <h3>Choosing an End Point (ICEBERG_CDC only)</h3>
  *
  * By default, a batch read will go up until the most recent table snapshot. A streaming read will
  * continue monitoring the table for new snapshots forever. This can be overridden with one of the

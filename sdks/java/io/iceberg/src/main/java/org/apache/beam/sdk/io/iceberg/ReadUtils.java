@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.util.SnapshotUtil.ancestorsOf;
 
 import java.util.Collection;
@@ -29,14 +28,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
@@ -74,24 +66,6 @@ public class ReadUtils {
           "parquet.private.read.filter.predicate",
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
-  static final String OPERATION = "operation";
-  static final String RECORD = "record";
-
-  /** Extracts {@link Row}s after a CDC streaming read. */
-  public static PTransform<PCollection<Row>, PCollection<Row>> extractRecords() {
-    return new ExtractRecords();
-  }
-
-  public static Schema outputCdcSchema(Schema tableSchema) {
-    return Schema.builder()
-        .addRowField(RECORD, tableSchema)
-        .addNullableStringField(OPERATION)
-        .build();
-  }
-
-  public static Schema outputCdcSchema(org.apache.iceberg.Schema tableSchema) {
-    return outputCdcSchema(IcebergUtils.icebergSchemaToBeamSchema(tableSchema));
-  }
 
   static ParquetReader<Record> createReader(FileScanTask task, Table table) {
     String filePath = task.file().path().toString();
@@ -214,28 +188,5 @@ public class ReadUtils {
             .collect(Collectors.toList());
 
     return snapshotIds;
-  }
-
-  private static class ExtractRecords extends PTransform<PCollection<Row>, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollection<Row> input) {
-      Preconditions.checkArgument(
-          input.getSchema().hasField(RECORD)
-              && input.getSchema().getField(RECORD).getType().getTypeName().isCompositeType(),
-          "PCollection schema must contain a \"%s\" field of type %s. Actual schema: %s",
-          RECORD,
-          Schema.TypeName.ROW,
-          input.getSchema());
-      Schema recordSchema =
-          checkStateNotNull(input.getSchema().getField(RECORD).getType().getRowSchema());
-      return input.apply(ParDo.of(new ExtractRecordsDoFn())).setRowSchema(recordSchema);
-    }
-
-    static class ExtractRecordsDoFn extends DoFn<Row, Row> {
-      @ProcessElement
-      public void process(@Element Row row, OutputReceiver<Row> out) {
-        out.output(checkStateNotNull(row.getRow(RECORD)));
-      }
-    }
   }
 }

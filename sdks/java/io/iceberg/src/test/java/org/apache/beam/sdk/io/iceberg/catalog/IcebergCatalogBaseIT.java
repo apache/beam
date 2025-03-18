@@ -50,7 +50,6 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
-import org.apache.beam.sdk.io.iceberg.ReadUtils;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -424,10 +423,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     config.put("to_snapshot", table.currentSnapshot().snapshotId());
 
     PCollection<Row> rows =
-        pipeline
-            .apply(Managed.read(ICEBERG_CDC).withConfig(config))
-            .getSinglePCollection()
-            .apply(ReadUtils.extractRecords());
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
 
     assertThat(rows.isBounded(), equalTo(UNBOUNDED));
     PAssert.that(rows).containsInAnyOrder(expectedRows);
@@ -479,7 +475,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     pipeline
         .apply("streaming read", Managed.read(ICEBERG_CDC).withConfig(readConfig))
         .getSinglePCollection()
-        .apply(ReadUtils.extractRecords())
         .apply("streaming write", Managed.write(ICEBERG).withConfig(writeConfig));
     pipeline.run().waitUntilFinish();
 
@@ -757,10 +752,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     config.put("streaming", streaming);
 
     PCollection<Row> rows =
-        pipeline
-            .apply(Managed.read(ICEBERG_CDC).withConfig(config))
-            .getSinglePCollection()
-            .apply(ReadUtils.extractRecords());
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
 
     IsBounded expectedBoundedness = streaming ? UNBOUNDED : BOUNDED;
     assertEquals(expectedBoundedness, rows.isBounded());

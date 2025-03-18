@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.ReadUtils.OPERATION;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -53,7 +51,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
@@ -224,10 +221,6 @@ public class IcebergIOReadTest {
 
     PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
 
-    if (useIncrementalScan) {
-      output = output.apply(ReadUtils.extractRecords());
-    }
-
     PAssert.that(output)
         .satisfies(
             (Iterable<Row> rows) -> {
@@ -283,10 +276,6 @@ public class IcebergIOReadTest {
       read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
     PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
-
-    if (useIncrementalScan) {
-      output = output.apply(ReadUtils.extractRecords());
-    }
 
     PAssert.that(output)
         .satisfies(
@@ -403,9 +392,6 @@ public class IcebergIOReadTest {
             .map(record -> IcebergUtils.icebergRecordToBeamRow(beamSchema, record))
             .toArray(Row[]::new);
 
-    if (useIncrementalScan) {
-      output = output.apply(ReadUtils.extractRecords());
-    }
     PAssert.that(output)
         .satisfies(
             (Iterable<Row> rows) -> {
@@ -483,16 +469,7 @@ public class IcebergIOReadTest {
       readRows = readRows.withStartingStrategy(strategy);
     }
 
-    PCollection<Row> output = testPipeline.apply(readRows);
-    PAssert.that(output)
-        .satisfies(
-            rows -> {
-              for (Row row : rows) {
-                assertEquals(DataOperations.APPEND, checkStateNotNull(row.getString(OPERATION)));
-              }
-              return null;
-            });
-    PCollection<Row> rows = output.apply(ReadUtils.extractRecords());
+    PCollection<Row> rows = testPipeline.apply(readRows);
     PCollection.IsBounded expectedBoundedness =
         streaming ? PCollection.IsBounded.UNBOUNDED : PCollection.IsBounded.BOUNDED;
     assertEquals(expectedBoundedness, rows.isBounded());
@@ -534,16 +511,7 @@ public class IcebergIOReadTest {
               .toTimestamp(thirdSnapshot.timestampMillis() + 1);
     }
 
-    PCollection<Row> output = testPipeline.apply(readRows).apply(new PrintRow());
-    PAssert.that(output)
-        .satisfies(
-            rows -> {
-              for (Row row : rows) {
-                assertEquals(DataOperations.APPEND, checkStateNotNull(row.getString(OPERATION)));
-              }
-              return null;
-            });
-    PCollection<Row> rows = output.apply(ReadUtils.extractRecords());
+    PCollection<Row> rows = testPipeline.apply(readRows).apply(new PrintRow());
     PCollection.IsBounded expectedBoundedness =
         streaming ? PCollection.IsBounded.UNBOUNDED : PCollection.IsBounded.BOUNDED;
     assertEquals(expectedBoundedness, rows.isBounded());
