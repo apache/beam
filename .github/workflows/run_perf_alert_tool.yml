@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Performance alerting tool on Python load/performance/benchmark tests.
+name: Performance alerting tool on Python load/performance/benchmark tests
 
 on:
   workflow_dispatch:
