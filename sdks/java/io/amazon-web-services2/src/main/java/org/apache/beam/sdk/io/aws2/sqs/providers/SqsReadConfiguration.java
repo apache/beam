@@ -22,7 +22,6 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import software.amazon.awssdk.regions.Region;
 
 /** Configuration class for reading data from an AWS SQS queue. */
 @DefaultSchema(AutoValueSchema.class)
@@ -32,15 +31,7 @@ public abstract class SqsReadConfiguration {
   public static Builder builder() {
     return new AutoValue_SqsReadConfiguration.Builder()
         .setMaxReadTimeSecs(null)
-        .setMaxNumRecords(Long.MAX_VALUE)
-        .setRegion(Region.AWS_GLOBAL.id());
-  }
-
-  @Nullable
-  public abstract String getRegion();
-
-  public Region region() {
-    return Optional.ofNullable(getRegion()).map(Region::of).orElse(Region.AWS_GLOBAL);
+        .setMaxNumRecords(Long.MAX_VALUE);
   }
 
   public abstract String getQueueUrl();
@@ -57,8 +48,6 @@ public abstract class SqsReadConfiguration {
 
   @AutoValue.Builder
   public abstract static class Builder {
-
-    public abstract Builder setRegion(String region);
 
     public abstract Builder setQueueUrl(String queueUrl);
 
