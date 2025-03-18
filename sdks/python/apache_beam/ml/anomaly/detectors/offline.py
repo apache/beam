@@ -51,9 +51,9 @@ class OfflineDetector(AnomalyDetector):
     self._run_inference_args["model_identifier"] = self._model_id
 
   def learn_one(self, x: beam.Row) -> None:
-    """Not implemented since CustomDetector invokes RunInference directly."""
+    """Not implemented since OfflineDetector invokes RunInference directly."""
     raise NotImplementedError
 
   def score_one(self, x: beam.Row) -> Optional[float]:
-    """Not implemented since CustomDetector invokes RunInference directly."""
+    """Not implemented since OfflineDetector invokes RunInference directly."""
     raise NotImplementedError

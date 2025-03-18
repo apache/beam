@@ -422,7 +422,7 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
   custom input/output conversion and inference.
 
   Args:
-    custom_detector: The `OfflineDetector` to run.
+    offline_detector: The `OfflineDetector` to run.
   """
   def __init__(self, offline_detector: OfflineDetector):
     self._offline_detector = offline_detector
