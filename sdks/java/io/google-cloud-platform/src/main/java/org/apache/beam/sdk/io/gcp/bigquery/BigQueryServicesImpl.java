@@ -962,20 +962,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
       private final TableReference ref;
       private final Boolean skipInvalidRows;
-      private final Boolean ignoreUnknownValues; // Fixed typo from ignoreUnkownValues
+      private final Boolean ignoreUnknownValues;
       private final Bigquery client;
       private final FluentBackoff rateLimitBackoffFactory;
       private final List<TableDataInsertAllRequest.Rows> rows;
       private final AtomicLong maxThrottlingMsec;
       private final Sleeper sleeper;
       private final StreamingInsertsMetrics result;
-      // Nullable new fields
       private final @Nullable InsertRetryPolicy retryPolicy;
       private final @Nullable List<FailsafeValueInSingleWindow<TableRow, TableRow>> originalRows;
       private final @Nullable List<ValueInSingleWindow<?>> failedInserts;
       private final @Nullable ErrorContainer<?> errorContainer;
 
-      // Original 9-parameter constructor
       InsertBatchofRowsCallable(
           TableReference ref,
           Boolean skipInvalidRows,
@@ -1002,7 +1000,6 @@ public class BigQueryServicesImpl implements BigQueryServices {
             null);
       }
 
-      // New 13-parameter constructor
       InsertBatchofRowsCallable(
           TableReference ref,
           Boolean skipInvalidRows,
@@ -1033,7 +1030,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       }
 
       @Override
-      @SuppressWarnings({"rawtypes", "unchecked"}) // Suppress rawtypes and unchecked warnings for CI
+      @SuppressWarnings({"rawtypes", "unchecked"}) // Suppress rawtypes and unchecked warnings
       public List<TableDataInsertAllResponse.InsertErrors> call() throws Exception {
         TableDataInsertAllRequest content = new TableDataInsertAllRequest();
         content.setRows(rows);
@@ -1096,7 +1093,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       && failedInserts != null
                       && errorContainer != null
                       && i < originalRows.size()) {
-                    // Use raw types inline with method-level suppression
+                    // Use raw types with method-level suppression
                     ((ErrorContainer) errorContainer).add((List) failedInserts, error, ref, originalRows.get(i));
                   }
                 }
