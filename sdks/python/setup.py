@@ -91,12 +91,6 @@ PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
-PACKAGE_LONG_DESCRIPTION = '''
-Apache Beam is a unified programming model for both batch and streaming
-data processing, enabling efficient execution across diverse distributed
-execution engines and providing extensibility points for connecting to
-different technologies and user communities.
-'''
 
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
@@ -311,13 +305,18 @@ if __name__ == '__main__':
     ])
   else:
     extensions = []
+
+  long_description = ((Path(__file__).parent / "README.md")  # pragma: no cover
+                      .read_text(encoding='utf-8'))  # pragma: no cover
+
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
       description=PACKAGE_DESCRIPTION,
-      long_description=PACKAGE_LONG_DESCRIPTION,
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       url=PACKAGE_URL,
       download_url=PACKAGE_DOWNLOAD_URL,
       author=PACKAGE_AUTHOR,
