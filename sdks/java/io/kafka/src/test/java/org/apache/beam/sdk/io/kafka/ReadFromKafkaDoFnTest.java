@@ -266,12 +266,14 @@ public class ReadFromKafkaDoFnTest {
     @Override
     public synchronized void assign(Collection<TopicPartition> partitions) {
       assertTrue(Iterables.getOnlyElement(partitions).equals(this.topicPartition));
+      super.assign(partitions);
     }
 
     @Override
     public synchronized void seek(TopicPartition partition, long offset) {
       assertTrue(partition.equals(this.topicPartition));
       this.startOffset = offset;
+      super.seek(partition, offset);
     }
 
     @Override

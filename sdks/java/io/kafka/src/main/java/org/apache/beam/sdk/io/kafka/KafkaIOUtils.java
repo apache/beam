@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -128,6 +129,20 @@ public final class KafkaIOUtils {
     offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
 
     return offsetConsumerConfig;
+  }
+
+  static Map<String, Object> overrideBootstrapServersConfig(
+      Map<String, Object> currentConfig, KafkaSourceDescriptor description) {
+    checkState(
+        currentConfig.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            || description.getBootStrapServers() != null);
+    Map<String, Object> config = new HashMap<>(currentConfig);
+    if (description.getBootStrapServers() != null && description.getBootStrapServers().size() > 0) {
+      config.put(
+          ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+          String.join(",", description.getBootStrapServers()));
+    }
+    return config;
   }
 
   /*
