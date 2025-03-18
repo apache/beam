@@ -46,7 +46,7 @@ For details see [Roadmap for multi-SDK efforts](/roadmap/connectors-multi-sdk/).
 
 ## Go SDK
 
-The Go SDK is not actively being developed. See the [Go SDK's Roadmap](/roadmap/go-sdk)
+The Go SDK is not actively being developed beyond bugfixes due to lack of contributors. If you'd like to help move this forward again, see the [Go SDK's Roadmap](/roadmap/go-sdk)
 
 ## Python 3 support
 
