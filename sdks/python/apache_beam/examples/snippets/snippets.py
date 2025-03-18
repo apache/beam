@@ -1399,7 +1399,7 @@ def accessing_valueprovider_info_after_run():
     result_pc = (
         pipeline
         | "main_pc" >> beam.Create([1, 2, 3])
-        | beam.combiners.Sum.Globally())
+        | beam.CombineGlobally(sum))
 
   # [END AccessingValueProviderInfoAfterRunSnip1]
 
