@@ -172,8 +172,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         elementsReadBySplit.inc();
 
         ConsumerRecord<byte[], byte[]> rawRecord = pState.recordIter.next();
-        long expected = pState.nextOffset;
-        long offset = rawRecord.offset();
 
         // Apply user deserializers. User deserializers might throw, which will be propagated up
         // and 'curRecord' remains unchanged. The runner should close this reader.
@@ -200,7 +198,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         int recordSize =
             (rawRecord.key() == null ? 0 : rawRecord.key().length)
                 + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-        pState.recordConsumed(offset, recordSize);
+        pState.recordConsumed(rawRecord.offset(), recordSize);
         bytesRead.inc(recordSize);
         bytesReadBySplit.inc(recordSize);
 
