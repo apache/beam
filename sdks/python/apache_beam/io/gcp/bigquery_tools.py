@@ -772,7 +772,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
-  def get_table(self, project_id, dataset_id, table_id, table_view='BASIC'):
+  def get_table(self, project_id, dataset_id, table_id, view='BASIC'):
     """Lookup a table's metadata object.
 
     Args:
@@ -780,7 +780,7 @@ class BigQueryWrapper(object):
       project_id: table lookup parameter
       dataset_id: table lookup parameter
       table_id: table lookup parameter
-      table_view: table information parameter
+      view: table information parameter
 
     Returns:
       bigquery.Table instance
@@ -788,7 +788,7 @@ class BigQueryWrapper(object):
       HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id, table_view=table_view)
+        projectId=project_id, datasetId=dataset_id, tableId=table_id, view=view)
     response = self.client.tables.Get(request)
     return response
 
