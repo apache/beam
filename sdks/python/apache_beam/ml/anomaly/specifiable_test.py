@@ -52,7 +52,7 @@ class TestSpecifiable(unittest.TestCase):
 
     # apply the decorator function to an existing class
     A = specifiable(A)
-    self.assertEqual(A.spec_type, "A")
+    self.assertEqual(A.spec_type(), "A")
     self.assertTrue(isinstance(A(), Specifiable))
     self.assertIn("A", _KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE])
     self.assertEqual(_KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE]["A"], A)
@@ -63,13 +63,10 @@ class TestSpecifiable(unittest.TestCase):
     # Raise an error when re-registering spec_type with a different class
     self.assertRaises(ValueError, specifiable(spec_type='A'), B)
 
-    # apply the decorator function to an existing class with a different
-    # spec_type
+    # Applying the decorator function to an existing class with a different
+    # spec_type will have no effect.
     A = specifiable(spec_type="A_DUP")(A)
-    self.assertEqual(A.spec_type, "A_DUP")
-    self.assertTrue(isinstance(A(), Specifiable))
-    self.assertIn("A_DUP", _KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE])
-    self.assertEqual(_KNOWN_SPECIFIABLE[_FALLBACK_SUBSPACE]["A_DUP"], A)
+    self.assertEqual(A.spec_type(), "A")
 
   def test_decorator_in_syntactic_sugar_form(self):
     # call decorator without parameters
@@ -583,6 +580,49 @@ class TestClassAsArgument(unittest.TestCase):
 
     w_2 = Specifiable.from_spec(w_spec)
     self.assertEqual(w_2.run_func_in_class(5, 3), 150)
+
+
+class TestUncommonUsages(unittest.TestCase):
+  def test_double_specifiable(self):
+    @specifiable
+    @specifiable
+    class ZZ():
+      def __init__(self, a):
+        self.a = a
+
+    assert issubclass(ZZ, Specifiable)
+    c = ZZ("b")
+    c.run_original_init()
+    self.assertEqual(c.a, "b")
+
+  def test_unspecifiable(self):
+    class YY():
+      def __init__(self, x):
+        self.x = x
+        assert False
+
+    YY = specifiable(YY)
+    assert issubclass(YY, Specifiable)
+    y = YY(1)
+    # __init__ is called (with assertion error raised) when attribute is first
+    # accessed
+    self.assertRaises(AssertionError, lambda: y.x)
+
+    # unspecifiable YY
+    YY.unspecifiable()
+    # __init__ is called immediately
+    self.assertRaises(AssertionError, YY, 1)
+    self.assertFalse(hasattr(YY, 'run_original_init'))
+    self.assertFalse(hasattr(YY, 'spec_type'))
+    self.assertFalse(hasattr(YY, 'to_spec'))
+    self.assertFalse(hasattr(YY, 'from_spec'))
+    self.assertFalse(hasattr(YY, 'unspecifiable'))
+
+    # make YY specifiable again
+    YY = specifiable(YY)
+    assert issubclass(YY, Specifiable)
+    y = YY(1)
+    self.assertRaises(AssertionError, lambda: y.x)
 
 
 if __name__ == '__main__':
