@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import java.io.Serializable;
 import java.util.Set;
-import org.checkerframework.checker.nullness.qual.Nullable; // Correct Checker Framework import
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /** A retry policy for streaming BigQuery inserts. */
@@ -98,8 +98,9 @@ public abstract class InsertRetryPolicy implements Serializable {
           return false; // Could be refined later based on exception type (e.g., 503 vs 400)
         }
         // Existing logic for per-element errors
-        if (context.getInsertErrors() != null && context.getInsertErrors().getErrors() != null) {
-          for (ErrorProto error : context.getInsertErrors().getErrors()) {
+        TableDataInsertAllResponse.InsertErrors insertErrors = context.getInsertErrors();
+        if (insertErrors != null && insertErrors.getErrors() != null) {
+          for (ErrorProto error : insertErrors.getErrors()) {
             if (error.getReason() != null && PERSISTENT_ERRORS.contains(error.getReason())) {
               return false;
             }
