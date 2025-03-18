@@ -50,7 +50,7 @@ The Go SDK is not actively being developed. See the [Go SDK's Roadmap](/roadmap/
 
 ## Python 3 support
 
-Python 3.8 support is set for sunset. We support python version from 3.9 uptil Python 3.12. Supporting Python 3.13 is in our roadmap.
+As of Apache Beam 2.61.0, Python 3.8 support has been removed. We support python version from 3.9 uptil Python 3.12. Supporting Python 3.13 is in our roadmap.
 
 See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
