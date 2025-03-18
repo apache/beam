@@ -46,21 +46,19 @@ For details see [Roadmap for multi-SDK efforts](/roadmap/connectors-multi-sdk/).
 
 ## Go SDK
 
-The Go SDK is the newest SDK, and is the first SDK built entirely on the
-portability framework. See the [Go SDK's Roadmap](/roadmap/go-sdk) if this piques your
-interest.
+The Go SDK is not actively being developed. See the [Go SDK's Roadmap](/roadmap/go-sdk)
 
 ## Python 3 support
 
-Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and plan to phase out Python 2 support ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)):
+Python 3.8 support is set for sunset. We support python version from 3.9 uptil Python 3.12. Supporting Python 3.13 is in our roadmap.
 
 See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
 ## Java 17 support
 
-The Java SDK is eager to add support for Java's next LTS (Long Term Support)
-version. See details on
+Java 17 is already supported and Java's next LTS (Long Term Support) 
+version (21) is already on roadmap. See details on
 the [Java SDK's Roadmap](/roadmap/java-sdk).
 
 ## SQL
