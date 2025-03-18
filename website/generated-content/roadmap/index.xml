@@ -444,10 +444,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="python-sdk-roadmap">Python SDK Roadmap&lt;/h1>
-&lt;h2 id="sunsetting-python-2-support">Sunsetting Python 2 Support&lt;/h2>
-&lt;p>The Apache Beam community voted to join &lt;a href="https://python3statement.org/">the pledge&lt;/a> to sunset Python 2 support in 2020. The Beam community will discontinue Python 2 support in 2020 and cannot guarantee long-term functional support or maintenance of Beam on Python 2. To ensure minimal disruption to your service, we strongly recommend that you upgrade to Python 3 as soon as possible.&lt;/p>
 &lt;h2 id="python-3-support">Python 3 Support&lt;/h2>
-&lt;p>Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We&amp;rsquo;re continuing to &lt;a href="https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&amp;amp;page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050">improve&lt;/a> the experience for Python 3 users and add support for Python 3.x minor versions (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8494">BEAM-8494&lt;/a>):&lt;/p>
+&lt;p>Apache Beam 2.64.0 and higher support Python 3.9, 3.10, 3.11 and 3.12. We&amp;rsquo;re continuing to &lt;a href="https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&amp;amp;page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050">improve&lt;/a> the experience for Python 3 users and add support for Python 3.x minor versions:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&amp;amp;view=detail">Kanban Board&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://docs.google.com/document/d/1s1BJVCY65LB_SYK1SU1u7NbZiFANoq-nEYaEvzRbYlA">Python 3 Conversion Quick Start Guide&lt;/a>&lt;/li>
