@@ -984,20 +984,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
           AtomicLong maxThrottlingMsec,
           Sleeper sleeper,
           StreamingInsertsMetrics result) {
-        this(
-            ref,
-            skipInvalidRows,
-            ignoreUnknownValues,
-            client,
-            rateLimitBackoffFactory,
-            rows,
-            maxThrottlingMsec,
-            sleeper,
-            result,
-            null,
-            null,
-            null,
-            null);
+        this(ref, skipInvalidRows, ignoreUnknownValues, client, rateLimitBackoffFactory, rows,
+            maxThrottlingMsec, sleeper, result, null, null, null, null);
       }
 
       InsertBatchofRowsCallable(
@@ -1030,7 +1018,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       }
 
       @Override
-      @SuppressWarnings({"rawtypes", "unchecked"}) // Suppress rawtypes and unchecked warnings
+      @SuppressWarnings({"rawtypes", "unchecked"})
       public List<TableDataInsertAllResponse.InsertErrors> call() throws Exception {
         TableDataInsertAllRequest content = new TableDataInsertAllRequest();
         content.setRows(rows);
@@ -1069,11 +1057,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
             serviceCallMetric.call(errorReason);
             result.updateFailedRpcMetrics(start, Instant.now(), errorReason);
 
-            // Only apply retry policy and DLQ logic if retryPolicy is provided
             if (retryPolicy != null) {
+              // Use the two-parameter constructor with non-null exception
               InsertRetryPolicy.Context context = new InsertRetryPolicy.Context(null, e);
               if (!retryPolicy.shouldRetry(context)) {
-                // Non-retriable non-200 response: send all rows in this batch to DLQ if configured
                 LOG.warn(
                     "Non-retriable HTTP error {} for insertAll, sending to DLQ: {}",
                     e.getStatusCode(),
@@ -1093,15 +1080,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       && failedInserts != null
                       && errorContainer != null
                       && i < originalRows.size()) {
-                    // Use raw types with method-level suppression
                     ((ErrorContainer) errorContainer).add((List) failedInserts, error, ref, originalRows.get(i));
                   }
                 }
-                return syntheticErrors; // Return errors to mark batch as failed
+                return syntheticErrors;
               }
             }
 
-            // Retryable non-200 response or no retry policy
             if (!ApiErrorExtractor.INSTANCE.rateLimited(e) && !errorReason.equals(QUOTA_EXCEEDED)) {
               if (ApiErrorExtractor.INSTANCE.badRequest(e)
                   && e.getMessage().contains(NO_ROWS_PRESENT)) {
@@ -1111,7 +1096,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                         + " or 0 to disable timeouts",
                     e.getCause());
               }
-              throw e; // Let the outer loop handle non-rate-limit errors
+              throw e;
             }
 
             try (QuotaEventCloseable qec =
