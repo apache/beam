@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import java.io.Serializable;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable; // Correct Checker Framework import
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /** A retry policy for streaming BigQuery inserts. */
@@ -35,25 +36,25 @@ public abstract class InsertRetryPolicy implements Serializable {
    */
   public static class Context {
     // A list of all errors corresponding to an attempted insert of a single record.
-    final TableDataInsertAllResponse.InsertErrors errors;
+    final TableDataInsertAllResponse.@Nullable InsertErrors errors;
     // Exception thrown for non-successful (non-200) HTTP responses, if applicable.
-    final Throwable exception;
+    final @Nullable Throwable exception;
 
-    public TableDataInsertAllResponse.InsertErrors getInsertErrors() {
+    public TableDataInsertAllResponse.@Nullable InsertErrors getInsertErrors() {
       return errors;
     }
 
-    public Throwable getException() {
+    public @Nullable Throwable getException() {
       return exception;
     }
 
     // Constructor for per-element errors (existing behavior)
-    public Context(TableDataInsertAllResponse.InsertErrors errors) {
+    public Context(TableDataInsertAllResponse.@Nullable InsertErrors errors) {
       this(errors, null);
     }
 
     // Constructor for both per-element errors and exceptions
-    public Context(TableDataInsertAllResponse.InsertErrors errors, Throwable exception) {
+    public Context(TableDataInsertAllResponse.@Nullable InsertErrors errors, @Nullable Throwable exception) {
       this.errors = errors;
       this.exception = exception;
     }
