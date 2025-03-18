@@ -74,6 +74,7 @@ class DataflowCostBenchmark(LoadTest):
                              result: DataflowPipelineResult) -> dict[str, Any]:
     job_id = result.job_id()
     metrics = result.metrics().all_metrics(job_id)
+    logging.info(metrics)
     metrics_dict = self._process_metrics_list(metrics)
     logging.info(metrics_dict)
     cost = 0.0
