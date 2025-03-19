@@ -75,7 +75,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Managed API for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed) supports [key I/O connectors](https://beam.apache.org/documentation/io/connectors/) Iceberg, Kafka, and BigQuery.
 * Prism now supports event time triggers for most common cases. ([#31438](https://github.com/apache/beam/issues/31438))
-  * Prism does not yet triggered side inputs, or triggers on merging windows (such as session windows).
+  * Prism does not yet support triggered side inputs, or triggers on merging windows (such as session windows).
 
 ## Breaking Changes
 
