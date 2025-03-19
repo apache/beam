@@ -43,8 +43,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.util.NameTransformer;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.beam.sdk.io.aws2.common.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
@@ -73,10 +75,15 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityReques
  */
 @AutoService(Module.class)
 public class AwsModule extends SimpleModule {
+
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
   private static final String SESSION_TOKEN = "sessionToken";
   private static final String PROFILE_NAME = "profileName";
+  private static final String ROLE_ARN = "roleArn";
+  private static final String AUDIENCE = "audience";
+  private static final String WEBID_TOKEN_FQCN = "webIdTokenProviderFQCN";
+  private static final String SESSION_DURATION_SECONDS = "durationSeconds";
 
   public AwsModule() {
     super("AwsModule");
@@ -97,7 +104,9 @@ public class AwsModule extends SimpleModule {
   @JsonDeserialize(using = RegionMixin.Deserializer.class)
   @JsonSerialize(using = RegionMixin.Serializer.class)
   private static class RegionMixin {
+
     private static class Deserializer extends JsonDeserializer<Region> {
+
       @Override
       public Region deserialize(JsonParser p, DeserializationContext cxt) throws IOException {
         return Region.of(p.readValueAs(String.class));
@@ -105,6 +114,7 @@ public class AwsModule extends SimpleModule {
     }
 
     private static class Serializer extends JsonSerializer<Region> {
+
       @Override
       public void serialize(Region value, JsonGenerator gen, SerializerProvider serializers)
           throws IOException {
@@ -186,6 +196,15 @@ public class AwsModule extends SimpleModule {
                     .credentialsProvider(AnonymousCredentialsProvider.create())
                     .build())
             .build();
+      } else if (typeName.equals(
+          StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class.getSimpleName())) {
+        return StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+            .setAudience(getNotNull(json, AUDIENCE, typeName))
+            .setAssumedRoleArn(getNotNull(json, ROLE_ARN, typeName))
+            .setWebIdTokenProviderFQCN(getNotNull(json, WEBID_TOKEN_FQCN, typeName))
+            .setSessionDurationSecs(
+                Optional.ofNullable(json.get(SESSION_DURATION_SECONDS)).map(JsonNode::asInt).get())
+            .build();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -205,6 +224,7 @@ public class AwsModule extends SimpleModule {
 
   private static class AWSCredentialsProviderSerializer
       extends JsonSerializer<AwsCredentialsProvider> {
+
     // These providers are singletons, so don't require any serialization, other than type.
     private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS =
         ImmutableSet.of(
@@ -265,6 +285,17 @@ public class AwsModule extends SimpleModule {
             .findValueSerializer(AssumeRoleWithWebIdentityRequest.serializableBuilderClass())
             .unwrappingSerializer(NameTransformer.NOP)
             .serialize(reqSupplier.get().toBuilder(), jsonGenerator, serializer);
+      } else if (credentialsProvider
+          instanceof StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) {
+        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider provider =
+            (StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) credentialsProvider;
+        jsonGenerator.writeStringField(AUDIENCE, provider.audience());
+        jsonGenerator.writeStringField(ROLE_ARN, provider.assumedRoleArn());
+        jsonGenerator.writeStringField(WEBID_TOKEN_FQCN, provider.webIdTokenProviderFQCN());
+        Integer sessionDurationSecs = provider.sessionDurationSecs();
+        if (sessionDurationSecs != null) {
+          jsonGenerator.writeNumberField(SESSION_DURATION_SECONDS, sessionDurationSecs);
+        }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(providerClass)) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + providerClass);
@@ -292,6 +323,7 @@ public class AwsModule extends SimpleModule {
   @JsonIgnoreProperties(value = {"host", "port", "scheme"})
   @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
   private static class ProxyConfigurationMixin {
+
     @JsonPOJOBuilder(withPrefix = "")
     static class Builder {}
   }
@@ -313,6 +345,7 @@ public class AwsModule extends SimpleModule {
   }
 
   private interface Instantiator<T> {
+
     @NonNull
     T create();
   }
