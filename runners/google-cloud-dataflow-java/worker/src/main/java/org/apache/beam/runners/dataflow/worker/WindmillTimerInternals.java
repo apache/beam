@@ -22,7 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
@@ -65,8 +65,9 @@ class WindmillTimerInternals implements TimerInternals {
   // though technically in Windmill this is only enforced per ID and namespace
   // and TimeDomain. This TimerInternals is scoped to a step and key, shared
   // across namespaces.
-  private final Map<Entry<String /*ID*/, StateNamespace>, Entry<TimerData, Boolean>> timerMap =
-      new LinkedHashMap<>();
+  private final Map<
+          Entry<String /*ID*/, StateNamespace>, Entry<TimerData, Boolean /*timer set/unset*/>>
+      timerMap = new HashMap<>();
 
   private final Watermarks watermarks;
   private final Instant processingTime;
