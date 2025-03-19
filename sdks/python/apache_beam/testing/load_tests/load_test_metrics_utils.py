@@ -218,6 +218,7 @@ class MetricsReader(object):
 
     bq_check = project_name and bq_table and bq_dataset and publish_to_bq
     if bq_check:
+      _LOGGER.info(f"BEAM VERSION IS {beam.version.__version__}")
       # publish to BigQuery
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)

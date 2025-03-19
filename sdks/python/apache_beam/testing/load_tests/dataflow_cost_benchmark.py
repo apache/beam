@@ -187,15 +187,6 @@ class DataflowCostBenchmark(LoadTest):
     return metrics
 
 
-  def _get_beam_sdk_version(self, job_id: str) -> str:
-    job = self.dataflow_client.get_job(job_id)
-    if hasattr(job, 'metadata') and hasattr(job.metadata, 'sdkVersion'):
-      sdk_version = job.metadata.sdkVersion
-      match = re.search(r'(\d+\.\d+\.\d+)', sdk_version)
-      return match.group(1) if match else sdk_version
-    return 'unknown'
-
-
   def _get_job_runtime(self, start_time: str, end_time: str) -> float:
     """Calculates the job runtime duration in seconds."""
     start_dt = datetime.fromisoformat(start_time[:-1])
@@ -211,10 +202,10 @@ class DataflowCostBenchmark(LoadTest):
     if not start_time or not end_time:
       logging.warning('Could not find valid worker start/end times.')
       return {}
+    logging.info(f"BEAM VERSION IS {beam.version.__version__}")
 
     throughput_metrics = self._get_throughput_metrics(project, job_id, start_time, end_time)
     return {
       **throughput_metrics,
       "JobRuntimeSeconds": self._get_job_runtime(start_time, end_time),
-      "BeamSdkVersion": self._get_beam_sdk_version(job_id),
     }
