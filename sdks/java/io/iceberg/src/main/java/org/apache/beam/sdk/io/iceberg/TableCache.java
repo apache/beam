@@ -31,7 +31,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.jetbrains.annotations.NotNull;
 
 /** Utility to fetch and cache Iceberg {@link Table}s. */
 class TableCache {
@@ -43,14 +42,13 @@ class TableCache {
           .build(
               new CacheLoader<String, Table>() {
                 @Override
-                public @NotNull Table load(@NotNull String identifier) {
+                public Table load(String identifier) {
                   return checkStateNotNull(CATALOG_CACHE.get(identifier))
                       .loadTable(TableIdentifier.parse(identifier));
                 }
 
                 @Override
-                public @NotNull ListenableFuture<Table> reload(
-                    @NotNull String unusedIdentifier, @NotNull Table table) {
+                public ListenableFuture<Table> reload(String unusedIdentifier, Table table) {
                   table.refresh();
                   return Futures.immediateFuture(table);
                 }

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
