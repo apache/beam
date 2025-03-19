@@ -23,7 +23,8 @@ import apache_beam.testing.load_tests.dataflow_cost_consts as costs
 
 from typing import Any, Optional
 from datetime import datetime
-from google.cloud import monitoring_v3, dataflow_v1beta3
+from google.cloud import dataflow_v1beta3
+from google.cloud import monitoring_v3
 from google.protobuf.duration_pb2 import Duration
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
