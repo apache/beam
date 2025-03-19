@@ -185,7 +185,7 @@ class DataflowCostBenchmark(LoadTest):
       return {}
 
     return {
-      "AverageThroughput": self._get_throughput_metrics(project, job_id, 'your-pcollection-name', start_time, end_time),
+      "AverageThroughput": self._get_throughput_metrics(project, job_id, 'ProcessOutput.out0', start_time, end_time),
       "JobRuntimeSeconds": self._get_job_runtime(start_time, end_time),
       "BeamSdkVersion": self._get_beam_sdk_version(project, region, job_id),
     }

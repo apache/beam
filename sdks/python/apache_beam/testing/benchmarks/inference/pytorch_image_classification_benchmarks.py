@@ -19,14 +19,14 @@
 import logging
 
 from apache_beam.examples.inference import pytorch_image_classification
-from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostBenchmark
 from torchvision import models
 
 _PERF_TEST_MODELS = ['resnet50', 'resnet101', 'resnet152']
 _PRETRAINED_MODEL_MODULE = 'torchvision.models'
 
 
-class PytorchVisionBenchmarkTest(LoadTest):
+class PytorchVisionBenchmarkTest(DataflowCostBenchmark):
   def __init__(self):
     # TODO (https://github.com/apache/beam/issues/23008)
     #  make get_namespace() method in RunInference static
