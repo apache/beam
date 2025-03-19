@@ -185,7 +185,8 @@ class WriteToKinesis(ExternalTransform):
                 aggregation_enabled=aggregation_enabled,
                 aggregation_max_bytes=aggregation_max_bytes,
                 aggregation_max_buffered_time=aggregation_max_buffered_time,
-                aggregation_shard_refresh_interval=aggregation_shard_refresh_interval,
+                aggregation_shard_refresh_interval=
+                aggregation_shard_refresh_interval,
             )),
         expansion_service or default_io_expansion_service(),
     )
