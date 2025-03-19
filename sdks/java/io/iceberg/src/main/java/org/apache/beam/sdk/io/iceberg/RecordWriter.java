@@ -89,6 +89,7 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .metricsConfig(metricsConfig)
                 .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
