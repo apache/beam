@@ -57,6 +57,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>{@link Schema.TypeName#DOUBLE}
  *   <li>{@link Schema.TypeName#BOOLEAN}
  *   <li>{@link Schema.TypeName#STRING}
+ *   <li>{@link Schema.TypeName#DECIMAL}
+ *   <li>{@link Schema.TypeName#DATETIME}
+ *   <li>{@link Schema.TypeName#MAP} (keys must be STRING; values must be BYTE, INT16, INT32, INT64,
+ *       FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, or DATETIME)
  * </ul>
  *
  * <p>For specifics of JSON deserialization see {@link RowJsonDeserializer}.
@@ -66,12 +70,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Booleans are only parsed from {@code true} or {@code false} literals, not from {@code "true"}
  * or {@code "false"} strings or any other values (exception is thrown in these cases).
  *
- * <p>If a JSON number doesn't fit into the corresponding schema field type, an exception is be
- * thrown. Strings are not auto-converted to numbers. Floating point numbers are not auto-converted
- * to integral numbers. Precision loss also causes exceptions.
+ * <p>If a JSON number doesn't fit into the corresponding schema field type, an exception is thrown.
+ * Strings are not auto-converted to numbers. Floating point numbers are not auto-converted to
+ * integral numbers. Precision loss also causes exceptions.
  *
  * <p>Only JSON string values can be parsed into {@link TypeName#STRING}. Numbers, booleans are not
- * automatically converted, exceptions are thrown in these cases.
+ * automatically converted; exceptions are thrown in these cases.
  *
  * <p>If a schema field is missing from the JSON value, by default the field will be assumed to have
  * a null value, and will be converted into a null in the row if the schema has this field being
