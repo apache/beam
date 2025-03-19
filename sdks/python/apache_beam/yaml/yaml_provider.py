@@ -1372,6 +1372,8 @@ def _as_list(func):
 
 
 def _join_url_or_filepath(base, path):
+  if not base:
+    return path
   base_scheme = urllib.parse.urlparse(base, '').scheme
   path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
   if path_scheme != base_scheme:
