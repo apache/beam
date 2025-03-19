@@ -192,7 +192,7 @@ class DataflowCostBenchmark(LoadTest):
 
   def _get_additional_metrics(self, result: DataflowPipelineResult) -> dict[str, Any]:
     """Collects additional metrics like throughput, runtime, and SDK version."""
-    project, job_id = result.project, result.job_id()
+    project, job_id = "apache-beam-testing", result.job_id()
     start_time, end_time = self._get_worker_time_interval(job_id)
     if not start_time or not end_time:
       logging.warning('Could not find valid worker start/end times.')
