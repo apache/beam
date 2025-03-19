@@ -298,9 +298,9 @@ def parse_test_methods(markdown_lines):
       else:
         if code_lines:
           if code_lines[0].startswith('- type:'):
-            if 'dependencies:' in yaml_pipeline:
-              test_type = 'PARSE'
             specs = yaml.load('\n'.join(code_lines), Loader=SafeLoader)
+            if 'dependencies:' in specs:
+              test_type = 'PARSE'
             is_chain = not any('input' in spec for spec in specs)
             if is_chain:
               undefined_inputs = set(['input'])
