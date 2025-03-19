@@ -28,9 +28,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataOperations;
-import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
-import org.apache.iceberg.ScanTaskParser;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,13 +51,18 @@ class CreateReadTasksDoFn
     this.scanConfig = scanConfig;
   }
 
+  @Setup
+  public void setup() {
+    TableCache.setup(scanConfig);
+  }
+
   @ProcessElement
   public void process(
       @Element KV<String, List<SnapshotInfo>> element,
       OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException, ExecutionException {
-    Table table =
-        TableCache.getRefreshed(element.getKey(), scanConfig.getCatalogConfig().catalog());
+    // force refresh because the table must be updated before scanning snapshots
+    Table table = TableCache.getRefreshed(element.getKey());
 
     // scan snapshots individually and assign commit timestamp to files
     for (SnapshotInfo snapshot : element.getValue()) {
@@ -92,27 +95,18 @@ class CreateReadTasksDoFn
     int numTasks = 0;
     try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
       for (CombinedScanTask combinedScanTask : combinedScanTasks) {
-        // A single DataFile can be broken up into multiple FileScanTasks
-        for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
-          ReadTask task =
-              ReadTask.builder()
-                  .setFileScanTaskJson(ScanTaskParser.toJson(fileScanTask))
-                  .setByteSize(fileScanTask.length())
-                  .setOperation(snapshot.getOperation())
-                  .setSnapshotTimestampMillis(snapshot.getTimestampMillis())
-                  .build();
-          ReadTaskDescriptor descriptor =
-              ReadTaskDescriptor.builder()
-                  .setTableIdentifierString(checkStateNotNull(snapshot.getTableIdentifierString()))
-                  .build();
+        ReadTask task = ReadTask.builder().setCombinedScanTask(combinedScanTask).build();
+        ReadTaskDescriptor descriptor =
+            ReadTaskDescriptor.builder()
+                .setTableIdentifierString(checkStateNotNull(snapshot.getTableIdentifierString()))
+                .build();
 
-          out.outputWithTimestamp(
-              KV.of(descriptor, task), Instant.ofEpochMilli(snapshot.getTimestampMillis()));
-          totalScanTasks.inc();
-          numTasks++;
-        }
+        out.outputWithTimestamp(
+            KV.of(descriptor, task), Instant.ofEpochMilli(snapshot.getTimestampMillis()));
+        numTasks += combinedScanTask.tasks().size();
       }
     }
+    totalScanTasks.inc(numTasks);
     LOG.info("Snapshot {} produced {} read tasks.", snapshot.getSnapshotId(), numTasks);
   }
 }

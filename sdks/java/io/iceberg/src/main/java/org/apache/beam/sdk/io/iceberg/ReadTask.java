@@ -18,16 +18,18 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.ScanTaskParser;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -45,37 +47,44 @@ abstract class ReadTask {
     return coder;
   }
 
-  private transient @MonotonicNonNull FileScanTask cachedFileScanTask;
+  private transient @MonotonicNonNull List<FileScanTask> cachedFileScanTask;
 
   static Builder builder() {
     return new AutoValue_ReadTask.Builder();
   }
 
-  abstract String getFileScanTaskJson();
-
-  abstract long getByteSize();
-
-  abstract @Nullable String getOperation();
-
-  abstract long getSnapshotTimestampMillis();
+  abstract List<String> getFileScanTaskJsons();
 
   @SchemaIgnore
-  FileScanTask getFileScanTask() {
+  List<FileScanTask> getFileScanTasks() {
     if (cachedFileScanTask == null) {
-      cachedFileScanTask = ScanTaskParser.fromJson(getFileScanTaskJson(), true);
+      cachedFileScanTask =
+          getFileScanTaskJsons().stream()
+              .map(json -> ScanTaskParser.fromJson(json, true))
+              .collect(Collectors.toList());
     }
     return cachedFileScanTask;
   }
 
+  @SchemaIgnore
+  long getSize(long from, long to) {
+    return getFileScanTasks().subList((int) from, (int) to).stream()
+        .mapToLong(FileScanTask::length)
+        .sum();
+  }
+
   @AutoValue.Builder
   abstract static class Builder {
-    abstract Builder setFileScanTaskJson(String jsonTask);
+    abstract Builder setFileScanTaskJsons(List<String> jsons);
 
-    abstract Builder setByteSize(long size);
-
-    abstract Builder setOperation(@Nullable String operation);
-
-    abstract Builder setSnapshotTimestampMillis(long millis);
+    @SchemaIgnore
+    Builder setCombinedScanTask(CombinedScanTask combinedScanTask) {
+      List<String> fileScanTaskJsons =
+          combinedScanTask.tasks().stream()
+              .map(ScanTaskParser::toJson)
+              .collect(Collectors.toList());
+      return setFileScanTaskJsons(fileScanTaskJsons);
+    }
 
     abstract ReadTask build();
   }

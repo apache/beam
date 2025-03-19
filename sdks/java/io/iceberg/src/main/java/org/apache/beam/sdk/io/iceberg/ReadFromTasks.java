@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
@@ -49,36 +50,49 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
     this.scanConfig = scanConfig;
   }
 
+  @Setup
+  public void setup() {
+    TableCache.setup(scanConfig);
+  }
+
   @ProcessElement
   public void process(
       @Element KV<ReadTaskDescriptor, ReadTask> element,
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<Row> out)
       throws IOException, ExecutionException, InterruptedException {
-    if (!tracker.tryClaim(0L)) {
-      return;
-    }
     ReadTask readTask = element.getValue();
-    Table table =
-        TableCache.get(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
+    Table table = TableCache.get(scanConfig.getTableIdentifier());
 
-    FileScanTask task = readTask.getFileScanTask();
-    try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
-      for (Record record : reader) {
-        Row row = IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record);
-        out.output(row);
+    List<FileScanTask> fileScanTasks = readTask.getFileScanTasks();
+
+    for (long l = tracker.currentRestriction().getFrom();
+        l < tracker.currentRestriction().getTo();
+        l++) {
+      if (!tracker.tryClaim(l)) {
+        return;
       }
+      FileScanTask task = fileScanTasks.get((int) l);
+      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
+        for (Record record : reader) {
+          Row row = IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record);
+          out.output(row);
+        }
+      }
+      scanTasksCompleted.inc();
     }
-    scanTasksCompleted.inc();
   }
 
   @GetSize
-  public double getSize(@Element KV<ReadTaskDescriptor, ReadTask> element) {
-    return element.getValue().getByteSize();
+  public double getSize(
+      @Element KV<ReadTaskDescriptor, ReadTask> element, @Restriction OffsetRange restriction) {
+    // TODO(ahmedabu98): this is actually the file byte size, likely compressed.
+    //  find a way to output the actual Beam Row byte size.
+    return element.getValue().getSize(restriction.getFrom(), restriction.getTo());
   }
 
   @GetInitialRestriction
-  public OffsetRange getInitialRange() {
-    return new OffsetRange(0, 1);
+  public OffsetRange getInitialRange(@Element KV<ReadTaskDescriptor, ReadTask> element) {
+    return new OffsetRange(0, element.getValue().getFileScanTaskJsons().size());
   }
 }

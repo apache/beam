@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -87,6 +87,7 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
   private static class SnapshotPollFn extends Watch.Growth.PollFn<String, List<SnapshotInfo>> {
     private final IcebergScanConfig scanConfig;
     private @Nullable Long fromSnapshotId;
+    boolean isCacheSetup = false;
 
     SnapshotPollFn(IcebergScanConfig scanConfig) {
       this.scanConfig = scanConfig;
@@ -94,9 +95,11 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
     @Override
     public PollResult<List<SnapshotInfo>> apply(String tableIdentifier, Context c) {
-      // fetch a fresh table to catch new snapshots
-      Table table =
-          TableCache.getRefreshed(tableIdentifier, scanConfig.getCatalogConfig().catalog());
+      if (!isCacheSetup) {
+        TableCache.setup(scanConfig);
+        isCacheSetup = true;
+      }
+      Table table = TableCache.getRefreshed(tableIdentifier);
 
       @Nullable Long userSpecifiedToSnapshot = ReadUtils.getToSnapshot(table, scanConfig);
       boolean isComplete = userSpecifiedToSnapshot != null;
@@ -124,7 +127,8 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
     private PollResult<List<SnapshotInfo>> getPollResult(
         @Nullable List<SnapshotInfo> snapshots, boolean isComplete) {
-      List<TimestampedValue<List<SnapshotInfo>>> timestampedSnapshots = new ArrayList<>(1);
+      ImmutableList.Builder<TimestampedValue<List<SnapshotInfo>>> timestampedSnapshots =
+          ImmutableList.builder();
       if (snapshots != null) {
         // watermark based on the oldest observed snapshot in this poll interval
         Instant watermark = Instant.ofEpochMilli(snapshots.get(0).getTimestampMillis());
@@ -132,8 +136,8 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
       }
 
       return isComplete
-          ? PollResult.complete(timestampedSnapshots) // stop at specified snapshot
-          : PollResult.incomplete(timestampedSnapshots); // continue forever
+          ? PollResult.complete(timestampedSnapshots.build()) // stop at specified snapshot
+          : PollResult.incomplete(timestampedSnapshots.build()); // continue forever
     }
   }
 
