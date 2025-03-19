@@ -202,7 +202,6 @@ class DataflowCostBenchmark(LoadTest):
     if not start_time or not end_time:
       logging.warning('Could not find valid worker start/end times.')
       return {}
-    logging.info(f"BEAM VERSION IS {beam.version.__version__}")
 
     throughput_metrics = self._get_throughput_metrics(project, job_id, start_time, end_time)
     return {
