@@ -167,6 +167,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     millisSinceLastTransition = 0;
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
+    nextBundleLullDurationReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   @VisibleForTesting
@@ -258,7 +259,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     }
     this.trackedThread = null;
     millisSinceBundleStart = 0;
-    nextBundleLullDurationReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   public ExecutionState getCurrentState() {
