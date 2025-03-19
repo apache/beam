@@ -85,7 +85,7 @@ jobs:
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: Install Google Cloud Monitoring and Dataflow
-        run: pip install google-cloud-monitoring google-cloud-dataflow
+        run: pip install google-cloud-monitoring
 #      - name: Run wordcount on Dataflow
 #        uses: ./.github/actions/gradle-command-self-hosted-action
 #        timeout-minutes: 30
