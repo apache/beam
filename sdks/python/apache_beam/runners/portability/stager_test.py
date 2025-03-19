@@ -436,7 +436,7 @@ class StagerTest(unittest.TestCase):
     self.create_temp_file(foo_ca, 'ca content')
     test_txt = os.path.join(source_dir, 'test.txt')
     self.create_temp_file(test_txt, 'test content')
-    files_to_stage = ','.join([foo_ca, test_txt])
+    files_to_stage = [foo_ca, test_txt]
     options = PipelineOptions()
     self.update_options(options)
     options.view_as(SetupOptions).files_to_stage = files_to_stage
