@@ -70,7 +70,7 @@ require (
 
 require (
 	github.com/avast/retry-go/v4 v4.6.0
-	github.com/fsouza/fake-gcs-server v1.52.1
+	github.com/fsouza/fake-gcs-server v1.52.2
 	github.com/golang-cz/devslog v0.0.11
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 )
@@ -159,7 +159,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/goccy/go-json v0.10.4 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
