@@ -157,30 +157,43 @@ class DataflowCostBenchmark(LoadTest):
     return start_time, end_time
 
 
-  def _get_throughput_metrics(self, project: str, job_id: str, start_time: str, end_time: str) -> float:
-    """Calculates average throughput for the given PCollection."""
+  def _get_throughput_metrics(self, project: str, job_id: str, start_time: str, end_time: str) -> dict[str, float]:
     interval = monitoring_v3.TimeInterval(start_time=start_time, end_time=end_time)
     aggregation = monitoring_v3.Aggregation(
       alignment_period=Duration(seconds=60),
       per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN)
 
-    request = monitoring_v3.ListTimeSeriesRequest(
-      name=f"projects/{project}",
-      filter=f'metric.type="dataflow.googleapis.com/job/estimated_bytes_produced_count" AND '
-             f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
-      interval=interval,
-      aggregation=aggregation)
+    requests = {
+      "Bytes": monitoring_v3.ListTimeSeriesRequest(
+        name=f"projects/{project}",
+        filter=f'metric.type="dataflow.googleapis.com/job/estimated_bytes_produced_count" AND '
+               f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
+        interval=interval,
+        aggregation=aggregation),
+      "Elements": monitoring_v3.ListTimeSeriesRequest(
+        name=f"projects/{project}",
+        filter=f'metric.type="dataflow.googleapis.com/job/element_count" AND '
+               f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
+        interval=interval,
+        aggregation=aggregation)
+    }
 
-    time_series = self.monitoring_client.list_time_series(request=request)
-    throughputs = [point.value.double_value for series in time_series for point in series.points]
+    metrics = {}
+    for key, req in requests.items():
+      time_series = self.monitoring_client.list_time_series(request=req)
+      values = [point.value.double_value for series in time_series for point in series.points]
+      metrics[f"AvgThroughput{key}"] = sum(values) / len(values) if values else 0.0
 
-    return sum(throughputs) / len(throughputs) if throughputs else 0.0
+    return metrics
 
 
   def _get_beam_sdk_version(self, job_id: str) -> str:
-    """Retrieves Beam SDK version from job environment."""
     job = self.dataflow_client.get_job(job_id)
-    return job.environment.sdkPipelineOptions.additionalProperties[0].value.get('options', {}).get('sdkVersion', 'unknown')
+    if hasattr(job, 'metadata') and hasattr(job.metadata, 'sdkVersion'):
+      sdk_version = job.metadata.sdkVersion
+      match = re.search(r'(\d+\.\d+\.\d+)', sdk_version)
+      return match.group(1) if match else sdk_version
+    return 'unknown'
 
 
   def _get_job_runtime(self, start_time: str, end_time: str) -> float:
@@ -191,15 +204,17 @@ class DataflowCostBenchmark(LoadTest):
 
 
   def _get_additional_metrics(self, result: DataflowPipelineResult) -> dict[str, Any]:
-    """Collects additional metrics like throughput, runtime, and SDK version."""
-    project, job_id = "apache-beam-testing", result.job_id()
+    job_id = result.job_id()
+    job = self.dataflow_client.get_job(job_id)
+    project = job.projectId
     start_time, end_time = self._get_worker_time_interval(job_id)
     if not start_time or not end_time:
       logging.warning('Could not find valid worker start/end times.')
       return {}
 
+    throughput_metrics = self._get_throughput_metrics(project, job_id, start_time, end_time)
     return {
-      "AverageThroughput": self._get_throughput_metrics(project, job_id, start_time, end_time),
+      **throughput_metrics,
       "JobRuntimeSeconds": self._get_job_runtime(start_time, end_time),
       "BeamSdkVersion": self._get_beam_sdk_version(job_id),
     }
