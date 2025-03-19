@@ -788,7 +788,8 @@ class BigQueryWrapper(object):
       HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id, view=view)
+        projectId=project_id, datasetId=dataset_id, tableId=table_id)
+    request.view = view
     response = self.client.tables.Get(request)
     return response
 
