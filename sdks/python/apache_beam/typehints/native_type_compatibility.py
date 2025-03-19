@@ -66,7 +66,10 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.MutableSet,
     collections.abc.Collection,
     collections.abc.Sequence,
+    collections.abc.Mapping,
 ]
+
+_CONVERTED_MODULES = ('typing', 'collections', 'collections.abc')
 
 
 def _get_args(typ):
@@ -125,6 +128,10 @@ def _is_primitive(user_type, primitive):
 
 def _match_is_primitive(match_against):
   return lambda user_type: _is_primitive(user_type, match_against)
+
+
+def _match_is_dict(user_type):
+  return _is_primitive(user_type, dict) or _safe_issubclass(user_type, dict)
 
 
 def _match_is_exactly_mapping(user_type):
@@ -353,8 +360,7 @@ def convert_to_beam_type(typ):
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
 
-  elif (typ_module != 'typing') and (typ_module !=
-                                     'collections.abc') and not is_builtin(typ):
+  elif typ_module not in _CONVERTED_MODULES and not is_builtin(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
@@ -371,8 +377,7 @@ def convert_to_beam_type(typ):
       # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
-      _TypeMapEntry(
-          match=_match_is_primitive(dict), arity=2, beam_type=typehints.Dict),
+      _TypeMapEntry(match=_match_is_dict, arity=2, beam_type=typehints.Dict),
       _TypeMapEntry(
           match=_match_is_exactly_iterable,
           arity=1,
@@ -414,6 +419,9 @@ def convert_to_beam_type(typ):
           match=_match_is_exactly_sequence,
           arity=1,
           beam_type=typehints.Sequence),
+      _TypeMapEntry(
+          match=_match_is_exactly_mapping, arity=2,
+          beam_type=typehints.Mapping),
   ]
 
   # Find the first matching entry.
@@ -534,6 +542,9 @@ def convert_to_python_type(typ):
     return collections.abc.Sequence[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.IteratorTypeConstraint):
     return collections.abc.Iterator[convert_to_python_type(typ.yielded_type)]
+  if isinstance(typ, typehints.MappingTypeConstraint):
+    return collections.abc.Mapping[convert_to_python_type(typ.key_type),
+                                   convert_to_python_type(typ.value_type)]
 
   raise ValueError('Failed to convert Beam type: %s' % typ)
 
