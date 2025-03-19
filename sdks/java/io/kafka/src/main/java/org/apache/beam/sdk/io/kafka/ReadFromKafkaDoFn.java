@@ -512,6 +512,7 @@ abstract class ReadFromKafkaDoFn<K, V>
             if (!tracker.tryClaim(rawRecord.offset())) {
               return ProcessContinuation.stop();
             }
+            expectedOffset = rawRecord.offset() + 1;
             try {
               KafkaRecord<K, V> kafkaRecord =
                   new KafkaRecord<>(
@@ -528,7 +529,6 @@ abstract class ReadFromKafkaDoFn<K, V>
                       + (rawRecord.value() == null ? 0 : rawRecord.value().length);
               avgRecordSize.update(recordSize);
               rawSizes.update(recordSize);
-              expectedOffset = rawRecord.offset() + 1;
               Instant outputTimestamp;
               // The outputTimestamp and watermark will be computed by timestampPolicy, where the
               // WatermarkEstimator should be a manual one.
