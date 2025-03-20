@@ -253,6 +253,15 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             'sequence of tuples',
             collections.abc.Sequence[tuple[str, int]],
             typehints.Sequence[typehints.Tuple[str, int]]),
+        (
+            'ordered dict',
+            collections.OrderedDict[str, int],
+            typehints.Dict[str, int]),
+        (
+            'default dict',
+            collections.defaultdict[str, int],
+            typehints.Dict[str, int]),
+        ('count', collections.Counter[str, int], typehints.Dict[str, int]),
     ]
 
     for test_case in test_cases:

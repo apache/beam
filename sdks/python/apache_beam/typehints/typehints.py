@@ -1315,7 +1315,7 @@ def normalize(x, none_as_type=False):
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
   elif getattr(x, '__module__',
-               None) in ('typing', 'collections.abc') or getattr(
+               None) in ('typing', 'collections', 'collections.abc') or getattr(
                    x, '__origin__', None) in _KNOWN_PRIMITIVE_TYPES:
     beam_type = native_type_compatibility.convert_to_beam_type(x)
     if beam_type != x:
