@@ -78,7 +78,6 @@ class DataflowCostBenchmark(LoadTest):
 
 
   def run(self) -> None:
-    """Runs the pipeline and collects cost and additional metrics."""
     try:
       self.test()
       if not hasattr(self, 'result'):
@@ -127,7 +126,6 @@ class DataflowCostBenchmark(LoadTest):
 
 
   def _process_metrics_list(self, metrics: list) -> dict[str, Any]:
-    """Processes system metrics from pipeline results."""
     system_metrics = {}
     for entry in metrics:
       metric_key = entry.key
