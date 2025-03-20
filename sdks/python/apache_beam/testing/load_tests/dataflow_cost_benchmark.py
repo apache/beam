@@ -49,17 +49,17 @@ class DataflowCostBenchmark(LoadTest):
   billing rates per hour of use.
   """
 
-
-  WORKER_START_PATTERN = re.compile(r'^All workers have finished the startup processes and began to receive work requests.*$')
+  WORKER_START_PATTERN = re.compile(
+      r'^All workers have finished the startup processes and began to receive work requests.*$'
+  )
   WORKER_STOP_PATTERN = re.compile(r'^Stopping worker pool.*$')
 
-
   def __init__(
-          self,
-          metrics_namespace: Optional[str] = None,
-          is_streaming: bool = False,
-          gpu: Optional[costs.Accelerator] = None,
-          pcollection: str = 'ProcessOutput.out0'):
+      self,
+      metrics_namespace: Optional[str] = None,
+      is_streaming: bool = False,
+      gpu: Optional[costs.Accelerator] = None,
+      pcollection: str = 'ProcessOutput.out0'):
     """
     Initializes DataflowCostBenchmark.
 
@@ -73,9 +73,9 @@ class DataflowCostBenchmark(LoadTest):
     self.gpu = gpu
     self.pcollection = pcollection
     super().__init__(metrics_namespace=metrics_namespace)
-    self.dataflow_client = DataflowApplicationClient(self.pipeline.get_pipeline_options())
+    self.dataflow_client = DataflowApplicationClient(
+        self.pipeline.get_pipeline_options())
     self.monitoring_client = monitoring_v3.MetricServiceClient()
-
 
   def run(self) -> None:
     try:
@@ -85,7 +85,9 @@ class DataflowCostBenchmark(LoadTest):
         state = self.result.wait_until_finish(duration=self.timeout_ms)
         assert state != PipelineState.FAILED
 
-      logging.info('Pipeline complete, sleeping for 4 minutes to allow resource metrics to populate.')
+      logging.info(
+          'Pipeline complete, sleeping for 4 minutes to allow resource metrics to populate.'
+      )
       time.sleep(240)
 
       self.extra_metrics = self._retrieve_cost_metrics(self.result)
@@ -97,8 +99,8 @@ class DataflowCostBenchmark(LoadTest):
     finally:
       self.cleanup()
 
-
-  def _retrieve_cost_metrics(self, result: DataflowPipelineResult) -> dict[str, Any]:
+  def _retrieve_cost_metrics(self,
+                             result: DataflowPipelineResult) -> dict[str, Any]:
     """Calculates estimated cost based on pipeline resource usage."""
     job_id = result.job_id()
     metrics = result.metrics().all_metrics(job_id)
@@ -106,24 +108,30 @@ class DataflowCostBenchmark(LoadTest):
 
     cost = 0.0
     if self.is_streaming:
-      cost += metrics_dict.get("TotalVcpuTime", 0.0) / 3600 * costs.VCPU_PER_HR_STREAMING
-      cost += metrics_dict.get("TotalMemoryUsage", 0.0) / 1000 / 3600 * costs.MEM_PER_GB_HR_STREAMING
-      cost += metrics_dict.get("TotalStreamingDataProcessed", 0.0) * costs.SHUFFLE_PER_GB_STREAMING
+      cost += metrics_dict.get(
+          "TotalVcpuTime", 0.0) / 3600 * costs.VCPU_PER_HR_STREAMING
+      cost += metrics_dict.get(
+          "TotalMemoryUsage", 0.0) / 1000 / 3600 * costs.MEM_PER_GB_HR_STREAMING
+      cost += metrics_dict.get(
+          "TotalStreamingDataProcessed", 0.0) * costs.SHUFFLE_PER_GB_STREAMING
     else:
-      cost += metrics_dict.get("TotalVcpuTime", 0.0) / 3600 * costs.VCPU_PER_HR_BATCH
-      cost += metrics_dict.get("TotalMemoryUsage", 0.0) / 1000 / 3600 * costs.MEM_PER_GB_HR_BATCH
-      cost += metrics_dict.get("TotalStreamingDataProcessed", 0.0) * costs.SHUFFLE_PER_GB_BATCH
+      cost += metrics_dict.get(
+          "TotalVcpuTime", 0.0) / 3600 * costs.VCPU_PER_HR_BATCH
+      cost += metrics_dict.get(
+          "TotalMemoryUsage", 0.0) / 1000 / 3600 * costs.MEM_PER_GB_HR_BATCH
+      cost += metrics_dict.get(
+          "TotalStreamingDataProcessed", 0.0) * costs.SHUFFLE_PER_GB_BATCH
 
     if self.gpu:
       rate = costs.ACCELERATOR_TO_COST[self.gpu]
       cost += metrics_dict.get("TotalGpuTime", 0.0) / 3600 * rate
 
     cost += metrics_dict.get("TotalPdUsage", 0.0) / 3600 * costs.PD_PER_GB_HR
-    cost += metrics_dict.get("TotalSsdUsage", 0.0) / 3600 * costs.PD_SSD_PER_GB_HR
+    cost += metrics_dict.get(
+        "TotalSsdUsage", 0.0) / 3600 * costs.PD_SSD_PER_GB_HR
 
     metrics_dict["EstimatedCost"] = cost
     return metrics_dict
-
 
   def _process_metrics_list(self, metrics: list) -> dict[str, Any]:
     system_metrics = {}
@@ -134,8 +142,8 @@ class DataflowCostBenchmark(LoadTest):
         system_metrics[metric.name] = entry.committed or 0.0
     return system_metrics
 
-
-  def _get_worker_time_interval(self, job_id: str) -> tuple[Optional[str], Optional[str]]:
+  def _get_worker_time_interval(
+      self, job_id: str) -> tuple[Optional[str], Optional[str]]:
     """Extracts worker start and stop times from job messages."""
     messages, _ = self.dataflow_client.list_messages(
       job_id=job_id,
@@ -154,36 +162,42 @@ class DataflowCostBenchmark(LoadTest):
 
     return start_time, end_time
 
-
-  def _get_throughput_metrics(self, project: str, job_id: str, start_time: str, end_time: str) -> dict[str, float]:
-    interval = monitoring_v3.TimeInterval(start_time=start_time, end_time=end_time)
+  def _get_throughput_metrics(
+      self, project: str, job_id: str, start_time: str,
+      end_time: str) -> dict[str, float]:
+    interval = monitoring_v3.TimeInterval(
+        start_time=start_time, end_time=end_time)
     aggregation = monitoring_v3.Aggregation(
-      alignment_period=Duration(seconds=60),
-      per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN)
+        alignment_period=Duration(seconds=60),
+        per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN)
 
     requests = {
-      "Bytes": monitoring_v3.ListTimeSeriesRequest(
-        name=f"projects/{project}",
-        filter=f'metric.type="dataflow.googleapis.com/job/estimated_bytes_produced_count" AND '
-               f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
-        interval=interval,
-        aggregation=aggregation),
-      "Elements": monitoring_v3.ListTimeSeriesRequest(
-        name=f"projects/{project}",
-        filter=f'metric.type="dataflow.googleapis.com/job/element_count" AND '
-               f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
-        interval=interval,
-        aggregation=aggregation)
+        "Bytes": monitoring_v3.ListTimeSeriesRequest(
+            name=f"projects/{project}",
+            filter=
+            f'metric.type="dataflow.googleapis.com/job/estimated_bytes_produced_count" AND '
+            f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
+            interval=interval,
+            aggregation=aggregation),
+        "Elements": monitoring_v3.ListTimeSeriesRequest(
+            name=f"projects/{project}",
+            filter=f'metric.type="dataflow.googleapis.com/job/element_count" AND '
+            f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
+            interval=interval,
+            aggregation=aggregation)
     }
 
     metrics = {}
     for key, req in requests.items():
       time_series = self.monitoring_client.list_time_series(request=req)
-      values = [point.value.double_value for series in time_series for point in series.points]
-      metrics[f"AvgThroughput{key}"] = sum(values) / len(values) if values else 0.0
+      values = [
+          point.value.double_value for series in time_series
+          for point in series.points
+      ]
+      metrics[f"AvgThroughput{key}"] = sum(values) / len(
+          values) if values else 0.0
 
     return metrics
-
 
   def _get_job_runtime(self, start_time: str, end_time: str) -> float:
     """Calculates the job runtime duration in seconds."""
@@ -191,8 +205,8 @@ class DataflowCostBenchmark(LoadTest):
     end_dt = datetime.fromisoformat(end_time[:-1])
     return (end_dt - start_dt).total_seconds()
 
-
-  def _get_additional_metrics(self, result: DataflowPipelineResult) -> dict[str, Any]:
+  def _get_additional_metrics(self,
+                              result: DataflowPipelineResult) -> dict[str, Any]:
     job_id = result.job_id()
     job = self.dataflow_client.get_job(job_id)
     project = job.projectId
@@ -201,8 +215,9 @@ class DataflowCostBenchmark(LoadTest):
       logging.warning('Could not find valid worker start/end times.')
       return {}
 
-    throughput_metrics = self._get_throughput_metrics(project, job_id, start_time, end_time)
+    throughput_metrics = self._get_throughput_metrics(
+        project, job_id, start_time, end_time)
     return {
-      **throughput_metrics,
-      "JobRuntimeSeconds": self._get_job_runtime(start_time, end_time),
+        **throughput_metrics,
+        "JobRuntimeSeconds": self._get_job_runtime(start_time, end_time),
     }

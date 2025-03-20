@@ -31,8 +31,10 @@ class PytorchVisionBenchmarkTest(DataflowCostBenchmark):
     # TODO (https://github.com/apache/beam/issues/23008)
     #  make get_namespace() method in RunInference static
     self.metrics_namespace = 'BeamML_PyTorch'
-    super().__init__(metrics_namespace=self.metrics_namespace,
-                     pcollection='PyTorchRunInference/BeamML_RunInference_Postprocess-0.out0')
+    super().__init__(
+        metrics_namespace=self.metrics_namespace,
+        pcollection='PyTorchRunInference/BeamML_RunInference_Postprocess-0.out0'
+    )
 
   def test(self):
     pretrained_model_name = self.pipeline.get_option('pretrained_model_name')
