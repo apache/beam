@@ -124,6 +124,7 @@ var (
 	CoderTimer              = cdrUrn(pipepb.StandardCoders_TIMER)
 
 	CoderKV                  = cdrUrn(pipepb.StandardCoders_KV)
+	CoderTuple               = "beam:coder:tuple:v1"
 	CoderLengthPrefix        = cdrUrn(pipepb.StandardCoders_LENGTH_PREFIX)
 	CoderNullable            = cdrUrn(pipepb.StandardCoders_NULLABLE)
 	CoderIterable            = cdrUrn(pipepb.StandardCoders_ITERABLE)
