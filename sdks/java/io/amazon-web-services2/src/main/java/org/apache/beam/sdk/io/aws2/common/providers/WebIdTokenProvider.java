@@ -17,7 +17,18 @@
  */
 package org.apache.beam.sdk.io.aws2.common.providers;
 
+import org.apache.beam.sdk.util.InstanceBuilder;
+
 public interface WebIdTokenProvider {
+
+  static WebIdTokenProvider create(String providerFQCN) {
+    try {
+      return InstanceBuilder.ofType(WebIdTokenProvider.class).fromClassName(providerFQCN).build();
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(
+          "Problems while trying to instantiate a dynamic web id token provider class.", e);
+    }
+  }
 
   String resolveTokenValue(String audience);
 }

@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -123,17 +122,6 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
     }
   }
 
-  WebIdTokenProvider retrieveWebIdTokenProvider() {
-    try {
-      return InstanceBuilder.ofType(WebIdTokenProvider.class)
-          .fromClassName(webIdTokenProviderFQCN())
-          .build();
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(
-          "Problems while trying to instantiate a dynamic web id token provider class.", e);
-    }
-  }
-
   StsAssumeRoleWithWebIdentityCredentialsProvider createDelegate() {
     return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
         .stsClient(StsClient.builder().region(Region.AWS_GLOBAL).build())
@@ -141,9 +129,11 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
         .refreshRequest(
             () ->
                 AssumeRoleWithWebIdentityRequest.builder()
-                    .webIdentityToken(retrieveWebIdTokenProvider().resolveTokenValue(audience()))
+                    .webIdentityToken(
+                        WebIdTokenProvider.create(webIdTokenProviderFQCN())
+                            .resolveTokenValue(audience()))
                     .roleArn(assumedRoleArn())
-                    .roleSessionName("apache-beam-auth-session-" + UUID.randomUUID())
+                    .roleSessionName("apache-beam-federated-auth-session-" + UUID.randomUUID())
                     .durationSeconds(Optional.ofNullable(sessionDurationSecs()).orElse(3600))
                     .build())
         .build();
