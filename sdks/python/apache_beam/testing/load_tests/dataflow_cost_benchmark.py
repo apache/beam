@@ -20,16 +20,17 @@ import logging
 import re
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from google.cloud import monitoring_v3
 from google.protobuf.duration_pb2 import Duration
 
+import apache_beam.testing.load_tests.dataflow_cost_consts as costs
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
+from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.load_tests.load_test import LoadTest
-from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
-import apache_beam.testing.load_tests.dataflow_cost_consts as costs
 
 
 class DataflowCostBenchmark(LoadTest):
@@ -50,8 +51,8 @@ class DataflowCostBenchmark(LoadTest):
   """
 
   WORKER_START_PATTERN = re.compile(
-      r'^All workers have finished the startup processes and began to receive work requests.*$'
-  )
+      r'^All workers have finished the startup processes and '
+      r'began to receive work requests.*$')
   WORKER_STOP_PATTERN = re.compile(r'^Stopping worker pool.*$')
 
   def __init__(
@@ -86,8 +87,8 @@ class DataflowCostBenchmark(LoadTest):
         assert state != PipelineState.FAILED
 
       logging.info(
-          'Pipeline complete, sleeping for 4 minutes to allow resource metrics to populate.'
-      )
+          'Pipeline complete, sleeping for 4 minutes to allow resource '
+          'metrics to populate.')
       time.sleep(240)
 
       self.extra_metrics = self._retrieve_cost_metrics(self.result)
@@ -174,15 +175,17 @@ class DataflowCostBenchmark(LoadTest):
     requests = {
         "Bytes": monitoring_v3.ListTimeSeriesRequest(
             name=f"projects/{project}",
-            filter=
-            f'metric.type="dataflow.googleapis.com/job/estimated_bytes_produced_count" AND '
-            f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
+            filter=f'metric.type='
+            f'"dataflow.googleapis.com/job/estimated_bytes_produced_count" '
+            f'AND metric.labels.job_id='
+            f'"{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
             interval=interval,
             aggregation=aggregation),
         "Elements": monitoring_v3.ListTimeSeriesRequest(
             name=f"projects/{project}",
-            filter=f'metric.type="dataflow.googleapis.com/job/element_count" AND '
-            f'metric.labels.job_id="{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
+            filter=f'metric.type="dataflow.googleapis.com/job/element_count" '
+            f'AND metric.labels.job_id="{job_id}" '
+            f'AND metric.labels.pcollection="{self.pcollection}"',
             interval=interval,
             aggregation=aggregation)
     }
