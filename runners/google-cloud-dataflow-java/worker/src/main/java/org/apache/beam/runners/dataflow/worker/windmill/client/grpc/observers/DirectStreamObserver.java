@@ -44,7 +44,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
   private static final long OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS = 30;
 
   private final Phaser isReadyNotifier;
-  private final long deadlineSeconds;
+  private final long inactivityTimeout;
   private final int messagesBetweenIsReadyChecks;
   private final Object lock = new Object();
 
@@ -63,11 +63,11 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
   DirectStreamObserver(
       Phaser isReadyNotifier,
       CallStreamObserver<T> outboundObserver,
-      long deadlineSeconds,
+      long inactivityTimeout,
       int messagesBetweenIsReadyChecks) {
     this.isReadyNotifier = isReadyNotifier;
     this.outboundObserver = outboundObserver;
-    this.deadlineSeconds = deadlineSeconds;
+    this.inactivityTimeout = inactivityTimeout;
     // We always let the first message pass through without blocking because it is performed under
     // the StreamPool synchronized block and single header message isn't going to cause memory
     // issues due to excessive buffering within grpc.
@@ -153,7 +153,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
         }
       } catch (TimeoutException e) {
         totalSecondsWaited += waitSeconds;
-        if (totalSecondsWaited > deadlineSeconds) {
+        if (totalSecondsWaited > inactivityTimeout) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
           LOG.error(errorMessage);
           throw new WindmillRpcException(errorMessage, e);
@@ -217,11 +217,11 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
   }
 
   private String constructStreamCancelledErrorMessage(long totalSecondsWaited) {
-    return deadlineSeconds > 0
+    return inactivityTimeout > 0
         ? "Waited "
             + totalSecondsWaited
             + "s which exceeds given deadline of "
-            + deadlineSeconds
+            + inactivityTimeout
             + "s for the outboundObserver to become ready meaning "
             + "that the stream deadline was not respected."
         : "Output channel has been blocked for "
