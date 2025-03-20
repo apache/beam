@@ -61,6 +61,7 @@ final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
+      WorkerMetadataResponse initialWorkerMetadata,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
         LOG,
@@ -74,7 +75,7 @@ final class GrpcGetWorkerMetadataStream
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
     this.serverMappingConsumer = serverMappingConsumer;
-    this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
+    this.latestResponse = initialWorkerMetadata;
     this.metadataLock = new Object();
   }
 
@@ -87,6 +88,7 @@ final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
+      WorkerMetadataResponse initialWorkerMetadata,
       Consumer<WindmillEndpoints> serverMappingUpdater) {
     return new GrpcGetWorkerMetadataStream(
         startGetWorkerMetadataRpcFn,
@@ -96,7 +98,15 @@ final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         jobHeader,
         getWorkerMetadataThrottleTimer,
+        initialWorkerMetadata,
         serverMappingUpdater);
+  }
+
+  @Override
+  public WorkerMetadataResponse currentWorkerMetadata() {
+    synchronized (metadataLock) {
+      return latestResponse;
+    }
   }
 
   /**

@@ -94,6 +94,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             streamFactory.createGetWorkerMetadataStream(
                 () -> CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
                 new ThrottleTimer(),
+                WorkerMetadataResponse.getDefaultInstance(),
                 endpointsConsumer);
     getWorkerMetadataStream.start();
     return getWorkerMetadataStream;
