@@ -34,9 +34,8 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -101,7 +100,7 @@ public class GrpcDispatcherClient {
   public static GrpcDispatcherClient forTesting(
       DataflowWorkerHarnessOptions options,
       WindmillStubFactoryFactory windmillStubFactoryFactory,
-      List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs,
+      List<CloudWindmillServiceV1Alpha1CustomStub> windmillServiceStubs,
       List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs,
       Set<HostAndPort> dispatcherEndpoints) {
     Preconditions.checkArgument(
@@ -115,8 +114,8 @@ public class GrpcDispatcherClient {
         new Random());
   }
 
-  public CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
-    ImmutableList<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs =
+  public CloudWindmillServiceV1Alpha1CustomStub getWindmillServiceStub() {
+    ImmutableList<CloudWindmillServiceV1Alpha1CustomStub> windmillServiceStubs =
         dispatcherStubs.get().windmillServiceStubs();
     Preconditions.checkState(
         !windmillServiceStubs.isEmpty(), "windmillServiceEndpoint has not been set");
@@ -231,7 +230,7 @@ public class GrpcDispatcherClient {
 
     private static DispatcherStubs create(
         Set<HostAndPort> endpoints,
-        List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs,
+        List<CloudWindmillServiceV1Alpha1CustomStub> windmillServiceStubs,
         List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs) {
       Preconditions.checkState(
           endpoints.size() == windmillServiceStubs.size()
@@ -245,7 +244,7 @@ public class GrpcDispatcherClient {
 
     private static DispatcherStubs create(
         ImmutableSet<HostAndPort> newDispatcherEndpoints, WindmillStubFactory windmillStubFactory) {
-      ImmutableList.Builder<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs =
+      ImmutableList.Builder<CloudWindmillServiceV1Alpha1CustomStub> windmillServiceStubs =
           ImmutableList.builder();
       ImmutableList.Builder<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
           ImmutableList.builder();
@@ -262,10 +261,10 @@ public class GrpcDispatcherClient {
           windmillMetadataServiceStubs.build());
     }
 
-    private static CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(
+    private static CloudWindmillServiceV1Alpha1CustomStub createWindmillServiceStub(
         HostAndPort endpoint, WindmillStubFactory windmillStubFactory) {
       if (LOCALHOST.equals(endpoint.getHost())) {
-        return CloudWindmillServiceV1Alpha1Grpc.newStub(localhostChannel(endpoint.getPort()));
+        return CloudWindmillServiceV1Alpha1CustomStub.newStub(localhostChannel(endpoint.getPort()));
       }
 
       return windmillStubFactory.createWindmillServiceStub(WindmillServiceAddress.create(endpoint));
@@ -292,7 +291,7 @@ public class GrpcDispatcherClient {
 
     abstract ImmutableSet<HostAndPort> dispatcherEndpoints();
 
-    abstract ImmutableList<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs();
+    abstract ImmutableList<CloudWindmillServiceV1Alpha1CustomStub> windmillServiceStubs();
 
     abstract ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs();
   }

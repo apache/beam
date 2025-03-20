@@ -18,14 +18,14 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** Used to create stubs to talk to Streaming Engine. */
 @Internal
 public interface WindmillStubFactory {
-  CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(WindmillServiceAddress serviceAddress);
+  CloudWindmillServiceV1Alpha1CustomStub createWindmillServiceStub(
+      WindmillServiceAddress serviceAddress);
 
   CloudWindmillMetadataServiceV1Alpha1Stub createWindmillMetadataServiceStub(
       WindmillServiceAddress serviceAddress);

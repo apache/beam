@@ -848,6 +848,17 @@ message StreamingCommitWorkRequest {
   repeated StreamingCommitRequestChunk commit_chunk = 2;
 }
 
+// overlay proto for StreamingCommitWorkRequest
+// all fields except commit_chunk
+// must be identical to StreamingCommitWorkRequest
+//
+// Instead of StreamingCommitRequestChunk we use StreamingCommitRequestChunkOverlay
+// for commit_chunk here to reduce serialization overhead on small messages
+message StreamingCommitWorkRequestOverlay {
+  optional JobHeader header = 1;
+  repeated StreamingCommitRequestChunkOverlay commit_chunk = 2;
+}
+
 message JobHeader {
   optional string job_id = 1;
   optional string project_id = 2;
@@ -882,6 +893,21 @@ message StreamingCommitRequestChunk {
   // before handing off to the WindmillHost for processing.
   optional int64 remaining_bytes_for_work_item = 4;
   optional bytes serialized_work_item_commit = 5;
+}
+
+// Overlay proto for StreamingCommitRequestChunk
+// All fields except work_item_commit must be identical to the ones
+// in StreamingCommitRequestChunk
+//
+// work_item_commit is a WorkItemCommitRequest here instead of bytes
+// For commits fitting in a single chunk we directly serialize
+// WorkItemCommitRequest to grpc buffers.
+message StreamingCommitRequestChunkOverlay {
+  optional fixed64 request_id = 1;
+  optional string computation_id = 2;
+  optional fixed64 sharding_key = 3;
+  optional int64 remaining_bytes_for_work_item = 4;
+  optional WorkItemCommitRequest work_item_commit = 5;
 }
 
 message StreamingCommitResponse {
