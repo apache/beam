@@ -122,7 +122,9 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.streamIdGenerator = new AtomicLong();
   }
 
-  /** @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly. */
+  /**
+   * @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly.
+   */
   static GrpcWindmillStreamFactory create(
       JobHeader jobHeader,
       int logEveryNStreamFailures,
@@ -189,6 +191,12 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return stub.withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
   }
 
+  private static <T extends AbstractStub<T>> T withLongDeadline(T stub) {
+    // Deadlines are absolute points in time, so generate a new one everytime this function is
+    // called.
+    return stub.withDeadlineAfter(1, TimeUnit.HOURS);
+  }
+
   private static void printSummaryHtmlForWorker(
       String workerToken, Collection<AbstractWindmillStream<?, ?>> streams, PrintWriter writer) {
     writer.write(
@@ -230,7 +238,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.currentStub().getWorkStream(responseObserver),
+        responseObserver ->
+            withLongDeadline(connection.currentStub()).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),
@@ -265,7 +274,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.currentStub().getDataStream(responseObserver),
+        responseObserver ->
+            withLongDeadline(connection.currentStub()).getDataStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -297,7 +307,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer commitWorkThrottleTimer) {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.currentStub().commitWorkStream(responseObserver),
+        responseObserver ->
+            withLongDeadline(connection.currentStub()).commitWorkStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
