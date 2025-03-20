@@ -371,7 +371,6 @@ public class StreamingStepMetricsContainerTest {
             .setBoundedTrie(
                 MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1.toProto()));
 
-    ((StreamingStepMetricsContainer) c1).populateBoundedTrieMetrics = true;
     Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
 
@@ -400,7 +399,6 @@ public class StreamingStepMetricsContainerTest {
             .setBoundedTrie(
                 MetricsToCounterUpdateConverter.getBoundedTrie(expectedName2.toProto()));
 
-    ((StreamingStepMetricsContainer) c2).populateBoundedTrieMetrics = true;
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name2Update));
 
@@ -412,7 +410,6 @@ public class StreamingStepMetricsContainerTest {
     name1Update.setBoundedTrie(
         MetricsToCounterUpdateConverter.getBoundedTrie(expectedName1.toProto()));
 
-    ((StreamingStepMetricsContainer) c1).populateBoundedTrieMetrics = true;
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
   }
@@ -421,17 +418,23 @@ public class StreamingStepMetricsContainerTest {
   public void testPerWorkerMetrics() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(false);
     MetricsContainer metricsContainer = registry.getContainer("test_step");
+    MetricName histogramMetricName =
+        MetricName.named("BigQuerySink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+
     assertThat(
-        metricsContainer.getPerWorkerCounter(name1), sameInstance(NoOpCounter.getInstance()));
+        metricsContainer.getPerWorkerCounter(histogramMetricName),
+        sameInstance(NoOpCounter.getInstance()));
     HistogramData.BucketType testBucket = HistogramData.LinearBuckets.of(1, 1, 1);
     assertThat(
-        metricsContainer.getPerWorkerHistogram(name1, testBucket),
+        metricsContainer.getHistogram(histogramMetricName, testBucket),
         sameInstance(NoOpHistogram.getInstance()));
 
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
-    assertThat(metricsContainer.getPerWorkerCounter(name1), not(instanceOf(NoOpCounter.class)));
     assertThat(
-        metricsContainer.getPerWorkerHistogram(name1, testBucket),
+        metricsContainer.getPerWorkerCounter(histogramMetricName),
+        not(instanceOf(NoOpCounter.class)));
+    assertThat(
+        metricsContainer.getHistogram(histogramMetricName, testBucket),
         not(instanceOf(NoOpHistogram.class)));
   }
 
@@ -441,9 +444,10 @@ public class StreamingStepMetricsContainerTest {
     MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
     c1.getPerWorkerCounter(counterMetricName).inc(3);
 
-    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
+    MetricName histogramMetricName =
+        MetricName.named("BigQuerySink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
-    c2.getPerWorkerHistogram(histogramMetricName, linearBuckets).update(5.0);
+    c2.getHistogram(histogramMetricName, linearBuckets).update(5.0);
 
     Iterable<PerStepNamespaceMetrics> updates =
         StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
@@ -488,9 +492,10 @@ public class StreamingStepMetricsContainerTest {
   public void testExtractPerWorkerMetricUpdatesKafka_populatedHistogramMetrics() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
 
-    MetricName histogramMetricName = MetricName.named("KafkaSink", "histogram");
+    MetricName histogramMetricName =
+        MetricName.named("KafkaSink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
-    c2.getPerWorkerHistogram(histogramMetricName, linearBuckets).update(5.0);
+    c2.getHistogram(histogramMetricName, linearBuckets).update(5.0);
 
     Iterable<PerStepNamespaceMetrics> updates =
         StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
@@ -552,12 +557,16 @@ public class StreamingStepMetricsContainerTest {
   }
 
   @Test
-  public void testExtractPerWorkerMetricUpdatesKafka_gaugeMetricsDropped() {
+  public void testExtractPerWorkerMetricUpdatesKafka_perWorkerMetricsDropped() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
 
     MetricName gaugeMetricName =
         MetricName.named("KafkaSink", "gauge", ImmutableMap.of("PER_WORKER_METRIC", "false"));
     c2.getGauge(gaugeMetricName).set(5L);
+
+    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getHistogram(histogramMetricName, linearBuckets);
 
     Iterable<PerStepNamespaceMetrics> updates =
         StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
@@ -573,7 +582,7 @@ public class StreamingStepMetricsContainerTest {
 
     MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
     HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
-    c2.getPerWorkerHistogram(histogramMetricName, linearBuckets);
+    c2.getHistogram(histogramMetricName, linearBuckets);
 
     Iterable<PerStepNamespaceMetrics> updates =
         StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);

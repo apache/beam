@@ -24,6 +24,7 @@ import apache_beam as beam
 from apache_beam import Row
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -59,6 +60,8 @@ class EnrichmentTransformTest(unittest.TestCase):
       with mock.patch('apache_beam.yaml.yaml_enrichment.enrichment_transform',
                       FakeEnrichmentTransform(enrichment_handler=handler,
                                               handler_config=config)):
+        # Force a reload to respect our mock.
+        yaml_provider.standard_providers.cache_clear()
         input_pcoll = p | 'CreateInput' >> beam.Create(input_data)
         result = input_pcoll | YamlTransform(
             f'''

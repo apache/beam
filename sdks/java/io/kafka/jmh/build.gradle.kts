@@ -15,10 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-project.ext {
-    delimited="2.1.1"
-    undelimited="211"
-    sdfCompatible=true
+
+plugins {
+  groovy
+  id("org.apache.beam.module")
 }
 
-apply from: "../kafka-integration-test.gradle"
+val applyJavaNature: groovy.lang.Closure<Any?> by extra
+applyJavaNature(mapOf(
+  "automaticModuleName" to "org.apache.beam.sdk.io.kafka.jmh",
+  "enableJmh" to true,
+  "publish" to false))
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Kafka :: JMH"
+val summary by extra("This contains JMH benchmarks for the Kafka IO connector for Beam Java")
+
+dependencies {
+  implementation(project(":sdks:java:io:kafka"))
+}

@@ -20,6 +20,7 @@ import glob
 import logging
 import os
 import random
+import sys
 import unittest
 from typing import Any
 from typing import Callable
@@ -29,6 +30,7 @@ from typing import Optional
 from typing import Union
 from unittest import mock
 
+import pytest
 import yaml
 
 import apache_beam as beam
@@ -36,6 +38,7 @@ from apache_beam import PCollection
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.utils import subprocess_server
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
@@ -262,6 +265,30 @@ def create_test_method(
             if transform.transform.label == 'log_for_testing':
               actual += list(transform.outputs.values())
         check_output(expected)(actual)
+
+  if 'deps' in pipeline_spec_file:
+    test_yaml_example = pytest.mark.no_xdist(test_yaml_example)
+    test_yaml_example = unittest.skipIf(
+        sys.platform == 'win32', "Github virtualenv permissions issues.")(
+            test_yaml_example)
+    # This test fails, with an import error, for some (but not all) cloud
+    # tox environments when run as a github action (not reproducible locally).
+    # Adding debugging makes the failure go away.  All indications are that
+    # this is some testing environmental issue.
+    test_yaml_example = unittest.skipIf(
+        '-cloud' in os.environ.get('TOX_ENV_NAME', ''),
+        'Github actions environment issue.')(
+            test_yaml_example)
+
+  if 'java_deps' in pipeline_spec_file:
+    test_yaml_example = pytest.mark.xlang_sql_expansion_service(
+        test_yaml_example)
+    test_yaml_example = unittest.skipIf(
+        not os.path.exists(
+            subprocess_server.JavaJarServer.path_to_dev_beam_jar(
+                'sdks:java:extensions:sql:expansion-service:shadowJar')),
+        "Requires expansion service jars.")(
+            test_yaml_example)
 
   return test_yaml_example
 

@@ -63,7 +63,6 @@ import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.dstream.ConstantInputDStream;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
@@ -157,11 +156,8 @@ public class SparkStreamingPortablePipelineTranslator
             .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
-    final ConstantInputDStream<WindowedValue<byte[]>> inputDStream =
-        new ConstantInputDStream<>(
-            context.getStreamingContext().ssc(),
-            emptyByteArrayRDD.rdd(),
-            JavaSparkContext$.MODULE$.fakeClassTag());
+    final SingleEmitInputDStream<WindowedValue<byte[]>> inputDStream =
+        new SingleEmitInputDStream<>(context.getStreamingContext().ssc(), emptyByteArrayRDD.rdd());
 
     final JavaDStream<WindowedValue<byte[]>> stream =
         JavaDStream.fromDStream(inputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
