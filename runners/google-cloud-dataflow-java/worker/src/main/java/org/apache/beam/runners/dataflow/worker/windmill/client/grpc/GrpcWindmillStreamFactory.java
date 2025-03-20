@@ -36,6 +36,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -311,6 +312,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   public GetWorkerMetadataStream createGetWorkerMetadataStream(
       Supplier<CloudWindmillMetadataServiceV1Alpha1Stub> stub,
       ThrottleTimer getWorkerMetadataThrottleTimer,
+      Windmill.WorkerMetadataResponse initialWorkerMetadata,
       Consumer<WindmillEndpoints> onNewWindmillEndpoints) {
     return GrpcGetWorkerMetadataStream.create(
         responseObserver -> withDefaultDeadline(stub.get()).getWorkerMetadata(responseObserver),
@@ -320,6 +322,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         jobHeader,
         getWorkerMetadataThrottleTimer,
+        initialWorkerMetadata,
         onNewWindmillEndpoints);
   }
 

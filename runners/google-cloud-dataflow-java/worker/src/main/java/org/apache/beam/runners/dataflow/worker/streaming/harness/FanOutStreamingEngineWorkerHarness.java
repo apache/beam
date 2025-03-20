@@ -144,10 +144,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.workCommitterFactory = workCommitterFactory;
     this.backendWorkerMetadataVendor =
         BackendWorkerMetadataVendor.create(
-            endpointsConsumer ->
+            (initialWorkerMetadata, endpointsConsumer) ->
                 streamFactory.createGetWorkerMetadataStream(
                     dispatcherClient::getWindmillMetadataServiceStubBlocking,
                     getWorkerMetadataThrottleTimer,
+                    initialWorkerMetadata,
                     endpointsConsumer));
   }
 
@@ -217,7 +218,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
-    backendWorkerMetadataVendor.start(this::consumeWorkerMetadata);
+    backendWorkerMetadataVendor.start(this::consumeWorkerMetadata).join();
     started = true;
   }
 
