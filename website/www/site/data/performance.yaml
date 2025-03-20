@@ -108,7 +108,7 @@ looks:
         title: AvgInputThroughputElementsPerSec by Version
   pytorchbertbase:
     write:
-      folder: 40
+      folder: 76
       cost:
         - id: TBD
           title: RunTime and EstimatedCost
