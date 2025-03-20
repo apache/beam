@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
@@ -131,9 +133,8 @@ class AppendFilesToTables
         throws IOException {
       String tableStringIdentifier = element.getKey();
       Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
-      Iterable<FileWriteResult> fileWriteResults =
-          removeAlreadyCommittedFiles(table, element.getValue());
-      if (!fileWriteResults.iterator().hasNext()) {
+      Iterable<FileWriteResult> fileWriteResults = element.getValue();
+      if (shouldSkip(table, fileWriteResults)) {
         return;
       }
 
@@ -214,30 +215,35 @@ class AppendFilesToTables
       return ManifestFiles.write(spec, io.newOutputFile(location));
     }
 
-    // If bundle fails following a successful commit and gets retried, it may attempt to re-commit
-    // the same data.
-    // To mitigate, we check the files in this bundle and remove anything that was already
-    // committed in the last successful snapshot.
+    // If the process call fails immediately after a successful commit, it gets retried with
+    // the same data, possibly leading to data duplication.
+    // To mitigate, we skip the current batch of files if it matches the most recently committed
+    // batch.
     //
     // TODO(ahmedabu98): This does not cover concurrent writes from other pipelines, where the
     //  "last successful snapshot" might reflect commits from other sources. Ideally, we would make
     //  this stateful, but that is update incompatible.
     // TODO(ahmedabu98): add load test pipelines with intentional periodic crashing
-    private Iterable<FileWriteResult> removeAlreadyCommittedFiles(
-        Table table, Iterable<FileWriteResult> fileWriteResults) {
+    private boolean shouldSkip(Table table, Iterable<FileWriteResult> fileWriteResults) {
       if (table.currentSnapshot() == null) {
-        return fileWriteResults;
+        return false;
+      }
+      if (!fileWriteResults.iterator().hasNext()) {
+        return true;
       }
 
-      List<String> committedFiles =
+      Set<String> filesCommittedLastSnapshot =
           Streams.stream(table.currentSnapshot().addedDataFiles(table.io()))
               .map(DataFile::path)
               .map(CharSequence::toString)
-              .collect(Collectors.toList());
+              .collect(Collectors.toSet());
 
-      return Streams.stream(fileWriteResults)
-          .filter(f -> !committedFiles.contains(f.getSerializableDataFile().getPath()))
-          .collect(Collectors.toList());
+      // Check if the current batch is identical to the most recently committed batch.
+      // Upstream GBK means we always get the same batch of files on retry,
+      // so a single overlapping file means the whole batch is identical.
+      return Iterables.size(fileWriteResults) == filesCommittedLastSnapshot.size()
+          && filesCommittedLastSnapshot.contains(
+              fileWriteResults.iterator().next().getSerializableDataFile().getPath());
     }
   }
 }
