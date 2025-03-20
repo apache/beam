@@ -72,6 +72,7 @@ CustomSchemaRow = typing.NamedTuple(
     "CustomSchemaRow",
     [
         ("renamed_id", int),
+        ("renamed_id_long", int),
         ("renamed_float", float),
         ("renamed_char", str),
         ("renamed_varchar", str),
@@ -313,6 +314,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       expected_rows.append(
           CustomSchemaRow(
               row.f_id,
+              row.f_id,
               row.f_float,
               f_char,
               row.f_varchar,
@@ -326,6 +328,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     def custom_row_equals(expected, actual):
       return (
           expected.renamed_id == actual.renamed_id and
+          expected.renamed_id_long == actual.renamed_id_long and
           expected.renamed_float == actual.renamed_float and
           expected.renamed_char.rstrip() == actual.renamed_char.rstrip() and
           expected.renamed_varchar == actual.renamed_varchar and

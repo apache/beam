@@ -33,8 +33,8 @@ from apache_beam.coders.coders import NullableCoder
 from apache_beam.coders.coders import SinglePrecisionFloatCoder
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.coders.coders import TimestampCoder
-from apache_beam.coders.coders import VarIntCoder
 from apache_beam.coders.coders import VarInt32Coder
+from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type

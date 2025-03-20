@@ -59,7 +59,7 @@ class OutputStream(object):
         break
 
   def write_var_int32(self, v: int) -> None:
-    self.write_var_int64(v & 0xFFFFFFFF)
+    self.write_var_int64(int(v) & 0xFFFFFFFF)
 
   def write_bigendian_int64(self, v):
     self.write(struct.pack('>q', v))
