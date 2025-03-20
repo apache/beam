@@ -43,12 +43,15 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryMetastoreCatalogIT.class);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryMetastoreCatalogIT");
   static final String BQMS_CATALOG = "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();;
-  static final long SALT = System.nanoTime();
 
   @BeforeClass
   public static void createDataset() throws IOException, InterruptedException {
@@ -62,7 +65,25 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public String tableId() {
-    return DATASET + "." + testName.getMethodName() + "_" + SALT;
+    return DATASET + "." + testName.getMethodName() + "_" + salt;
+  }
+
+  @Override
+  public void verifyTableExists(TableIdentifier tableIdentifier) throws Exception {
+    // Wait and verify that the table exists
+    for (int i = 0; i < 20; i++) { // Retry up to 20 times with 1 sec delay
+      List<TableIdentifier> tables = catalog.listTables(Namespace.of(DATASET));
+      if (tables.contains(tableIdentifier)) {
+        LOG.info("Table {} is now visible in the catalog.", tableIdentifier.name());
+        break;
+      }
+      LOG.warn("Table {} is not visible yet, retrying... (attempt {}/{})", tableIdentifier.name(), i + 1, 20);
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   @Override
@@ -78,15 +99,15 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
         new Configuration());
   }
 
-  @Override
-  public void catalogCleanup() {
-    for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
-      // only delete tables that were created in this test run
-      if (tableIdentifier.name().contains(String.valueOf(SALT))) {
-        catalog.dropTable(tableIdentifier);
-      }
-    }
-  }
+//  @Override
+//  public void catalogCleanup() {
+//    for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
+//      // only delete tables that were created in this test run
+//      if (tableIdentifier.name().contains(String.valueOf(salt))) {
+//        catalog.dropTable(tableIdentifier);
+//      }
+//    }
+//  }
 
   @Override
   public Map<String, Object> managedIcebergConfig(String tableId) {
@@ -115,17 +136,18 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
-    catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
+    String tableId = tableId();
+    catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
 
     // Write with Beam
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Fetch records using a BigQuery query and validate
     BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());
-    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId());
+    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId);
     List<TableRow> rows = bqClient.queryUnflattened(query, OPTIONS.getProject(), true, true);
     List<Row> beamRows =
         rows.stream()
@@ -135,7 +157,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
 
     String queryByPartition =
-        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
+        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId);
     rows = bqClient.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool", "datetime"));
     beamRows =
