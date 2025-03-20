@@ -447,11 +447,11 @@ abstract class ReadFromKafkaDoFn<K, V>
       long skippedRecords = 0L;
       final Stopwatch sw = Stopwatch.createStarted();
 
-      while (true) {
-        // Fetch the record size accumulator.
-        final MovingAvg avgRecordSize = avgRecordSizeCache.getUnchecked(kafkaSourceDescriptor);
-        KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
-        try {
+      KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
+      try {
+        while (true) {
+          // Fetch the record size accumulator.
+          final MovingAvg avgRecordSize = avgRecordSizeCache.getUnchecked(kafkaSourceDescriptor);
           rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition(), kafkaMetrics);
           // When there are no records available for the current TopicPartition, self-checkpoint
           // and move to process the next element.
@@ -514,9 +514,7 @@ abstract class ReadFromKafkaDoFn<K, V>
               int recordSize =
                   (rawRecord.key() == null ? 0 : rawRecord.key().length)
                       + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-              avgRecordSizeCache
-                  .getUnchecked(kafkaSourceDescriptor)
-                  .update(recordSize, rawRecord.offset() - expectedOffset);
+              avgRecordSize.update(recordSize);
               rawSizes.update(recordSize);
               expectedOffset = rawRecord.offset() + 1;
               Instant outputTimestamp;
@@ -566,9 +564,9 @@ abstract class ReadFromKafkaDoFn<K, V>
                           .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                           .doubleValue()
                       * avgRecordSize.get()));
-                } finally {
-          kafkaMetrics.flushBufferedMetrics();
         }
+      } finally {
+        kafkaMetrics.flushBufferedMetrics();
       }
     }
   }
@@ -586,9 +584,10 @@ abstract class ReadFromKafkaDoFn<K, V>
     final Stopwatch sw = Stopwatch.createStarted();
     long previousPosition = -1;
     java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
+    java.time.Duration elapsed = java.time.Duration.ZERO;
     while (true) {
-      java.time.Duration elapsed = sw.elapsed();
       final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
+      elapsed = sw.elapsed();
       kafkaMetrics.updateSuccessfulRpcMetrics(
           topicPartition.topic(), java.time.Duration.ofMillis(elapsed.toMillis()));
       if (!rawRecords.isEmpty()) {
