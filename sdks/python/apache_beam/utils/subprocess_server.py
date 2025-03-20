@@ -423,7 +423,12 @@ class JavaJarServer(SubprocessServer):
             url_read = urlopen(url)
           with open(cached_jar + '.tmp', 'wb') as jar_write:
             shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          os.rename(cached_jar + '.tmp', cached_jar)
+          try:
+            os.rename(cached_jar + '.tmp', cached_jar)
+          except FileNotFoundError:
+            # A race when multiple programs run in parallel and the cached_jar
+            # is already moved. Safe to ignore.
+            pass
         except URLError as e:
           raise RuntimeError(
               f'Unable to fetch remote job server jar at {url}: {e}. If no '
