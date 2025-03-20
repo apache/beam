@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.aws2.common.providers;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.auth.oauth2.AccessToken;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.auth.oauth2.IdTokenCredentials;
@@ -50,11 +50,11 @@ public class GCPWebIdTokenProviderTest {
             + "\"iss\": \"https://accounts.google.com\"}";
     String signature = "some-garbled-data-to-be-encoded";
     String returnedToken =
-        Base64.getUrlEncoder().encodeToString(header.getBytes(Charset.defaultCharset()))
+        Base64.getUrlEncoder().encodeToString(header.getBytes(StandardCharsets.UTF_8))
             + "."
-            + Base64.getUrlEncoder().encodeToString(payload.getBytes(Charset.defaultCharset()))
+            + Base64.getUrlEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8))
             + "."
-            + Base64.getUrlEncoder().encodeToString(signature.getBytes(Charset.defaultCharset()));
+            + Base64.getUrlEncoder().encodeToString(signature.getBytes(StandardCharsets.UTF_8));
     Mockito.when(accessToken.getTokenValue()).thenReturn(returnedToken);
     Mockito.when(idTokenCredentials.refreshAccessToken()).thenReturn(accessToken);
   }
@@ -68,7 +68,7 @@ public class GCPWebIdTokenProviderTest {
     String decodedToken =
         new String(
             Base64.getUrlDecoder().decode(Iterables.get(Splitter.on('.').split(token), 1)),
-            Charset.defaultCharset());
+            StandardCharsets.UTF_8);
     assertThat(decodedToken).contains(audience);
   }
 }
