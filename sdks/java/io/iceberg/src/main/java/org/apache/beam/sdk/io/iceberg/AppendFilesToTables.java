@@ -22,9 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -40,8 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -232,18 +228,17 @@ class AppendFilesToTables
         return true;
       }
 
-      Set<String> filesCommittedLastSnapshot =
-          Streams.stream(table.currentSnapshot().addedDataFiles(table.io()))
-              .map(DataFile::path)
-              .map(CharSequence::toString)
-              .collect(Collectors.toSet());
-
       // Check if the current batch is identical to the most recently committed batch.
       // Upstream GBK means we always get the same batch of files on retry,
       // so a single overlapping file means the whole batch is identical.
-      return Iterables.size(fileWriteResults) == filesCommittedLastSnapshot.size()
-          && filesCommittedLastSnapshot.contains(
-              fileWriteResults.iterator().next().getSerializableDataFile().getPath());
+      String sampleCommittedDataFilePath =
+          table.currentSnapshot().addedDataFiles(table.io()).iterator().next().path().toString();
+      for (FileWriteResult result : fileWriteResults) {
+        if (result.getSerializableDataFile().getPath().equals(sampleCommittedDataFilePath)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }
