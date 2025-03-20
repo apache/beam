@@ -18,8 +18,6 @@
 name: Refresh Looker Performance Metrics
 
 on:
-  schedule:
-    - cron: '10 10 * * 1'
   workflow_dispatch:
     inputs:
       READ_ONLY:
@@ -33,6 +31,7 @@ env:
   LOOKERSDK_CLIENT_ID: ${{ secrets.LOOKERSDK_CLIENT_ID }}
   LOOKERSDK_CLIENT_SECRET: ${{ secrets.LOOKERSDK_CLIENT_SECRET }}
   GCS_BUCKET: 'public_looker_explores_us_a3853f40'
+  GCS_BUCKET: 'apache-beam-testing-cdap'
   READ_ONLY: ${{ inputs.READ_ONLY }}
 
 jobs:
