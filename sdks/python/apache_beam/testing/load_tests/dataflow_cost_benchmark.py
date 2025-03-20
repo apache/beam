@@ -20,16 +20,17 @@ import logging
 import re
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from google.cloud import monitoring_v3
 from google.protobuf.duration_pb2 import Duration
 
+import apache_beam.testing.load_tests.dataflow_cost_consts as costs
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
+from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.load_tests.load_test import LoadTest
-from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
-import apache_beam.testing.load_tests.dataflow_cost_consts as costs
 
 
 class DataflowCostBenchmark(LoadTest):
@@ -174,8 +175,7 @@ class DataflowCostBenchmark(LoadTest):
     requests = {
         "Bytes": monitoring_v3.ListTimeSeriesRequest(
             name=f"projects/{project}",
-            filter=
-            f'metric.type='
+            filter=f'metric.type='
             f'"dataflow.googleapis.com/job/estimated_bytes_produced_count" '
             f'AND metric.labels.job_id='
             f'"{job_id}" AND metric.labels.pcollection="{self.pcollection}"',
@@ -183,8 +183,7 @@ class DataflowCostBenchmark(LoadTest):
             aggregation=aggregation),
         "Elements": monitoring_v3.ListTimeSeriesRequest(
             name=f"projects/{project}",
-            filter=
-            f'metric.type="dataflow.googleapis.com/job/element_count" '
+            filter=f'metric.type="dataflow.googleapis.com/job/element_count" '
             f'AND metric.labels.job_id="{job_id}" '
             f'AND metric.labels.pcollection="{self.pcollection}"',
             interval=interval,
