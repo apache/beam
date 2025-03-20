@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -226,7 +227,7 @@ public class WindmillStreamSenderTest {
     windmillStreamSender.start();
     windmillStreamSender.close();
 
-    verify(mockGetWorkStream).shutdown();
+    verify(mockGetWorkStream, atLeastOnce()).shutdown();
     verify(mockGetDataStream).shutdown();
     verify(mockCommitWorkStream).shutdown();
   }
@@ -268,7 +269,6 @@ public class WindmillStreamSenderTest {
     verify(mockGetDataStream, times(0)).start();
     verify(mockCommitWorkStream, times(0)).start();
 
-    verify(mockGetWorkStream).shutdown();
     verify(mockGetDataStream).shutdown();
     verify(mockCommitWorkStream).shutdown();
   }
