@@ -66,12 +66,17 @@ public class Metrics {
     final boolean counterDisabled;
     final boolean stringSetDisabled;
     final boolean boundedTrieDisabled;
+    final boolean lineageRollupEnabled;
 
     private MetricsFlag(
-        boolean counterDisabled, boolean stringSetDisabled, boolean boundedTrieDisabled) {
+        boolean counterDisabled,
+        boolean stringSetDisabled,
+        boolean boundedTrieDisabled,
+        boolean lineageRollupEnabled) {
       this.counterDisabled = counterDisabled;
       this.stringSetDisabled = stringSetDisabled;
       this.boundedTrieDisabled = boundedTrieDisabled;
+      this.lineageRollupEnabled = lineageRollupEnabled;
     }
 
     static boolean counterDisabled() {
@@ -87,6 +92,11 @@ public class Metrics {
     static boolean boundedTrieDisabled() {
       MetricsFlag flag = INSTANCE.get();
       return flag != null && flag.boundedTrieDisabled;
+    }
+
+    static boolean lineageRollupEnabled() {
+      MetricsFlag flag = INSTANCE.get();
+      return flag != null && flag.lineageRollupEnabled;
     }
   }
 
@@ -114,8 +124,14 @@ public class Metrics {
       if (boundedTrieDisabled) {
         LOG.info("BoundedTrie metrics are disabled");
       }
+      boolean lineageRollupEnabled = ExperimentalOptions.hasExperiment(exp, "enableLineageRollup");
+      if (lineageRollupEnabled) {
+        LOG.info("Lineage Rollup is enabled. Will use BoundedTrie to track lineage.");
+      }
       MetricsFlag.INSTANCE.compareAndSet(
-          null, new MetricsFlag(counterDisabled, stringSetDisabled, boundedTrieDisabled));
+          null,
+          new MetricsFlag(
+              counterDisabled, stringSetDisabled, boundedTrieDisabled, lineageRollupEnabled));
     }
   }
 
@@ -309,6 +325,7 @@ public class Metrics {
 
     @Override
     public void add(Iterable<String> values) {
+      // If BoundedTrie metrics are disabled explicitly then do not emit them.
       if (MetricsFlag.boundedTrieDisabled()) {
         return;
       }

@@ -37,6 +37,10 @@ __all__ = [
     "EnsembleAnomalyDetector"
 ]
 
+DEFAULT_NORMAL_LABEL = 0
+DEFAULT_OUTLIER_LABEL = 1
+DEFAULT_MISSING_LABEL = -2
+
 
 @dataclass(frozen=True)
 class AnomalyPrediction():
@@ -79,9 +83,9 @@ class ThresholdFn(abc.ABC):
   """
   def __init__(
       self,
-      normal_label: int = 0,
-      outlier_label: int = 1,
-      missing_label: int = -2):
+      normal_label: int = DEFAULT_NORMAL_LABEL,
+      outlier_label: int = DEFAULT_OUTLIER_LABEL,
+      missing_label: int = DEFAULT_MISSING_LABEL):
     self._normal_label = normal_label
     self._outlier_label = outlier_label
     self._missing_label = missing_label
@@ -150,7 +154,7 @@ class AnomalyDetector(abc.ABC):
       threshold_criterion: Optional[ThresholdFn] = None,
       **kwargs):
     self._model_id = model_id if model_id is not None else getattr(
-        self, 'spec_type', 'unknown')
+        self, 'spec_type', lambda: "unknown")()
     self._features = features
     self._target = target
     self._threshold_criterion = threshold_criterion
@@ -196,7 +200,7 @@ class EnsembleAnomalyDetector(AnomalyDetector):
       aggregation_strategy: Optional[AggregationFn] = None,
       **kwargs):
     if "model_id" not in kwargs or kwargs["model_id"] is None:
-      kwargs["model_id"] = getattr(self, 'spec_type', 'custom')
+      kwargs["model_id"] = getattr(self, 'spec_type', lambda: 'custom')()
 
     super().__init__(**kwargs)
 

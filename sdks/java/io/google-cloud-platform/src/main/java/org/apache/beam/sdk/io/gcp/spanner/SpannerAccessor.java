@@ -153,10 +153,12 @@ public class SpannerAccessor implements AutoCloseable {
           commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(
           commitRetrySettingsBuilder
-              .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setInitialRpcTimeout(
-                  org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setTotalTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setMaxRpcTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setInitialRpcTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
               .build());
     }
 
@@ -174,10 +176,17 @@ public class SpannerAccessor implements AutoCloseable {
           executeStreamingSqlSettings.getRetrySettings().toBuilder();
       executeStreamingSqlSettings.setRetrySettings(
           executeSqlStreamingRetrySettings
-              .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-              .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .setInitialRpcTimeoutDuration(java.time.Duration.ofHours(2))
+              .setMaxRpcTimeoutDuration(java.time.Duration.ofHours(2))
+              .setTotalTimeoutDuration(java.time.Duration.ofHours(2))
+              .setRpcTimeoutMultiplier(1.0)
+              .setInitialRetryDelayDuration(java.time.Duration.ofSeconds(2))
+              .setMaxRetryDelayDuration(java.time.Duration.ofSeconds(60))
+              .setRetryDelayMultiplier(1.5)
+              .setMaxAttempts(100)
               .build());
+      // This property sets the default timeout between 2 response packets in the client library.
+      System.setProperty("com.google.cloud.spanner.watchdogTimeoutSeconds", "7200");
     }
 
     SpannerStubSettings.Builder spannerStubSettingsBuilder =

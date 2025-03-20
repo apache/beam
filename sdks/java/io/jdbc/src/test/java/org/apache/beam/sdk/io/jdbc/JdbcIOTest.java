@@ -249,8 +249,8 @@ public class JdbcIOTest implements Serializable {
     assertThat(
         Lineage.query(result.metrics(), Lineage.Type.SOURCE),
         hasItem(
-            Lineage.getFqName(
-                "derby", ImmutableList.of("memory", "testDB", "default", READ_TABLE_NAME))));
+            String.format(
+                "%s:%s.%s.%s.%s", "derby", "memory", "testDB", "default", READ_TABLE_NAME)));
   }
 
   @Test
@@ -274,8 +274,8 @@ public class JdbcIOTest implements Serializable {
     assertThat(
         Lineage.query(result.metrics(), Lineage.Type.SOURCE),
         hasItem(
-            Lineage.getFqName(
-                "derby", ImmutableList.of("memory", "testDB", "default", READ_TABLE_NAME))));
+            String.format(
+                "%s:%s.%s.%s.%s", "derby", "memory", "testDB", "default", READ_TABLE_NAME)));
   }
 
   @Test
@@ -619,8 +619,7 @@ public class JdbcIOTest implements Serializable {
       assertThat(
           Lineage.query(result.metrics(), Lineage.Type.SINK),
           hasItem(
-              Lineage.getFqName(
-                  "derby", ImmutableList.of("memory", "testDB", "default", tableName))));
+              String.format("%s:%s.%s.%s.%s", "derby", "memory", "testDB", "default", tableName)));
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
     }

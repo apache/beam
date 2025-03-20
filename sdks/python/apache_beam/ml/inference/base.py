@@ -272,7 +272,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def with_preprocess_fn(
       self, fn: Callable[[PreProcessT], ExampleT]
-  ) -> 'ModelHandler[PreProcessT, PredictionT, ModelT, PreProcessT]':
+  ) -> 'ModelHandler[PreProcessT, PredictionT, ModelT]':
     """Returns a new ModelHandler with a preprocessing function
     associated with it. The preprocessing function will be run
     before batching/inference and should map your input PCollection
@@ -283,7 +283,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def with_postprocess_fn(
       self, fn: Callable[[PredictionT], PostProcessT]
-  ) -> 'ModelHandler[ExampleT, PostProcessT, ModelT, PostProcessT]':
+  ) -> 'ModelHandler[ExampleT, PostProcessT, ModelT]':
     """Returns a new ModelHandler with a postprocessing function
     associated with it. The postprocessing function will be run
     after inference and should map the base ModelHandler's output
