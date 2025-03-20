@@ -69,8 +69,8 @@ if [[ -z $TARGET_VERSION ]] ; then
   exit 1
 fi
 
-if ! [[ ${RELEASE} =~ (([0-9]+\.[0-9]+)) ]];
-  then  echo "The input for RELEASE does not match a valid format ([0-9]+\.[0-9]+)"
+if ! [[ ${RELEASE} =~ ([0-9]+\.[0-9]+) ]];
+  then  echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+"
   exit 1
 fi
 
