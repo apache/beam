@@ -24,7 +24,7 @@ from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostB
 
 class TensorflowMNISTClassificationCostBenchmark(DataflowCostBenchmark):
   def __init__(self):
-    super().__init__()
+    super().__init__(pcollection='PostProcessOutputs.out0')
 
   def test(self):
     extra_opts = {}
