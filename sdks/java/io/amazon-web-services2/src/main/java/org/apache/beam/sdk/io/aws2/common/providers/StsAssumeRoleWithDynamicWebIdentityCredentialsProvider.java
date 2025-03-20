@@ -30,15 +30,16 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
 import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
     implements AwsCredentialsProvider, SdkAutoCloseable, Serializable {
-
-  @Nullable
-  private transient Supplier<StsAssumeRoleWithWebIdentityCredentialsProvider> delegate = null;
-
+  // we want to initialize the delegate credentials provider lazily
+  @Nullable private transient volatile Supplier<StsCredentialsProvider> credentialsProviderDelegate;
+  // same for the token provider, since it implies loading a class dynamically
+  private final transient Supplier<WebIdTokenProvider> tokenProviderSupplier;
   private final String audience;
   private final String assumedRoleArn;
   private final String webIdTokenProviderFQCN;
@@ -53,11 +54,20 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
     this.assumedRoleArn = assumedRoleArn;
     this.webIdTokenProviderFQCN = webIdTokenProviderFQCN;
     this.sessionDurationSecs = sessionDurationSecs;
+    this.tokenProviderSupplier =
+        Suppliers.memoize(() -> WebIdTokenProvider.create(this.webIdTokenProviderFQCN));
   }
 
-  private Supplier<StsAssumeRoleWithWebIdentityCredentialsProvider> initializeDelegate() {
-    delegate = Suppliers.memoize(this::createDelegate);
-    return delegate;
+  StsCredentialsProvider maybeInitializeCredentialsProviderDelegate() {
+    if (this.credentialsProviderDelegate == null) {
+      synchronized (this) {
+        if (this.credentialsProviderDelegate == null) {
+          this.credentialsProviderDelegate =
+              Suppliers.memoize(() -> createCredentialsDelegate(this.tokenProviderSupplier));
+        }
+      }
+    }
+    return this.credentialsProviderDelegate.get();
   }
 
   public String audience() {
@@ -75,6 +85,38 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
   @Nullable
   public Integer sessionDurationSecs() {
     return sessionDurationSecs;
+  }
+
+  Supplier<AssumeRoleWithWebIdentityRequest> createCredentialsRequestSupplier(
+      Supplier<WebIdTokenProvider> webIdTokenProvider) {
+    return () ->
+        AssumeRoleWithWebIdentityRequest.builder()
+            .webIdentityToken(webIdTokenProvider.get().resolveTokenValue(audience()))
+            .roleArn(assumedRoleArn())
+            .roleSessionName("apache-beam-federated-auth-session-" + UUID.randomUUID())
+            .durationSeconds(Optional.ofNullable(sessionDurationSecs()).orElse(3600))
+            .build();
+  }
+
+  StsCredentialsProvider createCredentialsDelegate(
+      Supplier<WebIdTokenProvider> webIdTokenProvider) {
+    return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+        .stsClient(StsClient.builder().region(Region.AWS_GLOBAL).build())
+        .asyncCredentialUpdateEnabled(true)
+        .refreshRequest(createCredentialsRequestSupplier(webIdTokenProvider))
+        .build();
+  }
+
+  @Override
+  public AwsCredentials resolveCredentials() {
+    return maybeInitializeCredentialsProviderDelegate().resolveCredentials();
+  }
+
+  @Override
+  public void close() {
+    if (credentialsProviderDelegate != null) {
+      credentialsProviderDelegate.get().close();
+    }
   }
 
   public static StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.Builder builder() {
@@ -119,35 +161,6 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
           "The web id token provider fully qualified class name should not be null");
       return new StsAssumeRoleWithDynamicWebIdentityCredentialsProvider(
           audience, assumedRoleArn, webIdTokenProviderFQCN, sessionDurationSecs);
-    }
-  }
-
-  StsAssumeRoleWithWebIdentityCredentialsProvider createDelegate() {
-    return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
-        .stsClient(StsClient.builder().region(Region.AWS_GLOBAL).build())
-        .asyncCredentialUpdateEnabled(true)
-        .refreshRequest(
-            () ->
-                AssumeRoleWithWebIdentityRequest.builder()
-                    .webIdentityToken(
-                        WebIdTokenProvider.create(webIdTokenProviderFQCN())
-                            .resolveTokenValue(audience()))
-                    .roleArn(assumedRoleArn())
-                    .roleSessionName("apache-beam-federated-auth-session-" + UUID.randomUUID())
-                    .durationSeconds(Optional.ofNullable(sessionDurationSecs()).orElse(3600))
-                    .build())
-        .build();
-  }
-
-  @Override
-  public AwsCredentials resolveCredentials() {
-    return Optional.ofNullable(delegate).orElse(initializeDelegate()).get().resolveCredentials();
-  }
-
-  @Override
-  public void close() {
-    if (delegate != null) {
-      delegate.get().close();
     }
   }
 }
