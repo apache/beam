@@ -61,7 +61,6 @@ public class GCPWebIdTokenProviderTest {
 
   @Test
   public void retrieveTokenValueWithAudience() {
-
     WebIdTokenProvider provider =
         new GCPWebIdTokenProvider().withIdTokenCredentials(idTokenCredentials);
     String audience = "some-audience";

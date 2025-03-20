@@ -75,7 +75,6 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityReques
  */
 @AutoService(Module.class)
 public class AwsModule extends SimpleModule {
-
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
   private static final String SESSION_TOKEN = "sessionToken";
@@ -104,9 +103,7 @@ public class AwsModule extends SimpleModule {
   @JsonDeserialize(using = RegionMixin.Deserializer.class)
   @JsonSerialize(using = RegionMixin.Serializer.class)
   private static class RegionMixin {
-
     private static class Deserializer extends JsonDeserializer<Region> {
-
       @Override
       public Region deserialize(JsonParser p, DeserializationContext cxt) throws IOException {
         return Region.of(p.readValueAs(String.class));
@@ -114,7 +111,6 @@ public class AwsModule extends SimpleModule {
     }
 
     private static class Serializer extends JsonSerializer<Region> {
-
       @Override
       public void serialize(Region value, JsonGenerator gen, SerializerProvider serializers)
           throws IOException {
@@ -224,7 +220,6 @@ public class AwsModule extends SimpleModule {
 
   private static class AWSCredentialsProviderSerializer
       extends JsonSerializer<AwsCredentialsProvider> {
-
     // These providers are singletons, so don't require any serialization, other than type.
     private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS =
         ImmutableSet.of(
@@ -323,7 +318,6 @@ public class AwsModule extends SimpleModule {
   @JsonIgnoreProperties(value = {"host", "port", "scheme"})
   @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
   private static class ProxyConfigurationMixin {
-
     @JsonPOJOBuilder(withPrefix = "")
     static class Builder {}
   }
@@ -345,7 +339,6 @@ public class AwsModule extends SimpleModule {
   }
 
   private interface Instantiator<T> {
-
     @NonNull
     T create();
   }
