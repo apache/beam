@@ -161,6 +161,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
     return topics;
   }
 
+  public Map<String, Object> getConfigUpdates() {
+    return configUpdates;
+  }
+
   @Override
   public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     if (rowCountStatistics == null) {
