@@ -28,12 +28,18 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
 # List of Pairs (Target folder name, Look IDs to download)
 LOOKS_TO_DOWNLOAD = [
-    ("TextIO_Read", ["22", "56", "96", "55", "95"]),  # TextIO_Read
-    # ("TextIO_Write", ["23", "64", "110", "63", "109"]),  # TextIO_Read
-    # ("BigQueryIO_Read", ["18", "50", "92", "49", "91"]),  # TextIO_Read
-    # ("BigQueryIO_Write", ["19", "52", "88", "51", "87"]),  # BigQueryIO_Write
-    # ("BigTableIO_Read", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
-    # ("BigTableIO_Write", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
+    ("30", ["18", "50", "92", "49", "91"]),    # BigQueryIO_Read
+    ("31", ["19", "52", "88", "51", "87"]),    # BigQueryIO_Write
+    ("32", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
+    ("33", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
+    ("34", ["22", "56", "96", "55", "95"]),    # TextIO_Read
+    ("35", ["23", "64", "110", "63", "109"]),  # TextIO_Write
+    ("75", ["258", "259", "260", "261", "262"]),  # TensorFlow MNIST
+    ("76", ["233", "234", "235", "236", "237"]),  # PyTorch BERT base uncased
+    ("77", ["238", "239", "240", "241", "242"]),  # PyTorch BERT large uncased
+    ("78", ["243", "244", "245", "246", "247"]),  # PyTorch Resnet 101
+    ("79", ["248", "249", "250", "251", "252"]),  # PyTorch Resnet 152
+    ("80", ["253", "254", "255", "256", "257"]),  # PyTorch Resnet 152 Tesla T4
 ]
 
 
