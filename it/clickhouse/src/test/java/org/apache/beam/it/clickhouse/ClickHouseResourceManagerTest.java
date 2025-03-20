@@ -17,6 +17,7 @@
  */
 package org.apache.beam.it.clickhouse;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -68,6 +69,11 @@ public class ClickHouseResourceManagerTest {
   @Mock private ClickHouseContainer mockContainer;
 
   private ClickHouseResourceManager resourceManager;
+
+  private static final String TEST_ID = "test-id";
+  private static final String HOST = "localhost";
+  private static final int CLICKHOUSE_PORT = 8123;
+  private static final int MAPPED_PORT = 10000;
 
   @Before
   public void setUp() throws SQLException {
@@ -182,5 +188,17 @@ public class ClickHouseResourceManagerTest {
         ClickHouseResourceManagerException.class,
         () -> resourceManager.insertRows(tableName, rows),
         "Should throw exception when inserting invalid data.");
+  }
+
+  @Test
+  public void testGetUriShouldReturnCorrectValue() throws SQLException {
+    when(mockContainer.getHost()).thenReturn(HOST);
+    when(mockContainer.getMappedPort(CLICKHOUSE_PORT)).thenReturn(MAPPED_PORT);
+
+    assertThat(
+            new ClickHouseResourceManager(
+                    mockConnection, mockContainer, ClickHouseResourceManager.builder(TEST_ID))
+                .getJdbcConnectionString())
+        .matches("jdbc:clickhouse://" + HOST + ":" + MAPPED_PORT + "/default");
   }
 }
