@@ -124,7 +124,7 @@ looks:
           title: AvgThroughputElementsPerSec by Version
   pytorchbertlarge:
     write:
-      folder: 41
+      folder: 77
       cost:
         - id: TBD
           title: RunTime and EstimatedCost
@@ -140,7 +140,7 @@ looks:
           title: AvgThroughputElementsPerSec by Version
   pytorchresnet101:
     write:
-      folder: 42
+      folder: 78
       cost:
         - id: TBD
           title: RunTime and EstimatedCost
@@ -156,7 +156,7 @@ looks:
           title: AvgThroughputElementsPerSec by Version
   pytorchresnet152:
     write:
-      folder: 43
+      folder: 79
       cost:
         - id: TBD
           title: RunTime and EstimatedCost
@@ -172,7 +172,7 @@ looks:
           title: AvgThroughputElementsPerSec by Version
   pytorchresnet152tesla:
     write:
-      folder: 44
+      folder: 80
       cost:
         - id: TBD
           title: RunTime and EstimatedCost
@@ -188,7 +188,7 @@ looks:
           title: AvgThroughputElementsPerSec by Version
     tensorflowmnist:
       write:
-        folder: 45
+        folder: 75
         cost:
           - id: TBD
             title: RunTime and EstimatedCost
