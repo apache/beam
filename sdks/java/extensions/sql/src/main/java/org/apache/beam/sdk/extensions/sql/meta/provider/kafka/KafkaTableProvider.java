@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -145,8 +146,9 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
 
     // Get Consumer Properties from Table properties
     HashMap<String, Object> configUpdates = new HashMap<String, Object>();
-    while (properties.fields().hasNext()) {
-      Entry<String, JsonNode> field = properties.fields().next();
+    Iterator<Entry<String, JsonNode>> tableProperties = properties.fields();
+    while (tableProperties.hasNext()) {
+      Entry<String, JsonNode> field = tableProperties.next();
       if (field.getKey().startsWith("properties.")) {
         configUpdates.put(field.getKey().replace("properties.", ""), field.getValue().textValue());
       }
