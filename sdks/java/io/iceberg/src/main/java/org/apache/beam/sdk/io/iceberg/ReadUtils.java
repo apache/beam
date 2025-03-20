@@ -102,6 +102,8 @@ public class ReadUtils {
         inputFile,
         table.schema(),
         optionsBuilder.build(),
+        // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
+        // Record
         fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
         mapping,
         task.residual(),

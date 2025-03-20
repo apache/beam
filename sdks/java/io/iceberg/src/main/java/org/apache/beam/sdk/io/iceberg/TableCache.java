@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,12 +30,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingC
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /** Utility to fetch and cache Iceberg {@link Table}s. */
 class TableCache {
-  private static final Map<String, Catalog> CATALOG_CACHE = new ConcurrentHashMap<>();
+  private static final Map<String, IcebergCatalogConfig> CATALOG_CACHE = new ConcurrentHashMap<>();
   private static final LoadingCache<String, Table> INTERNAL_CACHE =
       CacheBuilder.newBuilder()
           .expireAfterAccess(1, TimeUnit.HOURS)
@@ -44,6 +44,7 @@ class TableCache {
                 @Override
                 public Table load(String identifier) {
                   return checkStateNotNull(CATALOG_CACHE.get(identifier))
+                      .catalog()
                       .loadTable(TableIdentifier.parse(identifier));
                 }
 
@@ -55,7 +56,6 @@ class TableCache {
               });;
 
   static Table get(String identifier) {
-    checkStateNotNull(INTERNAL_CACHE, "Please call TableCache.setup() first.");
     try {
       return INTERNAL_CACHE.get(identifier);
     } catch (ExecutionException e) {
@@ -66,13 +66,21 @@ class TableCache {
 
   /** Forces a table refresh and returns. */
   static Table getRefreshed(String identifier) {
-    checkStateNotNull(INTERNAL_CACHE, "Please call TableCache.setup() first.");
     INTERNAL_CACHE.refresh(identifier);
     return get(identifier);
   }
 
   static void setup(IcebergScanConfig scanConfig) {
-    CATALOG_CACHE.putIfAbsent(
-        scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig().catalog());
+    String tableIdentifier = scanConfig.getTableIdentifier();
+    IcebergCatalogConfig catalogConfig = scanConfig.getCatalogConfig();
+    if (CATALOG_CACHE.containsKey(tableIdentifier)) {
+      checkState(
+          catalogConfig.equals(CATALOG_CACHE.get(tableIdentifier)),
+          "TableCache is already set up with a different catalog. " + "Existing: %s, new: %s.",
+          CATALOG_CACHE.get(tableIdentifier),
+          catalogConfig);
+    } else {
+      CATALOG_CACHE.put(scanConfig.getTableIdentifier(), scanConfig.getCatalogConfig());
+    }
   }
 }
