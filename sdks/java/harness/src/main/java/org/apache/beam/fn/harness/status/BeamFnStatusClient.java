@@ -242,9 +242,12 @@ public class BeamFnStatusClient implements AutoCloseable {
               });
       activeBundlesState.add(
           String.format("%d total bundles, showing selected slowest", bundleStates.size()));
+      // Keep the 10 oldest bundles and the 10 bundles that have been in their current step the
+      // longest. This will help debugging bundles that are taking a long time but changing steps
+      // frequently as well as steps that are stuck processing.
       Streams.concat(
               bundleStates.stream()
-                  // reverse sort active bundle by time since last transition.
+                  // reverse sort active bundle by time since bundle start.
                   .sorted(Comparator.comparing(BundleState::getTimeSinceStart).reversed())
                   .limit(10), // only keep top 10,
               bundleStates.stream()
