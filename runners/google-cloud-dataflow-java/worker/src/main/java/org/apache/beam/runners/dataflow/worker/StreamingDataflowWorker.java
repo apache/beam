@@ -243,10 +243,30 @@ public final class StreamingDataflowWorker {
     @Nullable ChannelzServlet channelzServlet = null;
     Consumer<PrintWriter> getDataStatusProvider;
     Supplier<Long> currentActiveCommitBytesProvider;
-
-    if (options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled()) {
-      // Direct path pipelines.
-      WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
+    GetDataClient getDataClient;
+    HeartbeatSender heartbeatSender;
+    WorkCommitter workCommitter;
+    WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
+    WindmillStreamPool<GetDataStream> getDataStreamPool =
+        WindmillStreamPool.create(
+            Math.max(1, options.getWindmillGetDataStreamCount()),
+            GET_DATA_STREAM_TIMEOUT,
+            windmillServer::getDataStream);
+    getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
+    heartbeatSender =
+        createStreamingEngineHeartbeatSender(
+            options, windmillServer, getDataStreamPool, configFetcher.getGlobalConfigHandle());
+    workCommitter =
+        StreamingEngineWorkCommitter.builder()
+            .setCommitWorkStreamFactory(
+                WindmillStreamPool.create(
+                        numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
+                    ::getCloseableStream)
+            .setCommitByteSemaphore(maxCommitByteSemaphore)
+            .setNumCommitSenders(numCommitThreads)
+            .setOnCommitComplete(this::onCompleteCommit)
+            .build();
+    if (isDirectPathPipeline(options)) {
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
               createJobHeader(options, clientId),
@@ -286,7 +306,13 @@ public final class StreamingDataflowWorker {
                       .setCommitWorkStreamFactory(
                           () -> CloseableStream.create(commitWorkStream, () -> {}))
                       .build(),
-              getDataMetricTracker);
+              getDataMetricTracker,
+              workCommitter,
+              getDataClient,
+              heartbeatSender,
+              streamingWorkScheduler,
+              () -> memoryMonitor.waitForResources("GetWork"),
+              computationStateCache::get);
       getDataStatusProvider = getDataMetricTracker::printHtml;
       currentActiveCommitBytesProvider =
           fanOutStreamingEngineWorkerHarness::currentActiveCommitBytes;
@@ -302,34 +328,10 @@ public final class StreamingDataflowWorker {
               .setMaxItems(chooseMaxBundlesOutstanding(options))
               .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
               .build();
-      GetDataClient getDataClient;
-      HeartbeatSender heartbeatSender;
-      WorkCommitter workCommitter;
       GetWorkSender getWorkSender;
       if (options.isEnableStreamingEngine()) {
-        WindmillStreamPool<GetDataStream> getDataStreamPool =
-            WindmillStreamPool.create(
-                Math.max(1, options.getWindmillGetDataStreamCount()),
-                GET_DATA_STREAM_TIMEOUT,
-                windmillServer::getDataStream);
-        getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
-        heartbeatSender =
-            createStreamingEngineHeartbeatSender(
-                options, windmillServer, getDataStreamPool, configFetcher.getGlobalConfigHandle());
         channelzServlet =
             createChannelzServlet(options, windmillServer::getWindmillServiceEndpoints);
-        workCommitter =
-            StreamingEngineWorkCommitter.builder()
-                .setCommitWorkStreamFactory(
-                    WindmillStreamPool.create(
-                            numCommitThreads,
-                            COMMIT_STREAM_TIMEOUT,
-                            windmillServer::commitWorkStream)
-                        ::getCloseableStream)
-                .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
-                .setNumCommitSenders(numCommitThreads)
-                .setOnCommitComplete(this::onCompleteCommit)
-                .build();
         getWorkSender =
             GetWorkSender.forStreamingEngine(
                 receiver -> windmillServer.getWorkStream(request, receiver));
@@ -606,6 +608,10 @@ public final class StreamingDataflowWorker {
     return new StreamingApplianceComputationConfigFetcher(
         windmillClient::getConfig,
         new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build()));
+  }
+
+  private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
+    return options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled();
   }
 
   private static void validateWorkerOptions(DataflowWorkerHarnessOptions options) {
