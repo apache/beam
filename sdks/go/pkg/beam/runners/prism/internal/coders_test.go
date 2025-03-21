@@ -47,6 +47,7 @@ func Test_isLeafCoder(t *testing.T) {
 		{urns.CoderIterable, false},
 		{urns.CoderRow, false},
 		{urns.CoderKV, false},
+		{urns.CoderTuple, false},
 	}
 	for _, test := range tests {
 		undertest := &pipepb.Coder{
@@ -370,6 +371,32 @@ func Test_pullDecoder(t *testing.T) {
 				},
 			},
 			[]byte{3, 0},
+		}, {
+			"tuple_multiple_elements",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderTuple,
+				},
+				ComponentCoderIds: []string{"str", "num", "flag"},
+			},
+			map[string]*pipepb.Coder{
+				"str": {
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderStringUTF8,
+					},
+				},
+				"num": {
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderVarInt,
+					},
+				},
+				"flag": {
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderBool,
+					},
+				},
+			},
+			[]byte{5, 'h', 'e', 'l', 'l', 'o', 42, 1},
 		},
 	}
 	for _, test := range tests {

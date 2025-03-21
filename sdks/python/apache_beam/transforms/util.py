@@ -107,6 +107,7 @@ V = TypeVar('V')
 T = TypeVar('T')
 
 RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
+RESHUFFLE_PANE_INDEX_BREAKING_CHANGE_VERSION = "2.64.0"
 
 
 class CoGroupByKey(PTransform):
@@ -959,23 +960,36 @@ class ReshufflePerKey(PTransform):
   """
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
+    should_keep_paneinfo = not is_compat_version_prior_to(
+        pcoll.pipeline.options, RESHUFFLE_PANE_INDEX_BREAKING_CHANGE_VERSION)
     if windowing_saved.is_default():
       # In this (common) case we can use a trivial trigger driver
       # and avoid the (expensive) window param.
       globally_windowed = window.GlobalWindows.windowed_value(None)
       MIN_TIMESTAMP = window.MIN_TIMESTAMP
 
-      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+      def reify_timestamps(
+          element, timestamp=DoFn.TimestampParam, pane_info=DoFn.PaneInfoParam):
         key, value = element
         if timestamp == MIN_TIMESTAMP:
           timestamp = None
+        if should_keep_paneinfo:
+          return key, (value, timestamp, pane_info)
         return key, (value, timestamp)
 
       def restore_timestamps(element):
         key, values = element
+        if should_keep_paneinfo:
+          return [
+              globally_windowed.with_value((key, value))
+              if timestamp is None else window.GlobalWindows.windowed_value(
+                  value=(key, value), timestamp=timestamp, pane_info=pane_info)
+              for (value, timestamp, pane_info) in values
+          ]
         return [
-            globally_windowed.with_value((key, value)) if timestamp is None else
-            window.GlobalWindows.windowed_value((key, value), timestamp)
+            globally_windowed.with_value((key, value))
+            if timestamp is None else window.GlobalWindows.windowed_value(
+                value=(key, value), timestamp=timestamp)
             for (value, timestamp) in values
         ]
 
@@ -985,14 +999,19 @@ class ReshufflePerKey(PTransform):
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
             tuple[K, V]).with_output_types(
-                tuple[K, tuple[V, Optional[Timestamp]]])
+                tuple[K, tuple[V, Optional[Timestamp],
+                               windowed_value.PaneInfo]])
     else:
 
-      # typing: All conditional function variants must have identical signatures
-      def reify_timestamps(  # type: ignore[misc]
-          element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
+      def reify_timestamps(
+          element,
+          timestamp=DoFn.TimestampParam,
+          window=DoFn.WindowParam,
+          pane_info=DoFn.PaneInfoParam):
         key, value = element
-        # Transport the window as part of the value and restore it later.
+        if should_keep_paneinfo:
+          return key, windowed_value.WindowedValue(
+            value, timestamp, [window], pane_info)
         return key, windowed_value.WindowedValue(value, timestamp, [window])
 
       def restore_timestamps(element):
