@@ -664,19 +664,14 @@ class TriggerLoadJobs(beam.DoFn):
     self.pending_jobs = []
     self.schema_cache = {}
 
-  def process(
-      self,
-      element,
-      load_job_name_prefix,
-      pane_info=beam.DoFn.PaneInfoParam,
-      *schema_side_inputs):
+  def process(self, element, load_job_name_prefix, *schema_side_inputs):
     # Each load job is assumed to have files respecting these constraints:
     # 1. Total size of all files < 15 TB (Max size for load jobs)
     # 2. Total no. of files in a single load job < 10,000
     # This assumption means that there will always be a single load job
     # triggered for each partition of files.
     destination = element[0]
-    partition_key, files = element[1]
+    partition_key, files, pane_index = element[1]
 
     if callable(self.schema):
       schema = self.schema(destination, *schema_side_inputs)
@@ -705,7 +700,7 @@ class TriggerLoadJobs(beam.DoFn):
             table_reference.datasetId,
             table_reference.tableId))
     job_name = '%s_%s_pane%s_partition%s' % (
-        load_job_name_prefix, destination_hash, pane_info.index, partition_key)
+        load_job_name_prefix, destination_hash, pane_index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
 
     create_disposition = self.create_disposition
@@ -1104,6 +1099,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # Load data using temp tables
     trigger_loads_outputs = (
         partitions_using_temp_tables
+        | "KeyByPaneIndexWithTempTables" >> beam.ParDo(KeyByPaneIndex())
+        | "ReshuffleBeforeLoadWithTempTables" >> beam.Reshuffle()
         | "TriggerLoadJobsWithTempTables" >> beam.ParDo(
             TriggerLoadJobs(
                 schema=self.schema,
@@ -1186,6 +1183,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # Load data directly to destination table
     destination_load_job_ids_pc = (
         partitions_direct_to_destination
+        | "KeyByPaneIndexWithoutTempTables" >> beam.ParDo(KeyByPaneIndex())
+        | "ReshuffleBeforeLoadWithoutTempTables" >> beam.Reshuffle()
         | "TriggerLoadJobsWithoutTempTables" >> beam.ParDo(
             TriggerLoadJobs(
                 schema=self.schema,
@@ -1313,3 +1312,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
         self.DESTINATION_FILE_PAIRS: all_destination_file_pairs_pc,
         self.DESTINATION_COPY_JOBID_PAIRS: destination_copy_job_ids_pc,
     }
+
+
+class KeyByPaneIndex(beam.DoFn):
+  def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
+    destination, (partition_key, files) = element
+    return [(destination, (partition_key, files, pane_info.index))]
