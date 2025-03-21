@@ -37,7 +37,8 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class GrpcGetWorkerMetadataStream
+/** Implementation of {@link GetWorkerMetadataStream} that uses streaming gRPC. */
+final class GrpcGetWorkerMetadataStream
     extends AbstractWindmillStream<WorkerMetadataRequest, WorkerMetadataResponse>
     implements GetWorkerMetadataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetWorkerMetadataStream.class);
@@ -60,6 +61,7 @@ public final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
+      WorkerMetadataResponse initialWorkerMetadata,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
         LOG,
@@ -73,11 +75,11 @@ public final class GrpcGetWorkerMetadataStream
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
     this.serverMappingConsumer = serverMappingConsumer;
-    this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
+    this.latestResponse = initialWorkerMetadata;
     this.metadataLock = new Object();
   }
 
-  public static GrpcGetWorkerMetadataStream create(
+  static GrpcGetWorkerMetadataStream create(
       Function<StreamObserver<WorkerMetadataResponse>, StreamObserver<WorkerMetadataRequest>>
           startGetWorkerMetadataRpcFn,
       BackOff backoff,
@@ -86,6 +88,7 @@ public final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
+      WorkerMetadataResponse initialWorkerMetadata,
       Consumer<WindmillEndpoints> serverMappingUpdater) {
     return new GrpcGetWorkerMetadataStream(
         startGetWorkerMetadataRpcFn,
@@ -95,7 +98,15 @@ public final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         jobHeader,
         getWorkerMetadataThrottleTimer,
+        initialWorkerMetadata,
         serverMappingUpdater);
+  }
+
+  @Override
+  public WorkerMetadataResponse currentWorkerMetadata() {
+    synchronized (metadataLock) {
+      return latestResponse;
+    }
   }
 
   /**

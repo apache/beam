@@ -132,25 +132,23 @@ public class GrpcDispatcherClient {
 
   /** Will block the calling thread until the initial endpoints are present. */
   public CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStubBlocking() {
-    boolean initialized = false;
     long secondsWaited = 0;
-    while (!initialized) {
-      LOG.info(
-          "Blocking until Windmill Service endpoint has been set. "
-              + "Currently waited for [{}] seconds.",
-          secondsWaited);
-      try {
-        initialized = onInitializedEndpoints.await(10, TimeUnit.SECONDS);
+    try {
+      while (!onInitializedEndpoints.await(10, TimeUnit.SECONDS)) {
         secondsWaited += 10;
-      } catch (InterruptedException e) {
-        LOG.error(
-            "Interrupted while waiting for initial Windmill Service endpoints. "
-                + "These endpoints are required to do any pipeline processing.",
-            e);
+        LOG.debug(
+            "Blocking until Windmill Service endpoint has been set. "
+                + "Currently waited for [{}] seconds.",
+            secondsWaited);
       }
+    } catch (InterruptedException e) {
+      LOG.error(
+          "Interrupted while waiting for initial Windmill Service endpoints. "
+              + "These endpoints are required to do any pipeline processing.",
+          e);
     }
 
-    LOG.info("Windmill Service endpoint initialized after {} seconds.", secondsWaited);
+    LOG.debug("Windmill Service endpoint initialized after {} seconds.", secondsWaited);
 
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();
