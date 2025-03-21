@@ -46,7 +46,6 @@ def _default_crc32c_fn(value):
   if not _default_crc32c_fn.fn:
     try:
       import google_crc32c  # pylint: disable=import-error
-      _default_crc32c_fn.fn = google_crc32c.value
 
       if getattr(google_crc32c, 'value', None):
         _default_crc32c_fn.fn = google_crc32c.value  # pylint: disable=protected-access
