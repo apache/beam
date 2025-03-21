@@ -189,6 +189,12 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return stub.withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
   }
 
+  private static <T extends AbstractStub<T>> T withLongDeadline(T stub) {
+    // Deadlines are absolute points in time, so generate a new one everytime this function is
+    // called.
+    return stub.withDeadlineAfter(1, TimeUnit.HOURS);
+  }
+
   private static void printSummaryHtmlForWorker(
       String workerToken, Collection<AbstractWindmillStream<?, ?>> streams, PrintWriter writer) {
     writer.write(
@@ -230,7 +236,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().getWorkStream(responseObserver),
+        responseObserver -> withLongDeadline(connection.stub()).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),
@@ -265,7 +271,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().getDataStream(responseObserver),
+        responseObserver -> withLongDeadline(connection.stub()).getDataStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -297,7 +303,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer commitWorkThrottleTimer) {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().commitWorkStream(responseObserver),
+        responseObserver -> withLongDeadline(connection.stub()).commitWorkStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
