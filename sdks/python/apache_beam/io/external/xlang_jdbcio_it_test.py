@@ -61,10 +61,10 @@ MYSQL_BINARY_TYPE = ('BINARY(10)', 'VARBINARY(10)')
 
 JdbcTestRow = typing.NamedTuple(
     "JdbcTestRow",
-    [("f_id", int), ("f_float", float), ("f_char", str), ("f_varchar", str),
-     ("f_bytes", bytes), ("f_varbytes", bytes), ("f_timestamp", Timestamp),
-     ("f_decimal", Decimal), ("f_date", datetime.date),
-     ("f_time", datetime.time)],
+    [("f_id", int), ("f_id_long", int), ("f_float", float), ("f_char", str),
+     ("f_varchar", str), ("f_bytes", bytes), ("f_varbytes", bytes),
+     ("f_timestamp", Timestamp), ("f_decimal", Decimal),
+     ("f_date", datetime.date), ("f_time", datetime.time)],
 )
 coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
 
@@ -72,6 +72,7 @@ CustomSchemaRow = typing.NamedTuple(
     "CustomSchemaRow",
     [
         ("renamed_id", int),
+        ("renamed_id_long", int),
         ("renamed_float", float),
         ("renamed_char", str),
         ("renamed_varchar", str),
@@ -184,7 +185,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     connection.execute(
         sqlalchemy.text(
             f"CREATE TABLE IF NOT EXISTS {table_name}" +
-            "(f_id INTEGER, f_float DOUBLE PRECISION, " +
+            "(f_id INTEGER, f_id_long BIGINT, f_float DOUBLE PRECISION, " +
             "f_char CHAR(10), f_varchar VARCHAR(10), " +
             f"f_bytes {binary_type[0]}, f_varbytes {binary_type[1]}, " +
             "f_timestamp TIMESTAMP(3), f_decimal DECIMAL(10, 2), " +
@@ -193,7 +194,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
   def generate_test_data(self, count):
     return [
         JdbcTestRow(
-            i,
+            i - 3,
+            i - 3,
             i + 0.1,
             f'Test{i}',
             f'Test{i}',
@@ -225,6 +227,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
       expected_rows.append(
           JdbcTestRow(
+              row.f_id,
               row.f_id,
               row.f_float,
               f_char,
@@ -311,6 +314,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       expected_rows.append(
           CustomSchemaRow(
               row.f_id,
+              row.f_id,
               row.f_float,
               f_char,
               row.f_varchar,
@@ -324,6 +328,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     def custom_row_equals(expected, actual):
       return (
           expected.renamed_id == actual.renamed_id and
+          expected.renamed_id_long == actual.renamed_id_long and
           expected.renamed_float == actual.renamed_float and
           expected.renamed_char.rstrip() == actual.renamed_char.rstrip() and
           expected.renamed_varchar == actual.renamed_varchar and
@@ -390,7 +395,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         SimpleRow(2, "Item2", 20.75),
         SimpleRow(3, "Item3", 30.25),
         SimpleRow(4, "Item4", 40.0),
-        SimpleRow(5, "Item5", 50.5)
+        SimpleRow(-5, "Item5", 50.5)
     ]
 
     config = self.jdbc_configs[database]
