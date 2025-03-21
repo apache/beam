@@ -21,8 +21,6 @@ import com.google.auth.Credentials;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.auth.VendoredCredentialsAdapter;
 import org.apache.beam.sdk.annotations.Internal;
@@ -46,10 +44,10 @@ public final class ChannelCachingRemoteStubFactory implements ChannelCachingStub
   }
 
   @Override
-  public CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(
+  public CloudWindmillServiceV1Alpha1CustomStub createWindmillServiceStub(
       WindmillServiceAddress serviceAddress) {
-    CloudWindmillServiceV1Alpha1Stub windmillServiceStub =
-        CloudWindmillServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress));
+    CloudWindmillServiceV1Alpha1CustomStub windmillServiceStub =
+        CloudWindmillServiceV1Alpha1CustomStub.newStub(channelCache.get(serviceAddress));
     return serviceAddress.getKind() != WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS
         ? windmillServiceStub.withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)))

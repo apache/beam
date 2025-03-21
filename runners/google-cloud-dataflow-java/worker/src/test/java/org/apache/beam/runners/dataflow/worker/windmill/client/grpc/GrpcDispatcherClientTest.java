@@ -28,8 +28,8 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -58,23 +58,23 @@ public class GrpcDispatcherClientTest {
           GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
       // Create first time with Isolated channels disabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
-      CloudWindmillServiceV1Alpha1Stub stub1 = dispatcherClient.getWindmillServiceStub();
-      CloudWindmillServiceV1Alpha1Stub stub2 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub1 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub2 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub2, stub1);
       assertThat(stub1.getChannel(), not(instanceOf(IsolationChannel.class)));
 
       // Enable Isolated channels
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ true));
-      CloudWindmillServiceV1Alpha1Stub stub3 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub3 = dispatcherClient.getWindmillServiceStub();
       assertNotSame(stub3, stub1);
 
       assertThat(stub3.getChannel(), instanceOf(IsolationChannel.class));
-      CloudWindmillServiceV1Alpha1Stub stub4 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub4 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub3, stub4);
 
       // Disable Isolated channels
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
-      CloudWindmillServiceV1Alpha1Stub stub5 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub5 = dispatcherClient.getWindmillServiceStub();
       assertNotSame(stub4, stub5);
       assertThat(stub5.getChannel(), not(instanceOf(IsolationChannel.class)));
     }
@@ -109,22 +109,22 @@ public class GrpcDispatcherClientTest {
 
       // Job setting disabled, PipelineOption enabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
-      CloudWindmillServiceV1Alpha1Stub stub1 = dispatcherClient.getWindmillServiceStub();
-      CloudWindmillServiceV1Alpha1Stub stub2 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub1 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub2 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub2, stub1);
       assertThat(stub1.getChannel(), classMatcher);
 
       // Job setting enabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ true));
-      CloudWindmillServiceV1Alpha1Stub stub3 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub3 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub3, stub1);
 
-      CloudWindmillServiceV1Alpha1Stub stub4 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub4 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub3, stub4);
 
       // Job setting disabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
-      CloudWindmillServiceV1Alpha1Stub stub5 = dispatcherClient.getWindmillServiceStub();
+      CloudWindmillServiceV1Alpha1CustomStub stub5 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub4, stub5);
     }
   }

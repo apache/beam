@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
@@ -56,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.Throttlin
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -445,7 +445,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     return windmillStreamSender;
   }
 
-  private CloudWindmillServiceV1Alpha1Stub createWindmillStub(Endpoint endpoint) {
+  private CloudWindmillServiceV1Alpha1CustomStub createWindmillStub(Endpoint endpoint) {
     return endpoint
         .directEndpoint()
         .map(channelCachingStubFactory::createWindmillServiceStub)
