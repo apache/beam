@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
@@ -37,8 +39,11 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Enums;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * SchemaTransform implementation for {@link IcebergIO#readRows}. Reads records from Iceberg and
@@ -46,13 +51,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * org.apache.beam.sdk.values.Row}s.
  */
 @AutoService(SchemaTransformProvider.class)
-public class IcebergReadSchemaTransformProvider
+public class IcebergCdcReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<Configuration> {
   static final String OUTPUT_TAG = "output";
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
-    return new IcebergReadSchemaTransform(configuration);
+    return new IcebergCdcReadSchemaTransform(configuration);
   }
 
   @Override
@@ -62,13 +67,13 @@ public class IcebergReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ);
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_READ);
   }
 
-  static class IcebergReadSchemaTransform extends SchemaTransform {
+  static class IcebergCdcReadSchemaTransform extends SchemaTransform {
     private final Configuration configuration;
 
-    IcebergReadSchemaTransform(Configuration configuration) {
+    IcebergCdcReadSchemaTransform(Configuration configuration) {
       this.configuration = configuration;
     }
 
@@ -88,12 +93,36 @@ public class IcebergReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> output =
-          input
-              .getPipeline()
-              .apply(
-                  IcebergIO.readRows(configuration.getIcebergCatalog())
-                      .from(TableIdentifier.parse(configuration.getTable())));
+      @Nullable String strategyStr = configuration.getStartingStrategy();
+      StartingStrategy strategy = null;
+      if (strategyStr != null) {
+        Optional<StartingStrategy> optional =
+            Enums.getIfPresent(StartingStrategy.class, strategyStr.toUpperCase());
+        if (!optional.isPresent()) {
+          throw new IllegalArgumentException(
+              "Invalid starting strategy. Valid values are: "
+                  + Arrays.toString(StartingStrategy.values()));
+        }
+        strategy = optional.get();
+      }
+
+      IcebergIO.ReadRows readRows =
+          IcebergIO.readRows(configuration.getIcebergCatalog())
+              .withCdc()
+              .from(TableIdentifier.parse(configuration.getTable()))
+              .fromSnapshot(configuration.getFromSnapshot())
+              .toSnapshot(configuration.getToSnapshot())
+              .fromTimestamp(configuration.getFromTimestamp())
+              .toTimestamp(configuration.getToTimestamp())
+              .withStartingStrategy(strategy)
+              .streaming(configuration.getStreaming());
+
+      @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
+      if (pollIntervalSeconds != null) {
+        readRows = readRows.withPollInterval(Duration.standardSeconds(pollIntervalSeconds));
+      }
+
+      PCollection<Row> output = input.getPipeline().apply(readRows);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
@@ -103,7 +132,7 @@ public class IcebergReadSchemaTransformProvider
   @AutoValue
   public abstract static class Configuration {
     static Builder builder() {
-      return new AutoValue_IcebergReadSchemaTransformProvider_Configuration.Builder();
+      return new AutoValue_IcebergCdcReadSchemaTransformProvider_Configuration.Builder();
     }
 
     @SchemaFieldDescription("Identifier of the Iceberg table.")
@@ -121,6 +150,33 @@ public class IcebergReadSchemaTransformProvider
     @Nullable
     abstract Map<String, String> getConfigProperties();
 
+    @SchemaFieldDescription("Starts reading from this snapshot ID (inclusive).")
+    abstract @Nullable Long getFromSnapshot();
+
+    @SchemaFieldDescription("Reads up to this snapshot ID (inclusive).")
+    abstract @Nullable Long getToSnapshot();
+
+    @SchemaFieldDescription(
+        "Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).")
+    abstract @Nullable Long getFromTimestamp();
+
+    @SchemaFieldDescription(
+        "Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).")
+    abstract @Nullable Long getToTimestamp();
+
+    @SchemaFieldDescription(
+        "The source's starting strategy. Valid options are: \"earliest\" or \"latest\". Can be overriden "
+            + "by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.")
+    abstract @Nullable String getStartingStrategy();
+
+    @SchemaFieldDescription(
+        "Enables streaming reads, where source continuously polls for snapshots forever.")
+    abstract @Nullable Boolean getStreaming();
+
+    @SchemaFieldDescription(
+        "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
+    abstract @Nullable Integer getPollIntervalSeconds();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -130,6 +186,20 @@ public class IcebergReadSchemaTransformProvider
       abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
 
       abstract Builder setConfigProperties(Map<String, String> confProperties);
+
+      abstract Builder setFromSnapshot(Long snapshot);
+
+      abstract Builder setToSnapshot(Long snapshot);
+
+      abstract Builder setFromTimestamp(Long timestamp);
+
+      abstract Builder setToTimestamp(Long timestamp);
+
+      abstract Builder setStartingStrategy(String strategy);
+
+      abstract Builder setPollIntervalSeconds(Integer pollInterval);
+
+      abstract Builder setStreaming(Boolean streaming);
 
       abstract Configuration build();
     }

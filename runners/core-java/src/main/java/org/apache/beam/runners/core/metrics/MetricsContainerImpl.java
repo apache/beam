@@ -321,9 +321,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
     // Add any metricKey labels to the monitoringInfoLabels.
     if (!metricName.getLabels().isEmpty()) {
-      for (Map.Entry<String, String> entry : metricName.getLabels().entrySet()) {
-        builder.setLabel(entry.getKey(), entry.getValue());
-      }
+      builder.setLabels(metricName.getLabels());
     }
     return builder;
   }
