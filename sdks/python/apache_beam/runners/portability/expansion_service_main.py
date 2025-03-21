@@ -55,7 +55,7 @@ def main(argv):
   with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
       known_args.fully_qualified_name_glob):
 
-    address = '[::]:{}'.format(known_args.port)
+    address = '0.0.0.0:{}'.format(known_args.port)
     server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     if known_args.serve_loopback_worker:
       beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
