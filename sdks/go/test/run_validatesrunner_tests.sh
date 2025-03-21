@@ -287,6 +287,8 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
           --expansion-port 0 \
           --artifact-port 0 &
     elif [[ "$RUNNER" == "portable" ]]; then
+      export GRPC_VERBOSITY=debug
+      export GRPC_TRACE=all,-timer,-timer_check
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
           --port $JOB_PORT &
