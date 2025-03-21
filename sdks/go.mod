@@ -29,7 +29,7 @@ require (
 	cloud.google.com/go/bigtable v1.35.0
 	cloud.google.com/go/datastore v1.20.0
 	cloud.google.com/go/profiler v0.4.2
-	cloud.google.com/go/pubsub v1.47.0
+	cloud.google.com/go/pubsub v1.48.0
 	cloud.google.com/go/spanner v1.76.1
 	cloud.google.com/go/storage v1.51.0
 	github.com/aws/aws-sdk-go-v2 v1.36.3
@@ -130,7 +130,7 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.118.3 // indirect
+	cloud.google.com/go v0.119.0 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.4.1 // indirect
 	cloud.google.com/go/longrunning v0.6.5 // indirect
