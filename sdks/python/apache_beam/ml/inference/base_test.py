@@ -1895,8 +1895,10 @@ class FakeRemoteModelHandler(base.RemoteModelHandler[int, int, FakeModel]):
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
+    responses = []
     for example in batch:
-      yield model.predict(example)
+      responses.append(model.predict(example))
+    return responses
 
   def batch_elements_kwargs(self):
     return {
@@ -1936,6 +1938,49 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
         'min_batch_size': self._min_batch_size,
         'max_batch_size': self._max_batch_size
     }
+  
+
+class FakeFailsOnceRemoteModelHandler(base.RemoteModelHandler[int,
+                                                                int,
+                                                                FakeModel]):
+  def __init__(
+      self,
+      clock=None,
+      min_batch_size=1,
+      max_batch_size=9999,
+      retry_filter=_always_retry,
+      **kwargs):
+    self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
+    self._should_fail = True
+    super().__init__(
+        namespace='FakeRemoteModelHandler',
+        retry_filter=retry_filter,
+        num_retries=2,
+        throttle_delay_secs=1)
+
+  def load_model(self):
+    return FakeModel()
+
+  def request(self, batch, model, inference_args=None) -> Iterable[int]:
+    if self._should_fail:
+      self._should_fail = False
+      raise Exception
+    else:
+      self._should_fail = True
+      responses = []
+      for example in batch:
+        responses.append(model.predict(example))
+      return responses
+
+
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
 
 
 class RunInferenceRemoteTest(unittest.TestCase):
@@ -1955,6 +2000,14 @@ class RunInferenceRemoteTest(unittest.TestCase):
           | beam.Create([1, 2, 3, 4])
           | base.RunInference(FakeAlwaysFailsRemoteModelHandler()))
       test_pipeline.run()
+
+  def test_works_on_retry(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
 
 
 if __name__ == '__main__':

@@ -27,6 +27,7 @@ The transform handles standard inference functionality, like metric
 collection, sharing model between threads, and batching elements.
 """
 
+import functools
 import logging
 import os
 import pickle
@@ -388,6 +389,7 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
     self.retry_filter = retry_filter
 
   def retry_on_exception(func):
+    @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
       return retry.with_exponential_backoff(
           num_retries=self.num_retries, retry_filter=self.retry_filter)(
@@ -433,6 +435,22 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
       batch: Sequence[ExampleT],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]] = None) -> Iterable[PredictionT]:
+    """Makes a request to a remote inference service and returns the response.
+    Should raise an exception of some kind if there is an error to enable the
+    retry and client-side throttling logic to work. Returns an iterable of the
+    desired prediction type. This method should return the values directly, as
+    handling return values as a generator can prevent the retry logic from
+    functioning correctly.
+
+    Args:
+      batch: A sequence of examples or features.
+      model: The model used to make inferences.
+      inference_args: Extra arguments for models whose inference call requires
+        extra parameters.
+
+    Returns:
+      An Iterable of Predictions.
+    """
     raise NotImplementedError(type(self))
 
 
