@@ -467,16 +467,19 @@ These instructions explain how to configure your console (shell) for Python deve
 
 2. Use the following commands to set up and activate the virtual environment:
 
-  1. `pyenv virtualenv 3.X ENV_NAME`
-  2. `pyenv activate ENV_NAME`
+    1. `pyenv virtualenv 3.X ENV_NAME`
+    2. `pyenv activate ENV_NAME`
 
 3. Install the `apache_beam` package in editable mode:
-  `pip install -e .[gcp, test]`
+   ```
+   cd sdks/python
+   pip install -e .[gcp, test]
+   ```
 
 4. For development that uses an SDK container image, do the following:
 
-  1. Install Docker Desktop.
-  2. Install Go.
+    1. Install Docker Desktop.
+    2. Install Go.
 
 5. If you're going to submit PRs, use the following command to precommit the hook for Python code changes (nobody likes lint failures!!):
 
