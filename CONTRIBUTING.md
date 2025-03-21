@@ -40,7 +40,7 @@ These steps and instructions on getting started are outlined below as well.
 
 - A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment.
-- Java JDK 11 (perferred, or 8, 17, 21) installed.
+- Java JDK 11 (preferred, or 8, 17, 21) installed.
 - Latest [Go](https://golang.org) 1.x installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
