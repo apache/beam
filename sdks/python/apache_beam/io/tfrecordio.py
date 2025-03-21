@@ -41,7 +41,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _default_crc32c_fn(value):
-  """Calculates crc32c of a bytes object using either google-crc32c or crcmod."""
+  """Calculates crc32c of a bytes object using 
+  either snappy or google-crc32c or crcmod."""
+
+  if not _default_crc32c_fn.fn:
+    try:
+      import snappy  # pylint: disable=import-error
+      # Support multiple versions of python-snappy:
+      # https://github.com/andrix/python-snappy/pull/53
+      if getattr(snappy, '_crc32c', None):
+        _default_crc32c_fn.fn = snappy._crc32c  # pylint: disable=protected-access
+      elif getattr(snappy, '_snappy', None):
+        _default_crc32c_fn.fn = snappy._snappy._crc32c  # pylint: disable=protected-access
+    except ImportError:
+      pass
 
   if not _default_crc32c_fn.fn:
     try:
@@ -49,14 +62,14 @@ def _default_crc32c_fn(value):
 
       if getattr(google_crc32c, 'value', None):
         _default_crc32c_fn.fn = google_crc32c.value  # pylint: disable=protected-access
-    except ImportError as e:
+    except ImportError:
       pass
 
     if not _default_crc32c_fn.fn:
       _LOGGER.warning(
-          'Couldn\'t find google-crc32c so the implementation of '
-          '_TFRecordUtil._masked_crc32c is not as fast as it could '
-          'be.')
+          'Couldn\'t find python-snappy or google-crc32c so the '
+          'implementation of _TFRecordUtil._masked_crc32c is not as fast '
+          'as it could be.')
       _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
   return _default_crc32c_fn.fn(value)
 
