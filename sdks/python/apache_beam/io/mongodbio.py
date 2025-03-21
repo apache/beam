@@ -264,7 +264,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.projection = projection
     self.spec = extra_client_params
     self.bucket_auto = bucket_auto
-    self.codec_options = CodecOptions(datetime_conversion=DatetimeConversion.DATETIME_CLAMP)
+    self.codec_options = CodecOptions(
+        datetime_conversion=DatetimeConversion.DATETIME_CLAMP)
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
@@ -409,17 +410,15 @@ class _BoundedMongoSource(iobase.BoundedSource):
     """
     with MongoClient(self.uri, **self.spec) as client:
       all_filters = self._merge_id_filter(
-        range_tracker.start_position(), range_tracker.stop_position()
-      )
+          range_tracker.start_position(), range_tracker.stop_position())
       collection = client[self.db][self.coll]
 
       if hasattr(collection, "with_options"):
         collection = collection.with_options(codec_options=self.codec_options)
 
       docs_cursor = collection.find(
-        filter=all_filters,
-        projection=self.projection
-      ).sort([("_id", ASCENDING)])
+          filter=all_filters,
+          projection=self.projection).sort([("_id", ASCENDING)])
 
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc["_id"]):
@@ -562,10 +561,9 @@ class _BoundedMongoSource(iobase.BoundedSource):
         db = db.with_options(codec_options=self.codec_options)
 
       cursor = (
-        db[self.coll].find(filter={}, projection=[]).sort([
-          ("_id", sort_order)
-        ]).limit(1)
-      )
+          db[self.coll].find(filter={}, projection=[]).sort([
+              ("_id", sort_order)
+          ]).limit(1))
 
       try:
         return cursor[0]["_id"]
