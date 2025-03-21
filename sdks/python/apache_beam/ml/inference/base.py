@@ -392,8 +392,9 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
       return retry.with_exponential_backoff(
-          num_retries=self.num_retries, retry_filter=self.retry_filter)(
-              func)(self, *args, **kwargs)
+          num_retries=self.num_retries,
+          retry_filter=self.retry_filter)(func)(self, *args, **kwargs)
+
     return wrapper
 
   @retry_on_exception

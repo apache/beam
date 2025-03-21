@@ -45,7 +45,6 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import TimestampedValue
 from apache_beam.utils import multi_process_shared
-from apache_beam.utils import retry
 
 
 class FakeModel:
@@ -1938,11 +1937,11 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
         'min_batch_size': self._min_batch_size,
         'max_batch_size': self._max_batch_size
     }
-  
+
 
 class FakeFailsOnceRemoteModelHandler(base.RemoteModelHandler[int,
-                                                                int,
-                                                                FakeModel]):
+                                                              int,
+                                                              FakeModel]):
   def __init__(
       self,
       clock=None,
@@ -1975,7 +1974,6 @@ class FakeFailsOnceRemoteModelHandler(base.RemoteModelHandler[int,
         responses.append(model.predict(example))
       return responses
 
-
   def batch_elements_kwargs(self):
     return {
         'min_batch_size': self._min_batch_size,
@@ -1994,7 +1992,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
 
   def test_repeated_requests_fail(self):
     test_pipeline = TestPipeline()
-    with self.assertRaises(Exception) as e:
+    with self.assertRaises(Exception):
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
