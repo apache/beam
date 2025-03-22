@@ -27,6 +27,7 @@ import platform
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 import zlib
 
 import apache_beam as beam
@@ -1459,6 +1460,18 @@ class TextSourceTest(unittest.TestCase):
                      for split in splits])
     source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
+
+  def test_read_from_text_dirname_error(self):
+    file_pattern = 'abcd_test'
+    expected_error_message = (
+        "Path type should be local path or GCS path "
+        "when calling ReadFromText")
+
+    with unittest.mock.patch('os.path.dirname') as mock_dirname:
+      mock_dirname.side_effect = TypeError(expected_error_message)
+      with self.assertRaises(OSError):
+        with TestPipeline() as pipeline:
+          pipeline | 'Read' >> ReadFromText(file_pattern)
 
 
 class TextSinkTest(unittest.TestCase):

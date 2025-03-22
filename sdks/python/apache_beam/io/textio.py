@@ -782,7 +782,12 @@ class ReadFromText(PTransform):
     """
 
     super().__init__(**kwargs)
-    if file_pattern and not os.path.dirname(file_pattern):
+    if file_pattern:
+      try:
+        if not os.path.dirname(file_pattern):
+          file_pattern = os.path.join('.', file_pattern)
+      except TypeError:
+        pass
       file_pattern = os.path.join('.', file_pattern)
     self._source = self._source_class(
         file_pattern,
