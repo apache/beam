@@ -36,6 +36,9 @@ import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
     implements AwsCredentialsProvider, SdkAutoCloseable, Serializable {
+
+  public static final Integer DEFAULT_SESSION_DURATION_SECS = 3600;
+
   // we want to initialize the delegate credentials provider lazily
   @Nullable private transient volatile Supplier<StsCredentialsProvider> credentialsProviderDelegate;
   // same for the token provider, since it implies loading a class dynamically
@@ -94,7 +97,8 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
             .webIdentityToken(webIdTokenProvider.get().resolveTokenValue(audience()))
             .roleArn(assumedRoleArn())
             .roleSessionName("apache-beam-federated-auth-session-" + UUID.randomUUID())
-            .durationSeconds(Optional.ofNullable(sessionDurationSecs()).orElse(3600))
+            .durationSeconds(
+                Optional.ofNullable(sessionDurationSecs()).orElse(DEFAULT_SESSION_DURATION_SECS))
             .build();
   }
 

@@ -199,7 +199,11 @@ public class AwsModule extends SimpleModule {
             .setAssumedRoleArn(getNotNull(json, ROLE_ARN, typeName))
             .setWebIdTokenProviderFQCN(getNotNull(json, WEBID_TOKEN_FQCN, typeName))
             .setSessionDurationSecs(
-                Optional.ofNullable(json.get(SESSION_DURATION_SECONDS)).map(JsonNode::asInt).get())
+                Optional.ofNullable(json.get(SESSION_DURATION_SECONDS))
+                    .map(JsonNode::asInt)
+                    .orElse(
+                        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
+                            .DEFAULT_SESSION_DURATION_SECS))
             .build();
       } else {
         throw new IOException(

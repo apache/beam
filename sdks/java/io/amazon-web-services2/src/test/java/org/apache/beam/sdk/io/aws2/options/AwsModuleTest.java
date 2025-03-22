@@ -309,6 +309,32 @@ public class AwsModuleTest {
   }
 
   @Test
+  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDeNoSessionDuration()
+      throws Exception {
+    String roleArn = "roleArn";
+    String audience = "audience";
+    String webTokenProviderFQCN = "some.class.Name";
+    Supplier<AwsCredentialsProvider> provider =
+        () ->
+            StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+                .setAssumedRoleArn(roleArn)
+                .setAudience(audience)
+                .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
+                .build();
+
+    // Deserialize without credentials from system properties
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider.get());
+
+    assertThat(deserializedProvider)
+        .isInstanceOf(StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class);
+    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider castedProvider =
+        (StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) deserializedProvider;
+    assertThat(castedProvider.assumedRoleArn()).isEqualTo(roleArn);
+    assertThat(castedProvider.audience()).isEqualTo(audience);
+    assertThat(castedProvider.webIdTokenProviderFQCN()).isEqualTo(webTokenProviderFQCN);
+  }
+
+  @Test
   public void testProxyConfigurationSerDe() {
     ProxyConfiguration proxyConfiguration =
         ProxyConfiguration.builder()
