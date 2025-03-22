@@ -37,6 +37,9 @@ import org.joda.time.Duration;
 })
 abstract class BigtableReadOptions implements Serializable {
 
+  /** Returns the experimental skip large rows option value */
+  abstract @Nullable Boolean getExperimentalSkipLargeRows();
+
   /** Returns the table id. */
   abstract ValueProvider<String> getTableId();
 
@@ -69,6 +72,8 @@ abstract class BigtableReadOptions implements Serializable {
   @AutoValue.Builder
   abstract static class Builder {
 
+    abstract Builder setExperimentalSkipLargeRows(Boolean experimentalSkipLargeRows);
+
     abstract Builder setTableId(ValueProvider<String> tableId);
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
@@ -84,6 +89,10 @@ abstract class BigtableReadOptions implements Serializable {
     abstract Builder setWaitTimeout(Duration timeout);
 
     abstract BigtableReadOptions build();
+  }
+
+  BigtableReadOptions setExperimentalSkipLargeRows(@Nullable Boolean experimentalSkipLargeRows) {
+    return toBuilder().setExperimentalSkipLargeRows(experimentalSkipLargeRows).build();
   }
 
   BigtableReadOptions setMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
@@ -116,7 +125,10 @@ abstract class BigtableReadOptions implements Serializable {
                 .withLabel("Read Attempt Timeout"))
         .addIfNotNull(
             DisplayData.item("operationTimeout", getOperationTimeout())
-                .withLabel("Read Operation Timeout"));
+                .withLabel("Read Operation Timeout"))
+        .addIfNotNull(
+            DisplayData.item("experimentalSkipLargeRows", getExperimentalSkipLargeRows())
+                .withLabel("Skip Large Rows"));
   }
 
   void validate() {
