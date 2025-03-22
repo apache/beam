@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -40,10 +41,17 @@ public class Lineage {
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
-  private final BoundedTrie metric;
+  private final Metric metric;
 
   private Lineage(Type type) {
-    this.metric = Metrics.boundedTrie(LINEAGE_NAMESPACE, type.toString());
+    if (MetricsFlag.lineageRollupEnabled()) {
+      this.metric =
+          Metrics.boundedTrie(
+              LINEAGE_NAMESPACE,
+              type == Type.SOURCE ? Type.SOURCEV2.toString() : Type.SINKV2.toString());
+    } else {
+      this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
+    }
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
@@ -92,7 +100,6 @@ public class Lineage {
         }
       }
     }
-
     return parts;
   }
 
@@ -134,7 +141,11 @@ public class Lineage {
    */
   public void add(Iterable<String> rollupSegments) {
     ImmutableList<String> segments = ImmutableList.copyOf(rollupSegments);
-    this.metric.add(segments);
+    if (MetricsFlag.lineageRollupEnabled()) {
+      ((BoundedTrie) this.metric).add(segments);
+    } else {
+      ((StringSet) this.metric).add(String.join("", segments));
+    }
   }
 
   /**
@@ -147,13 +158,10 @@ public class Lineage {
    *     truncatedMarker.
    */
   public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
-    MetricsFilter filter =
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.named(LINEAGE_NAMESPACE, type.toString()))
-            .build();
+    MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
     Set<String> result = new HashSet<>();
     truncatedMarker = truncatedMarker == null ? "*" : truncatedMarker;
-    for (MetricResult<BoundedTrieResult> metrics : results.queryMetrics(filter).getBoundedTries()) {
+    for (MetricResult<BoundedTrieResult> metrics : lineageQueryResults.getBoundedTries()) {
       try {
         for (List<String> fqn : metrics.getCommitted().getResult()) {
           String end = Boolean.parseBoolean(fqn.get(fqn.size() - 1)) ? truncatedMarker : "";
@@ -178,13 +186,29 @@ public class Lineage {
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing '*'.
    */
   public static Set<String> query(MetricResults results, Type type) {
-    return query(results, type, "*");
+    if (MetricsFlag.lineageRollupEnabled()) {
+      // If user accidentally end up specifying V1 type then override it with V2.
+      if (type == Type.SOURCE) {
+        type = Type.SOURCEV2;
+      }
+      if (type == Type.SINK) {
+        type = Type.SINKV2;
+      }
+      return query(results, type, "*");
+    } else {
+      return queryLineageV1(results, type);
+    }
   }
 
   /** Lineage metrics resource types. */
   public enum Type {
-    SOURCE("sources_v2"),
-    SINK("sinks_v2");
+    // Used by StringSet to report lineage metrics
+    SOURCE("sources"),
+    SINK("sinks"),
+
+    // Used by BoundedTrie to report lineage metrics
+    SOURCEV2("sources_v2"),
+    SINKV2("sinks_v2");
 
     private final String name;
 
@@ -196,6 +220,33 @@ public class Lineage {
     public String toString() {
       return name;
     }
+  }
+
+  /**
+   * Query {@link StringSet} metrics from {@link MetricResults}. This method is kept as-is from
+   * previous Beam release for removal once BoundedTrie is made default.
+   */
+  private static Set<String> queryLineageV1(MetricResults results, Type type) {
+    MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
+    Set<String> result = new HashSet<>();
+    for (MetricResult<StringSetResult> metrics : lineageQueryResults.getStringSets()) {
+      try {
+        result.addAll(metrics.getCommitted().getStringSet());
+      } catch (UnsupportedOperationException unused) {
+        // MetricsResult.getCommitted throws this exception when runner support missing, just skip.
+      }
+      result.addAll(metrics.getAttempted().getStringSet());
+    }
+    return result;
+  }
+
+  /** @return {@link MetricQueryResults} containing lineage metrics. */
+  private static MetricQueryResults getLineageQueryResults(MetricResults results, Type type) {
+    MetricsFilter filter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(LINEAGE_NAMESPACE, type.toString()))
+            .build();
+    return results.queryMetrics(filter);
   }
 
   /**

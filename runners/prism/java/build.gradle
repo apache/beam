@@ -99,7 +99,9 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
 
     // Prism doesn't support multiple TestStreams.
-     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
+    'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
+    // Sometimes fails missing a final 'AFTER'. Otherwise, Hangs in ElementManager.FailBundle due to a held stageState lock.
+    'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
     // GroupIntoBatchesTest tests that fail:
     // Teststream has bad KV encodings due to using an outer context.

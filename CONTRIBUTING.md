@@ -40,12 +40,14 @@ These steps and instructions on getting started are outlined below as well.
 
 - A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment.
-- Java JDK 8 installed.
-- [Go](https://golang.org) 1.16.0 or later installed.
+- Java JDK 11 (preferred, or 8, 17, 21) installed.
+- Latest [Go](https://golang.org) 1.x installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
-  - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
-    Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
+  - For manual testing install any version of supported Python version (found [here](gradle.properties)) suffices.
+  - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
+    Interpreters should be installed and available in shell via `python3.x` commands.
+    For more information, see:
     Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 - For large contributions, a signed [Individual Contributor License.
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
@@ -86,7 +88,7 @@ To install these in a Debian-based distribution:
 1. Execute:
     ```
     sudo apt-get install \
-       openjdk-8-jdk \
+       openjdk-11-jdk \
        python-setuptools \
        python-pip \
        virtualenv \
@@ -115,7 +117,7 @@ You can install these in a Debian-based distribution for Linux or macOs using th
 * pip3 packages
 * go packages
 * goavro
-* JDK 8
+* JDK 11
 * Python
 * Docker
 
@@ -188,44 +190,17 @@ Execute:
       ./gradlew :examples:java:wordCount
      ```
 
-5. Familiarize yourself with gradle and the project structure.
+5. Follow [Code change guide](contributor-docs/code-change-guide.md) to make code changes, setting up unit tests and test locally.
 
-   At the root of the git repository, run:
-    ```
-    $ ./gradlew projects
-    ```
-   Examine the available tasks in a project. For the default set of tasks, use:
-    ```
-    $ ./gradlew tasks
-    ```
-   For a given module, use:
-    ```
-    $ ./gradlew -p sdks/java/io/cassandra tasks
-    ```
-   For an exhaustive list of tasks, use:
-    ```
-    $ ./gradlew tasks --all
-    ```
-
-6. Make sure you can build and run tests.
-
-   Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
-    ```
-    $ ./gradlew -p sdks/go check
-    $ ./gradlew -p sdks/java/io/cassandra check
-    $ ./gradlew -p runners/flink check
-    ```
-
-7. Now you may want to set up your preferred IDE and other aspects of your development
-   environment. See the Developers' wiki for tips, guides, and FAQs on:
-  - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
-  - [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
-  - [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
-  - [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
-  - [Website](https://cwiki.apache.org/confluence/display/BEAM/Website+Tips)
-  - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
-  - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
-  - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
+    You may want to set up your preferred IDE and other aspects of your development environment. See the Developers' wiki for tips, guides, and FAQs on:
+   - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
+   - [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
+   - [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
+   - [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
+   - [Website](https://cwiki.apache.org/confluence/display/BEAM/Website+Tips)
+   - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
+   - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
+   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
 
 ### Create a Pull Request
 

@@ -1467,6 +1467,18 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
 
 
+class ValueProviderInfoTest(unittest.TestCase):
+  """Tests for accessing value provider info after run."""
+  def test_accessing_valueprovider_info_after_run(self):
+    with self.assertLogs(level='INFO') as log_capture:
+      snippets.accessing_valueprovider_info_after_run()
+    expected_log_message = "The string value is"
+    self.assertTrue(
+        any(expected_log_message in log for log in log_capture.output),
+        f"Expected log message '{expected_log_message}' not found in logs: "
+        f"{log_capture.output}")
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

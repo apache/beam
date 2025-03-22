@@ -274,12 +274,18 @@ class JavaJarServer(SubprocessServer):
       java_arguments,
       classpath=None,
       cache_dir=None):
+    java_path = 'java'
+    java_home = os.environ.get('JAVA_HOME')
+    if java_home:
+      java_path = os.path.join(java_home, 'bin', 'java')
+    self._java_path = java_path
     if classpath:
       # java -jar ignores the classpath, so we make a new jar that embeds
       # the requested classpath.
       path_to_jar = self.make_classpath_jar(path_to_jar, classpath, cache_dir)
     super().__init__(
-        stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
+        stub_class,
+        [self._java_path, '-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if is_service_endpoint(
         path_to_jar) else None
 
@@ -287,10 +293,17 @@ class JavaJarServer(SubprocessServer):
     if self._existing_service:
       return None, self._existing_service
     else:
-      if not shutil.which('java'):
-        raise RuntimeError(
-            'Java must be installed on this system to use this '
-            'transform/runner.')
+      if not shutil.which(self._java_path):
+        java_home = os.environ.get('JAVA_HOME')
+        if java_home:
+          raise RuntimeError(
+              'Java is not correctly installed in JAVA_HOME=%s to use this '
+              'transform/runner. Please check if JAVA_HOME is correctly set and'
+              ' points to your Java installation directory.' % java_home)
+        else:
+          raise RuntimeError(
+              'Java must be installed on this system to use this '
+              'transform/runner.')
       return super().start_process()
 
   def stop_process(self):
@@ -322,21 +335,24 @@ class JavaJarServer(SubprocessServer):
     ])
 
   @classmethod
-  def path_to_beam_jar(
+  def parse_gradle_target(cls, gradle_target, artifact_id=None):
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
+    if not artifact_id:
+      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    return gradle_package, artifact_id
+
+  @classmethod
+  def path_to_dev_beam_jar(
       cls,
       gradle_target,
       appendix=None,
       version=beam_version,
       artifact_id=None):
-    if gradle_target in cls._BEAM_SERVICES.replacements:
-      return cls._BEAM_SERVICES.replacements[gradle_target]
-
-    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
-    if not artifact_id:
-      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    gradle_package, artifact_id = cls.parse_gradle_target(
+        gradle_target, artifact_id)
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
-    local_path = os.path.join(
+    return os.path.join(
         project_root,
         gradle_package.replace(':', os.path.sep),
         'build',
@@ -346,6 +362,22 @@ class JavaJarServer(SubprocessServer):
             version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
+
+  @classmethod
+  def path_to_beam_jar(
+      cls,
+      gradle_target,
+      appendix=None,
+      version=beam_version,
+      artifact_id=None):
+    if gradle_target in cls._BEAM_SERVICES.replacements:
+      return cls._BEAM_SERVICES.replacements[gradle_target]
+
+    _, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
+    project_root = os.path.sep.join(
+        os.path.abspath(__file__).split(os.path.sep)[:-5])
+    local_path = cls.path_to_dev_beam_jar(
+        gradle_target, appendix, version, artifact_id)
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
