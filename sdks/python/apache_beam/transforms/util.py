@@ -1002,8 +1002,7 @@ class ReshufflePerKey(PTransform):
                 tuple[K, tuple[V, Optional[Timestamp],
                                windowed_value.PaneInfo]])
     else:
-
-      def reify_timestamps(
+      def reify_timestamps(  # type: ignore[misc]
           element,
           timestamp=DoFn.TimestampParam,
           window=DoFn.WindowParam,
