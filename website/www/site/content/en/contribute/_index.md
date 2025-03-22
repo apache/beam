@@ -88,6 +88,14 @@ Here’s a list of things you can do to get started contributing:
       </ul>
     </td>
   </tr>
+
+  <tr>
+    <td>Building Apache Beam from Source</td>
+    <td>
+      If you want to contribute to Beam development, you may need to build it from source. Follow the <a href="/contribute/building-beam/">Building Apache Beam from Source</a> guide to set up your environment and build Beam.
+    </td>
+  </tr>
+
   <tr>
     <td>Improve documentation</td>
     <td>

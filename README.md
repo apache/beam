@@ -53,6 +53,16 @@ The key concepts in the Beam programming model are:
 * `Pipeline`: manages a directed acyclic graph of PTransforms and PCollections that is ready for execution.
 * `PipelineRunner`: specifies where and how the pipeline should execute.
 
+## How to Build Apache Beam from Source
+
+If you want to build Apache Beam from source to contribute or test new features, follow the step-by-step guide:
+
+➡️ [Building Apache Beam from Source](website\www\site\content\en\contribute\building-beam.md)
+
+This guide provides instructions for setting up your environment, cloning the repository, installing dependencies, and building Beam for Java, Python, and Go.
+
+
+
 ### SDKs
 
 Beam supports multiple language-specific SDKs for writing pipelines against the Beam Model.
