@@ -22,6 +22,7 @@
 --input_options={}
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
+--requirements_file=apache_beam/testing/benchmarks/wordcount/requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
 --metrics_table=python_wordcount

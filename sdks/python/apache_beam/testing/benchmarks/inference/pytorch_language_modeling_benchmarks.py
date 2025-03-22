@@ -19,10 +19,10 @@
 import logging
 
 from apache_beam.examples.inference import pytorch_language_modeling
-from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostBenchmark
 
 
-class PytorchLanguageModelingBenchmarkTest(LoadTest):
+class PytorchLanguageModelingBenchmarkTest(DataflowCostBenchmark):
   def __init__(self):
     # TODO (https://github.com/apache/beam/issues/23008):
     #  make get_namespace() method in RunInference static
