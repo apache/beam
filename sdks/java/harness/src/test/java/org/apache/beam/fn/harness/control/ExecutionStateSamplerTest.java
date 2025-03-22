@@ -170,13 +170,15 @@ public class ExecutionStateSamplerTest {
     assertEquals("ptransformIdName2", activeBundleStatus2.getPTransformUniqueName());
     assertEquals(Thread.currentThread(), activeBundleStatus1.getTrackedThread());
     assertEquals(Thread.currentThread(), activeBundleStatus2.getTrackedThread());
+    assertThat(activeBundleStatus1.getStartTime().getMillis(), equalTo(1L));
+    assertThat(activeBundleStatus2.getStartTime().getMillis(), equalTo(1L));
     assertThat(
-        activeBundleStatus1.getLastTransitionTimeMillis(),
+        activeBundleStatus1.getLastTransitionTime().getMillis(),
         // Because we are using lazySet, we aren't guaranteed to see the latest value
         // but we should definitely be seeing a value that isn't zero
         equalTo(1L));
     assertThat(
-        activeBundleStatus2.getLastTransitionTimeMillis(),
+        activeBundleStatus2.getLastTransitionTime().getMillis(),
         // Internal implementation has this be equal to the second value we return (2 * 100L)
         equalTo(1L));
 
@@ -197,11 +199,11 @@ public class ExecutionStateSamplerTest {
     assertEquals(Thread.currentThread(), activeStateStatus1.getTrackedThread());
     assertEquals(Thread.currentThread(), activeStateStatus2.getTrackedThread());
     assertThat(
-        activeStateStatus1.getLastTransitionTimeMillis(),
-        greaterThan(activeBundleStatus1.getLastTransitionTimeMillis()));
+        activeStateStatus1.getLastTransitionTime(),
+        greaterThan(activeBundleStatus1.getLastTransitionTime()));
     assertThat(
-        activeStateStatus2.getLastTransitionTimeMillis(),
-        greaterThan(activeBundleStatus2.getLastTransitionTimeMillis()));
+        activeStateStatus2.getLastTransitionTime(),
+        greaterThan(activeBundleStatus2.getLastTransitionTime()));
 
     // Validate intermediate monitoring data
     Map<String, ByteString> intermediateResults1 = new HashMap<>();
@@ -242,12 +244,14 @@ public class ExecutionStateSamplerTest {
     assertNull(inactiveStateStatus2.getPTransformUniqueName());
     assertEquals(Thread.currentThread(), inactiveStateStatus1.getTrackedThread());
     assertEquals(Thread.currentThread(), inactiveStateStatus2.getTrackedThread());
+    assertEquals(inactiveStateStatus1.getStartTime(), activeStateStatus1.getStartTime());
+    assertEquals(inactiveStateStatus2.getStartTime(), activeStateStatus2.getStartTime());
     assertThat(
-        inactiveStateStatus1.getLastTransitionTimeMillis(),
-        greaterThan(activeStateStatus1.getLastTransitionTimeMillis()));
+        inactiveStateStatus1.getLastTransitionTime(),
+        greaterThan(activeStateStatus1.getLastTransitionTime()));
     assertThat(
-        inactiveStateStatus2.getLastTransitionTimeMillis(),
-        greaterThan(activeStateStatus1.getLastTransitionTimeMillis()));
+        inactiveStateStatus2.getLastTransitionTime(),
+        greaterThan(activeStateStatus1.getLastTransitionTime()));
 
     // Validate the final monitoring data
     Map<String, ByteString> finalResults1 = new HashMap<>();

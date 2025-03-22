@@ -51,6 +51,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -68,14 +69,19 @@ public class BeamFnStatusClientTest {
     ProcessBundleHandler handler = mock(ProcessBundleHandler.class);
     BundleProcessorCache processorCache = mock(BundleProcessorCache.class);
     Map<String, BundleProcessor> bundleProcessorMap = new HashMap<>();
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 20; i++) {
       BundleProcessor processor = mock(BundleProcessor.class);
       ExecutionStateTracker executionStateTracker = mock(ExecutionStateTracker.class);
       when(processor.getStateTracker()).thenReturn(executionStateTracker);
       when(executionStateTracker.getStatus())
           .thenReturn(
               ExecutionStateTrackerStatus.create(
-                  "ptransformId", "ptransformIdName", Thread.currentThread(), i * 1000, null));
+                  "ptransformId",
+                  "ptransformIdName",
+                  Thread.currentThread(),
+                  Instant.ofEpochMilli(((i + 7) % 20) * 100),
+                  Instant.ofEpochMilli(i * 1000),
+                  null));
       String instruction = Integer.toString(i);
       when(processorCache.find(instruction)).thenReturn(processor);
       bundleProcessorMap.put(instruction, processor);
@@ -95,11 +101,17 @@ public class BeamFnStatusClientTest {
     joiner.add(client.getActiveProcessBundleState());
     String actualState = joiner.toString();
 
+    // The page should only contain the 10 oldest and 10 longest transitions.
+    // That is 0-9 for last transition and 0-2 + 13-19 for start time.
     List<String> expectedInstructions = new ArrayList<>();
+    for (int i = 13; i < 20; i++) {
+      expectedInstructions.add(String.format("Instruction %d", i));
+    }
     for (int i = 0; i < 10; i++) {
       expectedInstructions.add(String.format("Instruction %d", i));
     }
     assertThat(actualState, stringContainsInOrder(expectedInstructions));
+    assertThat(actualState, containsString("20 total bundles"));
     assertThat(actualState, not(containsString("Instruction 10")));
   }
 
