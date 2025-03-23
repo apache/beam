@@ -1200,6 +1200,8 @@ public class JdbcIO {
               .withOutputParallelization(false)
               .withDisableAutoCommit(getDisableAutoCommit());
 
+      checkStateNotNull(schema);
+      readRows = readRows.withCoder(RowCoder.of(schema));
       return ranges.apply("Read ranges", readRows);
     }
 
