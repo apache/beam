@@ -516,6 +516,110 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadRowsPartitions() {
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRowsWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(1)
+                .withPartitionColumn("id")
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsPartitionsWithExplicitSchema() {
+    Schema customSchema =
+        Schema.of(
+            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
+            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT32).withNullable(true));
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRowsWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withTable(String.format("(select name,id from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(5)
+                .withPartitionColumn("id")
+                .withLowerBound(0L)
+                .withUpperBound(1000L)
+                .withRowOutput()
+                .withSchema(customSchema));
+    assertEquals(customSchema, rows.getSchema());
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsPartitionsBySubqery() {
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRowsWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(10)
+                .withPartitionColumn("id")
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsPartitionsIfNumPartitionsIsZero() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("numPartitions can not be less than 1");
+    pipeline.apply(
+        JdbcIO.readRowsWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(0)
+            .withPartitionColumn("id")
+            .withLowerBound(0L)
+            .withUpperBound(1000L));
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsPartitionsLowerBoundIsMoreThanUpperBound() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The lower bound of partitioning column is larger or equal than the upper bound");
+    pipeline.apply(
+        JdbcIO.readRowsWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(5)
+            .withPartitionColumn("id")
+            .withLowerBound(100L)
+            .withUpperBound(100L));
+    pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings({"UnusedVariable", "AssertThrowsMultipleStatements"})
+  public void testReadRowsPartitionsFailedToGetSchema() {
+    Exception exc =
+        assertThrows(
+            BeamSchemaInferenceException.class,
+            () -> {
+              // Using a new pipeline object to avoid the various checks made by TestPipeline in
+              // this pipeline which is
+              // expected to throw an exception.
+              Pipeline pipeline = Pipeline.create();
+              pipeline.apply(
+                  JdbcIO.readRowsWithPartitions()
+                      .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                      .withTable("unknown_table")
+                      .withPartitionColumn("id"));
+              pipeline.run();
+            });
+    assertThat(exc.getMessage(), containsString("Failed to infer Beam schema"));
+  }
+
+  @Test
   public void testReadWithPartitions() {
     PCollection<TestRow> rows =
         pipeline.apply(
