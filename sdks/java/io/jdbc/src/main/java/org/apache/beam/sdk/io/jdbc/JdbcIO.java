@@ -353,6 +353,44 @@ public class JdbcIO {
   }
 
   /**
+   * Like {@link #readRows}, but executes multiple instances of the query on the same table
+   * (subquery) using ranges.
+   *
+   * @param partitioningColumnType Type descriptor for the partition column.
+   */
+  public static <PartitionColumnT> ReadRowsWithPartitions<PartitionColumnT> readRowsWithPartitions(
+      TypeDescriptor<PartitionColumnT> partitioningColumnType) {
+    return new AutoValue_JdbcIO_ReadRowsWithPartitions.Builder<PartitionColumnT>()
+        .setPartitionColumnType(partitioningColumnType)
+        .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
+        .setUseBeamSchema(false)
+        .build();
+  }
+
+  /**
+   * Like {@link #readRows}, but executes multiple instances of the query on the same table
+   * (subquery) using ranges.
+   *
+   * @param partitionsHelper Custom helper for defining partitions.
+   */
+  public static <PartitionColumnT> ReadRowsWithPartitions<PartitionColumnT> readRowsWithPartitions(
+      JdbcReadWithPartitionsHelper<PartitionColumnT> partitionsHelper) {
+    return new AutoValue_JdbcIO_ReadRowsWithPartitions.Builder<PartitionColumnT>()
+        .setPartitionsHelper(partitionsHelper)
+        .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
+        .setUseBeamSchema(false)
+        .build();
+  }
+
+  public static ReadRowsWithPartitions<Long> readRowsWithPartitions() {
+    return JdbcIO.<Long>readRowsWithPartitions(TypeDescriptors.longs());
+  }
+
+  /**
    * Like {@link #read}, but executes multiple instances of the query substituting each element of a
    * {@link PCollection} as query parameters.
    *
@@ -883,6 +921,305 @@ public class JdbcIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
+    }
+  }
+
+  /** Implementation of {@link #readRowsWithPartitions}. */
+  @AutoValue
+  public abstract static class ReadRowsWithPartitions<PartitionColumnT>
+      extends PTransform<PBegin, PCollection<Row>> {
+
+    @Pure
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    @Pure
+    abstract int getFetchSize();
+
+    @Pure
+    abstract boolean getDisableAutoCommit();
+
+    @Pure
+    abstract @Nullable Schema getSchema();
+
+    @Pure
+    abstract @Nullable Integer getNumPartitions();
+
+    @Pure
+    abstract @Nullable String getPartitionColumn();
+
+    @Pure
+    abstract @Nullable PartitionColumnT getLowerBound();
+
+    @Pure
+    abstract @Nullable PartitionColumnT getUpperBound();
+
+    @Pure
+    abstract @Nullable String getTable();
+
+    @Pure
+    abstract @Nullable TypeDescriptor<PartitionColumnT> getPartitionColumnType();
+
+    @Pure
+    abstract @Nullable JdbcReadWithPartitionsHelper<PartitionColumnT> getPartitionsHelper();
+
+    @Pure
+    abstract boolean getUseBeamSchema();
+
+    @Pure
+    abstract Builder<PartitionColumnT> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<PartitionColumnT> {
+
+      abstract Builder<PartitionColumnT> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<PartitionColumnT> setFetchSize(int fetchSize);
+
+      abstract Builder<PartitionColumnT> setNumPartitions(int numPartitions);
+
+      abstract Builder<PartitionColumnT> setPartitionColumn(String partitionColumn);
+
+      abstract Builder<PartitionColumnT> setLowerBound(PartitionColumnT lowerBound);
+
+      abstract Builder<PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
+
+      abstract Builder<PartitionColumnT> setUseBeamSchema(boolean useBeamSchema);
+
+      abstract Builder<PartitionColumnT> setTable(String tableName);
+
+      abstract Builder<PartitionColumnT> setPartitionColumnType(
+          TypeDescriptor<PartitionColumnT> partitionColumnType);
+
+      abstract Builder<PartitionColumnT> setPartitionsHelper(
+          JdbcReadWithPartitionsHelper<PartitionColumnT> partitionsHelper);
+
+      abstract Builder<PartitionColumnT> setDisableAutoCommit(boolean disableAutoCommit);
+
+      abstract Builder<PartitionColumnT> setSchema(@Nullable Schema schema);
+
+      abstract ReadRowsWithPartitions<PartitionColumnT> build();
+    }
+
+    public ReadRowsWithPartitions<PartitionColumnT> withDataSourceConfiguration(
+        final DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
+    public ReadRowsWithPartitions<PartitionColumnT> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    /**
+     * The number of partitions. This, along with withLowerBound and withUpperBound, form partitions
+     * strides for generated WHERE clause expressions used to split the column withPartitionColumn
+     * evenly. When the input is less than 1, the number is set to 1.
+     */
+    public ReadRowsWithPartitions<PartitionColumnT> withNumPartitions(int numPartitions) {
+      checkArgument(numPartitions > 0, "numPartitions can not be less than 1");
+      return toBuilder().setNumPartitions(numPartitions).build();
+    }
+
+    /** The name of a column of numeric type that will be used for partitioning. */
+    public ReadRowsWithPartitions<PartitionColumnT> withPartitionColumn(String partitionColumn) {
+      checkNotNull(partitionColumn, "partitionColumn can not be null");
+      return toBuilder().setPartitionColumn(partitionColumn).build();
+    }
+
+    /** The number of rows to fetch from the database in the same {@link ResultSet} round-trip. */
+    public ReadRowsWithPartitions<PartitionColumnT> withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetchSize can not be less than 1");
+      return toBuilder().setFetchSize(fetchSize).build();
+    }
+
+    /**
+     * Whether to disable auto commit on read. Defaults to true if not provided. The need for this
+     * config varies depending on the database platform. Informix requires this to be set to false
+     * while Postgres requires this to be set to true.
+     */
+    public ReadRowsWithPartitions<PartitionColumnT> withDisableAutoCommit(
+        boolean disableAutoCommit) {
+      return toBuilder().setDisableAutoCommit(disableAutoCommit).build();
+    }
+
+    /** Data output type is {@link Row}, and schema is auto-inferred from the database. */
+    public ReadRowsWithPartitions<PartitionColumnT> withRowOutput() {
+      return toBuilder().setUseBeamSchema(true).build();
+    }
+
+    public ReadRowsWithPartitions<PartitionColumnT> withLowerBound(PartitionColumnT lowerBound) {
+      return toBuilder().setLowerBound(lowerBound).build();
+    }
+
+    public ReadRowsWithPartitions<PartitionColumnT> withUpperBound(PartitionColumnT upperBound) {
+      return toBuilder().setUpperBound(upperBound).build();
+    }
+
+    /** Name of the table in the external database. Can be used to pass a user-defined subqery. */
+    public ReadRowsWithPartitions<PartitionColumnT> withTable(String tableName) {
+      checkNotNull(tableName, "table can not be null");
+      return toBuilder().setTable(tableName).build();
+    }
+
+    public ReadRowsWithPartitions<PartitionColumnT> withSchema(Schema schema) {
+      return toBuilder().setSchema(schema).build();
+    }
+
+    private static final int EQUAL = 0;
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      SerializableFunction<Void, DataSource> dataSourceProviderFn =
+          checkStateNotNull(
+              getDataSourceProviderFn(),
+              "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+
+      String partitionColumn =
+          checkStateNotNull(getPartitionColumn(), "withPartitionColumn() is required");
+      String table = checkStateNotNull(getTable(), "withTable() is required");
+      checkArgument(
+          (getUpperBound() != null) == (getLowerBound() != null),
+          "When providing either lower or upper bound, both "
+              + "parameters are mandatory for JdbcIO.readRowsWithPartitions");
+      if (getLowerBound() != null
+          && getUpperBound() != null
+          && getLowerBound() instanceof Comparable<?>) {
+        // Not all partition types are comparable. For example, LocalDateTime, which is a valid
+        // partitioning type, is not Comparable, so we can't enforce this for all sorts of
+        // partitioning.
+        checkArgument(
+            ((Comparable<PartitionColumnT>) getLowerBound()).compareTo(getUpperBound()) < EQUAL,
+            "The lower bound of partitioning column is larger or equal than the upper bound");
+      }
+
+      JdbcReadWithPartitionsHelper<PartitionColumnT> partitionsHelper = getPartitionsHelper();
+      if (partitionsHelper == null) {
+        partitionsHelper =
+            JdbcUtil.getPartitionsHelper(
+                checkStateNotNull(
+                    getPartitionColumnType(),
+                    "Provide partitionColumnType or partitionsHelper for JdbcIO.readRowsWithPartitions()"));
+        checkNotNull(
+            partitionsHelper,
+            "readRowsWithPartitions only supports the following types: %s",
+            JdbcUtil.PRESET_HELPERS.keySet());
+      }
+
+      PCollection<KV<Long, KV<PartitionColumnT, PartitionColumnT>>> params;
+
+      if (getLowerBound() == null && getUpperBound() == null) {
+        String query =
+            String.format(
+                "SELECT min(%s), max(%s) FROM %s", partitionColumn, partitionColumn, table);
+        if (getNumPartitions() == null) {
+          query =
+              String.format(
+                  "SELECT min(%s), max(%s), count(*) FROM %s",
+                  partitionColumn, partitionColumn, table);
+        }
+        params =
+            input
+                .apply(
+                    JdbcIO.<KV<Long, KV<PartitionColumnT, PartitionColumnT>>>read()
+                        .withQuery(query)
+                        .withDataSourceProviderFn(dataSourceProviderFn)
+                        .withRowMapper(checkStateNotNull(partitionsHelper))
+                        .withFetchSize(getFetchSize())
+                        .withDisableAutoCommit(getDisableAutoCommit()))
+                .apply(
+                    MapElements.via(
+                        new SimpleFunction<
+                            KV<Long, KV<PartitionColumnT, PartitionColumnT>>,
+                            KV<Long, KV<PartitionColumnT, PartitionColumnT>>>() {
+                          @Override
+                          public KV<Long, KV<PartitionColumnT, PartitionColumnT>> apply(
+                              KV<Long, KV<PartitionColumnT, PartitionColumnT>> input) {
+                            KV<Long, KV<PartitionColumnT, PartitionColumnT>> result;
+                            if (getNumPartitions() == null) {
+                              // In this case, we use the table row count to infer a number of
+                              // partitions.
+                              // We take the square root of the number of rows, and divide it by 10
+                              // to keep a relatively low number of partitions, given that an RDBMS
+                              // cannot usually accept a very large number of connections.
+                              long numPartitions =
+                                  Math.max(
+                                      1, Math.round(Math.floor(Math.sqrt(input.getKey()) / 10)));
+                              result = KV.of(numPartitions, input.getValue());
+                            } else {
+                              result = KV.of(getNumPartitions().longValue(), input.getValue());
+                            }
+                            LOG.info(
+                                "Inferred min: {} - max: {} - numPartitions: {}",
+                                result.getValue().getKey(),
+                                result.getValue().getValue(),
+                                result.getKey());
+                            return result;
+                          }
+                        }));
+      } else {
+        params =
+            input.apply(
+                Create.of(
+                    KV.of(
+                        checkStateNotNull(getNumPartitions()).longValue(),
+                        KV.of(getLowerBound(), getUpperBound()))));
+      }
+
+      // Don't infer schema if explicitly provided.
+      RowMapper<Row> rowMapper = null;
+      Schema schema = null;
+      if (getUseBeamSchema()) {
+        schema =
+            getSchema() != null
+                ? getSchema()
+                : ReadRows.inferBeamSchema(
+                    dataSourceProviderFn.apply(null),
+                    String.format("SELECT * FROM %s", getTable()));
+        rowMapper = SchemaUtil.BeamRowMapper.of(schema);
+      }
+      checkStateNotNull(rowMapper);
+
+      PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
+          params
+              .apply(
+                  "Partitioning",
+                  ParDo.of(new PartitioningFn<>(checkStateNotNull(partitionsHelper))))
+              .apply("Reshuffle partitions", Reshuffle.viaRandomKey());
+
+      JdbcIO.ReadAll<KV<PartitionColumnT, PartitionColumnT>, Row> readRows =
+          JdbcIO.<KV<PartitionColumnT, PartitionColumnT>, Row>readAll()
+              .withDataSourceProviderFn(dataSourceProviderFn)
+              .withQuery(
+                  String.format(
+                      "select * from %1$s where %2$s >= ? and %2$s < ?", table, partitionColumn))
+              .withRowMapper(rowMapper)
+              .withFetchSize(getFetchSize())
+              .withParameterSetter(checkStateNotNull(partitionsHelper))
+              .withOutputParallelization(false)
+              .withDisableAutoCommit(getDisableAutoCommit());
+
+      return ranges.apply("Read ranges", readRows);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
+      builder.add(DisplayData.item("table", getTable()));
+      builder.add(
+          DisplayData.item(
+              "numPartitions",
+              getNumPartitions() == null ? "auto-infer" : getNumPartitions().toString()));
+      builder.add(
+          DisplayData.item(
+              "lowerBound", getLowerBound() == null ? "auto-infer" : getLowerBound().toString()));
+      builder.add(
+          DisplayData.item(
+              "upperBound", getUpperBound() == null ? "auto-infer" : getUpperBound().toString()));
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
