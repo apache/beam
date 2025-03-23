@@ -1170,17 +1170,15 @@ public class JdbcIO {
       }
 
       // Don't infer schema if explicitly provided.
-      RowMapper<Row> rowMapper = null;
       Schema schema = null;
-      if (getUseBeamSchema()) {
+      if (getSchema() != null) {
+        schema = getSchema();
+      } else {
         schema =
-            getSchema() != null
-                ? getSchema()
-                : ReadRows.inferBeamSchema(
-                    dataSourceProviderFn.apply(null),
-                    String.format("SELECT * FROM %s", getTable()));
-        rowMapper = SchemaUtil.BeamRowMapper.of(schema);
+            ReadRows.inferBeamSchema(
+                dataSourceProviderFn.apply(null), String.format("SELECT * FROM %s", getTable()));
       }
+      RowMapper<Row> rowMapper = SchemaUtil.BeamRowMapper.of(schema);
       checkStateNotNull(rowMapper);
 
       PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
