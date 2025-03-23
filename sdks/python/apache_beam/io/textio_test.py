@@ -1471,7 +1471,7 @@ class TextSourceTest(unittest.TestCase):
       mock_dirname.side_effect = TypeError(expected_error_message)
       with self.assertRaises(OSError):
         with TestPipeline() as pipeline:
-          pipeline | 'Read' >> ReadFromText(file_pattern)
+          _ = pipeline | 'Read' >> ReadFromText(file_pattern)
 
 
 class TextSinkTest(unittest.TestCase):
