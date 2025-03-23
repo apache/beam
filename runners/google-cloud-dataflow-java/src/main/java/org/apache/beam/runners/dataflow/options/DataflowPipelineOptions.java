@@ -116,7 +116,7 @@ public interface DataflowPipelineOptions
    * options.setTemplateLocation("gs://your-bucket/templates/my-template");
    * }</pre>
    *
-   * @param templateLocation Cloud Storage path for storing the Dataflow template.
+   * @param value Cloud Storage path for storing the Dataflow template.
    */
   void setTemplateLocation(String value);
 
