@@ -778,6 +778,9 @@ public class JdbcIO {
 
     public ReadRows withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      if (getDataSourceProviderFn() != null && !(getDataSourceProviderFn() instanceof DataSourceProviderFromDataSourceConfiguration)) {
+        LOG.warn("Both withDataSourceConfiguration and withDataSourceProviderFn are provided. dataSourceProviderFn will override dataSourceConfiguration.");
+      }
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
@@ -948,6 +951,9 @@ public class JdbcIO {
 
     public Read<T> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      if (getDataSourceProviderFn() != null && !(getDataSourceProviderFn() instanceof DataSourceProviderFromDataSourceConfiguration)) {
+        LOG.warn("Both withDataSourceConfiguration and withDataSourceProviderFn are provided. dataSourceProviderFn will override dataSourceConfiguration.");
+      }
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
