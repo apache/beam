@@ -288,6 +288,26 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
       assert_that(result, equal_to(expected_rows))
 
+    # Try the same read using the partitioned reader code path.
+    # with explicit partition bounds.
+    with TestPipeline() as p:
+      p.not_use_test_runner_api = True
+      result = (
+          p
+          | 'Partitioned read from jdbc' >> ReadFromJdbc(
+              table_name=table_name,
+              partition_column='f_id',
+              partitions=3,
+              lower_bound=0,
+              upper_bound=2,
+              driver_class_name=config['driver_class_name'],
+              jdbc_url=config['jdbc_url'],
+              username=config['username'],
+              password=config['password'],
+              classpath=config['classpath']))
+
+      assert_that(result, equal_to(expected_rows[:3]))
+
   @parameterized.expand(['postgres', 'mysql'])
   def test_xlang_jdbc_read_with_explicit_schema(self, database):
     if self.containers[database] is None:

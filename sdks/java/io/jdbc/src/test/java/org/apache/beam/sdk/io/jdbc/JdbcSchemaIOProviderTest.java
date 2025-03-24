@@ -132,6 +132,31 @@ public class JdbcSchemaIOProviderTest {
   }
 
   @Test
+  public void testPartitionedReadWithExplicitLongBounds() {
+    JdbcSchemaIOProvider provider = new JdbcSchemaIOProvider();
+
+    Row config =
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue("driverClassName", DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
+            .withFieldValue("jdbcUrl", DATA_SOURCE_CONFIGURATION.getUrl().get())
+            .withFieldValue("username", "")
+            .withFieldValue("password", "")
+            .withFieldValue("partitionColumn", "id")
+            .withFieldValue("partitions", (short) 5)
+            .withFieldValue("longLowerBound", 0L)
+            .withFieldValue("longUpperBound", (long) EXPECTED_ROW_COUNT / 2)
+            .build();
+
+    JdbcSchemaIOProvider.JdbcSchemaIO schemaIO =
+        provider.from(READ_TABLE_NAME, config, Schema.builder().build());
+
+    PCollection<Row> output = pipeline.apply(schemaIO.buildReader());
+    Long expected = Long.valueOf(EXPECTED_ROW_COUNT / 2 + 1);
+    PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+  @Test
   public void testReadWithExplicitSchema() {
     JdbcSchemaIOProvider provider = new JdbcSchemaIOProvider();
 
