@@ -1050,7 +1050,7 @@ class ReshuffleTest(unittest.TestCase):
     options = PipelineOptions(update_compatibility_version=compat_version)
     options.view_as(StandardOptions).streaming = True
 
-    with beam.Pipeline(runner="BundleBasedDirectRunner", options=options) as p:
+    with beam.Pipeline(options=options) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
               100).add_elements(l[:element_count // 4]).advance_processing_time(
