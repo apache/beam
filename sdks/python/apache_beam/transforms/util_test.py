@@ -1136,8 +1136,6 @@ class ReshuffleTest(unittest.TestCase):
 
     options = PipelineOptions(update_compatibility_version=compat_version)
     with TestPipeline(options=options) as pipeline:
-      # Create PaneInfo objects
-
       # Create windowed values with specific metadata
       elements = [
           WindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),

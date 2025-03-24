@@ -938,6 +938,8 @@ def is_compat_version_prior_to(options, breaking_change_version):
   #   will return False and use the behavior from the breaking change.
   update_compatibility_version = options.view_as(
       pipeline_options.StreamingOptions).update_compatibility_version
+  update_compatibility_version = options.view_as(
+      pipeline_options.StreamingOptions).update_compatibility_version
 
   if update_compatibility_version is None:
     return False
@@ -1027,12 +1029,18 @@ def _reify_restore_functions(is_default_windowing, should_keep_paneinfo):
 
 
 def _add_pre_map_gkb_types(
-    pre_gbk_map, is_default_windowing, should_keep_typehint_change):
+    pre_gbk_map,
+    is_default_windowing,
+    should_keep_typehint_change,
+    should_keep_paneinfo):
   if not should_keep_typehint_change:
     return pre_gbk_map.with_output_types(Any)
   if is_default_windowing:
+    if should_keep_paneinfo:
+      return pre_gbk_map.with_input_types(tuple[K, V]).with_output_types(
+          tuple[K, tuple[V, Optional[Timestamp], windowed_value.PaneInfo]])
     return pre_gbk_map.with_input_types(tuple[K, V]).with_output_types(
-        tuple[K, tuple[V, Optional[Timestamp], windowed_value.PaneInfo]])
+        tuple[K, tuple[V, Optional[Timestamp]]])
   return pre_gbk_map.with_input_types(tuple[K, V]).with_output_types(
       tuple[K, TypedWindowedValue[V]])
 
@@ -1056,7 +1064,10 @@ class ReshufflePerKey(PTransform):
     should_keep_typehint_change = not is_compat_version_prior_to(
         pcoll.pipeline.options, RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION)
     pre_gbk_map = _add_pre_map_gkb_types(
-        Map(reify_fn), is_default_windowing, should_keep_typehint_change)
+        Map(reify_fn),
+        is_default_windowing,
+        should_keep_typehint_change,
+        should_keep_paneinfo)
 
     ungrouped = pcoll | pre_gbk_map
 
