@@ -1069,6 +1069,10 @@ public class JdbcIO {
       return toBuilder().setSchema(schema).build();
     }
 
+    /**
+     * Variable used to check if lowerBound of Partitioning Column is strictly less than the
+     * upperBound.
+     */
     private static final int EQUAL = 0;
 
     @Override

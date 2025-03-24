@@ -583,6 +583,30 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadRowsPartitionsNullPartitionColumn() {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("partitionColumn can not be null");
+    pipeline.apply(
+        JdbcIO.readRowsWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withTable(READ_TABLE_NAME)
+            .withPartitionColumn(null));
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsPartitionsNullTableName() {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("table can not be null");
+    pipeline.apply(
+        JdbcIO.readRowsWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withTable(null)
+            .withPartitionColumn("id"));
+    pipeline.run();
+  }
+
+  @Test
   public void testReadRowsPartitionsLowerBoundIsMoreThanUpperBound() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
