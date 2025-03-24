@@ -318,6 +318,20 @@ class CodersTest(unittest.TestCase):
             for k in range(0, int(math.log(MAX_64_BIT_INT)))
         ])
 
+  def test_varint32_coder(self):
+    # Small ints.
+    self.check_coder(coders.VarInt32Coder(), *range(-10, 10))
+    # Multi-byte encoding starts at 128
+    self.check_coder(coders.VarInt32Coder(), *range(120, 140))
+    # Large values
+    MAX_32_BIT_INT = 0x7fffffff
+    self.check_coder(
+        coders.VarIntCoder(),
+        *[
+            int(math.pow(-1, k) * math.exp(k))
+            for k in range(0, int(math.log(MAX_32_BIT_INT)))
+        ])
+
   def test_float_coder(self):
     self.check_coder(
         coders.FloatCoder(), *[float(0.1 * x) for x in range(-100, 100)])

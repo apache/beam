@@ -629,7 +629,7 @@ Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
-  """Variable-length integer coder."""
+  """Variable-length integer coder  matches Java SDK's VarLongCoder."""
   def _create_impl(self):
     return coder_impl.VarIntCoderImpl()
 
@@ -648,6 +648,25 @@ class VarIntCoder(FastCoder):
 
 
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
+
+
+class VarInt32Coder(FastCoder):
+  """Variable-length integer coder matches Java SDK's VarIntCoder."""
+  def _create_impl(self):
+    return coder_impl.VarInt32CoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class BigEndianShortCoder(FastCoder):
