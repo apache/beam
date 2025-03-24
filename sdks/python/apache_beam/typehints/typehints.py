@@ -505,20 +505,24 @@ class UnionHint(CompositeTypeHint):
   """
   class UnionConstraint(TypeConstraint):
     def __init__(self, union_types):
-      self.union_types = set(normalize(t) for t in union_types)
+      # Use a list instead of a set to make the pickle serialization
+      # deterministic.
+      self.union_types = list(set(normalize(t) for t in union_types))
+      # Sorting the type name strings simplifies unit tests.
+      self.union_types.sort(key=repr)
 
     def __eq__(self, other):
       return (
           isinstance(other, UnionHint.UnionConstraint) and
-          self.union_types == other.union_types)
+          # The union types represent a set even thought they are stored as a
+          # list.
+          set(self.union_types) == set(other.union_types))
 
     def __hash__(self):
       return 1 + sum(hash(t) for t in self.union_types)
 
     def __repr__(self):
-      # Sorting the type name strings simplifies unit tests.
-      return 'Union[%s]' % (
-          ', '.join(sorted(repr(t) for t in self.union_types)))
+      return 'Union[%s]' % (', '.join(repr(t) for t in self.union_types))
 
     def inner_types(self):
       for t in self.union_types:
@@ -550,7 +554,7 @@ class UnionHint(CompositeTypeHint):
           '%s type-constraint violated. Expected an instance of one of: %s, '
           'received %s instead.%s' % (
               repr(self),
-              tuple(sorted(repr(t) for t in self.union_types)),
+              tuple(repr(t) for t in self.union_types),
               instance.__class__.__name__,
               error_msg))
 
@@ -583,7 +587,7 @@ class UnionHint(CompositeTypeHint):
           t, error_msg_prefix='All parameters to a Union hint')
 
       if isinstance(t, self.UnionConstraint):
-        params |= t.union_types
+        params |= set(t.union_types)
       elif isinstance(t, DictConstraint):
         if dict_union is None:
           dict_union = t
