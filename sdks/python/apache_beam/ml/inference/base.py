@@ -358,8 +358,8 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
       overload_ratio: float = 2):
     """Initializes metrics tracking + an AdaptiveThrottler class for enabling
     client-side throttling for remote calls to an inference service.
-    See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing 
-    for more details. on the configuration of the throttling and retry
+    See https://s.apache.org/beam-client-side-throttling for more details
+    on the configuration of the throttling and retry
     mechanics.
 
     Args:
@@ -379,8 +379,6 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
     """
     # Configure AdaptiveThrottler and throttling metrics for client-side
     # throttling behavior.
-    # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing 
-    # for more details.
     self.throttled_secs = Metrics.counter(
         namespace, "cumulativeThrottlingSeconds")
     self.throttler = AdaptiveThrottler(
