@@ -661,6 +661,12 @@ class MetaInlineProvider(InlineProvider):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
+def get_default_sql_provider():
+  return beam_jar(
+      urns={'Sql': 'beam:external:java:sql:v1'},
+      gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+
+
 class SqlBackedProvider(Provider):
   def __init__(
       self,
@@ -668,9 +674,7 @@ class SqlBackedProvider(Provider):
       sql_provider: Optional[Provider] = None):
     self._transforms = transforms
     if sql_provider is None:
-      sql_provider = beam_jar(
-          urns={'Sql': 'beam:external:java:sql:v1'},
-          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+      sql_provider = get_default_sql_provider()
     self._sql_provider = sql_provider
 
   def sql_provider(self):
