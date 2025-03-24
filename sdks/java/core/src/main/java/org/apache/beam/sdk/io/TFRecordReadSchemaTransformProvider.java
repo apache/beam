@@ -1,0 +1,182 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io;
+
+import com.google.auto.service.AutoService;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@AutoService(SchemaTransformProvider.class)
+public class TFRecordReadSchemaTransformProvider
+    extends TypedSchemaTransformProvider<TFRecordReadSchemaTransformConfiguration> {
+  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:tfrecord_read:v1";
+  private static final String OUTPUT = "output";
+  private static final String ERROR = "errors";
+  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  private static final Logger LOG =
+      LoggerFactory.getLogger(TFRecordReadSchemaTransformProvider.class);
+
+  /** Returns the expected class of the configuration. */
+  @Override
+  protected Class<TFRecordReadSchemaTransformConfiguration> configurationClass() {
+    return TFRecordReadSchemaTransformConfiguration.class;
+  }
+
+  /** Returns the expected {@link SchemaTransform} of the configuration. */
+  @Override
+  protected SchemaTransform from(TFRecordReadSchemaTransformConfiguration configuration) {
+    return new TFRecordReadSchemaTransform(configuration);
+  }
+
+  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
+  @Override
+  public String identifier() {
+    return IDENTIFIER;
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
+   * no input is expected, this returns an empty list.
+   */
+  @Override
+  public List<String> inputCollectionNames() {
+    return Collections.emptyList();
+  }
+
+  /** Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. */
+  @Override
+  public List<String> outputCollectionNames() {
+    return Arrays.asList(OUTPUT, ERROR);
+  }
+
+  /**
+   * An implementation of {@link SchemaTransform} for TFRecord read jobs configured using {@link
+   * TFRecordReadSchemaTransformConfiguration}.
+   */
+  static class TFRecordReadSchemaTransform extends SchemaTransform {
+    private final TFRecordReadSchemaTransformConfiguration configuration;
+
+    TFRecordReadSchemaTransform(TFRecordReadSchemaTransformConfiguration configuration) {
+      this.configuration = configuration;
+    }
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      // configuration.validate();
+      TFRecordIO.Read readTransform =
+          TFRecordIO.read().withCompression(configuration.getCompression());
+
+      String filePattern = configuration.getFilePattern();
+      System.out.println(filePattern);
+      if (filePattern != null) {
+        System.out.printf("filePattern:%s", filePattern);
+        readTransform = readTransform.from(filePattern);
+      }
+
+      if (!configuration.getValidate()) {
+        readTransform = readTransform.withoutValidation();
+      }
+
+      // Read TFRecord files into a PCollection of byte arrays.
+      PCollection<byte[]> tfRecordValues = input.getPipeline().apply(readTransform);
+      // Schema schema = tfRecordValues.getSchema();
+
+      // Define the schema for the row
+      Schema schema = Schema.of(Schema.Field.of("record", Schema.FieldType.BYTES));
+
+      // Convert byte arrays to Rows based on the provided Schema.
+      PCollection<Row> outputRows =
+          tfRecordValues.apply(
+              ParDo.of(
+                  new DoFn<byte[], Row>() {
+                    @ProcessElement
+                    public void processElement(@Element byte[] byteArray, OutputReceiver<Row> out) {
+                      Row row = Row.withSchema(schema).addValues(byteArray).build();
+                      out.output(row);
+                    }
+                  }));
+
+      return PCollectionRowTuple.of(OUTPUT, outputRows.setRowSchema(schema));
+
+    }
+  }
+
+  public static class ErrorFn extends DoFn<byte[], Row> {
+    private final SerializableFunction<byte[], Row> valueMapper;
+    private final Counter errorCounter;
+    private Long errorsInBundle = 0L;
+    private final boolean handleErrors;
+    private final Schema errorSchema;
+
+    public ErrorFn(
+        String name,
+        SerializableFunction<byte[], Row> valueMapper,
+        Schema errorSchema,
+        boolean handleErrors) {
+      this.errorCounter = Metrics.counter(TFRecordReadSchemaTransformProvider.class, name);
+      this.valueMapper = valueMapper;
+      this.handleErrors = handleErrors;
+      this.errorSchema = errorSchema;
+    }
+
+    @ProcessElement
+    public void process(@DoFn.Element byte[] msg, MultiOutputReceiver receiver) {
+      Row mappedRow = null;
+      try {
+        mappedRow = valueMapper.apply(msg);
+      } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(e);
+        }
+        errorsInBundle += 1;
+        LOG.warn("Error while parsing the element", e);
+        receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, msg, e));
+      }
+      if (mappedRow != null) {
+        receiver.get(OUTPUT_TAG).output(mappedRow);
+      }
+    }
+
+    @FinishBundle
+    public void finish(FinishBundleContext c) {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
+    }
+  }
+}
