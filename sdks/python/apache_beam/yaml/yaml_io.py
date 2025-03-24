@@ -38,6 +38,7 @@ import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io import ReadFromTFRecord
+from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
@@ -588,7 +589,7 @@ def read_from_tfrecord(
 
   Args:
     file_pattern (str): A file glob pattern to read TFRecords from.
-    # coder (coders.BytesCoder): Coder used to decode each record.
+    coder (coders.BytesCoder): Coder used to decode each record.
     compression_type (CompressionTypes): Used to handle compressed input files. Default value
       is CompressionTypes.AUTO, in which case the file_path's extension will
       be used to detect the compression.
@@ -606,7 +607,7 @@ def write_to_tfrecord(
       file_name_suffix: Optional[str] = None,
       num_shards: Optional[int] = None,
       shard_name_template: Optional[str] = None,
-      compression_type: Optional[CompressionTypes] = None):
+      compression_type: Optional[str] = None):
     """Writes data to TFRecord.
 
     public abstract Builder setNoSpilling(boolean value);
@@ -632,3 +633,13 @@ def write_to_tfrecord(
     Returns:
       A WriteToTFRecord transform object.
     """
+    if compression_type == "GZIP":
+      compression = CompressionTypes.GZIP
+    return WriteToTFRecord(
+        file_path_prefix=file_path_prefix,
+        coder=coder,
+        file_name_suffix=file_name_suffix,
+        num_shards=num_shards,
+        shard_name_template=shard_name_template,
+        compression_type=compression
+    )
