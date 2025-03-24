@@ -27,7 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class KafkaIOInitializer implements JvmInitializer {
   @Override
   public void beforeProcessing(PipelineOptions options) {
-    if (ExperimentalOptions.hasExperiment(options, "enable_kafka_metrics")) {
+    if (!ExperimentalOptions.hasExperiment(options, "disable_kafka_metrics")) {
       KafkaSinkMetrics.setSupportKafkaMetrics(true);
     }
   }

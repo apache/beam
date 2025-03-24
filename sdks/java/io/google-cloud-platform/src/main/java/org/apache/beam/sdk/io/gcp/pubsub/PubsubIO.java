@@ -1189,14 +1189,15 @@ public class PubsubIO {
                 if (topicPath != null) {
                   TopicPath topic = topicPath.get();
                   if (topic != null) {
-                    Lineage.getSources().add("pubsub", "topic", topic.getDataCatalogSegments());
+                    Lineage.getSources()
+                        .add("pubsub", "topic", topic.getDataCatalogSegments(), null);
                   }
                 }
                 if (subscriptionPath != null) {
                   SubscriptionPath sub = subscriptionPath.get();
                   if (sub != null) {
                     Lineage.getSources()
-                        .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                        .add("pubsub", "subscription", sub.getDataCatalogSegments(), null);
                   }
                 }
                 reportedMetrics = true;

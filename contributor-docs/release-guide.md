@@ -404,11 +404,7 @@ occur during voting phase).
 
 - [ ] There are no release blocking GitHub issues.
 - [ ] There are no open pull requests to release branch.
-- [ ] Release Manager’s GPG key is published to `dist.apache.org`.
-- [ ] Release Manager’s GPG key is configured in `git` configuration.
-- [ ] Set `SIGNING_KEY` to the public key of the Manager's GPG key.
 - [ ] Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus.
-- [ ] Release Manager’s Nexus User Token is configured in `settings.xml`.
 - [ ] Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`).
 - [ ] Have Java 11 installed.
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.OUTPUT_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -37,12 +37,14 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.yaml.snakeyaml.Yaml;
 
+/** Tests for {@link IcebergReadSchemaTransformProvider}. */
 public class IcebergReadSchemaTransformProviderTest {
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -57,14 +59,14 @@ public class IcebergReadSchemaTransformProviderTest {
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", "test_location");
 
-    Row transformConfigRow =
+    Row config =
         Row.withSchema(new IcebergReadSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
             .build();
 
-    new IcebergReadSchemaTransformProvider().from(transformConfigRow);
+    new IcebergReadSchemaTransformProvider().from(config);
   }
 
   @Test
@@ -75,42 +77,27 @@ public class IcebergReadSchemaTransformProviderTest {
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
-        .commit();
-
-    final List<Row> expectedRows =
-        Stream.of(
-                TestFixtures.FILE1SNAPSHOT1,
-                TestFixtures.FILE2SNAPSHOT1,
-                TestFixtures.FILE3SNAPSHOT1)
-            .flatMap(List::stream)
-            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
-            .collect(Collectors.toList());
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
     Map<String, String> properties = new HashMap<>();
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    SchemaTransformConfiguration readConfig =
-        SchemaTransformConfiguration.builder()
+    Configuration.Builder readConfigBuilder =
+        Configuration.builder()
             .setTable(identifier)
             .setCatalogName("name")
-            .setCatalogProperties(properties)
-            .build();
+            .setCatalogProperties(properties);
+
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
 
     PCollection<Row> output =
         PCollectionRowTuple.empty(testPipeline)
-            .apply(new IcebergReadSchemaTransformProvider().from(readConfig))
+            .apply(new IcebergReadSchemaTransformProvider().from(readConfigBuilder.build()))
             .get(OUTPUT_TAG);
 
     PAssert.that(output)
@@ -131,27 +118,7 @@ public class IcebergReadSchemaTransformProviderTest {
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
-    simpleTable
-        .newFastAppend()
-        .appendFile(
-            warehouse.writeRecords(
-                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
-        .appendFile(
-            warehouse.writeRecords(
-                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
-        .commit();
-
-    final List<Row> expectedRows =
-        Stream.of(
-                TestFixtures.FILE1SNAPSHOT1,
-                TestFixtures.FILE2SNAPSHOT1,
-                TestFixtures.FILE3SNAPSHOT1)
-            .flatMap(List::stream)
-            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
-            .collect(Collectors.toList());
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
     String yamlConfig =
         String.format(
@@ -161,8 +128,14 @@ public class IcebergReadSchemaTransformProviderTest {
                 + "  type: %s\n"
                 + "  warehouse: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
-    Map<String, Object> configMap = new Yaml().load(yamlConfig);
 
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
+
+    Map<String, Object> configMap = new Yaml().load(yamlConfig);
     PCollection<Row> output =
         testPipeline
             .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))

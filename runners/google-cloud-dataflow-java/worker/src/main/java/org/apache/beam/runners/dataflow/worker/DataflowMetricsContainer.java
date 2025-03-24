@@ -76,9 +76,8 @@ public class DataflowMetricsContainer implements MetricsContainer {
   }
 
   @Override
-  public Gauge getPerWorkerGauge(MetricName metricName) {
-    Gauge gauge = getCurrentContainer().getPerWorkerGauge(metricName);
-    return gauge;
+  public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+    return getCurrentContainer().getHistogram(metricName, bucketType);
   }
 
   @Override
@@ -89,11 +88,5 @@ public class DataflowMetricsContainer implements MetricsContainer {
   @Override
   public BoundedTrie getBoundedTrie(MetricName metricName) {
     return getCurrentContainer().getBoundedTrie(metricName);
-  }
-
-  @Override
-  public Histogram getPerWorkerHistogram(
-      MetricName metricName, HistogramData.BucketType bucketType) {
-    return getCurrentContainer().getPerWorkerHistogram(metricName, bucketType);
   }
 }

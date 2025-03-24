@@ -467,16 +467,19 @@ These instructions explain how to configure your console (shell) for Python deve
 
 2. Use the following commands to set up and activate the virtual environment:
 
-  1. `pyenv virtualenv 3.X ENV_NAME`
-  2. `pyenv activate ENV_NAME`
+    1. `pyenv virtualenv 3.X ENV_NAME`
+    2. `pyenv activate ENV_NAME`
 
 3. Install the `apache_beam` package in editable mode:
-  `pip install -e .[gcp, test]`
+   ```
+   cd sdks/python
+   pip install -e .[gcp, test]
+   ```
 
 4. For development that uses an SDK container image, do the following:
 
-  1. Install Docker Desktop.
-  2. Install Go.
+    1. Install Docker Desktop.
+    2. Install Go.
 
 5. If you're going to submit PRs, use the following command to precommit the hook for Python code changes (nobody likes lint failures!!):
 
@@ -632,7 +635,7 @@ Tips for using the Dataflow runner:
 
 * If you run into some strange errors such as `java.lang.NoClassDefFoundError` or errors related to proto changes, try these:
   * run `./gradlew clean`
-  * remove the gradle cache, e.g., `rm -fr ~/.gradle`
+  * remove the gradle cache, e.g., `rm -fr ~/.gradle` and `rm -fr <beam-repo-dir>/.gradle`
   * remove the `build` directory at the repo root
 * To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 

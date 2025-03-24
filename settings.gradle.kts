@@ -241,6 +241,7 @@ include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:jmh")
 include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kudu")
 include(":sdks:java:io:mongodb")
@@ -335,18 +336,18 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
+include("sdks:java:io:kafka:kafka-390")
+findProject(":sdks:java:io:kafka:kafka-390")?.name = "kafka-390"
 include("sdks:java:io:kafka:kafka-312")
 findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
+include("sdks:java:io:kafka:kafka-282")
+findProject(":sdks:java:io:kafka:kafka-282")?.name = "kafka-282"
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
 include("sdks:java:io:kafka:kafka-241")
 findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
 include("sdks:java:io:kafka:kafka-231")
 findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
-include("sdks:java:io:kafka:kafka-222")
-findProject(":sdks:java:io:kafka:kafka-222")?.name = "kafka-222"
-include("sdks:java:io:kafka:kafka-211")
-findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
 include("sdks:java:io:kafka:kafka-201")
 findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
 include("sdks:java:managed")

@@ -165,7 +165,6 @@ public final class StreamingDataflowWorker {
   private static final Random CLIENT_ID_GENERATOR = new Random();
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
-  private static final String ENABLE_IPV6_EXPERIMENT = "enable_private_ipv6_google_access";
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
       "streaming_engine_use_job_settings_for_heartbeat_pool";
 
@@ -244,7 +243,9 @@ public final class StreamingDataflowWorker {
     @Nullable ChannelzServlet channelzServlet = null;
     Consumer<PrintWriter> getDataStatusProvider;
     Supplier<Long> currentActiveCommitBytesProvider;
-    if (isDirectPathPipeline(options)) {
+
+    if (options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled()) {
+      // Direct path pipelines.
       WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
@@ -605,28 +606,6 @@ public final class StreamingDataflowWorker {
     return new StreamingApplianceComputationConfigFetcher(
         windmillClient::getConfig,
         new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build()));
-  }
-
-  private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
-    if (options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled()) {
-      boolean isIpV6Enabled =
-          Optional.ofNullable(options.getDataflowServiceOptions())
-              .map(serviceOptions -> serviceOptions.contains(ENABLE_IPV6_EXPERIMENT))
-              .orElse(false);
-
-      if (isIpV6Enabled) {
-        return true;
-      }
-
-      LOG.warn(
-          "DirectPath is currently only supported with IPv6 networking stack. This requires setting "
-              + "\"enable_private_ipv6_google_access\" in experimental pipeline options. "
-              + "For information on how to set experimental pipeline options see "
-              + "https://cloud.google.com/dataflow/docs/guides/setting-pipeline-options#experimental. "
-              + "Defaulting to CloudPath.");
-    }
-
-    return false;
   }
 
   private static void validateWorkerOptions(DataflowWorkerHarnessOptions options) {

@@ -23,9 +23,9 @@ import org.apache.beam.sdk.annotations.Internal;
 /** Implementation of {@link Gauge} that delegates to the instance for the current context. */
 @Internal
 public class DelegatingGauge implements Metric, Gauge, Serializable {
+
   private final MetricName name;
   private final boolean processWideContainer;
-  private final boolean perWorkerGauge;
 
   /**
    * Create a {@code DelegatingGauge} with {@code perWorkerGauge} and {@code processWideContainer}
@@ -34,30 +34,17 @@ public class DelegatingGauge implements Metric, Gauge, Serializable {
    * @param name Metric name for this metric.
    */
   public DelegatingGauge(MetricName name) {
-    this(name, false, false);
-  }
-
-  /**
-   * Create a {@code DelegatingGauge} with {@code perWorkerGauge} set to false.
-   *
-   * @param name Metric name for this metric.
-   * @param processWideContainer Whether this Gauge is stored in the ProcessWide container or the
-   *     current thread's container.
-   */
-  public DelegatingGauge(MetricName name, boolean processWideContainer) {
-    this(name, processWideContainer, false);
+    this(name, false);
   }
 
   /**
    * @param name Metric name for this metric.
    * @param processWideContainer Whether this gauge is stored in the ProcessWide container or the
    *     current thread's container.
-   * @param perWorkerGauge Whether this gauge refers to a perWorker metric or not.
    */
-  public DelegatingGauge(MetricName name, boolean processWideContainer, boolean perWorkerGauge) {
+  public DelegatingGauge(MetricName name, boolean processWideContainer) {
     this.name = name;
     this.processWideContainer = processWideContainer;
-    this.perWorkerGauge = perWorkerGauge;
   }
 
   /** Set the gauge. */
@@ -70,11 +57,7 @@ public class DelegatingGauge implements Metric, Gauge, Serializable {
     if (container == null) {
       return;
     }
-    if (perWorkerGauge) {
-      container.getPerWorkerGauge(name).set(n);
-    } else {
-      container.getGauge(name).set(n);
-    }
+    container.getGauge(name).set(n);
   }
 
   @Override

@@ -391,6 +391,7 @@ jobs:
             echo "............Copying generated yamldoc into beam-site.........."
             mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
             cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-examples.html yamldoc/${{ github.event.inputs.RELEASE }}/examples.html
             # Update current symlink to point to the latest release
             unlink yamldoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
@@ -440,7 +441,7 @@ jobs:
           fi
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549

@@ -140,6 +140,7 @@ cdef class PGBKCVOperation(Operation):
   cdef long max_keys
   cdef long key_count
 
+  cpdef add_key_value(self, wkey, value, timestamp)
   cpdef output_key(self, wkey, value, timestamp)
 
 

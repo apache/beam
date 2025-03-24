@@ -60,10 +60,6 @@ labels:
       - andre-sampaio
       - meeral-k
     exclusionList: []
-  - name: healthcare
-    reviewers:
-      - svetakvsundhar
-    exclusionList: []
   - name: kafka
     reviewers:
       - johnjcasey

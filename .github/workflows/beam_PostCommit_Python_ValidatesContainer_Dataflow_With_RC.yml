@@ -17,7 +17,7 @@ name: PostCommit Python ValidatesContainer Dataflow With RC
 
 on:
   schedule:
-    - cron: '15 5/6 * * *'
+    - cron: '15 8/6 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_ValidatesContainer_Dataflow_With_RC.json']
   workflow_dispatch:
@@ -72,6 +72,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+      - name: Install libsnappy-dev
+        run: sudo apt-get update && sudo apt-get install -y libsnappy-dev
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
