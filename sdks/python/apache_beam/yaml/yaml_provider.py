@@ -661,6 +661,9 @@ class MetaInlineProvider(InlineProvider):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
+# Note: This function is used to override the default provider by some
+# users, so a change here will be breaking to those users. Change with
+# caution.
 def get_default_sql_provider():
   return beam_jar(
       urns={'Sql': 'beam:external:java:sql:v1'},
