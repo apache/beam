@@ -1152,9 +1152,7 @@ class ReshuffleTest(unittest.TestCase):
       after_reshuffle = (
           pipeline
           | 'Create' >> beam.Create(elements)
-          | 'Reshuffle' >> beam.Reshuffle()
-          # | 'ExtractAfter' >> beam.Map(extract_metadata)
-      )
+          | 'Reshuffle' >> beam.Reshuffle())
 
       assert_that(
           after_reshuffle,
