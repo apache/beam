@@ -248,17 +248,12 @@ class UnionHintTestCase(TypeHintTestCase):
     self.assertCompatible(
         Tuple[Any, Any], Union[Tuple[str, int], Tuple[str, float]])
 
-  def test_union_hint_repr(self):
-    hint = typehints.Union[DummyTestClass1, str]
-    self.assertIn(
+  def test_union_hint_repr_ordered_by_type(self):
+    hint = typehints.Union[DummyTestClass1, str, int, bool]
+    self.assertEqual(
         str(hint),
-        # Uses frozen set internally, so order not guaranteed.
-        [
-            "Union[<class 'str'>, <class 'apache_beam.typehints."
-            "typehints_test.DummyTestClass1'>]",
-            "Union[<class 'apache_beam.typehints.typehints_test"
-            ".DummyTestClass1'>, <class 'str'>]"
-        ])
+        "Union[<class 'apache_beam.typehints.typehints_test.DummyTestClass1'>, "
+        "<class 'bool'>, <class 'int'>, <class 'str'>]")
 
   def test_union_hint_enforcement_composite_type_in_union(self):
     o = DummyTestClass1()
