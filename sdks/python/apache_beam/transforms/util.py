@@ -1012,10 +1012,8 @@ def _custom_window_reify_functions(should_keep_paneinfo):
 
     return reify_metadata, restore_timestamps
 
-  def reify_timestamps(  # type: ignore[misc]
-      element,
-      timestamp=DoFn.TimestampParam,
-      window=DoFn.WindowParam):
+  def reify_timestamps(
+      element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
     key, value = element
     return key, windowed_value.WindowedValue(value, timestamp, [window])
 
