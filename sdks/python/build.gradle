@@ -101,7 +101,7 @@ tasks.register("generateYamlDocs") {
     exec {
       executable 'sh'
       args '-c', "${envdir}/bin/pip install $extraPackages && " +
-              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html --examples_file=${buildDir}/yaml-examples"
+              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html --examples_file=${buildDir}/yaml-examples.html"
     }
   }
   outputs.file "${buildDir}/yaml-ref.html"
