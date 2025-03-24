@@ -957,7 +957,7 @@ class ReshuffleTest(unittest.TestCase):
 
   @parameterized.expand([
       param(compat_version=None),
-      param(compat_version="2.63.0"),
+      param(compat_version="2.64.0"),
   ])
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
@@ -1080,7 +1080,7 @@ class ReshuffleTest(unittest.TestCase):
 
   @parameterized.expand([
       param(compat_version=None),
-      param(compat_version="2.63.0"),
+      param(compat_version="2.64.0"),
   ])
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
