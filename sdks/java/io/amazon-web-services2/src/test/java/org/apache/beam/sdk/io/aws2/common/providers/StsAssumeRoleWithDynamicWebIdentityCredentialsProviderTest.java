@@ -18,16 +18,15 @@
 package org.apache.beam.sdk.io.aws2.common.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
-import java.util.function.Supplier;
+import org.apache.beam.sdk.io.aws2.common.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.CredentialsProviderDelegate;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
-import software.amazon.awssdk.services.sts.auth.StsCredentialsProvider;
 
 @RunWith(MockitoJUnitRunner.class)
 public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
@@ -38,37 +37,28 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
   private static final String FAKE_ACCESS_KEY = "some-access-key";
   private static final String FAKE_SECRET_KEY = "some-secret-key";
 
-  @Mock private StsCredentialsProvider mockedProvider;
   @Mock private AwsCredentials mockedCredentials;
+  @Mock private CredentialsProviderDelegate mockedProvider;
 
   @Before
   public void before() {
-    Mockito.when(mockedCredentials.accessKeyId()).thenReturn(FAKE_ACCESS_KEY);
-    Mockito.when(mockedCredentials.secretAccessKey()).thenReturn(FAKE_SECRET_KEY);
-    mockedProvider = Mockito.mock(StsCredentialsProvider.class);
-    Mockito.when(mockedProvider.resolveCredentials()).thenReturn(mockedCredentials);
+    when(mockedCredentials.accessKeyId()).thenReturn(FAKE_ACCESS_KEY);
+    when(mockedCredentials.secretAccessKey()).thenReturn(FAKE_SECRET_KEY);
+    when(mockedProvider.resolveCredentials()).thenReturn(mockedCredentials);
   }
 
   @Test
   public void retrieveAwsCredentials() {
     StsAssumeRoleWithDynamicWebIdentityCredentialsProvider provider =
-        Mockito.spy(
-            StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
-                .setAssumedRoleArn(ASSUMED_ROLE)
-                .setAudience(AUDIENCE)
-                .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
-                .build());
-
-    Mockito.when(provider.createCredentialsDelegate(Mockito.any()))
-        .then(
-            invocation -> {
-              Supplier<WebIdTokenProvider> argument = invocation.getArgument(0);
-              // lets check the token provider used by our credentials provider is of the right type
-              assertThat(argument.get()).isInstanceOf(TestTokenProvider.class);
-              return mockedProvider;
-            });
+        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+            .setAssumedRoleArn(ASSUMED_ROLE)
+            .setAudience(AUDIENCE)
+            .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
+            .build()
+            .withTestingCredentialsProviderDelegate(mockedProvider);
 
     AwsCredentials credentials = provider.resolveCredentials();
+
     // make sure we are using the faked credentials, not something set on a local profile.
     assertThat(credentials.accessKeyId()).isEqualTo(FAKE_ACCESS_KEY);
     assertThat(credentials.secretAccessKey()).isEqualTo(FAKE_SECRET_KEY);
