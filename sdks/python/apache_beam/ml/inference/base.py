@@ -389,6 +389,25 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
     self.throttle_delay_secs = throttle_delay_secs
     self.retry_filter = retry_filter
 
+  def __init_subclass__(cls):
+    if cls.load_model is not RemoteModelHandler.load_model:
+      raise Exception(
+          "Cannot override RemoteModelHandler.load_model, ",
+          "implement load_client instead.")
+    if cls.run_inference is not RemoteModelHandler.run_inference:
+      raise Exception(
+          "Cannot override RemoteModelHandler.run_inference, ",
+          "implement request instead.")
+
+  def create_client(self) -> ModelT:
+    """Creates the client that is used to make the remote inference request
+    in request(). All relevant arguments should be passed to __init__().
+    """
+    raise NotImplementedError(type(self))
+
+  def load_model(self) -> ModelT:
+    return self.create_client()
+
   def retry_on_exception(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):

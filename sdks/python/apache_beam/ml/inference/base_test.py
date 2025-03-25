@@ -1890,7 +1890,7 @@ class FakeRemoteModelHandler(base.RemoteModelHandler[int, int, FakeModel]):
     super().__init__(
         namespace='FakeRemoteModelHandler', retry_filter=retry_filter)
 
-  def load_model(self):
+  def create_client(self):
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
@@ -1926,7 +1926,7 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
         num_retries=2,
         throttle_delay_secs=1)
 
-  def load_model(self):
+  def create_client(self):
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
@@ -1960,7 +1960,7 @@ class FakeFailsOnceRemoteModelHandler(base.RemoteModelHandler[int,
         num_retries=2,
         throttle_delay_secs=1)
 
-  def load_model(self):
+  def create_client(self):
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
@@ -2006,6 +2006,53 @@ class RunInferenceRemoteTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_exception_on_run_inference_override(self):
+    with self.assertRaises(Exception):
+
+      class FakeRemoteModelHandlerOverridesLoadModel(
+          base.RemoteModelHandler[int, int, FakeModel]):
+        def __init__(self, clock=None, retry_filter=_always_retry, **kwargs):
+          self._fake_clock = clock
+          self._min_batch_size = 1
+          self._max_batch_size = 1
+          self._env_vars = kwargs.get('env_vars', {})
+          super().__init__(
+              namespace='FakeRemoteModelHandler', retry_filter=retry_filter)
+
+        def load_model(self):
+          return FakeModel()
+
+        def request(self, batch, model, inference_args=None) -> Iterable[int]:
+          responses = []
+          for example in batch:
+            responses.append(model.predict(example))
+          return responses
+
+  def test_exception_on_run_inference_override(self):
+    with self.assertRaises(Exception):
+
+      class FakeRemoteModelHandlerOverridesRunInference(
+          base.RemoteModelHandler[int, int, FakeModel]):
+        def __init__(self, clock=None, retry_filter=_always_retry, **kwargs):
+          self._fake_clock = clock
+          self._min_batch_size = 1
+          self._max_batch_size = 1
+          self._env_vars = kwargs.get('env_vars', {})
+          super().__init__(
+              namespace='FakeRemoteModelHandler', retry_filter=retry_filter)
+
+        def create_client(self):
+          return FakeModel()
+
+        def run_inference(self,
+                          batch,
+                          model,
+                          inference_args=None) -> Iterable[int]:
+          responses = []
+          for example in batch:
+            responses.append(model.predict(example))
+          return responses
 
 
 if __name__ == '__main__':
