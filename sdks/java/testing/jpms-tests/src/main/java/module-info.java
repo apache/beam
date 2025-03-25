@@ -19,7 +19,4 @@ module org.apache.beam.sdk.jpmstests {
   exports org.apache.beam.sdk.jpmstests;
 
   requires transitive org.apache.beam.sdk;
-  requires transitive org.apache.beam.sdk.fn;
-  requires transitive org.apache.beam.fn.harness;
-  requires transitive org.apache.beam.model.fnexecution.v1;
 }
