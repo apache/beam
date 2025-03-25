@@ -393,7 +393,7 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
     if cls.load_model is not RemoteModelHandler.load_model:
       raise Exception(
           "Cannot override RemoteModelHandler.load_model, ",
-          "implement load_client instead.")
+          "implement create_client instead.")
     if cls.run_inference is not RemoteModelHandler.run_inference:
       raise Exception(
           "Cannot override RemoteModelHandler.run_inference, ",
