@@ -76,14 +76,10 @@ jobs:
           java-version: |
             17
             8
-      - name: Clean Gradle
-        run: rm -rf ~/.gradle/caches
-      - name: Clean M2
-        run: rm -rf ~/.m2/repository/org/apache/beam
       - name: run PostCommit Java Jpms Dataflow Java17 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest
+          gradle-command: :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest --no-build-cache
           arguments:
             -PskipCheckerFramework
             -PtestJavaVersion=17
