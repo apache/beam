@@ -608,38 +608,40 @@ def write_to_tfrecord(
       num_shards: Optional[int] = None,
       shard_name_template: Optional[str] = None,
       compression_type: Optional[str] = None):
-    """Writes data to TFRecord.
+  """Writes data to TFRecord.
 
-    public abstract Builder setNoSpilling(boolean value);
-    Args:
-      file_path_prefix: The file path to write to. The files written will begin
-        with this prefix, followed by a shard identifier (see num_shards), and
-        end in a common extension, if given by file_name_suffix.
-      coder: Coder used to encode each record.
-      file_name_suffix: Suffix for the files written.
-      num_shards: The number of files (shards) used for output. If not set, the
-        default value will be used.
-      shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
-      compression_type: Used to handle compressed output files. Typical value
-          is CompressionTypes.AUTO, in which case the file_path's extension will
-          be used to detect the compression.
+  public abstract Builder setNoSpilling(boolean value);
+  Args:
+    file_path_prefix: The file path to write to. The files written will begin
+      with this prefix, followed by a shard identifier (see num_shards), and
+      end in a common extension, if given by file_name_suffix.
+    coder: Coder used to encode each record.
+    file_name_suffix: Suffix for the files written.
+    num_shards: The number of files (shards) used for output. If not set, the
+      default value will be used.
+    shard_name_template: A template string containing placeholders for
+      the shard number and shard count. When constructing a filename for a
+      particular shard number, the upper-case letters 'S' and 'N' are
+      replaced with the 0-padded shard number and shard count respectively.
+      This argument can be '' in which case it behaves as if num_shards was
+      set to 1 and only one file will be generated. The default pattern used
+      is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+    compression_type: Used to handle compressed output files. Typical value
+        is CompressionTypes.AUTO, in which case the file_path's extension will
+        be used to detect the compression.
 
-    Returns:
-      A WriteToTFRecord transform object.
-    """
-    if compression_type == "GZIP":
-      compression = CompressionTypes.GZIP
-    return WriteToTFRecord(
-        file_path_prefix=file_path_prefix,
-        coder=coder,
-        file_name_suffix=file_name_suffix,
-        num_shards=num_shards,
-        shard_name_template=shard_name_template,
-        compression_type=compression
-    )
+  Returns:
+    A WriteToTFRecord transform object.
+  """
+  # print("compression_type: ", type(compression_type))
+  compression = ""
+  if compression_type == "GZIP":
+    compression = CompressionTypes.GZIP
+  return WriteToTFRecord(
+      file_path_prefix=file_path_prefix,
+      coder=coder,
+      file_name_suffix=file_name_suffix,
+      num_shards=num_shards,
+      shard_name_template=shard_name_template,
+      compression_type=compression
+  )
