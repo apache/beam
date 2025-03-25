@@ -160,27 +160,14 @@ public class SparkStreamingPortablePipelineTranslator
             .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
-    UnboundedDataset<byte[]> output;
-    if (context.getSparkContext().version().startsWith("3")) {
-      Queue<JavaRDD<WindowedValue<byte[]>>> rddQueue = new LinkedBlockingQueue<>();
-      rddQueue.offer(emptyByteArrayRDD);
-      JavaInputDStream<WindowedValue<byte[]>> emptyByteArrayStream =
-          context.getStreamingContext().queueStream(rddQueue, true /* oneAtATime */);
-      output =
-          new UnboundedDataset<>(
-              emptyByteArrayStream,
-              Collections.singletonList(emptyByteArrayStream.inputDStream().id()));
-    } else {
-      final ConstantInputDStream<WindowedValue<byte[]>> inputDStream =
-          new ConstantInputDStream<>(
-              context.getStreamingContext().ssc(),
-              emptyByteArrayRDD.rdd(),
-              JavaSparkContext$.MODULE$.fakeClassTag());
+    final SingleEmitInputDStream<WindowedValue<byte[]>> inputDStream =
+        new SingleEmitInputDStream<>(context.getStreamingContext().ssc(), emptyByteArrayRDD.rdd());
 
-      final JavaDStream<WindowedValue<byte[]>> stream =
-          JavaDStream.fromDStream(inputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
-      output = new UnboundedDataset<>(stream, Collections.singletonList(inputDStream.id()));
-    }
+    final JavaDStream<WindowedValue<byte[]>> stream =
+        JavaDStream.fromDStream(inputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
+
+    UnboundedDataset<byte[]> output =
+        new UnboundedDataset<>(stream, Collections.singletonList(inputDStream.id()));
 
     // Add watermark to holder and advance to infinity to ensure future watermarks can be updated
     GlobalWatermarkHolder.SparkWatermarks sparkWatermark =

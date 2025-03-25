@@ -15,28 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.it.clickhouse;
 
-/**
- * A no-op implementation of Gauge. This class exists to provide a default if an implementation of
- * MetricsContainer does not override a Gauge getter.
- */
-public class NoOpGauge implements Gauge {
-
-  private static final NoOpGauge SINGLETON_GAUGE = new NoOpGauge();
-  private static final MetricName NAME = MetricName.named(NoOpGauge.class, "singleton");
-
-  private NoOpGauge() {}
-
-  @Override
-  public void set(long n) {}
-
-  @Override
-  public MetricName getName() {
-    return NAME;
-  }
-
-  public static NoOpGauge getInstance() {
-    return SINGLETON_GAUGE;
+/** Custom exception for {@link ClickHouseResourceManager} implementations. */
+public class ClickHouseResourceManagerException extends RuntimeException {
+  public ClickHouseResourceManagerException(String message, Throwable err) {
+    super(message, err);
   }
 }

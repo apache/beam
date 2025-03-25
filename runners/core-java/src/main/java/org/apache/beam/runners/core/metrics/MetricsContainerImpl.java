@@ -318,6 +318,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           .setLabel(MonitoringInfoConstants.Labels.NAME, metricKey.metricName().getName())
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricKey.stepName());
     }
+
+    // Add any metricKey labels to the monitoringInfoLabels.
+    if (!metricName.getLabels().isEmpty()) {
+      builder.setLabels(metricName.getLabels());
+    }
     return builder;
   }
 

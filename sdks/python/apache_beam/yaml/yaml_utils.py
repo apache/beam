@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import os
 import uuid
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -73,3 +74,7 @@ class SafeLineLoader(SafeLoader):
       return obj.get('__line__', 'unknown')
     else:
       return getattr(obj, '_line_', 'unknown')
+
+
+def locate_data_file(relpath):
+  return os.path.join(os.path.dirname(__file__), relpath)

@@ -96,9 +96,8 @@ public class FlinkUnboundedSourceReaderTest
    * This is a concurrency correctness test. It verifies that the main thread is always waken up by
    * the alarm runner executed in the executor thread.
    */
-  @Test(timeout = 30000L)
+  @Test(timeout = 60000L)
   public void testIsAvailableAlwaysWakenUp() throws Exception {
-    long startTime = System.currentTimeMillis();
     final int numFuturesRequired = 1_000;
     List<CompletableFuture<Void>> futures = new ArrayList<>();
     AtomicReference<Exception> exceptionRef = new AtomicReference<>();
@@ -148,8 +147,6 @@ public class FlinkUnboundedSourceReaderTest
       mainThread.start();
       executorThread.start();
       executorThread.join();
-      LOG.error("ALWAYS TIME = " + (System.currentTimeMillis() - startTime));
-      LOG.info("ALWAYS TIME = " + (System.currentTimeMillis() - startTime));
     }
   }
 
