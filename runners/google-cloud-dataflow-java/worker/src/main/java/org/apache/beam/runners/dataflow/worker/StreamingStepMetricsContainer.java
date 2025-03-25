@@ -47,6 +47,7 @@ import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.NoOpHistogram;
 import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
@@ -73,12 +74,15 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private MetricsMap<MetricName, DeltaCounterCell> counters =
       new MetricsMap<>(DeltaCounterCell::new);
 
-  private final ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters;
+  // private final ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters;
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   // Stores metrics that will be later aggregted per worker.
   private MetricsMap<MetricName, GaugeCell> perWorkerGauges = new MetricsMap<>(GaugeCell::new);
+
+  // Stores metrics that will be later aggregted per worker.
+  private ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
 
   private MetricsMap<MetricName, StringSetCell> stringSets = new MetricsMap<>(StringSetCell::new);
 
@@ -92,6 +96,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private final ConcurrentHashMap<MetricName, LockFreeHistogram> perWorkerHistograms =
       new ConcurrentHashMap<>();
 
+  // Stores metrics with when they were first observed.
   private final Map<MetricName, Instant> perWorkerCountersByFirstStaleTime;
 
   private final ConcurrentHashMap<MetricName, LabeledMetricNameUtils.ParsedMetricName>
@@ -107,7 +112,6 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     this.stepName = stepName;
     this.perWorkerCountersByFirstStaleTime = new ConcurrentHashMap<>();
     this.clock = Clock.systemUTC();
-    this.perWorkerCounters = new ConcurrentHashMap<>();
     this.parsedPerWorkerMetricsCache = new ConcurrentHashMap<>();
   }
 
@@ -127,13 +131,12 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private StreamingStepMetricsContainer(
       String stepName,
       Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
-      ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
       ConcurrentHashMap<MetricName, LabeledMetricNameUtils.ParsedMetricName>
           parsedPerWorkerMetricsCache,
       Clock clock) {
     this.stepName = stepName;
     this.perWorkerCountersByFirstStaleTime = perWorkerCountersByFirstStaleTime;
-    this.perWorkerCounters = perWorkerCounters;
+    // this.perWorkerCounters = perWorkerCounters;
     this.parsedPerWorkerMetricsCache = parsedPerWorkerMetricsCache;
     this.clock = clock;
   }
@@ -142,30 +145,26 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   static StreamingStepMetricsContainer forTesting(
       String stepName,
       Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
-      ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
+      // ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
       ConcurrentHashMap<MetricName, LabeledMetricNameUtils.ParsedMetricName>
           parsedPerWorkerMetricsCache,
       Clock clock) {
     return new StreamingStepMetricsContainer(
         stepName,
         perWorkerCountersByFirstStaleTime,
-        perWorkerCounters,
+        // perWorkerCounters,
         parsedPerWorkerMetricsCache,
         clock);
   }
 
   @Override
   public Counter getCounter(MetricName metricName) {
-    return counters.get(metricName);
-  }
-
-  @Override
-  public Counter getPerWorkerCounter(MetricName metricName) {
-    if (enablePerWorkerMetrics) {
+    if (!enablePerWorkerMetrics) {
+      return NoOpCounter.getInstance();
+    } else if (enablePerWorkerMetrics && MonitoringInfoConstants.isPerWorkerMetric(metricName)) {
       return new RemoveSafeDeltaCounterCell(metricName, perWorkerCounters);
-    } else {
-      return MetricsContainer.super.getPerWorkerCounter(metricName);
     }
+    return counters.get(metricName);
   }
 
   @Override
@@ -214,6 +213,11 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         .append(gaugeUpdates())
         .append(stringSetUpdates())
         .append(boundedTrieUpdates());
+  }
+
+  // For testing only.
+  public ConcurrentHashMap<MetricName, AtomicLong> getPerWorkerCounters() {
+    return perWorkerCounters;
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -381,7 +385,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
    */
   @VisibleForTesting
   Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
-    ImmutableMap.Builder<MetricName, Long> counters = new ImmutableMap.Builder<MetricName, Long>();
+    ImmutableMap.Builder<MetricName, Long> perWorkerCounterupdates =
+        new ImmutableMap.Builder<MetricName, Long>();
     ImmutableMap.Builder<MetricName, Long> perWorkerGaugeUpdates =
         new ImmutableMap.Builder<MetricName, Long>();
     ImmutableMap.Builder<MetricName, LockFreeHistogram.Snapshot> perWorkerHistogramUpdates =
@@ -394,7 +399,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
             currentZeroValuedCounters.add(k);
             return;
           }
-          counters.put(k, val);
+          perWorkerCounterupdates.put(k, val);
         });
 
     perWorkerGauges.forEach(
@@ -413,7 +418,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
     return MetricsToPerStepNamespaceMetricsConverter.convert(
         stepName,
-        counters.build(),
+        perWorkerCounterupdates.build(),
         perWorkerGaugeUpdates.build(),
         perWorkerHistogramUpdates.build(),
         parsedPerWorkerMetricsCache);

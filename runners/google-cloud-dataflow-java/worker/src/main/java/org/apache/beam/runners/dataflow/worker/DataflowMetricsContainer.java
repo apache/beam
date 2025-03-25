@@ -60,10 +60,10 @@ public class DataflowMetricsContainer implements MetricsContainer {
     return getCurrentContainer().getCounter(metricName);
   }
 
-  @Override
-  public Counter getPerWorkerCounter(MetricName metricName) {
-    return getCurrentContainer().getPerWorkerCounter(metricName);
-  }
+  // @Override
+  // public Counter getPerWorkerCounter(MetricName metricName) {
+  //   return getCurrentContainer().getPerWorkerCounter(metricName);
+  // }
 
   @Override
   public Distribution getDistribution(MetricName metricName) {

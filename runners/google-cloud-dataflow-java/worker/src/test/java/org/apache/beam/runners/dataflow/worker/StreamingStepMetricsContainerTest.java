@@ -51,7 +51,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
@@ -422,8 +421,7 @@ public class StreamingStepMetricsContainerTest {
         MetricName.named("BigQuerySink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
 
     assertThat(
-        metricsContainer.getPerWorkerCounter(histogramMetricName),
-        sameInstance(NoOpCounter.getInstance()));
+        metricsContainer.getCounter(histogramMetricName), sameInstance(NoOpCounter.getInstance()));
     HistogramData.BucketType testBucket = HistogramData.LinearBuckets.of(1, 1, 1);
     assertThat(
         metricsContainer.getHistogram(histogramMetricName, testBucket),
@@ -431,8 +429,7 @@ public class StreamingStepMetricsContainerTest {
 
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
     assertThat(
-        metricsContainer.getPerWorkerCounter(histogramMetricName),
-        not(instanceOf(NoOpCounter.class)));
+        metricsContainer.getCounter(histogramMetricName), not(instanceOf(NoOpCounter.class)));
     assertThat(
         metricsContainer.getHistogram(histogramMetricName, testBucket),
         not(instanceOf(NoOpHistogram.class)));
@@ -441,8 +438,9 @@ public class StreamingStepMetricsContainerTest {
   @Test
   public void testExtractPerWorkerMetricUpdates_populatedMetrics() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
-    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
-    c1.getPerWorkerCounter(counterMetricName).inc(3);
+    MetricName counterMetricName =
+        MetricName.named("BigQuerySink", "counter", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    c1.getCounter(counterMetricName).inc(3);
 
     MetricName histogramMetricName =
         MetricName.named("BigQuerySink", "histogram", ImmutableMap.of("PER_WORKER_METRIC", "true"));
@@ -578,7 +576,7 @@ public class StreamingStepMetricsContainerTest {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
     MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
-    c1.getPerWorkerCounter(counterMetricName);
+    c1.getCounter(counterMetricName);
 
     MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
     HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
@@ -621,24 +619,26 @@ public class StreamingStepMetricsContainerTest {
   public void testDeleteStaleCounters() {
     TestClock clock = new TestClock(Instant.now());
     Map<MetricName, Instant> countersByFirstStaleTime = new HashMap<>();
-    ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
+    // ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
     ConcurrentHashMap<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNamesCache =
         new ConcurrentHashMap<>();
 
     StreamingStepMetricsContainer metricsContainer =
         StreamingStepMetricsContainer.forTesting(
-            "s1", countersByFirstStaleTime, perWorkerCounters, parsedMetricNamesCache, clock);
+            "s1", countersByFirstStaleTime, parsedMetricNamesCache, clock);
 
-    MetricName counterMetricName1 = MetricName.named("BigQuerySink", "counter1-");
-    MetricName counterMetricName2 = MetricName.named("BigQuerySink", "counter2-");
-    metricsContainer.getPerWorkerCounter(counterMetricName1).inc(3);
-    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    MetricName counterMetricName1 =
+        MetricName.named("BigQuerySink", "counter1-", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    MetricName counterMetricName2 =
+        MetricName.named("BigQuerySink", "counter2-", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    metricsContainer.getCounter(counterMetricName1).inc(3);
+    metricsContainer.getCounter(counterMetricName2).inc(3);
 
     List<PerStepNamespaceMetrics> updatesList =
         Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
     assertThat(updatesList.size(), equalTo(1));
 
-    assertThat(perWorkerCounters.get(counterMetricName1).get(), equalTo(0L));
+    assertThat(metricsContainer.getPerWorkerCounters().get(counterMetricName1).get(), equalTo(0L));
     assertThat(countersByFirstStaleTime.size(), equalTo(0));
     assertThat(parsedMetricNamesCache.size(), equalTo(2));
 
@@ -662,7 +662,8 @@ public class StreamingStepMetricsContainerTest {
         countersByFirstStaleTime.keySet(),
         containsInAnyOrder(counterMetricName1, counterMetricName2));
     assertThat(
-        perWorkerCounters.keySet(), containsInAnyOrder(counterMetricName1, counterMetricName2));
+        metricsContainer.getPerWorkerCounters().keySet(),
+        containsInAnyOrder(counterMetricName1, counterMetricName2));
 
     assertThat(parsedMetricNamesCache.size(), equalTo(2));
     assertThat(
@@ -671,7 +672,7 @@ public class StreamingStepMetricsContainerTest {
         parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName2, parsedCounter2));
 
     // At minute 2 metric1 is zero-valued, metric2 has been updated.
-    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    metricsContainer.getCounter(counterMetricName2).inc(3);
     clock.advance(Duration.ofSeconds(60));
 
     updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
@@ -679,7 +680,8 @@ public class StreamingStepMetricsContainerTest {
 
     assertThat(countersByFirstStaleTime.keySet(), contains(counterMetricName1));
     assertThat(
-        perWorkerCounters.keySet(), containsInAnyOrder(counterMetricName1, counterMetricName2));
+        metricsContainer.getPerWorkerCounters().keySet(),
+        containsInAnyOrder(counterMetricName1, counterMetricName2));
 
     assertThat(parsedMetricNamesCache.size(), equalTo(2));
     assertThat(
@@ -688,14 +690,14 @@ public class StreamingStepMetricsContainerTest {
         parsedMetricNamesCache, IsMapContaining.hasEntry(counterMetricName2, parsedCounter2));
 
     // After minute 6 metric1 is still zero valued and should be cleaned up.
-    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    metricsContainer.getCounter(counterMetricName2).inc(3);
     clock.advance(Duration.ofSeconds(4 * 60 + 1));
 
     updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
     assertThat(updatesList.size(), equalTo(1));
 
     assertThat(countersByFirstStaleTime.size(), equalTo(0));
-    assertThat(perWorkerCounters.keySet(), contains(counterMetricName2));
+    assertThat(metricsContainer.getPerWorkerCounters().keySet(), contains(counterMetricName2));
 
     assertThat(parsedMetricNamesCache.size(), equalTo(1));
     assertThat(
