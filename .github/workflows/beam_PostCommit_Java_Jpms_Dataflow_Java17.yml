@@ -76,10 +76,18 @@ jobs:
           java-version: |
             17
             8
+      - name: Build Java Core
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:core:build
+          arguments:
+            -PskipCheckerFramework
+            -PtestJavaVersion=17
+            -Pjava17Home=$JAVA_HOME_17_X64
       - name: run PostCommit Java Jpms Dataflow Java17 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest --no-build-cache
+          gradle-command: :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest --no-build-cache --rerun-tasks
           arguments:
             -PskipCheckerFramework
             -PtestJavaVersion=17
