@@ -136,7 +136,7 @@ tasks.withType(Test).configureEach {
 
     jvmArgs = [
             '--module-path', jpmsModule.absolutePath,
-            '--class-path', classpathDeps.asPath,
+            '--class-path', classpathDeps.collect { it.absolutePath }.join(File.pathSeparator),
             '--add-modules', 'org.apache.beam.sdk.jpmstests'
     ]
 
