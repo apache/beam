@@ -55,10 +55,14 @@ import org.apache.flink.metrics.Gauge;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Unite tests for {@link FlinkUnboundedSourceReader}. */
 public class FlinkUnboundedSourceReaderTest
     extends FlinkSourceReaderTestBase<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkUnboundedSourceReaderTest.class);
 
   @Test
   public void testSnapshotStateAndRestore() throws Exception {

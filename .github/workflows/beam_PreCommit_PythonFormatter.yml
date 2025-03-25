@@ -15,17 +15,17 @@
 
 name: PreCommit Python Formatter
 on:
-  pull_request_target:
-    branches: [ "master", "release-*" ]
-    paths: [ "sdks/python/apache_beam/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonFormatter.json']
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: [ "sdks/python/apache_beam/**",".github/workflows/beam_PreCommit_PythonFormatter.yml"]
-  schedule:
-    - cron: '0 3/6 * * *'
+#  pull_request_target:
+#    branches: [ "master", "release-*" ]
+#    paths: [ "sdks/python/apache_beam/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonFormatter.json']
+#  issue_comment:
+#    types: [created]
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths: [ "sdks/python/apache_beam/**",".github/workflows/beam_PreCommit_PythonFormatter.yml"]
+#  schedule:
+#    - cron: '0 3/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
