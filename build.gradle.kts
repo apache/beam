@@ -95,6 +95,10 @@ tasks.rat {
     // Ignore CPython LICENSE file
     "LICENSE.python",
 
+    // Ignore vendored cloudpickle files
+    " sdks/python/apache_beam/internal/cloudpickle/**",
+    "LICENCE.cloudpickle",
+
     // Json doesn't support comments.
     "**/*.json",
 
