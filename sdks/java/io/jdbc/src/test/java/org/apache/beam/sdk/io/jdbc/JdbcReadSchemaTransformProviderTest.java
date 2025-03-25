@@ -122,6 +122,17 @@ public class JdbcReadSchemaTransformProviderTest {
               .build()
               .validate();
         });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .setReadQuery("Query")
+              .setPartitionColumn("Id")
+              .build()
+              .validate();
+        });
   }
 
   @Test
@@ -181,6 +192,62 @@ public class JdbcReadSchemaTransformProviderTest {
                         .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
                         .setJdbcType("derby")
                         .setLocation(READ_TABLE_NAME)
+                        .build()))
+            .get("output");
+    Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
+    PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitions() {
+    JdbcReadSchemaTransformProvider provider = null;
+    for (SchemaTransformProvider p : ServiceLoader.load(SchemaTransformProvider.class)) {
+      if (p instanceof JdbcReadSchemaTransformProvider) {
+        provider = (JdbcReadSchemaTransformProvider) p;
+        break;
+      }
+    }
+    assertNotNull(provider);
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(
+                provider.from(
+                    JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+                        .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
+                        .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                        .setLocation(READ_TABLE_NAME)
+                        .setPartitionColumn("Id")
+                        .setNumPartitions(6)
+                        .build()))
+            .get("output");
+    Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
+    PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsWithJdbcTypeSpecified() {
+    JdbcReadSchemaTransformProvider provider = null;
+    for (SchemaTransformProvider p : ServiceLoader.load(SchemaTransformProvider.class)) {
+      if (p instanceof JdbcReadSchemaTransformProvider) {
+        provider = (JdbcReadSchemaTransformProvider) p;
+        break;
+      }
+    }
+    assertNotNull(provider);
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(
+                provider.from(
+                    JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+                        .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                        .setJdbcType("derby")
+                        .setLocation(READ_TABLE_NAME)
+                        .setPartitionColumn("Id")
+                        .setNumPartitions(6)
                         .build()))
             .get("output");
     Long expected = Long.valueOf(EXPECTED_ROW_COUNT);

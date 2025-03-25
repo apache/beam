@@ -215,10 +215,17 @@ public class JdbcReadSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
 
+      boolean partitionColumnPresent =
+          (config.getPartitionColumn() != null && !"".equals(config.getPartitionColumn()));
       boolean readQueryPresent =
           (config.getReadQuery() != null && !"".equals(config.getReadQuery()));
       boolean locationPresent = (config.getLocation() != null && !"".equals(config.getLocation()));
 
+      // Reading with partitions only supports table argument.
+      if (partitionColumnPresent && !locationPresent) {
+        throw new IllegalArgumentException("Table must be specified to read with partitions.");
+      }
+      // If you specify a readQuery, it is to be used instead of a table.
       if (readQueryPresent && locationPresent) {
         throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
       }
@@ -226,6 +233,7 @@ public class JdbcReadSchemaTransformProvider
         throw new IllegalArgumentException("Either Query or Table must be specified.");
       }
 
+      // If we define a partition column, we follow a different route.
       @Nullable String partitionColumn = config.getPartitionColumn();
       @Nullable String location = config.getLocation();
       if (partitionColumn != null) {
@@ -391,12 +399,17 @@ public class JdbcReadSchemaTransformProvider
 
       boolean readQueryPresent = (getReadQuery() != null && !"".equals(getReadQuery()));
       boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+      boolean partitionColumnPresent =
+          (getPartitionColumn() != null && !"".equals(getPartitionColumn()));
 
       if (readQueryPresent && locationPresent) {
         throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
       }
       if (!readQueryPresent && !locationPresent) {
         throw new IllegalArgumentException("Either Query or Table must be specified.");
+      }
+      if (partitionColumnPresent && !locationPresent) {
+        throw new IllegalArgumentException("Table must be specified to read with partitions.");
       }
     }
 
