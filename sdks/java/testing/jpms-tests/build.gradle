@@ -126,15 +126,18 @@ plugins.withType(JavaPlugin).configureEach{
 
 tasks.withType(Test).configureEach {
   doFirst {
-    def beamDeps = classpath.filter {
-      it.absolutePath.contains("beam") && !it.absolutePath.contains("jpms-tests")
-    }
-    def otherDeps = classpath - beamDeps
+    def allDeps = classpath.files
+    def jpmsModule = allDeps.find { it.absolutePath.contains("jpms-tests") }
+    def classpathDeps = allDeps - jpmsModule
+//    def beamDeps = classpath.filter {
+//      it.absolutePath.contains("beam") && !it.absolutePath.contains("jpms-tests")
+//    }
+//    def otherDeps = classpath - beamDeps
 
     jvmArgs = [
-            '--module-path', otherDeps.asPath,
-            '--class-path', beamDeps.asPath,
-            '--add-modules', 'ALL-MODULE-PATH'
+            '--module-path', jpmsModule.absolutePath,
+            '--class-path', classpathDeps.asPath,
+            '--add-modules', 'org.apache.beam.sdk.jpmstests'
     ]
 
     classpath = files() // clear classpath to prevent duplication
