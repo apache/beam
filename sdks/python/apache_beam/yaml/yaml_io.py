@@ -590,24 +590,25 @@ def read_from_tfrecord(
   Args:
     file_pattern (str): A file glob pattern to read TFRecords from.
     coder (coders.BytesCoder): Coder used to decode each record.
-    compression_type (CompressionTypes): Used to handle compressed input files. Default value
-      is CompressionTypes.AUTO, in which case the file_path's extension will
-      be used to detect the compression.
-    validate (bool): Boolean flag to verify that the files exist during the pipeline
-      creation time.
+    compression_type (CompressionTypes): Used to handle compressed input files.
+      Default value is CompressionTypes.AUTO, in which case the file_path's
+      extension will be used to detect the compression.
+    validate (bool): Boolean flag to verify that the files exist during the 
+      pipeline creation time.
   """
   return ReadFromTFRecord(
       file_pattern=file_pattern,
       compression_type=compression_type,
       validate=validate)
 
+
 def write_to_tfrecord(
-      file_path_prefix: str,
-      coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
-      file_name_suffix: Optional[str] = None,
-      num_shards: Optional[int] = None,
-      shard_name_template: Optional[str] = None,
-      compression_type: Optional[str] = None):
+    file_path_prefix: str,
+    coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+    file_name_suffix: Optional[str] = None,
+    num_shards: Optional[int] = None,
+    shard_name_template: Optional[str] = None,
+    compression_type: Optional[str] = None):
   """Writes data to TFRecord.
 
   public abstract Builder setNoSpilling(boolean value);
@@ -642,5 +643,4 @@ def write_to_tfrecord(
       file_name_suffix=file_name_suffix,
       num_shards=num_shards,
       shard_name_template=shard_name_template,
-      compression_type=compression
-  )
+      compression_type=compression)
