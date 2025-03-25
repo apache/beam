@@ -128,6 +128,10 @@ tasks.withType(Test).configureEach {
   java {
     modularity.inferModulePath = true
   }
+  jvmArgs += [
+          '--add-exports',
+          'org.apache.beam.sdk/org.apache.beam.sdk.fn.data=org.apache.beam.sdk.jpmstests'
+  ]
 }
 
 // JPMS requires JDK > 8. Test tasks enabled when either
