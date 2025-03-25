@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -34,11 +35,15 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
@@ -339,5 +344,62 @@ public class KafkaReadSchemaTransformProviderTest {
     for (String paramName : mapping.values()) {
       assertTrue(configSchemaFieldNames.contains(paramName));
     }
+  }
+
+  @Test
+  public void testGetRawBytesKvToRowFunction() {
+    Schema testSchema =
+        Schema.builder()
+            .addField("key", Schema.FieldType.BYTES)
+            .addField("value", Schema.FieldType.BYTES)
+            .build();
+
+    SerializableFunction<KV<byte[], byte[]>, Row> kvToRow =
+        KafkaReadSchemaTransformProvider.getRawBytesKvToRowFunction(testSchema);
+
+    KV<byte[], byte[]> inputKv =
+        KV.of(
+            "testKey".getBytes(StandardCharsets.UTF_8),
+            "testValue".getBytes(StandardCharsets.UTF_8));
+    Row outputRow = kvToRow.apply(inputKv);
+
+    assertEquals("testKey", new String(outputRow.getBytes("key"), StandardCharsets.UTF_8));
+    assertEquals("testValue", new String(outputRow.getBytes("value"), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  public void testGetRawBytesKvToRowFunctionEmptyKey() {
+    Schema testSchema =
+        Schema.builder()
+            .addField("key", Schema.FieldType.BYTES)
+            .addField("value", Schema.FieldType.BYTES)
+            .build();
+
+    SerializableFunction<KV<byte[], byte[]>, Row> kvToRow =
+        KafkaReadSchemaTransformProvider.getRawBytesKvToRowFunction(testSchema);
+
+    KV<byte[], byte[]> inputKv = KV.of(new byte[0], "testValue".getBytes(StandardCharsets.UTF_8));
+    Row outputRow = kvToRow.apply(inputKv);
+
+    assertArrayEquals(new byte[0], outputRow.getBytes("key"));
+  }
+
+  @Test
+  public void testGetRawBytesKvToRowFunctionNullValue() {
+    Schema testSchema =
+        Schema.builder()
+            .addField("key", Schema.FieldType.BYTES)
+            .addField("value", Schema.FieldType.BYTES.withNullable(true))
+            .build();
+
+    SerializableFunction<KV<byte[], byte[]>, Row> kvToRow =
+        KafkaReadSchemaTransformProvider.getRawBytesKvToRowFunction(testSchema);
+
+    KV<byte[], byte[]> inputKv = KV.of("testKey".getBytes(StandardCharsets.UTF_8), null);
+    Row outputRow = kvToRow.apply(inputKv);
+
+    byte[] valueBytes = outputRow.getBytes("value");
+    assertEquals(null, valueBytes);
+    ;
   }
 }

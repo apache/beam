@@ -52,10 +52,12 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -99,6 +101,16 @@ public class KafkaReadSchemaTransformProvider
       @Override
       public Row apply(byte[] input) {
         return Row.withSchema(rawSchema).addValue(input).build();
+      }
+    };
+  }
+
+  public static SerializableFunction<KV<byte[], byte[]>, Row> getRawBytesKvToRowFunction(
+      Schema rawSchema) {
+    return new SimpleFunction<KV<byte[], byte[]>, Row>() {
+      @Override
+      public Row apply(KV<byte[], byte[]> input) {
+        return Row.withSchema(rawSchema).addValues(input.getKey(), input.getValue()).build();
       }
     };
   }
@@ -191,8 +203,64 @@ public class KafkaReadSchemaTransformProvider
       }
 
       if ("RAW".equals(format)) {
-        beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
-        valueMapper = getRawBytesToRowFunction(beamSchema);
+        boolean withKeyMetadata = Boolean.TRUE.equals(configuration.getWithKeyMetadata());
+        if (withKeyMetadata) {
+          beamSchema =
+              Schema.builder()
+                  .addField("key", Schema.FieldType.BYTES)
+                  .addField("payload", Schema.FieldType.BYTES)
+                  .build();
+          SerializableFunction<KV<byte[], byte[]>, Row> kvValueMapper =
+              getRawBytesKvToRowFunction(beamSchema);
+          KafkaIO.Read<byte[], byte[]> kafkaRead =
+              KafkaIO.readBytes()
+                  .withConsumerConfigUpdates(consumerConfigs)
+                  .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
+                  .withTopic(configuration.getTopic())
+                  .withBootstrapServers(configuration.getBootstrapServers());
+          Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
+          if (maxReadTimeSeconds != null) {
+            kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
+          }
+          PCollection<KafkaRecord<byte[], byte[]>> kafkaRecords =
+              input.getPipeline().apply(kafkaRead);
+
+          PCollection<KV<byte[], byte[]>> kafkaValues =
+              kafkaRecords.apply(
+                  MapElements.via(
+                      new SimpleFunction<KafkaRecord<byte[], byte[]>, KV<byte[], byte[]>>() {
+                        @Override
+                        public KV<byte[], byte[]> apply(KafkaRecord<byte[], byte[]> record) {
+                          return KV.of(record.getKV().getKey(), record.getKV().getValue());
+                        }
+                      }));
+
+          Schema errorSchema = ErrorHandling.errorSchemaKvBytes();
+
+          PCollectionTuple outputTuple =
+              kafkaValues.apply(
+                  ParDo.of(
+                          new ErrorKvFn(
+                              "Kafka-read-error-counter", kvValueMapper, errorSchema, handleErrors))
+                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+          PCollectionRowTuple outputRows =
+              PCollectionRowTuple.of(
+                  "output", outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema));
+
+          PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
+          if (handleErrors) {
+            outputRows =
+                outputRows.and(
+                    checkArgumentNotNull(configuration.getErrorHandling()).getOutput(),
+                    errorOutput);
+          }
+          return outputRows;
+
+        } else {
+          beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
+          valueMapper = getRawBytesToRowFunction(beamSchema);
+        }
       } else if ("PROTO".equals(format)) {
         String fileDescriptorPath = configuration.getFileDescriptorPath();
         String messageName = checkArgumentNotNull(configuration.getMessageName());
@@ -282,6 +350,54 @@ public class KafkaReadSchemaTransformProvider
         errorsInBundle += 1;
         LOG.warn("Error while parsing the element", e);
         receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, msg, e));
+      }
+      if (mappedRow != null) {
+        receiver.get(OUTPUT_TAG).output(mappedRow);
+      }
+    }
+
+    @FinishBundle
+    public void finish(FinishBundleContext c) {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
+    }
+  }
+
+  public static class ErrorKvFn extends DoFn<KV<byte[], byte[]>, Row> {
+    private static final Logger LOG = LoggerFactory.getLogger(ErrorKvFn.class);
+    private final SerializableFunction<KV<byte[], byte[]>, Row> valueMapper;
+    private final Counter errorCounter;
+    private Long errorsInBundle = 0L;
+    private final boolean handleErrors;
+    private final Schema errorSchema;
+
+    public ErrorKvFn(
+        String name,
+        SerializableFunction<KV<byte[], byte[]>, Row> valueMapper,
+        Schema errorSchema,
+        boolean handleErrors) {
+      this.errorCounter = Metrics.counter(KafkaReadSchemaTransformProvider.class, name);
+      this.valueMapper = valueMapper;
+      this.handleErrors = handleErrors;
+      this.errorSchema = errorSchema;
+    }
+
+    @ProcessElement
+    public void process(@DoFn.Element KV<byte[], byte[]> msg, MultiOutputReceiver receiver) {
+      Row mappedRow = null;
+      try {
+        mappedRow = valueMapper.apply(msg);
+      } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(e);
+        }
+        errorsInBundle += 1;
+        LOG.warn("Error while parsing the element", e);
+        receiver
+            .get(ERROR_TAG)
+            .output(
+                ErrorHandling.errorRecord(
+                    errorSchema, msg, e)); // Use ErrorHandling.errorRecord for KV
       }
       if (mappedRow != null) {
         receiver.get(OUTPUT_TAG).output(mappedRow);

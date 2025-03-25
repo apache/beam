@@ -149,6 +149,10 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
+  @SchemaFieldDescription("Include key metadata when reading from Kafka.")
+  @Nullable
+  public abstract Boolean getWithKeyMetadata();
+
   @SchemaFieldDescription("Upper bound of how long to read from Kafka.")
   @Nullable
   public abstract Integer getMaxReadTimeSeconds();
@@ -179,6 +183,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     public abstract Builder setAutoOffsetResetConfig(String startOffset);
 
     public abstract Builder setConsumerConfigUpdates(Map<String, String> consumerConfigUpdates);
+
+    public abstract Builder setWithKeyMetadata(Boolean value);
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
