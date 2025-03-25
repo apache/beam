@@ -2007,11 +2007,10 @@ class RunInferenceRemoteTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_exception_on_run_inference_override(self):
+  def test_exception_on_load_model_override(self):
     with self.assertRaises(Exception):
 
-      class FakeRemoteModelHandlerOverridesLoadModel(
-          base.RemoteModelHandler[int, int, FakeModel]):
+      class _(base.RemoteModelHandler[int, int, FakeModel]):
         def __init__(self, clock=None, retry_filter=_always_retry, **kwargs):
           self._fake_clock = clock
           self._min_batch_size = 1
@@ -2032,8 +2031,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
   def test_exception_on_run_inference_override(self):
     with self.assertRaises(Exception):
 
-      class FakeRemoteModelHandlerOverridesRunInference(
-          base.RemoteModelHandler[int, int, FakeModel]):
+      class _(base.RemoteModelHandler[int, int, FakeModel]):
         def __init__(self, clock=None, retry_filter=_always_retry, **kwargs):
           self._fake_clock = clock
           self._min_batch_size = 1
