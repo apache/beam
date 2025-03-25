@@ -119,6 +119,12 @@ plugins.withType(JavaPlugin).configureEach{
   }
 }
 
+tasks.withType(Test).configureEach {
+  java {
+    modularity.inferModulePath = true
+  }
+}
+
 // JPMS requires JDK > 8. Test tasks enabled when either
 // (i) testJavaVersion property specified (assumed to be >8) or;
 // (ii) current Java version is greater than 8
