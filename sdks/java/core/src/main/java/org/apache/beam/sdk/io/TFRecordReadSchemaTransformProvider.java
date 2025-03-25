@@ -23,7 +23,9 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -96,6 +98,20 @@ public class TFRecordReadSchemaTransformProvider
       this.configuration = configuration;
     }
 
+    public Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(TFRecordReadSchemaTransformConfiguration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // configuration.validate();
@@ -133,7 +149,6 @@ public class TFRecordReadSchemaTransformProvider
                   }));
 
       return PCollectionRowTuple.of(OUTPUT, outputRows.setRowSchema(schema));
-
     }
   }
 

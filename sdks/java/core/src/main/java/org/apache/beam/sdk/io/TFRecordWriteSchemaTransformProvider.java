@@ -22,7 +22,9 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -95,6 +97,20 @@ public class TFRecordWriteSchemaTransformProvider
       this.configuration = configuration;
     }
 
+    public Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(TFRecordWriteSchemaTransformConfiguration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Validate configuration parameters
@@ -150,12 +166,11 @@ public class TFRecordWriteSchemaTransformProvider
       SerializableFunction<Row, byte[]> rowToBytesFn = getRowToBytesFn(schemaField);
 
       PCollection<byte[]> byteArrays = inputRows.apply(ParDo.of(new RowToBytesDoFn(rowToBytesFn)));
-     
+
       // Apply the write transform to byte arrays to write tfrecords to file.
       byteArrays.apply(writeTransform);
 
       return PCollectionRowTuple.empty(input.getPipeline());
-
     }
   }
 
