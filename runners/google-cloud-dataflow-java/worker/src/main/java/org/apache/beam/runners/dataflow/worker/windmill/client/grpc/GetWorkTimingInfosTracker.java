@@ -69,8 +69,9 @@ final class GetWorkTimingInfosTracker {
 
     // Record the difference between starting to get work and the first chunk being sent as the
     // work creation time.
+    @Nullable
     Instant workItemCreationStart = getWorkStreamTimings.get(Event.GET_WORK_CREATION_START);
-    Instant workItemCreationEnd = getWorkStreamTimings.get(Event.GET_WORK_CREATION_END);
+    @Nullable Instant workItemCreationEnd = getWorkStreamTimings.get(Event.GET_WORK_CREATION_END);
     if (workItemCreationStart != null
         && workItemCreationEnd != null
         && workItemCreationLatency == null) {
@@ -103,12 +104,24 @@ final class GetWorkTimingInfosTracker {
           });
     }
 
-    // Record the latency of each chunk between send on dispatcher and arrival on worker.
+    // Record the latency of each chunk between send on dispatcher or windmill worker and arrival on
+    // the user worker.
+    @Nullable
     Instant forwardedByDispatcherTiming =
         getWorkStreamTimings.get(Event.GET_WORK_FORWARDED_BY_DISPATCHER);
     Instant now = Instant.ofEpochMilli(clock.getMillis());
-    if (forwardedByDispatcherTiming != null && now.isAfter(forwardedByDispatcherTiming)) {
-      Duration newDuration = new Duration(forwardedByDispatcherTiming, now);
+    if (forwardedByDispatcherTiming != null) {
+      trackTransitTimeToUserWorker(forwardedByDispatcherTiming, now);
+    } else if (workItemCreationEnd != null) {
+      trackTransitTimeToUserWorker(workItemCreationEnd, now);
+    }
+
+    workItemLastChunkReceivedByWorkerTime = now;
+  }
+
+  private void trackTransitTimeToUserWorker(@Nullable Instant sourceSendTiming, Instant now) {
+    if (sourceSendTiming != null && now.isAfter(sourceSendTiming)) {
+      Duration newDuration = new Duration(sourceSendTiming, now);
       aggregatedGetWorkStreamLatencies.compute(
           State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
           (stateKey, duration) -> {
@@ -120,7 +133,6 @@ final class GetWorkTimingInfosTracker {
             return duration;
           });
     }
-    workItemLastChunkReceivedByWorkerTime = now;
   }
 
   ImmutableList<LatencyAttribution> getLatencyAttributions() {
