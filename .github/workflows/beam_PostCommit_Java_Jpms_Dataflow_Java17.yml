@@ -77,7 +77,9 @@ jobs:
             17
             8
       - name: Clean Gradle
-        run: ./gradlew clean --refresh-dependencies
+        run: rm -rf ~/.gradle/caches
+      - name: Clean M2
+        run: rm -rf ~/.m2/repository/org/apache/beam
       - name: run PostCommit Java Jpms Dataflow Java17 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
