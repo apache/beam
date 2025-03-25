@@ -52,7 +52,7 @@ jobs:
   beam_CleanUpPrebuiltSDKImages:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 360
     strategy:
       matrix: 
         job_name: [beam_CleanUpPrebuiltSDKImages]

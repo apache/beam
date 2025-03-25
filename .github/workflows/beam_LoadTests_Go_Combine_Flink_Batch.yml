@@ -64,7 +64,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Go Combine Flink Batch'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     timeout-minutes: 720
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:

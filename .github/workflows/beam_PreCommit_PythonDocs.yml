@@ -16,15 +16,15 @@
 name: PreCommit Python Docs
 
 on:
-  pull_request_target:
-    branches: [ "master", "release-*" ]
-    paths: ["sdks/python/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonDocs.json']
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
+#  pull_request_target:
+#    branches: [ "master", "release-*" ]
+#    paths: ["sdks/python/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonDocs.json']
+#  issue_comment:
+#    types: [created]
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
   schedule:
     - cron: '0 3/6 * * *'
   workflow_dispatch:
