@@ -633,7 +633,6 @@ def write_to_tfrecord(
   Returns:
     A WriteToTFRecord transform object.
   """
-  # print("compression_type: ", type(compression_type))
   compression = ""
   if compression_type == "GZIP":
     compression = CompressionTypes.GZIP
