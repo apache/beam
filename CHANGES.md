@@ -111,6 +111,8 @@
 * [Java] Support for `--add-modules` JVM option is added through a new pipeline option `JdkAddRootModules`. This allows extending the module graph with optional modules such as SDK incubator modules. Sample usage: `<pipeline invocation> --jdkAddRootModules=jdk.incubator.vector` ([#30281](https://github.com/apache/beam/issues/30281)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Managed API for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed) supports [key I/O connectors](https://beam.apache.org/documentation/io/connectors/) Iceberg, Kafka, and BigQuery.
+* [YAML] Beam YAML UDFs (such as those used in MapToFields) can now have declared dependencies
+  (e.g. pypi packages for Python, or extra jars for Java).
 * Prism now supports event time triggers for most common cases. ([#31438](https://github.com/apache/beam/issues/31438))
   * Prism does not yet support triggered side inputs, or triggers on merging windows (such as session windows).
 
