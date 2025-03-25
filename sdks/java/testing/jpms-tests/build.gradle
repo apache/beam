@@ -125,8 +125,20 @@ plugins.withType(JavaPlugin).configureEach{
 }
 
 tasks.withType(Test).configureEach {
-  classpath += configurations.runtimeClasspath
-  inputs.files(configurations.runtimeClasspath)
+  doFirst {
+    def beamDeps = classpath.filter {
+      it.absolutePath.contains("beam") && !it.absolutePath.contains("jpms-tests")
+    }
+    def otherDeps = classpath - beamDeps
+
+    jvmArgs = [
+            '--module-path', otherDeps.asPath,
+            '--class-path', beamDeps.asPath,
+            '--add-modules', 'ALL-MODULE-PATH'
+    ]
+
+    classpath = files() // clear classpath to prevent duplication
+  }
 }
 
 // JPMS requires JDK > 8. Test tasks enabled when either
