@@ -27,6 +27,10 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.auth.oauth2.IdTokenProvide
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.auth.oauth2.IdTokenProvider.Option;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
+/**
+ * A OIDC web identity token provider implementation that uses the application default credentials
+ * set by the runtime (container, GCE instance, local environment, etc.).
+ */
 public class GCPWebIdTokenProvider implements WebIdTokenProvider {
 
   @Nullable private IdTokenCredentials idTokenCredentials;

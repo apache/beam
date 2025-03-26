@@ -19,8 +19,20 @@ package org.apache.beam.sdk.io.aws2.common.providers;
 
 import org.apache.beam.sdk.util.InstanceBuilder;
 
+/**
+ * Defines the behavior for a OIDC web identity token provider. Instances of this interface will be
+ * used by an AWS credentials provider which will send the OIDC Token retrieved to dynamically
+ * refresh federated authorized credentials.
+ */
 public interface WebIdTokenProvider {
 
+  /**
+   * Factory method for OIDC web identity token provider implementations.
+   *
+   * @param providerFQCN The fully qualified class name of an implementation of {@link
+   *     WebIdTokenProvider}.
+   * @return An instance of {@link WebIdTokenProvider}.
+   */
   static WebIdTokenProvider create(String providerFQCN) {
     try {
       return InstanceBuilder.ofType(WebIdTokenProvider.class).fromClassName(providerFQCN).build();
@@ -30,5 +42,11 @@ public interface WebIdTokenProvider {
     }
   }
 
+  /**
+   * Resolves the value for a OIDC web identity token.
+   *
+   * @param audience The audience for the token.
+   * @return The encoded value for the OIDC web identity token.
+   */
   String resolveTokenValue(String audience);
 }

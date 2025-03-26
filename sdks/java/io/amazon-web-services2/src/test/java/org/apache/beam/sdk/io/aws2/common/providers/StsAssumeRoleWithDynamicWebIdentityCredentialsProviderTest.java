@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.aws2.common.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.aws2.common.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.CredentialsProviderDelegate;
 import org.junit.Before;
@@ -62,6 +62,30 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
     // make sure we are using the faked credentials, not something set on a local profile.
     assertThat(credentials.accessKeyId()).isEqualTo(FAKE_ACCESS_KEY);
     assertThat(credentials.secretAccessKey()).isEqualTo(FAKE_SECRET_KEY);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void mustFailWithoutRole() {
+    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+        .setAudience(AUDIENCE)
+        .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
+        .build();
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void mustFailWithoutAudience() {
+    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+        .setAssumedRoleArn(ASSUMED_ROLE)
+        .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
+        .build();
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void mustFailWithoutIdTokenProvider() {
+    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+        .setAssumedRoleArn(ASSUMED_ROLE)
+        .setAudience(AUDIENCE)
+        .build();
   }
 
   public static class TestTokenProvider implements WebIdTokenProvider {
