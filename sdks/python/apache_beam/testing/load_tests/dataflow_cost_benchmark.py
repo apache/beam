@@ -27,6 +27,7 @@ from google.cloud import monitoring_v3
 from google.protobuf.duration_pb2 import Duration
 
 import apache_beam.testing.load_tests.dataflow_cost_consts as costs
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.internal.apiclient import DataflowApplicationClient
 from apache_beam.runners.runner import PipelineState
@@ -134,7 +135,8 @@ class DataflowCostBenchmark(LoadTest):
     metrics_dict["EstimatedCost"] = cost
     return metrics_dict
 
-  def _process_metrics_list(self, metrics: list) -> dict[str, Any]:
+  def _process_metrics_list(self,
+                            metrics: list[MetricResult]) -> dict[str, Any]:
     system_metrics = {}
     for entry in metrics:
       metric_key = entry.key
