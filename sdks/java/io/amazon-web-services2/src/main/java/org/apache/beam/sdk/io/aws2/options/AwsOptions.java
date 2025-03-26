@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.options;
 import java.net.URI;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
+import org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -143,6 +144,21 @@ public interface AwsOptions extends PipelineOptions {
    *   "roleArn": "role_arn_Value",
    *   "roleSessionName": "session_name_value",
    *   "webIdentityToken": "web_identity_token_value",
+   *   "durationSeconds": 3600
+   * }}</pre>
+   *
+   * <li>{@link StsAssumeRoleWithDynamicWebIdentityCredentialsProvider}
+   *
+   *     <p>Similar to {@link StsAssumeRoleWithWebIdentityCredentialsProvider} but supporting
+   *     long-running jobs. The configuration expects the fqcn for an implementation of {@link
+   *     org.apache.beam.sdk.io.aws2.common.auth.providers.WebIdTokenProvider} which will be used to
+   *     retrieve a fresh token with each STS auth request.
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "StsAssumeRoleWithDynamicWebIdentityCredentialsProvider",
+   *   "roleArn": "role_arn_Value",
+   *   "roleSessionName": "session_name_value",
+   *   "webIdTokenProviderFQCN": "fully_qualified_class_name",
    *   "durationSeconds": 3600
    * }}</pre>
    *
