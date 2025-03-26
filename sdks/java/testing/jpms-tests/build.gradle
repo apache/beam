@@ -79,8 +79,8 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:harness")
   permitUnusedDeclared project(":sdks:java:core")
 
-  testImplementation project(path: ":sdks:java:core")
-  testImplementation project(path: ":sdks:java:harness")
+  testImplementation project(path: ":sdks:java:core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:harness", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
 
@@ -121,12 +121,6 @@ for (String runner : testRunnerClass.keySet()) {
 plugins.withType(JavaPlugin).configureEach{
   java {
     modularity.inferModulePath = true
-  }
-}
-
-tasks.withType(Test).configureEach {
-  java {
-    modularity.inferModulePath = false
   }
 }
 
