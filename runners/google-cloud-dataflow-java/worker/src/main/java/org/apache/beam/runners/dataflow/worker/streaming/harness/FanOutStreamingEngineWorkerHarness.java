@@ -218,7 +218,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
-    backendWorkerMetadataVendor.start(this::consumeWorkerMetadata).join();
+    backendWorkerMetadataVendor.start(this::consumeWorkerMetadata);
+    backendWorkerMetadataVendor.awaitInitialBackendWorkerMetadataStream();
     started = true;
   }
 
@@ -246,7 +247,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void shutdown() {
     Preconditions.checkState(started, "FanOutStreamingEngineWorkerHarness never started.");
-    backendWorkerMetadataVendor.stop();
+    backendWorkerMetadataVendor.shutdown();
     workerMetadataConsumer.shutdownNow();
     // Close all the streams blocking until this completes to not leak resources.
     closeStreamsNotIn(WindmillEndpoints.none()).join();

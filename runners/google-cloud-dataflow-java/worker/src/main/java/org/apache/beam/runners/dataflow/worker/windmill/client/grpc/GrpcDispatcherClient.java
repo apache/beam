@@ -146,6 +146,9 @@ public class GrpcDispatcherClient {
           "Interrupted while waiting for initial Windmill Service endpoints. "
               + "These endpoints are required to do any pipeline processing.",
           e);
+
+      throw new IllegalStateException(
+          "Interrupted while waiting for Windmill endpoints to be initialized.", e);
     }
 
     LOG.debug("Windmill Service endpoint initialized after {} seconds.", secondsWaited);
