@@ -308,6 +308,17 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(result['test_arg_int'], 5)
     self.assertEqual(result['test_arg_none'], None)
 
+  def test_from_kwargs(self):
+    class MyOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--test_arg')
+
+    # kwarg takes precedence over parsed flag
+    options = PipelineOptions(flags=['--test_arg=A'], test_arg='B')
+    self.assertEqual(options.view_as(MyOptions).test_arg, 'B')
+    self.assertEqual(options.get_all_options()['test_arg'], 'B')
+
   def test_option_with_space(self):
     options = PipelineOptions(flags=['--option with space= value with space'])
     self.assertEqual(

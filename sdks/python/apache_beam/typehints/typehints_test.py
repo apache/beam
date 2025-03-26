@@ -898,6 +898,12 @@ class SequenceHintTestCase(TypeHintTestCase):
         'an instance of int.',
         e.exception.args[0])
 
+  def test_normalize(self):
+    expected_beam_type = typehints.Sequence[int]
+    converted_beam_type = typehints.normalize(
+        collections.abc.Sequence[int], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
+
 
 class IterableHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_composite_type_param(self):
@@ -982,6 +988,12 @@ class IterableHintTestCase(TypeHintTestCase):
     hint = typehints.Iterable[typehints.List[int]]
     l = ([[1, 2], [3, 4, 5]])
     self.assertIsNone(hint.type_check(l))
+
+  def test_normalize(self):
+    expected_beam_type = typehints.Iterable[str]
+    converted_beam_type = typehints.normalize(
+        collections.abc.Iterable[str], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
 
 
 class TestGeneratorWrapper(TypeHintTestCase):
@@ -1438,10 +1450,18 @@ class TestGetYieldedType(unittest.TestCase):
         typehints.get_yielded_type(typehints.Tuple[int, str]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.Set[int]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.FrozenSet[int]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typehints.Union[typehints.List[int], typehints.List[str]]))
 
   def test_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
       typehints.get_yielded_type(int)
+
+  def test_union_not_iterable(self):
+    with self.assertRaisesRegex(ValueError, r'not iterable'):
+      typehints.get_yielded_type(typehints.Union[int, typehints.List[int]])
 
 
 class TestCoerceToKvType(TypeHintTestCase):

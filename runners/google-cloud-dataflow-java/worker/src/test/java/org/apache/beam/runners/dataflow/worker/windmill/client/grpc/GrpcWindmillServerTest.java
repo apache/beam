@@ -48,8 +48,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetD
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo.Event;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -58,7 +56,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
@@ -1354,102 +1351,6 @@ public class GrpcWindmillServerTest {
 
     stream.halfClose();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
-  }
-
-  @Test
-  public void testGetWorkTimingInfosTracker() throws Exception {
-    GetWorkTimingInfosTracker tracker = new GetWorkTimingInfosTracker(() -> 50);
-    List<GetWorkStreamTimingInfo> infos = new ArrayList<>();
-    for (int i = 0; i <= 3; i++) {
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_START)
-              .setTimestampUsec(0)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_END)
-              .setTimestampUsec(10000)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_RECEIVED_BY_DISPATCHER)
-              .setTimestampUsec((i + 11) * 1000)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_FORWARDED_BY_DISPATCHER)
-              .setTimestampUsec((i + 16) * 1000)
-              .build());
-      tracker.addTimingInfo(infos);
-      infos.clear();
-    }
-    // durations for each chunk:
-    // GET_WORK_IN_WINDMILL_WORKER: 10, 10, 10, 10
-    // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
-    // GET_WORK_IN_TRANSIT_TO_USER_WORKER: 34, 33, 32, 31 -> sum to 130
-    Map<State, LatencyAttribution> latencies = new HashMap<>();
-    ImmutableList<LatencyAttribution> attributions = tracker.getLatencyAttributions();
-    assertEquals(3, attributions.size());
-    for (LatencyAttribution attribution : attributions) {
-      latencies.put(attribution.getState(), attribution);
-    }
-    assertEquals(10L, latencies.get(State.GET_WORK_IN_WINDMILL_WORKER).getTotalDurationMillis());
-    // elapsed time from 10 -> 50;
-    long elapsedTime = 40;
-    // sumDurations: 1 + 2 + 3 + 4 + 34 + 33 + 32 + 31;
-    long sumDurations = 140;
-    assertEquals(
-        Math.min(4, (long) (elapsedTime * (10.0 / sumDurations))),
-        latencies.get(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER).getTotalDurationMillis());
-    assertEquals(
-        Math.min(34, (long) (elapsedTime * (130.0 / sumDurations))),
-        latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER).getTotalDurationMillis());
-  }
-
-  @Test
-  public void testGetWorkTimingInfosTracker_ClockSkew() throws Exception {
-    int skewMicros = 50 * 1000;
-    GetWorkTimingInfosTracker tracker = new GetWorkTimingInfosTracker(() -> 50);
-    List<GetWorkStreamTimingInfo> infos = new ArrayList<>();
-    for (int i = 0; i <= 3; i++) {
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_START)
-              .setTimestampUsec(skewMicros)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_END)
-              .setTimestampUsec(10000 + skewMicros)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_RECEIVED_BY_DISPATCHER)
-              .setTimestampUsec((i + 11) * 1000 + skewMicros)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_FORWARDED_BY_DISPATCHER)
-              .setTimestampUsec((i + 16) * 1000 + skewMicros)
-              .build());
-      tracker.addTimingInfo(infos);
-      infos.clear();
-    }
-    // durations for each chunk:
-    // GET_WORK_IN_WINDMILL_WORKER: 10, 10, 10, 10
-    // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
-    // GET_WORK_IN_TRANSIT_TO_USER_WORKER: not observed due to skew
-    Map<State, LatencyAttribution> latencies = new HashMap<>();
-    ImmutableList<LatencyAttribution> attributions = tracker.getLatencyAttributions();
-    assertEquals(2, attributions.size());
-    for (LatencyAttribution attribution : attributions) {
-      latencies.put(attribution.getState(), attribution);
-    }
-    assertEquals(10L, latencies.get(State.GET_WORK_IN_WINDMILL_WORKER).getTotalDurationMillis());
-    assertEquals(
-        4L, latencies.get(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER).getTotalDurationMillis());
-    assertNull(latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER));
   }
 
   class ResponseErrorInjector<Stream extends StreamObserver> {

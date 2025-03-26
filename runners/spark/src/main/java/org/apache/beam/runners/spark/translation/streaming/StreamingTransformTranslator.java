@@ -43,6 +43,7 @@ import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
+import org.apache.beam.runners.spark.translation.SingleEmitInputDStream;
 import org.apache.beam.runners.spark.translation.SparkAssignWindowFn;
 import org.apache.beam.runners.spark.translation.SparkCombineFn;
 import org.apache.beam.runners.spark.translation.SparkPCollectionView;
@@ -88,6 +89,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
+import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
@@ -291,18 +293,23 @@ public final class StreamingTransformTranslator {
             dStreams.add(unboundedDataset.getDStream());
           } else {
             // create a single RDD stream.
-            Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
-            q.offer(((BoundedDataset) dataset).getRDD());
-            // TODO (https://github.com/apache/beam/issues/20426): this is not recoverable from
-            // checkpoint!
-            JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
-            dStreams.add(dStream);
+            dStreams.add(
+                this.buildDStream(context.getStreamingContext().ssc(), (BoundedDataset) dataset));
           }
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
             context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
+      }
+
+      private JavaDStream<WindowedValue<T>> buildDStream(
+          final StreamingContext ssc, final BoundedDataset<T> dataset) {
+
+        final SingleEmitInputDStream<WindowedValue<T>> singleEmitDStream =
+            new SingleEmitInputDStream<>(ssc, dataset.getRDD().rdd());
+
+        return JavaDStream.fromDStream(singleEmitDStream, JavaSparkContext$.MODULE$.fakeClassTag());
       }
 
       @Override

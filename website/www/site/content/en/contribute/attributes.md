@@ -50,7 +50,7 @@ In particular, a Beam committer strives to:
 - They can be trusted to decide when code is ready for release, or when to ask someone else to make the judgment
 - They can be trusted to decide when to merge code (if a code contributor) or when to ask someone else to make the judgment
 
-[To learn more see the ASF documentation.]((https://www.apache.org/dev/committers.html#committer-responsibilities)
+[To learn more see the ASF documentation.](https://www.apache.org/dev/committers.html#committer-responsibilities)
 
 {{< figure src="/images/community/beam-logo-icon.svg" >}}
 

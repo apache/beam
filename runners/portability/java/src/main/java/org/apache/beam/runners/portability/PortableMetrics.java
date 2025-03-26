@@ -29,6 +29,7 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeStringSet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -94,7 +95,8 @@ public class PortableMetrics extends MetricResults {
             this.stringSets, (stringSet) -> MetricFiltering.matches(filter, stringSet.getKey())),
         Iterables.filter(
             this.boundedTries,
-            (boundedTries) -> MetricFiltering.matches(filter, boundedTries.getKey())));
+            (boundedTries) -> MetricFiltering.matches(filter, boundedTries.getKey())),
+        Collections.emptyList());
   }
 
   private static PortableMetrics convertMonitoringInfosToMetricResults(
