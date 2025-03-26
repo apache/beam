@@ -128,15 +128,10 @@ tasks.withType(Test).configureEach {
   doFirst {
     def allDeps = classpath.files
     def jpmsModule = allDeps.find { it.absolutePath.contains("jpms-tests") }
-    def classpathDeps = allDeps - jpmsModule
-//    def beamDeps = classpath.filter {
-//      it.absolutePath.contains("beam") && !it.absolutePath.contains("jpms-tests")
-//    }
-//    def otherDeps = classpath - beamDeps
 
     jvmArgs = [
             '--module-path', jpmsModule.absolutePath,
-            '--class-path', classpathDeps.collect { it.absolutePath }.join(File.pathSeparator)
+            '--class-path', allDeps.collect { it.absolutePath }.join(File.pathSeparator)
     ]
 
     classpath = files() // clear classpath to prevent duplication
