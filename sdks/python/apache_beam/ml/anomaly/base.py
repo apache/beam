@@ -154,7 +154,7 @@ class AnomalyDetector(abc.ABC):
       threshold_criterion: Optional[ThresholdFn] = None,
       **kwargs):
     self._model_id = model_id if model_id is not None else getattr(
-        self, 'spec_type', 'unknown')
+        self, 'spec_type', lambda: "unknown")()
     self._features = features
     self._target = target
     self._threshold_criterion = threshold_criterion
@@ -200,7 +200,7 @@ class EnsembleAnomalyDetector(AnomalyDetector):
       aggregation_strategy: Optional[AggregationFn] = None,
       **kwargs):
     if "model_id" not in kwargs or kwargs["model_id"] is None:
-      kwargs["model_id"] = getattr(self, 'spec_type', 'custom')
+      kwargs["model_id"] = getattr(self, 'spec_type', lambda: 'custom')()
 
     super().__init__(**kwargs)
 

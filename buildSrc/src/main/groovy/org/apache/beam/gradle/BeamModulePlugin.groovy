@@ -573,7 +573,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.useBuildx = {
-      return project.containerArchitectures() != [project.nativeArchitecture()]
+      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useBuildx")
     }
 
     /** ***********************************************************************************************/

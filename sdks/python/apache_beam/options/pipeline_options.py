@@ -419,6 +419,14 @@ class PipelineOptions(HasDisplayData):
         _LOGGER.warning(
             'Unknown pipeline options received: %s. Ignore if flags are '
             'used for internal purposes.' % (','.join(unknown_args)))
+
+      seen = set()
+
+      def add_new_arg(arg, **kwargs):
+        if arg not in seen:
+          parser.add_argument(arg, **kwargs)
+        seen.add(arg)
+
       i = 0
       while i < len(unknown_args):
         # End of argument parsing.
@@ -432,12 +440,12 @@ class PipelineOptions(HasDisplayData):
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
-            parser.add_argument(unknown_args[i], action='store_true')
+            add_new_arg(unknown_args[i], action='store_true')
           else:
-            parser.add_argument(split[0], type=str)
+            add_new_arg(split[0], type=str)
           i += 1
         elif unknown_args[i].startswith('--'):
-          parser.add_argument(unknown_args[i], type=str)
+          add_new_arg(unknown_args[i], type=str)
           i += 2
         else:
           # skip all binary flags used with '-' and not '--'.
@@ -1561,6 +1569,16 @@ class SetupOptions(PipelineOptions):
             'workers will install them in same order they were specified on '
             'the command line.'))
     parser.add_argument(
+        '--files_to_stage',
+        dest='files_to_stage',
+        action='append',
+        default=None,
+        help=(
+            'Local path to a file. During job submission, the files will be '
+            'staged in the staging area (--staging_location option) and then '
+            'workers will upload them to the worker specific staging location '
+            '(e.g. $SEMI_PERSISTENT_DIRECTORY/staged/ for portable runner.'))
+    parser.add_argument(
         '--prebuild_sdk_container_engine',
         help=(
             'Prebuild sdk worker container image before job submission. If '
@@ -1890,9 +1908,6 @@ class TestDataflowOptions(PipelineOptions):
         help='Root URL for use with the Google Cloud Pub/Sub API.',
     )
 
-
-# TODO(silviuc): Add --files_to_stage option.
-# This could potentially replace the --requirements_file and --setup_file.
 
 # TODO(silviuc): Non-standard options. Keep them? If yes, add help too!
 # Remote execution must check that this option is not None.

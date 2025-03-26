@@ -193,7 +193,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesParDoLifecycle', // doesn't support remote runner
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesBundleFinalizer',
-  'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics',
+  'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
 def commonRunnerV2ExcludeCategories = [
@@ -207,7 +207,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesTestStream',
         'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
         'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-        'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics',
+        'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
