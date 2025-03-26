@@ -708,9 +708,9 @@ public class Read {
               UnboundedSource<OutputT, CheckpointT> source,
               @Nullable CheckpointT checkpoint,
               Instant watermark,
-              @Nullable Integer index) {
+              @Nullable Integer splitIndex) {
         return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_UnboundedSourceRestriction<>(
-            source, checkpoint, watermark, index);
+            source, checkpoint, watermark, splitIndex);
       }
 
       public abstract UnboundedSource<OutputT, CheckpointT> getSource();
@@ -719,7 +719,7 @@ public class Read {
 
       public abstract Instant getWatermark();
 
-      public abstract @Nullable Integer getKey();
+      public abstract @Nullable Integer getSplitIndex();
     }
 
     /** A {@link Coder} for {@link UnboundedSourceRestriction}s. */
@@ -744,7 +744,7 @@ public class Read {
         sourceCoder.encode(value.getSource(), outStream);
         checkpointCoder.encode(value.getCheckpoint(), outStream);
         InstantCoder.of().encode(value.getWatermark(), outStream);
-        NullableCoder.of(VarIntCoder.of()).encode(value.getKey(), outStream);
+        NullableCoder.of(VarIntCoder.of()).encode(value.getSplitIndex(), outStream);
       }
 
       @Override
@@ -894,19 +894,24 @@ public class Read {
       }
 
       private Object createCacheKey(
-          UnboundedSource<OutputT, CheckpointT> source, @Nullable CheckpointT checkpoint) {
+          UnboundedSource<OutputT, CheckpointT> source,
+          @Nullable CheckpointT checkpoint,
+          @Nullable Integer index) {
         checkStateNotNull(restrictionCoder);
         // For caching reader, we don't care about the watermark.
         return restrictionCoder.structuralValue(
             UnboundedSourceRestriction.create(
-                source, checkpoint, BoundedWindow.TIMESTAMP_MIN_VALUE, null));
+                source, checkpoint, BoundedWindow.TIMESTAMP_MIN_VALUE, index));
       }
 
       @EnsuresNonNull("currentReader")
       private void initializeCurrentReader() throws IOException {
         checkState(currentReader == null);
         Object cacheKey =
-            createCacheKey(initialRestriction.getSource(), initialRestriction.getCheckpoint());
+            createCacheKey(
+                initialRestriction.getSource(),
+                initialRestriction.getCheckpoint(),
+                initialRestriction.getSplitIndex());
         // We remove the reader if cached so that it is not possibly claimed by multiple DoFns.
         CacheState<OutputT> cachedState = cachedReaders.asMap().remove(cacheKey);
 
@@ -929,7 +934,10 @@ public class Read {
           // We only put the reader into the cache when we know it possibly will be reused by
           // residuals.
           cachedReaders.put(
-              createCacheKey(restriction.getSource(), restriction.getCheckpoint()),
+              createCacheKey(
+                  restriction.getSource(),
+                  restriction.getCheckpoint(),
+                  restriction.getSplitIndex()),
               CacheState.create(reader, readerHasBeenStarted));
         }
       }
@@ -1007,7 +1015,7 @@ public class Read {
             (UnboundedSource<OutputT, CheckpointT>) currentReader.getCurrentSource(),
             (CheckpointT) currentReader.getCheckpointMark(),
             watermark,
-            initialRestriction.getKey());
+            initialRestriction.getSplitIndex());
       }
 
       @Override
@@ -1090,8 +1098,8 @@ public class Read {
             return Progress.from(0, size);
           }
 
-          Integer key = initialRestriction.getKey();
-          if (key != null && key == 0) {
+          Integer splitIndex = initialRestriction.getSplitIndex();
+          if (splitIndex != null && splitIndex == 0) {
             // this is first split
             checkStateNotNull(currentReader, "reader null after initialization");
             size = currentReader.getTotalBacklogBytes();
