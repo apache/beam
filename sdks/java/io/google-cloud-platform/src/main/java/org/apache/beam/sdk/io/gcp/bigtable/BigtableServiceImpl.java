@@ -125,7 +125,6 @@ class BigtableServiceImpl implements BigtableService {
         writeOptions.getCloseWaitTimeout());
   }
 
-  
   @VisibleForTesting
   static class BigtableReaderImpl implements Reader {
     private final BigtableDataClient client;
