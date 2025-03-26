@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module org.apache.beam.sdk.fn {
-    exports org.apache.beam.sdk.fn;
+module org.apache.beam.sdk.jpmstests {
+    exports org.apache.beam.sdk.jpmstests;
 
     requires transitive org.apache.beam.sdk;
 }
