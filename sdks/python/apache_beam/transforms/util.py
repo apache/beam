@@ -933,10 +933,6 @@ def is_compat_version_prior_to(options, breaking_change_version):
   # keep the old behavior prior to a breaking change or use the new behavior.
   # - If update_compatibility_version < breaking_change_version, we will return
   #   True and keep the old behavior.
-  # - If update_compatibility_version is None or >= breaking_change_version, we
-  #   will return False and use the behavior from the breaking change.
-  update_compatibility_version = options.view_as(
-      pipeline_options.StreamingOptions).update_compatibility_version
   update_compatibility_version = options.view_as(
       pipeline_options.StreamingOptions).update_compatibility_version
 
