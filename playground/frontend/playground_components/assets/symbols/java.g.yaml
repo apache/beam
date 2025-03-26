@@ -6331,6 +6331,8 @@ JdbcReadSchemaTransformProvider:
   - getFetchSize
   - getJdbcUrl
   - getLocation
+  - getPartitionColumn
+  - getNumPartitions
   - getOutputParallelization
   - getPassword
   - getReadQuery
@@ -6344,6 +6346,8 @@ JdbcReadSchemaTransformProvider:
   - setFetchSize
   - setJdbcUrl
   - setLocation
+  - setPartitionColumn
+  - setNumPartitions
   - setOutputParallelization
   - setPassword
   - setReadQuery
