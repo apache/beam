@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.aws2.common.auth.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.CredentialsProviderDelegate;
@@ -34,7 +33,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
   private static final String AUDIENCE = "some static audience";
   private static final String ASSUMED_ROLE = "some role";
   private static final String TEST_WEBTOKEN_PROVIDER =
-      "org.apache.beam.sdk.io.aws2.common.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest$TestTokenProvider";
+      "org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest$TestTokenProvider";
   private static final String FAKE_ACCESS_KEY = "some-access-key";
   private static final String FAKE_SECRET_KEY = "some-secret-key";
 
@@ -51,13 +50,12 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
   @Test
   public void retrieveAwsCredentials() {
     StsAssumeRoleWithDynamicWebIdentityCredentialsProvider provider =
-        spy(
-            StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
-                .setAssumedRoleArn(ASSUMED_ROLE)
-                .setAudience(AUDIENCE)
-                .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
-                .build());
-    when(provider.credentialsProviderDelegate()).thenReturn(mockedProvider);
+        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+            .setAssumedRoleArn(ASSUMED_ROLE)
+            .setAudience(AUDIENCE)
+            .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
+            .setCredentialsProviderDelegate(mockedProvider)
+            .build();
 
     AwsCredentials credentials = provider.resolveCredentials();
 

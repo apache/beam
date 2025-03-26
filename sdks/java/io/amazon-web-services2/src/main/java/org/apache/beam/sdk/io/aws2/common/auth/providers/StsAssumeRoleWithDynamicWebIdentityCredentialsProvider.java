@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io.aws2.common.auth.providers;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -47,54 +47,27 @@ import software.amazon.awssdk.utils.SdkAutoCloseable;
  *     href="https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html">API
  *     reference</a>
  */
-public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
-    implements AwsCredentialsProvider, SdkAutoCloseable, Serializable {
+@AutoValue
+@JsonSubTypes({
+  @JsonSubTypes.Type(
+      value = AutoValue_StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class,
+      name = "StsAssumeRoleWithDynamicWebIdentityCredentialsProvider")
+})
+public abstract class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
+    implements AwsCredentialsProvider, SdkAutoCloseable {
+
   public static final Integer DEFAULT_SESSION_DURATION_SECS = 3600;
 
-  @VisibleForTesting transient CredentialsProviderDelegate credentialsProviderDelegate;
-  private final String audience;
-  private final String assumedRoleArn;
-  private final String webIdTokenProviderFQCN;
-  @Nullable private final Integer sessionDurationSecs;
+  abstract CredentialsProviderDelegate credentialsProviderDelegate();
 
-  private StsAssumeRoleWithDynamicWebIdentityCredentialsProvider(
-      String audience,
-      String assumedRoleArn,
-      String webIdTokenProviderFQCN,
-      @Nullable Integer sessionDurationSecs) {
-    this.audience = audience;
-    this.assumedRoleArn = assumedRoleArn;
-    this.webIdTokenProviderFQCN = webIdTokenProviderFQCN;
-    this.sessionDurationSecs = sessionDurationSecs;
-    this.credentialsProviderDelegate =
-        CredentialsProviderDelegate.create(
-            Suppliers.memoize(() -> WebIdTokenProvider.create(this.webIdTokenProviderFQCN)),
-            this.audience,
-            this.assumedRoleArn,
-            this.sessionDurationSecs);
-  }
+  public abstract String audience();
 
-  public String audience() {
-    return audience;
-  }
+  public abstract String assumedRoleArn();
 
-  public String assumedRoleArn() {
-    return assumedRoleArn;
-  }
-
-  public String webIdTokenProviderFQCN() {
-    return webIdTokenProviderFQCN;
-  }
+  public abstract String webIdTokenProviderFQCN();
 
   @Nullable
-  public Integer sessionDurationSecs() {
-    return sessionDurationSecs;
-  }
-
-  @VisibleForTesting
-  CredentialsProviderDelegate credentialsProviderDelegate() {
-    return credentialsProviderDelegate;
-  }
+  public abstract Integer sessionDurationSecs();
 
   @Override
   public AwsCredentials resolveCredentials() {
@@ -107,24 +80,17 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
   }
 
   /**
-   * Creates a builder for the type.
+   * Creates a builder for the type {@link StsAssumeRoleWithDynamicWebIdentityCredentialsProvider}.
    *
    * @return an initialized builder instance.
    */
   public static StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.Builder builder() {
-    return new StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.Builder();
+    return new AutoValue_StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.Builder();
   }
 
   /** Builder class for {@link StsAssumeRoleWithDynamicWebIdentityCredentialsProvider}. */
-  @SuppressWarnings("initialization")
-  public static final class Builder {
-
-    private String audience;
-    private String assumedRoleArn;
-    private String webIdTokenProviderFQCN;
-    @Nullable private Integer sessionDurationSecs = null;
-
-    private Builder() {}
+  @AutoValue.Builder
+  public abstract static class Builder {
 
     /**
      * Sets the role to be assumed by the authentication request.
@@ -132,10 +98,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
      * @param roleArn the AWS role ARN.
      * @return this builder instance.
      */
-    public Builder setAssumedRoleArn(String roleArn) {
-      this.assumedRoleArn = roleArn;
-      return this;
-    }
+    public abstract Builder setAssumedRoleArn(String roleArn);
 
     /**
      * Sets the audience to be used for the web id token request.
@@ -143,10 +106,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
      * @param audience the audience value.
      * @return this builder instance.
      */
-    public Builder setAudience(String audience) {
-      this.audience = audience;
-      return this;
-    }
+    public abstract Builder setAudience(String audience);
 
     /**
      * The fully qualified class name for the web id token provider. The class should be accessible
@@ -155,10 +115,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
      * @param idTokenProviderFQCN the class name.
      * @return this builder instance.
      */
-    public Builder setWebIdTokenProviderFQCN(String idTokenProviderFQCN) {
-      this.webIdTokenProviderFQCN = idTokenProviderFQCN;
-      return this;
-    }
+    public abstract Builder setWebIdTokenProviderFQCN(String idTokenProviderFQCN);
 
     /**
      * The session duration in seconds for the authentication request, by default this value is
@@ -167,25 +124,49 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
      * @param durationSecs the duration in seconds.
      * @return this builder instance.
      */
-    public Builder setSessionDurationSecs(@Nullable Integer durationSecs) {
-      this.sessionDurationSecs = durationSecs;
-      return this;
-    }
+    public abstract Builder setSessionDurationSecs(@Nullable Integer durationSecs);
 
     /**
-     * Validates and builds a {@link StsAssumeRoleWithDynamicWebIdentityCredentialsProvider}
-     * instance.
+     * For testing purposes, should not be set in a production setup.
+     *
+     * @param delegate The testing delegate to use.
+     * @return this builder instance.
+     */
+    abstract Builder setCredentialsProviderDelegate(CredentialsProviderDelegate delegate);
+
+    abstract Optional<CredentialsProviderDelegate> credentialsProviderDelegate();
+
+    abstract String assumedRoleArn();
+
+    abstract String audience();
+
+    abstract String webIdTokenProviderFQCN();
+
+    abstract Integer sessionDurationSecs();
+
+    abstract StsAssumeRoleWithDynamicWebIdentityCredentialsProvider autoBuild(); // not public
+
+    /**
+     * Validates and fully initializes a {@link
+     * StsAssumeRoleWithDynamicWebIdentityCredentialsProvider} instance.
      *
      * @return the initialized credentials provider instance.
      */
     public StsAssumeRoleWithDynamicWebIdentityCredentialsProvider build() {
-      checkState(audience != null, "Audience value should not be null");
-      checkState(assumedRoleArn != null, "The role to assume should not be null");
+      checkState(audience() != null, "Audience value should not be null");
+      checkState(assumedRoleArn() != null, "The role to assume should not be null");
       checkState(
-          webIdTokenProviderFQCN != null,
+          webIdTokenProviderFQCN() != null,
           "The web id token provider fully qualified class name should not be null");
-      return new StsAssumeRoleWithDynamicWebIdentityCredentialsProvider(
-          audience, assumedRoleArn, webIdTokenProviderFQCN, sessionDurationSecs);
+      setCredentialsProviderDelegate(
+          credentialsProviderDelegate()
+              .orElse(
+                  CredentialsProviderDelegate.create(
+                      Suppliers.memoize(() -> WebIdTokenProvider.create(webIdTokenProviderFQCN())),
+                      audience(),
+                      assumedRoleArn(),
+                      sessionDurationSecs())));
+      return autoBuild();
     }
   }
 
