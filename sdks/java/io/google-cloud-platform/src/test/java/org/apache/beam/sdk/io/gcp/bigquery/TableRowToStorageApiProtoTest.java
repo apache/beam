@@ -17,11 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -41,15 +37,13 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -1751,6 +1745,130 @@ public class TableRowToStorageApiProtoTest {
     assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
     assertTrue(((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty());
     assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
+  }
+
+  @Test
+  public void testMergeUnknownRepeatedNestedFieldWithUnknownInRepeatedField() throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema schema = new TableSchema().setFields(fields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("unknown", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+    assertEquals(2, msg.getAllFields().size());
+    assertFalse(unknown.isEmpty());
+    assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
+    assertEquals(0, ((Map<?, ?>) ((List<?>) unknown.get("repeated1")).get(0)).size());
+    assertNotNull(((List<?>) unknown.get("repeated1")).get(0));
+    assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
+    assertTrue(
+        ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
+
+    TableRow tableRow1 =
+        TableRowToStorageApiProto.tableRowFromMessage(msg, false, Predicates.alwaysTrue());
+
+    TableRow merge = TableRowToStorageApiProto.mergeNewFields(tableRow1, unknown);
+
+    assertNotNull(merge);
+    assertEquals(2, ((List<?>) merge.get("repeated1")).size());
+    assertEquals("valueE", ((TableRow) ((List<?>) merge.get("repeated1")).get(1)).get("unknown"));
+  }
+
+  @Test
+  public void testCdcFieldsWithUnknownFields() throws Exception {
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema schema = new TableSchema().setFields(fields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("unknown", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, true);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+    TableRow unknown = new TableRow();
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
+
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, unknown, "UPDATE", 42);
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    String cdcType = (String) msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertEquals("UPDATE", cdcType);
+    String sequence = (String) msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN));
+    assertEquals(Long.toHexString(42L), sequence);
+
+    // tableRow1 is missing CDC fields
+    TableRow tableRow1 =
+        TableRowToStorageApiProto.tableRowFromMessage(msg, false, Predicates.alwaysTrue());
+
+    // recover
+    TableRow merge = TableRowToStorageApiProto.mergeNewFields(tableRow1, unknown);
+
+    assertNotNull(merge);
+    assertEquals(2, ((List<?>) merge.get("repeated1")).size());
+    assertEquals("valueE", ((TableRow) ((List<?>) merge.get("repeated1")).get(1)).get("unknown"));
+    DynamicMessage msg1 =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, null, cdcType, sequence);
+
+    fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    assertEquals("UPDATE", msg1.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+    assertEquals(
+        Long.toHexString(42L),
+        msg1.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 
   @Test

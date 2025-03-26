@@ -26,13 +26,19 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
@@ -165,6 +171,65 @@ abstract class AppendClientInfo {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public ByteString mergeNewFields(
+      ByteString payloadBytes, TableRow unknownFields, boolean ignoreUnknownValues)
+      throws TableRowToStorageApiProto.SchemaConversionException {
+    if (unknownFields != null && !unknownFields.isEmpty()) {
+      // check if unknownFields contains repeated struct, merge
+      if (unknownFields.entrySet().stream()
+          .anyMatch(
+              entry ->
+                  entry.getValue() instanceof List
+                      && !((List<?>) entry.getValue()).isEmpty()
+                      && ((List<?>) entry.getValue()).get(0) instanceof TableRow)) {
+
+        // parse to original
+        Descriptors.Descriptor descriptor = null;
+        try {
+          descriptor = TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor());
+        } catch (Descriptors.DescriptorValidationException e) {
+          throw new RuntimeException(e);
+        }
+        DynamicMessage message = null;
+        try {
+          message = DynamicMessage.parseFrom(descriptor, payloadBytes);
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException(e);
+        }
+        TableRow original =
+            TableRowToStorageApiProto.tableRowFromMessage(message, true, Predicates.alwaysTrue());
+        Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+            descriptor.getFields().stream()
+                .collect(
+                    Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+        String cdcType =
+            (String) message.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN));
+        String sequence =
+            (String) message.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN));
+        TableRow merged = TableRowToStorageApiProto.mergeNewFields(original, unknownFields);
+
+        // cdc will be there
+        DynamicMessage dynamicMessage =
+            TableRowToStorageApiProto.messageFromTableRow(
+                getSchemaInformation(),
+                descriptor,
+                merged,
+                ignoreUnknownValues,
+                false,
+                null,
+                cdcType,
+                sequence);
+
+        // we are losing cdc sequence.
+        return dynamicMessage.toByteString();
+      }
+      payloadBytes = payloadBytes.concat(encodeUnknownFields(unknownFields, ignoreUnknownValues));
+      return payloadBytes;
+      // otherwise use concat
+    }
+    return payloadBytes;
   }
 
   public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {

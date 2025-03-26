@@ -582,13 +582,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           }
           @Nullable TableRow unknownFields = payload.getUnknownFields();
           if (unknownFields != null && !unknownFields.isEmpty()) {
+            // check if unknownFields contains repeated struct, merge
+            // otherwise use concat
             try {
-              // TODO(34145, radoslaws): concat will work for unknownFields that are primitive type,
-              //  will cause issues with nested and repeated fields
               payloadBytes =
-                  payloadBytes.concat(
-                      Preconditions.checkStateNotNull(appendClientInfo)
-                          .encodeUnknownFields(unknownFields, ignoreUnknownValues));
+                  Preconditions.checkStateNotNull(appendClientInfo)
+                      .mergeNewFields(payloadBytes, unknownFields, ignoreUnknownValues);
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
               @Nullable TableRow tableRow = payload.getFailsafeTableRow();
               if (tableRow == null) {

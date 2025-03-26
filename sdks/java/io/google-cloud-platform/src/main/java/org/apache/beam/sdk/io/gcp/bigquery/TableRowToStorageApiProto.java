@@ -839,6 +839,68 @@ public class TableRowToStorageApiProto {
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
   }
 
+  /**
+   * mergeNewFields(original, newFields) unlike proto merge or concatenating proto bytes is merging
+   * the main differences is skipping primitive fields that are already set and merging structs and
+   * lists recursively. Method mutates input.
+   *
+   * @param original original table row
+   * @param newRow
+   * @return merged table row
+   */
+  public static TableRow mergeNewFields(TableRow original, TableRow newRow) {
+    if (original == null) {
+      return newRow;
+    }
+    if (newRow == null) {
+      return original;
+    }
+
+    for (Map.Entry<String, Object> entry : newRow.entrySet()) {
+      String key = entry.getKey();
+      Object value2 = entry.getValue();
+      Object value1 = original.get(key);
+
+      if (value1 == null) {
+        original.set(key, value2);
+      } else {
+        if (value1 instanceof List && value2 instanceof List) {
+          List<?> list1 = (List<?>) value1;
+          List<?> list2 = (List<?>) value2;
+          if (!list1.isEmpty()
+              && list1.get(0) instanceof TableRow
+              && !list2.isEmpty()
+              && list2.get(0) instanceof TableRow) {
+            original.set(key, mergeRepeatedStructs((List<TableRow>) list1, (List<TableRow>) list2));
+          } else {
+            // primitive lists
+            original.set(key, value2);
+          }
+        } else if (value1 instanceof TableRow && value2 instanceof TableRow) {
+          original.set(key, mergeNewFields((TableRow) value1, (TableRow) value2));
+        }
+      }
+    }
+
+    return original;
+  }
+
+  private static List<TableRow> mergeRepeatedStructs(List<TableRow> list1, List<TableRow> list2) {
+    List<TableRow> mergedList = new ArrayList<>();
+    int length = Math.min(list1.size(), list2.size());
+
+    for (int i = 0; i < length; i++) {
+      TableRow orig = (i < list1.size()) ? list1.get(i) : null;
+      TableRow delta = (i < list2.size()) ? list2.get(i) : null;
+      // fail if any is shorter
+      Preconditions.checkArgumentNotNull(orig);
+      Preconditions.checkArgumentNotNull(delta);
+
+      mergedList.add(mergeNewFields(orig, delta));
+    }
+    return mergedList;
+  }
+
   private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,

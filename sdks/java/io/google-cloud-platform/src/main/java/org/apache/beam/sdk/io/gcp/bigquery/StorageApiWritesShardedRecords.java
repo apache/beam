@@ -609,6 +609,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               element.getValue(),
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
+              (bytes, tableRow) ->
+                  appendClientInfo.get().mergeNewFields(bytes, tableRow, ignoreUnknownValues),
               bytes -> appendClientInfo.get().toTableRow(bytes, Predicates.alwaysTrue()),
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
