@@ -22,6 +22,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo.Event;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -33,6 +34,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@NotThreadSafe
 final class GetWorkTimingInfosTracker {
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkTimingInfosTracker.class);
 
@@ -46,8 +48,8 @@ final class GetWorkTimingInfosTracker {
     this.aggregatedGetWorkStreamLatencies = new EnumMap<>(State.class);
     this.clock = clock;
     this.workItemCreationEndTime = Instant.EPOCH;
-    workItemLastChunkReceivedByWorkerTime = Instant.EPOCH;
-    workItemCreationLatency = null;
+    this.workItemLastChunkReceivedByWorkerTime = Instant.EPOCH;
+    this.workItemCreationLatency = null;
   }
 
   void addTimingInfo(Collection<GetWorkStreamTimingInfo> infos) {
@@ -69,8 +71,9 @@ final class GetWorkTimingInfosTracker {
 
     // Record the difference between starting to get work and the first chunk being sent as the
     // work creation time.
+    @Nullable
     Instant workItemCreationStart = getWorkStreamTimings.get(Event.GET_WORK_CREATION_START);
-    Instant workItemCreationEnd = getWorkStreamTimings.get(Event.GET_WORK_CREATION_END);
+    @Nullable Instant workItemCreationEnd = getWorkStreamTimings.get(Event.GET_WORK_CREATION_END);
     if (workItemCreationStart != null
         && workItemCreationEnd != null
         && workItemCreationLatency == null) {
@@ -90,37 +93,39 @@ final class GetWorkTimingInfosTracker {
     Instant receivedByDispatcherTiming =
         getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER);
     if (workItemCreationEnd != null && receivedByDispatcherTiming != null) {
-      Duration newDuration = new Duration(workItemCreationEnd, receivedByDispatcherTiming);
-      aggregatedGetWorkStreamLatencies.compute(
+      trackTimeInState(
           State.GET_WORK_IN_TRANSIT_TO_DISPATCHER,
-          (stateKey, duration) -> {
-            if (duration == null) {
-              return new SumAndMaxDurations(newDuration, newDuration);
-            }
-            duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
-            duration.sum = duration.sum.plus(newDuration);
-            return duration;
-          });
+          new Duration(workItemCreationEnd, receivedByDispatcherTiming));
     }
 
-    // Record the latency of each chunk between send on dispatcher and arrival on worker.
+    // Record the latency of each chunk between send on dispatcher or windmill worker and arrival on
+    // the user worker.
+    @Nullable
     Instant forwardedByDispatcherTiming =
         getWorkStreamTimings.get(Event.GET_WORK_FORWARDED_BY_DISPATCHER);
     Instant now = Instant.ofEpochMilli(clock.getMillis());
     if (forwardedByDispatcherTiming != null && now.isAfter(forwardedByDispatcherTiming)) {
-      Duration newDuration = new Duration(forwardedByDispatcherTiming, now);
-      aggregatedGetWorkStreamLatencies.compute(
-          State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
-          (stateKey, duration) -> {
-            if (duration == null) {
-              return new SumAndMaxDurations(newDuration, newDuration);
-            }
-            duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
-            duration.sum = duration.sum.plus(newDuration);
-            return duration;
-          });
+      trackTimeInState(
+          State.GET_WORK_IN_TRANSIT_TO_USER_WORKER, new Duration(forwardedByDispatcherTiming, now));
+    } else if (workItemCreationEnd != null && now.isAfter(workItemCreationEnd)) {
+      trackTimeInState(
+          State.GET_WORK_IN_TRANSIT_TO_USER_WORKER, new Duration(workItemCreationEnd, now));
     }
+
     workItemLastChunkReceivedByWorkerTime = now;
+  }
+
+  private void trackTimeInState(LatencyAttribution.State state, Duration newDuration) {
+    aggregatedGetWorkStreamLatencies.compute(
+        state,
+        (stateKey, duration) -> {
+          if (duration == null) {
+            return new SumAndMaxDurations(newDuration, newDuration);
+          }
+          duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
+          duration.sum = duration.sum.plus(newDuration);
+          return duration;
+        });
   }
 
   ImmutableList<LatencyAttribution> getLatencyAttributions() {
