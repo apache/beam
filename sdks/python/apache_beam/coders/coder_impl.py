@@ -1002,7 +1002,7 @@ class VarInt32CoderImpl(StreamCoderImpl):
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
     # Note that VarInts are encoded the same way regardless of nesting.
-    return get_varint_size(value & 0xFFFFFFFF)
+    return get_varint_size(int(value) & 0xFFFFFFFF)
 
 
 class SingletonCoderImpl(CoderImpl):

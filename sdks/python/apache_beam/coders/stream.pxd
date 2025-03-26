@@ -26,7 +26,7 @@ cdef class OutputStream(object):
   cpdef write(self, bytes b, bint nested=*)
   cpdef write_byte(self, unsigned char val)
   cpdef write_var_int64(self, libc.stdint.int64_t v)
-  cpdef write_var_int32(self, libc.stdint.int32_t v)
+  cpdef write_var_int32(self, libc.stdint.int64_t v)
   cpdef write_bigendian_int64(self, libc.stdint.int64_t signed_v)
   cpdef write_bigendian_uint64(self, libc.stdint.uint64_t signed_v)
   cpdef write_bigendian_int32(self, libc.stdint.int32_t signed_v)
@@ -45,7 +45,7 @@ cdef class ByteCountingOutputStream(OutputStream):
 
   cpdef write(self, bytes b, bint nested=*)
   cpdef write_var_int64(self, libc.stdint.int64_t val)
-  cpdef write_var_int32(self, libc.stdint.int32_t val)
+  cpdef write_var_int32(self, libc.stdint.int64_t val)
   cpdef write_byte(self, unsigned char val)
   cpdef write_bigendian_int64(self, libc.stdint.int64_t val)
   cpdef write_bigendian_uint64(self, libc.stdint.uint64_t val)
