@@ -125,16 +125,8 @@ plugins.withType(JavaPlugin).configureEach{
 }
 
 tasks.withType(Test).configureEach {
-  doFirst {
-    def allDeps = classpath.files
-    def jpmsModule = allDeps.find { it.absolutePath.contains("jpms-tests") }
-
-    jvmArgs = [
-            '--module-path', jpmsModule.absolutePath,
-            '--class-path', allDeps.collect { it.absolutePath }.join(File.pathSeparator)
-    ]
-
-    classpath = files() // clear classpath to prevent duplication
+  java {
+    modularity.inferModulePath = true
   }
 }
 
