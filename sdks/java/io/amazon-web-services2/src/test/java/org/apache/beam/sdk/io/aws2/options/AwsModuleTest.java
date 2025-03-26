@@ -281,22 +281,21 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDe() throws Exception {
+  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDe() {
     String roleArn = "roleArn";
     String audience = "audience";
     String webTokenProviderFQCN = "some.class.Name";
     Integer sessionDurationSecs = 30;
-    Supplier<AwsCredentialsProvider> provider =
-        () ->
-            StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
-                .setAssumedRoleArn(roleArn)
-                .setAudience(audience)
-                .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
-                .setSessionDurationSecs(sessionDurationSecs)
-                .build();
+    AwsCredentialsProvider provider =
+        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+            .setAssumedRoleArn(roleArn)
+            .setAudience(audience)
+            .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
+            .setSessionDurationSecs(sessionDurationSecs)
+            .build();
 
     // Deserialize without credentials from system properties
-    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider.get());
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
 
     assertThat(deserializedProvider)
         .isInstanceOf(StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class);
@@ -309,21 +308,19 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDeNoSessionDuration()
-      throws Exception {
+  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDeNoSessionDuration() {
     String roleArn = "roleArn";
     String audience = "audience";
     String webTokenProviderFQCN = "some.class.Name";
-    Supplier<AwsCredentialsProvider> provider =
-        () ->
-            StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
-                .setAssumedRoleArn(roleArn)
-                .setAudience(audience)
-                .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
-                .build();
+    AwsCredentialsProvider provider =
+        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+            .setAssumedRoleArn(roleArn)
+            .setAudience(audience)
+            .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
+            .build();
 
     // Deserialize without credentials from system properties
-    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider.get());
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
 
     assertThat(deserializedProvider)
         .isInstanceOf(StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class);

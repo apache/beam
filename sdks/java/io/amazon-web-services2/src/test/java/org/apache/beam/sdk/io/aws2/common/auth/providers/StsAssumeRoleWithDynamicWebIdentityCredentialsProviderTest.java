@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.common.auth.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.CredentialsProviderDelegate;
@@ -50,12 +51,13 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
   @Test
   public void retrieveAwsCredentials() {
     StsAssumeRoleWithDynamicWebIdentityCredentialsProvider provider =
-        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
-            .setAssumedRoleArn(ASSUMED_ROLE)
-            .setAudience(AUDIENCE)
-            .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
-            .build()
-            .withTestingCredentialsProviderDelegate(mockedProvider);
+        spy(
+            StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+                .setAssumedRoleArn(ASSUMED_ROLE)
+                .setAudience(AUDIENCE)
+                .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
+                .build());
+    when(provider.credentialsProviderDelegate()).thenReturn(mockedProvider);
 
     AwsCredentials credentials = provider.resolveCredentials();
 

@@ -51,7 +51,6 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
     implements AwsCredentialsProvider, SdkAutoCloseable, Serializable {
   public static final Integer DEFAULT_SESSION_DURATION_SECS = 3600;
 
-  // we want to initialize the delegate credentials provider lazily
   @VisibleForTesting transient CredentialsProviderDelegate credentialsProviderDelegate;
   private final String audience;
   private final String assumedRoleArn;
@@ -75,12 +74,6 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
             this.sessionDurationSecs);
   }
 
-  StsAssumeRoleWithDynamicWebIdentityCredentialsProvider withTestingCredentialsProviderDelegate(
-      CredentialsProviderDelegate testingDelegate) {
-    this.credentialsProviderDelegate = testingDelegate;
-    return this;
-  }
-
   public String audience() {
     return audience;
   }
@@ -98,14 +91,19 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
     return sessionDurationSecs;
   }
 
+  @VisibleForTesting
+  CredentialsProviderDelegate credentialsProviderDelegate() {
+    return credentialsProviderDelegate;
+  }
+
   @Override
   public AwsCredentials resolveCredentials() {
-    return this.credentialsProviderDelegate.resolveCredentials();
+    return credentialsProviderDelegate().resolveCredentials();
   }
 
   @Override
   public void close() {
-    credentialsProviderDelegate.close();
+    credentialsProviderDelegate().close();
   }
 
   /**
@@ -194,7 +192,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
   /**
    * Given the {@link StsAssumeRoleWithWebIdentityCredentialsProvider} is final and can not be
    * easily mocked for testing purposes, this simple delegate container will be used to simplify
-   * testing purposes.
+   * unit testing.
    */
   static class CredentialsProviderDelegate {
 
@@ -226,21 +224,6 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
       credentialsProviderDelegate.get().close();
     }
 
-    static Supplier<AssumeRoleWithWebIdentityRequest> createCredentialsRequestSupplier(
-        Supplier<WebIdTokenProvider> webIdTokenProvider,
-        String audience,
-        String assumedRoleArn,
-        @Nullable Integer sessionDurationSecs) {
-      return () ->
-          AssumeRoleWithWebIdentityRequest.builder()
-              .webIdentityToken(webIdTokenProvider.get().resolveTokenValue(audience))
-              .roleArn(assumedRoleArn)
-              .roleSessionName("beam-federated-session-" + UUID.randomUUID())
-              .durationSeconds(
-                  Optional.ofNullable(sessionDurationSecs).orElse(DEFAULT_SESSION_DURATION_SECS))
-              .build();
-    }
-
     static StsAssumeRoleWithWebIdentityCredentialsProvider createCredentialsDelegate(
         Supplier<WebIdTokenProvider> webIdTokenProvider,
         String audience,
@@ -249,8 +232,15 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
       return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
           .asyncCredentialUpdateEnabled(true)
           .refreshRequest(
-              createCredentialsRequestSupplier(
-                  webIdTokenProvider, audience, assumedRoleArn, sessionDurationSecs))
+              () ->
+                  AssumeRoleWithWebIdentityRequest.builder()
+                      .webIdentityToken(webIdTokenProvider.get().resolveTokenValue(audience))
+                      .roleArn(assumedRoleArn)
+                      .roleSessionName("beam-federated-session-" + UUID.randomUUID())
+                      .durationSeconds(
+                          Optional.ofNullable(sessionDurationSecs)
+                              .orElse(DEFAULT_SESSION_DURATION_SECS))
+                      .build())
           .stsClient(
               StsClient.builder()
                   .region(Region.AWS_GLOBAL)
