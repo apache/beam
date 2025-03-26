@@ -126,7 +126,7 @@ plugins.withType(JavaPlugin).configureEach{
 
 tasks.withType(Test).configureEach {
   java {
-    modularity.inferModulePath = true
+    modularity.inferModulePath = false
   }
 }
 
