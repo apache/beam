@@ -18,7 +18,7 @@ limitations under the License.
 
 # PyTorch Language Modeling BERT base Performance
 
-The following graphs show various metrics when running Pytorch Language Modeling using Hugging face bert-large-uncased model pipeline.
+The following graphs show various metrics when running Pytorch Language Modeling using Hugging Face bert-large-uncased model pipeline.
 See the [glossary](/performance/glossary) for definitions.
 
 ## What is the estimated cost to run the pipeline?
