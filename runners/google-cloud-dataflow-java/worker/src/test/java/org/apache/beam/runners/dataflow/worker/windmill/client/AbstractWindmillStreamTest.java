@@ -42,6 +42,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
@@ -63,7 +64,7 @@ public class AbstractWindmillStreamTest {
 
   @Test
   public void testShutdown_notBlockedBySend() throws InterruptedException, ExecutionException {
-    TestCallStreamObserver callStreamObserver = new TestCallStreamObserver();
+    TestCallStreamObserver callStreamObserver = new TestCallStreamObserver(/* waitForSend= */ true);
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
@@ -84,68 +85,60 @@ public class AbstractWindmillStreamTest {
   }
 
   @Test
-  public void testMaybeSendHealthCheck() throws InterruptedException, ExecutionException {
-    TestCallStreamObserver callStreamObserver = new TestCallStreamObserver();
+  public void testMaybeScheduleHealthCheck() {
+    TestCallStreamObserver callStreamObserver =
+        new TestCallStreamObserver(/* waitForSend= */ false);
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
     TestStream testStream = newStream(clientFactory);
     testStream.start();
-    ExecutorService sendExecutor = Executors.newSingleThreadExecutor();
     Instant reportingThreshold = Instant.now().minus(Duration.millis(1));
-    Future<?> sendFuture =
-        sendExecutor.submit(() -> testStream.maybeSendHealthCheck(reportingThreshold));
 
-    // Sleep a bit to give sendExecutor time to execute the send().
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-
-    callStreamObserver.unblockSend();
-
-    // Make sure the future completes.
-    sendFuture.get();
-
+    testStream.maybeScheduleHealthCheck(reportingThreshold);
+    testStream.waitForHealthChecks(1);
     assertThat(testStream.numHealthChecks.get()).isEqualTo(1);
     testStream.shutdown();
   }
 
   @Test
-  public void testMaybeSendHealthCheck_doesNotSendIfLastSendLessThanThreshold()
-      throws ExecutionException, InterruptedException {
-    TestCallStreamObserver callStreamObserver = new TestCallStreamObserver();
+  public void testMaybeSendHealthCheck_doesNotSendIfLastScheduleLessThanThreshold() {
+    TestCallStreamObserver callStreamObserver =
+        new TestCallStreamObserver(/* waitForSend= */ false);
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
     TestStream testStream = newStream(clientFactory);
     testStream.start();
-    ExecutorService sendExecutor = Executors.newSingleThreadExecutor();
-    Future<?> sendFuture =
-        sendExecutor.submit(
-            () -> {
-              try {
-                testStream.trySend(1);
-              } catch (WindmillStreamShutdownException e) {
-                throw new RuntimeException(e);
-              }
 
-              // Sleep a bit to give sendExecutor time to execute the send().
-              Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    try {
+      testStream.trySend(1);
+    } catch (WindmillStreamShutdownException e) {
+      throw new RuntimeException(e);
+    }
 
-              // Set a really long reporting threshold.
-              Instant reportingThreshold = Instant.now().minus(Duration.standardHours(1));
-              // Should not send health checks since we just sent the above message.
-              testStream.maybeSendHealthCheck(reportingThreshold);
-              testStream.maybeSendHealthCheck(reportingThreshold);
-            });
+    // Sleep a bit to give sendExecutor time to execute the send().
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
 
-    callStreamObserver.unblockSend();
+    // Set a really long reporting threshold.
+    Instant reportingThreshold = Instant.now().minus(Duration.standardHours(1));
 
-    // Make sure the future completes.
-    sendFuture.get();
+    // Should not send health checks since we just sent the above message.
+    testStream.maybeScheduleHealthCheck(reportingThreshold);
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    testStream.maybeScheduleHealthCheck(reportingThreshold);
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+
+    callStreamObserver.waitForSend();
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+
     assertThat(testStream.numHealthChecks.get()).isEqualTo(0);
     testStream.shutdown();
   }
 
   private static class TestStream extends AbstractWindmillStream<Integer, Integer> {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
+
     private final AtomicInteger numStarts = new AtomicInteger();
     private final AtomicInteger numHealthChecks = new AtomicInteger();
 
@@ -189,6 +182,18 @@ public class AbstractWindmillStreamTest {
       numHealthChecks.incrementAndGet();
     }
 
+    private void waitForHealthChecks(int expectedHealthChecks) {
+      int waitedMillis = 0;
+      while (numHealthChecks.get() < expectedHealthChecks) {
+        LOG.info(
+            "Waited for {}ms for {} health checks. Current health check count is {}.",
+            waitedMillis,
+            numHealthChecks.get(),
+            expectedHealthChecks);
+        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      }
+    }
+
     @Override
     protected void appendSpecificHtml(PrintWriter writer) {}
 
@@ -197,18 +202,37 @@ public class AbstractWindmillStreamTest {
   }
 
   private static class TestCallStreamObserver extends CallStreamObserver<Integer> {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
     private final CountDownLatch sendBlocker = new CountDownLatch(1);
+
+    private final boolean waitForSend;
+
+    private TestCallStreamObserver(boolean waitForSend) {
+      this.waitForSend = waitForSend;
+    }
 
     private void unblockSend() {
       sendBlocker.countDown();
     }
 
+    private void waitForSend() {
+      try {
+        int waitedMillis = 0;
+        while (!sendBlocker.await(100, TimeUnit.MILLISECONDS)) {
+          waitedMillis += 100;
+          LOG.info("Waiting from send for {}ms", waitedMillis);
+        }
+      } catch (InterruptedException e) {
+        LOG.error("Interrupted waiting for send().");
+      }
+    }
+
     @Override
     public void onNext(Integer integer) {
-      try {
-        sendBlocker.await();
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
+      if (waitForSend) {
+        waitForSend();
+      } else {
+        sendBlocker.countDown();
       }
     }
 

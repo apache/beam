@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
@@ -83,6 +84,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final String backendWorkerToken;
   private final ResettableThrowingStreamObserver<RequestT> requestObserver;
   private final StreamDebugMetrics debugMetrics;
+  private final AtomicBoolean isHealthCheckScheduled;
 
   @GuardedBy("this")
   protected boolean clientClosed;
@@ -92,8 +94,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @GuardedBy("this")
   private boolean started;
-
-  private volatile boolean isHealthCheckActive;
 
   protected AbstractWindmillStream(
       Logger logger,
@@ -117,7 +117,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.clientClosed = false;
     this.isShutdown = false;
     this.started = false;
-    this.isHealthCheckActive = false;
+    this.isHealthCheckScheduled = new AtomicBoolean(false);
     this.finishLatch = new CountDownLatch(1);
     this.logger = logger;
     this.requestObserver =
@@ -244,27 +244,28 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    *
    * @implNote This is sent asynchronously via an executor to minimize blocking. Messages are sent
    *     serially. If we recently sent a message before we attempt to schedule the health check, the
-   *     stream has been restarted/closed, there is an active health check that hasn't completed due
-   *     to flow control/pushback or there was a more recent send by the time we enter the
-   *     synchronized block, we skip the attempt to send scheduled the health check.
+   *     stream has been restarted/closed, there is a scheduled health check that hasn't completed
+   *     or there was a more recent send by the time we enter the synchronized block, we skip the
+   *     attempt to send scheduled the health check.
    */
-  public final void maybeSendHealthCheck(Instant lastSendThreshold) {
-    if (debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis() && !isHealthCheckActive) {
+  public final void maybeScheduleHealthCheck(Instant lastSendThreshold) {
+    if (debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()
+        && isHealthCheckScheduled.compareAndSet(false, true)) {
       // Don't block other streams when sending health check.
       executeSafely(
           () -> {
             synchronized (this) {
-              if (!isHealthCheckActive
-                  && !clientClosed
+              if (!clientClosed
                   && debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()) {
-                isHealthCheckActive = true;
                 try {
                   sendHealthCheck();
                 } catch (Exception e) {
                   logger.debug("Received exception sending health check.", e);
                 }
-                isHealthCheckActive = false;
               }
+
+              // Ready to send another health check after we attempt the scheduled health check.
+              isHealthCheckScheduled.set(false);
             }
           });
     }
