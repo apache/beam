@@ -32,8 +32,8 @@ from typing import Optional
 
 import fastavro
 
-import apache_beam.io as beam_io
 import apache_beam as beam
+import apache_beam.io as beam_io
 from apache_beam import coders
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
