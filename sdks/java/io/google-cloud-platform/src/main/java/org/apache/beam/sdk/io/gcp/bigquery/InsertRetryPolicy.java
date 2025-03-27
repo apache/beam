@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import java.io.Serializable;
 import java.util.Set;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A retry policy for streaming BigQuery inserts.
@@ -43,19 +44,35 @@ public abstract class InsertRetryPolicy implements Serializable {
   /**
    * Contains information about a failed insert.
    *
-   * <p>Currently only the list of errors returned from BigQuery. In the future this may contain
-   * more information - e.g. how many times this insert has been retried, and for how long.
+   * <p>Contains the list of errors returned from BigQuery for per-element failures within a
+   * successful (200 OK) response, and an optional exception for non-successful (non-200) HTTP
+   * responses. In the future, this may include additional details, such as retry attempts or
+   * elapsed time.
    */
   public static class Context {
     // A list of all errors corresponding to an attempted insert of a single record.
-    final TableDataInsertAllResponse.InsertErrors errors;
+    final TableDataInsertAllResponse.@Nullable InsertErrors errors;
+    // Exception thrown for non-successful (non-200) HTTP responses, if applicable.
+    final @Nullable Throwable exception;
 
-    public TableDataInsertAllResponse.InsertErrors getInsertErrors() {
+    public TableDataInsertAllResponse.@Nullable InsertErrors getInsertErrors() {
       return errors;
     }
 
-    public Context(TableDataInsertAllResponse.InsertErrors errors) {
+    public @Nullable Throwable getException() {
+      return exception;
+    }
+
+    // Constructor for per-element errors (existing behavior)
+    public Context(TableDataInsertAllResponse.@Nullable InsertErrors errors) {
+      this(errors, null);
+    }
+
+    // Constructor for both per-element errors and exceptions
+    public Context(
+        TableDataInsertAllResponse.@Nullable InsertErrors errors, @Nullable Throwable exception) {
       this.errors = errors;
+      this.exception = exception;
     }
   }
 
@@ -86,13 +103,20 @@ public abstract class InsertRetryPolicy implements Serializable {
     };
   }
 
-  /** Retry all failures except for known persistent errors. */
+  /** Retry all failures except for known persistent errors or non-retryable exceptions. */
   public static InsertRetryPolicy retryTransientErrors() {
     return new InsertRetryPolicy() {
       @Override
       public boolean shouldRetry(Context context) {
-        if (context.getInsertErrors().getErrors() != null) {
-          for (ErrorProto error : context.getInsertErrors().getErrors()) {
+        // Check for non-200 response exceptions first
+        if (context.getException() != null) {
+          // For now, assume non-200 responses are non-retryable unless specified otherwise
+          return false; // Could be refined later based on exception type (e.g., 503 vs 400)
+        }
+        // Existing logic for per-element errors
+        TableDataInsertAllResponse.InsertErrors insertErrors = context.getInsertErrors();
+        if (insertErrors != null && insertErrors.getErrors() != null) {
+          for (ErrorProto error : insertErrors.getErrors()) {
             if (error.getReason() != null && PERSISTENT_ERRORS.contains(error.getReason())) {
               return false;
             }
