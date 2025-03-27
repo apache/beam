@@ -16,6 +16,7 @@
 # under the License.
 
 # To learn more about GitHub Actions in Apache Beam check the CI.m
+# DO NOT USE THIS WORKFLOW AND WILL BE REMOVED SOON
 
 name: Run RC Validation
 on:
@@ -130,7 +131,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{matrix.py_version}}
-        
+
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
@@ -143,7 +144,7 @@ jobs:
       with:
         RELEASE_VER: ${{env.RELEASE_VER}}
         PYTHON_RC_DOWNLOAD_URL: ${{env.PYTHON_RC_DOWNLOAD_URL}}
-      
+
 
 
     - name: Setting Taxi Variables
