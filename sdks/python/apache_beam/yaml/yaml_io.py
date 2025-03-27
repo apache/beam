@@ -33,10 +33,13 @@ from typing import Optional
 import fastavro
 
 import apache_beam as beam
+from apache_beam import coders
 import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import avroio
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
@@ -574,3 +577,58 @@ def write_to_iceberg(
 def io_providers():
   return yaml_provider.load_providers(
       yaml_utils.locate_data_file('standard_io.yaml'))
+
+
+def read_from_tfrecord(
+    file_pattern: str,
+    coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+    compression_type: Optional[CompressionTypes] = None,
+    validate: Optional[bool] = None):
+  """Reads data from TFRecord.
+
+  Args:
+    file_pattern (str): A file glob pattern to read TFRecords from.
+    # coder (coders.BytesCoder): Coder used to decode each record.
+    compression_type (CompressionTypes): Used to handle compressed input files. Default value
+      is CompressionTypes.AUTO, in which case the file_path's extension will
+      be used to detect the compression.
+    validate (bool): Boolean flag to verify that the files exist during the pipeline
+      creation time.
+  """
+  return ReadFromTFRecord(
+      file_pattern=file_pattern,
+      compression_type=compression_type,
+      validate=validate)
+
+def write_to_tfrecord(
+      file_path_prefix: str,
+      coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+      file_name_suffix: Optional[str] = None,
+      num_shards: Optional[int] = None,
+      shard_name_template: Optional[str] = None,
+      compression_type: Optional[CompressionTypes] = None):
+    """Writes data to TFRecord.
+
+    public abstract Builder setNoSpilling(boolean value);
+    Args:
+      file_path_prefix: The file path to write to. The files written will begin
+        with this prefix, followed by a shard identifier (see num_shards), and
+        end in a common extension, if given by file_name_suffix.
+      coder: Coder used to encode each record.
+      file_name_suffix: Suffix for the files written.
+      num_shards: The number of files (shards) used for output. If not set, the
+        default value will be used.
+      shard_name_template: A template string containing placeholders for
+        the shard number and shard count. When constructing a filename for a
+        particular shard number, the upper-case letters 'S' and 'N' are
+        replaced with the 0-padded shard number and shard count respectively.
+        This argument can be '' in which case it behaves as if num_shards was
+        set to 1 and only one file will be generated. The default pattern used
+        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+      compression_type: Used to handle compressed output files. Typical value
+          is CompressionTypes.AUTO, in which case the file_path's extension will
+          be used to detect the compression.
+
+    Returns:
+      A WriteToTFRecord transform object.
+    """

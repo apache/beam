@@ -22,6 +22,30 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
+# BeamJar Providers
+- type: beamJar
+  transforms:
+    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
+    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+
+# Python Providers
+- type: python
+  transforms:
+    'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
+    # Disable until https://github.com/apache/beam/issues/28162 is resolved.
+    # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+    'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
+    'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
+    'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
+    'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
+    'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
+    'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
+    'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
+    'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
+
+# BigQuery
 - type: renaming
   transforms:
     'ReadFromBigQuery': 'ReadFromBigQuery'
@@ -48,6 +72,7 @@
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
+# Kafka
 - type: renaming
   transforms:
     'ReadFromKafka': 'ReadFromKafka'
@@ -83,6 +108,7 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+# PubSub
 - type: renaming
   transforms:
     'ReadFromPubSubLite': 'ReadFromPubSubLite'
@@ -120,18 +146,7 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
-- type: python
-  transforms:
-    'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
-    # Disable until https://github.com/apache/beam/issues/28162 is resolved.
-    # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
-    'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
-    'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
-    'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
-    'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
-    'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
-    'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
-
+# General File Formats
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java
 # implementation.
@@ -185,13 +200,7 @@
         'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
         'WriteToAvro': 'apache_beam.io.WriteToAvro'
 
-- type: beamJar
-  transforms:
-    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
-    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
-  config:
-    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
-
+# Databases
 - type: renaming
   transforms:
     'ReadFromJdbc': 'ReadFromJdbc'
@@ -296,6 +305,7 @@
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Spanner
 - type: renaming
   transforms:
     'ReadFromSpanner': 'ReadFromSpanner'
@@ -324,3 +334,29 @@
         'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+# TFRecord
+- type: renaming
+  transforms:
+    'ReadFromTFRecord': 'ReadFromTFRecord'
+    'WriteToTFRecord': 'WriteToTFRecord'
+  config:
+    mappings:
+      'ReadFromTFRecord':
+        file_pattern: 'file_pattern'
+        compression: 'compression'
+        validate: 'validate'
+      'WriteToTFRecord':
+        output_prefix: 'output_prefix'
+        shard_template: 'shard_template'
+        filename_suffix: 'filename_suffix'
+        num_shards: 'num_shards'
+        compression: 'compression'
+        no_spilling: 'no_spilling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_read:v1'
+        'WriteToTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
