@@ -294,8 +294,8 @@ jobs:
         RELEASE_VER: ${{env.RELEASE_VER}}
         PYTHON_RC_DOWNLOAD_URL: ${{env.PYTHON_RC_DOWNLOAD_URL}}
 
-    - name: Setup Maven Action
-      uses: s4u/setup-maven-action@v1.2.1
+    - name: Setup Java and Maven Action
+      uses: actions/setup-java@v4
       with:
         java-version: 11
     - name: Updating Settings
