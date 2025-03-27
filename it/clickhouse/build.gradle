@@ -32,6 +32,7 @@ def clickhouse_jdbc_version = "0.6.4"
 dependencies {
     implementation project(path: ":it:common")
     implementation project(path: ":it:testcontainers")
+    implementation project(path: ":it:conditions")
     testImplementation platform('org.junit:junit-bom:5.10.0')
     implementation library.java.slf4j_api
     testImplementation 'org.junit.jupiter:junit-jupiter'
