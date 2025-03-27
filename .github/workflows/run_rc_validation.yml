@@ -74,9 +74,22 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RELEASE_BRANCH: "release-${{github.event.inputs.RELEASE_VER}}"
+      RAW_RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
       WORKING_BRANCH: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}_validations"
     steps:
+      - name: Set Release Branch Name (Major.Minor)
+        id: set_branch_name # Optional: Give the step an ID
+        run: |
+          VERSION="${{ env.RAW_RELEASE_VER }}" # Use the full version from input/env
+          # Use shell parameter expansion to remove the last dot and everything after it
+          MAJOR_MINOR_VERSION="${VERSION%.*}"
+          # Construct the branch name
+          BRANCH_NAME="release-$MAJOR_MINOR_VERSION"
+          echo "Original Version: $VERSION"
+          echo "Calculated Major.Minor Version: $MAJOR_MINOR_VERSION"
+          echo "Setting RELEASE_BRANCH Env Var to: $BRANCH_NAME"
+          # Export the calculated name to the environment for subsequent steps
+          echo "RELEASE_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
       - name: Check out code
         uses: actions/checkout@v4
         with:
