@@ -154,7 +154,7 @@ jobs:
         --num_workers 5 \
         --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
         --beam_services="{\":sdks:java:extensions:sql:expansion-service:shadowJar\": \"${SQL_EXPANSION_SERVICE_JAR}\"}" \
-        --sdk_location apache-beam-${RELEASE_VER}.tar.gz || true
+        --sdk_location apache_beam-${RELEASE_VER}.tar.gz || true
     - name: Checking Results
       run: |
         gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION}
@@ -243,7 +243,7 @@ jobs:
         --temp_location=${USER_GCS_BUCKET}/temp/ \
         --with_metadata \
         --beam_services="{\"sdks:java:io:expansion-service:shadowJar\": \"${KAFKA_EXPANSION_SERVICE_JAR}\"}" \
-        --sdk_location apache-beam-${RELEASE_VER}.tar.gz || true
+        --sdk_location apache_beam-${RELEASE_VER}.tar.gz || true
     - name: Checking executions results
       run: |
         bq head -n 10 ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi
@@ -434,7 +434,7 @@ jobs:
           --dataset ${LEADERBOARD_DF_DATASET} \
           --runner DataflowRunner \
           --temp_location=${USER_GCS_BUCKET}/temp/ \
-          --sdk_location apache-beam-${RELEASE_VER}.tar.gz || true
+          --sdk_location apache_beam-${RELEASE_VER}.tar.gz || true
       - name: Checking results
         run: |
           bq head -n 10 ${LEADERBOARD_DF_DATASET}.leader_board_users
@@ -535,7 +535,7 @@ jobs:
           --dataset ${GAMESTATS_DF_DATASET} \
           --runner DataflowRunner \
           --temp_location=${USER_GCS_BUCKET}/temp/ \
-          --sdk_location apache-beam-${RELEASE_VER}.tar.gz \
+          --sdk_location apache_beam-${RELEASE_VER}.tar.gz \
           --fixed_window_duration ${FIXED_WINDOW_DURATION} || true
       - name: Checking Results
         run: |
