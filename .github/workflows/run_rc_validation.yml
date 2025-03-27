@@ -74,9 +74,22 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RELEASE_BRANCH: "release-${{github.event.inputs.RELEASE_VER}}"
+      RAW_RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
       WORKING_BRANCH: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}_validations"
     steps:
+      - name: Set Release Branch Name (Major.Minor)
+        id: set_branch_name # Optional: Give the step an ID
+        run: |
+          VERSION="${{ env.RAW_RELEASE_VER }}" # Use the full version from input/env
+          # Use shell parameter expansion to remove the last dot and everything after it
+          MAJOR_MINOR_VERSION="${VERSION%.*}"
+          # Construct the branch name
+          BRANCH_NAME="release-$MAJOR_MINOR_VERSION"
+          echo "Original Version: $VERSION"
+          echo "Calculated Major.Minor Version: $MAJOR_MINOR_VERSION"
+          echo "Setting RELEASE_BRANCH Env Var to: $BRANCH_NAME"
+          # Export the calculated name to the environment for subsequent steps
+          echo "RELEASE_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
       - name: Check out code
         uses: actions/checkout@v4
         with:
@@ -154,7 +167,7 @@ jobs:
         --num_workers 5 \
         --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
         --beam_services="{\":sdks:java:extensions:sql:expansion-service:shadowJar\": \"${SQL_EXPANSION_SERVICE_JAR}\"}" \
-        --sdk_location apache-beam-${RELEASE_VER}.tar.gz || true
+        --sdk_location apache_beam-${RELEASE_VER}.tar.gz || true
     - name: Checking Results
       run: |
         gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION}
@@ -243,7 +256,7 @@ jobs:
         --temp_location=${USER_GCS_BUCKET}/temp/ \
         --with_metadata \
         --beam_services="{\"sdks:java:io:expansion-service:shadowJar\": \"${KAFKA_EXPANSION_SERVICE_JAR}\"}" \
-        --sdk_location apache-beam-${RELEASE_VER}.tar.gz || true
+        --sdk_location apache_beam-${RELEASE_VER}.tar.gz || true
     - name: Checking executions results
       run: |
         bq head -n 10 ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi
@@ -294,8 +307,8 @@ jobs:
         RELEASE_VER: ${{env.RELEASE_VER}}
         PYTHON_RC_DOWNLOAD_URL: ${{env.PYTHON_RC_DOWNLOAD_URL}}
 
-    - name: Setup Maven Action
-      uses: s4u/setup-maven-action@v1.2.1
+    - name: Setup Java and Maven Action
+      uses: actions/setup-java@v4
       with:
         java-version: 11
     - name: Updating Settings
@@ -434,7 +447,7 @@ jobs:
           --dataset ${LEADERBOARD_DF_DATASET} \
           --runner DataflowRunner \
           --temp_location=${USER_GCS_BUCKET}/temp/ \
-          --sdk_location apache-beam-${RELEASE_VER}.tar.gz || true
+          --sdk_location apache_beam-${RELEASE_VER}.tar.gz || true
       - name: Checking results
         run: |
           bq head -n 10 ${LEADERBOARD_DF_DATASET}.leader_board_users
@@ -535,7 +548,7 @@ jobs:
           --dataset ${GAMESTATS_DF_DATASET} \
           --runner DataflowRunner \
           --temp_location=${USER_GCS_BUCKET}/temp/ \
-          --sdk_location apache-beam-${RELEASE_VER}.tar.gz \
+          --sdk_location apache_beam-${RELEASE_VER}.tar.gz \
           --fixed_window_duration ${FIXED_WINDOW_DURATION} || true
       - name: Checking Results
         run: |
