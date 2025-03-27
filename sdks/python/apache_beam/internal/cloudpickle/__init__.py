@@ -3,7 +3,7 @@ from .cloudpickle import *  # noqa
 
 __doc__ = cloudpickle.__doc__
 
-__version__ = "3.2.0.dev0"
+__version__ = "3.1.1"
 
 __all__ = [  # noqa
     "__version__",
