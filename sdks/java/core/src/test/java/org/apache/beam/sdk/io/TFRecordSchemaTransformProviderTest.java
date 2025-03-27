@@ -108,23 +108,6 @@ public class TFRecordSchemaTransformProviderTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
-  // private static final TFRecordReadSchemaTransformConfiguration BASIC_READ_CONFIG =
-  //     TFRecordReadSchemaTransformConfiguration.builder()
-  //         .setValidate(false)
-  //         .setCompression(Compression.AUTO)
-  //         .setFilePattern("foo.*")
-  //         .build();
-
-  // private static final TFRecordWriteSchemaTransformConfiguration BASIC_WRITE_CONFIG =
-  //     TFRecordWriteSchemaTransformConfiguration.builder()
-  //         .setOutputPrefix(tempFolder.getRoot().toPath().toString())
-  //         .setFilenameSuffix("bar")
-  //         .setShardTemplate("xyz")
-  //         .setNumShards(10)
-  //         .setCompression(Compression.AUTO)
-  //         .setNoSpilling(true)
-  //         .build();
-
   private static TFRecordReadSchemaTransformConfiguration readConfig;
   private static TFRecordWriteSchemaTransformConfiguration writeConfig;
 
@@ -133,7 +116,7 @@ public class TFRecordSchemaTransformProviderTest {
     readConfig =
         TFRecordReadSchemaTransformConfiguration.builder()
             .setValidate(false)
-            .setCompression(Compression.AUTO)
+            .setCompression("AUTO")
             .setFilePattern("foo.*")
             .build();
 
@@ -143,7 +126,7 @@ public class TFRecordSchemaTransformProviderTest {
             .setFilenameSuffix("bar")
             .setShardTemplate("xyz")
             .setNumShards(10)
-            .setCompression(Compression.UNCOMPRESSED)
+            .setCompression("UNCOMPRESSED")
             .setNoSpilling(true)
             .build();
   }
@@ -151,7 +134,7 @@ public class TFRecordSchemaTransformProviderTest {
   @Test
   public void testReadInvalidConfigurations() {
     String filePattern = "foo.*";
-    Compression compression = Compression.AUTO;
+    String compression = "AUTO";
 
     // Invalid filepattern
     assertThrows(
@@ -208,7 +191,7 @@ public class TFRecordSchemaTransformProviderTest {
     String nonExistentPath = "abc";
     String filenameSuffix = "bar";
     String shardTemplate = "xyz";
-    Compression compression = Compression.AUTO;
+    String compression = "AUTO";
     Integer numShards = 10;
 
     // Invalid outputPrefix
@@ -297,7 +280,7 @@ public class TFRecordSchemaTransformProviderTest {
     assertEquals(tfrecordProvider.inputCollectionNames(), Lists.newArrayList());
 
     assertEquals(
-        Sets.newHashSet("file_pattern", "compression", "validate"), // , "error_handling"),
+        Sets.newHashSet("file_pattern", "compression", "validate", "error_handling"),
         tfrecordProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -405,7 +388,7 @@ public class TFRecordSchemaTransformProviderTest {
 
     // Create transform provider with configuration data
     TFRecordReadSchemaTransformProvider provider = new TFRecordReadSchemaTransformProvider();
-    Compression compression = AUTO;
+    String compression = "AUTO";
     TFRecordReadSchemaTransformConfiguration configuration =
         TFRecordReadSchemaTransformConfiguration.builder()
             .setValidate(true)
@@ -443,7 +426,7 @@ public class TFRecordSchemaTransformProviderTest {
 
     // Create transform provider with configuration data
     TFRecordWriteSchemaTransformProvider provider = new TFRecordWriteSchemaTransformProvider();
-    Compression compression = Compression.UNCOMPRESSED;
+    String compression = "UNCOMPRESSED";
     TFRecordWriteSchemaTransformConfiguration configuration =
         TFRecordWriteSchemaTransformConfiguration.builder()
             .setOutputPrefix(filename)
@@ -509,7 +492,7 @@ public class TFRecordSchemaTransformProviderTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripZlib() throws IOException { // BROKEN *******
+  public void runTestRoundTripZlib() throws IOException { // BROKEN 
     runTestRoundTrip(SMALL, 10, ".tfrecords", DEFLATE, DEFLATE);
   }
 
@@ -565,7 +548,7 @@ public class TFRecordSchemaTransformProviderTest {
         TFRecordWriteSchemaTransformConfiguration.builder()
             .setNumShards(numShards)
             .setFilenameSuffix(suffix)
-            .setCompression(writeCompression)
+            .setCompression(writeCompression.toString())
             .setOutputPrefix(baseFilenameViaWrite)
             .setNoSpilling(true)
             .build();
@@ -592,7 +575,7 @@ public class TFRecordSchemaTransformProviderTest {
     TFRecordReadSchemaTransformConfiguration readConfiguration =
         TFRecordReadSchemaTransformConfiguration.builder()
             .setValidate(true)
-            .setCompression(readCompression)
+            .setCompression(readCompression.toString())
             .setFilePattern(baseFilenameViaWrite + "*")
             .build();
     TFRecordReadSchemaTransform readTransform =
