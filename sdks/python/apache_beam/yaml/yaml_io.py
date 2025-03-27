@@ -608,7 +608,8 @@ def write_to_tfrecord(
     file_name_suffix: Optional[str] = None,
     num_shards: Optional[int] = None,
     shard_name_template: Optional[str] = None,
-    compression_type: Optional[str] = None):
+    compression_type: Optional[str] = None,
+    no_spilling: Optional[bool] = None):
   """Writes data to TFRecord.
 
   public abstract Builder setNoSpilling(boolean value);
@@ -634,13 +635,10 @@ def write_to_tfrecord(
   Returns:
     A WriteToTFRecord transform object.
   """
-  compression = ""
-  if compression_type == "GZIP":
-    compression = CompressionTypes.GZIP
   return WriteToTFRecord(
       file_path_prefix=file_path_prefix,
       coder=coder,
       file_name_suffix=file_name_suffix,
       num_shards=num_shards,
       shard_name_template=shard_name_template,
-      compression_type=compression)
+      compression_type=getattr(CompressionTypes, compression_type))
