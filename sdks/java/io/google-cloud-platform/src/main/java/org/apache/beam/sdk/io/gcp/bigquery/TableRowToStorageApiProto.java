@@ -25,6 +25,7 @@ import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
@@ -36,6 +37,7 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -62,6 +64,8 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -848,7 +852,7 @@ public class TableRowToStorageApiProto {
    * @param newRow
    * @return merged table row
    */
-  public static TableRow mergeNewFields(TableRow original, TableRow newRow) {
+  private static TableRow mergeNewFields(TableRow original, TableRow newRow) {
     if (original == null) {
       return newRow;
     }
@@ -899,6 +903,95 @@ public class TableRowToStorageApiProto {
       mergedList.add(mergeNewFields(orig, delta));
     }
     return mergedList;
+  }
+
+  public static ByteString mergeNewFields(
+      ByteString tableRowProto,
+      DescriptorProtos.DescriptorProto descriptorProto,
+      TableSchema tableSchema,
+      SchemaInformation schemaInformation,
+      TableRow unknownFields,
+      boolean ignoreUnknownValues)
+      throws TableRowToStorageApiProto.SchemaConversionException {
+    if (unknownFields == null || unknownFields.isEmpty()) {
+      // nothing to do here
+      return tableRowProto;
+    }
+    // check if unknownFields contains repeated struct, merge
+    boolean hasRepeatedStruct =
+        unknownFields.entrySet().stream()
+            .anyMatch(
+                entry ->
+                    entry.getValue() instanceof List
+                        && !((List<?>) entry.getValue()).isEmpty()
+                        && ((List<?>) entry.getValue()).get(0) instanceof TableRow);
+    if (!hasRepeatedStruct) {
+      Descriptor descriptorIgnoreRequired = null;
+      try {
+        descriptorIgnoreRequired =
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false);
+      } catch (DescriptorValidationException e) {
+        throw new RuntimeException(e);
+      }
+      ByteString unknownFieldsProto =
+          messageFromTableRow(
+                  schemaInformation,
+                  descriptorIgnoreRequired,
+                  unknownFields,
+                  ignoreUnknownValues,
+                  true,
+                  null,
+                  null,
+                  null)
+              .toByteString();
+      return tableRowProto.concat(unknownFieldsProto);
+    }
+
+    DynamicMessage message = null;
+    Descriptor descriptor = null;
+    try {
+      descriptor = wrapDescriptorProto(descriptorProto);
+    } catch (DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+    try {
+      message = DynamicMessage.parseFrom(descriptor, tableRowProto);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
+    TableRow original =
+        TableRowToStorageApiProto.tableRowFromMessage(message, true, Predicates.alwaysTrue());
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+    // recover cdc data
+    String cdcType = null;
+    String sequence = null;
+    if (fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN) != null
+        && fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN) != null) {
+      cdcType =
+          (String)
+              message.getField(
+                  Preconditions.checkStateNotNull(
+                      fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+      sequence =
+          (String)
+              message.getField(
+                  Preconditions.checkStateNotNull(
+                      fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    }
+    TableRow merged = TableRowToStorageApiProto.mergeNewFields(original, unknownFields);
+    DynamicMessage dynamicMessage =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            merged,
+            ignoreUnknownValues,
+            false,
+            null,
+            cdcType,
+            sequence);
+    return dynamicMessage.toByteString();
   }
 
   private static @Nullable Object messageValueFromFieldValue(

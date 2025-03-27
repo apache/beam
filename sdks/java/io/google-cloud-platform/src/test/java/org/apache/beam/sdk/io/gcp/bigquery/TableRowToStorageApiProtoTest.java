@@ -37,13 +37,15 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
-import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -1782,28 +1784,33 @@ public class TableRowToStorageApiProtoTest {
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
             schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
-    assertEquals(2, msg.getAllFields().size());
-    assertFalse(unknown.isEmpty());
-    assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
-    assertEquals(0, ((Map<?, ?>) ((List<?>) unknown.get("repeated1")).get(0)).size());
-    assertNotNull(((List<?>) unknown.get("repeated1")).get(0));
-    assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
+
     assertTrue(
         ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
     assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
 
-    TableRow tableRow1 =
-        TableRowToStorageApiProto.tableRowFromMessage(msg, false, Predicates.alwaysTrue());
+    ByteString bytes =
+        TableRowToStorageApiProto.mergeNewFields(
+            msg.toByteString(),
+            descriptor.toProto(),
+            TableRowToStorageApiProto.schemaToProtoTableSchema(schema),
+            schemaInformation,
+            unknown,
+            true);
 
-    TableRow merge = TableRowToStorageApiProto.mergeNewFields(tableRow1, unknown);
-
-    assertNotNull(merge);
-    assertEquals(2, ((List<?>) merge.get("repeated1")).size());
-    assertEquals("valueE", ((TableRow) ((List<?>) merge.get("repeated1")).get(1)).get("unknown"));
+    DynamicMessage merged = DynamicMessage.parseFrom(descriptor, bytes);
+    assertNotNull(merged);
+    assertEquals(2, merged.getAllFields().size());
+    FieldDescriptor repeated1 = descriptor.findFieldByName("repeated1");
+    List<?> array = (List) merged.getField(repeated1);
+    assertNotNull(array);
+    assertEquals(2, array.size());
   }
 
   @Test
-  public void testCdcFieldsWithUnknownFields() throws Exception {
+  public void testMergeUnknownRepeatedNestedFieldWithUnknownInRepeatedFieldWhenSchemaChanges()
+      throws Exception {
+
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
     fields.add(
@@ -1815,7 +1822,21 @@ public class TableRowToStorageApiProtoTest {
                 ImmutableList.of(
                     new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
                     new TableFieldSchema().setName("key2").setType("STRING"))));
-    TableSchema schema = new TableSchema().setFields(fields);
+    TableSchema oldSchema = new TableSchema().setFields(fields);
+
+    List<TableFieldSchema> newFields = new ArrayList<>();
+    newFields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    newFields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("type").setType("STRING"))));
+    TableSchema newSchema = new TableSchema().setFields(newFields);
     TableRow tableRow =
         new TableRow()
             .set("foo", "bar")
@@ -1826,49 +1847,44 @@ public class TableRowToStorageApiProtoTest {
                     new TableCell()
                         .set("key1", "valueB")
                         .set("key2", "valueD")
-                        .set("unknown", "valueE")));
+                        .set("type", "valueE")));
 
     Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, true);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(oldSchema, true, false);
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
-        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(oldSchema);
     TableRow unknown = new TableRow();
-    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
-    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
-
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, "UPDATE", 42);
+            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
 
-    Map<String, FieldDescriptor> fieldDescriptors =
-        descriptor.getFields().stream()
-            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
-    String cdcType = (String) msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN));
-    assertEquals("UPDATE", cdcType);
-    String sequence = (String) msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN));
-    assertEquals(Long.toHexString(42L), sequence);
+    assertTrue(
+        ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("type"));
 
-    // tableRow1 is missing CDC fields
-    TableRow tableRow1 =
-        TableRowToStorageApiProto.tableRowFromMessage(msg, false, Predicates.alwaysTrue());
+    // schema is updated
+    descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(newSchema, true, false);
+    schemaInformation = TableRowToStorageApiProto.SchemaInformation.fromTableSchema(newSchema);
 
-    // recover
-    TableRow merge = TableRowToStorageApiProto.mergeNewFields(tableRow1, unknown);
+    ByteString bytes =
+        TableRowToStorageApiProto.mergeNewFields(
+            msg.toByteString(),
+            descriptor.toProto(),
+            TableRowToStorageApiProto.schemaToProtoTableSchema(newSchema),
+            schemaInformation,
+            unknown,
+            true);
 
-    assertNotNull(merge);
-    assertEquals(2, ((List<?>) merge.get("repeated1")).size());
-    assertEquals("valueE", ((TableRow) ((List<?>) merge.get("repeated1")).get(1)).get("unknown"));
-    DynamicMessage msg1 =
-        TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, null, cdcType, sequence);
-
-    fieldDescriptors =
-        descriptor.getFields().stream()
-            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
-    assertEquals("UPDATE", msg1.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
-    assertEquals(
-        Long.toHexString(42L),
-        msg1.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    DynamicMessage merged = DynamicMessage.parseFrom(descriptor, bytes);
+    assertNotNull(merged);
+    assertEquals(2, merged.getAllFields().size());
+    FieldDescriptor repeated1 = descriptor.findFieldByName("repeated1");
+    List<?> array = (List) merged.getField(repeated1);
+    FieldDescriptor type =
+        descriptor.findFieldByName("repeated1").getMessageType().findFieldByName("type");
+    assertNotNull(array);
+    assertEquals(2, array.size());
+    assertEquals("valueE", ((DynamicMessage) array.get(1)).getField(type));
   }
 
   @Test
