@@ -32,12 +32,12 @@ from typing import Optional
 
 import fastavro
 
+import apache_beam.io as beam_io
 import apache_beam as beam
 from apache_beam import coders
-import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
-from apache_beam.io import WriteToBigQuery
 from apache_beam.io import ReadFromTFRecord
+from apache_beam.io import WriteToBigQuery
 from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
 from apache_beam.io.filesystem import CompressionTypes
