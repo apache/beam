@@ -296,7 +296,7 @@ final class GrpcGetDataStream
   }
 
   @Override
-  public void sendHealthCheck() throws WindmillStreamShutdownException {
+  protected void sendHealthCheck() throws WindmillStreamShutdownException {
     if (hasPendingRequests()) {
       trySend(HEALTH_CHECK_REQUEST);
     }

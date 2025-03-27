@@ -155,7 +155,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
                   Instant reportThreshold =
                       Instant.now().minus(Duration.millis(healthCheckIntervalMillis));
                   for (AbstractWindmillStream<?, ?> stream : streamFactory.streamRegistry) {
-                    stream.maybeSendHealthCheck(reportThreshold);
+                    stream.maybeScheduleHealthCheck(reportThreshold);
                   }
                 }
               },
