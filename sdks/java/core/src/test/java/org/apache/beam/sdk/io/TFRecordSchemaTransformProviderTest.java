@@ -492,7 +492,7 @@ public class TFRecordSchemaTransformProviderTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripZlib() throws IOException { // BROKEN 
+  public void runTestRoundTripZlib() throws IOException {
     runTestRoundTrip(SMALL, 10, ".tfrecords", DEFLATE, DEFLATE);
   }
 
