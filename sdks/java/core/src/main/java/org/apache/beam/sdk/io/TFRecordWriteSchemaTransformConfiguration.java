@@ -53,9 +53,7 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
 
     String outputPrefix = getOutputPrefix();
     if (outputPrefix != null) {
-      // checkState(outputPrefix, "Cannot validate with a RVP.");
       String filePath = outputPrefix.toString();
-      System.out.println(filePath);
       if (filePath != null) {
         try {
           MatchResult matches = FileSystems.match(filePath);
@@ -99,7 +97,7 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
   public abstract String getShardTemplate();
 
   @SchemaFieldDescription("Option to indicate the output sink's compression type. Default is NONE.")
-  public abstract Compression getCompression();
+  public abstract String getCompression();
 
   @SchemaFieldDescription(
       "Whether to skip the spilling of data caused by having maxNumWritersPerBundle.")
@@ -120,7 +118,7 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
 
     public abstract Builder setNumShards(int value);
 
-    public abstract Builder setCompression(Compression value);
+    public abstract Builder setCompression(String value);
 
     public abstract Builder setNoSpilling(boolean value);
 

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -35,11 +36,12 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,8 +52,7 @@ public class TFRecordWriteSchemaTransformProvider
   private static final String INPUT = "input";
   private static final String OUTPUT = "output";
   private static final String ERROR = "errors";
-  public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
-      new TupleTag<KV<byte[], byte[]>>() {};
+  public static final TupleTag<byte[]> OUTPUT_TAG = new TupleTag<byte[]>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   private static final Logger LOG =
       LoggerFactory.getLogger(TFRecordWriteSchemaTransformProvider.class);
@@ -118,7 +119,7 @@ public class TFRecordWriteSchemaTransformProvider
 
       // Create basic transform
       TFRecordIO.Write writeTransform =
-          TFRecordIO.write().withCompression(configuration.getCompression());
+          TFRecordIO.write().withCompression(Compression.valueOf(configuration.getCompression()));
 
       // Add more parameters if not null
       String outputPrefix = configuration.getOutputPrefix();
@@ -152,7 +153,6 @@ public class TFRecordWriteSchemaTransformProvider
             "The input schema must have exactly one field of type byte.");
       }
 
-      // Obtaian schema field name
       final String schemaField;
       if (inputSchema.getField(0).getName() != null) {
         schemaField = inputSchema.getField(0).getName();
@@ -165,19 +165,34 @@ public class TFRecordWriteSchemaTransformProvider
       // Convert Beam Rows to byte arrays
       SerializableFunction<Row, byte[]> rowToBytesFn = getRowToBytesFn(schemaField);
 
-      PCollection<byte[]> byteArrays = inputRows.apply(ParDo.of(new RowToBytesDoFn(rowToBytesFn)));
+      Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+
+      // Apply row to bytes fn
+      PCollectionTuple byteArrays =
+          inputRows.apply(
+              ParDo.of(
+                      new ErrorFn(
+                          "TFRecord-write-error-counter", rowToBytesFn, errorSchema, handleErrors))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       // Apply the write transform to byte arrays to write tfrecords to file.
-      byteArrays.apply(writeTransform);
+      byteArrays.get(OUTPUT_TAG).setCoder(ByteArrayCoder.of()).apply(writeTransform);
 
-      return PCollectionRowTuple.empty(input.getPipeline());
-    }
-  }
-
-  public static class LogRowDoFn extends DoFn<Row, Void> {
-    @ProcessElement
-    public void processElement(@Element Row row) {
-      LOG.info("Row: {}", row.toString());
+      // Error handling
+      String output = "";
+      ErrorHandling errorHandler = configuration.getErrorHandling();
+      if (errorHandler != null) {
+        String outputHandler = errorHandler.getOutput();
+        if (outputHandler != null) {
+          output = outputHandler;
+        } else {
+          output = "";
+        }
+      }
+      PCollection<Row> errorOutput =
+          byteArrays.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
+      return PCollectionRowTuple.of(handleErrors ? output : "errors", errorOutput);
     }
   }
 
@@ -191,9 +206,6 @@ public class TFRecordWriteSchemaTransformProvider
     @ProcessElement
     public void processElement(@Element Row row, OutputReceiver<byte[]> out) {
       byte[] bytes = rowToBytesFn.apply(row);
-      // System.out.printf("row: %s", bytes);
-      // LOG.info("Byte array: {}", Arrays.toString(bytes));
-
       out.output(bytes);
     }
   }
@@ -203,7 +215,6 @@ public class TFRecordWriteSchemaTransformProvider
       @Override
       public byte[] apply(Row input) {
         byte[] rawBytes = input.getBytes(rowFieldName);
-        // LOG.info("Byte array: {}", Arrays.toString(rawBytes));
         if (rawBytes == null) {
           throw new NullPointerException();
         }
@@ -212,14 +223,14 @@ public class TFRecordWriteSchemaTransformProvider
     };
   }
 
-  public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {
+  public static class ErrorFn extends DoFn<Row, byte[]> {
     private final SerializableFunction<Row, byte[]> toBytesFn;
     private final Counter errorCounter;
     private Long errorsInBundle = 0L;
     private final boolean handleErrors;
     private final Schema errorSchema;
 
-    public ErrorCounterFn(
+    public ErrorFn(
         String name,
         SerializableFunction<Row, byte[]> toBytesFn,
         Schema errorSchema,
@@ -232,9 +243,9 @@ public class TFRecordWriteSchemaTransformProvider
 
     @ProcessElement
     public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-      KV<byte[], byte[]> output = null;
+      byte[] output = null;
       try {
-        output = KV.of(new byte[1], toBytesFn.apply(row));
+        output = toBytesFn.apply(row);
       } catch (Exception e) {
         if (!handleErrors) {
           throw new RuntimeException(e);
