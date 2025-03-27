@@ -347,11 +347,11 @@
         compression: 'compression'
         validate: 'validate'
       'WriteToTFRecord':
-        output_prefix: 'output_prefix'
-        shard_template: 'shard_template'
-        filename_suffix: 'filename_suffix'
+        file_path_prefix: 'output_prefix'
+        shard_name_template: 'shard_template'
+        file_name_suffix: 'filename_suffix'
         num_shards: 'num_shards'
-        compression: 'compression'
+        compression_type: 'compression'
         no_spilling: 'no_spilling'
     underlying_provider:
       type: beamJar
