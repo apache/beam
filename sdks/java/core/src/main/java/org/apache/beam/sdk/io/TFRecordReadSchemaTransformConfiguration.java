@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -28,6 +29,8 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * Configuration for reading from TFRecord.
@@ -63,12 +66,12 @@ public abstract class TFRecordReadSchemaTransformConfiguration implements Serial
       }
     }
 
-    // ErrorHandling errorHandling = getErrorHandling();
-    // if (errorHandling != null) {
-    //   checkArgument(
-    //       !Strings.isNullOrEmpty(errorHandling.getOutput()),
-    //       invalidConfigMessage + "Output must not be empty if error handling specified.");
-    // }
+    ErrorHandling errorHandling = getErrorHandling();
+    if (errorHandling != null) {
+      checkArgument(
+          !Strings.isNullOrEmpty(errorHandling.getOutput()),
+          invalidConfigMessage + "Output must not be empty if error handling specified.");
+    }
   }
 
   /** Instantiates a {@link TFRecordReadSchemaTransformConfiguration.Builder} instance. */
@@ -80,13 +83,13 @@ public abstract class TFRecordReadSchemaTransformConfiguration implements Serial
   public abstract boolean getValidate();
 
   @SchemaFieldDescription("Decompression type to use when reading input files.")
-  public abstract Compression getCompression();
+  public abstract String getCompression();
 
   @SchemaFieldDescription("Filename or file pattern used to find input files.")
   public abstract @Nullable String getFilePattern();
 
-  // @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
-  // public abstract @Nullable ErrorHandling getErrorHandling();
+  @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+  public abstract @Nullable ErrorHandling getErrorHandling();
 
   abstract Builder toBuilder();
 
@@ -96,11 +99,11 @@ public abstract class TFRecordReadSchemaTransformConfiguration implements Serial
 
     public abstract Builder setValidate(boolean value);
 
-    public abstract Builder setCompression(Compression value);
+    public abstract Builder setCompression(String value);
 
     public abstract Builder setFilePattern(String value);
 
-    // public abstract Builder setErrorHandling(@Nullable ErrorHandling errorHandling);
+    public abstract Builder setErrorHandling(@Nullable ErrorHandling errorHandling);
 
     /** Builds the {@link TFRecordReadSchemaTransformConfiguration} configuration. */
     public abstract TFRecordReadSchemaTransformConfiguration build();

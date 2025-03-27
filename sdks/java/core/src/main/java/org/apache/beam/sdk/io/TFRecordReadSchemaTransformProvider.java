@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,15 +33,16 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,42 +117,63 @@ public class TFRecordReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      // configuration.validate();
+      // Validate configuration parameters
+      configuration.validate();
+
       TFRecordIO.Read readTransform =
-          TFRecordIO.read().withCompression(configuration.getCompression());
+          TFRecordIO.read().withCompression(Compression.valueOf(configuration.getCompression()));
 
       String filePattern = configuration.getFilePattern();
-      System.out.println(filePattern);
       if (filePattern != null) {
-        System.out.printf("filePattern:%s", filePattern);
         readTransform = readTransform.from(filePattern);
       }
-
       if (!configuration.getValidate()) {
         readTransform = readTransform.withoutValidation();
       }
 
       // Read TFRecord files into a PCollection of byte arrays.
       PCollection<byte[]> tfRecordValues = input.getPipeline().apply(readTransform);
-      // Schema schema = tfRecordValues.getSchema();
 
       // Define the schema for the row
       Schema schema = Schema.of(Schema.Field.of("record", Schema.FieldType.BYTES));
+      Schema errorSchema = ErrorHandling.errorSchemaBytes();
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
 
-      // Convert byte arrays to Rows based on the provided Schema.
-      PCollection<Row> outputRows =
+      SerializableFunction<byte[], Row> bytesToRowFn = getBytesToRowFn(schema);
+
+      // Apply bytes to row fn
+      PCollectionTuple outputTuple =
           tfRecordValues.apply(
               ParDo.of(
-                  new DoFn<byte[], Row>() {
-                    @ProcessElement
-                    public void processElement(@Element byte[] byteArray, OutputReceiver<Row> out) {
-                      Row row = Row.withSchema(schema).addValues(byteArray).build();
-                      out.output(row);
-                    }
-                  }));
+                      new ErrorFn(
+                          "TFRecord-read-error-counter", bytesToRowFn, errorSchema, handleErrors))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      return PCollectionRowTuple.of(OUTPUT, outputRows.setRowSchema(schema));
+      PCollectionRowTuple outputRows =
+          PCollectionRowTuple.of("output", outputTuple.get(OUTPUT_TAG).setRowSchema(schema));
+
+      // Error handling
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
+      if (handleErrors) {
+        outputRows =
+            outputRows.and(
+                checkArgumentNotNull(configuration.getErrorHandling()).getOutput(), errorOutput);
+      }
+      return outputRows;
     }
+  }
+
+  public static SerializableFunction<byte[], Row> getBytesToRowFn(Schema schema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        Row row = Row.withSchema(schema).addValues(input).build();
+        if (row == null) {
+          throw new NullPointerException();
+        }
+        return row;
+      }
+    };
   }
 
   public static class ErrorFn extends DoFn<byte[], Row> {
