@@ -139,7 +139,8 @@ public class KafkaReadSchemaTransformProviderTest {
             "error_handling",
             "file_descriptor_path",
             "message_name",
-            "max_read_time_seconds"),
+            "max_read_time_seconds",
+            "with_key_metadata"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
