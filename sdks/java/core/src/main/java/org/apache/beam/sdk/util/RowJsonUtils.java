@@ -24,8 +24,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utilities for working with {@link RowJson.RowJsonSerializer} and {@link
@@ -34,7 +39,6 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 public class RowJsonUtils {
 
-  //
   private static int defaultBufferLimit;
 
   /**
@@ -101,6 +105,48 @@ public class RowJsonUtils {
       return objectMapper.writeValueAsString(row);
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to serialize row: " + row, e);
+    }
+  }
+
+  /**
+   * Verifies that all field types in the schema are supported by RowJson deserialization. Throws an
+   * IllegalArgumentException if an unsupported type is encountered.
+   */
+  public static void verifySchemaSupported(Schema schema) {
+    for (Field field : schema.getFields()) {
+      FieldType fieldType = field.getType();
+      TypeName typeName = fieldType.getTypeName();
+      if (typeName.isCompositeType()) {
+        if (typeName == TypeName.ROW) {
+          @Nullable Schema rowSchema = fieldType.getRowSchema();
+          if (rowSchema == null) {
+            throw new IllegalArgumentException(
+                "Field '"
+                    + field.getName()
+                    + "' has ROW type with null schema, which is not supported");
+          }
+          verifySchemaSupported(rowSchema);
+        } else if (typeName == TypeName.MAP) {
+          @Nullable FieldType keyType = fieldType.getMapKeyType();
+          @Nullable FieldType valueType = fieldType.getMapValueType();
+          if (keyType == null || valueType == null) {
+            throw new IllegalArgumentException(
+                "Field '"
+                    + field.getName()
+                    + "' has MAP type with null key or value type, which is not supported");
+          }
+          if (keyType.getTypeName().isCompositeType()
+              || valueType.getTypeName().isCompositeType()) {
+            throw new IllegalArgumentException(
+                "Nested composite types (e.g., Map of Rows or Maps) in field '"
+                    + field.getName()
+                    + "' are not yet supported");
+          }
+        } else {
+          throw new IllegalArgumentException(
+              "Field '" + field.getName() + "' has unsupported composite type: " + typeName);
+        }
+      }
     }
   }
 }

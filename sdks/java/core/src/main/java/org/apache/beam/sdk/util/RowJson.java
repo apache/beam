@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT32;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
@@ -57,6 +58,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
@@ -88,6 +90,7 @@ import org.joda.time.ReadableInstant;
  *   <li>{@link Schema.TypeName#STRING}
  *   <li>{@link Schema.TypeName#DECIMAL}
  *   <li>{@link Schema.TypeName#DATETIME}
+ *   <li>{@link Schema.TypeName#MAP}
  * </ul>
  */
 @SuppressWarnings({
@@ -95,7 +98,8 @@ import org.joda.time.ReadableInstant;
 })
 public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
-      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, DATETIME);
+      ImmutableSet.of(
+          BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, DATETIME, MAP);
   private static final ImmutableSet<String> KNOWN_LOGICAL_TYPE_IDENTIFIERS =
       ImmutableSet.of(
           SqlTypes.DATE.getIdentifier(),
@@ -148,12 +152,22 @@ public class RowJson {
     TypeName fieldTypeName = fieldType.getTypeName();
 
     if (fieldTypeName.isCompositeType()) {
-      return fieldType.getRowSchema().getFields().stream()
-          .flatMap(
-              (field) ->
-                  findUnsupportedFields(field.getType(), fieldName + "." + field.getName())
-                      .stream())
-          .collect(toImmutableList());
+      if (fieldTypeName == TypeName.ROW) {
+        return fieldType.getRowSchema().getFields().stream()
+            .flatMap(
+                (field) ->
+                    findUnsupportedFields(field.getType(), fieldName + "." + field.getName())
+                        .stream())
+            .collect(toImmutableList());
+      } else if (fieldTypeName == TypeName.MAP) {
+        FieldType keyType = fieldType.getMapKeyType();
+        FieldType valueType = fieldType.getMapValueType();
+        if (!SUPPORTED_TYPES.contains(keyType.getTypeName())
+            || !SUPPORTED_TYPES.contains(valueType.getTypeName())) {
+          return ImmutableList.of(new UnsupportedField(fieldName, fieldTypeName));
+        }
+        return ImmutableList.of(); // MAP is supported if key/value types are supported
+      }
     }
 
     if (fieldTypeName.isCollectionType()) {
@@ -254,7 +268,6 @@ public class RowJson {
     @Override
     public Row deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
         throws IOException {
-
       // Parse and convert the root object to Row as if it's a nested field with name 'root'
       return (Row)
           extractJsonNodeValue(
@@ -301,6 +314,10 @@ public class RowJson {
 
       if (fieldValue.isArrayType()) {
         return jsonArrayToList(fieldValue);
+      }
+
+      if (fieldValue.typeName() == MAP) {
+        return jsonObjectToMap(fieldValue);
       }
 
       if (fieldValue.typeName().isLogicalType()) {
@@ -363,6 +380,40 @@ public class RowJson {
                           arrayFieldValue.arrayElementType(),
                           jsonArrayElement)))
           .collect(toImmutableList());
+    }
+
+    private Map<String, Object> jsonObjectToMap(FieldValue mapFieldValue) {
+      if (!mapFieldValue.isJsonObject()) {
+        throw new UnsupportedRowJsonException(
+            "Expected JSON object for field '"
+                + mapFieldValue.name()
+                + "'. Unable to convert '"
+                + mapFieldValue.jsonValue().asText()
+                + "' to Beam Map, it is not a JSON object.");
+      }
+
+      FieldType keyType = mapFieldValue.type().getMapKeyType();
+      FieldType valueType = mapFieldValue.type().getMapValueType();
+
+      if (keyType.getTypeName() != STRING) {
+        throw new UnsupportedRowJsonException(
+            "Map keys must be STRING, found: " + keyType.getTypeName());
+      }
+
+      ImmutableMap.Builder<String, Object> mapBuilder = ImmutableMap.builder();
+      mapFieldValue
+          .jsonValue()
+          .fields()
+          .forEachRemaining(
+              entry -> {
+                String key = entry.getKey();
+                JsonNode valueNode = entry.getValue();
+                Object value =
+                    extractJsonNodeValue(
+                        FieldValue.of(mapFieldValue.name() + "." + key, valueType, valueNode));
+                mapBuilder.put(key, value);
+              });
+      return mapBuilder.build();
     }
 
     private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {
@@ -537,6 +588,15 @@ public class RowJson {
           break;
         case ROW:
           writeRow((Row) value, type.getRowSchema(), gen);
+          break;
+        case MAP:
+          gen.writeStartObject();
+          Map<String, Object> map = (Map<String, Object>) value;
+          for (Map.Entry<String, Object> entry : map.entrySet()) {
+            gen.writeFieldName(entry.getKey());
+            writeValue(gen, type.getMapValueType(), entry.getValue());
+          }
+          gen.writeEndObject();
           break;
         case LOGICAL_TYPE:
           String identifier = type.getLogicalType().getIdentifier();
