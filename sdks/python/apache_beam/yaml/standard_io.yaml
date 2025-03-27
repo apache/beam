@@ -219,7 +219,7 @@
         query: 'read_query'
         table: 'location'
         partition_column : 'partition_column'
-        num_partitions: 'num_partitions'
+        partitions: 'partitions'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
