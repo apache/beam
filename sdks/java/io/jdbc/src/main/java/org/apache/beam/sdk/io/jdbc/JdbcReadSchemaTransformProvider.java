@@ -214,25 +214,7 @@ public class JdbcReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-
-      boolean partitionColumnPresent =
-          (config.getPartitionColumn() != null && !"".equals(config.getPartitionColumn()));
-      boolean readQueryPresent =
-          (config.getReadQuery() != null && !"".equals(config.getReadQuery()));
-      boolean locationPresent = (config.getLocation() != null && !"".equals(config.getLocation()));
-
-      // Reading with partitions only supports table argument.
-      if (partitionColumnPresent && !locationPresent) {
-        throw new IllegalArgumentException("Table must be specified to read with partitions.");
-      }
-      // If you specify a readQuery, it is to be used instead of a table.
-      if (readQueryPresent && locationPresent) {
-        throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
-      }
-      if (!readQueryPresent && !locationPresent) {
-        throw new IllegalArgumentException("Either Query or Table must be specified.");
-      }
-
+      config.validate();
       // If we define a partition column, we follow a different route.
       @Nullable String partitionColumn = config.getPartitionColumn();
       @Nullable String location = config.getLocation();
@@ -259,30 +241,29 @@ public class JdbcReadSchemaTransformProvider
           readRowsWithParitions = readRowsWithParitions.withDisableAutoCommit(disableAutoCommit);
         }
         return PCollectionRowTuple.of("output", input.getPipeline().apply(readRowsWithParitions));
-      } else {
-        @Nullable String readQuery = config.getReadQuery();
-        if (readQuery == null) {
-          readQuery = String.format("SELECT * FROM %s", location);
-        }
-        JdbcIO.ReadRows readRows =
-            JdbcIO.readRows()
-                .withDataSourceConfiguration(dataSourceConfiguration())
-                .withQuery(readQuery);
-
-        @Nullable Integer fetchSize = config.getFetchSize();
-        if (fetchSize != null && fetchSize > 0) {
-          readRows = readRows.withFetchSize(fetchSize);
-        }
-        @Nullable Boolean outputParallelization = config.getOutputParallelization();
-        if (outputParallelization != null) {
-          readRows = readRows.withOutputParallelization(outputParallelization);
-        }
-        @Nullable Boolean disableAutoCommit = config.getDisableAutoCommit();
-        if (disableAutoCommit != null) {
-          readRows = readRows.withDisableAutoCommit(disableAutoCommit);
-        }
-        return PCollectionRowTuple.of("output", input.getPipeline().apply(readRows));
       }
+      @Nullable String readQuery = config.getReadQuery();
+      if (readQuery == null) {
+        readQuery = String.format("SELECT * FROM %s", location);
+      }
+      JdbcIO.ReadRows readRows =
+          JdbcIO.readRows()
+              .withDataSourceConfiguration(dataSourceConfiguration())
+              .withQuery(readQuery);
+
+      @Nullable Integer fetchSize = config.getFetchSize();
+      if (fetchSize != null && fetchSize > 0) {
+        readRows = readRows.withFetchSize(fetchSize);
+      }
+      @Nullable Boolean outputParallelization = config.getOutputParallelization();
+      if (outputParallelization != null) {
+        readRows = readRows.withOutputParallelization(outputParallelization);
+      }
+      @Nullable Boolean disableAutoCommit = config.getDisableAutoCommit();
+      if (disableAutoCommit != null) {
+        readRows = readRows.withDisableAutoCommit(disableAutoCommit);
+      }
+      return PCollectionRowTuple.of("output", input.getPipeline().apply(readRows));
     }
   }
 
@@ -402,12 +383,14 @@ public class JdbcReadSchemaTransformProvider
       boolean partitionColumnPresent =
           (getPartitionColumn() != null && !"".equals(getPartitionColumn()));
 
+      // If you specify a readQuery, it is to be used instead of a table.
       if (readQueryPresent && locationPresent) {
         throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
       }
       if (!readQueryPresent && !locationPresent) {
         throw new IllegalArgumentException("Either Query or Table must be specified.");
       }
+      // Reading with partitions only supports table argument.
       if (partitionColumnPresent && !locationPresent) {
         throw new IllegalArgumentException("Table must be specified to read with partitions.");
       }
