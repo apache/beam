@@ -18,6 +18,7 @@
 """Unit tests for the transform.util classes."""
 
 # pytype: skip-file
+# pylint: disable=too-many-function-args
 
 import collections
 import importlib
@@ -33,6 +34,8 @@ from datetime import datetime
 
 import pytest
 import pytz
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -75,6 +78,9 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
+from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
 warnings.filterwarnings(
@@ -793,7 +799,10 @@ class ReshuffleTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
       expected_data = [
-          TestWindowedValue(v, t - .001, [w])
+          TestWindowedValue(
+              v,
+              t - .001, [w],
+              pane_info=PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0))
           for (v, t, w) in [((1, contains_in_any_order([2, 1])),
                              4.0,
                              IntervalWindow(1.0, 4.0)),
@@ -826,6 +835,7 @@ class ReshuffleTest(unittest.TestCase):
     any_order = contains_in_any_order
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+
       expected_windows = [
           TestWindowedValue(v, t, [w])
           for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), (
@@ -838,7 +848,10 @@ class ReshuffleTest(unittest.TestCase):
                                                       IntervalWindow(4.0, 6.0))]
       ]
       expected_merged_windows = [
-          TestWindowedValue(v, t - .001, [w])
+          TestWindowedValue(
+              v,
+              t - .001, [w],
+              pane_info=PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0))
           for (v, t,
                w) in [((1, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                    (2, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
@@ -941,6 +954,209 @@ class ReshuffleTest(unittest.TestCase):
       after_reshuffle = before_reshuffle | beam.Reshuffle(buckets)
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
+    """Tests that Reshuffle preserves pane info."""
+    element_count = 12
+    timestamp_value = timestamp.Timestamp(0)
+    l = [
+        TimestampedValue(("key", i), timestamp_value)
+        for i in range(element_count)
+    ]
+
+    expected_timestamp = GlobalWindow().max_timestamp()
+    expected =  [
+          TestWindowedValue(
+              ('key', [0, 1, 2]),
+              expected_timestamp,
+              [GlobalWindow()],
+              pane_info=PaneInfo(
+                  is_first=True,
+                  is_last=False,
+                  timing=PaneInfoTiming.EARLY,  # 0
+                  index=0,
+                  nonspeculative_index=-1
+              )
+          ),
+          TestWindowedValue(
+              ('key', [3, 4, 5]),
+              expected_timestamp,
+              [GlobalWindow()],
+              pane_info=PaneInfo(
+                  is_first=False,
+                  is_last=False,
+                  timing=PaneInfoTiming.EARLY,  # 0
+                  index=1,
+                  nonspeculative_index=-1
+              )
+          ),
+          TestWindowedValue(
+              ('key', [6, 7, 8]),
+              expected_timestamp,
+              [GlobalWindow()],
+              pane_info=PaneInfo(
+                  is_first=False,
+                  is_last=False,
+                  timing=PaneInfoTiming.EARLY,  # 0
+                  index=2,
+                  nonspeculative_index=-1
+              )
+          ),
+          TestWindowedValue(
+              ('key', [9, 10, 11]),
+              expected_timestamp,
+              [GlobalWindow()],
+              pane_info=PaneInfo(
+                  is_first=False,
+                  is_last=False,
+                  timing=PaneInfoTiming.EARLY,  # 0
+                  index=3,
+                  nonspeculative_index=-1
+              )
+          )
+    ] if compat_version is None else (
+      [
+          TestWindowedValue(
+              ('key', [0, 1, 2]),
+              expected_timestamp,
+              [GlobalWindow()],
+              PANE_INFO_UNKNOWN
+          ),
+          TestWindowedValue(
+              ('key', [3, 4, 5]),
+              expected_timestamp,
+              [GlobalWindow()],
+              PANE_INFO_UNKNOWN
+          ),
+          TestWindowedValue(
+              ('key', [6, 7, 8]),
+              expected_timestamp,
+              [GlobalWindow()],
+              PANE_INFO_UNKNOWN
+          ),
+          TestWindowedValue(
+              ('key', [9, 10, 11]),
+              expected_timestamp,
+              [GlobalWindow()],
+              PANE_INFO_UNKNOWN
+          )
+    ]
+    )
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    options.view_as(StandardOptions).streaming = True
+
+    with beam.Pipeline(options=options) as p:
+      stream_source = (
+          TestStream().advance_watermark_to(0).advance_processing_time(
+              100).add_elements(l[:element_count // 4]).advance_processing_time(
+                  100).advance_watermark_to(100).add_elements(
+                      l[element_count // 4:2 * element_count // 4]).
+          advance_processing_time(100).advance_watermark_to(200).add_elements(
+              l[2 * element_count // 4:3 * element_count //
+                4]).advance_processing_time(
+                    100).advance_watermark_to(300).add_elements(
+                        l[3 * element_count // 4:]).advance_processing_time(
+                            100).advance_watermark_to_infinity())
+      grouped = (
+          p | stream_source
+          | "Rewindow" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.GroupByKey())
+
+      after_reshuffle = (grouped | 'Reshuffle' >> beam.Reshuffle())
+
+      assert_that(
+          after_reshuffle,
+          equal_to(expected),
+          label='CheckMetadataPreserved',
+          reify_windows=True)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_default_window_preserves_metadata(self, compat_version):
+    """Tests that Reshuffle preserves timestamp, window, and pane info
+    metadata."""
+
+    no_firing = PaneInfo(
+        is_first=True,
+        is_last=True,
+        timing=PaneInfoTiming.UNKNOWN,
+        index=0,
+        nonspeculative_index=0)
+
+    on_time_only = PaneInfo(
+        is_first=True,
+        is_last=True,
+        timing=PaneInfoTiming.ON_TIME,
+        index=0,
+        nonspeculative_index=0)
+
+    late_firing = PaneInfo(
+        is_first=False,
+        is_last=False,
+        timing=PaneInfoTiming.LATE,
+        index=1,
+        nonspeculative_index=1)
+
+    expected_preserved = [
+        TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
+        TestWindowedValue(
+            'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
+        TestWindowedValue(
+            'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
+        TestWindowedValue(
+            'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+    ]
+
+    expected_not_preserved = [
+        TestWindowedValue(
+            'a', MIN_TIMESTAMP, [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'b', timestamp.Timestamp(0), [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'd',
+            GlobalWindow().max_timestamp(), [GlobalWindow()],
+            PANE_INFO_UNKNOWN)
+    ]
+
+    expected = (
+        expected_preserved
+        if compat_version is None else expected_not_preserved)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    with TestPipeline(options=options) as pipeline:
+      # Create windowed values with specific metadata
+      elements = [
+          WindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
+          WindowedValue(
+              'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
+          WindowedValue(
+              'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
+          WindowedValue(
+              'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+      ]
+
+      after_reshuffle = (
+          pipeline
+          | 'Create' >> beam.Create(elements)
+          | 'Reshuffle' >> beam.Reshuffle())
+
+      assert_that(
+          after_reshuffle,
+          equal_to(expected),
+          label='CheckMetadataPreserved',
+          reify_windows=True)
 
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
