@@ -1,0 +1,235 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {name: "foo"}
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              record2: 
+                callable: |
+                  def process(row):
+                    return row.name.encode('utf-8')
+                output_type: bytes
+        - type: WriteToTFRecord
+          config:
+            file_path_prefix: "{TEMP_DIR}"
+            file_name_suffix: ".tfrecord"
+            compression_type: "UNCOMPRESSED"
+            no_spilling: true
+            num_shards: 1
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        #     # output_prefix: "{TEMP_DIR}/users"
+        #     # suffix: ".tfrecord"
+            # schema:
+            #   fields:
+            #     - {name: "id", type: "INT32"}
+            #     - {name: "name", type: "STRING"}
+            #     - {name: "age", type: "INT32"}
+              # - {label: "11a", rank: 0}
+              # - {label: "37a", rank: 1}
+              # - {label: "389a", rank: 2}
+
+
+
+
+
+
+
+
+
+        #     # output_prefix: "{TEMP_DIR}/users"
+        #     # suffix: ".tfrecord"
+            # output_prefix: "{TEMP_DIR}/users"
+            # filename_suffix: ".tfrecord"
+            # compression: "GZIP"
+            # no_spilling: true
+            # num_shards: 1
+
+
+                # output_type: bytes
+              # callable: "lambda row: row.name.encode('utf-8')"
+              # output_type: bytes
+
+
+              # - {id: 1, name: "Alice", age: 30}
+              # - {id: 2, name: "Bob", age: 25}
+
+
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: ReadFromTFRecord
+  #         config:
+  #           file_pattern: "{TEMP_DIR}/users*.tfrecord"
+  #           compression: GZIP
+  #           validate: true
+  #       - type: AssertEqual
+  #         config:
+  #           elements:
+  #             - {label: "11a", rank: 0}
+  #             - {label: "37a", rank: 1}
+  #             - {label: "389a", rank: 2}
+
+      # 'ReadFromTFRecord':
+      #   file_pattern: 'file_pattern'
+      #   compression: 'compression'
+      #   validate: 'validate'
+      # 'WriteToTFRecord':
+      #   output_prefix: 'output_prefix'
+      #   shard_template: 'shard_template'
+      #   filename_suffix: 'filename_suffix'
+      #   num_shards: 'num_shards'
+      #   compression: 'compression'
+      #   no_spilling: 'no_spilling'
+
+
+# fixtures:
+#   - name: TEMP_DIR
+#     type: "tempfile.TemporaryDirectory"
+
+# pipelines:
+#   - pipeline:
+#     type: chain
+#     transforms:
+#       - type: Create
+#         config:
+#           elements:
+#             - {id: 1, name: "Alice", age: 30}
+#             - {id: 2, name: "Bob", age: 25}
+          # schema:
+          #   fields:
+          #     - {name: "id", type: "INT32"}
+          #     - {name: "name", type: "STRING"}
+          #     - {name: "age", type: "INT32"}
+      # - type: "WriteToTFRecord"
+      #   config:
+      #     output_prefix: "{TEMP_DIR}/users"
+      #     suffix: ".tfrecord"
+      #     compression: GZIP # Or NONE, or ZLIB
+
+  # - pipeline:
+  #   type: chain
+  #   transforms:
+  #     - type: "ReadFromTFRecord"
+  #       config:
+  #         file_pattern: "{TEMP_DIR}/users*.tfrecord"
+  #         compression: GZIP # Must match the write compression
+  #         schema:
+  #           fields:
+  #             - {name: "id", type: "INT32"}
+  #             - {name: "name", type: "STRING"}
+  #             - {name: "age", type: "INT32"}
+  #     - type: "AssertEqualRows"
+  #       config:
+  #         elements:
+  #           - {id: 1, name: "Alice", age: 30}
+  #           - {id: 2, name: "Bob", age: 25}
+  #         schema:
+  #           fields:
+  #             - {name: "id", type: "INT32"}
+  #             - {name: "name", type: "STRING"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# fixtures:
+#   - name: TEMP_DIR
+#     type: "tempfile.TemporaryDirectory"
+
+# pipelines:
+#   - pipeline:
+#       type: chain
+#       transforms:
+#         - type: Create
+#           config:
+#             elements:
+#               - {label: "11a", rank: 0}
+#               - {label: "37a", rank: 1}
+#               - {label: "389a", rank: 2}
+#         - type: WriteToTFRecord
+#           config:
+#             table: "default.table"
+#             catalog_name: "some_catalog"
+#             catalog_properties:
+#               type: "hadoop"
+#               warehouse: "{TEMP_DIR}/dir"
+
+#   - pipeline:
+#       type: chain
+#       transforms:
+#         - type: ReadFromIceberg
+#           config:
+#             table: "default.table"
+#             catalog_name: "some_catalog"
+#             catalog_properties:
+#               type: "hadoop"
+#               warehouse: "{TEMP_DIR}/dir"
+#         - type: AssertEqual
+#           config:
+#             elements:
+#               - {label: "11a", rank: 0}
+#               - {label: "37a", rank: 1}
+#               - {label: "389a", rank: 2}
