@@ -23,9 +23,11 @@ import glob
 import gzip
 import logging
 import os
+import platform
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 import zlib
 
 import apache_beam as beam
@@ -196,6 +198,23 @@ class TextSourceTest(unittest.TestCase):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
     assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
+
+  @unittest.skipIf(platform.system() == 'Windows', 'Skipping on Windows')
+  def test_read_from_text_file_pattern_with_dot_slash(self):
+    cwd = os.getcwd()
+    expected = ['abc', 'de']
+    with TempDir() as temp_dir:
+      temp_dir.create_temp_file(suffix='.txt', lines=[b'a', b'b', b'c'])
+      temp_dir.create_temp_file(suffix='.txt', lines=[b'd', b'e'])
+
+      os.chdir(temp_dir.get_path())
+      with TestPipeline() as p:
+        dot_slash = p | 'ReadDotSlash' >> ReadFromText('./*.txt')
+        no_dot_slash = p | 'ReadNoSlash' >> ReadFromText('*.txt')
+
+        assert_that(dot_slash, equal_to(expected))
+        assert_that(no_dot_slash, equal_to(expected))
+      os.chdir(cwd)
 
   def test_read_single_file_smaller_than_default_buffer(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
@@ -1441,6 +1460,18 @@ class TextSourceTest(unittest.TestCase):
                      for split in splits])
     source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
+
+  def test_read_from_text_dirname_error(self):
+    file_pattern = 'abcd_test'
+    expected_error_message = (
+        "Path type should be local path or GCS path "
+        "when calling ReadFromText")
+
+    with unittest.mock.patch('os.path.dirname') as mock_dirname:
+      mock_dirname.side_effect = TypeError(expected_error_message)
+      with self.assertRaises(OSError):
+        with TestPipeline() as pipeline:
+          _ = pipeline | 'Read' >> ReadFromText(file_pattern)
 
 
 class TextSinkTest(unittest.TestCase):
