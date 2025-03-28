@@ -71,7 +71,7 @@ env:
   PUBSUB_TOPIC: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
   # Use inputs for GCP details
   GCP_PROJECT_ID: ${{ github.event.inputs.GCP_PROJECT_ID }}
-  GCS_BUCKET_NAME: ${{ github.event.inputs.GCS_BUCKET }} # Extract bucket name if gs:// prefix is included
+  GCS_BUCKET_NAME: ${{ github.event.inputs.GCS_BUCKET }}
   APACHE_REPO_URL: ${{ github.event.inputs.APACHE_CONTENTS_REPO }}
   RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
   RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
@@ -82,6 +82,9 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120 # Adjust timeout as needed
     steps:
+      - name: Extract GCS Bucket Name
+        run: echo "GCS_BUCKET_NAME=$(echo ${{ github.event.inputs.GCS_BUCKET }} | sed 's/^gs:\/\///')" >> $GITHUB_ENV
+      
       - name: Checkout code at RC tag
         uses: actions/checkout@v4
         with:
@@ -104,7 +107,7 @@ jobs:
           echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
           gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
         shell: bash
-
+  
       # Run the Mobile Gaming example test using Gradle
       - name: Run MobileGaming Java Dataflow Test
         uses: ./.github/actions/gradle-command-self-hosted-action
