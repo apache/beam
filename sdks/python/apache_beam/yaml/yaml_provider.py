@@ -41,7 +41,6 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-import clonevirtualenv
 import docstring_parser
 import yaml
 
@@ -1197,6 +1196,8 @@ class PypiExpansionService:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
+        # Avoid hard dependency for environments where this is never used.
+        import clonevirtualenv
         clonable_venv = cls._create_venv_to_clone(base_python)
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         venv_pip = os.path.join(venv, 'bin', 'pip')
