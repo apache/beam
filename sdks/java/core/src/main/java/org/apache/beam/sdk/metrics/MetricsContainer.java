@@ -33,14 +33,6 @@ public interface MetricsContainer extends Serializable {
   Counter getCounter(MetricName metricName);
 
   /**
-   * Return the {@link Counter} that should be used for implementing the given per-worker {@code metricName)
-   * in this container.
-   */
-  default Counter getPerWorkerCounter(MetricName metricName) {
-    return NoOpCounter.getInstance();
-  }
-
-  /**
    * Return the {@link Distribution} that should be used for implementing the given {@code
    * metricName} in this container.
    */

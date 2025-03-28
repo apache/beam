@@ -92,7 +92,7 @@ public class BigQuerySinkMetricsTest {
     }
 
     @Override
-    public Counter getPerWorkerCounter(MetricName metricName) {
+    public CounterCell getCounter(MetricName metricName) {
       perWorkerCounters.computeIfAbsent(metricName, name -> new CounterCell(name));
       return perWorkerCounters.get(metricName);
     }
@@ -174,11 +174,16 @@ public class BigQuerySinkMetricsTest {
     appendRowsThrottleCounter.inc(1);
     assertThat(
         appendRowsThrottleCounter.getName().getName(),
-        equalTo("ThrottledTime*rpc_method:APPEND_ROWS;throttling-msecs"));
+        equalTo(
+            "ThrottledTime*rpc_method:APPEND_ROWS;throttling-msecs",
+            ImmutableMap.of("PER_WORKER_METRIC", "true")));
 
     // check that both sub-counters have been incremented
     MetricName counterName =
-        MetricName.named("BigQuerySink", "ThrottledTime*rpc_method:APPEND_ROWS;");
+        MetricName.named(
+            "BigQuerySink",
+            "ThrottledTime*rpc_method:APPEND_ROWS;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     testContainer.assertPerWorkerCounterValue(counterName, 1L);
 
     counterName =
