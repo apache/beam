@@ -104,14 +104,14 @@ jobs:
       - name: Run MobileGaming Java Dataflow Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: >
-            :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
-            -Prepourl=${{ env.APACHE_REPO_URL }}
-            -Pver=${{ env.RELEASE_VERSION }}
-            -PgcpProject=${{ env.GCP_PROJECT_ID }}
-            -PgcsBucket=${{ env.GCS_BUCKET_NAME }}
-            -PbqDataset=${{ env.BQ_DATASET }}
-            -PpubsubTopic=${{ env.PUBSUB_TOPIC }}
+          gradle-command: :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
+          arguments: |
+            -Prepourl=${{ env.APACHE_REPO_URL }} \
+            -Pver=${{ env.RELEASE_VERSION }} \
+            -PgcpProject=${{ env.GCP_PROJECT_ID }} \
+            -PgcsBucket=${{ env.GCS_BUCKET_NAME }} \
+            -PbqDataset=${{ env.BQ_DATASET }} \
+            -PpubsubTopic=${{ env.PUBSUB_TOPIC }} \
 
       # Cleanup GCP resources (always run)
       - name: Cleanup BigQuery Dataset
