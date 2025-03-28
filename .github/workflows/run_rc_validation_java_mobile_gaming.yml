@@ -67,8 +67,8 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   # Define unique names for resources based on run ID to avoid collisions
   RUN_ID_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
-  BQ_DATASET: mobilegaming_java_rc_${{ env.RUN_ID_SUFFIX }}
-  PUBSUB_TOPIC: mobilegaming_java_rc_${{ env.RUN_ID_SUFFIX }}
+  BQ_DATASET: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
+  PUBSUB_TOPIC: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
   # Use inputs for GCP details
   GCP_PROJECT_ID: ${{ github.event.inputs.GCP_PROJECT_ID }}
   GCS_BUCKET_NAME: ${{ github.event.inputs.GCS_BUCKET }} # Extract bucket name if gs:// prefix is included
