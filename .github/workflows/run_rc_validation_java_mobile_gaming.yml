@@ -78,7 +78,7 @@ env:
 
 jobs:
   run_java_mobile_gaming_rc_validation:
-    name: Run Java Mobile Gaming RC Validation (${{ env.RELEASE_VERSION }} RC${{ github.event.inputs.RC_NUM }})
+    name: Run Java Mobile Gaming RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120 # Adjust timeout as needed
     steps:
