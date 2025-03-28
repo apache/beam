@@ -21,10 +21,14 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.PAY
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -112,6 +116,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
         properties.has("format")
             ? Optional.of(properties.get("format").asText())
             : Optional.empty();
+
+    BeamKafkaTable kafkaTable = null;
     if (Schemas.isNestedSchema(schema)) {
       Optional<PayloadSerializer> serializer =
           payloadFormat.map(
@@ -120,7 +126,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
                       format,
                       checkArgumentNotNull(schema.getField(PAYLOAD_FIELD).getType().getRowSchema()),
                       TableUtils.convertNode2Map(properties)));
-      return new NestedPayloadKafkaTable(schema, bootstrapServers, topics, serializer);
+      kafkaTable = new NestedPayloadKafkaTable(schema, bootstrapServers, topics, serializer);
     } else {
       /*
        * CSV is handled separately because multiple rows can be produced from a single message, which
@@ -129,13 +135,30 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
        * rows.
        */
       if (payloadFormat.orElse("csv").equals("csv")) {
-        return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+        kafkaTable = new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+      } else {
+        PayloadSerializer serializer =
+            PayloadSerializers.getSerializer(
+                payloadFormat.get(), schema, TableUtils.convertNode2Map(properties));
+        kafkaTable = new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer);
       }
-      PayloadSerializer serializer =
-          PayloadSerializers.getSerializer(
-              payloadFormat.get(), schema, TableUtils.convertNode2Map(properties));
-      return new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer);
     }
+
+    // Get Consumer Properties from Table properties
+    HashMap<String, Object> configUpdates = new HashMap<String, Object>();
+    Iterator<Entry<String, JsonNode>> tableProperties = properties.fields();
+    while (tableProperties.hasNext()) {
+      Entry<String, JsonNode> field = tableProperties.next();
+      if (field.getKey().startsWith("properties.")) {
+        configUpdates.put(field.getKey().replace("properties.", ""), field.getValue().textValue());
+      }
+    }
+
+    if (!configUpdates.isEmpty()) {
+      kafkaTable.updateConsumerProperties(configUpdates);
+    }
+
+    return kafkaTable;
   }
 
   @Override

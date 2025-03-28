@@ -16,6 +16,7 @@
 #
 
 import logging
+import typing
 import unittest
 
 import numpy as np
@@ -25,6 +26,8 @@ from apache_beam import schema_pb2
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas
+from apache_beam.utils.timestamp import Timestamp
+from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 DATA = [
@@ -456,6 +459,97 @@ class YamlMappingTest(unittest.TestCase):
         result.element_type._fields,
         (('label', str), ('conductor', np.int64), ('rank', np.int64),
          ('new_label', str)))
+
+  def test_extract_windowing_info(self):
+    T = typing.TypeVar('T')
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = (
+          p
+          | beam.Create(
+              [beam.Row(value=1), beam.Row(value=2), beam.Row(value=11)])
+          | beam.Map(
+              lambda x: beam.transforms.window.TimestampedValue(
+                  x, timestamp=x.value)).with_input_types(T).with_output_types(
+                      T)
+          | beam.WindowInto(beam.transforms.window.FixedWindows(10)))
+      result = elements | YamlTransform(
+          '''
+          type: ExtractWindowingInfo
+          config:
+              fields:
+                timestamp: timestamp
+                window_start: window_start
+                window_end: window_end
+                window_string: window_string
+                window_type: window_type
+                window_object: window_object
+                pane_info_field: pane_info
+          ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  value=1,
+                  timestamp=Timestamp(1),
+                  window_start=Timestamp(0),
+                  window_end=Timestamp(10),
+                  window_string='[0.0, 10.0)',
+                  window_type='IntervalWindow',
+                  window_object=beam.transforms.window.IntervalWindow(0, 10),
+                  pane_info_field=yaml_mapping.PaneInfoTuple(
+                      True, True, 'UNKNOWN', 0, 0)),
+              beam.Row(
+                  value=2,
+                  timestamp=Timestamp(2),
+                  window_start=Timestamp(0),
+                  window_end=Timestamp(10),
+                  window_string='[0.0, 10.0)',
+                  window_type='IntervalWindow',
+                  window_object=beam.transforms.window.IntervalWindow(0, 10),
+                  pane_info_field=yaml_mapping.PaneInfoTuple(
+                      True, True, 'UNKNOWN', 0, 0)),
+              beam.Row(
+                  value=11,
+                  timestamp=Timestamp(11),
+                  window_start=Timestamp(10),
+                  window_end=Timestamp(20),
+                  window_string='[10.0, 20.0)',
+                  window_type='IntervalWindow',
+                  window_object=beam.transforms.window.IntervalWindow(10, 20),
+                  pane_info_field=yaml_mapping.PaneInfoTuple(
+                      True, True, 'UNKNOWN', 0, 0)),
+          ]))
+
+  def test_extract_windowing_info_iterable(self):
+    T = typing.TypeVar('T')
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = (
+          p
+          | beam.Create(
+              [beam.Row(value=1), beam.Row(value=2), beam.Row(value=11)])
+          | beam.Map(
+              lambda x: beam.transforms.window.TimestampedValue(
+                  x, timestamp=x.value)).with_input_types(T).with_output_types(
+                      T))
+      result = elements | YamlTransform(
+          '''
+          type: ExtractWindowingInfo
+          config:
+              fields: [timestamp, window_type]
+          ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  value=1, timestamp=Timestamp(1), window_type='GlobalWindow'),
+              beam.Row(
+                  value=2, timestamp=Timestamp(2), window_type='GlobalWindow'),
+              beam.Row(
+                  value=11, timestamp=Timestamp(11),
+                  window_type='GlobalWindow'),
+          ]))
 
 
 if __name__ == '__main__':

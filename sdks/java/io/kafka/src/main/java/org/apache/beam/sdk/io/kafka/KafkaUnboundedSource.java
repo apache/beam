@@ -23,9 +23,12 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -37,6 +40,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -89,7 +93,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
           for (String topic : topics) {
             List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
             checkState(
-                partitionInfoList != null,
+                partitionInfoList != null && !partitionInfoList.isEmpty(),
                 "Could not find any partitions info. Please check Kafka configuration and make sure "
                     + "that provided topics exist.");
             for (PartitionInfo p : partitionInfoList) {
@@ -100,8 +104,34 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
         }
       }
     } else {
+      final Map<String, List<Integer>> topicsAndPartitions = new HashMap<>();
       for (TopicPartition p : partitions) {
-        Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, p.topic()));
+        topicsAndPartitions.computeIfAbsent(p.topic(), k -> new ArrayList<>()).add(p.partition());
+      }
+      try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
+        for (Map.Entry<String, List<Integer>> e : topicsAndPartitions.entrySet()) {
+          final String providedTopic = e.getKey();
+          final List<Integer> providedPartitions = e.getValue();
+          final Set<Integer> partitionsForTopic;
+          try {
+            partitionsForTopic =
+                consumer.partitionsFor(providedTopic).stream()
+                    .map(PartitionInfo::partition)
+                    .collect(Collectors.toSet());
+            for (Integer p : providedPartitions) {
+              checkState(
+                  partitionsForTopic.contains(p),
+                  "Partition "
+                      + p
+                      + " does not exist for topic "
+                      + providedTopic
+                      + ". Please check Kafka configuration.");
+            }
+          } catch (KafkaException exception) {
+            LOG.warn("Unable to access cluster. Skipping fail fast checks.");
+          }
+          Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, providedTopic));
+        }
       }
     }
 

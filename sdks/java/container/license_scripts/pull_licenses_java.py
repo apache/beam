@@ -40,8 +40,8 @@ from tenacity import wait_fixed
 from urllib.request import urlopen, Request, URLError, HTTPError
 
 SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla public license']
-RETRY_NUM = 4
-THREADS = 4
+RETRY_NUM = 12
+THREADS = 8
 
 CACHED_LICENSES = set()
 

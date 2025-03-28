@@ -17,9 +17,16 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -27,10 +34,10 @@ import org.apache.iceberg.expressions.Expression;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
-
   private transient @MonotonicNonNull Table cachedTable;
 
   public enum ScanType {
@@ -93,6 +100,24 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable String getToSnapshotRef();
 
   @Pure
+  public abstract @Nullable Long getFromTimestamp();
+
+  @Pure
+  public abstract @Nullable Long getToTimestamp();
+
+  @Pure
+  public abstract @Nullable StartingStrategy getStartingStrategy();
+
+  @Pure
+  public abstract boolean getUseCdc();
+
+  @Pure
+  public abstract @Nullable Boolean getStreaming();
+
+  @Pure
+  public abstract @Nullable Duration getPollInterval();
+
+  @Pure
   public abstract @Nullable String getTag();
 
   @Pure
@@ -113,6 +138,12 @@ public abstract class IcebergScanConfig implements Serializable {
         .setFromSnapshotRefExclusive(null)
         .setToSnapshot(null)
         .setToSnapshotRef(null)
+        .setFromTimestamp(null)
+        .setToTimestamp(null)
+        .setUseCdc(false)
+        .setStreaming(null)
+        .setPollInterval(null)
+        .setStartingStrategy(null)
         .setTag(null)
         .setBranch(null);
   }
@@ -157,10 +188,83 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setToSnapshotRef(@Nullable String ref);
 
+    public abstract Builder setFromTimestamp(@Nullable Long timestamp);
+
+    public abstract Builder setToTimestamp(@Nullable Long timestamp);
+
+    public abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
+
+    public abstract Builder setUseCdc(boolean useCdc);
+
+    public abstract Builder setStreaming(@Nullable Boolean streaming);
+
+    public abstract Builder setPollInterval(@Nullable Duration pollInterval);
+
     public abstract Builder setTag(@Nullable String tag);
 
     public abstract Builder setBranch(@Nullable String branch);
 
     public abstract IcebergScanConfig build();
+  }
+
+  @VisibleForTesting
+  abstract Builder toBuilder();
+
+  void validate(Table table) {
+    // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
+    if (!getUseCdc()) {
+      List<String> invalidOptions = new ArrayList<>();
+      if (MoreObjects.firstNonNull(getStreaming(), false)) {
+        invalidOptions.add("streaming");
+      }
+      if (getPollInterval() != null) {
+        invalidOptions.add("poll_interval_seconds");
+      }
+      if (getFromTimestamp() != null) {
+        invalidOptions.add("from_timestamp");
+      }
+      if (getToTimestamp() != null) {
+        invalidOptions.add("to_timestamp");
+      }
+      if (getFromSnapshotInclusive() != null) {
+        invalidOptions.add("from_snapshot");
+      }
+      if (getToSnapshot() != null) {
+        invalidOptions.add("to_snapshot");
+      }
+      if (getStartingStrategy() != null) {
+        invalidOptions.add("starting_strategy");
+      }
+      if (!invalidOptions.isEmpty()) {
+        throw new IllegalArgumentException(
+            error(
+                "the following options are currently only available when "
+                    + "reading with Managed.ICEBERG_CDC: "
+                    + invalidOptions));
+      }
+    }
+
+    if (getStartingStrategy() != null) {
+      checkArgument(
+          getFromTimestamp() == null && getFromSnapshotInclusive() == null,
+          error(
+              "'from_timestamp' and 'from_snapshot' are not allowed when 'starting_strategy' is set"));
+    }
+    checkArgument(
+        getFromTimestamp() == null || getFromSnapshotInclusive() == null,
+        error("only one of 'from_timestamp' or 'from_snapshot' can be set"));
+    checkArgument(
+        getToTimestamp() == null || getToSnapshot() == null,
+        error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
+
+    if (getPollInterval() != null) {
+      checkArgument(
+          Boolean.TRUE.equals(getStreaming()),
+          error("'poll_interval_seconds' can only be set when streaming is true"));
+    }
+  }
+
+  private String error(String message) {
+    return "Invalid source configuration: " + message;
   }
 }

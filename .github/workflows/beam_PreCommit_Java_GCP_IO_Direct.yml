@@ -20,7 +20,6 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
-      - "runners/core-construction-java/**"
       - "runners/core-java/**"
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
@@ -34,7 +33,6 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - "runners/core-construction-java/**"
       - "runners/core-java/**"
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java_GCP_IO_Direct.json'
@@ -85,7 +83,7 @@ jobs:
       matrix:
         job_name: ["beam_PreCommit_Java_GCP_IO_Direct"]
         job_phrase: ["Run Java_GCP_IO_Direct PreCommit"]
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||

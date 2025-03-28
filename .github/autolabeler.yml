@@ -79,7 +79,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
  
 # Runners
 "runners": ["runners/**/*", "sdks/go/pkg/beam/runners/**/*", "sdks/python/apache_beam/runners/**/*", "sdks/typescript/src/apache_beam/runners/**/*"]
-"core": ["runners/core-construction-java/**/*", "runners/core-java/**/*"]
+"core": ["runners/core-java/**/*"]
 "dataflow": ["runners/google-cloud-dataflow-java/**/*", "sdks/go/pkg/beam/runners/dataflow/**/*", "sdks/python/runners/dataflow/**/*"]
 "direct": ["runners/direct-java/**/*", "sdks/go/pkg/beam/runners/direct/**/*", "sdks/python/runners/direct/**/*"]
 "flink": ["runners/flink/**/*", "sdks/go/pkg/beam/runners/flink/**/*"]

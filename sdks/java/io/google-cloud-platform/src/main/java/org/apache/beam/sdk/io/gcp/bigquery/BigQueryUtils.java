@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -455,12 +456,23 @@ public class BigQueryUtils {
     return fromTableFieldSchema(tableSchema.getFields(), options);
   }
 
-  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  /** Convert a BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(TableSchema tableSchema) {
     return toGenericAvroSchema(tableSchema, false);
   }
 
-  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  /** Convert an Avro {@link org.apache.avro.Schema} to a BigQuery {@link TableSchema}. */
+  public static TableSchema fromGenericAvroSchema(org.apache.avro.Schema schema) {
+    return fromGenericAvroSchema(schema, false);
+  }
+
+  /** Convert an Avro {@link org.apache.avro.Schema} to a BigQuery {@link TableSchema}. */
+  public static TableSchema fromGenericAvroSchema(
+      org.apache.avro.Schema schema, Boolean useAvroLogicalTypes) {
+    return BigQueryAvroUtils.fromGenericAvroSchema(schema, useAvroLogicalTypes);
+  }
+
+  /** Convert a BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
       TableSchema tableSchema, Boolean useAvroLogicalTypes) {
     return toGenericAvroSchema("root", tableSchema.getFields(), useAvroLogicalTypes);
@@ -714,6 +726,9 @@ public class BigQueryUtils {
       if (fieldType.getNullable()) {
         return null;
       } else {
+        if (fieldType.getTypeName().isCollectionType()) {
+          return Collections.emptyList();
+        }
         throw new IllegalArgumentException(
             "Received null value for non-nullable field \"" + field.getName() + "\"");
       }

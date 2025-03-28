@@ -74,6 +74,8 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"];
     BIGQUERY_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:bigquery_write:v1"];
+    ICEBERG_CDC_READ = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:iceberg_cdc_read:v1"];
   }
 }
 

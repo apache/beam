@@ -49,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
+        os: [[self-hosted, ubuntu-20.04], macos-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v4

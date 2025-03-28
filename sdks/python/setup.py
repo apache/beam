@@ -401,7 +401,8 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'pandas<2.3.0',
-              'openai'
+              'openai',
+              'virtualenv-clone>=0.5,<1.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
@@ -424,6 +425,7 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
+              'virtualenv-clone>=0.5,<1.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',

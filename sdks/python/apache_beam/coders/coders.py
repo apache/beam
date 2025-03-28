@@ -629,7 +629,7 @@ Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
-  """Variable-length integer coder."""
+  """Variable-length integer coder  matches Java SDK's VarLongCoder."""
   def _create_impl(self):
     return coder_impl.VarIntCoderImpl()
 
@@ -648,6 +648,25 @@ class VarIntCoder(FastCoder):
 
 
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
+
+
+class VarInt32Coder(FastCoder):
+  """Variable-length integer coder matches Java SDK's VarIntCoder."""
+  def _create_impl(self):
+    return coder_impl.VarInt32CoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class BigEndianShortCoder(FastCoder):
@@ -1432,7 +1451,9 @@ class WindowedValueCoder(FastCoder):
     return self.wrapped_value_coder.value_coder()
 
   def __repr__(self):
-    return 'WindowedValueCoder[%s]' % self.wrapped_value_coder
+    return (
+        f'WindowedValueCoder[window_coder={self.window_coder}, '
+        f'value_coder={self.value_coder()}]')
 
   def __eq__(self, other):
     return (
@@ -1444,6 +1465,17 @@ class WindowedValueCoder(FastCoder):
   def __hash__(self):
     return hash(
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
+
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (Any, CoderRegistry) -> WindowedValueCoder
+    # Ideally this'd take two parameters so that one could hint at
+    # the window type as well instead of falling back to the
+    # pickle coders.
+    return cls(registry.get_coder(typehint.inner_type))
+
+  def to_type_hint(self):
+    return typehints.WindowedValue[self.wrapped_value_coder.to_type_hint()]
 
 
 Coder.register_structured_urn(

@@ -450,6 +450,9 @@ public class BigQueryUtilsTest {
 
   private static final TableRow BQ_ENUM_ROW = new TableRow().set("color", "GREEN");
 
+  private static final Row NULL_ARRAY_ROW =
+      Row.withSchema(ARRAY_TYPE_NULLS).addValue(Collections.emptyList()).build();
+
   private static final Row ARRAY_ROW_NULLS =
       Row.withSchema(ARRAY_TYPE_NULLS).addValues((Object) Arrays.asList(123L, null, null)).build();
 
@@ -458,6 +461,8 @@ public class BigQueryUtilsTest {
 
   private static final Row MAP_ROW =
       Row.withSchema(MAP_MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
+
+  private static final TableRow BQ_NULL_ARRAY_ROW = new TableRow().set("ids", null);
 
   private static final TableRow BQ_ARRAY_ROW_NULLS =
       new TableRow()
@@ -1019,6 +1024,12 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_enum() {
     Row beamRow = BigQueryUtils.toBeamRow(ENUM_STRING_TYPE, BQ_ENUM_ROW);
     assertEquals(ENUM_STRING_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_nullArray() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE_NULLS, BQ_NULL_ARRAY_ROW);
+    assertEquals(NULL_ARRAY_ROW, beamRow);
   }
 
   @Test

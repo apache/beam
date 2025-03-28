@@ -21,8 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isNull;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -250,7 +250,7 @@ public class GcsFileSystemTest {
     GcsResourceId path = GcsResourceId.fromGcsPath(GcsPath.fromUri(uri));
     Lineage mockLineage = mock(Lineage.class);
     gcsFileSystem.reportLineage(path, mockLineage);
-    verify(mockLineage, times(1)).add("gcs", expected);
+    verify(mockLineage, times(1)).add("gcs", expected, "/");
   }
 
   private StorageObject createStorageObject(String gcsFilename, long fileSize) {

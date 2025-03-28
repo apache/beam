@@ -926,6 +926,15 @@ message WorkerMetadataResponse {
   // Used to set gRPC authority.
   optional string external_endpoint = 5;
 
+  enum EndpointType {
+    UNKNOWN = 0;
+    CLOUDPATH = 1;
+    BORG = 2;
+    DIRECTPATH = 3;
+  }
+
+  optional EndpointType endpoint_type = 6 [default = CLOUDPATH];
+
   reserved 4;
 }
 

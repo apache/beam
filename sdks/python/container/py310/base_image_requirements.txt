@@ -137,7 +137,7 @@ pytest==7.4.4
 pytest-timeout==2.3.1
 pytest-xdist==3.6.1
 python-dateutil==2.9.0.post0
-python-snappy==0.7.3
+python-snappy==0.6.1
 pytz==2025.1
 PyYAML==6.0.2
 redis==5.2.1
