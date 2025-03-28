@@ -36,7 +36,6 @@ import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigquery.TimePartitioning;
 
-import java.sql.Time;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
