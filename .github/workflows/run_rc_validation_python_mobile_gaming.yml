@@ -85,21 +85,16 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main] # Assuming same runner type needed
     timeout-minutes: 180 # Increased timeout for Python steps + Java injector
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-        with:
-          egress-policy: audit
-
       - name: Checkout code at RC tag
         uses: actions/checkout@v4
         with:
           ref: ${{ env.RC_TAG }}
 
-      - name: Setup Java for Injector
-        uses: actions/setup-java@v4
+      # Standard setup actions (consider if setup-action is needed or if manual setup is sufficient)
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '11' # Or the version required by the injector
+          java-version: 11
 
       - name: Setup Python
         uses: actions/setup-python@v5
