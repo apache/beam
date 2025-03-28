@@ -455,6 +455,7 @@ message ComputationWorkItems {
   optional int64 input_data_watermark = 3 [default = -0x8000000000000000];
   optional int64 dependent_realtime_input_watermark = 4
   [default = -0x8000000000000000];
+  optional bool drain_mode = 6;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -802,6 +803,7 @@ message ComputationWorkItemMetadata {
   optional int64 input_data_watermark = 2 [default = -0x8000000000000000];
   optional int64 dependent_realtime_input_watermark = 3
   [default = -0x8000000000000000];
+  optional bool drain_mode = 5;
 }
 
 message StreamingGetDataRequest {
