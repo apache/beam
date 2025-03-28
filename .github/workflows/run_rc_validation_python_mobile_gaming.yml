@@ -103,8 +103,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip sha256sum
+          sudo apt-get update --yes
+          sudo apt-get install -y wget unzip coreutils
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
