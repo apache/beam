@@ -74,7 +74,7 @@ env:
   # Python specific envs
   PYTHON_VERSION: '3.9' # Specify desired Python version
   BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
-  BEAM_SOURCE_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
+  BEAM_SOURCE_TAR_GZ: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
   APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
   # Default duration for GameStats fixed window
   GAME_STATS_WINDOW_DURATION: 60
