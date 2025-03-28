@@ -31,14 +31,6 @@ on:
       APACHE_CONTENTS_REPO:
         description: 'Apache Staging Repository URL (e.g., https://repository.apache.org/content/repositories/orgapachebeam-1234)'
         required: true
-      GCP_PROJECT_ID:
-        description: 'GCP Project ID for running the test'
-        required: true
-        default: 'apache-beam-testing' # Default project used in other validations
-      GCS_BUCKET:
-        description: 'GCS Bucket for temporary files (e.g., gs://rc-validation-migration-tests)'
-        required: true
-        default: 'gs://rc-validation-migration-tests'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -69,9 +61,9 @@ env:
   RUN_ID_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
   BQ_DATASET: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
   PUBSUB_TOPIC: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
-  # Use inputs for GCP details
-  GCP_PROJECT_ID: ${{ github.event.inputs.GCP_PROJECT_ID }}
-  GCS_BUCKET_NAME: ${{ github.event.inputs.GCS_BUCKET }}
+  # Set GCP Project ID and Bucket as constants
+  GCP_PROJECT_ID: 'apache-beam-testing'
+  GCS_BUCKET_NAME: 'gs://rc-validation-migration-tests'
   APACHE_REPO_URL: ${{ github.event.inputs.APACHE_CONTENTS_REPO }}
   RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
   RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
@@ -120,7 +112,6 @@ jobs:
             -PgcsBucket=${{ env.GCS_BUCKET_NAME }}
             -PbqDataset=${{ env.BQ_DATASET }}
             -PpubsubTopic=${{ env.PUBSUB_TOPIC }}
-          max-workers: 12 # Adjust as needed
 
       # Cleanup GCP resources (always run)
       - name: Cleanup BigQuery Dataset
