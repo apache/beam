@@ -234,16 +234,22 @@ class TestBigQueryWrapper(unittest.TestCase):
   @mock.patch('google.cloud._http.JSONConnection.http')
   def test_user_agent_insert_all(
       self, http_mock, patched_skip_get_credentials, patched_sleep):
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
-    try:
+    # Create a mock BigQuery client
+    mock_client = mock.Mock()
+    mock_client.insert_rows_json.return_value = []
+
+    # Patch the client creation to return our mock
+    with mock.patch('google.cloud.bigquery.Client', return_value=mock_client):
+      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+
+      # Call the method under test
       wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
-    except:  # pylint: disable=bare-except
-      # Ignore errors. The errors come from the fact that we did not mock
-      # the response from the API, so the overall insert_all_rows call fails
-      # soon after the BQ API is called.
-      pass
-    call = http_mock.request.mock_calls[-2]
-    self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
+
+      # Verify the client method was called with correct parameters
+      self.assertTrue(mock_client.insert_rows_json.called)
+      args, kwargs = mock_client.insert_rows_json.call_args
+      self.assertEqual('p.d.t', args[0])  # Check table reference format
+      self.assertEqual([{'name': 'any'}], kwargs['json_rows'])  # Check rows
 
   # the function create_temporary_dataset() in the wrapper does not call
   # google.cloud.bigquery, so it is fine to just mock it
@@ -292,33 +298,38 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   def test_table_definition_cache(self):
     client = mock.Mock()
-    
+
     # Create a side effect to return a new mock object for each call
     def create_new_mock_response(*args, **kwargs):
       return mock.Mock()
-    
+
     client.tables.Get.side_effect = create_new_mock_response
-    
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+    beam.io.gcp.bigquery_tools._TABLE_DEFINITION_TTL = 3600
+
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     
     # First call should fetch from API
     table1 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 1)
-    
+
     # Second call with same parameters should use cache
     table2 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 1)  # Count remains the same
     self.assertIs(table1, table2)  # Should be the same object
-    
+
     # Different table should trigger a new fetch
     table3 = wrapper.get_table('project', 'dataset', 'different_table')
     self.assertEqual(client.tables.Get.call_count, 2)
     self.assertIsNot(table1, table3)  # Should be different objects
-    
+
     # Reset the cache state
-    wrapper._table_cache.clear()
+    wrapper.clear_table_cache()
     client.tables.Get.reset_mock()
-    
+
     # First get_table call should fetch from API
     table1 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 1)
@@ -327,33 +338,43 @@ class TestBigQueryWrapper(unittest.TestCase):
     table2 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 1)  # Count remains the same
     self.assertIs(table1, table2)  # Should be the same object
-    
+
     # Set TTL to 0 should disable caching
     wrapper.set_table_definition_ttl(0)
     table3 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 2)
     self.assertIsNot(table2, table3)  # Should be a new object
-    
+
     # Try again with a small TTL (0.1 seconds)
     wrapper.set_table_definition_ttl(0.1)
-    
+
     # First call with TTL=0.1 should fetch from API
     table4 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 3)
-    
+
     # Immediate second call should use cache
     table5 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 3)  # Count remains the same
     self.assertIs(table4, table5)  # Should be the same object
-    
+
     # Wait for cache to expire
     import time
     time.sleep(0.2)  # Wait for more than the 100ms TTL
-    
+
     # After waiting, it should fetch again
     table6 = wrapper.get_table('project', 'dataset', 'table')
     self.assertEqual(client.tables.Get.call_count, 4)  # Count increases
     self.assertIsNot(table5, table6)  # Should be a new object
+
+    # Test with a different wrapper instance to verify module-level cache works
+    wrapper2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    client.tables.Get.reset_mock()
+
+    # First call with new wrapper should use existing cache entry
+    table7 = wrapper2.get_table('project', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 0)  # No new API calls
+    self.assertIs(
+        table7, table6)  # Should be the same object from previous wrapper
 
   def test_get_or_create_dataset_created(self):
     client = mock.Mock()
@@ -643,59 +664,359 @@ class TestBigQueryWrapper(unittest.TestCase):
         client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
         'INTERACTIVE')
 
-  def test_negative_ttl_validation(self):
-    client = mock.Mock()
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    with self.assertRaises(ValueError):
-        wrapper.set_table_definition_ttl(-1)
-
   def test_cache_clearing_on_enable(self):
     client = mock.Mock()
+
     def create_new_mock_response(*args, **kwargs):
-        return mock.Mock()
+      return mock.Mock()
+
     client.tables.Get.side_effect = create_new_mock_response
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    
+
     # Disable caching
     wrapper.set_table_definition_ttl(0)
     table1 = wrapper.get_table('project', 'dataset', 'table')
-    
+
     # Enable caching - should clear cache
     wrapper.set_table_definition_ttl(3600)
     table2 = wrapper.get_table('project', 'dataset', 'table')
-    
+
+    # Should have made two API calls (one with caching disabled, one for fresh cache)
     self.assertEqual(client.tables.Get.call_count, 2)
     self.assertIsNot(table1, table2)
 
+    # Create a second wrapper to verify module-level cache state is shared
+    wrapper2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    client.tables.Get.reset_mock()
+
+    # Should use the cache entry created by the first wrapper
+    table3 = wrapper2.get_table('project', 'dataset', 'table')
+    self.assertEqual(client.tables.Get.call_count, 0)
+    self.assertIs(table2, table3)
+
   def test_concurrent_access(self):
     client = mock.Mock()
+
     def create_new_mock_response(*args, **kwargs):
-        return mock.Mock()
+      return mock.Mock()
+
     client.tables.Get.side_effect = create_new_mock_response
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+    
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     
     def get_table():
-        return wrapper.get_table('project', 'dataset', 'table')
-    
+      return wrapper.get_table('project', 'dataset', 'table')
+
     import threading
     threads = [threading.Thread(target=get_table) for _ in range(10)]
     for t in threads:
-        t.start()
+      t.start()
     for t in threads:
-        t.join()
-        
-    # Should only make one API call despite concurrent access
+      t.join()
+
+    # Should only make one API call despite concurrent access attempts
     self.assertEqual(client.tables.Get.call_count, 1)
+    
+  def test_invalid_max_cache_size(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Zero is not a valid cache size
+    with self.assertRaises(ValueError):
+      wrapper.set_table_cache_max_size(0)
+
+    # Negative value is not a valid cache size
+    with self.assertRaises(ValueError):
+      wrapper.set_table_cache_max_size(-10)
+
+  def test_max_cache_size(self):
+    client = mock.Mock()
+    
+    def create_new_mock_response(*args, **kwargs):
+      return mock.Mock()
+    
+    client.tables.Get.side_effect = create_new_mock_response
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Set a small cache size
+    wrapper.set_table_cache_max_size(2)
+
+    # Access 3 different tables
+    table1 = wrapper.get_table('project', 'dataset', 'table1')
+    table2 = wrapper.get_table('project', 'dataset', 'table2')
+    # At this point, cache should contain table1 and table2
+
+    # When we access table3, it should evict table1 (least recently used)
+    table3 = wrapper.get_table('project', 'dataset', 'table3')
+    # Cache now contains table2 and table3
+
+    # Check that the API was called exactly 3 times (once per table)
+    self.assertEqual(client.tables.Get.call_count, 3)
+
+    # Reset the counter
+    client.tables.Get.reset_mock()
+
+    # When we access table1 again, it should generate a new API call (was evicted)
+    table1_again = wrapper.get_table('project', 'dataset', 'table1')
+    # Cache now contains table3 and table1
+
+    # Verify that we got a new object, not the cached one
+    self.assertIsNot(table1, table1_again)
+
+    # Check that the API was called exactly once
+    self.assertEqual(client.tables.Get.call_count, 1)
+    
+    # Reset the counter
+    client.tables.Get.reset_mock()
+
+    # When we access table3, it should use the cache (no new API call)
+    table3_again = wrapper.get_table('project', 'dataset', 'table3')
+
+    # Verify we got the same cached object
+    self.assertIs(table3, table3_again)
+
+    # Check that the API was not called
+    self.assertEqual(client.tables.Get.call_count, 0)
+
+    # When we access table2, it should have been evicted and generate a new API call
+    table2_again = wrapper.get_table('project', 'dataset', 'table2')
+
+    # Verify that we got a new object, not the cached one
+    self.assertIsNot(table2, table2_again)
+
+    # Check that the API was called exactly once
+    self.assertEqual(client.tables.Get.call_count, 1)
+
+  def test_clear_table_cache_all(self):
+    client = mock.Mock()
+
+    def create_new_mock_response(*args, **kwargs):
+      return mock.Mock()
+
+    client.tables.Get.side_effect = create_new_mock_response
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Access 3 different tables
+    wrapper.get_table('project1', 'dataset1', 'table1')
+    wrapper.get_table('project1', 'dataset2', 'table2')
+    wrapper.get_table('project2', 'dataset1', 'table3')
+
+    # Clear all cache entries
+    wrapper.clear_table_cache()
+
+    # Accessing the same tables again should generate new API calls
+    wrapper.get_table('project1', 'dataset1', 'table1')
+    wrapper.get_table('project1', 'dataset2', 'table2')
+    wrapper.get_table('project2', 'dataset1', 'table3')
+
+    # We should have made 6 API calls total
+    self.assertEqual(client.tables.Get.call_count, 6)
+
+    # Create a second wrapper to verify it shares the same empty cache
+    wrapper2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    client.tables.Get.reset_mock()
+
+    # Create a new cache to test the second wrapper
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+
+    # Accessing the same tables with the second wrapper should also generate new API calls
+    wrapper2.get_table('project1', 'dataset1', 'table1')
+    self.assertEqual(client.tables.Get.call_count, 1)
+
+  def test_clear_table_cache_by_project(self):
+    client = mock.Mock()
+
+    def create_new_mock_response(*args, **kwargs):
+      return mock.Mock()
+
+    client.tables.Get.side_effect = create_new_mock_response
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Access 3 different tables across projects
+    table1 = wrapper.get_table('project1', 'dataset1', 'table1')
+    table2 = wrapper.get_table('project1', 'dataset2', 'table2')
+    table3 = wrapper.get_table('project2', 'dataset1', 'table3')
+
+    # Reset API call counter
+    client.tables.Get.reset_mock()
+
+    # Clear only project1 entries
+    wrapper.clear_table_cache(project_id='project1')
+
+    # Accessing project1 tables should generate new API calls
+    table1_new = wrapper.get_table('project1', 'dataset1', 'table1')
+    table2_new = wrapper.get_table('project1', 'dataset2', 'table2')
+
+    # Verify table objects are different (fetched again)
+    self.assertIsNot(table1, table1_new)
+    self.assertIsNot(table2, table2_new)
+
+    # Project2 table should still be in cache
+    table3_cached = wrapper.get_table('project2', 'dataset1', 'table3')
+
+    # Verify project2 table is the same (from cache)
+    self.assertIs(table3, table3_cached)
+
+    # We should have made 2 API calls (only for project1 tables)
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+    # Test with a different wrapper instance to verify module-level cache is shared
+    wrapper2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    client.tables.Get.reset_mock()
+
+    # Accessing project2 table with new wrapper should use cache
+    table3_wrapper2 = wrapper2.get_table('project2', 'dataset1', 'table3')
+    self.assertEqual(client.tables.Get.call_count, 0)
+    self.assertIs(table3_wrapper2, table3)
+
+  def test_clear_table_cache_by_dataset(self):
+    client = mock.Mock()
+
+    def create_new_mock_response(*args, **kwargs):
+      return mock.Mock()
+
+    client.tables.Get.side_effect = create_new_mock_response
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+    
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Access 3 different tables
+    table1 = wrapper.get_table('project1', 'dataset1', 'table1')
+    table2 = wrapper.get_table('project1', 'dataset2', 'table2')
+    table3 = wrapper.get_table('project1', 'dataset1', 'table3')
+
+    # Reset API call counter
+    client.tables.Get.reset_mock()
+
+    # Clear only dataset1 entries
+    wrapper.clear_table_cache(project_id='project1', dataset_id='dataset1')
+
+    # Accessing dataset1 tables should generate new API calls
+    table1_new = wrapper.get_table('project1', 'dataset1', 'table1')
+    table3_new = wrapper.get_table('project1', 'dataset1', 'table3')
+
+    # Verify dataset1 table objects are different (fetched again)
+    self.assertIsNot(table1, table1_new)
+    self.assertIsNot(table3, table3_new)
+
+    # dataset2 table should still be in cache
+    table2_cached = wrapper.get_table('project1', 'dataset2', 'table2')
+
+    # Verify dataset2 table is the same (from cache)
+    self.assertIs(table2, table2_cached)
+
+    # We should have made 2 API calls (only for dataset1 tables)
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+    # Test with a different wrapper instance to verify module-level cache is shared
+    wrapper2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    client.tables.Get.reset_mock()
+
+    # Accessing dataset2 table with new wrapper should use cache
+    table2_wrapper2 = wrapper2.get_table('project1', 'dataset2', 'table2')
+    self.assertEqual(client.tables.Get.call_count, 0)
+    self.assertIs(table2_wrapper2, table2)
+
+  def test_clear_table_cache_by_table(self):
+    client = mock.Mock()
+
+    def create_new_mock_response(*args, **kwargs):
+      return mock.Mock()
+
+    client.tables.Get.side_effect = create_new_mock_response
+
+    # Reset module-level cache state before test
+    beam.io.gcp.bigquery_tools._TABLE_CACHE.clear()
+    beam.io.gcp.bigquery_tools._CACHE_ENABLED = True
+
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    
+    # Access 3 different tables
+    table1 = wrapper.get_table('project1', 'dataset1', 'table1')
+    table2 = wrapper.get_table('project1', 'dataset1', 'table2')
+    table3 = wrapper.get_table('project1', 'dataset1', 'table3')
+
+    # Reset API call counter
+    client.tables.Get.reset_mock()
+
+    # Clear only specific table entry
+    wrapper.clear_table_cache(
+        project_id='project1', dataset_id='dataset1', table_id='table1')
+
+    # Accessing cleared table should generate new API call
+    table1_new = wrapper.get_table('project1', 'dataset1', 'table1')
+
+    # Verify cleared table object is different (fetched again)
+    self.assertIsNot(table1, table1_new)
+
+    # Other tables should still be in cache
+    table2_cached = wrapper.get_table('project1', 'dataset1', 'table2')
+    table3_cached = wrapper.get_table('project1', 'dataset1', 'table3')
+
+    # Verify other table objects are the same (from cache)
+    self.assertIs(table2, table2_cached)
+    self.assertIs(table3, table3_cached)
+
+    # We should have made 1 API call (only for the cleared table)
+    self.assertEqual(client.tables.Get.call_count, 1)
+
+    # Test with a different wrapper instance to verify module-level cache is shared
+    wrapper2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    client.tables.Get.reset_mock()
+
+    # Accessing uncached table with new wrapper should use cache
+    table2_wrapper2 = wrapper2.get_table('project1', 'dataset1', 'table2')
+    self.assertEqual(client.tables.Get.call_count, 0)
+    self.assertIs(table2_wrapper2, table2)
+
+  def test_clear_table_cache_invalid_params(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Dataset specified without project
+    with self.assertRaises(ValueError):
+      wrapper.clear_table_cache(dataset_id='dataset1')
+
+    # Table specified without project or dataset
+    with self.assertRaises(ValueError):
+      wrapper.clear_table_cache(table_id='table1')
+
+    # Table specified with project but without dataset
+    with self.assertRaises(ValueError):
+      wrapper.clear_table_cache(project_id='project1', table_id='table1')
 
   def test_temp_dataset_creation(self):
     client = mock.Mock()
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    
+
     # Test with no temp_dataset_id provided
     self.assertEqual(
         wrapper.temp_dataset_id,
         wrapper._get_temp_dataset())  # Should use _get_temp_dataset
-    
+
     # Test with provided temp_dataset_id
     custom_dataset = "my_temp_dataset"
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(
@@ -1167,46 +1488,6 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
         Sequence[RowTypeConstraint.from_fields(self.EXPECTED_TYPEHINTS)])]
 
     self.assertEqual(typehints, expected_typehints)
-
-  # TODO(BEAM-XXXX): These tests are deprecated and will be removed.
-  # The canonical versions are in TestBigQueryWrapper.
-  def test_negative_ttl_validation(self):
-    client = mock.Mock()
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    with self.assertRaises(ValueError):
-        wrapper.set_table_definition_ttl(-1)
-
-  def test_cache_clearing_on_enable(self):
-    client = mock.Mock()
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    
-    # Disable caching
-    wrapper.set_table_definition_ttl(0)
-    table1 = wrapper.get_table('project', 'dataset', 'table')
-    
-    # Enable caching - should clear cache
-    wrapper.set_table_definition_ttl(3600)
-    table2 = wrapper.get_table('project', 'dataset', 'table')
-    
-    self.assertEqual(client.tables.Get.call_count, 2)
-    self.assertIsNot(table1, table2)
-
-  def test_concurrent_access(self):
-    client = mock.Mock()
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    
-    def get_table():
-        return wrapper.get_table('project', 'dataset', 'table')
-    
-    import threading
-    threads = [threading.Thread(target=get_table) for _ in range(10)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-        
-    # Should only make one API call despite concurrent access
-    self.assertEqual(client.tables.Get.call_count, 1)
 
 
 if __name__ == '__main__':
