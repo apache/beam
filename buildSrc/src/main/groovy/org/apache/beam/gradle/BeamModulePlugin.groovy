@@ -630,7 +630,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.110.Final"
     def postgres_version = "42.2.16"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
-    def protobuf_version = "4.29.4"
+    def protobuf_version = "3.25.6"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
