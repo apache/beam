@@ -1,0 +1,347 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Run Python Mobile Gaming RC Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VER:
+        description: 'Beam Release Version (e.g., 2.64.0)'
+        required: true
+        default: '2.64.0'
+      RC_NUM:
+        description: 'Release Candidate number (e.g., 1)'
+        required: true
+        default: '1'
+      APACHE_CONTENTS_REPO:
+        description: 'Apache Staging Repository URL for Java Injector (e.g., https://repository.apache.org/content/repositories/orgapachebeam-1234)'
+        required: true
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.inputs.RELEASE_VER }}-${{ github.event.inputs.RC_NUM }}'
+  cancel-in-progress: true
+
+# Setting explicit permissions for the action
+permissions:
+  actions: write
+  pull-requests: write # Needed for setup-action potentially
+  checks: write
+  contents: read # Needs read to checkout the code
+  deployments: read
+  id-token: write # Required for GCP Workload Identity Federation
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  # Define unique names for resources based on run ID to avoid collisions
+  RUN_ID_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
+  BQ_DATASET: mobilegaming_py_rc_${{ github.run_id }}_${{ github.run_attempt }}
+  PUBSUB_TOPIC: mobilegaming_py_rc_${{ github.run_id }}_${{ github.run_attempt }}
+  # Set GCP Project ID, Bucket, Region as constants
+  GCP_PROJECT_ID: 'apache-beam-testing'
+  GCS_BUCKET: 'gs://rc-validation-migration-tests' # Includes gs:// prefix
+  GCE_REGION: 'us-central1'
+  # Java Injector specific envs
+  APACHE_REPO_URL: ${{ github.event.inputs.APACHE_CONTENTS_REPO }}
+  # Release specific envs
+  RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
+  RC_NUM: ${{ github.event.inputs.RC_NUM }}
+  RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
+  # Python specific envs
+  PYTHON_VERSION: '3.9' # Specify desired Python version
+  BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
+  BEAM_SOURCE_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
+  APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
+  # Default duration for GameStats fixed window
+  GAME_STATS_WINDOW_DURATION: 60
+
+jobs:
+  run_python_mobile_gaming_rc_validation:
+    name: Run Python Mobile Gaming RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
+    runs-on: [self-hosted, ubuntu-20.04, main] # Assuming same runner type needed
+    timeout-minutes: 180 # Increased timeout for Python steps + Java injector
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout code at RC tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RC_TAG }}
+
+      - name: Setup Java for Injector
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11' # Or the version required by the injector
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip sha256sum
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Download RC Artifacts
+        run: |
+          echo "Downloading from ${{ env.APACHE_DIST_URL_BASE }}"
+          wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}
+          wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
+          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_TAR_GZ }}
+          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_TAR_GZ }}.sha512
+        shell: bash
+
+      - name: Verify Hashes
+        run: |
+          echo "Verifying sha512 checksums..."
+          sha512sum -c ${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
+          sha512sum -c ${{ env.BEAM_SOURCE_TAR_GZ }}.sha512
+        shell: bash
+
+      - name: Build Python SDK from Source
+        run: |
+          echo "Building Python SDK sdist..."
+          tar -xzf ${{ env.BEAM_SOURCE_TAR_GZ }}
+          # Navigate into the extracted directory (assuming it matches the tarball name without .tar.gz)
+          SOURCE_DIR=$(basename ${{ env.BEAM_SOURCE_TAR_GZ }} .tar.gz)
+          cd ${SOURCE_DIR}/sdks/python
+          python setup.py sdist
+          # Move the built dist back to the working directory
+          mv dist/apache-beam-${{ env.RELEASE_VERSION }}.tar.gz ../../../
+        shell: bash
+
+      - name: Setup Python Virtual Environment
+        run: |
+          echo "Setting up Python virtual environment..."
+          python -m venv beam_env
+          source beam_env/bin/activate
+          pip install --upgrade pip setuptools wheel
+          echo "Virtual environment ready."
+        shell: bash
+
+      - name: Install Python SDK
+        run: |
+          echo "Installing built Python SDK: apache-beam-${{ env.RELEASE_VERSION }}.tar.gz"
+          source beam_env/bin/activate
+          # Install base SDK
+          pip install apache-beam-${{ env.RELEASE_VERSION }}.tar.gz
+          # Install with GCP extras
+          pip install apache-beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
+          echo "SDK installed."
+          pip freeze # Log installed packages
+        shell: bash
+
+      # ================== GCP Resource Setup ==================
+      - name: Create BigQuery Dataset
+        run: |
+          echo "Creating BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
+          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${{ env.BQ_DATASET }}
+        shell: bash
+
+      - name: Create GCS Bucket (if needed - reusing input bucket)
+        run: |
+          echo "Ensuring GCS Bucket exists: ${{ env.GCS_BUCKET }} in project ${{ env.GCP_PROJECT_ID }}"
+          # gsutil mb command creates if it doesn't exist, fails gracefully if it does
+          gsutil mb -p ${{ env.GCP_PROJECT_ID }} ${{ env.GCS_BUCKET }} || echo "Bucket ${{ env.GCS_BUCKET }} likely already exists."
+        shell: bash
+
+      - name: Create PubSub Topic
+        run: |
+          echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
+        shell: bash
+
+      # ================== Java Data Injector ==================
+      - name: Configure Maven Settings for Injector
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings>
+            <profiles>
+              <profile>
+                <id>release-repo</id>
+                <activation>
+                  <activeByDefault>true</activeByDefault>
+                </activation>
+                <repositories>
+                  <repository>
+                    <id>Release ${{ env.RELEASE_VERSION }} RC${{ env.RC_NUM }}</id>
+                    <name>Release ${{ env.RELEASE_VERSION }} RC${{ env.RC_NUM }}</name>
+                    <url>${{ env.APACHE_REPO_URL }}</url>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+          </settings>
+          EOF
+          echo "Maven settings.xml configured for Java Injector."
+        shell: bash
+
+      - name: Run Java Injector
+        run: |
+          echo "Running Java Injector..."
+          # Generate a dummy project to get dependencies - adjust archetype version if needed
+          mvn archetype:generate \
+              -DarchetypeGroupId=org.apache.beam \
+              -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+              -DarchetypeVersion=${{ env.RELEASE_VERSION }} \
+              -DgroupId=org.example \
+              -DartifactId=injector-temp \
+              -Dversion="0.1" \
+              -Dpackage=org.apache.beam.examples \
+              -DinteractiveMode=false \
+              -DarchetypeCatalog=internal
+
+          cd injector-temp
+          # Compile and run the injector
+          mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+            -Dexec.args="${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} none" \
+            -Dmaven.wagon.http.retryHandler.count=3 \
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
+
+          cd .. # Return to the root directory
+          echo "Java Injector finished."
+        shell: bash
+
+      # ================== Leaderboard Tests ==================
+      - name: Run Leaderboard (Direct Runner)
+        run: |
+          echo "Running Leaderboard with DirectRunner..."
+          source beam_env/bin/activate
+          python -m apache_beam.examples.complete.game.leader_board \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }}
+        shell: bash
+
+      - name: Inspect Leaderboard Results (Direct Runner)
+        run: |
+          echo "Inspecting BigQuery results for Leaderboard (DirectRunner)..."
+          sleep 60 # Allow some time for data to propagate in BQ
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_users
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_teams
+        shell: bash
+
+      - name: Run Leaderboard (Dataflow Runner)
+        run: |
+          echo "Running Leaderboard with DataflowRunner..."
+          source beam_env/bin/activate
+          GCS_BUCKET_NAME_NO_PREFIX=$(echo ${{ env.GCS_BUCKET }} | sed 's/^gs:\/\///')
+          python -m apache_beam.examples.complete.game.leader_board \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCE_REGION }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} \
+            --runner DataflowRunner \
+            --temp_location=${{ env.GCS_BUCKET }}/temp/ \
+            --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz
+        shell: bash
+
+      - name: Inspect Leaderboard Results (Dataflow Runner)
+        run: |
+          echo "Inspecting BigQuery results for Leaderboard (DataflowRunner)..."
+          # Dataflow jobs might take longer to write results
+          sleep 180 # Allow more time for Dataflow job and BQ writes
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_users
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_teams
+        shell: bash
+
+      # ================== GameStats Tests ==================
+      - name: Run GameStats (Direct Runner)
+        run: |
+          echo "Running GameStats with DirectRunner..."
+          source beam_env/bin/activate
+          python -m apache_beam.examples.complete.game.game_stats \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} \
+            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
+        shell: bash
+
+      - name: Inspect GameStats Results (Direct Runner)
+        run: |
+          echo "Inspecting BigQuery results for GameStats (DirectRunner)..."
+          sleep 60 # Allow some time for data to propagate in BQ
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_teams
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_sessions
+        shell: bash
+
+      - name: Run GameStats (Dataflow Runner)
+        run: |
+          echo "Running GameStats with DataflowRunner..."
+          source beam_env/bin/activate
+          GCS_BUCKET_NAME_NO_PREFIX=$(echo ${{ env.GCS_BUCKET }} | sed 's/^gs:\/\///')
+          python -m apache_beam.examples.complete.game.game_stats \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCE_REGION }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} \
+            --runner DataflowRunner \
+            --temp_location=${{ env.GCS_BUCKET }}/temp/ \
+            --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
+        shell: bash
+
+      - name: Inspect GameStats Results (Dataflow Runner)
+        run: |
+          echo "Inspecting BigQuery results for GameStats (DataflowRunner)..."
+          # Dataflow jobs might take longer to write results
+          sleep 180 # Allow more time for Dataflow job and BQ writes
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_teams
+          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_sessions
+        shell: bash
+
+      # ================== Cleanup ==================
+      - name: Cleanup BigQuery Dataset
+        if: always()
+        run: |
+          echo "Deleting BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
+          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
+        shell: bash
+
+      - name: Cleanup GCS Bucket Objects (Optional - depends on policy)
+        if: always()
+        run: |
+          echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
+          # Be cautious with bucket deletion; only delete temp contents if appropriate
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/" || echo "Failed to delete objects in GCS bucket temp folder, continuing..."
+        shell: bash
+
+      - name: Cleanup PubSub Topic
+        if: always()
+        run: |
+          echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
+        shell: bash
