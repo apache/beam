@@ -11,34 +11,38 @@ on:
         description: 'Beam Go SDK Container Tag (e.g., 2.59.0rc1)'
         required: true
         type: string
-      gcp_project_id:
-        description: 'Google Cloud Project ID for Dataflow'
-        required: false # Required only if running Dataflow job
-        type: string
-      gcp_service_account_key:
-        description: 'Google Cloud Service Account Key JSON for Dataflow Auth'
-        required: false # Required only if running Dataflow job
-        type: string
-      gcp_region:
-        description: 'Google Cloud Region for Dataflow job (e.g., us-central1)'
-        required: false # Required only if running Dataflow job
-        type: string
-      gcs_input_path:
-        description: 'GCS path for input file (e.g., gs://your-bucket/input.txt)'
-        required: false # Required only if running Dataflow job
-        type: string
-      gcs_output_prefix:
-        description: 'GCS path prefix for output files (e.g., gs://your-bucket/output)'
-        required: false # Required only if running Dataflow job
-        type: string
-      gcs_temp_location:
-        description: 'GCS path for temporary Dataflow files (e.g., gs://your-bucket/temp/)'
-        required: false # Required only if running Dataflow job
-        type: string
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.inputs.rc_tag }}' # Group by RC tag
+  cancel-in-progress: true
+
+# Setting explicit permissions (copied from Java Mobile Gaming workflow)
+permissions:
+  actions: write
+  pull-requests: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: write # Note: Likely not needed for self-hosted runners without WIF
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env:
+  GCS_OUTPUT_PREFIX: gs://rc-validation-migration-tests/go-wordcount # Constant output prefix
+  GCP_PROJECT_ID: apache-beam-testing
+  GCP_REGION: us-central1
+  GCS_TEMP_LOCATION: gs://rc-validation-migration-tests/temp/
+  GCS_INPUT_PATH: gs://apache-beam-samples/shakespeare/kinglear.txt
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       rc_tag: ${{ github.event.inputs.rc_tag }}
       container_tag: ${{ github.event.inputs.container_tag }}
@@ -46,14 +50,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.21' # Specify a compatible Go version
+          go-version: default, otherwise remove if default is 1.21
 
-      - name: Fetch Go SDK RC
+      - name: Fetch Go SDK RC and Tidy Modules
         working-directory: ./sdks/go/examples/wordcount
-        run: go get -d github.com/apache/beam/sdks/v2@${{ github.event.inputs.rc_tag }}
+        run: |
+          go get -d github.com/apache/beam/sdks/v2@${{ github.event.inputs.rc_tag }}
+          go mod tidy
 
       # Cache Go modules to speed up subsequent jobs
       - name: Cache Go modules
@@ -68,15 +74,15 @@ jobs:
 
   validate-go-rc-prism:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Changed to self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.21'
+          go-version: default
 
       # Restore cached Go modules
       - name: Restore Go modules cache
@@ -89,21 +95,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Create dummy input file
+      # Assuming gcloud/gsutil is available and authenticated on the self-hosted runner
+      - name: Download Input File from GCS (Prism)
         working-directory: ./sdks/go/examples/wordcount
-        run: echo "beam word count example for rc validation prism runner" > input_prism.txt
+        run: gsutil cp ${{ env.GCS_INPUT_PATH }} ./kinglear.txt
 
       - name: Run Go WordCount with PrismRunner
         working-directory: ./sdks/go/examples/wordcount
         run: |
           go run wordcount.go \
-            --input ./input_prism.txt \
+            --input ./kinglear.txt \
             --output ./output_prism.txt \
             --runner=PrismRunner \
             --environment_type=DOCKER \
             --environment_config=apache/beam_go_sdk:${{ needs.setup.outputs.container_tag }}
-            # Note: Assuming PrismRunner uses the RC container specified.
-            # Explicit Prism flags for Go RC validation were not detailed in the blog post.
 
       - name: Check output file
         working-directory: ./sdks/go/examples/wordcount
@@ -121,17 +126,15 @@ jobs:
 
   validate-go-rc-dataflow:
     needs: setup
-    runs-on: ubuntu-latest
-    # Only run this job if GCP parameters are provided
-    if: github.event.inputs.gcp_project_id != '' && github.event.inputs.gcp_service_account_key != '' && github.event.inputs.gcp_region != '' && github.event.inputs.gcs_input_path != '' && github.event.inputs.gcs_output_prefix != '' && github.event.inputs.gcs_temp_location != ''
+    runs-on: self-hosted # Changed to self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.21'
+          go-version: default
 
       # Restore cached Go modules
       - name: Restore Go modules cache
@@ -144,24 +147,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ github.event.inputs.gcp_service_account_key }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
+      # Assuming gcloud is available and authenticated on the self-hosted runner
       - name: Run Go WordCount with DataflowRunner
         working-directory: ./sdks/go/examples/wordcount
+        env:
+          # Define output path based on constant prefix and RC tag for uniqueness
+          GCS_OUTPUT_PATH: ${{ env.GCS_OUTPUT_PREFIX }}/${{ needs.setup.outputs.rc_tag }}/dataflow/output
         run: |
+          echo "Using output path: $GCS_OUTPUT_PATH"
           go run wordcount.go \
-            --input ${{ github.event.inputs.gcs_input_path }} \
-            --output ${{ github.event.inputs.gcs_output_prefix }} \
+            --input ${{ env.GCS_INPUT_PATH }} \
+            --output $GCS_OUTPUT_PATH \
             --runner=DataflowRunner \
-            --project=${{ github.event.inputs.gcp_project_id }} \
-            --region=${{ github.event.inputs.gcp_region }} \
-            --temp_location=${{ github.event.inputs.gcs_temp_location }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCP_REGION }} \
+            --temp_location=${{ env.GCS_TEMP_LOCATION }} \
             --environment_type=DOCKER \
             --environment_config=apache/beam_go_sdk:${{ needs.setup.outputs.container_tag }}
 
@@ -169,4 +169,4 @@ jobs:
       # This basic workflow focuses on submission. A more robust check would poll the job status
       # and then verify GCS output, which is significantly more complex.
       - name: Log Dataflow Job Submission Info
-        run: echo "Dataflow job submitted. Check GCP console for status and output at ${{ github.event.inputs.gcs_output_prefix }}"
+        run: echo "Dataflow job submitted. Check GCP console (project ${{ env.GCP_PROJECT_ID }}) for status and output at ${{ env.GCS_OUTPUT_PREFIX }}/${{ needs.setup.outputs.rc_tag }}/dataflow/output"
