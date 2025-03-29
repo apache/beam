@@ -481,9 +481,9 @@ atomized in instants hammered around the
         compressed_fd = CompressedFile(
             f, compression_type, read_size=self.read_block_size)
 
-        data = compressed_fd.read()   
+        data = compressed_fd.read()
 
-        self.assertEqual(data, self.content)      
+        self.assertEqual(data, self.content)
 
   def test_tell(self):
     lines = [b'line%d\n' % i for i in range(10)]
@@ -529,7 +529,7 @@ atomized in instants hammered around the
       byte_list = list(
           b for i in range(4096) for b in random.sample(byte_table, 64))
       byte_list.append(b'\n')
-      return b''.join(byte_list)  
+      return b''.join(byte_list)
 
     def create_test_file(compression_type, lines):
       filenames = []
