@@ -143,8 +143,7 @@ jobs:
           # workaround to create the empty dir
           # https://github.com/apache/beam/issues/34474
           mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
-          # Ensure target directory exists on runner if needed - adjust path as necessary
-          # sudo mkdir -p /website/www/site/content/en/documentation/sdks
+          sudo mkdir -p /website/www/site/content/en/documentation/sdks
           cd beam-${{ env.RELEASE_VERSION }}/sdks/python
           python -m build --sdist
           # Move the built dist back to the working directory
