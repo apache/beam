@@ -86,6 +86,7 @@ jobs:
       GAME_STATS_WINDOW_DURATION: 60
 
       # --- Define the validation function with enhanced debugging ---
+      # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
       VALIDATE_TABLE_FUNC: |
         validate_table() {
           local table_name=$1
@@ -97,10 +98,11 @@ jobs:
           fi
 
           local full_table_id="${GCP_PROJECT_ID}.${BQ_DATASET}.${table_name}"
+          local full_table_id_show="${GCP_PROJECT_ID}:${BQ_DATASET}.${table_name}"
           local count=""
           local exit_code=1
-          local retries=10
-          local delay=60 # Default seconds between retries
+          local retries=3
+          local delay=10 # Default seconds between retries
 
           # Allow overriding delay via second argument (optional)
           if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
@@ -114,32 +116,44 @@ jobs:
           for i in $(seq 1 $retries); do
             echo "DEBUG: Starting attempt $i/$retries..."
             local query_output
-            local bq_command="bq query --project_id=${GCP_PROJECT_ID} --use_legacy_sql=false --format=sparse --max_rows=1 'SELECT COUNT(*) FROM \`${full_table_id}\`'"
-            echo "DEBUG: Executing command: ${bq_command}"
-            query_output=$($bq_command 2>&1)
+
+            echo "DEBUG: Executing: bq query --project_id=${GCP_PROJECT_ID} --use_legacy_sql=false --format=sparse --max_rows=1 \"SELECT COUNT(*) FROM \`${full_table_id}\`\""
+            query_output=$(bq query --project_id=${GCP_PROJECT_ID} \
+                             --use_legacy_sql=false \
+                             --format=sparse \
+                             --max_rows=1 \
+                             "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>&1)
             exit_code=$?
+            
             echo "DEBUG: bq query exit code: $exit_code"
             echo "DEBUG: bq query raw output: [$query_output]"
 
             if [ $exit_code -eq 0 ]; then
                 echo "DEBUG: bq query exited successfully (code 0)."
-                count=$(echo "$query_output" | tr -d '[:space:]')
-                echo "DEBUG: Processed count after removing whitespace: [$count]"
+                # NOTE: With --format=sparse, header might still be present if rows > 0
+                # Let's grab the last line which should be the count.
+                count=$(echo "$query_output" | tail -n 1 | tr -d '[:space:]')
+                # Original attempt: count=$(echo "$query_output" | tr -d '[:space:]')
+                echo "DEBUG: Processed count after removing whitespace (from last line): [$count]"
                 # Check if count is a positive integer
                 if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
                     echo "DEBUG: Count [$count] is a positive integer. Validation successful for this attempt."
                     break # Success! Found non-zero rows
                 else
                     echo "DEBUG: Count [$count] is zero or not a positive integer."
+                    # Handle case where sparse format might just output '0' directly
+                    if [[ "$count" == "0" ]]; then
+                       echo "DEBUG: Explicit count of 0 received."
+                    fi
                 fi
             else
                 echo "DEBUG: bq query failed (exit code: $exit_code)."
                 # Check if table exists explicitly on failure for better context
                 echo "DEBUG: Checking table existence with bq show..."
-                if ! bq show --project_id=${GCP_PROJECT_ID} "${full_table_id}" > /dev/null 2>&1; then
-                  echo "DEBUG: Table ${full_table_id} appears not to exist (bq show failed)."
+                if ! bq show --project_id=${GCP_PROJECT_ID} "${full_table_id_show}" > /dev/null 2>&1; then
+                  echo "DEBUG: Table ${full_table_id_show} appears not to exist (bq show failed)."
                 else
-                  echo "DEBUG: Table ${full_table_id} appears to exist (bq show succeeded), but query failed."
+                  echo "DEBUG: Table ${full_table_id_show} appears to exist (bq show succeeded), but query failed."
                 fi
             fi
 
