@@ -61,8 +61,6 @@ If you want to build Apache Beam from source to contribute or test new features,
 
 This guide provides instructions for setting up your environment, cloning the repository, installing dependencies, and building Beam for Java, Python, and Go.
 
-
-
 ### SDKs
 
 Beam supports multiple language-specific SDKs for writing pipelines against the Beam Model.
@@ -75,16 +73,15 @@ Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/ap
 
 Beam supports executing programs on multiple distributed processing backends through PipelineRunners. Currently, the following PipelineRunners are available:
 
-- The `DirectRunner` runs the pipeline on your local machine.
-- The `PrismRunner` runs the pipeline on your local machine using Beam Portability.
-- The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
-- The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
-- The `SparkRunner` runs the pipeline on an Apache Spark cluster.
-- The `JetRunner` runs the pipeline on a Hazelcast Jet cluster. The code has been donated from [hazelcast/hazelcast-jet](https://github.com/hazelcast/hazelcast-jet) and is now part of Beam.
-- The `Twister2Runner` runs the pipeline on a Twister2 cluster. The code has been donated from [DSC-SPIDAL/twister2](https://github.com/DSC-SPIDAL/twister2) and is now part of Beam.
+* The `DirectRunner` runs the pipeline on your local machine.
+* The `PrismRunner` runs the pipeline on your local machine using Beam Portability.
+* The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
+* The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
+* The `SparkRunner` runs the pipeline on an Apache Spark cluster.
+* The `JetRunner` runs the pipeline on a Hazelcast Jet cluster. The code has been donated from [hazelcast/hazelcast-jet](https://github.com/hazelcast/hazelcast-jet) and is now part of Beam.
+* The `Twister2Runner` runs the pipeline on a Twister2 cluster. The code has been donated from [DSC-SPIDAL/twister2](https://github.com/DSC-SPIDAL/twister2) and is now part of Beam.
 
 Have ideas for new Runners? See the [runner-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-ideas).
-
 
 Instructions for building and testing Beam itself
 are in the [contribution guide](./CONTRIBUTING.md).

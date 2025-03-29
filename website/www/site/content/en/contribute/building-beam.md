@@ -50,11 +50,12 @@ cd beam
 
 If you plan to contribute, fork the repository to your GitHub account first, then clone your fork instead:
 
-```bash 
+```bash
 git clone https://github.com/<your-username>/beam.git
 cd beam
 git remote add upstream https://github.com/apache/beam.git
 ```
+
 ### Step 2: Installing Prerequisites
 
 Apache Beam supports multiple languages. Install dependencies based on your language of choice.
@@ -64,16 +65,19 @@ Apache Beam supports multiple languages. Install dependencies based on your lang
 Install JDK 11 or later
 
 Install Maven (if not already installed):
+
 ```bash
 sudo apt install maven   # Ubuntu/Debian
 brew install maven       # macOS
 ```
+
 ### For Python
 
 Install Python 3.7 or later
 
 Install dependencies:
-```bash 
+
+```bash
 pip install -r sdks/python/requirements.txt
 ```
 
@@ -81,12 +85,14 @@ pip install -r sdks/python/requirements.txt
 
 Once you have installed the prerequisites and cloned the repository, you can proceed with building Apache Beam.
 
-  ### Building the Entire Project
+### Building the Entire Project
 
 To build the full project, navigate to the root of the Beam repository and run:
+
 ```bash
  ./gradlew build
 ```
+
 This command compiles all modules, runs unit tests, and packages the project.
 
 ### Building Without Tests
@@ -102,20 +108,20 @@ To speed up the build process, you can skip running the tests:
 If you only need to build a particular SDK, navigate to the respective directory and run the build command.
 For example:
 
-  ###  Java SDK
+### Java SDK
 
 ```bash
 ./gradlew :sdks:java:core:build
 ```
 
-  ### Python SDK
+### Python SDK
 
 ```bash
  cd sdks/python
  pip install . 
 ```
 
-  ### Go SDK
+### Go SDK
 
 ```bash
  cd sdks/go
@@ -132,13 +138,13 @@ To ensure everything works correctly, run the tests:
 
 To run tests for a specific SDK:
 
-   ### Java
+### Java
 
 ```bash
 ./gradlew :sdks:java:core:test
 ```
 
-   ### Python
+### Python
 
 ```bash
     cd sdks/python
@@ -174,4 +180,3 @@ To run tests inside a container:
 ```bash
 docker run -it apache-beam ./gradlew test
 ```
-
