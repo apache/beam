@@ -31,10 +31,11 @@ Apache Beam is an open source project developed and maintained by a friendly com
 Everyone is welcome to join and contribute to the project in multiple ways, not only with code contributions. Contributions like asking questions, reporting bugs, proposing new features, improving documentation, adding to the website, organizing events, or writing blog posts among other contributions, are welcome and recognized.
 
 ### What’s In It for You?
-  - Become a part of the world’s largest, most welcoming open source community
-  - Drive innovation for next-gen distributed data processing
-  - Make an impact by bringing advanced technology solutions into reality
-  - Empower your brand recognition and thought leadership in the data world
+
+- Become a part of the world’s largest, most welcoming open source community
+- Drive innovation for next-gen distributed data processing
+- Make an impact by bringing advanced technology solutions into reality
+- Empower your brand recognition and thought leadership in the data world
 
 ### Ways You Can Contribute
 
@@ -88,6 +89,14 @@ Here’s a list of things you can do to get started contributing:
       </ul>
     </td>
   </tr>
+
+  <tr>
+    <td>Building Apache Beam from Source</td>
+    <td>
+      If you want to contribute to Beam development, you may need to build it from source. Follow the <a href="/contribute/building-beam/">Building Apache Beam from Source</a> guide to set up your environment and build Beam.
+    </td>
+  </tr>
+
   <tr>
     <td>Improve documentation</td>
     <td>
@@ -249,5 +258,3 @@ A PMC member is also a committer, so if they are not initiated already, they wil
     </div>
   </div>
 </blockquote>
-
-
