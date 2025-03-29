@@ -788,7 +788,7 @@ class ReadFromText(PTransform):
           file_pattern = os.path.join('.', file_pattern)
       except TypeError:
         pass
-      file_pattern = os.path.join('.', file_pattern)
+
     self._source = self._source_class(
         file_pattern,
         min_bundle_size,
