@@ -84,7 +84,7 @@ jobs:
       BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
       APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
       GAME_STATS_WINDOW_DURATION: 60
-      SUBMISSION_TIMEOUT_SECONDS: 360 # Timeout for the python submission script itself
+      SUBMISSION_TIMEOUT_SECONDS: 120 # Timeout for the python submission script itself
       # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
       VALIDATE_TABLE_FUNC: |
         validate_table() {
@@ -402,7 +402,6 @@ jobs:
             echo "--- Leaderboard Dataflow submission log START ---"
             cat leaderboard_dataflow_submit.log || echo "Log file not found."
             echo "--- Leaderboard Dataflow submission log END ---"
-            # Consider setting an output or variable to indicate failure for later steps if needed
           fi
 
           # Check if the submission process is still running and kill it if necessary
@@ -421,25 +420,38 @@ jobs:
         shell: bash
 
       - name: Validate Leaderboard Results (Dataflow Runner)
-        # Optional: Add condition based on whether job ID was extracted if validation is pointless without it
-        # if: steps.submit_lb_df.outcome == 'success' && success() # Check previous step outcome
         run: |
-          # Check if job id file exists before proceeding (optional but recommended)
           if [ ! -f leaderboard_dataflow_jobid.txt ]; then
              echo "Skipping Leaderboard Dataflow validation as Job ID was not extracted."
-             # Optionally fail the workflow here if needed: exit 1
-             exit 0 # Exit step successfully to allow cleanup
+             exit 0 # Exit step successfully to allow cancellation/cleanup
           fi
           source beam_env/bin/activate
           eval "$VALIDATE_TABLE_FUNC"
           echo "Validating BigQuery results for Leaderboard (DataflowRunner)..."
-          # Give Dataflow more time to start processing now it runs detached
           sleep 240
           validate_table "leader_board_users" 15 || exit 1 # Use 15s retry delay
           validate_table "leader_board_teams" 15 || exit 1 # Use 15s retry delay
           echo "Leaderboard (Dataflow Runner) BQ validation finished successfully."
         shell: bash
 
+      - name: Cancel Leaderboard Dataflow Job
+        if: always() # Run even if validation failed, to attempt cleanup
+        run: |
+          if [ -f leaderboard_dataflow_jobid.txt ]; then
+            JOB_ID=$(cat leaderboard_dataflow_jobid.txt)
+            if [[ -n "$JOB_ID" ]]; then
+              echo "Attempting to cancel Leaderboard Dataflow job: $JOB_ID in region ${{ env.GCE_REGION }}"
+              gcloud dataflow jobs cancel "$JOB_ID" --region=${{ env.GCE_REGION }} --project=${{ env.GCP_PROJECT_ID }} || echo "Failed to cancel Leaderboard Dataflow job $JOB_ID (maybe it finished or was already cancelled)."
+            else
+              echo "Leaderboard Dataflow Job ID file exists but is empty."
+            fi
+            # Keep the job ID file removal in the final cleanup section in case other steps need it?
+            # rm leaderboard_dataflow_jobid.txt # Or remove it here? Let's keep final cleanup consistent.
+          else
+            echo "leaderboard_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
+          fi
+        shell: bash
+     
       # ================== GameStats Tests ==================
       - name: Run GameStats (Direct Runner) in Background
         run: |
@@ -533,17 +545,14 @@ jobs:
         shell: bash
 
       - name: Validate GameStats Results (Dataflow Runner)
-        # if: steps.submit_gs_df.outcome == 'success' && success() # Optional condition
         run: |
           if [ ! -f gamestats_dataflow_jobid.txt ]; then
              echo "Skipping GameStats Dataflow validation as Job ID was not extracted."
-             # Optionally fail the workflow here if needed: exit 1
              exit 0 # Exit step successfully to allow cleanup
           fi
           source beam_env/bin/activate
           eval "$VALIDATE_TABLE_FUNC"
           echo "Validating BigQuery results for GameStats (DataflowRunner)..."
-          # Give Dataflow more time to start processing now it runs detached
           sleep 240
           validate_table "game_stats_teams" 15 || exit 1 # Use 15s retry delay
           validate_table "game_stats_sessions" 15 || exit 1 # Use 15s retry delay
@@ -572,27 +581,7 @@ jobs:
           fi
         shell: bash
 
-      # Note: DirectRunner Kill steps are placed after their respective validations above.
-      # Note: Dataflow submitter Kill logic is now within the submission steps themselves.
-
-      # Cancel Dataflow jobs BEFORE cleaning other resources
-      - name: Cancel Leaderboard Dataflow Job
-        if: always()
-        run: |
-          if [ -f leaderboard_dataflow_jobid.txt ]; then
-            JOB_ID=$(cat leaderboard_dataflow_jobid.txt)
-            if [[ -n "$JOB_ID" ]]; then
-              echo "Attempting to cancel Leaderboard Dataflow job: $JOB_ID in region ${{ env.GCE_REGION }}"
-              gcloud dataflow jobs cancel "$JOB_ID" --region=${{ env.GCE_REGION }} --project=${{ env.GCP_PROJECT_ID }} || echo "Failed to cancel Leaderboard Dataflow job $JOB_ID (maybe it finished or was already cancelled)."
-            else
-              echo "Leaderboard Dataflow Job ID file exists but is empty."
-            fi
-            rm leaderboard_dataflow_jobid.txt
-          else
-            echo "leaderboard_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
-          fi
-        shell: bash
-
+      # Cancel Remaining Dataflow job
       - name: Cancel GameStats Dataflow Job
         if: always()
         run: |
@@ -604,13 +593,14 @@ jobs:
             else
               echo "GameStats Dataflow Job ID file exists but is empty."
             fi
+            # Remove the file here after attempting cancel
             rm gamestats_dataflow_jobid.txt
           else
             echo "gamestats_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
           fi
         shell: bash
 
-      # Cleanup GCP resources (after attempting to cancel jobs)
+      # Cleanup GCP resources
       - name: Cleanup BigQuery Dataset
         if: always() && github.event.inputs.CLEANUP_BQ_RESOURCES == 'true'
         run: |
@@ -618,15 +608,16 @@ jobs:
           bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
         shell: bash
 
-      - name: Cleanup GCS Bucket Objects
+      - name: Cleanup GCS Bucket Objects and Logs
         if: always()
         run: |
           echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
-          # Remove specific temp folders used by the jobs
           gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/leaderboard/**" || echo "Failed to delete objects in GCS leaderboard temp folder."
           gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/gamestats/**" || echo "Failed to delete objects in GCS gamestats temp folder."
-          # Optionally remove the submission logs too
+          echo "Removing local log and jobid files..."
           rm -f leaderboard_dataflow_submit.log gamestats_dataflow_submit.log injector_run.log
+          rm -f leaderboard_dataflow_jobid.txt # Remove Leaderboard jobid file here
+          # gamestats_dataflow_jobid.txt is removed in its cancellation step above
         shell: bash
 
       - name: Cleanup PubSub Topic
