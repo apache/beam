@@ -142,6 +142,7 @@ jobs:
           # workaround to create the empty dir 
           # https://github.com/apache/beam/issues/34474
           mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
+          mkdir -p /website/www/site/content/en/documentation/sdks
           cd beam-${{ env.RELEASE_VERSION }}/sdks/python
           python -m build --sdist
           # Move the built dist back to the working directory
@@ -150,7 +151,7 @@ jobs:
         
       - name: Install Python SDK
         run: |
-          echo "Installing built Python SDK: apache-beam-${{ env.RELEASE_VERSION }}.tar.gz"
+          echo "Installing built Python SDK: apache_beam-${{ env.RELEASE_VERSION }}.tar.gz"
           source beam_env/bin/activate
           # Install base SDK
           pip install apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
