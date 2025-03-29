@@ -583,8 +583,8 @@ def io_providers():
 def read_from_tfrecord(
     file_pattern: str,
     coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
-    compression_type: Optional[str] = None,
-    validate: Optional[bool] = None):
+    compression_type: Optional[str] = "AUTO",
+    validate: Optional[bool] = True):
   """Reads data from TFRecord.
 
   Args:
@@ -597,9 +597,9 @@ def read_from_tfrecord(
       pipeline creation time.
   """
   return ReadFromTFRecord(
-    file_pattern=file_pattern,
-    compression_type=getattr(CompressionTypes, compression_type),
-    validate=validate) | beam.Map(lambda s: beam.Row(record=s))
+      file_pattern=file_pattern,
+      compression_type=getattr(CompressionTypes, compression_type),
+      validate=validate) | beam.Map(lambda s: beam.Row(record=s))
   
 
 @beam.ptransform_fn
@@ -607,10 +607,10 @@ def write_to_tfrecord(
     pcoll,
     file_path_prefix: str,
     coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
-    file_name_suffix: Optional[str] = None,
-    num_shards: Optional[int] = None,
+    file_name_suffix: Optional[str] = "",
+    num_shards: Optional[int] = 0,
     shard_name_template: Optional[str] = None,
-    compression_type: Optional[str] = None,
+    compression_type: Optional[str] = "AUTO",
     no_spilling: Optional[bool] = None):
   """Writes data to TFRecord.
 
@@ -646,18 +646,19 @@ def write_to_tfrecord(
     ]
   except Exception as exn:
     raise ValueError(
-        "WriteToTFRecord requires an input schema with exactly one field.") from exn
+        "WriteToTFRecord requires an input schema with exactly one field."
+    ) from exn
   if len(field_names) != 1:
     raise ValueError(
-        "WriteToTFRecord requires an input schema with exactly one field, got %s" %
-        field_names)
+        "WriteToTFRecord requires an input schema with exactly one field, got %s"
+        % field_names)
   sole_field_name, = field_names
 
   return pcoll | beam.Map(
       lambda x: getattr(x, sole_field_name)) | WriteToTFRecord(
-        file_path_prefix=file_path_prefix,
-        coder=coder,
-        file_name_suffix=file_name_suffix,
-        num_shards=num_shards,
-        shard_name_template=shard_name_template,
-        compression_type=getattr(CompressionTypes, compression_type))
+          file_path_prefix=file_path_prefix,
+          coder=coder,
+          file_name_suffix=file_name_suffix,
+          num_shards=num_shards,
+          shard_name_template=shard_name_template,
+          compression_type=getattr(CompressionTypes, compression_type))
