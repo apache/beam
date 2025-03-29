@@ -101,8 +101,8 @@ jobs:
           local full_table_id_show="${GCP_PROJECT_ID}:${BQ_DATASET}.${table_name}"
           local count=""
           local exit_code=1
-          local retries=3
-          local delay=10 # Default seconds between retries
+          local retries=10
+          local delay=60 # Default seconds between retries
 
           # Allow overriding delay via second argument (optional)
           if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
