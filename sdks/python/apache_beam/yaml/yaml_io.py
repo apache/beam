@@ -600,7 +600,7 @@ def read_from_tfrecord(
       file_pattern=file_pattern,
       compression_type=getattr(CompressionTypes, compression_type),
       validate=validate) | beam.Map(lambda s: beam.Row(record=s))
-  
+
 
 @beam.ptransform_fn
 def write_to_tfrecord(
