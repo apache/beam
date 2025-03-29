@@ -22,6 +22,7 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 
 @AutoValue
@@ -60,6 +61,14 @@ public abstract class ErrorHandling implements Serializable {
         Schema.Field.of("error_message", Schema.FieldType.STRING));
   }
 
+  public static Schema errorSchemaKvBytes() {
+    return Schema.builder()
+        .addField("inputKey", Schema.FieldType.BYTES)
+        .addField("inputValue", Schema.FieldType.BYTES)
+        .addField("error", Schema.FieldType.STRING)
+        .build();
+  }
+
   @SuppressWarnings({
     "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
@@ -77,6 +86,12 @@ public abstract class ErrorHandling implements Serializable {
     return Row.withSchema(errorSchema)
         .withFieldValue("failed_row", inputBytes)
         .withFieldValue("error_message", th.getMessage())
+        .build();
+  }
+
+  public static Row errorRecord(Schema errorSchema, KV<byte[], byte[]> input, Exception e) {
+    return Row.withSchema(errorSchema)
+        .addValues(input.getKey(), input.getValue(), e.toString())
         .build();
   }
 }
