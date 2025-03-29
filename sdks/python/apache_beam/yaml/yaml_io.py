@@ -650,7 +650,7 @@ def write_to_tfrecord(
     ) from exn
   if len(field_names) != 1:
     raise ValueError(
-        "WriteToTFRecord requires an input schema with exactly one field, got %s"
+        "WriteToTFRecord requires an input schema with exactly one field,got %s"
         % field_names)
   sole_field_name, = field_names
 
