@@ -380,7 +380,7 @@ jobs:
             --dataset ${{ env.BQ_DATASET }} \
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/ \
-            --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz
+            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
           echo "Leaderboard (Dataflow Runner) submission command finished."
         shell: bash
 
@@ -456,7 +456,7 @@ jobs:
             --dataset ${{ env.BQ_DATASET }} \
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/ \
-            --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
             --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
           echo "GameStats (Dataflow Runner) submission command finished."
         shell: bash
