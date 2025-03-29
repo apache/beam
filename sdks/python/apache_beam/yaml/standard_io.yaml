@@ -344,7 +344,7 @@
     mappings:
       'ReadFromTFRecord':
         file_pattern: 'file_pattern'
-        compression: 'compression'
+        compression_type: 'compression'
         validate: 'validate'
       'WriteToTFRecord':
         file_path_prefix: 'output_prefix'
