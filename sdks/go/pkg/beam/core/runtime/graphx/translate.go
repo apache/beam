@@ -1069,6 +1069,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	if _, err := m.makeNode(gbkOut, gbkCoderID, outNode); err != nil {
 		return handleErr(err)
 	}
+	// Use the same windowing for gbk output as postReify
+	m.pcollections[gbkOut].WindowingStrategyId = m.pcollections[postReify].WindowingStrategyId
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pipepb.PTransform{
