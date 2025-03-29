@@ -38,6 +38,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SnappyCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -521,7 +522,7 @@ public class Read {
     @GetInitialRestriction
     public UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction(
         @Element UnboundedSource<OutputT, CheckpointT> element) {
-      return UnboundedSourceRestriction.create(element, null, BoundedWindow.TIMESTAMP_MIN_VALUE);
+      return UnboundedSourceRestriction.create(element, null, BoundedWindow.TIMESTAMP_MIN_VALUE, 0);
     }
 
     @Setup
@@ -550,10 +551,12 @@ public class Read {
       }
 
       try {
-        for (UnboundedSource<OutputT, CheckpointT> split :
-            restriction.getSource().split(DEFAULT_DESIRED_NUM_SPLITS, pipelineOptions)) {
+        List<? extends UnboundedSource<OutputT, CheckpointT>> unboundedSources =
+            restriction.getSource().split(DEFAULT_DESIRED_NUM_SPLITS, pipelineOptions);
+        for (int i = 0; i < unboundedSources.size(); i++) {
+          UnboundedSource<OutputT, CheckpointT> split = unboundedSources.get(i);
           receiver.output(
-              UnboundedSourceRestriction.create(split, null, restriction.getWatermark()));
+              UnboundedSourceRestriction.create(split, null, restriction.getWatermark(), i));
         }
       } catch (Exception e) {
         LOG.warn("Exception while splitting source. Source not split.", e);
@@ -704,9 +707,10 @@ public class Read {
           UnboundedSourceRestriction<OutputT, CheckpointT> create(
               UnboundedSource<OutputT, CheckpointT> source,
               @Nullable CheckpointT checkpoint,
-              Instant watermark) {
+              Instant watermark,
+              @Nullable Integer splitIndex) {
         return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_UnboundedSourceRestriction<>(
-            source, checkpoint, watermark);
+            source, checkpoint, watermark, splitIndex);
       }
 
       public abstract UnboundedSource<OutputT, CheckpointT> getSource();
@@ -714,6 +718,8 @@ public class Read {
       public abstract @Nullable CheckpointT getCheckpoint();
 
       public abstract Instant getWatermark();
+
+      public abstract @Nullable Integer getSplitIndex();
     }
 
     /** A {@link Coder} for {@link UnboundedSourceRestriction}s. */
@@ -738,6 +744,7 @@ public class Read {
         sourceCoder.encode(value.getSource(), outStream);
         checkpointCoder.encode(value.getCheckpoint(), outStream);
         InstantCoder.of().encode(value.getWatermark(), outStream);
+        NullableCoder.of(VarIntCoder.of()).encode(value.getSplitIndex(), outStream);
       }
 
       @Override
@@ -746,7 +753,8 @@ public class Read {
         return UnboundedSourceRestriction.create(
             sourceCoder.decode(inStream),
             checkpointCoder.decode(inStream),
-            InstantCoder.of().decode(inStream));
+            InstantCoder.of().decode(inStream),
+            NullableCoder.of(VarIntCoder.of()).decode(inStream));
       }
 
       @Override
@@ -886,19 +894,24 @@ public class Read {
       }
 
       private Object createCacheKey(
-          UnboundedSource<OutputT, CheckpointT> source, @Nullable CheckpointT checkpoint) {
+          UnboundedSource<OutputT, CheckpointT> source,
+          @Nullable CheckpointT checkpoint,
+          @Nullable Integer index) {
         checkStateNotNull(restrictionCoder);
         // For caching reader, we don't care about the watermark.
         return restrictionCoder.structuralValue(
             UnboundedSourceRestriction.create(
-                source, checkpoint, BoundedWindow.TIMESTAMP_MIN_VALUE));
+                source, checkpoint, BoundedWindow.TIMESTAMP_MIN_VALUE, index));
       }
 
       @EnsuresNonNull("currentReader")
       private void initializeCurrentReader() throws IOException {
         checkState(currentReader == null);
         Object cacheKey =
-            createCacheKey(initialRestriction.getSource(), initialRestriction.getCheckpoint());
+            createCacheKey(
+                initialRestriction.getSource(),
+                initialRestriction.getCheckpoint(),
+                initialRestriction.getSplitIndex());
         // We remove the reader if cached so that it is not possibly claimed by multiple DoFns.
         CacheState<OutputT> cachedState = cachedReaders.asMap().remove(cacheKey);
 
@@ -921,7 +934,10 @@ public class Read {
           // We only put the reader into the cache when we know it possibly will be reused by
           // residuals.
           cachedReaders.put(
-              createCacheKey(restriction.getSource(), restriction.getCheckpoint()),
+              createCacheKey(
+                  restriction.getSource(),
+                  restriction.getCheckpoint(),
+                  restriction.getSplitIndex()),
               CacheState.create(reader, readerHasBeenStarted));
         }
       }
@@ -998,7 +1014,8 @@ public class Read {
         return UnboundedSourceRestriction.create(
             (UnboundedSource<OutputT, CheckpointT>) currentReader.getCurrentSource(),
             (CheckpointT) currentReader.getCheckpointMark(),
-            watermark);
+            watermark,
+            initialRestriction.getSplitIndex());
       }
 
       @Override
@@ -1021,7 +1038,7 @@ public class Read {
         SplitResult<UnboundedSourceRestriction<OutputT, CheckpointT>> result =
             SplitResult.of(
                 UnboundedSourceRestriction.create(
-                    EmptyUnboundedSource.INSTANCE, null, BoundedWindow.TIMESTAMP_MAX_VALUE),
+                    EmptyUnboundedSource.INSTANCE, null, BoundedWindow.TIMESTAMP_MAX_VALUE, null),
                 currentRestriction);
 
         cacheCurrentReader(currentRestriction);
@@ -1081,11 +1098,15 @@ public class Read {
             return Progress.from(0, size);
           }
 
-          // TODO: Support "global" backlog reporting
-          // size = reader.getTotalBacklogBytes();
-          // if (size != UnboundedReader.BACKLOG_UNKNOWN) {
-          //   return size;
-          // }
+          Integer splitIndex = initialRestriction.getSplitIndex();
+          if (splitIndex != null && splitIndex == 0) {
+            // this is first split
+            checkStateNotNull(currentReader, "reader null after initialization");
+            size = currentReader.getTotalBacklogBytes();
+            if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+              return Progress.from(0, size);
+            }
+          }
 
           // We treat unknown as 0 progress
           return Progress.NONE;
