@@ -211,9 +211,9 @@ def copy_tests_from_docs():
     for path in glob.glob(os.path.join(docs_src, 'yaml*.md')):
       shutil.copy(path, docs_dest)
   else:
-    if not os.path.exists(docs_dest):
-      raise RuntimeError(
-          f'Could not locate yaml docs in {docs_src} or {docs_dest}.')
+    warnings.warn(
+        f'Could not locate yaml docs source directory {docs_src}. '
+        f'Skipping copying tests from docs.')
 
 
 def generate_external_transform_wrappers():
