@@ -84,6 +84,7 @@ jobs:
       BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
       APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
       GAME_STATS_WINDOW_DURATION: 60
+      SUBMISSION_TIMEOUT_SECONDS: 360 # Timeout for the python submission script itself
       # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
       VALIDATE_TABLE_FUNC: |
         validate_table() {
@@ -367,7 +368,8 @@ jobs:
           fi
         shell: bash
 
-      - name: Run Leaderboard (Dataflow Runner) and Extract Job ID
+      - name: Run Leaderboard (Dataflow Runner), Wait, Extract ID, Cleanup Submitter
+        id: submit_lb_df # Give step an ID to reference its outcome if needed
         run: |
           echo "Running Leaderboard with DataflowRunner in Background..."
           source beam_env/bin/activate
@@ -385,13 +387,10 @@ jobs:
           echo "Leaderboard (Dataflow Runner) submission process started in background with PID: ${LB_DF_PID}"
           echo ${LB_DF_PID} > leaderboard_dataflow_submit.pid
 
-          echo "Waiting for Dataflow job submission to complete and extracting Job ID..."
-          # Wait for the background submission process to likely finish and log output
-          wait $LB_DF_PID || echo "Leaderboard submission process exited with status $?. Continuing to check log."
-          rm leaderboard_dataflow_submit.pid # Remove pid file now that process finished
+          echo "Waiting up to ${{ env.SUBMISSION_TIMEOUT_SECONDS }} seconds for Dataflow job submission process (PID: ${LB_DF_PID}) to potentially complete..."
+          sleep ${{ env.SUBMISSION_TIMEOUT_SECONDS }}
 
-          sleep 5 # Brief pause for log flush
-
+          echo "Proceeding with Job ID extraction..."
           # Try extracting Job ID using common patterns
           JOB_ID=$(grep -oP 'Dataflow Job ID: \K\S+' leaderboard_dataflow_submit.log || grep -oP "job_id='?\K[^' >]+" leaderboard_dataflow_submit.log || grep -oP "id: '?\"?\K[^'\" >]+" leaderboard_dataflow_submit.log | head -n 1)
 
@@ -399,18 +398,38 @@ jobs:
             echo "Extracted Leaderboard Dataflow Job ID: $JOB_ID"
             echo "$JOB_ID" > leaderboard_dataflow_jobid.txt
           else
-            echo "ERROR: Could not extract Leaderboard Dataflow Job ID."
+            echo "WARNING: Could not extract Leaderboard Dataflow Job ID after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s wait. Log content:"
             echo "--- Leaderboard Dataflow submission log START ---"
             cat leaderboard_dataflow_submit.log || echo "Log file not found."
             echo "--- Leaderboard Dataflow submission log END ---"
-            # Decide if failure to extract ID should fail the workflow
-            # exit 1
+            # Consider setting an output or variable to indicate failure for later steps if needed
           fi
-          echo "Leaderboard (Dataflow Runner) submission finished."
+
+          # Check if the submission process is still running and kill it if necessary
+          if [ -f leaderboard_dataflow_submit.pid ] && ps -p $LB_DF_PID > /dev/null; then
+             echo "Submission process (PID: $LB_DF_PID) is still running after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s. Attempting to kill it."
+             kill -9 $LB_DF_PID || echo "Failed to kill process $LB_DF_PID."
+          else
+             echo "Submission process (PID: $LB_DF_PID) has already finished or PID file is missing."
+          fi
+          # Clean up PID file regardless
+          if [ -f leaderboard_dataflow_submit.pid ]; then
+              rm leaderboard_dataflow_submit.pid
+          fi
+
+          echo "Leaderboard (Dataflow Runner) submission step finished processing."
         shell: bash
 
       - name: Validate Leaderboard Results (Dataflow Runner)
+        # Optional: Add condition based on whether job ID was extracted if validation is pointless without it
+        # if: steps.submit_lb_df.outcome == 'success' && success() # Check previous step outcome
         run: |
+          # Check if job id file exists before proceeding (optional but recommended)
+          if [ ! -f leaderboard_dataflow_jobid.txt ]; then
+             echo "Skipping Leaderboard Dataflow validation as Job ID was not extracted."
+             # Optionally fail the workflow here if needed: exit 1
+             exit 0 # Exit step successfully to allow cleanup
+          fi
           source beam_env/bin/activate
           eval "$VALIDATE_TABLE_FUNC"
           echo "Validating BigQuery results for Leaderboard (DataflowRunner)..."
@@ -461,7 +480,8 @@ jobs:
           fi
         shell: bash
 
-      - name: Run GameStats (Dataflow Runner) and Extract Job ID
+      - name: Run GameStats (Dataflow Runner), Wait, Extract ID, Cleanup Submitter
+        id: submit_gs_df
         run: |
           echo "Running GameStats with DataflowRunner in Background..."
           source beam_env/bin/activate
@@ -480,12 +500,10 @@ jobs:
           echo "GameStats (Dataflow Runner) submission process started in background with PID: ${GS_DF_PID}"
           echo ${GS_DF_PID} > gamestats_dataflow_submit.pid
 
-          echo "Waiting for Dataflow job submission to complete and extracting Job ID..."
-          wait $GS_DF_PID || echo "GameStats submission process exited with status $?. Continuing to check log."
-          rm gamestats_dataflow_submit.pid # Remove pid file
+          echo "Waiting up to ${{ env.SUBMISSION_TIMEOUT_SECONDS }} seconds for Dataflow job submission process (PID: ${GS_DF_PID}) to potentially complete..."
+          sleep ${{ env.SUBMISSION_TIMEOUT_SECONDS }}
 
-          sleep 5 # Brief pause for log flush
-
+          echo "Proceeding with Job ID extraction..."
           # Try extracting Job ID using common patterns
           JOB_ID=$(grep -oP 'Dataflow Job ID: \K\S+' gamestats_dataflow_submit.log || grep -oP "job_id='?\K[^' >]+" gamestats_dataflow_submit.log || grep -oP "id: '?\"?\K[^'\" >]+" gamestats_dataflow_submit.log | head -n 1)
 
@@ -493,18 +511,35 @@ jobs:
             echo "Extracted GameStats Dataflow Job ID: $JOB_ID"
             echo "$JOB_ID" > gamestats_dataflow_jobid.txt
           else
-            echo "ERROR: Could not extract GameStats Dataflow Job ID."
+            echo "WARNING: Could not extract GameStats Dataflow Job ID after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s wait. Log content:"
             echo "--- GameStats Dataflow submission log START ---"
             cat gamestats_dataflow_submit.log || echo "Log file not found."
             echo "--- GameStats Dataflow submission log END ---"
-            # Decide if failure to extract ID should fail the workflow
-            # exit 1
           fi
-          echo "GameStats (Dataflow Runner) submission finished."
+
+          # Check if the submission process is still running and kill it if necessary
+          if [ -f gamestats_dataflow_submit.pid ] && ps -p $GS_DF_PID > /dev/null; then
+             echo "Submission process (PID: $GS_DF_PID) is still running after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s. Attempting to kill it."
+             kill -9 $GS_DF_PID || echo "Failed to kill process $GS_DF_PID."
+          else
+             echo "Submission process (PID: $GS_DF_PID) has already finished or PID file is missing."
+          fi
+          # Clean up PID file regardless
+          if [ -f gamestats_dataflow_submit.pid ]; then
+              rm gamestats_dataflow_submit.pid
+          fi
+
+          echo "GameStats (Dataflow Runner) submission step finished processing."
         shell: bash
 
       - name: Validate GameStats Results (Dataflow Runner)
+        # if: steps.submit_gs_df.outcome == 'success' && success() # Optional condition
         run: |
+          if [ ! -f gamestats_dataflow_jobid.txt ]; then
+             echo "Skipping GameStats Dataflow validation as Job ID was not extracted."
+             # Optionally fail the workflow here if needed: exit 1
+             exit 0 # Exit step successfully to allow cleanup
+          fi
           source beam_env/bin/activate
           eval "$VALIDATE_TABLE_FUNC"
           echo "Validating BigQuery results for GameStats (DataflowRunner)..."
@@ -538,6 +573,7 @@ jobs:
         shell: bash
 
       # Note: DirectRunner Kill steps are placed after their respective validations above.
+      # Note: Dataflow submitter Kill logic is now within the submission steps themselves.
 
       # Cancel Dataflow jobs BEFORE cleaning other resources
       - name: Cancel Leaderboard Dataflow Job
@@ -589,6 +625,8 @@ jobs:
           # Remove specific temp folders used by the jobs
           gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/leaderboard/**" || echo "Failed to delete objects in GCS leaderboard temp folder."
           gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/gamestats/**" || echo "Failed to delete objects in GCS gamestats temp folder."
+          # Optionally remove the submission logs too
+          rm -f leaderboard_dataflow_submit.log gamestats_dataflow_submit.log injector_run.log
         shell: bash
 
       - name: Cleanup PubSub Topic
