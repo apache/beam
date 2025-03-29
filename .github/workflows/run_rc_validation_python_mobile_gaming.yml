@@ -143,6 +143,7 @@ jobs:
           # workaround to create the empty dir
           # https://github.com/apache/beam/issues/34474
           mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
+          # Ensure target directory exists on runner if needed - adjust path as necessary (UNCOMMENTED)
           sudo mkdir -p /website/www/site/content/en/documentation/sdks
           cd beam-${{ env.RELEASE_VERSION }}/sdks/python
           python -m build --sdist
@@ -241,33 +242,43 @@ jobs:
         shell: bash
 
       # ================== Leaderboard Tests ==================
-      - name: Run Leaderboard (Direct Runner)
+      - name: Run Leaderboard (Direct Runner) in Background
         run: |
-          echo "Running Leaderboard with DirectRunner..."
+          echo "Running Leaderboard with DirectRunner in Background..."
           source beam_env/bin/activate
           python -m apache_beam.examples.complete.game.leader_board \
             --project=${{ env.GCP_PROJECT_ID }} \
             --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
-            --dataset ${{ env.BQ_DATASET }}
-          echo "Leaderboard (Direct Runner) command finished."
+            --dataset ${{ env.BQ_DATASET }} & # Run in background
+
+          # Capture the PID
+          LB_DIRECT_PID=$!
+          echo "Leaderboard (Direct Runner) started in background with PID: ${LB_DIRECT_PID}"
+          echo ${LB_DIRECT_PID} > leaderboard_direct.pid
         shell: bash
 
       - name: Validate Leaderboard Results (Direct Runner)
         run: |
           echo "Validating BigQuery results for Leaderboard (DirectRunner)..."
-          sleep 60 # Allow some time for data to propagate in BQ
+          # CRITICAL: Wait for the background job to run and write data
+          sleep 90 # Increased sleep time - adjust as needed
 
           validate_table() {
             local table_name=$1
             local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
             echo "Checking table: ${full_table_id}"
             # Query count, extract number, handle potential errors or empty results
-            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
-            
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>/dev/null | tail -n 1)
+
             if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
               echo "Table ${table_name} has ${count} rows. OK."
             else
-              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              # Add extra check to see if table exists at all
+              if ! bq show ${full_table_id} > /dev/null 2>&1; then
+                 echo "ERROR: Table ${table_name} does not exist!"
+              else
+                 echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              fi
               exit 1
             fi
           }
@@ -275,6 +286,20 @@ jobs:
           validate_table "leader_board_users"
           validate_table "leader_board_teams"
           echo "Leaderboard (Direct Runner) BQ validation successful."
+        shell: bash
+
+      - name: Kill Leaderboard Direct Runner Process
+        if: always() # Ensure cleanup attempt even if validation fails
+        run: |
+          if [ -f leaderboard_direct.pid ]; then
+            LB_DIRECT_PID=$(cat leaderboard_direct.pid)
+            echo "Attempting to kill Leaderboard Direct Runner process with PID: $LB_DIRECT_PID"
+            # Use kill -9 directly for potentially stubborn processes
+            kill -9 $LB_DIRECT_PID || echo "Leaderboard Direct Runner process $LB_DIRECT_PID already stopped or not found."
+            rm leaderboard_direct.pid
+          else
+            echo "leaderboard_direct.pid not found, cannot kill process."
+          fi
         shell: bash
 
       - name: Run Leaderboard (Dataflow Runner)
@@ -296,20 +321,22 @@ jobs:
       - name: Validate Leaderboard Results (Dataflow Runner)
         run: |
           echo "Validating BigQuery results for Leaderboard (DataflowRunner)..."
-          # Dataflow jobs might take longer to write results
           sleep 180 # Allow more time for Dataflow job and BQ writes
 
           validate_table() {
             local table_name=$1
             local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
             echo "Checking table: ${full_table_id}"
-            # Query count, extract number, handle potential errors or empty results
-            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
-            
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>/dev/null | tail -n 1)
+
             if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
               echo "Table ${table_name} has ${count} rows. OK."
             else
-              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              if ! bq show ${full_table_id} > /dev/null 2>&1; then
+                 echo "ERROR: Table ${table_name} does not exist!"
+              else
+                 echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              fi
               exit 1
             fi
           }
@@ -320,34 +347,42 @@ jobs:
         shell: bash
 
       # ================== GameStats Tests ==================
-      - name: Run GameStats (Direct Runner)
+      - name: Run GameStats (Direct Runner) in Background
         run: |
-          echo "Running GameStats with DirectRunner..."
+          echo "Running GameStats with DirectRunner in Background..."
           source beam_env/bin/activate
           python -m apache_beam.examples.complete.game.game_stats \
             --project=${{ env.GCP_PROJECT_ID }} \
             --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
             --dataset ${{ env.BQ_DATASET }} \
-            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
-          echo "GameStats (Direct Runner) command finished."
+            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }} & # Run in background
+
+          # Capture the PID
+          GS_DIRECT_PID=$!
+          echo "GameStats (Direct Runner) started in background with PID: ${GS_DIRECT_PID}"
+          echo ${GS_DIRECT_PID} > gamestats_direct.pid
         shell: bash
 
       - name: Validate GameStats Results (Direct Runner)
         run: |
           echo "Validating BigQuery results for GameStats (DirectRunner)..."
-          sleep 60 # Allow some time for data to propagate in BQ
+          # CRITICAL: Wait for the background job to run and write data
+          sleep 90 # Increased sleep time - adjust as needed
 
           validate_table() {
             local table_name=$1
             local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
             echo "Checking table: ${full_table_id}"
-            # Query count, extract number, handle potential errors or empty results
-            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
-            
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>/dev/null | tail -n 1)
+
             if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
               echo "Table ${table_name} has ${count} rows. OK."
             else
-              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              if ! bq show ${full_table_id} > /dev/null 2>&1; then
+                 echo "ERROR: Table ${table_name} does not exist!"
+              else
+                 echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              fi
               exit 1
             fi
           }
@@ -355,6 +390,20 @@ jobs:
           validate_table "game_stats_teams"
           validate_table "game_stats_sessions"
           echo "GameStats (Direct Runner) BQ validation successful."
+        shell: bash
+
+      - name: Kill GameStats Direct Runner Process
+        if: always() # Ensure cleanup attempt even if validation fails
+        run: |
+          if [ -f gamestats_direct.pid ]; then
+            GS_DIRECT_PID=$(cat gamestats_direct.pid)
+            echo "Attempting to kill GameStats Direct Runner process with PID: $GS_DIRECT_PID"
+            # Use kill -9 directly
+            kill -9 $GS_DIRECT_PID || echo "GameStats Direct Runner process $GS_DIRECT_PID already stopped or not found."
+            rm gamestats_direct.pid
+          else
+            echo "gamestats_direct.pid not found, cannot kill process."
+          fi
         shell: bash
 
       - name: Run GameStats (Dataflow Runner)
@@ -377,20 +426,22 @@ jobs:
       - name: Validate GameStats Results (Dataflow Runner)
         run: |
           echo "Validating BigQuery results for GameStats (DataflowRunner)..."
-          # Dataflow jobs might take longer to write results
           sleep 180 # Allow more time for Dataflow job and BQ writes
 
           validate_table() {
             local table_name=$1
             local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
             echo "Checking table: ${full_table_id}"
-            # Query count, extract number, handle potential errors or empty results
-            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
-            
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>/dev/null | tail -n 1)
+
             if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
               echo "Table ${table_name} has ${count} rows. OK."
             else
-              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+               if ! bq show ${full_table_id} > /dev/null 2>&1; then
+                 echo "ERROR: Table ${table_name} does not exist!"
+              else
+                 echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              fi
               exit 1
             fi
           }
@@ -401,28 +452,30 @@ jobs:
         shell: bash
 
       # ================== Cleanup ==================
+      # Kill background processes first
       - name: Kill Java Injector Process
         if: always()
         run: |
           if [ -f injector.pid ]; then
             INJECTOR_PID=$(cat injector.pid)
             echo "Attempting to kill Java Injector process with PID: $INJECTOR_PID"
-            # Send SIGTERM first, then SIGKILL if it doesn't stop (optional refinement)
-            kill $INJECTOR_PID || echo "Injector process $INJECTOR_PID may have already stopped or was not found (kill returned non-zero)."
-            # Wait briefly to see if it terminated
-            sleep 5 
+            kill $INJECTOR_PID || echo "Injector process $INJECTOR_PID may have already stopped or was not found."
+            sleep 5
             if ps -p $INJECTOR_PID > /dev/null; then
                echo "Process $INJECTOR_PID still running, sending SIGKILL."
-               kill -9 $INJECTOR_PID || echo "Failed to SIGKILL process $INJECTOR_PID (might have stopped just now)."
+               kill -9 $INJECTOR_PID || echo "Failed to SIGKILL process $INJECTOR_PID."
             else
-               echo "Process $INJECTOR_PID terminated gracefully or was not running."
+               echo "Process $INJECTOR_PID terminated or was not running."
             fi
             rm injector.pid
           else
-            echo "injector.pid not found, cannot kill process. It might have failed to start or the file wasn't created."
+            echo "injector.pid not found, cannot kill process."
           fi
         shell: bash
 
+      # Note: DirectRunner Kill steps are now placed after their respective validations above.
+
+      # Cleanup GCP resources
       - name: Cleanup BigQuery Dataset
         if: always()
         run: |
@@ -434,14 +487,12 @@ jobs:
         if: always()
         run: |
           echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
-          # Be cautious with bucket deletion; only delete temp contents if appropriate
-          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/**" || echo "Failed to delete objects in GCS bucket temp folder, continuing..." # Added ** for recursive delete robustness
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/**" || echo "Failed to delete objects in GCS bucket temp folder, continuing..."
         shell: bash
 
       - name: Cleanup PubSub Topic
         if: always()
         run: |
           echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
-          # Ensure the injector is stopped before deleting the topic it uses
           gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
         shell: bash
