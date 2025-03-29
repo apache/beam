@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -213,21 +214,52 @@ public class JdbcReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      String query = config.getReadQuery();
-      if (query == null) {
-        query = String.format("SELECT * FROM %s", config.getLocation());
+      config.validate();
+      // If we define a partition column, we follow a different route.
+      @Nullable String partitionColumn = config.getPartitionColumn();
+      @Nullable String location = config.getLocation();
+      if (partitionColumn != null) {
+        JdbcIO.ReadWithPartitions<Row, ?> readRowsWithParitions =
+            JdbcIO.<Row>readWithPartitions()
+                .withDataSourceConfiguration(dataSourceConfiguration())
+                .withTable(location)
+                .withPartitionColumn(partitionColumn)
+                .withRowOutput();
+
+        @Nullable Integer partitions = config.getNumPartitions();
+        if (partitions != null) {
+          readRowsWithParitions = readRowsWithParitions.withNumPartitions(partitions);
+        }
+
+        @Nullable Integer fetchSize = config.getFetchSize();
+        if (fetchSize != null && fetchSize > 0) {
+          readRowsWithParitions = readRowsWithParitions.withFetchSize(fetchSize);
+        }
+
+        @Nullable Boolean disableAutoCommit = config.getDisableAutoCommit();
+        if (disableAutoCommit != null) {
+          readRowsWithParitions = readRowsWithParitions.withDisableAutoCommit(disableAutoCommit);
+        }
+        return PCollectionRowTuple.of("output", input.getPipeline().apply(readRowsWithParitions));
+      }
+      @Nullable String readQuery = config.getReadQuery();
+      if (readQuery == null) {
+        readQuery = String.format("SELECT * FROM %s", location);
       }
       JdbcIO.ReadRows readRows =
-          JdbcIO.readRows().withDataSourceConfiguration(dataSourceConfiguration()).withQuery(query);
-      Integer fetchSize = config.getFetchSize();
+          JdbcIO.readRows()
+              .withDataSourceConfiguration(dataSourceConfiguration())
+              .withQuery(readQuery);
+
+      @Nullable Integer fetchSize = config.getFetchSize();
       if (fetchSize != null && fetchSize > 0) {
         readRows = readRows.withFetchSize(fetchSize);
       }
-      Boolean outputParallelization = config.getOutputParallelization();
+      @Nullable Boolean outputParallelization = config.getOutputParallelization();
       if (outputParallelization != null) {
         readRows = readRows.withOutputParallelization(outputParallelization);
       }
-      Boolean disableAutoCommit = config.getDisableAutoCommit();
+      @Nullable Boolean disableAutoCommit = config.getDisableAutoCommit();
       if (disableAutoCommit != null) {
         readRows = readRows.withDisableAutoCommit(disableAutoCommit);
       }
@@ -294,6 +326,14 @@ public class JdbcReadSchemaTransformProvider
     @Nullable
     public abstract String getLocation();
 
+    @SchemaFieldDescription("Name of a column of numeric type that will be used for partitioning.")
+    @Nullable
+    public abstract String getPartitionColumn();
+
+    @SchemaFieldDescription("The number of partitions")
+    @Nullable
+    public abstract Integer getNumPartitions();
+
     @SchemaFieldDescription(
         "Whether to reshuffle the resulting PCollection so results are distributed to all workers.")
     @Nullable
@@ -340,12 +380,19 @@ public class JdbcReadSchemaTransformProvider
 
       boolean readQueryPresent = (getReadQuery() != null && !"".equals(getReadQuery()));
       boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+      boolean partitionColumnPresent =
+          (getPartitionColumn() != null && !"".equals(getPartitionColumn()));
 
+      // If you specify a readQuery, it is to be used instead of a table.
       if (readQueryPresent && locationPresent) {
         throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
       }
       if (!readQueryPresent && !locationPresent) {
         throw new IllegalArgumentException("Either Query or Table must be specified.");
+      }
+      // Reading with partitions only supports table argument.
+      if (partitionColumnPresent && !locationPresent) {
+        throw new IllegalArgumentException("Table must be specified to read with partitions.");
       }
     }
 
@@ -367,6 +414,10 @@ public class JdbcReadSchemaTransformProvider
       public abstract Builder setPassword(String value);
 
       public abstract Builder setLocation(String value);
+
+      public abstract Builder setPartitionColumn(String value);
+
+      public abstract Builder setNumPartitions(Integer value);
 
       public abstract Builder setReadQuery(String value);
 
