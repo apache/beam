@@ -25,6 +25,7 @@ from typing import Optional
 
 from parameterized import parameterized
 
+from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.ml.anomaly.specifiable import _FALLBACK_SUBSPACE
 from apache_beam.ml.anomaly.specifiable import _KNOWN_SPECIFIABLE
 from apache_beam.ml.anomaly.specifiable import Spec
@@ -353,7 +354,6 @@ class TestInitCallCount(unittest.TestCase):
     self.assertEqual(FooForPickle.counter, 1)
     self.assertEqual(new_foo_2.__dict__, foo.__dict__)
 
-    import cloudpickle
     FooForPickle.counter = 0
     foo = FooForPickle(456)
     self.assertEqual(FooForPickle.counter, 0)
