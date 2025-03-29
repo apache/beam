@@ -114,15 +114,15 @@ jobs:
           echo "Downloading from ${{ env.APACHE_DIST_URL_BASE }}"
           wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}
           wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
-          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_TAR_GZ }}
-          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_TAR_GZ }}.sha512
+          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_ZIP }}
+          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_ZIP }}.sha512
         shell: bash
 
       - name: Verify Hashes
         run: |
           echo "Verifying sha512 checksums..."
           sha512sum -c ${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
-          sha512sum -c ${{ env.BEAM_SOURCE_TAR_GZ }}.sha512
+          sha512sum -c ${{ env.BEAM_SOURCE_ZIP }}.sha512
         shell: bash
 
       - name: Setup Python Virtual Environment
@@ -138,7 +138,7 @@ jobs:
         run: |
           echo "Building Python SDK sdist..."
           source beam_env/bin/activate
-          unzip ${{ env.BEAM_SOURCE_TAR_GZ }}
+          unzip ${{ env.BEAM_SOURCE_ZIP }}
           # workaround to create the empty dir 
           # https://github.com/apache/beam/issues/34474
           mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
