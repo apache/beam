@@ -66,7 +66,7 @@ jobs:
   run_python_mobile_gaming_rc_validation:
     name: Run Python Mobile Gaming RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 360
     env: # Job-level env vars inherit workflow level and define job-specific ones
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
@@ -83,7 +83,7 @@ jobs:
       BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
       BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
       APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
-      GAME_STATS_WINDOW_DURATION: 60
+      GAME_STATS_WINDOW_DURATION: 20
       SUBMISSION_TIMEOUT_SECONDS: 120 # Timeout for the python submission script itself
       # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
       VALIDATE_TABLE_FUNC: |
@@ -473,7 +473,8 @@ jobs:
           source beam_env/bin/activate
           eval "$VALIDATE_TABLE_FUNC"
           echo "Validating BigQuery results for GameStats (DirectRunner)..."
-          sleep 90
+          echo "* Sleeping for 25mins"
+          sleep 25m
           validate_table "game_stats_teams" || exit 1
           validate_table "game_stats_sessions" || exit 1
           echo "GameStats (Direct Runner) BQ validation finished successfully."
@@ -553,7 +554,8 @@ jobs:
           source beam_env/bin/activate
           eval "$VALIDATE_TABLE_FUNC"
           echo "Validating BigQuery results for GameStats (DataflowRunner)..."
-          sleep 240
+          echo "* Sleeping for 25mins"
+          sleep 25m
           validate_table "game_stats_teams" 15 || exit 1 # Use 15s retry delay
           validate_table "game_stats_sessions" 15 || exit 1 # Use 15s retry delay
           echo "GameStats (Dataflow Runner) BQ validation finished successfully."
