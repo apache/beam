@@ -31,10 +31,13 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -57,6 +60,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
@@ -169,7 +173,7 @@ public class SpannerWriteIT {
 
   private String generateDatabaseName() {
     String random =
-        RandomUtils.randomAlphaNumeric(
+        RandomStringUtils.randomAlphanumeric(
             MAX_DB_NAME_LENGTH - 4 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
@@ -297,6 +301,89 @@ public class SpannerWriteIT {
   }
 
   @Test
+  public void testWriteWithStructColumn() throws Exception {
+    // Generate a unique table name to avoid conflicts
+    String tableName = "StructTable_" + UUID.randomUUID().toString().replace('-', '_');
+
+    // Create a table with a STRUCT column
+    String createTableStmt =
+        String.format(
+            "CREATE TABLE %s ("
+                + "id INT64 NOT NULL,"
+                + "struct_col STRUCT<column STRING(MAX), lock_mode STRING(MAX), transaction_tag STRING(MAX)>"
+                + ") PRIMARY KEY (id)",
+            tableName);
+    databaseAdminClient
+        .updateDatabaseDdl(
+            options.getInstanceId(), databaseName, Collections.singleton(createTableStmt), null)
+        .get();
+
+    // Define the STRUCT type
+    Type structType =
+        Type.struct(
+            Type.StructField.of("column", Type.string()),
+            Type.StructField.of("lock_mode", Type.string()),
+            Type.StructField.of("transaction_tag", Type.string()));
+
+    // Create a STRUCT value
+    Struct structValue =
+        Struct.newBuilder()
+            .set("column")
+            .to("value1")
+            .set("lock_mode")
+            .to("exclusive")
+            .set("transaction_tag")
+            .to("tag1")
+            .build();
+
+    // Create a pipeline to write a mutation with a STRUCT value
+    Mutation mutation =
+        Mutation.newInsertBuilder(tableName)
+            .set("id")
+            .to(1L)
+            .set("struct_col")
+            .to(structType, structValue) // Fixed: Use to(Type, Struct)
+            .build();
+
+    p.apply(Create.of(mutation))
+        .apply(
+            SpannerIO.write()
+                .withProjectId(project)
+                .withInstanceId(options.getInstanceId())
+                .withDatabaseId(databaseName));
+
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
+
+    // Verify the data was written correctly
+    ResultSet resultSet =
+        spanner
+            .getDatabaseClient(DatabaseId.of(project, options.getInstanceId(), databaseName))
+            .singleUse()
+            .executeQuery(Statement.of("SELECT struct_col FROM " + tableName + " WHERE id = 1"));
+    assertThat(resultSet.next(), is(true));
+    Struct struct =
+        resultSet
+            .getCurrentRowAsStruct()
+            .getStruct("struct_col"); // Fixed: Use getCurrentRowAsStruct()
+    assertThat(struct.getString("column"), equalTo("value1"));
+    assertThat(struct.getString("lock_mode"), equalTo("exclusive"));
+    assertThat(struct.getString("transaction_tag"), equalTo("tag1"));
+    assertThat(resultSet.next(), is(false));
+    resultSet.close();
+
+    // Clean up the table
+    databaseAdminClient
+        .updateDatabaseDdl(
+            options.getInstanceId(),
+            databaseName,
+            Collections.singleton("DROP TABLE " + tableName),
+            null)
+        .get();
+  }
+
+  @Test
   public void testReportFailures() throws Exception {
     int numRecords = 100;
     p.apply("init", GenerateSequence.from(0).to(2 * numRecords))
@@ -396,7 +483,8 @@ public class SpannerWriteIT {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
       Long key = c.element();
       builder.set("Key").to(key);
-      String value = injectError.apply(key) ? null : RandomUtils.randomAlphaNumeric(valueSize);
+      String value =
+          injectError.apply(key) ? null : RandomStringUtils.randomAlphanumeric(valueSize);
       builder.set("Value").to(value);
       Mutation mutation = builder.build();
       c.output(mutation);
@@ -412,6 +500,7 @@ public class SpannerWriteIT {
     assertThat(resultSet.next(), is(true));
     long result = resultSet.getLong(0);
     assertThat(resultSet.next(), is(false));
+    resultSet.close();
     return result;
   }
 
