@@ -64,6 +64,7 @@ dependencies {
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:python")
+  implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
   runtimeOnly project(":sdks:java:io:iceberg")
