@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.64.0"
-date:   2025-03-25 10:30:00 -0500
+date:   2025-03-31 10:30:00 -0500
 categories:
   - blog
   - release
@@ -29,8 +29,6 @@ For more information on changes in 2.64.0, check out the [detailed release notes
 ## Highlights
 
 * Managed API for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed) supports [key I/O connectors](https://beam.apache.org/documentation/io/connectors/) Iceberg, Kafka, and BigQuery.
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
 ## I/Os
 
