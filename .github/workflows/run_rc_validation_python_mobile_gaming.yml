@@ -84,8 +84,6 @@ jobs:
       BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
       APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
       GAME_STATS_WINDOW_DURATION: 60
-
-      # --- Define the validation function with enhanced debugging ---
       # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
       VALIDATE_TABLE_FUNC: |
         validate_table() {
@@ -124,31 +122,25 @@ jobs:
                              --max_rows=1 \
                              "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>&1)
             exit_code=$?
-            
+
             echo "DEBUG: bq query exit code: $exit_code"
             echo "DEBUG: bq query raw output: [$query_output]"
 
             if [ $exit_code -eq 0 ]; then
                 echo "DEBUG: bq query exited successfully (code 0)."
-                # NOTE: With --format=sparse, header might still be present if rows > 0
-                # Let's grab the last line which should be the count.
                 count=$(echo "$query_output" | tail -n 1 | tr -d '[:space:]')
-                # Original attempt: count=$(echo "$query_output" | tr -d '[:space:]')
                 echo "DEBUG: Processed count after removing whitespace (from last line): [$count]"
-                # Check if count is a positive integer
                 if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
                     echo "DEBUG: Count [$count] is a positive integer. Validation successful for this attempt."
                     break # Success! Found non-zero rows
                 else
                     echo "DEBUG: Count [$count] is zero or not a positive integer."
-                    # Handle case where sparse format might just output '0' directly
                     if [[ "$count" == "0" ]]; then
                        echo "DEBUG: Explicit count of 0 received."
                     fi
                 fi
             else
                 echo "DEBUG: bq query failed (exit code: $exit_code)."
-                # Check if table exists explicitly on failure for better context
                 echo "DEBUG: Checking table existence with bq show..."
                 if ! bq show --project_id=${GCP_PROJECT_ID} "${full_table_id_show}" > /dev/null 2>&1; then
                   echo "DEBUG: Table ${full_table_id_show} appears not to exist (bq show failed)."
@@ -157,7 +149,6 @@ jobs:
                 fi
             fi
 
-            # Don't sleep on the last attempt
             if [ $i -lt $retries ]; then
               echo "DEBUG: Validation condition not met on attempt $i. Retrying in $delay seconds..."
               sleep $delay
@@ -166,7 +157,6 @@ jobs:
             fi
           done
 
-          # Final check after all retries
           echo "DEBUG: ===== Final validation check for table: $table_name ====="
           if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
             echo "SUCCESS: Table ${table_name} has ${count} rows. Final validation OK."
@@ -198,7 +188,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update --yes
-          sudo apt-get install -y wget unzip coreutils procps
+          sudo apt-get install -y wget unzip coreutils procps grep sed
         shell: bash
 
       - name: Set up Cloud SDK
@@ -298,6 +288,7 @@ jobs:
       - name: Run Java Injector in Background
         run: |
           echo "Running Java Injector in Background..."
+          # Generate project from archetype
           mvn archetype:generate \
               -DarchetypeGroupId=org.apache.beam \
               -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
@@ -307,21 +298,34 @@ jobs:
               -Dversion="0.1" \
               -Dpackage=org.apache.beam.examples \
               -DinteractiveMode=false \
-              -DarchetypeCatalog=internal
+              -DarchetypeCatalog=internal \
+              -Dmaven.wagon.http.retryHandler.count=3 \
+              -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
 
           cd injector-temp
+          # Compile and run, redirecting output to avoid polluting workflow logs
           mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
             -Dexec.args="${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} none" \
             -Dmaven.wagon.http.retryHandler.count=3 \
-            -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 &
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 > ../injector_run.log 2>&1 &
 
           INJECTOR_PID=$!
           echo "Java Injector started in background with PID: ${INJECTOR_PID}"
           echo ${INJECTOR_PID} > ../injector.pid
 
           cd ..
-          echo "Java Injector startup command finished. Process running in background."
-          sleep 10
+          # Give injector a moment to start fully
+          sleep 15
+          echo "Checking if injector process $INJECTOR_PID is running..."
+          if ps -p $INJECTOR_PID > /dev/null; then
+             echo "Injector process $INJECTOR_PID confirmed running."
+          else
+             echo "ERROR: Injector process $INJECTOR_PID failed to start or exited prematurely."
+             echo "--- Injector Log ---"
+             cat injector_run.log || echo "Injector log not found."
+             echo "--- End Injector Log ---"
+             exit 1
+          fi
         shell: bash
 
       # ================== Leaderboard Tests ==================
@@ -342,16 +346,11 @@ jobs:
       - name: Validate Leaderboard Results (Direct Runner)
         run: |
           source beam_env/bin/activate
-          # Define the function in this step's shell environment using eval
           eval "$VALIDATE_TABLE_FUNC"
-
           echo "Validating BigQuery results for Leaderboard (DirectRunner)..."
-          sleep 90 # Adjust as needed
-
-          # Call the function; exit if it fails (returns non-zero)
+          sleep 90
           validate_table "leader_board_users" || exit 1
           validate_table "leader_board_teams" || exit 1
-
           echo "Leaderboard (Direct Runner) BQ validation finished successfully."
         shell: bash
 
@@ -368,9 +367,9 @@ jobs:
           fi
         shell: bash
 
-      - name: Run Leaderboard (Dataflow Runner)
+      - name: Run Leaderboard (Dataflow Runner) and Extract Job ID
         run: |
-          echo "Running Leaderboard with DataflowRunner..."
+          echo "Running Leaderboard with DataflowRunner in Background..."
           source beam_env/bin/activate
           python -m apache_beam.examples.complete.game.leader_board \
             --project=${{ env.GCP_PROJECT_ID }} \
@@ -378,24 +377,47 @@ jobs:
             --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
             --dataset ${{ env.BQ_DATASET }} \
             --runner DataflowRunner \
-            --temp_location=${{ env.GCS_BUCKET }}/temp/ \
-            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
-          echo "Leaderboard (Dataflow Runner) submission command finished."
+            --temp_location=${{ env.GCS_BUCKET }}/temp/leaderboard/ \
+            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            > leaderboard_dataflow_submit.log 2>&1 &
+
+          LB_DF_PID=$!
+          echo "Leaderboard (Dataflow Runner) submission process started in background with PID: ${LB_DF_PID}"
+          echo ${LB_DF_PID} > leaderboard_dataflow_submit.pid
+
+          echo "Waiting for Dataflow job submission to complete and extracting Job ID..."
+          # Wait for the background submission process to likely finish and log output
+          wait $LB_DF_PID || echo "Leaderboard submission process exited with status $?. Continuing to check log."
+          rm leaderboard_dataflow_submit.pid # Remove pid file now that process finished
+
+          sleep 5 # Brief pause for log flush
+
+          # Try extracting Job ID using common patterns
+          JOB_ID=$(grep -oP 'Dataflow Job ID: \K\S+' leaderboard_dataflow_submit.log || grep -oP "job_id='?\K[^' >]+" leaderboard_dataflow_submit.log || grep -oP "id: '?\"?\K[^'\" >]+" leaderboard_dataflow_submit.log | head -n 1)
+
+          if [[ -n "$JOB_ID" ]]; then
+            echo "Extracted Leaderboard Dataflow Job ID: $JOB_ID"
+            echo "$JOB_ID" > leaderboard_dataflow_jobid.txt
+          else
+            echo "ERROR: Could not extract Leaderboard Dataflow Job ID."
+            echo "--- Leaderboard Dataflow submission log START ---"
+            cat leaderboard_dataflow_submit.log || echo "Log file not found."
+            echo "--- Leaderboard Dataflow submission log END ---"
+            # Decide if failure to extract ID should fail the workflow
+            # exit 1
+          fi
+          echo "Leaderboard (Dataflow Runner) submission finished."
         shell: bash
 
       - name: Validate Leaderboard Results (Dataflow Runner)
         run: |
           source beam_env/bin/activate
-          # Define the function in this step's shell environment using eval
           eval "$VALIDATE_TABLE_FUNC"
-
           echo "Validating BigQuery results for Leaderboard (DataflowRunner)..."
-          sleep 180 # Adjust as needed
-
-          # Call the function, passing optional delay; exit if it fails
+          # Give Dataflow more time to start processing now it runs detached
+          sleep 240
           validate_table "leader_board_users" 15 || exit 1 # Use 15s retry delay
           validate_table "leader_board_teams" 15 || exit 1 # Use 15s retry delay
-
           echo "Leaderboard (Dataflow Runner) BQ validation finished successfully."
         shell: bash
 
@@ -418,16 +440,11 @@ jobs:
       - name: Validate GameStats Results (Direct Runner)
         run: |
           source beam_env/bin/activate
-          # Define the function in this step's shell environment using eval
           eval "$VALIDATE_TABLE_FUNC"
-
           echo "Validating BigQuery results for GameStats (DirectRunner)..."
-          sleep 90 # Adjust as needed
-
-          # Call the function; exit if it fails
+          sleep 90
           validate_table "game_stats_teams" || exit 1
           validate_table "game_stats_sessions" || exit 1
-
           echo "GameStats (Direct Runner) BQ validation finished successfully."
         shell: bash
 
@@ -444,9 +461,9 @@ jobs:
           fi
         shell: bash
 
-      - name: Run GameStats (Dataflow Runner)
+      - name: Run GameStats (Dataflow Runner) and Extract Job ID
         run: |
-          echo "Running GameStats with DataflowRunner..."
+          echo "Running GameStats with DataflowRunner in Background..."
           source beam_env/bin/activate
           python -m apache_beam.examples.complete.game.game_stats \
             --project=${{ env.GCP_PROJECT_ID }} \
@@ -454,25 +471,47 @@ jobs:
             --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
             --dataset ${{ env.BQ_DATASET }} \
             --runner DataflowRunner \
-            --temp_location=${{ env.GCS_BUCKET }}/temp/ \
+            --temp_location=${{ env.GCS_BUCKET }}/temp/gamestats/ \
             --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
-            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
-          echo "GameStats (Dataflow Runner) submission command finished."
+            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }} \
+            > gamestats_dataflow_submit.log 2>&1 &
+
+          GS_DF_PID=$!
+          echo "GameStats (Dataflow Runner) submission process started in background with PID: ${GS_DF_PID}"
+          echo ${GS_DF_PID} > gamestats_dataflow_submit.pid
+
+          echo "Waiting for Dataflow job submission to complete and extracting Job ID..."
+          wait $GS_DF_PID || echo "GameStats submission process exited with status $?. Continuing to check log."
+          rm gamestats_dataflow_submit.pid # Remove pid file
+
+          sleep 5 # Brief pause for log flush
+
+          # Try extracting Job ID using common patterns
+          JOB_ID=$(grep -oP 'Dataflow Job ID: \K\S+' gamestats_dataflow_submit.log || grep -oP "job_id='?\K[^' >]+" gamestats_dataflow_submit.log || grep -oP "id: '?\"?\K[^'\" >]+" gamestats_dataflow_submit.log | head -n 1)
+
+          if [[ -n "$JOB_ID" ]]; then
+            echo "Extracted GameStats Dataflow Job ID: $JOB_ID"
+            echo "$JOB_ID" > gamestats_dataflow_jobid.txt
+          else
+            echo "ERROR: Could not extract GameStats Dataflow Job ID."
+            echo "--- GameStats Dataflow submission log START ---"
+            cat gamestats_dataflow_submit.log || echo "Log file not found."
+            echo "--- GameStats Dataflow submission log END ---"
+            # Decide if failure to extract ID should fail the workflow
+            # exit 1
+          fi
+          echo "GameStats (Dataflow Runner) submission finished."
         shell: bash
 
       - name: Validate GameStats Results (Dataflow Runner)
         run: |
           source beam_env/bin/activate
-          # Define the function in this step's shell environment using eval
           eval "$VALIDATE_TABLE_FUNC"
-
           echo "Validating BigQuery results for GameStats (DataflowRunner)..."
-          sleep 180 # Adjust as needed
-
-          # Call the function, passing optional delay; exit if it fails
+          # Give Dataflow more time to start processing now it runs detached
+          sleep 240
           validate_table "game_stats_teams" 15 || exit 1 # Use 15s retry delay
           validate_table "game_stats_sessions" 15 || exit 1 # Use 15s retry delay
-
           echo "GameStats (Dataflow Runner) BQ validation finished successfully."
         shell: bash
 
@@ -500,7 +539,42 @@ jobs:
 
       # Note: DirectRunner Kill steps are placed after their respective validations above.
 
-      # Cleanup GCP resources
+      # Cancel Dataflow jobs BEFORE cleaning other resources
+      - name: Cancel Leaderboard Dataflow Job
+        if: always()
+        run: |
+          if [ -f leaderboard_dataflow_jobid.txt ]; then
+            JOB_ID=$(cat leaderboard_dataflow_jobid.txt)
+            if [[ -n "$JOB_ID" ]]; then
+              echo "Attempting to cancel Leaderboard Dataflow job: $JOB_ID in region ${{ env.GCE_REGION }}"
+              gcloud dataflow jobs cancel "$JOB_ID" --region=${{ env.GCE_REGION }} --project=${{ env.GCP_PROJECT_ID }} || echo "Failed to cancel Leaderboard Dataflow job $JOB_ID (maybe it finished or was already cancelled)."
+            else
+              echo "Leaderboard Dataflow Job ID file exists but is empty."
+            fi
+            rm leaderboard_dataflow_jobid.txt
+          else
+            echo "leaderboard_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
+          fi
+        shell: bash
+
+      - name: Cancel GameStats Dataflow Job
+        if: always()
+        run: |
+          if [ -f gamestats_dataflow_jobid.txt ]; then
+            JOB_ID=$(cat gamestats_dataflow_jobid.txt)
+            if [[ -n "$JOB_ID" ]]; then
+              echo "Attempting to cancel GameStats Dataflow job: $JOB_ID in region ${{ env.GCE_REGION }}"
+              gcloud dataflow jobs cancel "$JOB_ID" --region=${{ env.GCE_REGION }} --project=${{ env.GCP_PROJECT_ID }} || echo "Failed to cancel GameStats Dataflow job $JOB_ID (maybe it finished or was already cancelled)."
+            else
+              echo "GameStats Dataflow Job ID file exists but is empty."
+            fi
+            rm gamestats_dataflow_jobid.txt
+          else
+            echo "gamestats_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
+          fi
+        shell: bash
+
+      # Cleanup GCP resources (after attempting to cancel jobs)
       - name: Cleanup BigQuery Dataset
         if: always() && github.event.inputs.CLEANUP_BQ_RESOURCES == 'true'
         run: |
@@ -508,11 +582,13 @@ jobs:
           bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
         shell: bash
 
-      - name: Cleanup GCS Bucket Objects (Optional - depends on policy)
+      - name: Cleanup GCS Bucket Objects
         if: always()
         run: |
           echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
-          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/**" || echo "Failed to delete objects in GCS bucket temp folder, continuing..."
+          # Remove specific temp folders used by the jobs
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/leaderboard/**" || echo "Failed to delete objects in GCS leaderboard temp folder."
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/gamestats/**" || echo "Failed to delete objects in GCS gamestats temp folder."
         shell: bash
 
       - name: Cleanup PubSub Topic
