@@ -583,7 +583,7 @@ def io_providers():
 def read_from_tfrecord(
     file_pattern: str,
     coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
-    compression_type: Optional[str] = "AUTO",
+    compression_type: str = "AUTO",
     validate: Optional[bool] = True):
   """Reads data from TFRecord.
 
@@ -610,7 +610,7 @@ def write_to_tfrecord(
     file_name_suffix: Optional[str] = "",
     num_shards: Optional[int] = 0,
     shard_name_template: Optional[str] = None,
-    compression_type: Optional[str] = "AUTO",
+    compression_type: str = "AUTO",
     no_spilling: Optional[bool] = None):
   """Writes data to TFRecord.
 
