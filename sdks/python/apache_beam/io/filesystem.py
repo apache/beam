@@ -295,6 +295,9 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
+    if num_bytes is None:
+      num_bytes = DEFAULT_READ_BUFFER_SIZE  
+
     self._fetch_to_internal_buffer(num_bytes)
     return self._read_from_internal_buffer(
         lambda: self._read_buffer.read(num_bytes))
