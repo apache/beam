@@ -296,11 +296,7 @@ class CompressedFile(object):
       raise ValueError('decompressor not initialized')
 
     if num_bytes is None:
-<<<<<<< HEAD
-      num_bytes = DEFAULT_READ_BUFFER_SIZE  
-=======
       num_bytes = DEFAULT_READ_BUFFER_SIZE
->>>>>>> 794bbaa351 (Setting num_bytes to DEFAULT_READ_BUFFER_SIZE if it is None originally (resolves #34435))
 
     self._fetch_to_internal_buffer(num_bytes)
     return self._read_from_internal_buffer(
