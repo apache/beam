@@ -31,6 +31,11 @@ on:
       APACHE_CONTENTS_REPO:
         description: 'Apache Staging Repository URL for Java Injector (e.g., https://repository.apache.org/content/repositories/orgapachebeam-1234)'
         required: true
+      CLEANUP_BQ_RESOURCES:
+        description: 'Whether to delete the BigQuery dataset after the test run (true/false)'
+        required: false
+        type: boolean
+        default: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -54,7 +59,7 @@ permissions:
   statuses: read
 
 env: # Workflow level env vars if needed, specific ones are below
-  GCP_PROJECT_ID: 'apache-beam-testing' # Defined here for potential use in multiple jobs
+  GCP_PROJECT_ID: 'apache-beam-testing'
   GCS_BUCKET: 'gs://rc-validation-migration-tests'
 
 jobs:
@@ -80,10 +85,11 @@ jobs:
       APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
       GAME_STATS_WINDOW_DURATION: 60
 
-      # --- Define the validation function as a multi-line environment variable ---
+      # --- Define the validation function with enhanced debugging ---
       VALIDATE_TABLE_FUNC: |
         validate_table() {
           local table_name=$1
+          echo "DEBUG: ===== Starting validate_table for table: $table_name ====="
           # Ensure required env vars are set (GCP_PROJECT_ID, BQ_DATASET are inherited)
           if [[ -z "$GCP_PROJECT_ID" || -z "$BQ_DATASET" ]]; then
              echo "ERROR: GCP_PROJECT_ID and BQ_DATASET must be set in the environment."
@@ -99,42 +105,62 @@ jobs:
           # Allow overriding delay via second argument (optional)
           if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
               delay=$2
-              echo "Using custom retry delay: ${delay}s for table ${table_name}"
+              echo "DEBUG: Using custom retry delay: ${delay}s for table ${table_name}"
+          else
+              echo "DEBUG: Using default retry delay: ${delay}s for table ${table_name}"
           fi
-
-          echo "Checking row count via query for: ${full_table_id}"
+          echo "DEBUG: Full table ID: ${full_table_id}, Max retries: ${retries}"
 
           for i in $(seq 1 $retries); do
+            echo "DEBUG: Starting attempt $i/$retries..."
             local query_output
-            # Use --project_id within the command for clarity, reading from env var
-            query_output=$(bq query --project_id=${GCP_PROJECT_ID} --use_legacy_sql=false --format=sparse --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" 2>&1)
+            local bq_command="bq query --project_id=${GCP_PROJECT_ID} --use_legacy_sql=false --format=sparse --max_rows=1 'SELECT COUNT(*) FROM \`${full_table_id}\`'"
+            echo "DEBUG: Executing command: ${bq_command}"
+            query_output=$($bq_command 2>&1)
             exit_code=$?
+            echo "DEBUG: bq query exit code: $exit_code"
+            echo "DEBUG: bq query raw output: [$query_output]"
 
             if [ $exit_code -eq 0 ]; then
+                echo "DEBUG: bq query exited successfully (code 0)."
                 count=$(echo "$query_output" | tr -d '[:space:]')
-                echo "Attempt $i: Query successful, raw output: [$query_output], processed count: [$count]"
+                echo "DEBUG: Processed count after removing whitespace: [$count]"
+                # Check if count is a positive integer
                 if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
-                    break # Success!
+                    echo "DEBUG: Count [$count] is a positive integer. Validation successful for this attempt."
+                    break # Success! Found non-zero rows
+                else
+                    echo "DEBUG: Count [$count] is zero or not a positive integer."
                 fi
             else
-                echo "Attempt $i: bq query failed with exit code $exit_code. Output/Error:"
-                echo "$query_output"
+                echo "DEBUG: bq query failed (exit code: $exit_code)."
+                # Check if table exists explicitly on failure for better context
+                echo "DEBUG: Checking table existence with bq show..."
                 if ! bq show --project_id=${GCP_PROJECT_ID} "${full_table_id}" > /dev/null 2>&1; then
-                  echo "Attempt $i: Table ${full_table_id} appears not to exist."
+                  echo "DEBUG: Table ${full_table_id} appears not to exist (bq show failed)."
+                else
+                  echo "DEBUG: Table ${full_table_id} appears to exist (bq show succeeded), but query failed."
                 fi
             fi
 
+            # Don't sleep on the last attempt
             if [ $i -lt $retries ]; then
-              echo "Retrying in $delay seconds..."
+              echo "DEBUG: Validation condition not met on attempt $i. Retrying in $delay seconds..."
               sleep $delay
+            else
+              echo "DEBUG: Final attempt ($i) failed."
             fi
           done
 
+          # Final check after all retries
+          echo "DEBUG: ===== Final validation check for table: $table_name ====="
           if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
-            echo "SUCCESS: Table ${table_name} has ${count} rows. OK."
+            echo "SUCCESS: Table ${table_name} has ${count} rows. Final validation OK."
+            echo "DEBUG: validate_table returning 0 (success)."
             return 0 # Indicate success
           else
-            echo "ERROR: Failed to get a non-zero row count for table ${table_name} after $retries retries (Last exit code: $exit_code, Last count: '$count')."
+            echo "ERROR: Failed to get a non-zero row count for table ${table_name} after $retries retries (Last exit code: $exit_code, Last processed count: '$count')."
+            echo "DEBUG: validate_table returning 1 (failure)."
             return 1 # Indicate failure
           fi
         }
@@ -340,7 +366,7 @@ jobs:
             --dataset ${{ env.BQ_DATASET }} \
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/ \
-            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
+            --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz
           echo "Leaderboard (Dataflow Runner) submission command finished."
         shell: bash
 
@@ -416,7 +442,7 @@ jobs:
             --dataset ${{ env.BQ_DATASET }} \
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/ \
-            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz \
             --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
           echo "GameStats (Dataflow Runner) submission command finished."
         shell: bash
@@ -463,7 +489,7 @@ jobs:
 
       # Cleanup GCP resources
       - name: Cleanup BigQuery Dataset
-        if: always()
+        if: always() && github.event.inputs.CLEANUP_BQ_RESOURCES == 'true'
         run: |
           echo "Deleting BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
           bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
