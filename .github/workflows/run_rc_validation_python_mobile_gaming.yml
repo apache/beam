@@ -238,15 +238,14 @@ jobs:
           sudo mkdir -p /website/www/site/content/en/documentation/sdks
           cd beam-${{ env.RELEASE_VERSION }}/sdks/python
           python -m build --sdist
-          mv dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz ../../../
         shell: bash
 
       - name: Install Python SDK
         run: |
           echo "Installing built Python SDK: apache_beam-${{ env.RELEASE_VERSION }}.tar.gz"
           source beam_env/bin/activate
-          pip install apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
-          pip install apache_beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
+          pip install beam-${{ env.RELEASE_VERSION }}/sdks/python/dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
+          pip install beam-${{ env.RELEASE_VERSION }}/sdks/python/dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
           echo "SDK installed."
           pip freeze # Log installed packages
         shell: bash
