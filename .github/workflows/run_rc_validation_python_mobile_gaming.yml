@@ -74,7 +74,7 @@ env:
   # Python specific envs
   PYTHON_VERSION: '3.9' # Specify desired Python version
   BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
-  BEAM_SOURCE_TAR_GZ: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
+  BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
   APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
   # Default duration for GameStats fixed window
   GAME_STATS_WINDOW_DURATION: 60
@@ -125,35 +125,37 @@ jobs:
           sha512sum -c ${{ env.BEAM_SOURCE_TAR_GZ }}.sha512
         shell: bash
 
-      - name: Build Python SDK from Source
-        run: |
-          echo "Building Python SDK sdist..."
-          tar -xzf ${{ env.BEAM_SOURCE_TAR_GZ }}
-          # Navigate into the extracted directory (assuming it matches the tarball name without .tar.gz)
-          SOURCE_DIR=$(basename ${{ env.BEAM_SOURCE_TAR_GZ }} .tar.gz)
-          cd ${SOURCE_DIR}/sdks/python
-          python setup.py sdist
-          # Move the built dist back to the working directory
-          mv dist/apache-beam-${{ env.RELEASE_VERSION }}.tar.gz ../../../
-        shell: bash
-
       - name: Setup Python Virtual Environment
         run: |
           echo "Setting up Python virtual environment..."
           python -m venv beam_env
           source beam_env/bin/activate
-          pip install --upgrade pip setuptools wheel
+          pip install --upgrade pip setuptools wheel build
           echo "Virtual environment ready."
         shell: bash
 
+      - name: Build Python SDK from Source
+        run: |
+          echo "Building Python SDK sdist..."
+          source beam_env/bin/activate
+          unzip ${{ env.BEAM_SOURCE_TAR_GZ }}
+          # workaround to create the empty dir 
+          # https://github.com/apache/beam/issues/34474
+          mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
+          cd beam-${{ env.RELEASE_VERSION }}/sdks/python
+          python -m build --sdist
+          # Move the built dist back to the working directory
+          mv dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz ../../../
+        shell: bash
+        
       - name: Install Python SDK
         run: |
           echo "Installing built Python SDK: apache-beam-${{ env.RELEASE_VERSION }}.tar.gz"
           source beam_env/bin/activate
           # Install base SDK
-          pip install apache-beam-${{ env.RELEASE_VERSION }}.tar.gz
+          pip install apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
           # Install with GCP extras
-          pip install apache-beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
+          pip install apache_beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
           echo "SDK installed."
           pip freeze # Log installed packages
         shell: bash
