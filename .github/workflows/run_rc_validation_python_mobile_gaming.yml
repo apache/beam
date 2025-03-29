@@ -104,7 +104,8 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update --yes
-          sudo apt-get install -y wget unzip coreutils
+          sudo apt-get install -y wget unzip coreutils procps # Add procps for kill command if not present
+        shell: bash
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -139,16 +140,17 @@ jobs:
           echo "Building Python SDK sdist..."
           source beam_env/bin/activate
           unzip ${{ env.BEAM_SOURCE_ZIP }}
-          # workaround to create the empty dir 
+          # workaround to create the empty dir
           # https://github.com/apache/beam/issues/34474
           mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
-          sudo mkdir -p /website/www/site/content/en/documentation/sdks
+          # Ensure target directory exists on runner if needed - adjust path as necessary
+          # sudo mkdir -p /website/www/site/content/en/documentation/sdks
           cd beam-${{ env.RELEASE_VERSION }}/sdks/python
           python -m build --sdist
           # Move the built dist back to the working directory
           mv dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz ../../../
         shell: bash
-        
+
       - name: Install Python SDK
         run: |
           echo "Installing built Python SDK: apache_beam-${{ env.RELEASE_VERSION }}.tar.gz"
@@ -207,9 +209,9 @@ jobs:
           echo "Maven settings.xml configured for Java Injector."
         shell: bash
 
-      - name: Run Java Injector
+      - name: Run Java Injector in Background
         run: |
-          echo "Running Java Injector..."
+          echo "Running Java Injector in Background..."
           # Generate a dummy project to get dependencies - adjust archetype version if needed
           mvn archetype:generate \
               -DarchetypeGroupId=org.apache.beam \
@@ -223,14 +225,20 @@ jobs:
               -DarchetypeCatalog=internal
 
           cd injector-temp
-          # Compile and run the injector
+          # Compile and run the injector in the background
           mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
             -Dexec.args="${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} none" \
             -Dmaven.wagon.http.retryHandler.count=3 \
-            -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 &
+
+          # Capture the PID of the background process
+          INJECTOR_PID=$!
+          echo "Java Injector started in background with PID: ${INJECTOR_PID}"
+          echo ${INJECTOR_PID} > ../injector.pid # Save PID to file in parent directory
 
           cd .. # Return to the root directory
-          echo "Java Injector finished."
+          echo "Java Injector startup command finished. Process running in background."
+          sleep 10 # Give injector a moment to start publishing
         shell: bash
 
       # ================== Leaderboard Tests ==================
@@ -242,14 +250,32 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
             --dataset ${{ env.BQ_DATASET }}
+          echo "Leaderboard (Direct Runner) command finished."
         shell: bash
 
-      - name: Inspect Leaderboard Results (Direct Runner)
+      - name: Validate Leaderboard Results (Direct Runner)
         run: |
-          echo "Inspecting BigQuery results for Leaderboard (DirectRunner)..."
+          echo "Validating BigQuery results for Leaderboard (DirectRunner)..."
           sleep 60 # Allow some time for data to propagate in BQ
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_users
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_teams
+
+          validate_table() {
+            local table_name=$1
+            local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
+            echo "Checking table: ${full_table_id}"
+            # Query count, extract number, handle potential errors or empty results
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
+            
+            if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
+              echo "Table ${table_name} has ${count} rows. OK."
+            else
+              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              exit 1
+            fi
+          }
+
+          validate_table "leader_board_users"
+          validate_table "leader_board_teams"
+          echo "Leaderboard (Direct Runner) BQ validation successful."
         shell: bash
 
       - name: Run Leaderboard (Dataflow Runner)
@@ -265,15 +291,33 @@ jobs:
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/ \
             --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz
+          echo "Leaderboard (Dataflow Runner) submission command finished."
         shell: bash
 
-      - name: Inspect Leaderboard Results (Dataflow Runner)
+      - name: Validate Leaderboard Results (Dataflow Runner)
         run: |
-          echo "Inspecting BigQuery results for Leaderboard (DataflowRunner)..."
+          echo "Validating BigQuery results for Leaderboard (DataflowRunner)..."
           # Dataflow jobs might take longer to write results
           sleep 180 # Allow more time for Dataflow job and BQ writes
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_users
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.leader_board_teams
+
+          validate_table() {
+            local table_name=$1
+            local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
+            echo "Checking table: ${full_table_id}"
+            # Query count, extract number, handle potential errors or empty results
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
+            
+            if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
+              echo "Table ${table_name} has ${count} rows. OK."
+            else
+              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              exit 1
+            fi
+          }
+
+          validate_table "leader_board_users"
+          validate_table "leader_board_teams"
+          echo "Leaderboard (Dataflow Runner) BQ validation successful."
         shell: bash
 
       # ================== GameStats Tests ==================
@@ -286,14 +330,32 @@ jobs:
             --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
             --dataset ${{ env.BQ_DATASET }} \
             --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
+          echo "GameStats (Direct Runner) command finished."
         shell: bash
 
-      - name: Inspect GameStats Results (Direct Runner)
+      - name: Validate GameStats Results (Direct Runner)
         run: |
-          echo "Inspecting BigQuery results for GameStats (DirectRunner)..."
+          echo "Validating BigQuery results for GameStats (DirectRunner)..."
           sleep 60 # Allow some time for data to propagate in BQ
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_teams
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_sessions
+
+          validate_table() {
+            local table_name=$1
+            local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
+            echo "Checking table: ${full_table_id}"
+            # Query count, extract number, handle potential errors or empty results
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
+            
+            if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
+              echo "Table ${table_name} has ${count} rows. OK."
+            else
+              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              exit 1
+            fi
+          }
+
+          validate_table "game_stats_teams"
+          validate_table "game_stats_sessions"
+          echo "GameStats (Direct Runner) BQ validation successful."
         shell: bash
 
       - name: Run GameStats (Dataflow Runner)
@@ -310,18 +372,58 @@ jobs:
             --temp_location=${{ env.GCS_BUCKET }}/temp/ \
             --sdk_location=apache-beam-${{ env.RELEASE_VERSION }}.tar.gz \
             --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }}
+          echo "GameStats (Dataflow Runner) submission command finished."
         shell: bash
 
-      - name: Inspect GameStats Results (Dataflow Runner)
+      - name: Validate GameStats Results (Dataflow Runner)
         run: |
-          echo "Inspecting BigQuery results for GameStats (DataflowRunner)..."
+          echo "Validating BigQuery results for GameStats (DataflowRunner)..."
           # Dataflow jobs might take longer to write results
           sleep 180 # Allow more time for Dataflow job and BQ writes
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_teams
-          bq head -n 10 ${{ env.GCP_PROJECT_ID }}:${{ env.BQ_DATASET }}.game_stats_sessions
+
+          validate_table() {
+            local table_name=$1
+            local full_table_id="${{ env.GCP_PROJECT_ID }}.${{ env.BQ_DATASET }}.${table_name}"
+            echo "Checking table: ${full_table_id}"
+            # Query count, extract number, handle potential errors or empty results
+            count=$(bq query --project_id=${{ env.GCP_PROJECT_ID }} --use_legacy_sql=false --format=csv --max_rows=1 "SELECT COUNT(*) FROM \`${full_table_id}\`" | tail -n 1)
+            
+            if [[ "$count" =~ ^[0-9]+$ ]] && [ "$count" -gt 0 ]; then
+              echo "Table ${table_name} has ${count} rows. OK."
+            else
+              echo "ERROR: Table ${table_name} is empty or count retrieval failed (Count: ${count})!"
+              exit 1
+            fi
+          }
+
+          validate_table "game_stats_teams"
+          validate_table "game_stats_sessions"
+          echo "GameStats (Dataflow Runner) BQ validation successful."
         shell: bash
 
       # ================== Cleanup ==================
+      - name: Kill Java Injector Process
+        if: always()
+        run: |
+          if [ -f injector.pid ]; then
+            INJECTOR_PID=$(cat injector.pid)
+            echo "Attempting to kill Java Injector process with PID: $INJECTOR_PID"
+            # Send SIGTERM first, then SIGKILL if it doesn't stop (optional refinement)
+            kill $INJECTOR_PID || echo "Injector process $INJECTOR_PID may have already stopped or was not found (kill returned non-zero)."
+            # Wait briefly to see if it terminated
+            sleep 5 
+            if ps -p $INJECTOR_PID > /dev/null; then
+               echo "Process $INJECTOR_PID still running, sending SIGKILL."
+               kill -9 $INJECTOR_PID || echo "Failed to SIGKILL process $INJECTOR_PID (might have stopped just now)."
+            else
+               echo "Process $INJECTOR_PID terminated gracefully or was not running."
+            fi
+            rm injector.pid
+          else
+            echo "injector.pid not found, cannot kill process. It might have failed to start or the file wasn't created."
+          fi
+        shell: bash
+
       - name: Cleanup BigQuery Dataset
         if: always()
         run: |
@@ -334,12 +436,13 @@ jobs:
         run: |
           echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
           # Be cautious with bucket deletion; only delete temp contents if appropriate
-          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/" || echo "Failed to delete objects in GCS bucket temp folder, continuing..."
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/**" || echo "Failed to delete objects in GCS bucket temp folder, continuing..." # Added ** for recursive delete robustness
         shell: bash
 
       - name: Cleanup PubSub Topic
         if: always()
         run: |
           echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          # Ensure the injector is stopped before deleting the topic it uses
           gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
         shell: bash
