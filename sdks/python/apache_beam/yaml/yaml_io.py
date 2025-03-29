@@ -583,7 +583,7 @@ def io_providers():
 def read_from_tfrecord(
     file_pattern: str,
     coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
-    compression_type: Optional[CompressionTypes] = None,
+    compression_type: Optional[str] = None,
     validate: Optional[bool] = None):
   """Reads data from TFRecord.
 
@@ -597,12 +597,14 @@ def read_from_tfrecord(
       pipeline creation time.
   """
   return ReadFromTFRecord(
-      file_pattern=file_pattern,
-      compression_type=compression_type,
-      validate=validate)
+    file_pattern=file_pattern,
+    compression_type=getattr(CompressionTypes, compression_type),
+    validate=validate) | beam.Map(lambda s: beam.Row(record=s))
+  
 
-
+@beam.ptransform_fn
 def write_to_tfrecord(
+    pcoll,
     file_path_prefix: str,
     coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
     file_name_suffix: Optional[str] = None,
@@ -637,10 +639,25 @@ def write_to_tfrecord(
   Returns:
     A WriteToTFRecord transform object.
   """
-  return WriteToTFRecord(
-      file_path_prefix=file_path_prefix,
-      coder=coder,
-      file_name_suffix=file_name_suffix,
-      num_shards=num_shards,
-      shard_name_template=shard_name_template,
-      compression_type=getattr(CompressionTypes, compression_type))
+  try:
+    field_names = [
+        name for name,
+        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+    ]
+  except Exception as exn:
+    raise ValueError(
+        "WriteToTFRecord requires an input schema with exactly one field.") from exn
+  if len(field_names) != 1:
+    raise ValueError(
+        "WriteToTFRecord requires an input schema with exactly one field, got %s" %
+        field_names)
+  sole_field_name, = field_names
+
+  return pcoll | beam.Map(
+      lambda x: getattr(x, sole_field_name)) | WriteToTFRecord(
+        file_path_prefix=file_path_prefix,
+        coder=coder,
+        file_name_suffix=file_name_suffix,
+        num_shards=num_shards,
+        shard_name_template=shard_name_template,
+        compression_type=getattr(CompressionTypes, compression_type))
