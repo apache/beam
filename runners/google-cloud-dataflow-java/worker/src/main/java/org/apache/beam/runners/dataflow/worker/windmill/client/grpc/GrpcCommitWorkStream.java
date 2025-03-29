@@ -35,13 +35,16 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunkOverlay;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequestOverlay;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub.CommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -52,7 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class GrpcCommitWorkStream
-    extends AbstractWindmillStream<StreamingCommitWorkRequest, StreamingCommitResponse>
+    extends AbstractWindmillStream<CommitRequest, StreamingCommitResponse>
     implements CommitWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcCommitWorkStream.class);
 
@@ -66,7 +69,7 @@ final class GrpcCommitWorkStream
 
   private GrpcCommitWorkStream(
       String backendWorkerToken,
-      Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
+      Function<StreamObserver<StreamingCommitResponse>, StreamObserver<CommitRequest>>
           startCommitWorkRpcFn,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
@@ -94,7 +97,7 @@ final class GrpcCommitWorkStream
 
   static GrpcCommitWorkStream create(
       String backendWorkerToken,
-      Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
+      Function<StreamObserver<StreamingCommitResponse>, StreamObserver<CommitRequest>>
           startCommitWorkRpcFn,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
@@ -124,7 +127,9 @@ final class GrpcCommitWorkStream
 
   @Override
   protected synchronized void onNewStream() throws WindmillStreamShutdownException {
-    trySend(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
+
+    trySend(
+        new CommitRequest(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build()));
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
         if (!resendBatcher.canAccept(entry.getValue().getBytes())) {
@@ -154,7 +159,7 @@ final class GrpcCommitWorkStream
     if (hasPendingRequests()) {
       StreamingCommitWorkRequest.Builder builder = StreamingCommitWorkRequest.newBuilder();
       builder.addCommitChunkBuilder().setRequestId(HEARTBEAT_REQUEST_ID);
-      trySend(builder.build());
+      trySend(new CommitRequest(builder.build()));
     }
   }
 
@@ -234,30 +239,36 @@ final class GrpcCommitWorkStream
 
   private void issueSingleRequest(long id, PendingRequest pendingRequest)
       throws WindmillStreamShutdownException {
-    StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
+    // For commits that fit in a single chunk
+    // We avoid intermediate serialization using the
+    // overlay proto and serialize directly to grpc buffers.
+    StreamingCommitWorkRequestOverlay.Builder requestBuilder =
+        StreamingCommitWorkRequestOverlay.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
         .setComputationId(pendingRequest.computationId())
         .setRequestId(id)
         .setShardingKey(pendingRequest.shardingKey())
-        .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
-    StreamingCommitWorkRequest chunk = requestBuilder.build();
+        .setWorkItemCommit(pendingRequest.request());
+    StreamingCommitWorkRequestOverlay chunk = requestBuilder.build();
     synchronized (this) {
       if (!prepareForSend(id, pendingRequest)) {
         pendingRequest.abort();
         return;
       }
-      trySend(chunk);
+      trySend(new CommitRequest(chunk));
     }
   }
 
   private void issueBatchedRequest(Map<Long, PendingRequest> requests)
       throws WindmillStreamShutdownException {
-    StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
+    StreamingCommitWorkRequestOverlay.Builder requestBuilder =
+        StreamingCommitWorkRequestOverlay.newBuilder();
     String lastComputation = null;
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
       PendingRequest request = entry.getValue();
-      StreamingCommitRequestChunk.Builder chunkBuilder = requestBuilder.addCommitChunkBuilder();
+      StreamingCommitRequestChunkOverlay.Builder chunkBuilder =
+          requestBuilder.addCommitChunkBuilder();
       if (lastComputation == null || !lastComputation.equals(request.computationId())) {
         chunkBuilder.setComputationId(request.computationId());
         lastComputation = request.computationId();
@@ -265,15 +276,15 @@ final class GrpcCommitWorkStream
       chunkBuilder
           .setRequestId(entry.getKey())
           .setShardingKey(request.shardingKey())
-          .setSerializedWorkItemCommit(request.serializedCommit());
+          .setWorkItemCommit(request.request());
     }
-    StreamingCommitWorkRequest request = requestBuilder.build();
+    StreamingCommitWorkRequestOverlay request = requestBuilder.build();
     synchronized (this) {
       if (!prepareForSend(requests)) {
         requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
         return;
       }
-      trySend(request);
+      trySend(new CommitRequest(request));
     }
   }
 
@@ -305,7 +316,7 @@ final class GrpcCommitWorkStream
         StreamingCommitWorkRequest requestChunk =
             StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
 
-        if (!trySend(requestChunk)) {
+        if (!trySend(new CommitRequest(requestChunk))) {
           // The stream broke, don't try to send the rest of the chunks here.
           break;
         }

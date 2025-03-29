@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.function.Function;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.sdk.annotations.Internal;
 
 @AutoValue
@@ -31,7 +31,7 @@ public abstract class WindmillConnection {
 
   public static WindmillConnection from(
       Endpoint windmillEndpoint,
-      Function<Endpoint, CloudWindmillServiceV1Alpha1Stub> endpointToStubFn) {
+      Function<Endpoint, CloudWindmillServiceV1Alpha1CustomStub> endpointToStubFn) {
     WindmillConnection.Builder windmillWorkerConnection = WindmillConnection.builder();
 
     windmillEndpoint.workerToken().ifPresent(windmillWorkerConnection::setBackendWorkerToken);
@@ -50,7 +50,7 @@ public abstract class WindmillConnection {
 
   public abstract Optional<WindmillServiceAddress> directEndpoint();
 
-  public abstract CloudWindmillServiceV1Alpha1Stub stub();
+  public abstract CloudWindmillServiceV1Alpha1CustomStub stub();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -58,7 +58,7 @@ public abstract class WindmillConnection {
 
     public abstract Builder setDirectEndpoint(WindmillServiceAddress value);
 
-    public abstract Builder setStub(CloudWindmillServiceV1Alpha1Stub stub);
+    public abstract Builder setStub(CloudWindmillServiceV1Alpha1CustomStub stub);
 
     public abstract WindmillConnection build();
   }
