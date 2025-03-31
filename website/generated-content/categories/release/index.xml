@@ -1,4 +1,110 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 18 Feb 2025 10:30:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.63.0</title><link>/blog/beam-2.63.0/</link><pubDate>Tue, 18 Feb 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.63.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 31 Mar 2025 10:30:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.64.0</title><link>/blog/beam-2.64.0/</link><pubDate>Mon, 31 Mar 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.64.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.64.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.64.0, check out the &lt;a href="https://github.com/apache/beam/milestone/28">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Managed API for &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html">Java&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed">Python&lt;/a> supports &lt;a href="https://beam.apache.org/documentation/io/connectors/">key I/O connectors&lt;/a> Iceberg, Kafka, and BigQuery.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>[Java] Use API compatible with both com.google.cloud.bigdataoss:util 2.x and 3.x in BatchLoads (&lt;a href="https://github.com/apache/beam/pull/34105">#34105&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] Added new CDC source for batch and streaming, available as &lt;code>Managed.ICEBERG_CDC&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/33504">#33504&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] Address edge case where bundle retry following a successful data commit results in data duplication (&lt;a href="https://github.com/apache/beam/pull/34264">#34264&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>[Python] Support custom coders in Reshuffle (&lt;a href="https://github.com/apache/beam/issues/29908">#29908&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/33356">#33356&lt;/a>).&lt;/li>
+&lt;li>[Java] Upgrade SLF4J to 2.0.16. Update default Spark version to 3.5.0. (&lt;a href="https://github.com/apache/beam/pull/33574">#33574&lt;/a>)&lt;/li>
+&lt;li>[Java] Support for &lt;code>--add-modules&lt;/code> JVM option is added through a new pipeline option &lt;code>JdkAddRootModules&lt;/code>. This allows extending the module graph with optional modules such as SDK incubator modules. Sample usage: &lt;code>&amp;lt;pipeline invocation&amp;gt; --jdkAddRootModules=jdk.incubator.vector&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/30281">#30281&lt;/a>).&lt;/li>
+&lt;li>Managed API for &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html">Java&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed">Python&lt;/a> supports &lt;a href="https://beam.apache.org/documentation/io/connectors/">key I/O connectors&lt;/a> Iceberg, Kafka, and BigQuery.&lt;/li>
+&lt;li>Prism now supports event time triggers for most common cases. (&lt;a href="https://github.com/apache/beam/issues/31438">#31438&lt;/a>)
+&lt;ul>
+&lt;li>Prism does not yet support triggered side inputs, or triggers on merging windows (such as session windows).&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>[Python] Reshuffle now correctly respects user-specified type hints, fixing a previous bug where it might use FastPrimitivesCoder wrongly. This change could break pipelines with incorrect type hints in Reshuffle. If you have issues after upgrading, temporarily set update_compatibility_version to a previous Beam version to use the old behavior. The recommended solution is to fix the type hints in your code. (&lt;a href="https://github.com/apache/beam/pull/33932">#33932&lt;/a>)&lt;/li>
+&lt;li>[Java] SparkReceiver 2 has been moved to SparkReceiver 3 that supports Spark 3.x. (&lt;a href="https://github.com/apache/beam/pull/33574">#33574&lt;/a>)&lt;/li>
+&lt;li>[Python] Correct parsing of &lt;code>collections.abc.Sequence&lt;/code> type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a &lt;code>Sequence&lt;/code> type hint after a GroupByKey or a CoGroupByKey. (&lt;a href="https://github.com/apache/beam/pull/33999">#33999&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>(Python) Fixed occasional pipeline stuckness that was affecting Python 3.11 users (&lt;a href="https://github.com/apache/beam/issues/33966">#33966&lt;/a>).&lt;/li>
+&lt;li>(Java) Fixed TIME field encodings for BigQuery Storage API writes on GenericRecords (&lt;a href="https://github.com/apache/beam/pull/34059">#34059&lt;/a>).&lt;/li>
+&lt;li>(Java) Fixed a race condition in JdbcIO which could cause hangs trying to acquire a connection (&lt;a href="https://github.com/apache/beam/pull/34058">#34058&lt;/a>).&lt;/li>
+&lt;li>(Java) Fix BigQuery Storage Write compatibility with Avro 1.8 (&lt;a href="https://github.com/apache/beam/pull/34281">#34281&lt;/a>).&lt;/li>
+&lt;li>Fixed checkpoint recovery and streaming behavior in Spark Classic and Portable runner&amp;rsquo;s Flatten transform by replacing queueStream with SingleEmitInputDStream (&lt;a href="https://github.com/apache/beam/pull/34080">#34080&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/18144">#18144&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/20426">#20426&lt;/a>)&lt;/li>
+&lt;li>(Java) Fixed Read caching of UnboundedReader objects to effectively cache across multiple DoFns and avoid checkpointing unstarted reader. &lt;a href="https://github.com/apache/beam/pull/34146">#34146&lt;/a> &lt;a href="https://github.com/apache/beam/pull/33901">#33901&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.64.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud
+akashorabek
+Arun Pandian
+Bentsi Leviav
+Chamikara Jayalath
+Charles Nguyen
+Claire McGinty
+claudevdm
+Damon
+Danny McCormick
+darshan-sj
+Derrick Williams
+fozzie15
+Hai Joey Tran
+Jack McCluskey
+Jozef Vilcek
+jrmccluskey
+Kenneth Knowles
+Liam Miller-Cushon
+liferoad
+Luv Agarwal
+martin trieu
+Matar
+Matthew Suozzo
+Michel Davit
+Minbo Bae
+Mohamed Awnallah
+Naireen Hussain
+Pablo Rodriguez Defino
+Radosław Stankiewicz
+Rakesh Kumar
+Reuven Lax
+Robert Bradshaw
+Robert Burke
+Rohit
+Rohit Sinha
+Sam Whittle
+Saumil Patel
+Shunping Huang
+So-shi Nakachi
+Steven van Rossum
+Suvrat Acharya
+Svetak Sundhar
+synenka
+Talat UYARER
+tvalentyn
+twosom
+utkarshparekh
+Vitaly Terentyev
+XQ Hu
+Yi Hu
+Zilin Du&lt;/p></description></item><item><title>Blog: Apache Beam 2.63.0</title><link>/blog/beam-2.63.0/</link><pubDate>Tue, 18 Feb 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.63.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5121,70 +5227,4 @@ Salman Raza, Sam Rohde, Saul Chavez, Shoaib, Shoaib Zafar, Slava Chernyak, Tanay
 Thinh Ha, Thomas Weise, Tianzi Cai, Tim van der Lippe, Tomer Zeltzer, Tudor Marian,
 Udi Meiri, Valentyn Tymofieiev, Yichi Zhang, Yifan Zou, Yueyang Qiu, gxercavins,
 jesusrv1103, lostluck, matt-darwin, mrociorg, ostrokach, parahul, rahul8383, rosetn,
-sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p></description></item><item><title>Blog: Apache Beam 2.15.0</title><link>/blog/beam-2.15.0/</link><pubDate>Thu, 22 Aug 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.15.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.15.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2150-2019-08-22">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.15.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345489">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Vendored Guava was upgraded to version 26.0.&lt;/li>
-&lt;li>Support multi-process execution on the FnApiRunner for Python. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-3645">BEAM-3645&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Add AvroIO.sink for IndexedRecord (FileIO compatible). (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6480">BEAM-6480&lt;/a>)&lt;/li>
-&lt;li>Add support for writing to BigQuery clustered tables. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5191">BEAM-5191&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Support ParquetTable in SQL. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7728">BEAM-7728&lt;/a>)&lt;/li>
-&lt;li>Add hot key detection to Dataflow Runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7820">BEAM-7820&lt;/a>)&lt;/li>
-&lt;li>Support schemas in the JDBC sink. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6675">BEAM-6675&lt;/a>)&lt;/li>
-&lt;li>Report GCS throttling time to Dataflow autoscaler for better autoscaling. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7667">BEAM-7667&lt;/a>)&lt;/li>
-&lt;li>Support transform_name_mapping option in Python SDK for &lt;code>--update&lt;/code> use. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7761">BEAM-7761&lt;/a>)&lt;/li>
-&lt;li>Dependency: Upgrade Jackson databind to version 2.9.9.3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7880">BEAM-7880&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7616">BEAM-7616&lt;/a> urlopen calls may get stuck. (Regression from 2.14.0)&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8111">BEAM-8111&lt;/a> SchemaCoder fails on Dataflow, preventing the use of SqlTransform and schema-aware transforms. (Regression from 2.14.0)&lt;/li>
-&lt;li>(&lt;a href="https://issues.apache.org/jira/browse/BEAM-8368">BEAM-8368&lt;/a>) Can&amp;rsquo;t install the Python SDK on macOS 10.15.&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;code>--region&lt;/code> flag will be a required flag in the future for Dataflow. A warning is added to warn for this future change. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7833">BEAM-7833&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.15.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alexey Romanenko, Alex Goos, Alireza Samadian, Andrew Pilloud, Ankur Goenka,
-Anton Kedin, Aryan Naraghi, Bartok Jozsef, bmv126, B M VISHWAS, Boyuan Zhang,
-Brian Hulette, brucearctor, Cade Markegard, Cam Mach, Chad Dombrova,
-Chaim Turkel, Chamikara Jayalath, Charith Ellawala, Claire McGinty, Craig Chambers,
-Daniel Oliveira, David Cavazos, David Moravek, Dominic Mitchell, Dustin Rhodes,
-Etienne Chauchot, Filipe Regadas, Gleb Kanterov, Gunnar Schulze, Hannah Jiang,
-Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Ivo Galic, Jan Lukavský,
-Jawad, Juta, Juta Staes, Kai Jiang, Kamil Wasilewski, Kasia Kucharczyk,
-Kenneth Jung, Kenneth Knowles, Kyle Weaver, Lily Li, Logan HAUSPIE, lostluck,
-Łukasz Gajowy, Luke Cwik, Mark Liu, Matt Helm, Maximilian Michels,
-Michael Luckey, Mikhail Gryzykhin, Neville Li, Nicholas Rucci, pabloem,
-Pablo Estrada, Paul King, Paul Suganthan, Raheel Khan, Rakesh Kumar,
-Reza Rokni, Robert Bradshaw, Robert Burke, rosetn, Rui Wang, Ryan Skraba, RyanSkraba,
-Sahith Nallapareddy, Sam Rohde, Sam Whittle, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
-Tianyang Hu, ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Wout Scheepers,
-yanzhi, Yekut, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Yunqing Zhou&lt;/p></description></item></channel></rss>
+sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p></description></item></channel></rss>
