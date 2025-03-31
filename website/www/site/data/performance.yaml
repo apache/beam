@@ -186,19 +186,19 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: DVhGKTmJWknSvfQVPQ9FDrvPYgdJ2dFd
           title: AvgThroughputElementsPerSec by Version
-    tensorflowmnist:
-      write:
-        folder: 75
-        cost:
-          - id: Vs9ZHMkCkrSgJF7FCPdQS5HwK8PQTyWb
-            title: RunTime and EstimatedCost
-        date:
-          - id: 7mYxWj4hDXQp2SZ28vMNTCZGhWcPQdwJ
-            title: AvgThroughputBytesPerSec by Date
-          - id: bWhWQ9t2jKGscc9ghgH77wRszTxwW8mM
-            title: AvgThroughputElementsPerSec by Date
-        version:
-          - id: y3jVqx2xKcZGpkMBTSCZCpGMPPFHrC8V
-            title: AvgThroughputBytesPerSec by Version
-          - id: YdD9SMWCDNJ7wCY4WZwyd2Jt9Ts38FY2
-            title: AvgThroughputElementsPerSec by Version
+  tensorflowmnist:
+    write:
+      folder: 75
+      cost:
+        - id: Vs9ZHMkCkrSgJF7FCPdQS5HwK8PQTyWb
+          title: RunTime and EstimatedCost
+      date:
+        - id: 7mYxWj4hDXQp2SZ28vMNTCZGhWcPQdwJ
+          title: AvgThroughputBytesPerSec by Date
+        - id: bWhWQ9t2jKGscc9ghgH77wRszTxwW8mM
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: y3jVqx2xKcZGpkMBTSCZCpGMPPFHrC8V
+          title: AvgThroughputBytesPerSec by Version
+        - id: YdD9SMWCDNJ7wCY4WZwyd2Jt9Ts38FY2
+          title: AvgThroughputElementsPerSec by Version

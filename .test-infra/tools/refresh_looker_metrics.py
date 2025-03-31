@@ -30,7 +30,7 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 
 # List of Pairs (Target folder name, Look IDs to download)
 LOOKS_TO_DOWNLOAD = [
-    ("30", ["18", "50", "92", "49", "91"]),    # BigQueryIO_Read
+    ("30", ["18", "50"]),    # BigQueryIO_Read
 ]
 
 
