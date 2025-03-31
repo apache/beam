@@ -36,8 +36,8 @@ LOOKS_TO_DOWNLOAD = [
 
 def get_access_token():
     """Retrieve OAuth2 access token using client credentials"""
-    login_url = f"{LOOKER_API_URL}/login"
-    response = requests.post(login_url, params={
+    login_url = f"{LOOKER_API_URL}/api/internal/core/4.0/login"
+    response = requests.post(login_url, data={
         'client_id': LOOKER_CLIENT_ID,
         'client_secret': LOOKER_CLIENT_SECRET
     })
