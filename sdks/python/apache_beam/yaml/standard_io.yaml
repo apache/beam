@@ -218,6 +218,8 @@
         password: 'password'
         query: 'read_query'
         table: 'location'
+        partition_column : 'partition_column'
+        partitions: 'partitions'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
