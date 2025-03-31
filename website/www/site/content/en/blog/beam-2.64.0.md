@@ -60,6 +60,11 @@ For more information on changes in 2.64.0, check out the [detailed release notes
 * Fixed checkpoint recovery and streaming behavior in Spark Classic and Portable runner's Flatten transform by replacing queueStream with SingleEmitInputDStream ([#34080](https://github.com/apache/beam/pull/34080), [#18144](https://github.com/apache/beam/issues/18144), [#20426](https://github.com/apache/beam/issues/20426))
 * (Java) Fixed Read caching of UnboundedReader objects to effectively cache across multiple DoFns and avoid checkpointing unstarted reader. [#34146](https://github.com/apache/beam/pull/34146) [#33901](https://github.com/apache/beam/pull/33901)
 
+## Known Issues
+
+* (Java) Current version of protobuf has a [bug](https://github.com/protocolbuffers/protobuf/issues/20599) leading to incompatibilities with clients using older versions of Protobuf ([example issue](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/2191)). This issue has been seen in SpannerIO in particular. Tracked in [#34452](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34452).
+* (Java) When constructing `SpannerConfig` for `SpannerIO`, calling `withHost` with a null or empty host will now result in a Null Pointer Exception (`java.lang.NullPointerException: Cannot invoke "java.lang.CharSequence.length()" because "this.text" is null`). See https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34489 for context.
+
 ## List of Contributors
 
 According to git shortlog, the following people contributed to the 2.64.0 release. Thank you to all contributors!
