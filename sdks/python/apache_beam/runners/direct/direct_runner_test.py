@@ -234,6 +234,49 @@ class DirectRunnerRetryTests(unittest.TestCase):
             'elements': ['value']
         }})
 
+class DirectRunnerWatermarkTests(unittest.TestCase):
+  def test_watermark_pending(self):
+    # Since beam 2.39 this test was failing due to
+    # `AssertionError: A total of 2 watermark-pending bundles did not execute.` 
+    # Reported in https://github.com/apache/beam/issues/26190 
+    # Andrzej note: issue due to Flatten not executing 
+    
+    label = "WatermarkTest"
+    global double_check
+    double_check = False
+    
+    with test_pipeline.TestPipeline() as pipeline:
+      pc_first = ( pipeline 
+        | f"{label}/Create" >> beam.Create(["input"]) 
+      )
+
+      pc_a = ( pc_first
+        | f"{label}/MapA" >> beam.Map(lambda x: ("a", 1 ))
+      )
+      pv_a = beam.pvalue.AsDict(pc_a)
+
+      pb_b = ( pc_first 
+        | f"{label}/MapB" >> beam.Map(lambda x,y: ("b", 2), y = pv_a)
+        #| f"{label}/Reshuffle" >> beam.Reshuffle()  # beam 2.38 works without Reshuffle here
+      )
+
+      pc_c = ( (pc_a, pb_b)
+        | f"{label}/Flatten" >> beam.Flatten()
+      )
+      pv_c  = beam.pvalue.AsDict(pc_c)
+
+      def my_function(x,y):
+        global double_check 
+        double_check = True 
+        return (x,y["a"] + y["b"]) 
+
+      pc_d = ( pc_first
+        | f"{label}/MapD" >> beam.Map(my_function, y = pv_c)
+      ) 
+
+      assert_that(pc_d, equal_to([("input",3)]))
+
+    self.assertTrue(double_check) 
 
 if __name__ == '__main__':
   unittest.main()

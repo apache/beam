@@ -423,8 +423,7 @@ class TransformContext(object):
       is_drain=False):
     self.components = components
     self.known_runner_urns = known_runner_urns
-    self.runner_only_urns = known_runner_urns - frozenset(
-        [common_urns.primitives.FLATTEN.urn])
+    self.runner_only_urns = known_runner_urns
     self._known_coder_urns = set.union(
         # Those which are required.
         self._REQUIRED_CODER_URNS,
