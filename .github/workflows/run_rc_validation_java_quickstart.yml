@@ -1,0 +1,102 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Run Java QuickStart RC Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VER:
+        description: 'Beam Release Version (e.g., 2.64.0)'
+        required: true
+        default: '2.xx.0'
+      RC_NUM:
+        description: 'Release Candidate number (e.g., 1)'
+        required: true
+        default: '1'
+      APACHE_CONTENTS_REPO:
+        description: 'Apache Staging Repository URL (e.g., https://repository.apache.org/content/repositories/orgapachebeam-1234)'
+        required: true
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.inputs.RELEASE_VER }}-${{ github.event.inputs.RC_NUM }}'
+  cancel-in-progress: true
+
+# Setting explicit permissions for the action
+permissions:
+  actions: write
+  pull-requests: write # Needed for setup-action potentially
+  checks: write
+  contents: read # Needs read to checkout the code
+  deployments: read
+  id-token: write # Required for GCP Workload Identity Federation (if needed by setup)
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  APACHE_REPO_URL: ${{ github.event.inputs.APACHE_CONTENTS_REPO }}
+  RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
+  RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
+
+jobs:
+  run_java_quickstart_rc_validation:
+    name: Run Java QuickStart RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 60 # Adjust timeout as needed
+    steps:
+      - name: Checkout code at RC tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RC_TAG }}
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 11
+
+      - name: Run QuickStart Java Direct Runner
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:direct-java:runQuickstartJavaDirect
+          arguments: |
+            -Prepourl=${{ env.APACHE_REPO_URL }} \
+            -Pver=${{ env.RELEASE_VERSION }}
+
+      - name: Run QuickStart Java Flink Runner
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:flink:1.19:runQuickstartJavaFlinkLocal
+          arguments: |
+            -Prepourl=${{ env.APACHE_REPO_URL }} \
+            -Pver=${{ env.RELEASE_VERSION }}
+
+      - name: Run QuickStart Java Spark Runner
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:spark:3:runQuickstartJavaSpark
+          arguments: |
+            -Prepourl=${{ env.APACHE_REPO_URL }} \
+            -Pver=${{ env.RELEASE_VERSION }}
