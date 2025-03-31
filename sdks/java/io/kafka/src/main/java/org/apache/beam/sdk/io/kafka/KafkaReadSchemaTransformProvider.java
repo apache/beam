@@ -151,6 +151,59 @@ public class KafkaReadSchemaTransformProvider
       }
     }
 
+    private PCollectionRowTuple expandRawWithKeyMetadata(
+        PCollectionRowTuple input, Map<String, Object> consumerConfigs, boolean handleErrors) {
+
+      Schema beamSchema =
+          Schema.builder()
+              .addField("key", Schema.FieldType.BYTES)
+              .addField("payload", Schema.FieldType.BYTES)
+              .build();
+      SerializableFunction<KV<byte[], byte[]>, Row> kvValueMapper =
+          getRawBytesKvToRowFunction(beamSchema);
+      KafkaIO.Read<byte[], byte[]> kafkaRead =
+          KafkaIO.readBytes()
+              .withConsumerConfigUpdates(consumerConfigs)
+              .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
+              .withTopic(configuration.getTopic())
+              .withBootstrapServers(configuration.getBootstrapServers());
+      Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
+      if (maxReadTimeSeconds != null) {
+        kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
+      }
+      PCollection<KafkaRecord<byte[], byte[]>> kafkaRecords = input.getPipeline().apply(kafkaRead);
+
+      PCollection<KV<byte[], byte[]>> kafkaValues =
+          kafkaRecords.apply(
+              MapElements.via(
+                  new SimpleFunction<KafkaRecord<byte[], byte[]>, KV<byte[], byte[]>>() {
+                    @Override
+                    public KV<byte[], byte[]> apply(KafkaRecord<byte[], byte[]> record) {
+                      return KV.of(record.getKV().getKey(), record.getKV().getValue());
+                    }
+                  }));
+
+      Schema errorSchema = ErrorHandling.errorSchemaKvBytes();
+
+      PCollectionTuple outputTuple =
+          kafkaValues.apply(
+              ParDo.of(
+                      new ErrorKvFn(
+                          "Kafka-read-error-counter", kvValueMapper, errorSchema, handleErrors))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+      PCollectionRowTuple outputRows =
+          PCollectionRowTuple.of("output", outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema));
+
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
+      if (handleErrors) {
+        outputRows =
+            outputRows.and(
+                checkArgumentNotNull(configuration.getErrorHandling()).getOutput(), errorOutput);
+      }
+      return outputRows;
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       configuration.validate();
@@ -205,58 +258,7 @@ public class KafkaReadSchemaTransformProvider
       if ("RAW".equals(format)) {
         boolean withKeyMetadata = Boolean.TRUE.equals(configuration.getWithKeyMetadata());
         if (withKeyMetadata) {
-          beamSchema =
-              Schema.builder()
-                  .addField("key", Schema.FieldType.BYTES)
-                  .addField("payload", Schema.FieldType.BYTES)
-                  .build();
-          SerializableFunction<KV<byte[], byte[]>, Row> kvValueMapper =
-              getRawBytesKvToRowFunction(beamSchema);
-          KafkaIO.Read<byte[], byte[]> kafkaRead =
-              KafkaIO.readBytes()
-                  .withConsumerConfigUpdates(consumerConfigs)
-                  .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
-                  .withTopic(configuration.getTopic())
-                  .withBootstrapServers(configuration.getBootstrapServers());
-          Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
-          if (maxReadTimeSeconds != null) {
-            kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
-          }
-          PCollection<KafkaRecord<byte[], byte[]>> kafkaRecords =
-              input.getPipeline().apply(kafkaRead);
-
-          PCollection<KV<byte[], byte[]>> kafkaValues =
-              kafkaRecords.apply(
-                  MapElements.via(
-                      new SimpleFunction<KafkaRecord<byte[], byte[]>, KV<byte[], byte[]>>() {
-                        @Override
-                        public KV<byte[], byte[]> apply(KafkaRecord<byte[], byte[]> record) {
-                          return KV.of(record.getKV().getKey(), record.getKV().getValue());
-                        }
-                      }));
-
-          Schema errorSchema = ErrorHandling.errorSchemaKvBytes();
-
-          PCollectionTuple outputTuple =
-              kafkaValues.apply(
-                  ParDo.of(
-                          new ErrorKvFn(
-                              "Kafka-read-error-counter", kvValueMapper, errorSchema, handleErrors))
-                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
-
-          PCollectionRowTuple outputRows =
-              PCollectionRowTuple.of(
-                  "output", outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema));
-
-          PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
-          if (handleErrors) {
-            outputRows =
-                outputRows.and(
-                    checkArgumentNotNull(configuration.getErrorHandling()).getOutput(),
-                    errorOutput);
-          }
-          return outputRows;
-
+          return expandRawWithKeyMetadata(input, consumerConfigs, handleErrors);
         } else {
           beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
           valueMapper = getRawBytesToRowFunction(beamSchema);
