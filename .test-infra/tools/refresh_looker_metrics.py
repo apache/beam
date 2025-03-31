@@ -68,11 +68,7 @@ class MyAuthSession(auth_session.AuthSession):
 
 def init_sdk():
     token = get_access_token()
-    transport_options = requests_transport.RequestsTransportOptions(
-        verify=True
-    )
     transporter = requests_transport.RequestsTransport(
-        options=transport_options,
         base_url=LOOKER_API_URL,
         auth=MyAuthSession(token, LOOKER_API_URL)
     )
