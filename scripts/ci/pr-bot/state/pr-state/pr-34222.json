@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "java": "m-trieu",
-    "io": "shunping"
+    "java": "kennknowles",
+    "io": "Abacn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
