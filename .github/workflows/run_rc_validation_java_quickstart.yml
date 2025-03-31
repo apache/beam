@@ -23,7 +23,7 @@ on:
       RELEASE_VER:
         description: 'Beam Release Version (e.g., 2.64.0)'
         required: true
-        default: '2.64.0'
+        default: '2.xx.0'
       RC_NUM:
         description: 'Release Candidate number (e.g., 1)'
         required: true
