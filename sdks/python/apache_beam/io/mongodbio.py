@@ -92,6 +92,7 @@ try:
   from bson import json_util
   from bson import objectid
   from bson.objectid import ObjectId
+  from bson.codec_options import CodecOptions, DatetimeConversion
 
   # pymongo also internally depends on bson.
   from pymongo import ASCENDING
@@ -263,6 +264,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.projection = projection
     self.spec = extra_client_params
     self.bucket_auto = bucket_auto
+    self.codec_options = CodecOptions(
+        datetime_conversion=DatetimeConversion.DATETIME_CLAMP)
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
@@ -408,10 +411,15 @@ class _BoundedMongoSource(iobase.BoundedSource):
     with MongoClient(self.uri, **self.spec) as client:
       all_filters = self._merge_id_filter(
           range_tracker.start_position(), range_tracker.stop_position())
-      docs_cursor = (
-          client[self.db][self.coll].find(
-              filter=all_filters,
-              projection=self.projection).sort([("_id", ASCENDING)]))
+      collection = client[self.db][self.coll]
+
+      if hasattr(collection, "with_options"):
+        collection = collection.with_options(codec_options=self.codec_options)
+
+      docs_cursor = collection.find(
+          filter=all_filters,
+          projection=self.projection).sort([("_id", ASCENDING)])
+
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc["_id"]):
           return
@@ -546,13 +554,19 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def _get_head_document_id(self, sort_order):
     with MongoClient(self.uri, **self.spec) as client:
+      db = client[self.db]
+
+      # Ensure `codec_options` is only applied if the real MongoDB is used
+      if hasattr(db, "with_options"):
+        db = db.with_options(codec_options=self.codec_options)
+
       cursor = (
-          client[self.db][self.coll].find(filter={}, projection=[]).sort([
+          db[self.coll].find(filter={}, projection=[]).sort([
               ("_id", sort_order)
           ]).limit(1))
+
       try:
         return cursor[0]["_id"]
-
       except IndexError:
         raise ValueError("Empty Mongodb collection")
 
