@@ -18,9 +18,8 @@ import time
 import requests
 from google.cloud import storage
 
-from looker_sdk import models40 as models
-from looker_sdk.sdk.api40.methods import Looker40SDK
-from looker_sdk.rtl import transport, auth_session, requests_transport
+from looker_sdk import models40, methods40
+from looker_sdk.rtl import auth_session, transport, requests_transport
 
 # Load environment variables
 LOOKER_API_URL = os.getenv("LOOKERSDK_BASE_URL")
@@ -46,9 +45,8 @@ def get_access_token():
 
 
 class MyAuthSession(auth_session.AuthSession):
-    def __init__(self, token: str, base_url: str):
+    def __init__(self, token: str):
         self._token = token
-        self._base_url = base_url
 
     def get_token(self):
         return self._token
@@ -68,11 +66,18 @@ class MyAuthSession(auth_session.AuthSession):
 
 def init_sdk():
     token = get_access_token()
-    transporter = requests_transport.RequestsTransport(
+    settings = transport.PTransportSettings(
         base_url=LOOKER_API_URL,
-        auth=MyAuthSession(token, LOOKER_API_URL)
+        verify_ssl=True,
+        timeout=60,
+        headers={"Authorization": f"token {token}"},
+        agent_tag="custom_sdk"
     )
-    return Looker40SDK(transporter)
+
+    session = requests.Session()
+    auth = MyAuthSession(token)
+    transporter = requests_transport.RequestsTransport(settings, session)
+    return methods40.Looker40SDK(transporter)
 
 
 sdk = init_sdk()
