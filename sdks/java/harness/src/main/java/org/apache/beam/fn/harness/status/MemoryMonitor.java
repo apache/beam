@@ -561,6 +561,10 @@ public class MemoryMonitor implements Runnable {
 
   /** Return the path for logging heap dumps. */
   private static File getLoggingDir() {
+    @Nullable String heapDumpDir = System.getProperty("beam.fn.heap_dump_dir");
+    if (heapDumpDir != null) {
+      return heapDumpDir;
+    }
     return new File(System.getProperty("java.io.tmpdir"));
   }
 
