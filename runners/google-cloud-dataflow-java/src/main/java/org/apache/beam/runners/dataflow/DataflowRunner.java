@@ -790,10 +790,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
 
+    boolean usesAtLeastOnceStreamingMode = options.getDataflowServiceOptions() != null
+            && options.getDataflowServiceOptions().contains("streaming_mode_at_least_once");
     overridesBuilder.add(
         PTransformOverride.of(
             PTransformMatchers.classEqualTo(RedistributeByKey.class),
-            new RedistributeByKeyOverrideFactory()));
+            new RedistributeByKeyOverrideFactory(usesAtLeastOnceStreamingMode)));
 
     if (streaming) {
       // For update compatibility, always use a Read for Create in streaming mode.
