@@ -51,6 +51,11 @@ See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page
 &lt;li>Fixed checkpoint recovery and streaming behavior in Spark Classic and Portable runner&amp;rsquo;s Flatten transform by replacing queueStream with SingleEmitInputDStream (&lt;a href="https://github.com/apache/beam/pull/34080">#34080&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/18144">#18144&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/20426">#20426&lt;/a>)&lt;/li>
 &lt;li>(Java) Fixed Read caching of UnboundedReader objects to effectively cache across multiple DoFns and avoid checkpointing unstarted reader. &lt;a href="https://github.com/apache/beam/pull/34146">#34146&lt;/a> &lt;a href="https://github.com/apache/beam/pull/33901">#33901&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>(Java) Current version of protobuf has a &lt;a href="https://github.com/protocolbuffers/protobuf/issues/20599">bug&lt;/a> leading to incompatibilities with clients using older versions of Protobuf (&lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/2191">example issue&lt;/a>). This issue has been seen in SpannerIO in particular. Tracked in &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34452">#34452&lt;/a>.&lt;/li>
+&lt;li>(Java) When constructing &lt;code>SpannerConfig&lt;/code> for &lt;code>SpannerIO&lt;/code>, calling &lt;code>withHost&lt;/code> with a null or empty host will now result in a Null Pointer Exception (&lt;code>java.lang.NullPointerException: Cannot invoke &amp;quot;java.lang.CharSequence.length()&amp;quot; because &amp;quot;this.text&amp;quot; is null&lt;/code>). See &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34489">https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34489&lt;/a> for context.&lt;/li>
+&lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.64.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud
