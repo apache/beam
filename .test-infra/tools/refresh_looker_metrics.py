@@ -15,11 +15,10 @@
 
 import os
 import time
-import requests
-from google.cloud import storage
+import looker_sdk
 
-from looker_sdk import models40, methods40
-from looker_sdk.rtl import auth_session, transport, requests_transport
+from google.cloud import storage
+from looker_sdk import models40 as models
 
 # Load environment variables
 LOOKER_API_URL = os.getenv("LOOKERSDK_BASE_URL")
@@ -31,56 +30,6 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 LOOKS_TO_DOWNLOAD = [
     ("30", ["18", "50"]),    # BigQueryIO_Read
 ]
-
-
-def get_access_token():
-    """Retrieve OAuth2 access token using client credentials"""
-    login_url = f"{LOOKER_API_URL}/api/4.0/login"
-    response = requests.post(login_url, data={
-        'client_id': LOOKER_CLIENT_ID,
-        'client_secret': LOOKER_CLIENT_SECRET
-    })
-    response.raise_for_status()
-    return response.json()["access_token"]
-
-
-class MyAuthSession(auth_session.AuthSession):
-    def __init__(self, token: str):
-        self._token = token
-
-    def get_token(self):
-        return self._token
-
-    def is_authenticated(self) -> bool:
-        return True
-
-    def authenticate(self):
-        return self._token
-
-    def logout(self):
-        pass
-
-    def is_anonymous(self):
-        return False
-
-
-def init_sdk():
-    token = get_access_token()
-    settings = transport.PTransportSettings(
-        base_url=LOOKER_API_URL,
-        verify_ssl=True,
-        timeout=60,
-        headers={"Authorization": f"token {token}"},
-        agent_tag="custom_sdk"
-    )
-
-    session = requests.Session()
-    auth = MyAuthSession(token)
-    transporter = requests_transport.RequestsTransport(settings, session)
-    return methods40.Looker40SDK(transporter)
-
-
-sdk = init_sdk()
 
 
 def get_look(id: str) -> models.Look:
@@ -134,6 +83,9 @@ def upload_to_gcs(bucket_name, destination_blob_name, content):
     # Upload content, overwriting if it exists
     blob.upload_from_string(content, content_type="image/png")
     print(f"Uploaded {destination_blob_name} to {bucket_name}.")
+
+
+sdk = looker_sdk.init40()
 
 
 def main():
