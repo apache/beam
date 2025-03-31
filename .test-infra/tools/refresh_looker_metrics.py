@@ -15,10 +15,12 @@
 
 import os
 import time
-import looker_sdk
-
+import requests
 from google.cloud import storage
+
 from looker_sdk import models40 as models
+from looker_sdk.sdk.api40.methods import Looker40SDK
+from looker_sdk.rtl import transport, auth_session, requests_transport
 
 # Load environment variables
 LOOKER_API_URL = os.getenv("LOOKERSDK_BASE_URL")
@@ -29,18 +31,55 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 # List of Pairs (Target folder name, Look IDs to download)
 LOOKS_TO_DOWNLOAD = [
     ("30", ["18", "50", "92", "49", "91"]),    # BigQueryIO_Read
-    ("31", ["19", "52", "88", "51", "87"]),    # BigQueryIO_Write
-    ("32", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
-    ("33", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
-    ("34", ["22", "56", "96", "55", "95"]),    # TextIO_Read
-    ("35", ["23", "64", "110", "63", "109"]),  # TextIO_Write
-    ("75", ["258", "259", "260", "261", "262"]),  # TensorFlow MNIST
-    ("76", ["233", "234", "235", "236", "237"]),  # PyTorch BERT base uncased
-    ("77", ["238", "239", "240", "241", "242"]),  # PyTorch BERT large uncased
-    ("78", ["243", "244", "245", "246", "247"]),  # PyTorch Resnet 101
-    ("79", ["248", "249", "250", "251", "252"]),  # PyTorch Resnet 152
-    ("80", ["253", "254", "255", "256", "257"]),  # PyTorch Resnet 152 Tesla T4
 ]
+
+
+def get_access_token():
+    """Retrieve OAuth2 access token using client credentials"""
+    token_url = f"{LOOKER_API_URL}/api/token"
+    response = requests.post(token_url, data={
+        'client_id': LOOKER_CLIENT_ID,
+        'client_secret': LOOKER_CLIENT_SECRET
+    })
+    response.raise_for_status()
+    return response.json()['access_token']
+
+
+class MyAuthSession(auth_session.AuthSession):
+    def __init__(self, token: str, base_url: str):
+        self._token = token
+        self._base_url = base_url
+
+    def get_token(self):
+        return self._token
+
+    def is_authenticated(self) -> bool:
+        return True
+
+    def authenticate(self):
+        return self._token
+
+    def logout(self):
+        pass
+
+    def is_anonymous(self):
+        return False
+
+
+def init_sdk():
+    token = get_access_token()
+    transport_options = requests_transport.RequestsTransportOptions(
+        verify=True
+    )
+    transporter = requests_transport.RequestsTransport(
+        options=transport_options,
+        base_url=LOOKER_API_URL,
+        auth=MyAuthSession(token, LOOKER_API_URL)
+    )
+    return Looker40SDK(transporter)
+
+
+sdk = init_sdk()
 
 
 def get_look(id: str) -> models.Look:
@@ -94,9 +133,6 @@ def upload_to_gcs(bucket_name, destination_blob_name, content):
     # Upload content, overwriting if it exists
     blob.upload_from_string(content, content_type="image/png")
     print(f"Uploaded {destination_blob_name} to {bucket_name}.")
-
-
-sdk = looker_sdk.init40()
 
 
 def main():
