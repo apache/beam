@@ -87,6 +87,7 @@ dependencies {
   implementation "org.codehaus.janino:janino:3.0.11"
   implementation "org.codehaus.janino:commons-compiler:3.0.11"
   implementation library.java.jackson_core
+  implementation library.java.mongodb_driver_sync
   implementation library.java.mongodb_driver_core
   implementation library.java.bson
   implementation library.java.slf4j_api
