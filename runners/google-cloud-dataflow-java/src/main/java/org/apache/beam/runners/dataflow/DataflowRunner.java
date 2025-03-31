@@ -790,7 +790,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
 
-    boolean usesAtLeastOnceStreamingMode = options.getDataflowServiceOptions() != null
+    boolean usesAtLeastOnceStreamingMode =
+        options.getDataflowServiceOptions() != null
             && options.getDataflowServiceOptions().contains("streaming_mode_at_least_once");
     overridesBuilder.add(
         PTransformOverride.of(

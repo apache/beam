@@ -46,7 +46,7 @@ import org.joda.time.Duration;
 class RedistributeByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
         PCollection<KV<K, V>>, PCollection<KV<K, V>>, RedistributeByKey<K, V>> {
-    
+
   private final boolean usesAtLeastOnceStreamingMode;
 
   public RedistributeByKeyOverrideFactory(boolean usesAtLeastOnceStreamingMode) {
@@ -70,7 +70,8 @@ class RedistributeByKeyOverrideFactory<K, V>
     private final RedistributeByKey<K, V> originalTransform;
     private final boolean usesAtLeastOnceStreamingMode;
 
-    private DataflowRedistributeByKey(RedistributeByKey<K, V> originalTransform, boolean usesAtLeastOnceStreamingMode) {
+    private DataflowRedistributeByKey(
+        RedistributeByKey<K, V> originalTransform, boolean usesAtLeastOnceStreamingMode) {
       this.originalTransform = originalTransform;
       this.usesAtLeastOnceStreamingMode = usesAtLeastOnceStreamingMode;
     }
