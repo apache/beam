@@ -36,13 +36,13 @@ LOOKS_TO_DOWNLOAD = [
 
 def get_access_token():
     """Retrieve OAuth2 access token using client credentials"""
-    token_url = f"{LOOKER_API_URL}/login"
-    response = requests.post(token_url, data={
+    login_url = f"{LOOKER_API_URL}/login"
+    response = requests.post(login_url, params={
         'client_id': LOOKER_CLIENT_ID,
         'client_secret': LOOKER_CLIENT_SECRET
     })
     response.raise_for_status()
-    return response.json()['access_token']
+    return response.json()["access_token"]
 
 
 class MyAuthSession(auth_session.AuthSession):
