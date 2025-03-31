@@ -132,7 +132,8 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
     files = files.replaceAll(stagingBucketDir, "");
     DataSource dataSource = dataSourceProviderFn.apply(null);
 
-    prepareTableAccordingCreateDisposition(dataSource, table, tableSchema, createDisposition);
+    prepareTableAccordingCreateDisposition(
+        dataSource, database, schema, table, tableSchema, createDisposition);
     prepareTableAccordingWriteDisposition(dataSource, table, writeDisposition);
 
     if (!storageIntegrationName.isEmpty()) {
@@ -193,6 +194,8 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
 
   private void prepareTableAccordingCreateDisposition(
       DataSource dataSource,
+      String database,
+      String schema,
       String table,
       SnowflakeTableSchema tableSchema,
       CreateDisposition createDisposition)
@@ -201,7 +204,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
       case CREATE_NEVER:
         break;
       case CREATE_IF_NEEDED:
-        createTableIfNotExists(dataSource, table, tableSchema);
+        createTableIfNotExists(dataSource, database, schema, table, tableSchema);
         break;
     }
   }
@@ -222,11 +225,16 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
   }
 
   private void createTableIfNotExists(
-      DataSource dataSource, String table, SnowflakeTableSchema tableSchema) throws SQLException {
+      DataSource dataSource,
+      String database,
+      String schema,
+      String table,
+      SnowflakeTableSchema tableSchema)
+      throws SQLException {
     String query =
         String.format(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '%s');",
-            table.toUpperCase());
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_catalog = '%s' AND table_schema = '%s' AND table_name = '%s');",
+            database.toUpperCase(), schema.toUpperCase(), table.toUpperCase());
 
     runConnectionWithStatement(
         dataSource,
