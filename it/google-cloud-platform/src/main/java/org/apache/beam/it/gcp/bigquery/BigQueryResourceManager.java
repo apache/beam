@@ -35,7 +35,6 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigquery.TimePartitioning;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -273,9 +272,9 @@ public final class BigQueryResourceManager implements ResourceManager {
     }
   }
 
-
   /**
-   * Creates a table within the current dataset given a table name, schema and time partitioning properties.
+   * Creates a table within the current dataset given a table name, schema and time partitioning
+   * properties.
    *
    * <p>This table will automatically expire 1 hour after creation if not cleaned up manually or by
    * calling the {@link BigQueryResourceManager#cleanupAll()} method.
@@ -288,9 +287,11 @@ public final class BigQueryResourceManager implements ResourceManager {
    * @return The TableId (reference) to the table
    * @throws BigQueryResourceManagerException if there is an error creating the table in BigQuery.
    */
-  public synchronized TableId createTimePartitionedTable(String tableName, Schema schema, TimePartitioning timePartitioning)
+  public synchronized TableId createTimePartitionedTable(
+      String tableName, Schema schema, TimePartitioning timePartitioning)
       throws BigQueryResourceManagerException {
-    return createTable(tableName, schema, timePartitioning, System.currentTimeMillis() + 3600000); // 1h
+    return createTimePartitionedTable(
+        tableName, schema, timePartitioning, System.currentTimeMillis() + 3600000); // 1h
   }
 
   /**
@@ -322,7 +323,8 @@ public final class BigQueryResourceManager implements ResourceManager {
 
     // Check time partition details
     if (timePartitioning == null) {
-      throw new IllegalArgumentException("A valid TimePartition object must be provided to create a time paritioned table. Use createTable instead to create non-partitioned tables.");
+      throw new IllegalArgumentException(
+          "A valid TimePartition object must be provided to create a time paritioned table. Use createTable instead to create non-partitioned tables.");
     }
 
     // Create a default dataset if this resource manager has not already created one
@@ -331,24 +333,30 @@ public final class BigQueryResourceManager implements ResourceManager {
     }
     checkHasDataset();
 
-    LOG.info("Creating time partitioned table using tableName '{}' on field '{}'.", tableName, timePartitioning.getField());
+    LOG.info(
+        "Creating time partitioned table using tableName '{}' on field '{}'.",
+        tableName,
+        timePartitioning.getField());
 
     // Create the table if it does not already exist in the dataset
     try {
       TableId tableId = TableId.of(dataset.getDatasetId().getDataset(), tableName);
       if (bigQuery.getTable(tableId) == null) {
         StandardTableDefinition tableDefinition =
-          StandardTableDefinition.newBuilder()
-            .setSchema(schema)
-            .setTimePartitioning(timePartitioning)
-            .build();
+            StandardTableDefinition.newBuilder()
+                .setSchema(schema)
+                .setTimePartitioning(timePartitioning)
+                .build();
         TableInfo tableInfo =
             TableInfo.newBuilder(tableId, tableDefinition)
                 .setExpirationTime(expirationTimeMillis)
                 .build();
         bigQuery.create(tableInfo);
         LOG.info(
-            "Successfully created table {}.{} partitioned on {}", dataset.getDatasetId().getDataset(), tableName, timePartitioning.getField());
+            "Successfully created table {}.{} partitioned on {}",
+            dataset.getDatasetId().getDataset(),
+            tableName,
+            timePartitioning.getField());
 
         return tableId;
       } else {
@@ -359,7 +367,6 @@ public final class BigQueryResourceManager implements ResourceManager {
       throw new BigQueryResourceManagerException("Failed to create table.", e);
     }
   }
-
 
   /**
    * Writes a given row into a table. This method requires {@link

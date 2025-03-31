@@ -47,8 +47,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Answers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -80,9 +80,8 @@ public class BigQueryResourceManagerTest {
   public void setUp() {
     schema = Schema.of(Field.of("name", StandardSQLTypeName.STRING));
     rowToInsert = RowToInsert.of("1", ImmutableMap.of("name", "Jake"));
-    timePartition = TimePartitioning.newBuilder(TimePartitioning.Type.HOUR)
-        .setField(PARTITION_FIELD) 
-        .build();
+    timePartition =
+        TimePartitioning.newBuilder(TimePartitioning.Type.HOUR).setField(PARTITION_FIELD).build();
     testManager = new BigQueryResourceManager(TEST_ID, PROJECT_ID, bigQuery);
   }
 
@@ -172,20 +171,25 @@ public class BigQueryResourceManagerTest {
     verify(bigQuery).create(any(DatasetInfo.class));
   }
 
-
   @Test
   public void testCreateTimePartitionedTableShouldThrowErrorWhenTableNameIsNotValid() {
-    assertThrows(IllegalArgumentException.class, () -> testManager.createTimePartitionedTable("", schema, timePartition));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testManager.createTimePartitionedTable("", schema, timePartition));
   }
 
   @Test
   public void testCreateTimePartitionedTableShouldThrowErrorWhenSchemaIsNull() {
-    assertThrows(IllegalArgumentException.class, () -> testManager.createTimePartitionedTable(TABLE_NAME, null, timePartition));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, null, timePartition));
   }
 
   @Test
   public void testCreateTimePartitionedTableShouldThrowErrorWhenPartitionInfoIsNull() {
-    assertThrows(IllegalArgumentException.class, () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, null));
   }
 
   @Test
@@ -205,7 +209,8 @@ public class BigQueryResourceManagerTest {
     when(bigQuery.create(any(TableInfo.class))).thenThrow(BigQueryException.class);
 
     assertThrows(
-        BigQueryResourceManagerException.class, () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition));
+        BigQueryResourceManagerException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition));
   }
 
   @Test
@@ -215,7 +220,8 @@ public class BigQueryResourceManagerTest {
     when(bigQuery.getTable(any())).thenReturn(any());
 
     assertThrows(
-        BigQueryResourceManagerException.class, () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition));
+        BigQueryResourceManagerException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition));
   }
 
   @Test
@@ -233,8 +239,6 @@ public class BigQueryResourceManagerTest {
     TimePartitioning capturedTimePartitioning = capturedTableDefinition.getTimePartitiong();
     assertThat(capturedTimePartitioning).isEqualTo(timePartition);
   }
-
-
 
   @Test
   public void testWriteShouldThrowErrorWhenDatasetDoesNotExist() {
