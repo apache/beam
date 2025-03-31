@@ -36,6 +36,7 @@ import com.google.cloud.bigquery.InsertAllRequest.RowToInsert;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
@@ -49,6 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -236,7 +238,7 @@ public class BigQueryResourceManagerTest {
     verify(bigQuery).create(tableCaptor.capture());
     TableInfo capturedTableInfo = tableCaptor.getValue();
     StandardTableDefinition capturedTableDefinition = capturedTableInfo.getDefinition();
-    TimePartitioning capturedTimePartitioning = capturedTableDefinition.getTimePartitiong();
+    TimePartitioning capturedTimePartitioning = capturedTableDefinition.getTimePartitioning();
     assertThat(capturedTimePartitioning).isEqualTo(timePartition);
   }
 
