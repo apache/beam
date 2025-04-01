@@ -90,7 +90,7 @@ final class BackendWorkerMetadataVendor {
         () -> {
           WorkerMetadataResponse initialWorkerMetadata = NO_WORKER_METADATA;
 
-          while (isStarted && !isShutdown) {
+          while (true) {
             GetWorkerMetadataStream getWorkerMetadataStream =
                 getWorkerMetadataStreamFactory.create(initialWorkerMetadata, endpointsConsumer);
             LOG.debug(
@@ -129,17 +129,15 @@ final class BackendWorkerMetadataVendor {
    * @implNote Blocks the calling thread until the stream starts or {@link #shutdown()} is called.
    */
   void awaitInitialBackendWorkerMetadataStream() {
-    boolean isInitialStreamStarted = false;
     int waitedSeconds = 0;
-    while (!isInitialStreamStarted && !isShutdown) {
-      try {
-        isInitialStreamStarted = initialStreamStarted.await(10, TimeUnit.SECONDS);
+    try {
+      while (!initialStreamStarted.await(10, TimeUnit.SECONDS) && !isShutdown) {
         waitedSeconds += 10;
         LOG.debug("Waited {}s for initial worker metadata stream to start.", waitedSeconds);
-      } catch (InterruptedException e) {
-        LOG.warn(
-            "Interrupted waiting for initial worker metadata stream. Retrying until shutdown() is called.");
       }
+    } catch (InterruptedException e) {
+      LOG.warn(
+          "Interrupted waiting for initial worker metadata stream. Retrying until shutdown() is called.");
     }
   }
 
@@ -148,17 +146,12 @@ final class BackendWorkerMetadataVendor {
       LOG.debug("Shutting down WorkerMetadataVendor...");
       isShutdown = true;
       fetchBackendWorkerMetadataExecutor.shutdownNow();
-      boolean isShutdown = false;
       try {
-        isShutdown =
-            fetchBackendWorkerMetadataExecutor.awaitTermination(
-                GET_WORKER_METADATA_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        fetchBackendWorkerMetadataExecutor.awaitTermination(
+            GET_WORKER_METADATA_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-      }
-
-      if (!isShutdown) {
-        LOG.warn("Unable to shutdown WorkerMetadataFetcher.");
+        LOG.warn("Unable to shutdown WorkerMetadataVendor.");
       }
     }
   }
