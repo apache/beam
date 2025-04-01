@@ -15,6 +15,16 @@
 # limitations under the License.
 #
 
+import collections
+import functools
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Optional
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
+
 import yaml
 
 import apache_beam as beam
@@ -50,29 +60,90 @@ def inject_test_tranforms(spec, test_spec):
   ]:
     spec = yaml_transform.apply_phase(phase, spec)
 
-  included_outputs = set()
-  transforms = []
   scope = yaml_transform.LightweightScope(spec['transforms'])
 
-  def all_inputs(transform_spec):
-    for input_ref in yaml_transform.empty_if_explicitly_empty(
-        transform_spec['input']).values():
-      if isinstance(input_ref, str):
-        yield input_ref
+  mocked_inputs_by_id = {
+      scope.get_transform_id(mock_input['name']): mock_input
+      for mock_input in test_spec.get('mock_inputs', [])
+  }
+
+  mocked_outputs_by_id = _composite_key_to_nested({
+      scope.get_transform_id_and_output_name(mock_output['name']): mock_output
+      for mock_output in test_spec.get('mock_outputs', [])
+  })
+
+  transforms = []
+
+  @functools.cache
+  def create_inputs(transform_id: str) -> InputsType:
+    def require_output_or_outputs(name_or_names):
+      if isinstance(name_or_names, str):
+        return require_output(name_or_names)
       else:
-        yield from input_ref
-        require_output(input)
+        return [require_output(name) for name in name_or_names]
 
-  def require_output(name):
+    if transform_id in mocked_inputs_by_id:
+      return create_mocked_input(transform_id)
+    else:
+      input_spec = scope.get_transform_spec(transform_id)['input']
+      return {
+          tag: require_output_or_outputs(input_ref)
+          for tag,
+          input_ref in yaml_transform.empty_if_explicitly_empty(
+              input_spec).items()
+      }
+
+  def require_output(name: str) -> str:
+    # The same output may be referenced under different names.
+    # Normalize before we cache.
     transform_id, tag = scope.get_transform_id_and_output_name(name)
-    if (transform_id, tag) in included_outputs:
-      return
-    included_outputs.add((transform_id, tag))
+    return _require_output(transform_id, tag) or name
 
-    transform_spec = scope.get_transform_spec(transform_id)
+  @functools.cache
+  def _require_output(transform_id: str, tag: str) -> Optional[str]:
+    if transform_id in mocked_outputs_by_id:
+      if tag not in mocked_outputs_by_id[transform_id]:
+        name = next(iter(
+            mocked_outputs_by_id[transform_id].values()))['name'].split('.')[0]
+        raise ValueError(
+            f'Unmocked output {tag} of {name}.'
+            'If any used output is mocked all used outputs must be mocked.')
+      return create_mocked_output(transform_id, tag)
+    else:
+      _use_transform(transform_id)
+      return None  # Use original name.
+
+  @functools.cache
+  def _use_transform(transform_id: str) -> None:
+    transform_spec = dict(scope.get_transform_spec(transform_id))
+    transform_spec['input'] = create_inputs(transform_id)
     transforms.append(transform_spec)
-    for input_ref in all_inputs(transform_spec):
-      require_output(input_ref)
+
+  @functools.cache
+  def create_mocked_input(transform_id: str) -> str:
+    transform = create_create(
+        f'MockInput[{mocked_inputs_by_id[transform_id]["name"]}]',
+        mocked_inputs_by_id[transform_id]['elements'])
+    transforms.append(transform)
+    return transform['__uuid__']
+
+  @functools.cache
+  def create_mocked_output(transform_id: str, tag: str) -> str:
+    transform = create_create(
+        f'MockOutput[{mocked_outputs_by_id[transform_id][tag]["name"]}]',
+        mocked_outputs_by_id[transform_id][tag]['elements'])
+    transforms.append(transform)
+    return transform['__uuid__']
+
+  def create_create(name, elements):
+    return {
+        '__uuid__': yaml_utils.SafeLineLoader.create_uuid(),
+        'name': name,
+        'type': 'Create',
+        'config': {
+            'elements': elements,
+        },
+    }
 
   def create_assertion(name, inputs, elements):
     return {
@@ -101,13 +172,11 @@ def inject_test_tranforms(spec, test_spec):
   for ix, expected_input in enumerate(test_spec.get('expected_inputs', [])):
     if 'name' not in expected_input:
       raise ValueError(f'Expected input spec {ix} missing a name.')
-    transform_spec = scope.get_transform_spec(expected_input['name'])
-    for input_ref in all_inputs(transform_spec):
-      require_output(input_ref)
+    transform_id = scope.get_transform_id(expected_input['name'])
     transforms.append(
         create_assertion(
             f'CheckExpectedInput[{expected_input["name"]}]',
-            transform_spec['input'],
+            create_inputs(transform_id),
             expected_input['elements']))
 
   return {
@@ -115,3 +184,18 @@ def inject_test_tranforms(spec, test_spec):
       'type': 'composite',
       'transforms': transforms,
   }
+
+
+K1 = TypeVar('K1')
+K2 = TypeVar('K2')
+V = TypeVar('V')
+
+InputsType = Dict[str, Union[str, List[str]]]
+
+
+def _composite_key_to_nested(
+    d: Mapping[Tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
+  nested = collections.defaultdict(dict)
+  for (k1, k2), v in d.items():
+    nested[k1][k2] = v
+  return nested

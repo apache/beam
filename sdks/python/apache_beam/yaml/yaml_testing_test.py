@@ -29,7 +29,7 @@ pipeline:
     - type: Create
       name: MyCreate
       config:
-        elements: [1, 2, 3]
+        elements: ['unsquarable']
     - type: MapToFields
       name: MyMapToFields
       config:
@@ -54,6 +54,10 @@ class YamlTestingTest(unittest.TestCase):
     yaml_testing.run_test(
         SIMPLE_PIPELINE,
         {
+            'mock_inputs': [{
+                'name': 'MyMapToFields',
+                'elements': [1, 2, 3],
+            }],
             'expected_outputs': [{
                 'name': 'MyMapToFields',
                 'elements': [
@@ -70,11 +74,15 @@ class YamlTestingTest(unittest.TestCase):
             }]
         })
 
-    # As well as passing, we want to ensure the test fails when it should.
+  def test_expected_outputs_fails_correctly(self):
     with self.assertRaisesRegex(Exception, 'unexpected.*9'):
       yaml_testing.run_test(
           SIMPLE_PIPELINE,
           {
+              'mock_inputs': [{
+                  'name': 'MyMapToFields',
+                  'elements': [1, 2, 3],
+              }],
               'expected_outputs': [{
                   'name': 'MyMapToFields',
                   'elements': [
@@ -92,6 +100,10 @@ class YamlTestingTest(unittest.TestCase):
     yaml_testing.run_test(
         SIMPLE_PIPELINE,
         {
+            'mock_outputs': [{
+                'name': 'MyCreate',
+                'elements': [1, 2, 3],
+            }],
             'expected_inputs': [{
                 'name': 'ToBeExcluded',
                 'elements': [
@@ -108,11 +120,15 @@ class YamlTestingTest(unittest.TestCase):
             }]
         })
 
-    # As well as passing, we want to ensure the test fails when it should.
+  def test_expected_inputs_fails_correctly(self):
     with self.assertRaisesRegex(Exception, 'unexpected.*9'):
       yaml_testing.run_test(
           SIMPLE_PIPELINE,
           {
+              'mock_outputs': [{
+                  'name': 'MyCreate',
+                  'elements': [1, 2, 3],
+              }],
               'expected_inputs': [{
                   'name': 'ToBeExcluded',
                   'elements': [
