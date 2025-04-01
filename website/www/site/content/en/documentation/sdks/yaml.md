@@ -277,7 +277,8 @@ pipeline:
 
 As syntactic sugar, you can name the first and last transforms in your pipeline
 as `source` and `sink`. This convention does not change the resulting pipeline,
-but it signals the intent of the source and sink transforms.
+but it signals the intent of the source and sink transforms. Note that `source`
+and `sink` each require a single transform definition  (as a YAML object).
 
 ```
 pipeline:
