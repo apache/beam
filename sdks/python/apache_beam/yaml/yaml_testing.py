@@ -32,7 +32,7 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml import yaml_utils
 
 
-def run_test(pipeline_spec, test_spec):
+def run_test(pipeline_spec, test_spec, options=None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=yaml_utils.SafeLineLoader)
 

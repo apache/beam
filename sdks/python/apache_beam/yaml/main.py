@@ -18,6 +18,8 @@
 import argparse
 import contextlib
 import json
+import sys
+import unittest
 
 import yaml
 
@@ -26,6 +28,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms import resources
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
+from apache_beam.yaml import yaml_testing
 from apache_beam.yaml import yaml_transform
 
 
@@ -90,6 +93,16 @@ def _parse_arguments(argv):
       type=json.loads,
       help='A json dict of variables used when invoking the jinja preprocessor '
       'on the provided yaml pipeline.')
+  parser.add_argument(
+      '--test',
+      action=argparse.BooleanOptionalAction,
+      help='Run the tests associated with the given pipeline, rather than the '
+      'pipeline itself.')
+  parser.add_argument(
+      '--test_suite',
+      help='Run the given tests against the given pipeline, rather than the '
+      'pipeline itself. '
+      'Should be a file containing a list of yaml test specifications.')
   return parser.parse_known_args(argv)
 
 
@@ -130,12 +143,58 @@ def run(argv=None):
       print('Running pipeline...')
 
 
-def build_pipeline_components_from_argv(argv):
+def run_tests(argv=None, exit=True):
+  known_args, pipeline_args, _, pipeline_yaml = _build_pipeline_yaml_from_argv(
+      argv)
+  pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
+  options = _build_pipeline_options(pipeline_spec, pipeline_args)
+
+  test_specs = pipeline_spec.get('tests', [])
+  if not isinstance(test_specs, list):
+    raise TypeError('tests attribute must be a list of test specifications')
+  if known_args.test_suite:
+    with open(known_args.test_suite) as fin:
+      more_test_specs = yaml.load(fin, Loader=yaml_transform.SafeLineLoader)
+    if 'tests' not in more_test_specs or not isinstance(
+        more_test_specs['tests'], list):
+      raise TypeError('tests attribute must be a list of test specifications')
+    test_specs += more_test_specs['tests']
+  if not test_specs:
+    raise RuntimeError('No tests found.')
+
+  with _fix_xlang_instant_coding():
+    suite = unittest.TestSuite()
+    for test_spec in test_specs:
+      suite.addTest(_YamlTestCase(pipeline_spec, test_spec, options))
+    result = unittest.TextTestRunner().run(suite)
+  if exit:
+    # emulates unittest.main()
+    sys.exit(0 if result.wasSuccessful() else 1)
+  else:
+    if not result.wasSuccessful():
+      raise RuntimeError(result)
+
+
+def _build_pipeline_yaml_from_argv(argv):
   argv = _preparse_jinja_flags(argv)
   known_args, pipeline_args = _parse_arguments(argv)
   pipeline_template = _pipeline_spec_from_args(known_args)
   pipeline_yaml = yaml_transform.expand_jinja(
       pipeline_template, known_args.jinja_variables or {})
+  return known_args, pipeline_args, pipeline_template, pipeline_yaml
+
+
+def _build_pipeline_options(pipeline_spec, pipeline_args):
+  return beam.options.pipeline_options.PipelineOptions(
+      pipeline_args,
+      pickle_library='cloudpickle',
+      **yaml_transform.SafeLineLoader.strip_metadata(
+          pipeline_spec.get('options', {})))
+
+
+def build_pipeline_components_from_argv(argv):
+  (known_args, pipeline_args, pipeline_template,
+   pipeline_yaml) = _build_pipeline_yaml_from_argv(argv)
   display_data = {
       'yaml': pipeline_yaml,
       'yaml_jinja_template': pipeline_template,
@@ -154,11 +213,7 @@ def build_pipeline_components_from_yaml(
     pipeline_yaml, pipeline_args, validate_schema='generic', pipeline_path=''):
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
-  options = beam.options.pipeline_options.PipelineOptions(
-      pipeline_args,
-      pickle_library='cloudpickle',
-      **yaml_transform.SafeLineLoader.strip_metadata(
-          pipeline_spec.get('options', {})))
+  options = _build_pipeline_options(pipeline_spec, pipeline_args)
 
   def constructor(root):
     if 'resource_hints' in pipeline_spec.get('pipeline', {}):
@@ -177,7 +232,29 @@ def build_pipeline_components_from_yaml(
   return options, constructor
 
 
+class _YamlTestCase(unittest.TestCase):
+  def __init__(self, pipeline_spec, test_spec, options):
+    super().__init__()
+    self._pipeline_spec = pipeline_spec
+    self._test_spec = test_spec
+    self._options = options
+
+  def runTest(self):
+    yaml_testing.run_test(self._pipeline_spec, self._test_spec, self._options)
+
+  def id(self):
+    return (
+        self._test_spec.get('name', 'unknown') +
+        f' (line {yaml_transform.SafeLineLoader.get_line(self._test_spec)})')
+
+  def __str__(self):
+    return self.id()
+
+
 if __name__ == '__main__':
   import logging
   logging.getLogger().setLevel(logging.INFO)
-  run()
+  if '--test' in sys.argv:
+    run_tests()
+  else:
+    run()

@@ -576,9 +576,10 @@ def chain_as_composite(spec):
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
-  composite_spec = normalize_inputs_outputs(tag_explicit_inputs(spec))
+  composite_spec = dict(normalize_inputs_outputs(tag_explicit_inputs(spec)))
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
+    transform = dict(transform)
     if any(io in transform for io in ('input', 'output')):
       if (ix == 0 and 'input' in transform and 'output' not in transform and
           is_explicitly_empty(transform['input'])):

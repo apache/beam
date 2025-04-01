@@ -38,6 +38,44 @@ pipeline:
     - type: WriteToText
       config:
         path: PATH
+
+tests:
+  - name: InlineTest
+    mock_outputs:
+      - name: Create
+        elements: ['a', 'b', 'c']
+    expected_inputs:
+      - name: WriteToText
+        elements:
+          - {element: a}
+          - {element: b}
+          - {element: c}
+'''
+
+PASSING_TEST_SUITE = '''
+tests:
+  - name: ExternalTest
+    mock_outputs:
+      - name: Create
+        elements: ['a', 'b', 'c']
+    expected_inputs:
+      - name: WriteToText
+        elements:
+          - {element: a}
+          - {element: b}
+          - {element: c}
+'''
+
+FAILING_TEST_SUITE = '''
+tests:
+  - name: ExternalTest
+    mock_outputs:
+      - name: Create
+        elements: ['a', 'b', 'c']
+    expected_inputs:
+      - name: WriteToText
+        elements:
+          - {element: x}
 '''
 
 
@@ -112,6 +150,37 @@ class MainTest(unittest.TestCase):
       with open(glob.glob(out_path + '*')[0], 'rt') as fin:
         self.assertEqual(
             fin.read().strip(), datetime.datetime.now().strftime("%Y-%m-%d"))
+
+  def test_inline_test_specs(self):
+    main.run_tests(['--yaml_pipeline', TEST_PIPELINE, '--test'], exit=False)
+
+  def test_external_test_specs(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      good_suite = os.path.join(tmpdir, 'good.yaml')
+      with open(good_suite, 'w') as fout:
+        fout.write(PASSING_TEST_SUITE)
+      bad_suite = os.path.join(tmpdir, 'bad.yaml')
+      with open(bad_suite, 'w') as fout:
+        fout.write(FAILING_TEST_SUITE)
+
+      # Must pass.
+      main.run_tests([
+          '--yaml_pipeline',
+          TEST_PIPELINE,
+          '--test_suite',
+          good_suite,
+      ],
+                     exit=False)
+
+      # Must fail. (Ensures testing is not a no-op.)
+      with self.assertRaisesRegex(Exception, 'errors=1 failures=0'):
+        main.run_tests([
+            '--yaml_pipeline',
+            TEST_PIPELINE,
+            '--test_suite',
+            bad_suite,
+        ],
+                       exit=False)
 
 
 if __name__ == '__main__':
