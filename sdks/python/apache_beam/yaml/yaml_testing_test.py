@@ -26,10 +26,10 @@ SIMPLE_PIPELINE = '''
 pipeline:
   type: chain
   transforms:
-    - type: Create
-      name: MyCreate
+    - type: ReadFromText
+      name: MyRead
       config:
-        elements: ['unsquarable']
+        path: 'does_not_exist.txt'
     - type: MapToFields
       name: MyMapToFields
       config:
@@ -101,7 +101,7 @@ class YamlTestingTest(unittest.TestCase):
         SIMPLE_PIPELINE,
         {
             'mock_outputs': [{
-                'name': 'MyCreate',
+                'name': 'MyRead',
                 'elements': [1, 2, 3],
             }],
             'expected_inputs': [{
@@ -126,7 +126,7 @@ class YamlTestingTest(unittest.TestCase):
           SIMPLE_PIPELINE,
           {
               'mock_outputs': [{
-                  'name': 'MyCreate',
+                  'name': 'MyRead',
                   'elements': [1, 2, 3],
               }],
               'expected_inputs': [{
@@ -137,6 +137,27 @@ class YamlTestingTest(unittest.TestCase):
                       },
                       {
                           'element': 2, 'square': 4
+                      },
+                  ]
+              }]
+          })
+
+  def test_unmocked_inputs(self):
+    with self.assertRaisesRegex(Exception, 'Non-mocked source MyRead'):
+      yaml_testing.run_test(
+          SIMPLE_PIPELINE,
+          {
+              'expected_inputs': [{
+                  'name': 'ToBeExcluded',
+                  'elements': [
+                      {
+                          'element': 1, 'square': 1
+                      },
+                      {
+                          'element': 2, 'square': 4
+                      },
+                      {
+                          'element': 3, 'square': 9
                       },
                   ]
               }]

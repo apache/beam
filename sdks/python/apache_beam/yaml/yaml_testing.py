@@ -40,6 +40,16 @@ def run_test(pipeline_spec, test_spec):
       yaml_transform.pipeline_as_composite(pipeline_spec['pipeline']),
       test_spec)
 
+  allowed_sources = set(test_spec.get('allowed_sources', []) + ['Create'])
+  for transform in transform_spec['transforms']:
+    name_or_type = transform.get('name', transform['type'])
+    if (not yaml_transform.empty_if_explicitly_empty(transform.get('input', []))
+        and not transform.get('name') in allowed_sources and
+        not transform['type'] in allowed_sources):
+      raise ValueError(
+          f'Non-mocked source {name_or_type} '
+          f'at line {yaml_transform.SafeLineLoader.get_line(transform)}')
+
   options = beam.options.pipeline_options.PipelineOptions(
       pickle_library='cloudpickle',
       **yaml_transform.SafeLineLoader.strip_metadata(
