@@ -40,7 +40,7 @@ See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page
 &lt;ul>
 &lt;li>[Python] Reshuffle now correctly respects user-specified type hints, fixing a previous bug where it might use FastPrimitivesCoder wrongly. This change could break pipelines with incorrect type hints in Reshuffle. If you have issues after upgrading, temporarily set update_compatibility_version to a previous Beam version to use the old behavior. The recommended solution is to fix the type hints in your code. (&lt;a href="https://github.com/apache/beam/pull/33932">#33932&lt;/a>)&lt;/li>
 &lt;li>[Java] SparkReceiver 2 has been moved to SparkReceiver 3 that supports Spark 3.x. (&lt;a href="https://github.com/apache/beam/pull/33574">#33574&lt;/a>)&lt;/li>
-&lt;li>[Python] Correct parsing of &lt;code>collections.abc.Sequence&lt;/code> type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a &lt;code>Sequence&lt;/code> type hint after a GroupByKey or a CoGroupByKey. (&lt;a href="https://github.com/apache/beam/pull/33999">#33999&lt;/a>.&lt;/li>
+&lt;li>[Python] Correct parsing of &lt;code>collections.abc.Sequence&lt;/code> type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a &lt;code>Sequence&lt;/code> type hint after a GroupByKey or a CoGroupByKey. (&lt;a href="https://github.com/apache/beam/pull/33999">#33999&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="bugfixes">Bugfixes&lt;/h2>
 &lt;ul>
@@ -58,58 +58,58 @@ See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.64.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud
-akashorabek
-Arun Pandian
-Bentsi Leviav
-Chamikara Jayalath
-Charles Nguyen
-Claire McGinty
-claudevdm
-Damon
-Danny McCormick
-darshan-sj
-Derrick Williams
-fozzie15
-Hai Joey Tran
-Jack McCluskey
-Jozef Vilcek
-jrmccluskey
-Kenneth Knowles
-Liam Miller-Cushon
-liferoad
-Luv Agarwal
-martin trieu
-Matar
-Matthew Suozzo
-Michel Davit
-Minbo Bae
-Mohamed Awnallah
-Naireen Hussain
-Pablo Rodriguez Defino
-Radosław Stankiewicz
-Rakesh Kumar
-Reuven Lax
-Robert Bradshaw
-Robert Burke
-Rohit
-Rohit Sinha
-Sam Whittle
-Saumil Patel
-Shunping Huang
-So-shi Nakachi
-Steven van Rossum
-Suvrat Acharya
-Svetak Sundhar
-synenka
-Talat UYARER
-tvalentyn
-twosom
-utkarshparekh
-Vitaly Terentyev
-XQ Hu
-Yi Hu
-Zilin Du&lt;/p></description><link>/blog/beam-2.64.0/</link><pubDate>Mon, 31 Mar 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.64.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.63.0</title><description>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>akashorabek&lt;/p>
+&lt;p>Arun Pandian&lt;/p>
+&lt;p>Bentsi Leviav&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Charles Nguyen&lt;/p>
+&lt;p>Claire McGinty&lt;/p>
+&lt;p>claudevdm&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>darshan-sj&lt;/p>
+&lt;p>Derrick Williams&lt;/p>
+&lt;p>fozzie15&lt;/p>
+&lt;p>Hai Joey Tran&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jozef Vilcek&lt;/p>
+&lt;p>jrmccluskey&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Liam Miller-Cushon&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>Luv Agarwal&lt;/p>
+&lt;p>martin trieu&lt;/p>
+&lt;p>Matar&lt;/p>
+&lt;p>Matthew Suozzo&lt;/p>
+&lt;p>Michel Davit&lt;/p>
+&lt;p>Minbo Bae&lt;/p>
+&lt;p>Mohamed Awnallah&lt;/p>
+&lt;p>Naireen Hussain&lt;/p>
+&lt;p>Pablo Rodriguez Defino&lt;/p>
+&lt;p>Radosław Stankiewicz&lt;/p>
+&lt;p>Rakesh Kumar&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Rohit&lt;/p>
+&lt;p>Rohit Sinha&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Saumil Patel&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>So-shi Nakachi&lt;/p>
+&lt;p>Steven van Rossum&lt;/p>
+&lt;p>Suvrat Acharya&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>synenka&lt;/p>
+&lt;p>Talat UYARER&lt;/p>
+&lt;p>tvalentyn&lt;/p>
+&lt;p>twosom&lt;/p>
+&lt;p>utkarshparekh&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>XQ Hu&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>Zilin Du&lt;/p></description><link>/blog/beam-2.64.0/</link><pubDate>Mon, 31 Mar 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.64.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.63.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
