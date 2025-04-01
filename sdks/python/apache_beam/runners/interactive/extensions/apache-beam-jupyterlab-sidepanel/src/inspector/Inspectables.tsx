@@ -72,7 +72,7 @@ export class Inspectables extends React.Component<
     if (
       Object.keys(inspectablesToUpdate).length &&
       JSON.stringify(this.state.inspectables) !==
-        JSON.stringify(inspectablesToUpdate)
+      JSON.stringify(inspectablesToUpdate)
     ) {
       this.setState({ inspectables: inspectablesToUpdate });
     }
@@ -99,6 +99,6 @@ export class Inspectables extends React.Component<
 
   private _inspectKernelCode: string;
   private _model: KernelModel;
-  private _queryKernelTimerId: number;
-  private _updateRenderTimerId: number;
+  private _queryKernelTimerId: ReturnType<typeof setInterval>;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }
