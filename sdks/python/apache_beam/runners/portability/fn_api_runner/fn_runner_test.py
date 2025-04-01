@@ -1446,7 +1446,7 @@ class FnApiRunnerTest(unittest.TestCase):
 # the sampling counter.
 class FnApiRunnerMetricsTest(unittest.TestCase):
   def assert_has_counter(
-      self, mon_infos, urn, labels, value=None, ge_value=None):
+      self, mon_infos, urn, labels, value=None, ge_value=None, total_stages=1):
     # TODO(ajamato): Consider adding a matcher framework
     found = 0
     matches = []
@@ -1464,7 +1464,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     ge_value_str = {'ge_value': ge_value} if ge_value else ''
     value_str = {'value': value} if value else ''
     self.assertEqual(
-        1,
+        total_stages,
         found,
         "Found (%s, %s) Expected only 1 monitoring_info for %s." % (
             found,
@@ -1473,7 +1473,15 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         ))
 
   def assert_has_distribution(
-      self, mon_infos, urn, labels, sum=None, count=None, min=None, max=None):
+      self,
+      mon_infos,
+      urn,
+      labels,
+      sum=None,
+      count=None,
+      min=None,
+      max=None,
+      total_stages=1):
     # TODO(ajamato): Consider adding a matcher framework
     sum = _matcher_or_equal_to(sum)
     count = _matcher_or_equal_to(count)
@@ -1508,7 +1516,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
             increment = 0
         found += increment
     self.assertEqual(
-        1,
+        total_stages,
         found,
         "Found (%s) Expected only 1 monitoring_info for %s." % (
             found,
@@ -1597,7 +1605,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           counters,
           monitoring_infos.ELEMENT_COUNT_URN,
           labels,
-          num_source_elems)
+          num_source_elems,
+          total_stages=2)
       self.assert_has_distribution(
           counters,
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
@@ -1605,7 +1614,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
-          count=hamcrest.greater_than(0))
+          count=hamcrest.greater_than(0),
+          total_stages=2)
 
       # GenerateTwoOutputs, "SecondOutput" output.
       labels = {
@@ -1615,7 +1625,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           counters,
           monitoring_infos.ELEMENT_COUNT_URN,
           labels,
-          2 * num_source_elems)
+          2 * num_source_elems,
+          total_stages=2)
       self.assert_has_distribution(
           counters,
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
@@ -1623,7 +1634,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
-          count=hamcrest.greater_than(0))
+          count=hamcrest.greater_than(0),
+          total_stages=2)
 
       # GenerateTwoOutputs, "ThirdOutput" output.
       labels = {
@@ -1633,7 +1645,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           counters,
           monitoring_infos.ELEMENT_COUNT_URN,
           labels,
-          num_source_elems)
+          num_source_elems,
+          total_stages=2)
       self.assert_has_distribution(
           counters,
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
@@ -1641,7 +1654,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
-          count=hamcrest.greater_than(0))
+          count=hamcrest.greater_than(0),
+          total_stages=2)
 
       # Skipping other pcollections due to non-deterministic naming for multiple
       # outputs.
@@ -1653,7 +1667,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           counters,
           monitoring_infos.ELEMENT_COUNT_URN,
           labels,
-          4 * num_source_elems)
+          4 * num_source_elems,
+          total_stages=2)
       self.assert_has_distribution(
           counters,
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
@@ -1661,7 +1676,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
-          count=hamcrest.greater_than(0))
+          count=hamcrest.greater_than(0),
+          total_stages=2)
 
       # PassThrough, main output
       labels = {
