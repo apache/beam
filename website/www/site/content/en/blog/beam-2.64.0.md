@@ -49,7 +49,7 @@ For more information on changes in 2.64.0, check out the [detailed release notes
 
 * [Python] Reshuffle now correctly respects user-specified type hints, fixing a previous bug where it might use FastPrimitivesCoder wrongly. This change could break pipelines with incorrect type hints in Reshuffle. If you have issues after upgrading, temporarily set update_compatibility_version to a previous Beam version to use the old behavior. The recommended solution is to fix the type hints in your code. ([#33932](https://github.com/apache/beam/pull/33932))
 * [Java] SparkReceiver 2 has been moved to SparkReceiver 3 that supports Spark 3.x. ([#33574](https://github.com/apache/beam/pull/33574))
-* [Python] Correct parsing of `collections.abc.Sequence` type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a `Sequence` type hint after a GroupByKey or a CoGroupByKey. ([#33999](https://github.com/apache/beam/pull/33999).
+* [Python] Correct parsing of `collections.abc.Sequence` type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a `Sequence` type hint after a GroupByKey or a CoGroupByKey. ([#33999](https://github.com/apache/beam/pull/33999)).
 
 ## Bugfixes
 
@@ -70,54 +70,105 @@ For more information on changes in 2.64.0, check out the [detailed release notes
 According to git shortlog, the following people contributed to the 2.64.0 release. Thank you to all contributors!
 
 Ahmed Abualsaud
+
 akashorabek
+
 Arun Pandian
+
 Bentsi Leviav
+
 Chamikara Jayalath
+
 Charles Nguyen
+
 Claire McGinty
+
 claudevdm
+
 Damon
+
 Danny McCormick
+
 darshan-sj
+
 Derrick Williams
+
 fozzie15
+
 Hai Joey Tran
+
 Jack McCluskey
+
 Jozef Vilcek
+
 jrmccluskey
+
 Kenneth Knowles
+
 Liam Miller-Cushon
+
 liferoad
+
 Luv Agarwal
+
 martin trieu
+
 Matar
+
 Matthew Suozzo
+
 Michel Davit
+
 Minbo Bae
+
 Mohamed Awnallah
+
 Naireen Hussain
+
 Pablo Rodriguez Defino
+
 Radosław Stankiewicz
+
 Rakesh Kumar
+
 Reuven Lax
+
 Robert Bradshaw
+
 Robert Burke
+
 Rohit
+
 Rohit Sinha
+
 Sam Whittle
+
 Saumil Patel
+
 Shunping Huang
+
 So-shi Nakachi
+
 Steven van Rossum
+
 Suvrat Acharya
+
 Svetak Sundhar
+
 synenka
+
 Talat UYARER
+
 tvalentyn
+
 twosom
+
 utkarshparekh
+
 Vitaly Terentyev
+
 XQ Hu
+
 Yi Hu
+
 Zilin Du
