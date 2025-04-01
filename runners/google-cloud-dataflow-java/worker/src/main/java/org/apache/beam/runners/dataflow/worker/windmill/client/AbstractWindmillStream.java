@@ -246,7 +246,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    *     serially. If we recently sent a message before we attempt to schedule the health check, the
    *     stream has been restarted/closed, there is a scheduled health check that hasn't completed
    *     or there was a more recent send by the time we enter the synchronized block, we skip the
-   *     attempt to send scheduled the health check.
+   *     attempt to send the health check.
    */
   public final void maybeScheduleHealthCheck(Instant lastSendThreshold) {
     if (debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()
@@ -255,17 +255,17 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       executeSafely(
           () -> {
             synchronized (this) {
-              if (!clientClosed
-                  && debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()) {
-                try {
+              try {
+                if (!clientClosed
+                    && debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()) {
                   sendHealthCheck();
-                } catch (Exception e) {
-                  logger.debug("Received exception sending health check.", e);
                 }
+              } catch (Exception e) {
+                logger.debug("Received exception sending health check.", e);
+              } finally {
+                // Ready to send another health check after we attempt the scheduled health check.
+                isHealthCheckScheduled.set(false);
               }
-
-              // Ready to send another health check after we attempt the scheduled health check.
-              isHealthCheckScheduled.set(false);
             }
           });
     }
@@ -286,11 +286,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         .ifPresent(
             metrics ->
                 writer.format(
-                    ", %d restarts, last restart reason [ %s ] at [%s], %d errors",
+                    ", %d restarts, last restart reason [ %s ] at [%s], %d errors, isHealthCheckScheduled=[%s]",
                     metrics.restartCount(),
                     metrics.lastRestartReason(),
                     metrics.lastRestartTime().orElse(null),
-                    metrics.errorCount()));
+                    metrics.errorCount(),
+                    isHealthCheckScheduled.get()));
 
     if (summaryMetrics.isClientClosed()) {
       writer.write(", client closed");

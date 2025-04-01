@@ -117,9 +117,6 @@ public class AbstractWindmillStreamTest {
       throw new RuntimeException(e);
     }
 
-    // Sleep a bit to give sendExecutor time to execute the send().
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-
     // Set a really long reporting threshold.
     Instant reportingThreshold = Instant.now().minus(Duration.standardHours(1));
 
@@ -129,7 +126,8 @@ public class AbstractWindmillStreamTest {
     testStream.maybeScheduleHealthCheck(reportingThreshold);
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
 
-    callStreamObserver.waitForSend();
+    callStreamObserver.waitForSends(1);
+    // Sleep just to ensure an async health check doesn't show up
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
 
     assertThat(testStream.numHealthChecks.get()).isEqualTo(0);
@@ -204,6 +202,7 @@ public class AbstractWindmillStreamTest {
   private static class TestCallStreamObserver extends CallStreamObserver<Integer> {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
     private final CountDownLatch sendBlocker = new CountDownLatch(1);
+    private final AtomicInteger numSends = new AtomicInteger();
 
     private final boolean waitForSend;
 
@@ -215,12 +214,12 @@ public class AbstractWindmillStreamTest {
       sendBlocker.countDown();
     }
 
-    private void waitForSend() {
+    private void waitForSendUnblocked() {
       try {
         int waitedMillis = 0;
         while (!sendBlocker.await(100, TimeUnit.MILLISECONDS)) {
           waitedMillis += 100;
-          LOG.info("Waiting from send for {}ms", waitedMillis);
+          LOG.info("Waiting from send to be unblocked for {}ms", waitedMillis);
         }
       } catch (InterruptedException e) {
         LOG.error("Interrupted waiting for send().");
@@ -230,9 +229,19 @@ public class AbstractWindmillStreamTest {
     @Override
     public void onNext(Integer integer) {
       if (waitForSend) {
-        waitForSend();
+        waitForSendUnblocked();
       } else {
-        sendBlocker.countDown();
+        numSends.incrementAndGet();
+      }
+    }
+
+    private void waitForSends(int expectedSends) {
+      int millisWaited = 0;
+      while (numSends.get() < expectedSends) {
+        LOG.info(
+            "Waited {}ms for {} sends, current sends: {}", millisWaited, expectedSends, numSends);
+        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+        millisWaited += 100;
       }
     }
 
