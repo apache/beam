@@ -268,7 +268,7 @@ inspect.signature(MyTransform)
 #	     bar: "int: Description of what bar does....")
 ```
 
-This metadata is generated directly from the provider's implementation. The class documentation is generated from the [optional **description** method](#additional-metadata). The signature information is generated from the `@SchemaFieldDescription` annotations in the [configuration object](#implement-a-configuration).
+This metadata is generated directly from the provider's implementation. The class documentation is generated from the [optional **description** method](#additional-metadata-optional). The signature information is generated from the `@SchemaFieldDescription` annotations in the [configuration object](#implement-a-configuration).
 
 ## Appendix
 
