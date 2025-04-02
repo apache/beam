@@ -24,6 +24,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assume.assumeFalse;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -96,7 +99,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -155,6 +160,8 @@ public class KafkaIOIT {
   private static final int BUFFER_MEMORY_CONFIG = 100554432;
 
   private static final int RETRY_BACKOFF_MS_CONFIG = 5000;
+  private static String bootstrapServers;
+  private static String topicName = "test-topic";
 
   private static SyntheticSourceOptions sourceOptions;
 
@@ -169,6 +176,8 @@ public class KafkaIOIT {
   @Rule public TestPipeline writePipeline2 = TestPipeline.create();
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
+
+  @Rule public TestPipeline keyPipeline = TestPipeline.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -272,6 +281,77 @@ public class KafkaIOIT {
     // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaReadWithKeyMetadata() {
+    // 1. Produce test data to Kafka
+    Properties producerProps = new Properties();
+    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    producerProps.put(
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+    producerProps.put(
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+
+    try (KafkaProducer<byte[], byte[]> producer = new KafkaProducer<>(producerProps)) {
+      producer.send(
+          new ProducerRecord<>(
+              topicName,
+              "key1".getBytes(StandardCharsets.UTF_8),
+              "value1".getBytes(StandardCharsets.UTF_8)));
+      producer.send(
+          new ProducerRecord<>(
+              topicName,
+              "key2".getBytes(Charset.defaultCharset()),
+              "value2".getBytes(Charset.defaultCharset())));
+    }
+
+    // 2. Define the expected schema for the output Rows
+    Schema expectedSchema =
+        Schema.builder()
+            .addField("key", Schema.FieldType.BYTES)
+            .addField("payload", Schema.FieldType.BYTES)
+            .build();
+
+    // 3. Read from Kafka using KafkaIO
+    PCollection<Row> output =
+        keyPipeline
+            .apply(
+                "Read from Kafka",
+                KafkaIO.<byte[], byte[]>read()
+                    .withBootstrapServers(bootstrapServers)
+                    .withTopic(topicName)
+                    .withKeyDeserializer(ByteArrayDeserializer.class)
+                    .withValueDeserializer(ByteArrayDeserializer.class))
+            .apply(
+                ParDo.of(
+                    new DoFn<KafkaRecord<byte[], byte[]>, Row>() { // Process the KV<byte[], byte[]>
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<byte[], byte[]> element, OutputReceiver<Row> receiver) {
+                        receiver.output(
+                            Row.withSchema(expectedSchema)
+                                .addValues(element.getKey(), element.getValue())
+                                .build());
+                      }
+                    }));
+
+    // 4. Assert the output PCollection<Row>
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Row.withSchema(expectedSchema)
+                .addValues(
+                    "key1".getBytes(StandardCharsets.UTF_8),
+                    "value1".getBytes(StandardCharsets.UTF_8))
+                .build(),
+            Row.withSchema(expectedSchema)
+                .addValues(
+                    "key2".getBytes(StandardCharsets.UTF_8),
+                    "value2".getBytes(StandardCharsets.UTF_8))
+                .build());
+
+    // 5. Run the pipeline
+    keyPipeline.run().waitUntilFinish();
   }
 
   @Test
