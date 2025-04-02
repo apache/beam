@@ -1228,10 +1228,7 @@ __NOTE__: This can only be done from `@apache.org` email address. This email has
 
 ### Social media
 
-Tweet, post on Facebook, LinkedIn, and other platforms.
-Ask other contributors to do the same.
-
-Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
+Update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
 
 ### Checklist to declare the process completed
 
