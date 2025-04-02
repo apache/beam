@@ -24,9 +24,12 @@ import static org.junit.Assert.assertTrue;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Map;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -47,6 +50,44 @@ public class ManagedSchemaTransformProviderTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Please specify a config or a config URL, but not both");
     config.validate();
+  }
+
+  @Test
+  public void testFailWhenUnknownFieldsSpecified() {
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "extra_string", "str",
+            "extra_integer", 123,
+            "unknown_field", "unknown");
+    ManagedSchemaTransformProvider.ManagedConfig managedConfig =
+        ManagedSchemaTransformProvider.ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfig(YamlUtils.yamlStringFromMap(config))
+            .build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid config for transform");
+    thrown.expectMessage(TestSchemaTransformProvider.IDENTIFIER);
+    thrown.expectMessage("Contains unknown fields");
+    thrown.expectMessage("unknown_field");
+    new ManagedSchemaTransformProvider(null).from(managedConfig);
+  }
+
+  @Test
+  public void testFailWhenMissingRequiredFields() {
+    Map<String, Object> config = ImmutableMap.of("extra_string", "str");
+    ManagedSchemaTransformProvider.ManagedConfig managedConfig =
+        ManagedSchemaTransformProvider.ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfig(YamlUtils.yamlStringFromMap(config))
+            .build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid config for transform");
+    thrown.expectMessage(TestSchemaTransformProvider.IDENTIFIER);
+    thrown.expectMessage("Missing required fields");
+    thrown.expectMessage("extra_integer");
+    new ManagedSchemaTransformProvider(null).from(managedConfig);
   }
 
   @Test

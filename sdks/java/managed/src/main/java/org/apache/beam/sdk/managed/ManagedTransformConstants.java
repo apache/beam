@@ -20,7 +20,7 @@ package org.apache.beam.sdk.managed;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import java.util.Map;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ManagedTransforms.Urns;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -62,15 +62,11 @@ public class ManagedTransformConstants {
           .put("triggering_frequency", "triggering_frequency_seconds")
           .build();
 
-  public static final Map<String, Map<String, String>> MAPPINGS =
+  public static final Map<String, Map<String, String>> CONFIG_NAME_OVERRIDES =
       ImmutableMap.<String, Map<String, String>>builder()
-          .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ), KAFKA_READ_MAPPINGS)
-          .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE), KAFKA_WRITE_MAPPINGS)
-          .put(
-              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ),
-              BIGQUERY_READ_MAPPINGS)
-          .put(
-              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE),
-              BIGQUERY_WRITE_MAPPINGS)
+          .put(getUrn(Urns.KAFKA_READ), KAFKA_READ_MAPPINGS)
+          .put(getUrn(Urns.KAFKA_WRITE), KAFKA_WRITE_MAPPINGS)
+          .put(getUrn(Urns.BIGQUERY_READ), BIGQUERY_READ_MAPPINGS)
+          .put(getUrn(Urns.BIGQUERY_WRITE), BIGQUERY_WRITE_MAPPINGS)
           .build();
 }
