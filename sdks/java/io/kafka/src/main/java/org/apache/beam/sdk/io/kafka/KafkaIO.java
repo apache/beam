@@ -1786,7 +1786,7 @@ public class KafkaIO {
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
-                .withValueDeserializerProviderAndCoder(kafkaRead.getValueDeserializerProvider(),kafkaRead.getValueCoder() )
+                .withValueDeserializerProviderAndCoder(kafkaRead.getValueDeserializerProvider(),kafkaRead.getValueCoder())
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
@@ -2375,7 +2375,7 @@ public class KafkaIO {
     }
 
     public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
-        @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+        @Nullable DeserializerProvider<V> deserializerProvider, @Nullable Coder<V> valueCoder) {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).setValueCoder(valueCoder).build();
     }
 
