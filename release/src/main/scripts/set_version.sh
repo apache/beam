@@ -25,7 +25,7 @@
 set -e
 
 function usage() {
-  echo 'Usage: set_version.sh <version> [--release] [--debug] [--git-add] [--add-tag]'
+  echo 'Usage: set_version.sh <version> [--release] [--debug] [--git-add]'
 }
 
 IS_SNAPSHOT_VERSION=yes
@@ -50,11 +50,6 @@ while [[ $# -gt 0 ]] ; do
       shift
       ;;
 
-      --add-tag)
-      shift
-      ADD_TAG="$1"
-      shift
-      ;;
       *)
       if [[ -z "$TARGET_VERSION" ]] ; then
         TARGET_VERSION="$1"
@@ -77,11 +72,6 @@ fi
 if ! [[ ${TARGET_VERSION} =~ ([0-9]+\.[0-9]+\.[0-9]+) ]];
   then  echo "The input for TARGET_VERSION: ${TARGET_VERSION} does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
   exit 1
-fi
-
-if [[ -n $ADD_TAG ]] ; then
-  git tag -a "$ADD_TAG"
-
 fi
 
 if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
