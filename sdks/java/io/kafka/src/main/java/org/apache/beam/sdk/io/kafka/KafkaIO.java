@@ -1786,7 +1786,7 @@ public class KafkaIO {
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
-                .withValueDeserializerProviderAndCoder(kafkaRead.getValueDeserializerProvider(), KafkaRead.getValueCoder())
+                .withValueDeserializerProviderAndCoder(kafkaRead.getValueDeserializerProvider(),kafkaRead.getValueCoder() )
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
