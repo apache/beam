@@ -22,7 +22,7 @@ Apache Beam's powerful model enables the development of scalable, resilient, and
 
 With SDKs available in multiple languages (Java, Python, Golang, YAML, etc.), creating and maintaining transforms for each language becomes a challenge, particularly for IOs. Developers must navigate different APIs, address unique quirks, and manage ongoing maintenance—such as updates, new features, and documentation—while ensuring consistent behavior across SDKs. This results in redundant work, as the same functionality is implemented repeatedly for each language (M x N effort, where M is the number of SDKs and N is the number of transforms).
 
-To streamline this process, Beam’s portability framework enables the use of portable transforms that can be shared across languages. This reduces duplication, allowing developers to focus on maintaining only N transforms. Pipelines combining [portable transforms](#portable-transform) from other SDK(s) are known as [“multi-language” pipelines](../programming-guide.md#13-multi-language-pipelines-multi-language-pipelines).
+To streamline this process, Beam’s portability framework enables the use of portable transforms that can be shared across languages. This reduces duplication, allowing developers to focus on maintaining only N transforms. Pipelines combining [portable transforms](#portable-transform) from other SDK(s) are known as [“multi-language” pipelines](../../programming-guide/#13-multi-language-pipelines-multi-language-pipelines).
 
 The SchemaTransform framework represents the latest advancement in enhancing this multi-language capability.
 
@@ -30,7 +30,7 @@ The following jumps straight into the guide. Check out the [appendix](#appendix)
 
 ## Create a Java SchemaTransform
 
-For better readability, use [**TypedSchemaTransformProvider**](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/schemas/transforms/TypedSchemaTransformProvider.html), a [SchemaTransformProvider](#schematransformprovider) parameterized on a custom configuration type `T`. TypedSchemaTransformProvider will take care of converting the custom type definition to a Beam [Schema](../basics.md#schema), and converting an instance to a Beam Row.
+For better readability, use [**TypedSchemaTransformProvider**](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/schemas/transforms/TypedSchemaTransformProvider.html), a [SchemaTransformProvider](#schematransformprovider) parameterized on a custom configuration type `T`. TypedSchemaTransformProvider will take care of converting the custom type definition to a Beam [Schema](../../basics/#schema), and converting an instance to a Beam Row.
 
 ```java
 TypedSchemaTransformProvider<T> extends SchemaTransformProvider {
@@ -93,7 +93,7 @@ pipeline:
 ### Implement a TypedSchemaTransformProvider
 Next, implement the `TypedSchemaTransformProvider`. The following two methods are required:
 
-- `identifier`: Returns a unique identifier for this transform. The [Beam standard](../programming-guide.md#1314-defining-a-urn) follows this structure: `<namespace>:<org>:<functionality>:<version>`.
+- `identifier`: Returns a unique identifier for this transform. The [Beam standard](../../programming-guide/#1314-defining-a-urn) follows this structure: `<namespace>:<org>:<functionality>:<version>`.
 - `from`: Builds the transform using a provided configuration.
 
 An [expansion service](#expansion-service) uses these methods to find and build the transform. The `@AutoService(SchemaTransformProvider.class)` annotation is also required to ensure this provider is recognized by the expansion service.
@@ -274,7 +274,7 @@ This metadata is generated directly from the provider's implementation. The clas
 
 ### Portable transform
 
-Also known as a [cross-language transform](../glossary.md#cross-language-transforms): a transform that is made available to other SDKs (i.e. other languages) via an expansion service. Such a transform must offer a way to be constructed using language-agnostic parameter types.
+Also known as a [cross-language transform](../../glossary/#cross-language-transforms): a transform that is made available to other SDKs (i.e. other languages) via an expansion service. Such a transform must offer a way to be constructed using language-agnostic parameter types.
 
 ### Expansion Service
 
