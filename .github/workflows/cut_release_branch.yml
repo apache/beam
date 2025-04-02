@@ -56,6 +56,7 @@ jobs:
           if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+) ]]; then
             echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
             echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
+            echo "RELEASE_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}.0" >> $GITHUB_ENV
           else
             echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+"
             exit 1
