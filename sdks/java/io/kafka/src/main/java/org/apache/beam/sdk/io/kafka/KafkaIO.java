@@ -1784,10 +1784,8 @@ public class KafkaIO {
                 .withConsumerConfigOverrides(kafkaRead.getConsumerConfig())
                 .withOffsetConsumerConfigOverrides(kafkaRead.getOffsetConsumerConfig())
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
-                .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withKeyDeserializerProviderAndCoder(
                     kafkaRead.getKeyDeserializerProvider(), keyCoder)
-                .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withValueDeserializerProviderAndCoder(
                     kafkaRead.getValueDeserializerProvider(), valueCoder)
                 .withManualWatermarkEstimator()
@@ -2367,32 +2365,6 @@ public class KafkaIO {
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
-        @Nullable DeserializerProvider<K> deserializerProvider) {
-      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
-    }
-
-    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
-        @Nullable DeserializerProvider<V> deserializerProvider) {
-      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
-    }
-
-    public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
-        @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
-      return toBuilder()
-          .setValueDeserializerProvider(deserializerProvider)
-          .setValueCoder(valueCoder)
-          .build();
-    }
-
-    public ReadSourceDescriptors<K, V> withKeyDeserializerProviderAndCoder(
-        @Nullable DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
-      return toBuilder()
-          .setKeyDeserializerProvider(deserializerProvider)
-          .setKeyCoder(keyCoder)
-          .build();
-    }
-
     /**
      * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
      *
@@ -2404,6 +2376,31 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withKeyDeserializer(
         Class<? extends Deserializer<K>> keyDeserializer) {
       return withKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
+     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
+     *
+     * <p>Use this method to override the coder inference performed within {@link
+     * #withKeyDeserializer(Class)}.
+     */
+    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
+        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
+      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
+        @Nullable DeserializerProvider<K> deserializerProvider) {
+      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
+      return toBuilder()
+          .setKeyDeserializerProvider(deserializerProvider)
+          .setKeyCoder(keyCoder)
+          .build();
     }
 
     /**
@@ -2420,18 +2417,6 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
-     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
-     *
-     * <p>Use this method to override the coder inference performed within {@link
-     * #withKeyDeserializer(Class)}.
-     */
-    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
-        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
-      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
-    }
-
-    /**
      * Sets a Kafka {@link Deserializer} for interpreting value bytes read from Kafka along with a
      * {@link Coder} for helping the Beam runner materialize value objects at runtime if necessary.
      *
@@ -2441,6 +2426,19 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
       return withValueDeserializer(valueDeserializer).toBuilder().setValueCoder(valueCoder).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
+        @Nullable DeserializerProvider<V> deserializerProvider) {
+      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+      return toBuilder()
+          .setValueDeserializerProvider(deserializerProvider)
+          .setValueCoder(valueCoder)
+          .build();
     }
 
     /**
