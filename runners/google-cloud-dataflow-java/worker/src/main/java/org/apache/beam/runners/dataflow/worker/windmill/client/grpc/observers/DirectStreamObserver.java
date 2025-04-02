@@ -161,7 +161,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
 
         if (totalSecondsWaited > OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS) {
           LOG.info(
-              "Output channel stalled for {}s, outbound thread {}.",
+              "Output channel stalled for {}s waiting to be ready, outbound thread {}.",
               totalSecondsWaited,
               Thread.currentThread().getName());
         }
@@ -220,10 +220,9 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
     return inactivityTimeout > 0
         ? "Waited "
             + totalSecondsWaited
-            + "s which exceeds given deadline of "
+            + "s which exceeds given timeout of "
             + inactivityTimeout
-            + "s for the outboundObserver to become ready meaning "
-            + "that the stream deadline was not respected."
+            + "s for the outboundObserver to become ready."
         : "Output channel has been blocked for "
             + totalSecondsWaited
             + "s. Restarting stream internally.";
