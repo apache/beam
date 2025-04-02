@@ -69,7 +69,7 @@ require (
 )
 
 require (
-	github.com/avast/retry-go/v4 v4.6.0
+	github.com/avast/retry-go/v4 v4.6.1
 	github.com/fsouza/fake-gcs-server v1.52.2
 	github.com/golang-cz/devslog v0.0.11
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
