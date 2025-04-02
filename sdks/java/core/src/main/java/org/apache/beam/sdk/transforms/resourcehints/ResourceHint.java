@@ -25,11 +25,12 @@ public abstract class ResourceHint {
   /**
    * Reconciles values of a hint when the hint specified on a transform is also defined in an outer
    * context, for example on a composite transform, or specified in the transform's execution
-   * environment. Override this method for a custom reconciliation logic.
+   * environment. Override this method for a custom reconciliation logic. If is_inverse is true the
+   * merge result will be flipped.
    */
-  public ResourceHint mergeWithOuter(ResourceHint outer) {
+  public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_inverse) {
     // Defaults to the inner value as it is the most specific one.
-    return this;
+    return is_inverse ? outer : this;
   }
 
   /** Defines how to represent the as bytestring. */

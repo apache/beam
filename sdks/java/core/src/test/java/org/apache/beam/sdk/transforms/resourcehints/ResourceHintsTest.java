@@ -94,11 +94,16 @@ public class ResourceHintsTest implements Serializable {
         PipelineOptionsFactory.fromArgs(
                 "--resourceHints=min_ram=1KB",
                 "--resourceHints=accelerator=foo",
-                "--resourceHints=cpu_count=4")
+                "--resourceHints=cpu_count=4",
+                "--resourceHints=max_active_dofn_per_worker=2")
             .as(ResourceHintsOptions.class);
     ResourceHints fromOptions = ResourceHints.fromOptions(options);
     ResourceHints expect =
-        ResourceHints.create().withMinRam(1000).withAccelerator("foo").withCPUCount(4);
+        ResourceHints.create()
+            .withMinRam(1000)
+            .withAccelerator("foo")
+            .withCPUCount(4)
+            .withMaxActiveDoFnPerWorker(2);
     assertEquals(fromOptions, expect);
   }
 }
