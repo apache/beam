@@ -284,7 +284,7 @@ provider = ExternalTransformProvider(BeamJarExpansionService(expansion_service))
 BqFileLoads = provider.get_urn(identifier)
 
 with beam.Pipeline(argv=args) as p:
-  p | beam.Create(...) | MyTransform(table="project.dataset.table")
+  p | beam.Create(...) | BqFileLoads(table="project.dataset.table")
 ```
 
 ## Appendix
