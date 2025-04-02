@@ -35,6 +35,8 @@ import sys
 import threading
 import time
 import uuid
+from abc import ABC
+from abc import abstractmethod
 from collections import OrderedDict
 from collections import defaultdict
 from copy import deepcopy
@@ -344,7 +346,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     return self.share_model_across_processes()
 
 
-class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
+class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
   """Has the ability to call a model at a remote endpoint."""
   def __init__(
       self,
@@ -399,6 +401,7 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
           "Cannot override RemoteModelHandler.run_inference, ",
           "implement request instead.")
 
+  @abstractmethod
   def create_client(self) -> ModelT:
     """Creates the client that is used to make the remote inference request
     in request(). All relevant arguments should be passed to __init__().
@@ -451,6 +454,7 @@ class RemoteModelHandler(ModelHandler[ExampleT, PredictionT, ModelT]):
       self.logger.error("exception raised as part of request, got %s", e)
       raise
 
+  @abstractmethod
   def request(
       self,
       batch: Sequence[ExampleT],
