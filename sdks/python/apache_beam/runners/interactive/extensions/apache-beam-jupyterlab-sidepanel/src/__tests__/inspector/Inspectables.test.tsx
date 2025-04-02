@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { Inspectables } from '../../inspector/Inspectables';
 
@@ -30,13 +30,15 @@ jest.mock('../../inspector/InspectableList', () => {
 });
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
   jest.clearAllMocks();
@@ -46,7 +48,7 @@ it('renders info message about no inspectable when none is available', () => {
   const inspectablesRef: React.RefObject<Inspectables> =
     React.createRef<Inspectables>();
   act(() => {
-    render(<Inspectables ref={inspectablesRef} />, container);
+    root.render(<Inspectables ref={inspectablesRef} />);
     const inspectables = inspectablesRef.current;
     if (inspectables) {
       inspectables.setState({ inspectables: {} });
@@ -93,7 +95,7 @@ it('renders inspectables as a list of collapsible lists', () => {
     }
   };
   act(() => {
-    render(<Inspectables ref={inspectablesRef} />, container);
+    root.render(<Inspectables ref={inspectablesRef} />);
     const inspectables = inspectablesRef.current;
     if (inspectables) {
       inspectables.setState({ inspectables: testData });

@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InterruptKernelButton } from '../../kernel/InterruptKernelButton';
 
@@ -24,15 +24,17 @@ const fakeKernelModel = {
     // do nothing.
   }
 };
-let container: null | Element = null;
 
+let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
   jest.clearAllMocks();
@@ -42,14 +44,13 @@ afterEach(() => {
 it('displays a button when the kernel model is not done with execution', () => {
   let button: InterruptKernelButton;
   act(() => {
-    render(
+    root.render(
       <InterruptKernelButton
         ref={(node): void => {
           button = node;
         }}
         model={fakeKernelModel as any}
-      />,
-      container
+      />
     );
     fakeKernelModel.isDone = false;
     if (button) {
@@ -68,7 +69,7 @@ it('displays a button when the kernel model is not done with execution', () => {
 
 it('renders nothing when the kernel model is done with execution', () => {
   act(() => {
-    render(<InterruptKernelButton model={fakeKernelModel as any} />, container);
+    root.render(<InterruptKernelButton model={fakeKernelModel as any} />);
   });
   const buttonElement: null | Element = container.firstElementChild;
   expect(buttonElement).toBe(null);
@@ -78,14 +79,13 @@ it('interrupts the kernel when clicked', () => {
   let button: InterruptKernelButton;
   const spiedInterrruptCall = jest.spyOn(fakeKernelModel, 'interruptKernel');
   act(() => {
-    render(
+    root.render(
       <InterruptKernelButton
         ref={(node): void => {
           button = node;
         }}
         model={fakeKernelModel as any}
-      />,
-      container
+      />
     );
     if (button) {
       button.onClick();

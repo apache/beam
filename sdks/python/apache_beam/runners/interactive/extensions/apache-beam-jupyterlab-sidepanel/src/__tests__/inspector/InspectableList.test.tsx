@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableList } from '../../inspector/InspectableList';
 
@@ -23,20 +23,22 @@ import { InspectableViewModel } from '../../inspector/InspectableViewModel';
 const mockedInspectableViewModel = new InspectableViewModel({} as any);
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
 });
 
 it('renders a list', () => {
   act(() => {
-    render(
+    root.render(
       <InspectableList
         inspectableViewModel={mockedInspectableViewModel as any}
         id="pipeline_id"
@@ -57,8 +59,7 @@ it('renders a list', () => {
             type: 'pcollection'
           }
         }}
-      />,
-      container
+      />
     );
   });
   const listElement: Element = container.firstElementChild;

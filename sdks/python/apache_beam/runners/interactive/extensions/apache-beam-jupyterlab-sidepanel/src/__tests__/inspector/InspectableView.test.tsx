@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableView } from '../../inspector/InspectableView';
 
@@ -24,13 +24,15 @@ import {
 } from '../../inspector/InspectableViewModel';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
 });
@@ -44,7 +46,7 @@ it('does not render options if inspecting a pipeline', () => {
     options: {} as IOptions
   } as InspectableViewModel;
   act(() => {
-    render(<InspectableView model={fakeModel} />, container);
+    root.render(<InspectableView model={fakeModel} />);
   });
   const inspectableViewElement: Element = container.firstElementChild;
   const optionsElement: Element = inspectableViewElement.firstElementChild;
@@ -66,10 +68,7 @@ it('renders options if inspecting a pcollection', () => {
     } as IOptions
   } as InspectableViewModel;
   act(() => {
-    render(
-      <InspectableView ref={inspectableViewRef} model={fakeModel} />,
-      container
-    );
+    root.render(<InspectableView ref={inspectableViewRef} model={fakeModel} />);
     const inspectableView = inspectableViewRef.current;
     if (inspectableView) {
       inspectableView.setState({
@@ -116,7 +115,7 @@ it('renders an html view', () => {
     options: {} as IOptions
   } as InspectableViewModel;
   act(() => {
-    render(<InspectableView model={fakeModel} />, container);
+    root.render(<InspectableView model={fakeModel} />);
   });
   const inspectableViewElement: Element = container.firstElementChild;
   expect(inspectableViewElement.innerHTML).toContain('<div>fake html</div>');

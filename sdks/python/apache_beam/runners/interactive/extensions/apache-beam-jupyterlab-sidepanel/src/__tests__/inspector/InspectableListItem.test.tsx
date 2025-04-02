@@ -12,27 +12,29 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableListItem } from '../../inspector/InspectableListItem';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
 });
 
 it('renders an item', () => {
   act(() => {
-    render(
+    root.render(
       <InspectableListItem
         id="id"
         metadata={{
@@ -40,8 +42,7 @@ it('renders an item', () => {
           inMemoryId: 123456,
           type: 'pcollection'
         }}
-      />,
-      container
+      />
     );
   });
   const liElement: Element = container.firstElementChild;

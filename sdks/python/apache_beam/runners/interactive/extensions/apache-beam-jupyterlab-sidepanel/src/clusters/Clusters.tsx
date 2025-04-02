@@ -234,7 +234,9 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
             label="Default cluster"
             enhanced
             options={clusterNames}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => this.setDefaultCluster(e.currentTarget.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              this.setDefaultCluster(e.currentTarget.value)
+            }
             value={this.state.defaultClusterId}
           />
           <Dialog

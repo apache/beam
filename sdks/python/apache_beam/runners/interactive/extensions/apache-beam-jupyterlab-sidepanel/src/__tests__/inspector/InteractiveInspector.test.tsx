@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InteractiveInspector } from '../../inspector/InteractiveInspector';
 
@@ -36,13 +36,15 @@ const fakeSessionContext = {
 };
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
 });
@@ -52,12 +54,11 @@ it('renders the top app bar and drawer wrapped inspectables', () => {
     fakeSessionContext as any
   );
   act(() => {
-    render(
+    root.render(
       <InteractiveInspector
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
   });
   const topAppBarHeader: Element = container.firstElementChild;
@@ -105,12 +106,11 @@ it('renders the drawer open by default', () => {
     fakeSessionContext as any
   );
   act(() => {
-    render(
+    root.render(
       <InteractiveInspector
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
   });
   const inspectablesAside: Element = container.children[2].firstElementChild;
@@ -124,13 +124,12 @@ it('closes the drawer on flip from open state', () => {
     fakeSessionContext as any
   );
   act(() => {
-    render(
+    root.render(
       <InteractiveInspector
         ref={inspectorRef}
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
     const inspector = inspectorRef.current;
     if (inspector) {
@@ -152,13 +151,12 @@ it('updates session info on change', () => {
     fakeSessionContext as any
   );
   act(() => {
-    render(
+    root.render(
       <InteractiveInspector
         ref={inspectorRef}
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
     const inspector = inspectorRef.current;
     if (inspector) {

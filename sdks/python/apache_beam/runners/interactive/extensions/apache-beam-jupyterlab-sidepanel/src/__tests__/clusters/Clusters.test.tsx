@@ -12,20 +12,22 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { Clusters } from '../../clusters/Clusters';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
 });
@@ -33,10 +35,7 @@ afterEach(() => {
 it('renders info message about no clusters being available', () => {
   const clustersRef: React.RefObject<Clusters> = React.createRef<Clusters>();
   act(() => {
-    render(
-      <Clusters sessionContext={{} as any} ref={clustersRef} />,
-      container
-    );
+    root.render(<Clusters sessionContext={{} as any} ref={clustersRef} />);
     const clusters = clustersRef.current;
     if (clusters) {
       clusters.setState({ clusters: {} });
@@ -60,10 +59,7 @@ it('renders a data-table', () => {
     }
   };
   act(() => {
-    render(
-      <Clusters sessionContext={{} as any} ref={clustersRef} />,
-      container
-    );
+    root.render(<Clusters sessionContext={{} as any} ref={clustersRef} />);
     const clusters = clustersRef.current;
     if (clusters) {
       clusters.setState({ clusters: testData });

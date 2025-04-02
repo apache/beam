@@ -16,20 +16,22 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { HtmlView, IHtmlProvider, importHtml } from '../../common/HtmlView';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
 afterEach(() => {
-  unmountComponentAtNode(container);
+  root.unmount();
   container.remove();
   container = null;
   jest.clearAllMocks();
@@ -44,9 +46,8 @@ describe('HtmlView', () => {
       script: ['console.log(1);', 'console.log(2);']
     } as IHtmlProvider;
     act(() => {
-      render(
-        <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />,
-        container
+      root.render(
+        <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />
       );
       const htmlView = htmlViewRef.current;
       if (htmlView) {
@@ -73,9 +74,8 @@ describe('HtmlView', () => {
         script: ['console.log(1);']
       } as IHtmlProvider;
       act(() => {
-        render(
-          <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />,
-          container
+        root.render(
+          <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />
         );
         const htmlView = htmlViewRef.current;
         if (htmlView) {

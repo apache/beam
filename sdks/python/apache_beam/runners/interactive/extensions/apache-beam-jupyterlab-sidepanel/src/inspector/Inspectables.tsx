@@ -72,7 +72,7 @@ export class Inspectables extends React.Component<
     if (
       Object.keys(inspectablesToUpdate).length &&
       JSON.stringify(this.state.inspectables) !==
-      JSON.stringify(inspectablesToUpdate)
+        JSON.stringify(inspectablesToUpdate)
     ) {
       this.setState({ inspectables: inspectablesToUpdate });
     }
