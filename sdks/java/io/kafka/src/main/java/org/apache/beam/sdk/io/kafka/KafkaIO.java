@@ -1785,9 +1785,11 @@ public class KafkaIO {
                 .withOffsetConsumerConfigOverrides(kafkaRead.getOffsetConsumerConfig())
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
-                .withKeyDeserializerProviderAndCoder(kafkaRead.getKeyDeserializerProvider(), keyCoder)
+                .withKeyDeserializerProviderAndCoder(
+                    kafkaRead.getKeyDeserializerProvider(), keyCoder)
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
-                .withValueDeserializerProviderAndCoder(kafkaRead.getValueDeserializerProvider(), valueCoder)
+                .withValueDeserializerProviderAndCoder(
+                    kafkaRead.getValueDeserializerProvider(), valueCoder)
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
@@ -2377,12 +2379,18 @@ public class KafkaIO {
 
     public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
         @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
-      return toBuilder().setValueDeserializerProvider(deserializerProvider).setValueCoder(valueCoder).build();
+      return toBuilder()
+          .setValueDeserializerProvider(deserializerProvider)
+          .setValueCoder(valueCoder)
+          .build();
     }
 
     public ReadSourceDescriptors<K, V> withKeyDeserializerProviderAndCoder(
         @Nullable DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
-      return toBuilder().setKeyDeserializerProvider(deserializerProvider).setKeyCoder(keyCoder).build();
+      return toBuilder()
+          .setKeyDeserializerProvider(deserializerProvider)
+          .setKeyCoder(keyCoder)
+          .build();
     }
 
     /**
