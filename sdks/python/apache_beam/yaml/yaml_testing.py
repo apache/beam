@@ -50,16 +50,74 @@ def run_test(pipeline_spec, test_spec, options=None):
           f'Non-mocked source {name_or_type} '
           f'at line {yaml_transform.SafeLineLoader.get_line(transform)}')
 
-  options = beam.options.pipeline_options.PipelineOptions(
-      pickle_library='cloudpickle',
-      **yaml_transform.SafeLineLoader.strip_metadata(
-          pipeline_spec.get('options', {})))
+  if options is None:
+    options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle',
+        **yaml_transform.SafeLineLoader.strip_metadata(
+            pipeline_spec.get('options', {})))
 
   with beam.Pipeline(options=options) as p:
     _ = p | yaml_transform.YamlTransform(transform_spec)
 
 
+def validate_test_spec(test_spec):
+  if not isinstance(test_spec, dict):
+    raise TypeError(
+        f'Test specification must be an object, got {type(test_spec)}')
+  identifier = (
+      test_spec.get('name', 'unknown') +
+      f' at line {yaml_transform.SafeLineLoader.get_line(test_spec)}')
+
+  if (not test_spec.get('expected_outputs', []) and
+      not test_spec.get('expected_inputs', [])):
+    raise ValueError(
+        f'test specification {identifier} '
+        f'must have at least one expected_outputs or expected_inputs')
+
+  unknown_attrs = set(
+      yaml_transform.SafeLineLoader.strip_metadata(test_spec).keys()) - set([
+          'name',
+          'mock_inputs',
+          'mock_outputs',
+          'expected_outputs',
+          'expected_inputs',
+          'allowed_sources',
+      ])
+  if unknown_attrs:
+    raise ValueError(
+        f'test specification {identifier} '
+        f'has unknown attributes {list(unknown_attrs)}')
+
+  for attr_type in ('mock_inputs',
+                    'mock_outputs',
+                    'expected_outputs',
+                    'expected_inputs'):
+    attr = test_spec.get(attr_type, [])
+    if not isinstance(attr, list):
+      raise TypeError(
+          f'{attr_type} of test specification {identifier} '
+          f'must be a list, got {type(attr_type)}')
+    for ix, attr_item in enumerate(attr):
+      if not isinstance(attr_item, dict):
+        raise TypeError(
+            f'{attr_type} {ix} of test specification {identifier} '
+            f'must be an object, got {type(attr_item)}')
+      if 'name' not in attr_item:
+        raise TypeError(
+            f'{attr_type} {ix} of test specification {identifier} '
+            f'missing a name')
+      if 'elements' not in attr_item:
+        raise TypeError(
+            f'{attr_type} {ix} of test specification {identifier} '
+            f'missing a elements')
+      if not isinstance(attr_item['elements'], list):
+        raise TypeError(
+            f'{attr_type} {ix} of test specification {identifier} '
+            f'must be a list, got {type(attr_item["elements"])}')
+
+
 def inject_test_tranforms(spec, test_spec):
+  validate_test_spec(test_spec)
   # These are idempotent, so it's OK to do them preemptively.
   for phase in [
       yaml_transform.ensure_transforms_have_types,
@@ -166,12 +224,7 @@ def inject_test_tranforms(spec, test_spec):
         },
     }
 
-  for ix, expected_output in enumerate(test_spec.get('expected_outputs', [])):
-    if 'name' not in expected_output:
-      raise ValueError(f'Expected output spec {ix} missing a name.')
-    if 'elements' not in expected_output:
-      raise ValueError(
-          f'Expected output {expected_output["name"]} missing elements.')
+  for expected_output in test_spec.get('expected_outputs', []):
     require_output(expected_output['name'])
     transforms.append(
         create_assertion(
@@ -179,9 +232,7 @@ def inject_test_tranforms(spec, test_spec):
             expected_output['name'],
             expected_output['elements']))
 
-  for ix, expected_input in enumerate(test_spec.get('expected_inputs', [])):
-    if 'name' not in expected_input:
-      raise ValueError(f'Expected input spec {ix} missing a name.')
+  for expected_input in test_spec.get('expected_inputs', []):
     transform_id = scope.get_transform_id(expected_input['name'])
     transforms.append(
         create_assertion(
