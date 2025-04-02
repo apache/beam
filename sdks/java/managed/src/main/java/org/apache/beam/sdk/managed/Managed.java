@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static java.lang.String.format;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.value.AutoValue;
@@ -128,6 +129,7 @@ public class Managed {
                 source,
                 READ_TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(READ_TRANSFORMS.values()))
+        .setLabel(format("Managed.read(%s)", source.toUpperCase()))
         .build();
   }
 
@@ -150,6 +152,7 @@ public class Managed {
                 sink,
                 WRITE_TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(WRITE_TRANSFORMS.values()))
+        .setLabel(format("Managed.write(%s)", sink.toUpperCase()))
         .build();
   }
 
@@ -164,6 +167,8 @@ public class Managed {
     @VisibleForTesting
     abstract List<String> getSupportedIdentifiers();
 
+    abstract String getLabel();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -176,6 +181,8 @@ public class Managed {
 
       @VisibleForTesting
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
+
+      abstract Builder setLabel(String label);
 
       abstract ManagedTransform build();
     }
@@ -217,7 +224,7 @@ public class Managed {
       SchemaTransform underlyingTransform =
           new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
-      return inputTuple.apply(underlyingTransform);
+      return inputTuple.apply(getLabel(), underlyingTransform);
     }
 
     @VisibleForTesting
