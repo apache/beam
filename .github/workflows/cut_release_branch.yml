@@ -98,6 +98,7 @@ jobs:
     steps:
       - name: Validate Next Version
         run: |
+          echo "RELEASE_CUT_TAG=v${RELEASE_VERSION_IN_BASE_BRANCH}-RC00" >> $GITHUB_ENV
           if [[ $NEXT_RELEASE =~ ([0-9]+\.[0-9]+) ]]; then
             echo "NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}.0" >> $GITHUB_ENV
           else
@@ -117,7 +118,9 @@ jobs:
           sed -i -e "s/master: {}/master: {}\n    release-${RELEASE}: {}/g" .asf.yaml
       - name: Update master branch
         run: |
-          bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}"
+          bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}" "--add-tag" "${RELEASE_CUT_TAG}"
+          echo "==============tag RC00 to current master branch================"
+          git push origin tag "${RELEASE_CUT_TAG}"
           echo "==============Update master branch as following================"
           git diff
           echo "==============================================================="
