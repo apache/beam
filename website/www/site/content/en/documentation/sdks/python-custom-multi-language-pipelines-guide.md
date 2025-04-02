@@ -270,6 +270,23 @@ inspect.signature(MyTransform)
 
 This metadata is generated directly from the provider's implementation. The class documentation is generated from the [optional **description** method](#additional-metadata). The signature information is generated from the `@SchemaFieldDescription` annotations in the [configuration object](#implement-a-configuration).
 
+### Using Beam native Java SchemaTransforms
+If there's an existing Beam native Java SchemaTransform you'd like to use, and you know which expansion service module it's in, you can connect to it using `BeamJarExpansionService`:
+
+```python
+from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
+from apache_beam.transforms.external import BeamJarExpansionService
+
+identifier = "beam:schematransform:org.apache.beam:bigquery_fileloads:v1"
+expansion_service = "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+
+provider = ExternalTransformProvider(BeamJarExpansionService(expansion_service))
+BqFileLoads = provider.get_urn(identifier)
+
+with beam.Pipeline(argv=args) as p:
+  p | beam.Create(...) | MyTransform(table="project.dataset.table")
+```
+
 ## Appendix
 
 ### Portable transform
