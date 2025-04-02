@@ -191,7 +191,11 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return stub.withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
   }
 
-  private static <T extends AbstractStub<T>> T withLongDeadline(T stub) {
+  /**
+   * Set a longer deadline for directpath since we have explicit semantics on when to open and close
+   * the streams w/ the fan out metadata.
+   */
+  private static <T extends AbstractStub<T>> T withDirectPathDeadline(T stub) {
     // Deadlines are absolute points in time, so generate a new one everytime this function is
     // called.
     return stub.withDeadlineAfter(1, TimeUnit.HOURS);
@@ -239,7 +243,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
         responseObserver ->
-            withLongDeadline(connection.currentStub()).getWorkStream(responseObserver),
+            withDirectPathDeadline(connection.currentStub()).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),
@@ -275,7 +279,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
         responseObserver ->
-            withLongDeadline(connection.currentStub()).getDataStream(responseObserver),
+            withDirectPathDeadline(connection.currentStub()).getDataStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -308,7 +312,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
         responseObserver ->
-            withLongDeadline(connection.currentStub()).commitWorkStream(responseObserver),
+            withDirectPathDeadline(connection.currentStub()).commitWorkStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -351,7 +355,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   @VisibleForTesting
-  final ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
+  ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
     return ImmutableSet.copyOf(streamRegistry);
   }
 
