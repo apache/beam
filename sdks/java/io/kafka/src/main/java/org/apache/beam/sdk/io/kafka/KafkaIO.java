@@ -1786,6 +1786,7 @@ public class KafkaIO {
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
+                .withValueDeserializerProviderAndCoder(kafkaRead.getValueDeserializerProvider(), KafkaRead.getValueCoder())
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
@@ -2373,6 +2374,12 @@ public class KafkaIO {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
     }
 
+    public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+      return toBuilder().setValueDeserializerProvider(deserializerProvider).setValueCoder(valueCoder).build();
+    }
+
+    
     /**
      * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
      *
