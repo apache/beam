@@ -1199,6 +1199,10 @@ This should happen automatically: [dev@ thread](https://lists.apache.org/thread.
 
 Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to seed the information about the release into future project reports.
 
+#### Post on LinkedIn
+
+Add a short post on LinkedIn promoting the release.
+
 ### Checklist to proceed to the next step
 
 - [ ] Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
@@ -1228,10 +1232,7 @@ __NOTE__: This can only be done from `@apache.org` email address. This email has
 
 ### Social media
 
-Tweet, post on Facebook, LinkedIn, and other platforms.
-Ask other contributors to do the same.
-
-Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
+Update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
 
 ### Checklist to declare the process completed
 
