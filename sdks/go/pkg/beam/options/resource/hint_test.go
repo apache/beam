@@ -143,6 +143,36 @@ func TestCPUCountHint_Payload(t *testing.T) {
 	}
 }
 
+func TestMaxActiveDoFnPerWorkerHint_MergeWith(t *testing.T) {
+	low := maxActiveDoFnPerWorkerHint{value: 2}
+	high := maxActiveDoFnPerWorkerHint{value: 4}
+
+	if got, want := low.MergeWithOuter(high), low; got != want {
+		t.Errorf("%v.MergeWith(%v) = %v, want %v", low, high, got, want)
+	}
+	if got, want := high.MergeWithOuter(low), low; got != want {
+		t.Errorf("%v.MergeWith(%v) = %v, want %v", high, low, got, want)
+	}
+}
+
+func TestMaxParallelismPerWorkerHint_Payload(t *testing.T) {
+	tests := []struct {
+		value   uint64
+		payload string
+	}{
+		{1, "1"},
+		{12, "12"},
+		{1000, "1000"},
+	}
+
+	for _, test := range tests {
+		h := maxActiveDoFnPerWorkerHint{value: int64(test.value)}
+		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
+			t.Errorf("%v.Payload() = %v, want %v", h, got, want)
+		}
+	}
+}
+
 // We copy the URN from the proto for use as a constant rather than perform a direct look up
 // each time, or increase initialization time. However we do need to validate that they are
 // correct, and match the standard hint urns, so that's done here.
@@ -165,6 +195,9 @@ func TestStandardHintUrns(t *testing.T) {
 	}, {
 		h:   CPUCount(4),
 		urn: getStandardURN(pipepb.StandardResourceHints_CPU_COUNT),
+	}, {
+		h:   MaxParallelismPerWorker(2),
+		urn: getStandardURN(pipepb.StandardResourceHints_MAX_ACTIVE_DOFN_PER_WORKER),
 	}}
 
 	for _, test := range tests {
@@ -259,13 +292,14 @@ func TestHints_MergeWithOuter(t *testing.T) {
 
 func TestHints_Payloads(t *testing.T) {
 	{
-		hs := NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"), CPUCount(4))
+		hs := NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"), CPUCount(4), MaxParallelismPerWorker(2))
 
 		got := hs.Payloads()
 		want := map[string][]byte{
-			"beam:resources:min_ram_bytes:v1": []byte("2000000000"),
-			"beam:resources:accelerator:v1":   []byte("type:jeans;count1;"),
-			"beam:resources:cpu_count:v1":     []byte("4"),
+			"beam:resources:min_ram_bytes:v1":              []byte("2000000000"),
+			"beam:resources:accelerator:v1":                []byte("type:jeans;count1;"),
+			"beam:resources:cpu_count:v1":                  []byte("4"),
+			"beam:resources:max_active_dofn_per_worker:v1": []byte("2"),
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("hs.Payloads() = %v, want %v", got, want)
