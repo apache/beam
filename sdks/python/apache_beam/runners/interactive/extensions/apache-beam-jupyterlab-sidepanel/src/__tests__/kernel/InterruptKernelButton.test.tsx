@@ -67,7 +67,7 @@ it('displays a button when the kernel model is not done with execution', async (
   });
   await act(async () => {
     fakeKernelModel.isDone = false;
-    button?.updateRender()
+    button?.updateRender();
     await new Promise(resolve => setTimeout(resolve, 100));
   });
   const buttonElement: null | Element = container.firstElementChild;
@@ -102,7 +102,7 @@ it('interrupts the kernel when clicked', async () => {
     );
   });
   await act(async () => {
-    button?.onClick()
+    button?.onClick();
     await new Promise(resolve => setTimeout(resolve, 100));
   });
   expect(spiedInterrruptCall).toHaveBeenCalledTimes(1);
