@@ -56,9 +56,14 @@ public class ManagedSchemaTransformProviderTest {
   public void testFailWhenUnknownFieldsSpecified() {
     Map<String, Object> config =
         ImmutableMap.of(
-            "extra_string", "str",
-            "extra_integer", 123,
-            "unknown_field", "unknown");
+            "extra_string",
+            "str",
+            "extra_integer",
+            123,
+            "toggle_uppercase",
+            true,
+            "unknown_field",
+            "unknown");
     ManagedSchemaTransformProvider.ManagedConfig managedConfig =
         ManagedSchemaTransformProvider.ManagedConfig.builder()
             .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
@@ -75,7 +80,7 @@ public class ManagedSchemaTransformProviderTest {
 
   @Test
   public void testFailWhenMissingRequiredFields() {
-    Map<String, Object> config = ImmutableMap.of("extra_string", "str");
+    Map<String, Object> config = ImmutableMap.of("extra_string", "str", "toggle_uppercase", true);
     ManagedSchemaTransformProvider.ManagedConfig managedConfig =
         ManagedSchemaTransformProvider.ManagedConfig.builder()
             .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
@@ -87,6 +92,18 @@ public class ManagedSchemaTransformProviderTest {
     thrown.expectMessage(TestSchemaTransformProvider.IDENTIFIER);
     thrown.expectMessage("Missing required fields");
     thrown.expectMessage("extra_integer");
+    new ManagedSchemaTransformProvider(null).from(managedConfig);
+  }
+
+  @Test
+  public void testPassWhenMissingNullableFields() {
+    Map<String, Object> config = ImmutableMap.of("extra_string", "str", "extra_integer", 123);
+    ManagedSchemaTransformProvider.ManagedConfig managedConfig =
+        ManagedSchemaTransformProvider.ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfig(YamlUtils.yamlStringFromMap(config))
+            .build();
+
     new ManagedSchemaTransformProvider(null).from(managedConfig);
   }
 
