@@ -22,6 +22,7 @@ import static com.lyft.streamingplatform.analytics.EventUtils.DB_DATETIME_FORMAT
 import static com.lyft.streamingplatform.analytics.EventUtils.GMT;
 import static com.lyft.streamingplatform.analytics.EventUtils.ISO_DATETIME_FORMATTER;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,6 +32,8 @@ import com.google.common.collect.Lists;
 import com.lyft.streamingplatform.LyftKafkaConsumerBuilder;
 import com.lyft.streamingplatform.LyftKafkaProducerBuilder;
 import com.lyft.streamingplatform.LyftKafkaSourceBuilder;
+import com.lyft.streamingplatform.ConsistentHashingPartitioner;
+import com.lyft.streamingplatform.LyftKafkaSinkBuilder;
 import com.lyft.streamingplatform.StartingOffsetStrategy;
 import com.lyft.streamingplatform.analytics.Event;
 import com.lyft.streamingplatform.analytics.EventField;
@@ -55,7 +58,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Predicate;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -68,6 +73,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -77,6 +83,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -92,6 +99,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.JobManagerWatermarkTracker;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -386,6 +394,43 @@ public class LyftFlinkStreamingPortableTranslations {
       collector.collect(WindowedValue.timestampedValueInGlobalWindow(record.value(), new Instant(record.timestamp())));
     }
 
+  }
+
+  void translateKeyedKafkaSink(String id, RunnerApi.Pipeline p, StreamingTranslationContext ctx) {
+    var pTransform = p.getComponents().getTransformsOrThrow(id);
+
+    KeyedKafkaSinkParams params;
+    try {
+      var paramBytes = pTransform.getSpec().getPayload().toByteArray();
+      params = new ObjectMapper().readValue(paramBytes, KeyedKafkaSinkParams.class);
+    } catch (IOException e) {
+      throw new RuntimeException("Could not parse kafka properties.", e);
+    }
+
+    var properties = new Properties();
+    properties.putAll(params.properties);
+
+    var partitioner = "ConsistentHashingPartitioner".equals(params.partitionerName)
+        ? new ConsistentHashingPartitioner<WindowedValue<KV<byte[], byte[]>>>()
+        : new FlinkFixedPartitioner<WindowedValue<KV<byte[], byte[]>>>();
+
+    // Put key serializer
+    // Put value serializer
+    // Put partitioner
+    KafkaSink<WindowedValue<KV<byte[], byte[]>>> sink = new LyftKafkaSinkBuilder<WindowedValue<KV<byte[], byte[]>>>()
+        .withUsername(params.username)
+        .withPassword(params.password)
+        .withKafkaProperties(properties)
+        .withPartitioner(partitioner)
+        .build(params.topic, null);
+
+    var inputCollectionId = pTransform.getInputsMap().values().stream().findAny().orElseThrow();
+    DataStream<WindowedValue<KV<byte[], byte[]>>> inputDataStream = ctx.getDataStreamOrThrow(inputCollectionId);
+
+    inputDataStream.transform("setTimestamp", inputDataStream.getType(), new FlinkTimestampAssigner<>())
+    .sinkTo(null)
+        .sinkTo(sink)
+        .name(KafkaSink.class.getSimpleName() + "-" + params.topic);
   }
 
   // TODO: translation assumes byte[] values, does not support keys and headers
@@ -999,5 +1044,21 @@ public class LyftFlinkStreamingPortableTranslations {
     public long extractTimestamp(WindowedValue<T> element) {
       return element.getTimestamp() != null ? element.getTimestamp().getMillis() : Long.MIN_VALUE;
     }
+  }
+
+  private class KeyedKafkaSinkParams {
+    @JsonProperty(required = true)
+    String topic;
+
+    @JsonProperty(required = true)
+    String username;
+
+    @JsonProperty(required = true)
+    String password;
+
+    String partitionerName;
+
+    @JsonProperty(required = true)
+    Map<String, String> properties;
   }
 }
