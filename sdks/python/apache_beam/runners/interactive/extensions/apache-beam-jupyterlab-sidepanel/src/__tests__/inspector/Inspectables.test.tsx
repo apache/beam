@@ -37,17 +37,30 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
-  root.unmount();
-  container.remove();
-  container = null;
-  jest.clearAllMocks();
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    jest.clearAllMocks();
+    container = null;
+    root = null;
+  }
 });
 
-it('renders info message about no inspectable when none is available', () => {
+it('renders info message about no inspectable when none is available', async () => {
   const inspectablesRef: React.RefObject<Inspectables> =
     React.createRef<Inspectables>();
-  act(() => {
+  await act(async () => {
     root.render(<Inspectables ref={inspectablesRef} />);
     const inspectables = inspectablesRef.current;
     if (inspectables) {
@@ -61,7 +74,7 @@ it('renders info message about no inspectable when none is available', () => {
   );
 });
 
-it('renders inspectables as a list of collapsible lists', () => {
+it('renders inspectables as a list of collapsible lists', async () => {
   const inspectablesRef: React.RefObject<Inspectables> =
     React.createRef<Inspectables>();
   const testData = {
@@ -94,13 +107,16 @@ it('renders inspectables as a list of collapsible lists', () => {
       }
     }
   };
-  act(() => {
+
+  await act(async () => {
     root.render(<Inspectables ref={inspectablesRef} />);
-    const inspectables = inspectablesRef.current;
-    if (inspectables) {
-      inspectables.setState({ inspectables: testData });
-    }
   });
+
+  await act(async () => {
+    inspectablesRef.current?.setState({ inspectables: testData });
+    await new Promise(resolve => setTimeout(resolve, 100));
+  });
+
   const listElement: Element = container.firstElementChild;
   expect(listElement.tagName).toBe('UL');
   expect(listElement.getAttribute('class')).toContain('mdc-list');

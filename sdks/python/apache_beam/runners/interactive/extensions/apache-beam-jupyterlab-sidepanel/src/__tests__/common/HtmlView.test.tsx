@@ -30,29 +30,42 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
-  root.unmount();
-  container.remove();
-  container = null;
-  jest.clearAllMocks();
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    jest.clearAllMocks();
+    container = null;
+    root = null;
+  }
 });
 
 describe('HtmlView', () => {
-  it('renders provided html', () => {
+  it('renders provided html', async () => {
     const htmlViewRef: React.RefObject<HtmlView> = React.createRef<HtmlView>();
     const spiedConsole = jest.spyOn(console, 'log');
     const fakeHtmlProvider = {
       html: '<div>Test</div>',
       script: ['console.log(1);', 'console.log(2);']
     } as IHtmlProvider;
-    act(() => {
+    await act(async () => {
       root.render(
         <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />
       );
-      const htmlView = htmlViewRef.current;
-      if (htmlView) {
-        htmlView.updateRender();
-      }
+    });
+    await act(async () => {
+      htmlViewRef.current?.updateRender();
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
     const htmlViewElement: Element = container.firstElementChild;
     expect(htmlViewElement.tagName).toBe('DIV');
@@ -64,8 +77,8 @@ describe('HtmlView', () => {
 
   it(
     'only executes incrementally updated Javascript ' +
-      'as html provider updated',
-    () => {
+    'as html provider updated',
+    async () => {
       const htmlViewRef: React.RefObject<HtmlView> =
         React.createRef<HtmlView>();
       const spiedConsole = jest.spyOn(console, 'log');
@@ -73,19 +86,19 @@ describe('HtmlView', () => {
         html: '<div></div>',
         script: ['console.log(1);']
       } as IHtmlProvider;
-      act(() => {
+      await act(async () => {
         root.render(
           <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />
         );
-        const htmlView = htmlViewRef.current;
-        if (htmlView) {
-          htmlView.updateRender();
-        }
+      });
+      await act(async () => {
+        htmlViewRef.current?.updateRender();
+        await new Promise(resolve => setTimeout(resolve, 100));
       });
       expect(spiedConsole).toHaveBeenCalledWith(1);
       expect(spiedConsole).toHaveBeenCalledTimes(1);
       fakeHtmlProvider.script.push('console.log(2);');
-      act(() => {
+      await act(async () => {
         const htmlView = htmlViewRef.current;
         if (htmlView) {
           htmlView.updateRender();
@@ -97,8 +110,8 @@ describe('HtmlView', () => {
   );
 });
 describe('Function importHtml', () => {
-  it('imports webcomponents script', () => {
-    act(() => {
+  it('imports webcomponents script', async () => {
+    await act(async () => {
       importHtml([]);
     });
     const scriptElement: Element = document.head.firstElementChild;

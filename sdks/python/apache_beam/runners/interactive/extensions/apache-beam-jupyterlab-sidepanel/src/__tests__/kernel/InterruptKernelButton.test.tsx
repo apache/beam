@@ -33,17 +33,29 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
-  root.unmount();
-  container.remove();
-  container = null;
-  jest.clearAllMocks();
-  fakeKernelModel.isDone = true;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    jest.clearAllMocks();
+    container = null;
+    root = null;
+  }
 });
 
-it('displays a button when the kernel model is not done with execution', () => {
+it('displays a button when the kernel model is not done with execution', async () => {
   let button: InterruptKernelButton;
-  act(() => {
+  await act(async () => {
     root.render(
       <InterruptKernelButton
         ref={(node): void => {
@@ -52,10 +64,11 @@ it('displays a button when the kernel model is not done with execution', () => {
         model={fakeKernelModel as any}
       />
     );
+  });
+  await act(async () => {
     fakeKernelModel.isDone = false;
-    if (button) {
-      button.updateRender();
-    }
+    button?.updateRender()
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
   const buttonElement: null | Element = container.firstElementChild;
   expect(buttonElement.tagName).toBe('BUTTON');
@@ -67,18 +80,18 @@ it('displays a button when the kernel model is not done with execution', () => {
   expect(labelElement.innerHTML).toBe('stop');
 });
 
-it('renders nothing when the kernel model is done with execution', () => {
-  act(() => {
+it('renders nothing when the kernel model is done with execution', async () => {
+  await act(async () => {
     root.render(<InterruptKernelButton model={fakeKernelModel as any} />);
   });
   const buttonElement: null | Element = container.firstElementChild;
   expect(buttonElement).toBe(null);
 });
 
-it('interrupts the kernel when clicked', () => {
+it('interrupts the kernel when clicked', async () => {
   let button: InterruptKernelButton;
   const spiedInterrruptCall = jest.spyOn(fakeKernelModel, 'interruptKernel');
-  act(() => {
+  await act(async () => {
     root.render(
       <InterruptKernelButton
         ref={(node): void => {
@@ -87,9 +100,10 @@ it('interrupts the kernel when clicked', () => {
         model={fakeKernelModel as any}
       />
     );
-    if (button) {
-      button.onClick();
-    }
+  });
+  await act(async () => {
+    button?.onClick()
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
   expect(spiedInterrruptCall).toHaveBeenCalledTimes(1);
 });

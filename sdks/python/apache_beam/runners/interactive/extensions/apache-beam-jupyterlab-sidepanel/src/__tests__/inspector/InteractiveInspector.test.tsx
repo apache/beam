@@ -43,17 +43,30 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
-  root.unmount();
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
 
-it('renders the top app bar and drawer wrapped inspectables', () => {
+it('renders the top app bar and drawer wrapped inspectables', async () => {
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
+  await act(async () => {
     root.render(
       <InteractiveInspector
         sessionContext={fakeSessionContext as any}
@@ -101,11 +114,11 @@ it('renders the top app bar and drawer wrapped inspectables', () => {
   ).toContain('InspectableView');
 });
 
-it('renders the drawer open by default', () => {
+it('renders the drawer open by default', async () => {
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
+  await act(async () => {
     root.render(
       <InteractiveInspector
         sessionContext={fakeSessionContext as any}
@@ -117,13 +130,13 @@ it('renders the drawer open by default', () => {
   expect(inspectablesAside.getAttribute('class')).toContain('mdc-drawer--open');
 });
 
-it('closes the drawer on flip from open state', () => {
+it('closes the drawer on flip from open state', async () => {
   const inspectorRef: React.RefObject<InteractiveInspector> =
     React.createRef<InteractiveInspector>();
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
+  await act(async () => {
     root.render(
       <InteractiveInspector
         ref={inspectorRef}
@@ -131,26 +144,35 @@ it('closes the drawer on flip from open state', () => {
         inspectableViewModel={inspectableViewModel}
       />
     );
+  });
+
+  await act(async () => {
     const inspector = inspectorRef.current;
     if (inspector) {
       inspector.flipDrawer();
     }
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
+
   // react test renderer does not re-render the drawer component even if the
   // state is changed. Test the state change instead of DOM change.
-  const inspector = inspectorRef.current;
-  if (inspector) {
-    expect(inspector.state.drawerOpen).toBe(false);
-  }
+  await act(async () => {
+    const inspector = inspectorRef.current;
+    if (inspector) {
+      expect(inspector.state.drawerOpen).toBe(false);
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  });
 });
 
-it('updates session info on change', () => {
+it('updates session info on change', async () => {
   const inspectorRef: React.RefObject<InteractiveInspector> =
     React.createRef<InteractiveInspector>();
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
+
+  await act(async () => {
     root.render(
       <InteractiveInspector
         ref={inspectorRef}
@@ -158,12 +180,17 @@ it('updates session info on change', () => {
         inspectableViewModel={inspectableViewModel}
       />
     );
+  });
+
+  await act(async () => {
     const inspector = inspectorRef.current;
     if (inspector) {
       fakeSessionContext.kernelDisplayName = 'new kernel';
       inspector.updateSessionInfo();
     }
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
-  const topAppBarHeader: Element = container.firstElementChild;
+
+  const topAppBarHeader: Element = container.firstElementChild.firstElementChild.firstElementChild.children[1];
   expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:new kernel]');
 });
