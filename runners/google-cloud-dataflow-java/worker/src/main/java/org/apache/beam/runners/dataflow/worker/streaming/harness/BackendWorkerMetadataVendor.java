@@ -107,9 +107,7 @@ final class BackendWorkerMetadataVendor {
               if (isShutdown) {
                 break;
               }
-
-              throw new IllegalStateException(
-                  "BackendWorkerMetadataVendor interrupted unexpectedly.", e);
+              LOG.error("BackendWorkerMetadataVendor interrupted unexpectedly.", e);
             }
 
             LOG.debug(
