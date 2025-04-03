@@ -29,10 +29,10 @@ Run the following in 'sdks/python' directory to run these tests manually:
 # pytype: skip-file
 
 import logging
+import time
 import unittest
 import uuid
 import zlib
-import time
 
 import mock
 import pytest

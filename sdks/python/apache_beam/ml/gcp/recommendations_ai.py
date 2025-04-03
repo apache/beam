@@ -23,8 +23,8 @@ from __future__ import absolute_import
 
 from typing import Sequence
 from typing import Tuple
-import tenacity
 
+import tenacity
 from google.api_core.retry import Retry
 
 from apache_beam import pvalue
