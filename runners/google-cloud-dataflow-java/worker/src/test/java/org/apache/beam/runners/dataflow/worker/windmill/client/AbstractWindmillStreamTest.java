@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThrows;
 import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -64,7 +63,7 @@ public class AbstractWindmillStreamTest {
 
   @Test
   public void testShutdown_notBlockedBySend() throws InterruptedException, ExecutionException {
-    TestCallStreamObserver callStreamObserver = new TestCallStreamObserver(/* waitForSend= */ true);
+    TestCallStreamObserver callStreamObserver = TestCallStreamObserver.notReady();
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
@@ -73,21 +72,24 @@ public class AbstractWindmillStreamTest {
     ExecutorService sendExecutor = Executors.newSingleThreadExecutor();
     Future<WindmillStreamShutdownException> sendFuture =
         sendExecutor.submit(
-            () ->
-                assertThrows(WindmillStreamShutdownException.class, () -> testStream.testSend(1)));
+            () -> {
+              // Send a few times to trigger blocking in the CallStreamObserver.
+              testStream.testSend();
+              testStream.testSend();
+              return assertThrows(WindmillStreamShutdownException.class, testStream::testSend);
+            });
+
+    // Wait for 1 send since it always goes through, the rest may buffer.
+    callStreamObserver.waitForSends(1);
+
     testStream.shutdown();
 
-    // Sleep a bit to give sendExecutor time to execute the send().
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-
-    callStreamObserver.unblockSend();
     assertThat(sendFuture.get()).isInstanceOf(WindmillStreamShutdownException.class);
   }
 
   @Test
   public void testMaybeScheduleHealthCheck() {
-    TestCallStreamObserver callStreamObserver =
-        new TestCallStreamObserver(/* waitForSend= */ false);
+    TestCallStreamObserver callStreamObserver = TestCallStreamObserver.create();
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
@@ -103,8 +105,7 @@ public class AbstractWindmillStreamTest {
 
   @Test
   public void testMaybeSendHealthCheck_doesNotSendIfLastScheduleLessThanThreshold() {
-    TestCallStreamObserver callStreamObserver =
-        new TestCallStreamObserver(/* waitForSend= */ false);
+    TestCallStreamObserver callStreamObserver = TestCallStreamObserver.create();
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
@@ -171,8 +172,8 @@ public class AbstractWindmillStreamTest {
     @Override
     protected void startThrottleTimer() {}
 
-    public void testSend(Integer i) throws WindmillStreamShutdownException {
-      trySend(i);
+    private void testSend() throws WindmillStreamShutdownException {
+      trySend(1);
     }
 
     @Override
@@ -201,38 +202,24 @@ public class AbstractWindmillStreamTest {
 
   private static class TestCallStreamObserver extends CallStreamObserver<Integer> {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
-    private final CountDownLatch sendBlocker = new CountDownLatch(1);
     private final AtomicInteger numSends = new AtomicInteger();
+    private final boolean isReady;
 
-    private final boolean waitForSend;
-
-    private TestCallStreamObserver(boolean waitForSend) {
-      this.waitForSend = waitForSend;
+    private TestCallStreamObserver(boolean isReady) {
+      this.isReady = isReady;
     }
 
-    private void unblockSend() {
-      sendBlocker.countDown();
+    private static TestCallStreamObserver create() {
+      return new TestCallStreamObserver(true);
     }
 
-    private void waitForSendUnblocked() {
-      try {
-        int waitedMillis = 0;
-        while (!sendBlocker.await(100, TimeUnit.MILLISECONDS)) {
-          waitedMillis += 100;
-          LOG.info("Waiting from send to be unblocked for {}ms", waitedMillis);
-        }
-      } catch (InterruptedException e) {
-        LOG.error("Interrupted waiting for send().");
-      }
+    private static TestCallStreamObserver notReady() {
+      return new TestCallStreamObserver(false);
     }
 
     @Override
     public void onNext(Integer integer) {
-      if (waitForSend) {
-        waitForSendUnblocked();
-      } else {
-        numSends.incrementAndGet();
-      }
+      numSends.incrementAndGet();
     }
 
     private void waitForSends(int expectedSends) {
@@ -253,7 +240,7 @@ public class AbstractWindmillStreamTest {
 
     @Override
     public boolean isReady() {
-      return true;
+      return isReady;
     }
 
     @Override
