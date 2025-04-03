@@ -24,7 +24,7 @@ from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult, R
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.runners.runner import PipelineResult
-from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
+from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification, DistilBertConfig
 
 
 class SentimentPostProcessor(beam.DoFn):
@@ -66,7 +66,7 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
 
     model_handler = PytorchModelHandlerKeyedTensor(
         model_class=DistilBertForSequenceClassification,
-        model_params={'num_labels': 2},
+        model_params={'config': DistilBertConfig(num_labels=2)},
         state_dict_path=known_args.model_state_dict_path
     )
 
