@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.DrainMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -140,16 +141,32 @@ public final class PaneInfo {
     return result;
   }
 
+  private static byte encodeExtendedMetadataByte(DrainMode drainMode) {
+    return (byte) (drainMode.ordinal() << 6);
+  }
+
+  private static DrainMode drainModeFromExtendedMetadata(byte extendedMetadataByte) {
+    return DrainMode.values()[(extendedMetadataByte >>> 6) & 0b11];
+  }
+
   private static final ImmutableMap<Byte, PaneInfo> BYTE_TO_PANE_INFO;
 
   static {
     ImmutableMap.Builder<Byte, PaneInfo> decodingBuilder = ImmutableMap.builder();
     for (Timing timing : Timing.values()) {
       long onTimeIndex = timing == Timing.EARLY ? -1 : 0;
-      register(decodingBuilder, new PaneInfo(true, true, timing, 0, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(true, false, timing, 0, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(false, true, timing, -1, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(false, false, timing, -1, onTimeIndex));
+      register(
+          decodingBuilder,
+          new PaneInfo(true, true, timing, DrainMode.NOT_DRAINING, 0, onTimeIndex));
+      register(
+          decodingBuilder,
+          new PaneInfo(true, false, timing, DrainMode.NOT_DRAINING, 0, onTimeIndex));
+      register(
+          decodingBuilder,
+          new PaneInfo(false, true, timing, DrainMode.NOT_DRAINING, -1, onTimeIndex));
+      register(
+          decodingBuilder,
+          new PaneInfo(false, false, timing, DrainMode.NOT_DRAINING, -1, onTimeIndex));
     }
     BYTE_TO_PANE_INFO = decodingBuilder.build();
   }
@@ -158,11 +175,17 @@ public final class PaneInfo {
     builder.put(info.encodedByte, info);
   }
 
+  // Byte containing the encoding tag, timing, isFirst, and isLast.
+  // These bytes are cached for all known possibilities to avoid repeat processing
   private final byte encodedByte;
+
+  // Extended metadata byte, containing drain mode
+  private final byte extendedMetadataByte;
 
   private final boolean isFirst;
   private final boolean isLast;
   private final Timing timing;
+  private final DrainMode drainMode;
   private final long index;
   private final long nonSpeculativeIndex;
 
@@ -177,18 +200,28 @@ public final class PaneInfo {
   public static final PaneInfo ON_TIME_AND_ONLY_FIRING =
       PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0);
 
-  private PaneInfo(boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
+  private PaneInfo(
+      boolean isFirst,
+      boolean isLast,
+      Timing timing,
+      DrainMode drainMode,
+      long index,
+      long onTimeIndex) {
     this.encodedByte = encodedByte(isFirst, isLast, timing);
+    this.extendedMetadataByte =
+        drainMode == DrainMode.DRAINING ? encodeExtendedMetadataByte(drainMode) : 0x00;
     this.isFirst = isFirst;
     this.isLast = isLast;
     this.timing = timing;
+    this.drainMode = drainMode;
     this.index = index;
     this.nonSpeculativeIndex = onTimeIndex;
   }
 
   public static PaneInfo createPane(boolean isFirst, boolean isLast, Timing timing) {
     checkArgument(isFirst, "Indices must be provided for non-first pane info.");
-    return createPane(isFirst, isLast, timing, 0, timing == Timing.EARLY ? -1 : 0);
+    return createPane(
+        isFirst, isLast, timing, DrainMode.NOT_DRAINING, 0, timing == Timing.EARLY ? -1 : 0);
   }
 
   /** Factory method to create a {@link PaneInfo} with the specified parameters. */
@@ -197,7 +230,22 @@ public final class PaneInfo {
     if (isFirst || timing == Timing.UNKNOWN) {
       return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
     } else {
-      return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
+      return new PaneInfo(isFirst, isLast, timing, DrainMode.NOT_DRAINING, index, onTimeIndex);
+    }
+  }
+
+  /** Factory method to create a {@link PaneInfo} with the specified parameters. */
+  public static PaneInfo createPane(
+      boolean isFirst,
+      boolean isLast,
+      Timing timing,
+      DrainMode drainMode,
+      long index,
+      long onTimeIndex) {
+    if (drainMode != DrainMode.DRAINING && (isFirst || timing == Timing.UNKNOWN)) {
+      return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
+    } else {
+      return new PaneInfo(isFirst, isLast, timing, drainMode, index, onTimeIndex);
     }
   }
 
@@ -242,6 +290,14 @@ public final class PaneInfo {
   }
 
   /**
+   * Indicates whether this element resulted from an aggregation that fired during a drain
+   * operation.
+   */
+  public DrainMode getDrainMode() {
+    return drainMode;
+  }
+
+  /**
    * The zero-based index of this trigger firing among non-speculative panes.
    *
    * <p>This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
@@ -253,13 +309,17 @@ public final class PaneInfo {
     return nonSpeculativeIndex;
   }
 
-  int getEncodedByte() {
+  byte getEncodedByte() {
     return encodedByte;
+  }
+
+  byte getExtendedMetadataByte() {
+    return extendedMetadataByte;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(encodedByte, index, nonSpeculativeIndex);
+    return Objects.hash(encodedByte, extendedMetadataByte, index, nonSpeculativeIndex);
   }
 
   @Override
@@ -270,6 +330,7 @@ public final class PaneInfo {
     } else if (obj instanceof PaneInfo) {
       PaneInfo that = (PaneInfo) obj;
       return this.encodedByte == that.encodedByte
+          && this.extendedMetadataByte == that.extendedMetadataByte
           && this.index == that.index
           && this.nonSpeculativeIndex == that.nonSpeculativeIndex;
     } else {
@@ -290,6 +351,7 @@ public final class PaneInfo {
         .add("timing", timing)
         .add("index", index)
         .add("onTimeIndex", nonSpeculativeIndex != -1 ? nonSpeculativeIndex : null)
+        .add("drainMode", drainMode == DrainMode.DRAINING ? "DRAINING" : null)
         .toString();
   }
 
@@ -298,7 +360,8 @@ public final class PaneInfo {
     private enum Encoding {
       FIRST,
       ONE_INDEX,
-      TWO_INDICES;
+      TWO_INDICES,
+      EXTENDED_METADATA;
 
       // NOTE: Do not reorder fields. The ordinal is used as part of
       // the encoding.
@@ -311,12 +374,15 @@ public final class PaneInfo {
       }
 
       public static Encoding fromTag(byte b) {
-        return Encoding.values()[b >> 4];
+        return Encoding.values()[(b >>> 4) & 0xF];
       }
     }
 
     private Encoding chooseEncoding(PaneInfo value) {
-      if ((value.index == 0 && value.nonSpeculativeIndex == 0) || value.timing == Timing.UNKNOWN) {
+      if (value.drainMode == DrainMode.DRAINING) {
+        return Encoding.EXTENDED_METADATA;
+      } else if ((value.index == 0 && value.nonSpeculativeIndex == 0)
+          || value.timing == Timing.UNKNOWN) {
         return Encoding.FIRST;
       } else if (value.index == value.nonSpeculativeIndex || value.timing == Timing.EARLY) {
         return Encoding.ONE_INDEX;
@@ -350,6 +416,12 @@ public final class PaneInfo {
           VarInt.encode(value.index, outStream);
           VarInt.encode(value.nonSpeculativeIndex, outStream);
           break;
+        case EXTENDED_METADATA:
+          outStream.write(value.encodedByte | encoding.tag);
+          outStream.write(value.extendedMetadataByte);
+          VarInt.encode(value.index, outStream);
+          VarInt.encode(value.nonSpeculativeIndex, outStream);
+          break;
         default:
           throw new CoderException("Unknown encoding " + encoding);
       }
@@ -360,6 +432,7 @@ public final class PaneInfo {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F)));
       long index, onTimeIndex;
+      DrainMode drainMode = DrainMode.NOT_DRAINING;
       switch (Encoding.fromTag(keyAndTag)) {
         case FIRST:
           return base;
@@ -371,10 +444,16 @@ public final class PaneInfo {
           index = VarInt.decodeLong(inStream);
           onTimeIndex = VarInt.decodeLong(inStream);
           break;
+        case EXTENDED_METADATA:
+          byte extendedMetadata = (byte) inStream.read();
+          drainMode = drainModeFromExtendedMetadata(extendedMetadata);
+          index = VarInt.decodeLong(inStream);
+          onTimeIndex = VarInt.decodeLong(inStream);
+          break;
         default:
           throw new CoderException("Unknown encoding " + (keyAndTag & 0xF0));
       }
-      return new PaneInfo(base.isFirst, base.isLast, base.timing, index, onTimeIndex);
+      return new PaneInfo(base.isFirst, base.isLast, base.timing, drainMode, index, onTimeIndex);
     }
 
     @Override
