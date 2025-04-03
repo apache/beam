@@ -169,7 +169,11 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
         | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
         | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'PostProcess' >> beam.ParDo(SentimentPostProcessor(tokenizer))
-        | 'WindowFixed' >> beam.WindowInto(beam.window.FixedWindows(60))
+        | 'WindowedOutput' >> beam.WindowInto(
+            beam.window.FixedWindows(60),
+            trigger=beam.trigger.AfterProcessingTime(30),
+            accumulation_mode=beam.trigger.AccumulationMode.DISCARDING
+        )
         | 'WriteOutput' >> beam.io.WriteToText(known_args.output, shard_name_template='')
     )
 
