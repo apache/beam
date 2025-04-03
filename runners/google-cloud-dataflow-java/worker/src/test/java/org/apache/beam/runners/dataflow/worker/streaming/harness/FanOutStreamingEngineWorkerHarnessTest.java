@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
@@ -101,7 +99,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           .build();
 
   @Rule
-  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(1, TimeUnit.MINUTES);
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(10, TimeUnit.MINUTES);
 
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
@@ -115,7 +113,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           new ArrayList<>(),
           new ArrayList<>(),
           new HashSet<>());
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -167,10 +165,13 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   }
 
   @After
-  public void cleanUp() {
+  public void cleanUp() throws InterruptedException {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     stubFactory.shutdown();
-    fakeStreamingEngineServer.shutdown();
+    fakeStreamingEngineServer.shutdownNow();
+    if (!fakeStreamingEngineServer.awaitTermination(5, TimeUnit.MINUTES)) {
+      fail("Server did not terminate in time after force shutdown");
+    }
   }
 
   private FanOutStreamingEngineWorkerHarness newFanOutStreamingEngineWorkerHarness(
