@@ -32,6 +32,7 @@ import logging
 import unittest
 import uuid
 import zlib
+import time
 
 import mock
 import pytest
@@ -221,6 +222,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
     if existing_bucket:
       try:
         existing_bucket.delete()
+        time.sleep(10)
       except NotFound:
         # Bucket existence check from get_bucket may be inaccurate due to gcs
         # cache or delay
