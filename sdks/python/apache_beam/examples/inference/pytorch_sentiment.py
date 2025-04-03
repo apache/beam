@@ -36,7 +36,7 @@ class SentimentPostProcessor(beam.DoFn):
         logits = prediction_result.inference['logits']
         probs = F.softmax(logits, dim=-1)
         predicted_class = torch.argmax(probs).item()
-        confidence = probs[0][predicted_class].item()
+        confidence = probs[predicted_class].item()
         sentiment = 'POSITIVE' if predicted_class == 1 else 'NEGATIVE'
         yield f"{text};{sentiment};{confidence:.4f}"
 
