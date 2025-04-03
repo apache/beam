@@ -331,7 +331,8 @@ public class KafkaReadSchemaTransformProviderTest {
   @Test
   public void testManagedMappings() {
     KafkaReadSchemaTransformProvider provider = new KafkaReadSchemaTransformProvider();
-    Map<String, String> mapping = ManagedTransformConstants.MAPPINGS.get(provider.identifier());
+    Map<String, String> mapping =
+        ManagedTransformConstants.CONFIG_NAME_OVERRIDES.get(provider.identifier());
 
     assertNotNull(mapping);
 
