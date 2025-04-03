@@ -32,21 +32,21 @@ class SentimentPostProcessor(beam.DoFn):
     def __init__(self, tokenizer: DistilBertTokenizerFast):
         self.tokenizer = tokenizer
 
-    def process(self, element: tuple[str, PredictionResult]) -> Iterable[beam.Row]:
+    def process(self, element: tuple[str, PredictionResult]) -> Iterable[dict]:
         text, prediction_result = element
         logits = prediction_result.inference['logits']
         probs = F.softmax(logits, dim=-1)
         predicted_class = torch.argmax(probs).item()
         confidence = probs[predicted_class].item()
         sentiment = 'POSITIVE' if predicted_class == 1 else 'NEGATIVE'
-        yield beam.Row(
-            text=text,
-            sentiment=sentiment,
-            confidence=float(confidence)
-        )
+        yield {
+            'text': text,
+            'sentiment': sentiment,
+            'confidence': float(confidence)
+        }
 
 
-def tokenize_text(text: str, tokenizer: DistilBertTokenizerFast) -> tuple[str, dict[str, torch.Tensor]]:
+def tokenize_text(text: str, tokenizer: DistilBertTokenizerFast) -> tuple[str, dict]:
     tokenized = tokenizer(text, padding='max_length', truncation=True, max_length=128, return_tensors="pt")
     return text, {k: torch.squeeze(v) for k, v in tokenized.items()}
 
