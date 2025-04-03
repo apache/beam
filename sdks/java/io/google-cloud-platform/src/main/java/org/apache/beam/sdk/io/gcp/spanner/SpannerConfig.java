@@ -82,8 +82,7 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Duration> getPartitionReadTimeout();
 
-  @VisibleForTesting
-  abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
+  public abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
 
@@ -267,7 +266,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the service factory to create instance of Spanner. */
   @VisibleForTesting
-  SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
+  public SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
   }
 
