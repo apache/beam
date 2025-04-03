@@ -763,7 +763,8 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     cls.table_name2 = 'python_rd_table_2'
     cls.table_schema2 = cls.create_table(
         cls.table_name2, cls.TABLE_DATA_2, cls.SCHEMA_BQ)
-    cls.query2 = 'SELECT number, str FROM [%s:%s.%s]' % (cls.project, cls.dataset_id, cls.table_name2)
+    cls.query2 = 'SELECT number, str FROM [%s:%s.%s]' % (
+        cls.project, cls.dataset_id, cls.table_name2)
 
     cls.table_name3 = 'python_rd_table_3'
     cls.table_schema3 = cls.create_table(

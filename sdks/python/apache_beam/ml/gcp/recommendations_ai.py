@@ -160,11 +160,11 @@ class _CreateCatalogItemFn(DoFn):
         stop=tenacity.stop_after_attempt(5),
         reraise=True)
     def create_item():
-        return self._client.create_catalog_item(
-            request=request,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata)
+      return self._client.create_catalog_item(
+          request=request,
+          retry=self.retry,
+          timeout=self.timeout,
+          metadata=self.metadata)
 
     try:
       created_catalog_item = create_item()
