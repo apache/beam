@@ -94,7 +94,6 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
-import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -2560,21 +2559,24 @@ public class DataflowRunnerTest implements Serializable {
     PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
     pipeline.run();
 
-    // The DataflowGroupByKey transform expanded from Redistribute should have allowDuplicates set to true.
-    AtomicBoolean foundDataflowGroupByKeyAllowDuplicates = new AtomicBoolean(false);
+    // The DataflowRedistributeByKey transform translated from Redistribute should have
+    // allowDuplicates set to true.
+    AtomicBoolean redistributeAllowDuplicates = new AtomicBoolean(false);
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            PTransform<?, ?> transform = node.getTransform();
-            if (transform != null && transform instanceof DataflowGroupByKey) {
-              DataflowGroupByKey<?, ?> dataflowGBK = (DataflowGroupByKey<?, ?>) transform;
-              foundDataflowGroupByKeyAllowDuplicates.set(dataflowGBK.allowDuplicates());
+            if (node.getTransform()
+                instanceof RedistributeByKeyOverrideFactory.DataflowRedistributeByKey) {
+              RedistributeByKeyOverrideFactory.DataflowRedistributeByKey<?, ?> redistribute =
+                  (RedistributeByKeyOverrideFactory.DataflowRedistributeByKey<?, ?>)
+                      node.getTransform();
+              redistributeAllowDuplicates.set(redistribute.getAllowDuplicates());
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
         });
-    assertTrue(foundDataflowGroupByKeyAllowDuplicates.get());
+    assertTrue(redistributeAllowDuplicates.get());
   }
 
   static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {

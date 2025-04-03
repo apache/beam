@@ -64,7 +64,7 @@ class RedistributeByKeyOverrideFactory<K, V>
   }
 
   /** Specialized implementation of {@link RedistributeByKey} for Dataflow pipelines. */
-  private static class DataflowRedistributeByKey<K, V>
+  public static class DataflowRedistributeByKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
     private final RedistributeByKey<K, V> originalTransform;
@@ -74,6 +74,10 @@ class RedistributeByKeyOverrideFactory<K, V>
         RedistributeByKey<K, V> originalTransform, boolean usesAtLeastOnceStreamingMode) {
       this.originalTransform = originalTransform;
       this.usesAtLeastOnceStreamingMode = usesAtLeastOnceStreamingMode;
+    }
+
+    public boolean getAllowDuplicates() {
+      return this.usesAtLeastOnceStreamingMode || this.originalTransform.getAllowDuplicates();
     }
 
     @Override
@@ -93,7 +97,7 @@ class RedistributeByKeyOverrideFactory<K, V>
               .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped;
-      if (originalTransform.getAllowDuplicates() || usesAtLeastOnceStreamingMode) {
+      if (getAllowDuplicates()) {
         grouped = reified.apply(DataflowGroupByKey.createWithAllowDuplicates());
       } else {
         grouped = reified.apply(DataflowGroupByKey.create());
