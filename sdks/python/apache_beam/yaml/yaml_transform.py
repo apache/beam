@@ -161,6 +161,9 @@ class LightweightScope(object):
       else:
         return only_element(candidates)
 
+  def get_transform_spec(self, transform_name_or_id):
+    return self._transforms_by_uuid[self.get_transform_id(transform_name_or_id)]
+
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
@@ -573,9 +576,10 @@ def chain_as_composite(spec):
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
-  composite_spec = normalize_inputs_outputs(tag_explicit_inputs(spec))
+  composite_spec = dict(normalize_inputs_outputs(tag_explicit_inputs(spec)))
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
+    transform = dict(transform)
     if any(io in transform for io in ('input', 'output')):
       if (ix == 0 and 'input' in transform and 'output' not in transform and
           is_explicitly_empty(transform['input'])):
@@ -939,16 +943,17 @@ def ensure_config(spec):
   return spec
 
 
+def apply_phase(phase, spec):
+  spec = phase(spec)
+  if spec['type'] in {'composite', 'chain'} and 'transforms' in spec:
+    spec = dict(
+        spec, transforms=[apply_phase(phase, t) for t in spec['transforms']])
+  return spec
+
+
 def preprocess(spec, verbose=False, known_transforms=None):
   if verbose:
     pprint.pprint(spec)
-
-  def apply(phase, spec):
-    spec = phase(spec)
-    if spec['type'] in {'composite', 'chain'} and 'transforms' in spec:
-      spec = dict(
-          spec, transforms=[apply(phase, t) for t in spec['transforms']])
-    return spec
 
   if known_transforms:
     known_transforms = set(known_transforms).union(['chain', 'composite'])
@@ -1012,7 +1017,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       # lift_config,
       ensure_config,
   ]:
-    spec = apply(phase, spec)
+    spec = apply_phase(phase, spec)
     if verbose:
       print('=' * 20, phase, '=' * 20)
       pprint.pprint(spec)
