@@ -51,6 +51,11 @@ def parse_known_args(argv):
     parser.add_argument('--output', required=True, help='Path to output file')
     parser.add_argument('--model_path', default='distilbert-base-uncased-finetuned-sst-2-english',
                         help='Hugging Face model name or local path')
+    parser.add_argument(
+        '--model_state_dict_path',
+        dest='model_state_dict_path',
+        required=True,
+        help="Path to the model's state_dict.")
     return parser.parse_known_args(argv)
 
 
