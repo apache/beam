@@ -165,13 +165,13 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
     _ = (
         pipeline
         | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=known_args.pubsub_subscription)
-        | 'DecodeText' >> beam.Map(lambda x: x.decode('utf-8'))
-        | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
         | 'WindowedOutput' >> beam.WindowInto(
             beam.window.FixedWindows(60),
             trigger=beam.trigger.AfterProcessingTime(30),
             accumulation_mode=beam.trigger.AccumulationMode.DISCARDING
         )
+        | 'DecodeText' >> beam.Map(lambda x: x.decode('utf-8'))
+        | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
         | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'PostProcess' >> beam.ParDo(SentimentPostProcessor(tokenizer))
         | 'WriteOutput' >> beam.io.WriteToText(known_args.output, shard_name_template='')
