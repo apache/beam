@@ -53,42 +53,42 @@ afterEach(async () => {
   }
 });
 
-it('displays a button when the kernel model is not done with execution',
-  async () => {
-    let button: InterruptKernelButton;
-    await act(async () => {
-      root.render(
-        <InterruptKernelButton
-          ref={(node): void => {
-            button = node;
-          }}
-          model={fakeKernelModel as any}
-        />
-      );
-    });
-    await act(async () => {
-      fakeKernelModel.isDone = false;
-      button?.updateRender();
-      await new Promise(resolve => setTimeout(resolve, 100));
-    });
-    const buttonElement: null | Element = container.firstElementChild;
-    expect(buttonElement.tagName).toBe('BUTTON');
-    expect(buttonElement.getAttribute('class')).toContain('mdc-button');
-    expect(buttonElement.getAttribute('class')).toContain('mdc-button--raised');
-    const labelElement: Element = buttonElement.children[1];
-    expect(labelElement.tagName).toBe('SPAN');
-    expect(labelElement.getAttribute('class')).toContain('mdc-button__label');
-    expect(labelElement.innerHTML).toBe('stop');
+it(`displays a button when the kernel model
+   is not done with execution`, async () => {
+  let button: InterruptKernelButton;
+  await act(async () => {
+    root.render(
+      <InterruptKernelButton
+        ref={(node): void => {
+          button = node;
+        }}
+        model={fakeKernelModel as any}
+      />
+    );
   });
+  await act(async () => {
+    fakeKernelModel.isDone = false;
+    button?.updateRender();
+    await new Promise(resolve => setTimeout(resolve, 100));
+  });
+  const buttonElement: null | Element = container.firstElementChild;
+  expect(buttonElement.tagName).toBe('BUTTON');
+  expect(buttonElement.getAttribute('class')).toContain('mdc-button');
+  expect(buttonElement.getAttribute('class')).toContain('mdc-button--raised');
+  const labelElement: Element = buttonElement.children[1];
+  expect(labelElement.tagName).toBe('SPAN');
+  expect(labelElement.getAttribute('class')).toContain('mdc-button__label');
+  expect(labelElement.innerHTML).toBe('stop');
+});
 
-it('renders nothing when the kernel model is done with execution',
-  async () => {
-    await act(async () => {
-      root.render(<InterruptKernelButton model={fakeKernelModel as any} />);
-    });
-    const buttonElement: null | Element = container.firstElementChild;
-    expect(buttonElement).toBe(null);
+it(`renders nothing when the kernel
+   model is done with execution`, async () => {
+  await act(async () => {
+    root.render(<InterruptKernelButton model={fakeKernelModel as any} />);
   });
+  const buttonElement: null | Element = container.firstElementChild;
+  expect(buttonElement).toBe(null);
+});
 
 it('interrupts the kernel when clicked', async () => {
   let button: InterruptKernelButton;

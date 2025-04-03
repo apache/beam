@@ -71,9 +71,7 @@ it('renders a data-table', async () => {
     }
   };
   await act(async () => {
-    root.render(
-      <Clusters sessionContext={{} as any} ref={clustersRef} />
-    );
+    root.render(<Clusters sessionContext={{} as any} ref={clustersRef} />);
   });
 
   await act(async () => {

@@ -77,7 +77,7 @@ describe('HtmlView', () => {
 
   it(
     'only executes incrementally updated Javascript ' +
-    'as html provider updated',
+      'as html provider updated',
     async () => {
       const htmlViewRef: React.RefObject<HtmlView> =
         React.createRef<HtmlView>();

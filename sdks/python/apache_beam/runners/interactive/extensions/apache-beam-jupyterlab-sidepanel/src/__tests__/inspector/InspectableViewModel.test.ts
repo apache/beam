@@ -49,8 +49,8 @@ it('builds show query correctly with default values', () => {
   inspectableViewModel.queryKernel('pcollection', 'id');
   expect(inspectableViewModel.buildShowQuery({} as IShowOptions)).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration='inf', n='inf')"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
   );
 });
 
@@ -66,8 +66,8 @@ it('builds show query with given checkbox values correctly', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=True, visualize_data=True, ' +
-    "duration='inf', n='inf')"
+      'include_window_info=True, visualize_data=True, ' +
+      "duration='inf', n='inf')"
   );
 });
 
@@ -82,8 +82,8 @@ it('builds show query with string duration', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration='60s', n='inf')"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='60s', n='inf')"
   );
 });
 
@@ -98,8 +98,8 @@ it('builds show query with negative duration as inf', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration='inf', n='inf')"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
   );
 });
 
@@ -114,8 +114,8 @@ it('builds show query with positive duration as int', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration=5, n='inf')"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration=5, n='inf')"
   );
 });
 
@@ -130,8 +130,8 @@ it('builds show query with string n as inf', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration='inf', n='inf')"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
   );
 });
 
@@ -146,8 +146,8 @@ it('builds show query with negative n as inf', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration='inf', n='inf')"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
   );
 });
 
@@ -162,8 +162,8 @@ it('builds show query with positive n as int', () => {
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-    'include_window_info=False, visualize_data=False, ' +
-    "duration='inf', n=5)"
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n=5)"
   );
 });
 
