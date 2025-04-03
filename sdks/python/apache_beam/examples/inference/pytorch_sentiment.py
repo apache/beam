@@ -169,11 +169,12 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
         | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
         | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'PostProcess' >> beam.ParDo(SentimentPostProcessor(tokenizer))
+        | 'WindowFixed' >> beam.WindowInto(beam.window.FixedWindows(60))
         | 'WriteOutput' >> beam.io.WriteToText(known_args.output, shard_name_template='')
     )
 
     result = pipeline.run()
-    result.wait_until_finish(duration=3600000)  # 1 hour
+    result.wait_until_finish(duration=10800000)  # 3 hour
 
     cleanup_pubsub_resources(
         project=known_args.project,
