@@ -71,12 +71,12 @@ def parse_known_args(argv):
     )
     parser.add_argument(
         '--pubsub_topic',
-        default='test_sentiment_topic',
+        default='projects/apache-beam-testing/topics/test_sentiment_topic',
         help='Pub/Sub topic to publish text lines to'
     )
     parser.add_argument(
         '--pubsub_subscription',
-        default='test_sentiment_subscription',
+        default='projects/apache-beam-testing/subscriptions/test_sentiment_subscription',
         help='Pub/Sub subscription to read from'
     )
     parser.add_argument(
