@@ -56,7 +56,7 @@ def parse_known_args(argv):
     parser.add_argument(
         '--output_table',
         required=True,
-        help='Path to output file on GCS'
+        help='Path to output BigQuery table'
     )
     parser.add_argument(
         '--model_path',
@@ -165,7 +165,7 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
         | 'PublishToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic)
     )
 
-    # 2. Main Streaming pipeline: read from PubSub subscription, process, write result to GCS
+    # 2. Main Streaming pipeline: read from PubSub subscription, process, write result to BigQuery output table
     _ = (
         pipeline
         | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=known_args.pubsub_subscription)
@@ -182,7 +182,8 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
             known_args.output_table,
             schema='text:STRING, sentiment:STRING, confidence:FLOAT',
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            method=beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
         )
     )
 
