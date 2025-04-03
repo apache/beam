@@ -228,9 +228,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             collections.abc.Iterable[tuple[str, int]],
             typehints.Iterable[typehints.Tuple[str, int]]),
         (
-            'mapping not caught',
+            'mapping',
             collections.abc.Mapping[str, int],
-            collections.abc.Mapping[str, int]),
+            typehints.Mapping[str, int]),
         ('set', collections.abc.Set[int], typehints.Set[int]),
         ('mutable set', collections.abc.MutableSet[int], typehints.Set[int]),
         (
@@ -253,6 +253,15 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             'sequence of tuples',
             collections.abc.Sequence[tuple[str, int]],
             typehints.Sequence[typehints.Tuple[str, int]]),
+        (
+            'ordered dict',
+            collections.OrderedDict[str, int],
+            typehints.Dict[str, int]),
+        (
+            'default dict',
+            collections.defaultdict[str, int],
+            typehints.Dict[str, int]),
+        ('count', collections.Counter[str, int], typehints.Dict[str, int]),
     ]
 
     for test_case in test_cases:

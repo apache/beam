@@ -112,7 +112,8 @@ public class JdbcUtil {
 
   /** Utility method to save jar files locally in the worker. */
   static URL[] saveFilesLocally(String driverJars) {
-    List<String> listOfJarPaths = Splitter.on(',').trimResults().splitToList(driverJars);
+    List<String> listOfJarPaths =
+        Splitter.on(',').trimResults().omitEmptyStrings().splitToList(driverJars);
 
     final String destRoot = Files.createTempDir().getAbsolutePath();
     List<URL> driverJarUrls = new ArrayList<>();
