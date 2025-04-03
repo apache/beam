@@ -23,6 +23,7 @@ import static org.junit.Assert.assertSame;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.values.DrainMode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -41,19 +42,23 @@ public class PaneInfoTest {
   @Test
   public void testEncodingRoundTrip() throws Exception {
     Coder<PaneInfo> coder = PaneInfo.PaneInfoCoder.INSTANCE;
-    for (Timing timing : Timing.values()) {
-      long onTimeIndex = timing == Timing.EARLY ? -1 : 37;
-      CoderProperties.coderDecodeEncodeEqual(
-          coder, PaneInfo.createPane(false, false, timing, 389, onTimeIndex));
-      CoderProperties.coderDecodeEncodeEqual(
-          coder, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex));
-      CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, false, timing, 0, 0));
-      CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, true, timing, 0, 0));
+    for (DrainMode drainMode : DrainMode.values()) {
+      for (Timing timing : Timing.values()) {
+        long onTimeIndex = timing == Timing.EARLY ? -1 : 37;
+        CoderProperties.coderDecodeEncodeEqual(
+            coder, PaneInfo.createPane(false, false, timing, drainMode, 389, onTimeIndex));
+        CoderProperties.coderDecodeEncodeEqual(
+            coder, PaneInfo.createPane(false, true, timing, drainMode, 5077, onTimeIndex));
+        CoderProperties.coderDecodeEncodeEqual(
+            coder, PaneInfo.createPane(true, false, timing, drainMode, 0, 0));
+        CoderProperties.coderDecodeEncodeEqual(
+            coder, PaneInfo.createPane(true, true, timing, drainMode, 0, 0));
+      }
     }
   }
 
   @Test
-  public void testEncodings() {
+  public void testHeaderByteEncoding() {
     assertEquals(
         "PaneInfo encoding assumes that there are only 4 Timing values.",
         4,
@@ -82,5 +87,18 @@ public class PaneInfoTest {
         "PaneInfo encoding should remain the same.",
         0xF,
         PaneInfo.createPane(true, true, Timing.UNKNOWN).getEncodedByte());
+  }
+
+  /**
+   * NOTE: this does not reproduce the logic in the main code by doing exhaustive testing
+   * programmatically. It is deliberately a smoke test of constant values.
+   */
+  @Test
+  public void testExtendedMetadataByteEncoding() {
+    assertEquals(
+        "PaneInfo with drainMode should have known extended metadata byte",
+        (byte) 0b01000000,
+        PaneInfo.createPane(true, true, Timing.UNKNOWN, DrainMode.DRAINING, 1, 1)
+            .getExtendedMetadataByte());
   }
 }
