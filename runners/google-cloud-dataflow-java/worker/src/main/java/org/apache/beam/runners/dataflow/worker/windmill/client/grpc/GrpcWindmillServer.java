@@ -34,8 +34,6 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
@@ -53,6 +51,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
@@ -156,11 +155,11 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       long clientId,
       WindmillStubFactoryFactory windmillStubFactoryFactory) {
     ManagedChannel inProcessChannel = inProcessChannel(name);
-    CloudWindmillServiceV1Alpha1Stub stub =
-        CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel);
+    CloudWindmillServiceV1Alpha1CustomStub stub =
+        CloudWindmillServiceV1Alpha1CustomStub.newStub(inProcessChannel);
     CloudWindmillMetadataServiceV1Alpha1Stub metadataStub =
         CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel);
-    List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs = Lists.newArrayList(stub);
+    List<CloudWindmillServiceV1Alpha1CustomStub> windmillServiceStubs = Lists.newArrayList(stub);
     List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         Lists.newArrayList(metadataStub);
 
