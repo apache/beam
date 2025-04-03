@@ -191,6 +191,7 @@ it('updates session info on change', async () => {
     await new Promise(resolve => setTimeout(resolve, 100));
   });
 
-  const topAppBarHeader: Element = container.firstElementChild.firstElementChild.firstElementChild.children[1];
+  const topAppBarHeader: Element =
+    container.firstElementChild.firstElementChild.firstElementChild.children[1];
   expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:new kernel]');
 });

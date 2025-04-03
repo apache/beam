@@ -57,22 +57,23 @@ afterEach(async () => {
   }
 });
 
-it('renders info message about no inspectable when none is available', async () => {
-  const inspectablesRef: React.RefObject<Inspectables> =
-    React.createRef<Inspectables>();
-  await act(async () => {
-    root.render(<Inspectables ref={inspectablesRef} />);
-    const inspectables = inspectablesRef.current;
-    if (inspectables) {
-      inspectables.setState({ inspectables: {} });
-    }
+it('renders info message about no inspectable when none is available',
+  async () => {
+    const inspectablesRef: React.RefObject<Inspectables> =
+      React.createRef<Inspectables>();
+    await act(async () => {
+      root.render(<Inspectables ref={inspectablesRef} />);
+      const inspectables = inspectablesRef.current;
+      if (inspectables) {
+        inspectables.setState({ inspectables: {} });
+      }
+    });
+    const infoElement: Element = container.firstElementChild;
+    expect(infoElement.tagName).toBe('DIV');
+    expect(infoElement.textContent).toBe(
+      'No inspectable pipeline nor pcollection has been defined.'
+    );
   });
-  const infoElement: Element = container.firstElementChild;
-  expect(infoElement.tagName).toBe('DIV');
-  expect(infoElement.textContent).toBe(
-    'No inspectable pipeline nor pcollection has been defined.'
-  );
-});
 
 it('renders inspectables as a list of collapsible lists', async () => {
   const inspectablesRef: React.RefObject<Inspectables> =
