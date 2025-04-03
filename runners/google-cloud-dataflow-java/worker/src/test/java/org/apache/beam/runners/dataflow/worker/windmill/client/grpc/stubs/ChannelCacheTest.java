@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,9 +26,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.junit.After;
@@ -139,5 +143,73 @@ public class ChannelCacheTest {
     notifyWhenChannelClosed.await();
     assertTrue(cache.isEmpty());
     assertTrue(cachedChannel.isShutdown());
+  }
+
+  @Test
+  public void testConsumeFlowControlSettings() throws InterruptedException {
+    String channelName = "channel";
+    CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
+    AtomicInteger newChannelsCreated = new AtomicInteger();
+    cache =
+        ChannelCache.forTesting(
+            ignored -> {
+              ManagedChannel channel = newChannel(channelName);
+              newChannelsCreated.incrementAndGet();
+              return channel;
+            },
+            notifyWhenChannelClosed::countDown);
+    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
+    when(someAddress.getKind())
+        .thenReturn(WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS);
+    ManagedChannel cachedChannel = cache.get(someAddress);
+    cache.consumeFlowControlSettings(
+        UserWorkerGrpcFlowControlSettings.newBuilder()
+            .setEnableAutoFlowControl(true)
+            .setOnReadyThresholdBytes(1)
+            .setFlowControlWindowBytes(1)
+            .build());
+    ManagedChannel reloadedChannel = cache.get(someAddress);
+    notifyWhenChannelClosed.await();
+    assertThat(cachedChannel).isNotSameInstanceAs(reloadedChannel);
+    assertTrue(cachedChannel.isShutdown());
+    assertFalse(reloadedChannel.isShutdown());
+    assertThat(newChannelsCreated.get()).isEqualTo(2);
+    assertThat(cache.get(someAddress)).isSameInstanceAs(reloadedChannel);
+  }
+
+  @Test
+  public void testConsumeFlowControlSettings_sameFlowControlSettings() throws InterruptedException {
+    String channelName = "channel";
+    AtomicInteger newChannelsCreated = new AtomicInteger();
+    UserWorkerGrpcFlowControlSettings flowControlSettings =
+        UserWorkerGrpcFlowControlSettings.newBuilder()
+            .setEnableAutoFlowControl(true)
+            .setOnReadyThresholdBytes(1)
+            .setFlowControlWindowBytes(1)
+            .build();
+    cache =
+        ChannelCache.forTesting(
+            ignored -> {
+              ManagedChannel channel = newChannel(channelName);
+              newChannelsCreated.incrementAndGet();
+              return channel;
+            },
+            () -> {});
+    // Load flow control settings.
+    cache.consumeFlowControlSettings(flowControlSettings);
+    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
+    when(someAddress.getKind())
+        .thenReturn(WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS);
+    // Load the cache w/ this first get.
+    ManagedChannel cachedChannel = cache.get(someAddress);
+
+    // Load the same flow control settings.
+    cache.consumeFlowControlSettings(flowControlSettings);
+    // Because the flow control settings are the same, cache should not reload the value for the
+    // same address.
+    ManagedChannel reloadedChannel = cache.get(someAddress);
+    assertThat(cachedChannel).isSameInstanceAs(reloadedChannel);
+    assertFalse(cachedChannel.isShutdown());
+    assertThat(newChannelsCreated.get()).isEqualTo(1);
   }
 }

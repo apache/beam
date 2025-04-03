@@ -39,7 +39,9 @@ public class WindmillStubFactoryFactoryImpl implements WindmillStubFactoryFactor
   @Override
   public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
     Function<WindmillServiceAddress, ManagedChannel> channelFactory =
-        serviceAddress -> remoteChannel(serviceAddress, windmillServiceRpcChannelAliveTimeoutSec);
+        serviceAddress ->
+            remoteChannel(
+                serviceAddress.getServiceAddress(), windmillServiceRpcChannelAliveTimeoutSec);
     ChannelCache channelCache =
         ChannelCache.create(
             serviceAddress ->
