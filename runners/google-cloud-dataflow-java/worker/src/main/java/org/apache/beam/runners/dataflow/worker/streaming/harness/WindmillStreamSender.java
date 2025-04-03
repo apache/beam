@@ -232,49 +232,63 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
    * If at any point the server closes the stream, reconnects immediately.
    */
   private void getWorkStreamLoop(Runnable onInitialStream) {
-    while (isRunning.get()) {
-      CountDownLatch triggerNewStream = new CountDownLatch(1);
+    boolean shouldCreateNewStream = true;
+    while (isRunning.get() && shouldCreateNewStream) {
+      GetWorkStream newStream;
       synchronized (getWorkStreamLock) {
-        GetWorkStream newStream = getWorkStreamFactory.get();
+        newStream = getWorkStreamFactory.get();
         newStream.start();
         onInitialStream.run();
         activeGetWorkStream = newStream;
-        // Offload the old stream termination to a different thread which will terminate once it
-        // closes the stream. This allows this thread to not wait for the old stream to terminate
-        // before creating a new stream once the old stream has timed out.
-        streamManagerExecutor.execute(() -> gracefullyTerminateStream(newStream, triggerNewStream));
       }
 
-      // Wait for a new stream to be triggered w/o holding the lock.
-      try {
-        triggerNewStream.await();
-      } catch (InterruptedException e) {
-        assert !isRunning.get();
-      }
+      shouldCreateNewStream = shouldCreateNewStreamAfterAwaitingTermination(newStream);
     }
   }
 
-  private void gracefullyTerminateStream(GetWorkStream stream, CountDownLatch triggerNewStream) {
+  /**
+   * Manages stream termination. Returns true if a new stream should be created after the stream is
+   * terminated.
+   *
+   * @implNote This may block for up to {@link #GET_WORK_STREAM_TTL_MINUTES} minutes.
+   */
+  private boolean shouldCreateNewStreamAfterAwaitingTermination(GetWorkStream stream) {
     try {
-      // Try to gracefully terminate the stream.
+      // Try to gracefully terminate the stream. If awaitTermination() returns before the TTL it
+      // means the server has terminated the connection and we reconnect immediately. If the stream
+      // is alive, terminate and drain the stream from the client to prevent DEADLINE_EXCEEDED
+      // status errors.
       if (!stream.awaitTermination(GET_WORK_STREAM_TTL_MINUTES, TimeUnit.MINUTES)) {
-        // Free any threads waiting to create a new stream.
-        triggerNewStream.countDown();
-        stream.halfClose();
+        drainStreamAsync(stream);
       }
-
-      // Wait a bit for retries/drains then forcefully shutdown if graceful termination is
-      // unsuccessful.
-      if (!stream.awaitTermination(5, TimeUnit.MINUTES)) {
-        stream.shutdown();
-      }
-
     } catch (InterruptedException e) {
       assert !isRunning.get();
-    } finally {
-      // Make sure we clean up the stream.
-      stream.shutdown();
-      triggerNewStream.countDown();
+      return false;
     }
+
+    return true;
+  }
+
+  private void drainStreamAsync(GetWorkStream stream) {
+    // Offload the old stream termination to a different thread which will terminate once it
+    // closes the stream. This allows this thread to not wait for the old stream to terminate
+    // before creating a new stream once the old stream has timed out.
+    streamManagerExecutor.execute(
+        () -> {
+          stream.halfClose();
+          try {
+            // Wait a bit for retries/drains then forcefully shutdown if graceful termination is
+            // unsuccessful.
+            if (!stream.awaitTermination(5, TimeUnit.MINUTES)) {
+              stream.shutdown();
+            }
+
+          } catch (InterruptedException e) {
+            assert !isRunning.get();
+          } finally {
+            // Make sure we clean up the stream.
+            stream.shutdown();
+          }
+        });
   }
 }
