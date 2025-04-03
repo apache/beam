@@ -17,6 +17,7 @@
 
 import collections
 import functools
+import uuid
 from typing import Dict
 from typing import List
 from typing import Mapping
@@ -28,17 +29,21 @@ from typing import Union
 import yaml
 
 import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml import yaml_utils
 
 
-def run_test(pipeline_spec, test_spec, options=None):
+def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=yaml_utils.SafeLineLoader)
 
-  transform_spec = inject_test_tranforms(
+  transform_spec, recording_ids = inject_test_tranforms(
       yaml_transform.pipeline_as_composite(pipeline_spec['pipeline']),
-      test_spec)
+      test_spec,
+      fix_failures)
 
   allowed_sources = set(test_spec.get('allowed_sources', []) + ['Create'])
   for transform in transform_spec['transforms']:
@@ -57,7 +62,20 @@ def run_test(pipeline_spec, test_spec, options=None):
             pipeline_spec.get('options', {})))
 
   with beam.Pipeline(options=options) as p:
-    _ = p | yaml_transform.YamlTransform(transform_spec)
+    _ = p | yaml_transform.YamlTransform(
+        transform_spec,
+        providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+
+  if fix_failures:
+    fixes = {}
+    for recording_id in recording_ids:
+      if AssertEqualAndRecord.has_recorded_result(recording_id):
+        fixes[recording_id[1:]] = [
+            row._asdict() if isinstance(row, beam.Row) else row
+            for row in AssertEqualAndRecord.get_recorded_result(recording_id)
+        ]
+        AssertEqualAndRecord.remove_recorded_result(recording_id)
+    return fixes
 
 
 def validate_test_spec(test_spec):
@@ -67,6 +85,11 @@ def validate_test_spec(test_spec):
   identifier = (
       test_spec.get('name', 'unknown') +
       f' at line {yaml_transform.SafeLineLoader.get_line(test_spec)}')
+
+  if not isinstance(test_spec.get('allowed_sources', []), list):
+    raise TypeError(
+        f'allowed_sources of test specification {identifier} '
+        f'must be a list, got {type(test_spec["allowed_sources"])}')
 
   if (not test_spec.get('expected_outputs', []) and
       not test_spec.get('expected_inputs', [])):
@@ -116,7 +139,7 @@ def validate_test_spec(test_spec):
             f'must be a list, got {type(attr_item["elements"])}')
 
 
-def inject_test_tranforms(spec, test_spec):
+def inject_test_tranforms(spec, test_spec, fix_failures):
   validate_test_spec(test_spec)
   # These are idempotent, so it's OK to do them preemptively.
   for phase in [
@@ -139,6 +162,9 @@ def inject_test_tranforms(spec, test_spec):
       scope.get_transform_id_and_output_name(mock_output['name']): mock_output
       for mock_output in test_spec.get('mock_outputs', [])
   })
+
+  recording_id_prefix = str(uuid.uuid4())
+  recording_ids = []
 
   transforms = []
 
@@ -213,38 +239,94 @@ def inject_test_tranforms(spec, test_spec):
         },
     }
 
-  def create_assertion(name, inputs, elements):
+  def create_assertion(name, inputs, elements, recording_id=None):
     return {
         '__uuid__': yaml_utils.SafeLineLoader.create_uuid(),
         'name': name,
         'input': inputs,
-        'type': 'AssertEqual',
+        'type': 'AssertEqualAndRecord',
         'config': {
             'elements': elements,
+            'recording_id': recording_id,
         },
     }
 
   for expected_output in test_spec.get('expected_outputs', []):
+    if fix_failures:
+      recording_id = (
+          recording_id_prefix, 'expected_outputs', expected_output['name'])
+      recording_ids.append(recording_id)
+    else:
+      recording_id = None
     require_output(expected_output['name'])
     transforms.append(
         create_assertion(
             f'CheckExpectedOutput[{expected_output["name"]}]',
             expected_output['name'],
-            expected_output['elements']))
+            expected_output['elements'],
+            recording_id))
 
   for expected_input in test_spec.get('expected_inputs', []):
+    if fix_failures:
+      recording_id = (
+          recording_id_prefix, 'expected_inputs', expected_input['name'])
+      recording_ids.append(recording_id)
+    else:
+      recording_id = None
     transform_id = scope.get_transform_id(expected_input['name'])
     transforms.append(
         create_assertion(
             f'CheckExpectedInput[{expected_input["name"]}]',
             create_inputs(transform_id),
-            expected_input['elements']))
+            expected_input['elements'],
+            recording_id))
 
   return {
       '__uuid__': yaml_utils.SafeLineLoader.create_uuid(),
       'type': 'composite',
       'transforms': transforms,
-  }
+  }, recording_ids
+
+
+class AssertEqualAndRecord(beam.PTransform):
+  _recorded_results = {}
+
+  @classmethod
+  def store_recorded_result(cls, recording_id, value):
+    assert recording_id not in cls._recorded_results
+    cls._recorded_results[recording_id] = value
+
+  @classmethod
+  def has_recorded_result(cls, recording_id):
+    return recording_id in cls._recorded_results
+
+  @classmethod
+  def get_recorded_result(cls, recording_id):
+    return cls._recorded_results[recording_id]
+
+  @classmethod
+  def remove_recorded_result(cls, recording_id):
+    del cls._recorded_results[recording_id]
+
+  def __init__(self, elements, recording_id):
+    self._elements = elements
+    self._recording_id = recording_id
+
+  def expand(self, pcoll):
+    equal_to_matcher = equal_to(yaml_provider.dicts_to_rows(self._elements))
+
+    def matcher(actual):
+      try:
+        equal_to_matcher(actual)
+      except Exception:
+        if self._recording_id:
+          AssertEqualAndRecord.store_recorded_result(
+              tuple(self._recording_id), actual)
+        else:
+          raise
+
+    return assert_that(
+        pcoll | beam.Map(lambda row: beam.Row(**row._asdict())), matcher)
 
 
 K1 = TypeVar('K1')

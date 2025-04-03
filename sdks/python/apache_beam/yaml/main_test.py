@@ -54,28 +54,28 @@ tests:
 
 PASSING_TEST_SUITE = '''
 tests:
-  - name: ExternalTest
+  - name: ExternalTest  # comment
     mock_outputs:
       - name: Create
         elements: ['a', 'b', 'c']
     expected_inputs:
       - name: WriteToText
         elements:
-          - {element: a}
-          - {element: b}
-          - {element: c}
+          - element: a
+          - element: b
+          - element: c
 '''
 
 FAILING_TEST_SUITE = '''
 tests:
-  - name: ExternalTest
+  - name: ExternalTest  # comment
     mock_outputs:
       - name: Create
         elements: ['a', 'b', 'c']
     expected_inputs:
       - name: WriteToText
         elements:
-          - {element: x}
+          - element: x
 '''
 
 
@@ -182,6 +182,23 @@ class MainTest(unittest.TestCase):
         ],
                        exit=False)
 
+  def test_fix_suite(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_suite = os.path.join(tmpdir, 'tests.yaml')
+      with open(test_suite, 'w') as fout:
+        fout.write(FAILING_TEST_SUITE)
+
+      main.run_tests([
+          '--yaml_pipeline',
+          TEST_PIPELINE,
+          '--test_suite',
+          test_suite,
+          '--fix_tests'
+      ],
+                     exit=False)
+
+      with open(test_suite) as fin:
+        self.assertEqual(fin.read(), PASSING_TEST_SUITE)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

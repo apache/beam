@@ -30,6 +30,7 @@ from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_testing
 from apache_beam.yaml import yaml_transform
+from apache_beam.yaml import yaml_utils
 
 
 def _preparse_jinja_flags(argv):
@@ -99,6 +100,10 @@ def _parse_arguments(argv):
       help='Run the tests associated with the given pipeline, rather than the '
       'pipeline itself.')
   parser.add_argument(
+      '--fix_tests',
+      action=argparse.BooleanOptionalAction,
+      help='Update failing test expectations to match the actual ouput.')
+  parser.add_argument(
       '--test_suite',
       help='Run the given tests against the given pipeline, rather than the '
       'pipeline itself. '
@@ -149,24 +154,54 @@ def run_tests(argv=None, exit=True):
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
   options = _build_pipeline_options(pipeline_spec, pipeline_args)
 
-  test_specs = pipeline_spec.get('tests', [])
-  if not isinstance(test_specs, list):
-    raise TypeError('tests attribute must be a list of test specifications')
   if known_args.test_suite:
     with open(known_args.test_suite) as fin:
-      more_test_specs = yaml.load(fin, Loader=yaml_transform.SafeLineLoader)
-    if 'tests' not in more_test_specs or not isinstance(
-        more_test_specs['tests'], list):
+      test_suite = yaml.load(fin, Loader=yaml_transform.SafeLineLoader)
+    if 'tests' not in test_suite or not isinstance(test_suite['tests'], list):
       raise TypeError('tests attribute must be a list of test specifications')
-    test_specs += more_test_specs['tests']
+    test_specs = test_suite['tests']
+  else:
+    test_specs = pipeline_spec.get('tests', [])
+    if not isinstance(test_specs, list):
+      raise TypeError('tests attribute must be a list of test specifications')
   if not test_specs:
     raise RuntimeError('No tests found.')
 
   with _fix_xlang_instant_coding():
-    suite = unittest.TestSuite()
-    for test_spec in test_specs:
-      suite.addTest(_YamlTestCase(pipeline_spec, test_spec, options))
+    tests = [
+        _YamlTestCase(pipeline_spec, test_spec, options, known_args.fix_tests)
+        for test_spec in test_specs
+    ]
+    suite = unittest.TestSuite(tests)
     result = unittest.TextTestRunner().run(suite)
+
+  if known_args.fix_tests:
+    if known_args.test_suite:
+      path = known_args.test_suite
+    elif known_args.yaml_pipeline_file:
+      path = known_args.yaml_pipeline_file
+    else:
+      raise RuntimeError('Test fixing only supported for file-backed tests.')
+    with open(path) as fin:
+      original_yaml = fin.read()
+    if path == known_args.yaml_pipeline_file and pipeline_yaml == content:
+      raise RuntimeError('In-file test fixing not yet supported for templated pipelines.')
+    updated_spec = yaml.load(original_yaml, Loader=yaml.SafeLoader)
+
+    for ix, test in enumerate(tests):
+      if test.fixes:
+        test_spec = yaml_transform.SafeLineLoader.strip_metadata(test.spec())
+        assert test_spec == updated_spec['tests'][ix]
+        for (loc, name), values in test.fixes.items():
+          for expectation in updated_spec['tests'][ix][loc]:
+            if expectation['name'] == name:
+              expectation['elements'] = sorted(values, key=json.dumps)
+              break
+
+    updated_yaml = yaml_utils.patch_yaml(original_yaml, updated_spec)
+    with open(path, 'w') as fout:
+      fout.write(updated_yaml)
+
   if exit:
     # emulates unittest.main()
     sys.exit(0 if result.wasSuccessful() else 1)
@@ -233,14 +268,16 @@ def build_pipeline_components_from_yaml(
 
 
 class _YamlTestCase(unittest.TestCase):
-  def __init__(self, pipeline_spec, test_spec, options):
+  def __init__(self, pipeline_spec, test_spec, options, fix_tests):
     super().__init__()
     self._pipeline_spec = pipeline_spec
     self._test_spec = test_spec
     self._options = options
+    self._fix_tests = fix_tests
 
   def runTest(self):
-    yaml_testing.run_test(self._pipeline_spec, self._test_spec, self._options)
+    self.fixes = yaml_testing.run_test(
+        self._pipeline_spec, self._test_spec, self._options, self._fix_tests)
 
   def id(self):
     return (
@@ -249,6 +286,9 @@ class _YamlTestCase(unittest.TestCase):
 
   def __str__(self):
     return self.id()
+
+  def spec(self):
+    return self._test_spec
 
 
 if __name__ == '__main__':

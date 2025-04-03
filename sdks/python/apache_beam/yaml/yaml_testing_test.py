@@ -163,6 +163,35 @@ class YamlTestingTest(unittest.TestCase):
               }]
           })
 
+  def test_fixes(self):
+    fixes = yaml_testing.run_test(
+        SIMPLE_PIPELINE,
+        {
+            'mock_outputs': [{
+                'name': 'MyRead',
+                'elements': [1, 2, 3],
+            }],
+            'expected_inputs': [{
+                'name': 'ToBeExcluded',
+                'elements': [
+                    {
+                        'element': 1, 'square': 1
+                    },
+                    {
+                        'element': 2, 'square': 4
+                    },
+                ]
+            }]
+        },
+        fix_failures=True)
+    self.assertEqual(
+        fixes,
+        {('expected_inputs', 'ToBeExcluded'): [
+             dict(element=1, square=1),
+             dict(element=2, square=4),
+             dict(element=3, square=9),
+         ]})
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
