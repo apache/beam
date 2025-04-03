@@ -39,7 +39,11 @@ class SentimentPostProcessor(beam.DoFn):
         predicted_class = torch.argmax(probs).item()
         confidence = probs[predicted_class].item()
         sentiment = 'POSITIVE' if predicted_class == 1 else 'NEGATIVE'
-        yield f"{text}; {sentiment}; {confidence:.4f}"
+        yield {
+            'text': text,
+            'sentiment': sentiment,
+            'confidence': float(confidence)
+        }
 
 
 def tokenize_text(text: str, tokenizer: DistilBertTokenizerFast) -> tuple[str, dict[str, torch.Tensor]]:
@@ -50,7 +54,7 @@ def tokenize_text(text: str, tokenizer: DistilBertTokenizerFast) -> tuple[str, d
 def parse_known_args(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--output',
+        '--output_table',
         required=True,
         help='Path to output file on GCS'
     )
@@ -165,16 +169,21 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
     _ = (
         pipeline
         | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=known_args.pubsub_subscription)
+        | 'DecodeText' >> beam.Map(lambda x: x.decode('utf-8'))
+        | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
         | 'WindowedOutput' >> beam.WindowInto(
             beam.window.FixedWindows(60),
             trigger=beam.trigger.AfterProcessingTime(30),
             accumulation_mode=beam.trigger.AccumulationMode.DISCARDING
         )
-        | 'DecodeText' >> beam.Map(lambda x: x.decode('utf-8'))
-        | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
         | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'PostProcess' >> beam.ParDo(SentimentPostProcessor(tokenizer))
-        | 'WriteOutput' >> beam.io.WriteToText(known_args.output, shard_name_template='')
+        | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
+            known_args.output_table,
+            schema='text:STRING, sentiment:STRING, confidence:FLOAT',
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+        )
     )
 
     result = pipeline.run()
