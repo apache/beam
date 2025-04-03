@@ -180,8 +180,10 @@ task dataflowIntegrationTest(type: Test) {
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testStreamToPartitionedDynamicDestinations'
     }
 
-    if (usingJava8) {
-        throw new StopExecutionException("BigQueryMetastoreCatalog doesn't support Java 8");
+    doLast {
+        if (usingJava8) {
+            throw new StopExecutionException("BigQueryMetastoreCatalog doesn't support Java 8");
+        }
     }
 
     maxParallelForks 4
