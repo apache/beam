@@ -500,6 +500,9 @@ public class JdbcIO {
     @Pure
     abstract @Nullable DataSource getDataSource();
 
+    @Pure
+    abstract @Nullable String getValidationQuery();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -525,6 +528,8 @@ public class JdbcIO {
       abstract Builder setDriverJars(ValueProvider<String> driverJars);
 
       abstract Builder setDataSource(@Nullable DataSource dataSource);
+
+      abstract Builder setValidationQuery(String query);
 
       abstract DataSourceConfiguration build();
     }
@@ -649,6 +654,11 @@ public class JdbcIO {
       return builder().setDriverJars(driverJars).build();
     }
 
+    /** Overrides the default validation query. */
+    public DataSourceConfiguration withValidationQuery(String validationQuery) {
+      return builder().setValidationQuery(validationQuery).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -708,6 +718,10 @@ public class JdbcIO {
           URLClassLoader classLoader =
               URLClassLoader.newInstance(JdbcUtil.saveFilesLocally(getDriverJars().get()));
           basicDataSource.setDriverClassLoader(classLoader);
+        }
+        @Nullable String validationQuery = getValidationQuery();
+        if (validationQuery != null) {
+          basicDataSource.setValidationQuery(validationQuery);
         }
 
         return basicDataSource;
