@@ -266,6 +266,17 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 			kd(r)
 			vd(r)
 		}
+	case urns.CoderTuple:
+		ccids := c.GetComponentCoderIds()
+		decoders := make([]func(io.Reader), len(ccids))
+		for i, ccid := range ccids {
+			decoders[i] = pullDecoderNoAlloc(coders[ccid], coders)
+		}
+		return func(r io.Reader) {
+			for _, dec := range decoders {
+				dec(r)
+			}
+		}
 	case urns.CoderRow:
 		panic(fmt.Sprintf("Runner forgot to LP this Row Coder. %v", prototext.Format(c)))
 	default:

@@ -23,7 +23,10 @@ import collections
 import glob
 import io
 import tempfile
+from typing import Any
 from typing import Iterable
+from typing import List
+from typing import NamedTuple
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -35,6 +38,8 @@ from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.util import CoGroupByKey
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
 
 __all__ = [
     'assert_that',
@@ -56,8 +61,11 @@ class BeamAssertException(Exception):
 
 
 # Used for reifying timestamps and windows for assert_that matchers.
-TestWindowedValue = collections.namedtuple(
-    'TestWindowedValue', 'value timestamp windows')
+class TestWindowedValue(NamedTuple):
+  value: Any
+  timestamp: Any
+  windows: List
+  pane_info: PaneInfo = PANE_INFO_UNKNOWN
 
 
 def contains_in_any_order(iterable):
@@ -290,11 +298,15 @@ def assert_that(
 
   class ReifyTimestampWindow(DoFn):
     def process(
-        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        pane_info=DoFn.PaneInfoParam):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
-      return [TestWindowedValue(element, timestamp, [window])]
+      return [TestWindowedValue(element, timestamp, [window], pane_info)]
 
   class AddWindow(DoFn):
     def process(self, element, window=DoFn.WindowParam):
