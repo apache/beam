@@ -73,6 +73,7 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
+  implementation library.java.otel_api
   permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core

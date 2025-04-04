@@ -138,7 +138,12 @@ class KafkaIOReadImplementationCompatibility {
       }
     },
     OFFSET_DEDUPLICATION(LEGACY),
-    ;
+    OTEL_TRACING {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    };
 
     private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
 
