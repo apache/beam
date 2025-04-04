@@ -646,9 +646,9 @@ def avro_atomic_value_to_beam_atomic_value(avro_type: str, value):
   if value is None:
     return value
   elif avro_type == "int":
-    return ctypes.c_uint32(value).value
+    return ctypes.c_int32(value).value
   elif avro_type == "long":
-    return ctypes.c_uint64(value).value
+    return ctypes.c_int64(value).value
   else:
     return value
 

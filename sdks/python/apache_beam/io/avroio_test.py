@@ -196,9 +196,8 @@ class AvroBase(object):
       assert_that(readback, equal_to(records))
 
   def test_avro_atomic_value_to_beam_atomic_value(self):
-    input_outputs = [('int', 1, 1), ('int', -1, 0xffffffff),
-                     ('int', None, None), ('long', 1, 1),
-                     ('long', -1, 0xffffffffffffffff), ('long', None, None),
+    input_outputs = [('int', 1, 1), ('int', -1, -1), ('int', None, None),
+                     ('long', 1, 1), ('long', -1, -1), ('long', None, None),
                      ('string', 'foo', 'foo')]
     for test_avro_type, test_value, expected_value in input_outputs:
       actual_value = avro_atomic_value_to_beam_atomic_value(
