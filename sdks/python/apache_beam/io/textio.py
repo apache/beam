@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import logging
+import os
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
@@ -781,6 +782,13 @@ class ReadFromText(PTransform):
     """
 
     super().__init__(**kwargs)
+    if file_pattern:
+      try:
+        if not os.path.dirname(file_pattern):
+          file_pattern = os.path.join('.', file_pattern)
+      except TypeError:
+        pass
+
     self._source = self._source_class(
         file_pattern,
         min_bundle_size,
