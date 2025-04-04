@@ -822,13 +822,14 @@ public final class StreamingDataflowWorker {
 
     OpenTelemetryTracingOptions openTelemetryTracingOptions =
         options.as(OpenTelemetryTracingOptions.class);
-    Function tracerProviderFactory =
-        InstanceBuilder.ofType(Function.class)
-            .fromClass(openTelemetryTracingOptions.getTracerProviderFactory())
-            .build();
-    openTelemetryTracingOptions.setTracerProvider(
-        (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
-
+    Class<? extends Function<OpenTelemetryTracingOptions, TracerProvider>>
+        tracerProviderFactoryClass = openTelemetryTracingOptions.getTracerProviderFactory();
+    if (tracerProviderFactoryClass != null) {
+      Function tracerProviderFactory =
+          InstanceBuilder.ofType(Function.class).fromClass(tracerProviderFactoryClass).build();
+      openTelemetryTracingOptions.setTracerProvider(
+          (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
+    }
     if (options.isEnableStreamingEngine()
         && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {
       enableBigQueryMetrics();

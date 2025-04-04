@@ -297,13 +297,16 @@ public class FnHarness {
       LOG.info("Fn Harness started");
 
       OpenTelemetryTracingOptions openTelemetryTracingOptions =
-          options.as(OpenTelemetryTracingOptions.class);
-      Function tracerProviderFactory =
-          InstanceBuilder.ofType(Function.class)
-              .fromClass(openTelemetryTracingOptions.getTracerProviderFactory())
-              .build();
-      openTelemetryTracingOptions.setTracerProvider(
-          (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
+              options.as(OpenTelemetryTracingOptions.class);
+      Class<? extends Function<OpenTelemetryTracingOptions, TracerProvider>> tracerProviderFactoryClass = openTelemetryTracingOptions.getTracerProviderFactory();
+      if(tracerProviderFactoryClass!=null) {
+        Function tracerProviderFactory =
+                InstanceBuilder.ofType(Function.class)
+                        .fromClass(tracerProviderFactoryClass)
+                        .build();
+        openTelemetryTracingOptions.setTracerProvider(
+                (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
+      }
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();
