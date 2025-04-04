@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.api.trace.TracerProvider;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,8 +63,10 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.OpenTelemetryTracingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
@@ -260,6 +263,9 @@ public class FnHarness {
    * @param processWideCache
    * @throws Exception
    */
+  @SuppressWarnings({
+    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
+  })
   public static void main(
       String id,
       PipelineOptions options,
@@ -289,6 +295,15 @@ public class FnHarness {
         LoggingClientFactory.createAndStart(
             options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
       LOG.info("Fn Harness started");
+
+      OpenTelemetryTracingOptions openTelemetryTracingOptions =
+          options.as(OpenTelemetryTracingOptions.class);
+      Function tracerProviderFactory =
+          InstanceBuilder.ofType(Function.class)
+              .fromClass(openTelemetryTracingOptions.getTracerProviderFactory())
+              .build();
+      openTelemetryTracingOptions.setTracerProvider(
+          (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();

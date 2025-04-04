@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
+import io.opentelemetry.api.trace.TracerProvider;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
@@ -111,6 +112,8 @@ import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.OpenTelemetryTracingOptions;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -795,6 +798,9 @@ public final class StreamingDataflowWorker {
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build());
   }
 
+  @SuppressWarnings({
+    "rawtypes", // InstanceBuilder
+  })
   public static void main(String[] args) throws Exception {
     JvmInitializers.runOnStartup();
 
@@ -813,6 +819,15 @@ public final class StreamingDataflowWorker {
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
+
+    OpenTelemetryTracingOptions openTelemetryTracingOptions =
+        options.as(OpenTelemetryTracingOptions.class);
+    Function tracerProviderFactory =
+        InstanceBuilder.ofType(Function.class)
+            .fromClass(openTelemetryTracingOptions.getTracerProviderFactory())
+            .build();
+    openTelemetryTracingOptions.setTracerProvider(
+        (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
 
     if (options.isEnableStreamingEngine()
         && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {

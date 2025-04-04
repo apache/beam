@@ -86,6 +86,7 @@ dependencies {
   shadow library.java.commons_lang3
   testImplementation library.java.mockito_inline
   shadow library.java.classgraph
+  implementation library.java.otel_api
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
   shadow library.java.jackson_core

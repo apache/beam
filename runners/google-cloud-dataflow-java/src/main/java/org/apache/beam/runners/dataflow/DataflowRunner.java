@@ -39,6 +39,13 @@ import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.opentelemetry.trace.TraceExporter;
+import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -56,6 +63,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -99,6 +107,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.OpenTelemetryTracingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
@@ -1349,7 +1358,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           "Dataflow v1 pipeline proto:\n{}",
           TextFormat.printer().printToString(dataflowV1PipelineProto));
     }
+    final OpenTelemetryTracingOptions openTelemetryTracingOptions =
+        options.as(OpenTelemetryTracingOptions.class);
 
+    if (openTelemetryTracingOptions.getTracerProviderFactory() == null) {
+      openTelemetryTracingOptions
+          .as(OpenTelemetryTracingOptions.class)
+          .setTracerProviderFactory(OpenTelemetryTracerProviderFactory.class);
+    }
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
     // attempts to create a job. Specifically, if the service returns a job with
@@ -2540,6 +2556,27 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public Map<PCollection<?>, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PCollection<?>> outputs, PDone newOutput) {
       return Collections.emptyMap();
+    }
+  }
+
+  private static class OpenTelemetryTracerProviderFactory
+      implements Function<OpenTelemetryTracingOptions, TracerProvider> {
+    @Override
+    public TracerProvider apply(OpenTelemetryTracingOptions options) {
+      SpanExporter traceExporter = TraceExporter.createWithDefaultConfiguration();
+      Resource resource =
+          Resource.getDefault()
+              .toBuilder()
+              .put("service.name", options.as(OpenTelemetryTracingOptions.class).getServiceName())
+              .build();
+      SdkTracerProvider tracerProvider =
+          SdkTracerProvider.builder()
+              .addSpanProcessor(BatchSpanProcessor.builder(traceExporter).build())
+              .addResource(resource)
+              .build();
+      OpenTelemetrySdk build =
+          OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).buildAndRegisterGlobal();
+      return build.getTracerProvider();
     }
   }
 
