@@ -1361,7 +1361,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     final OpenTelemetryTracingOptions openTelemetryTracingOptions =
         options.as(OpenTelemetryTracingOptions.class);
 
-    if (openTelemetryTracingOptions.getTracerProviderFactory() == null) {
+    if (openTelemetryTracingOptions.getEnableOpenTelemetryTracing()
+            && openTelemetryTracingOptions.getTracerProviderFactory() == null) {
       openTelemetryTracingOptions
           .as(OpenTelemetryTracingOptions.class)
           .setTracerProviderFactory(OpenTelemetryTracerProviderFactory.class);
