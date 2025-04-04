@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableView } from '../../inspector/InspectableView';
 
@@ -24,18 +24,33 @@ import {
 } from '../../inspector/InspectableViewModel';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
 
-it('does not render options if inspecting a pipeline', () => {
+it('does not render options if inspecting a pipeline', async () => {
   const fakeModel = {
     html: '',
     script: [] as string[],
@@ -43,8 +58,8 @@ it('does not render options if inspecting a pipeline', () => {
     identifier: 'id',
     options: {} as IOptions
   } as InspectableViewModel;
-  act(() => {
-    render(<InspectableView model={fakeModel} />, container);
+  await act(async () => {
+    root.render(<InspectableView model={fakeModel} />);
   });
   const inspectableViewElement: Element = container.firstElementChild;
   const optionsElement: Element = inspectableViewElement.firstElementChild;
@@ -52,7 +67,7 @@ it('does not render options if inspecting a pipeline', () => {
   expect(optionsElement.innerHTML).toBe('<span></span>');
 });
 
-it('renders options if inspecting a pcollection', () => {
+it('renders options if inspecting a pcollection', async () => {
   const inspectableViewRef: React.RefObject<InspectableView> =
     React.createRef<InspectableView>();
   const fakeModel = {
@@ -65,11 +80,8 @@ it('renders options if inspecting a pcollection', () => {
       visualizeInFacets: true
     } as IOptions
   } as InspectableViewModel;
-  act(() => {
-    render(
-      <InspectableView ref={inspectableViewRef} model={fakeModel} />,
-      container
-    );
+  await act(async () => {
+    root.render(<InspectableView ref={inspectableViewRef} model={fakeModel} />);
     const inspectableView = inspectableViewRef.current;
     if (inspectableView) {
       inspectableView.setState({
@@ -107,7 +119,7 @@ it('renders options if inspecting a pcollection', () => {
   );
 });
 
-it('renders an html view', () => {
+it('renders an html view', async () => {
   const fakeModel = {
     html: '<div>fake html</div>',
     script: ['console.log(1)'],
@@ -115,8 +127,8 @@ it('renders an html view', () => {
     identifier: 'id',
     options: {} as IOptions
   } as InspectableViewModel;
-  act(() => {
-    render(<InspectableView model={fakeModel} />, container);
+  await act(async () => {
+    root.render(<InspectableView model={fakeModel} />);
   });
   const inspectableViewElement: Element = container.firstElementChild;
   expect(inspectableViewElement.innerHTML).toContain('<div>fake html</div>');

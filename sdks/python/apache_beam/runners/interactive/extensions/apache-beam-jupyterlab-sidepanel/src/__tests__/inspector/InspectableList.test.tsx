@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableList } from '../../inspector/InspectableList';
 
@@ -23,20 +23,35 @@ import { InspectableViewModel } from '../../inspector/InspectableViewModel';
 const mockedInspectableViewModel = new InspectableViewModel({} as any);
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
 
-it('renders a list', () => {
-  act(() => {
-    render(
+it('renders a list', async () => {
+  await act(async () => {
+    root.render(
       <InspectableList
         inspectableViewModel={mockedInspectableViewModel as any}
         id="pipeline_id"
@@ -57,8 +72,7 @@ it('renders a list', () => {
             type: 'pcollection'
           }
         }}
-      />,
-      container
+      />
     );
   });
   const listElement: Element = container.firstElementChild;
@@ -70,14 +84,14 @@ it('renders a list', () => {
   const listHandleItem: Element = listHandle.firstElementChild;
   expect(listHandleItem.tagName).toBe('LI');
   expect(listHandleItem.getAttribute('class')).toContain('mdc-list-item');
-  const listHandleText: Element = listHandleItem.firstElementChild;
+  const listHandleText: Element = listHandleItem.children[2];
   expect(listHandleText.getAttribute('class')).toContain('mdc-list-item__text');
   const listHandlePrimaryText: Element = listHandleText.firstElementChild;
   expect(listHandlePrimaryText.getAttribute('class')).toContain(
     'mdc-list-item__primary-text'
   );
   expect(listHandlePrimaryText.textContent).toBe('pipeline_name');
-  const listHandleMetaIcon: Element = listHandleItem.children[1];
+  const listHandleMetaIcon: Element = listHandleItem.children[3];
   expect(listHandleMetaIcon.tagName).toBe('I');
   expect(listHandleMetaIcon.getAttribute('class')).toContain(
     'mdc-list-item__meta'

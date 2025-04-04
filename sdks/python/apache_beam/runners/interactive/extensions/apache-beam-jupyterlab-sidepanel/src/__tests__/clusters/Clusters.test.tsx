@@ -12,31 +12,42 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { Clusters } from '../../clusters/Clusters';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
-
-it('renders info message about no clusters being available', () => {
+it('renders info message about no clusters being available', async () => {
   const clustersRef: React.RefObject<Clusters> = React.createRef<Clusters>();
-  act(() => {
-    render(
-      <Clusters sessionContext={{} as any} ref={clustersRef} />,
-      container
-    );
+  await act(async () => {
+    root.render(<Clusters sessionContext={{} as any} ref={clustersRef} />);
     const clusters = clustersRef.current;
     if (clusters) {
       clusters.setState({ clusters: {} });
@@ -47,7 +58,7 @@ it('renders info message about no clusters being available', () => {
   expect(infoElement.textContent).toBe('No clusters detected.');
 });
 
-it('renders a data-table', () => {
+it('renders a data-table', async () => {
   const clustersRef: React.RefObject<Clusters> = React.createRef<Clusters>();
   const testData = {
     key: {
@@ -59,16 +70,15 @@ it('renders a data-table', () => {
       dashboard: 'test-dashboard'
     }
   };
-  act(() => {
-    render(
-      <Clusters sessionContext={{} as any} ref={clustersRef} />,
-      container
-    );
-    const clusters = clustersRef.current;
-    if (clusters) {
-      clusters.setState({ clusters: testData });
-    }
+  await act(async () => {
+    root.render(<Clusters sessionContext={{} as any} ref={clustersRef} />);
   });
+
+  await act(async () => {
+    clustersRef.current?.setState({ clusters: testData });
+    await new Promise(resolve => setTimeout(resolve, 100));
+  });
+
   const topAppBarHeader: Element = container.firstElementChild;
   expect(topAppBarHeader.tagName).toBe('HEADER');
   expect(topAppBarHeader.getAttribute('class')).toContain('mdc-top-app-bar');
@@ -96,7 +106,7 @@ it('renders a data-table', () => {
   const dataTableDiv: Element = clustersComponent.children[0];
   expect(dataTableDiv.tagName).toBe('DIV');
   expect(dataTableDiv.getAttribute('class')).toContain('mdc-data-table');
-  const dataTable: Element = dataTableDiv.children[0];
+  const dataTable: Element = dataTableDiv.children[0].firstElementChild;
   expect(dataTable.tagName).toBe('TABLE');
   expect(dataTable.getAttribute('class')).toContain('mdc-data-table__table');
   const dataTableHead: Element = dataTable.children[0];

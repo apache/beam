@@ -12,27 +12,42 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableListItem } from '../../inspector/InspectableListItem';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
 
-it('renders an item', () => {
-  act(() => {
-    render(
+it('renders an item', async () => {
+  await act(async () => {
+    root.render(
       <InspectableListItem
         id="id"
         metadata={{
@@ -40,14 +55,13 @@ it('renders an item', () => {
           inMemoryId: 123456,
           type: 'pcollection'
         }}
-      />,
-      container
+      />
     );
   });
   const liElement: Element = container.firstElementChild;
   expect(liElement.tagName).toBe('LI');
   expect(liElement.getAttribute('class')).toBe('mdc-list-item');
-  const textElement: Element = liElement.firstElementChild;
+  const textElement: Element = liElement.children[1];
   expect(textElement.getAttribute('class')).toBe('mdc-list-item__text');
   const primaryTextElement: Element = textElement.firstElementChild;
   expect(primaryTextElement.getAttribute('class')).toBe(
