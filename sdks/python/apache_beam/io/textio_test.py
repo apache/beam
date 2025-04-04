@@ -27,7 +27,6 @@ import platform
 import shutil
 import tempfile
 import unittest
-import unittest.mock
 import zlib
 
 import apache_beam as beam
@@ -44,6 +43,7 @@ from apache_beam.io.textio import ReadAllFromTextContinuously
 from apache_beam.io.textio import ReadFromText
 from apache_beam.io.textio import ReadFromTextWithFilename
 from apache_beam.io.textio import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
@@ -1461,17 +1461,19 @@ class TextSourceTest(unittest.TestCase):
     source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
 
-  def test_read_from_text_dirname_error(self):
-    file_pattern = 'abcd_test'
-    expected_error_message = (
-        "Path type should be local path or GCS path "
-        "when calling ReadFromText")
+  def test_read_from_text_with_value_provider(self):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--file_pattern',
+            help='This keyword argument is a value provider',
+            default='some value')
 
-    with unittest.mock.patch('os.path.dirname') as mock_dirname:
-      mock_dirname.side_effect = TypeError(expected_error_message)
-      with self.assertRaises(OSError):
-        with TestPipeline() as pipeline:
-          _ = pipeline | 'Read' >> ReadFromText(file_pattern)
+    options = UserDefinedOptions(['--file_pattern', 'abc'])
+    with self.assertRaises(OSError):
+      with TestPipeline(options=options) as pipeline:
+        _ = pipeline | 'Read' >> ReadFromText(options.file_pattern)
 
 
 class TextSinkTest(unittest.TestCase):
