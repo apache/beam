@@ -25,7 +25,10 @@ from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostB
 class PytorchSentimentBenchmarkTest(DataflowCostBenchmark):
     def __init__(self):
         self.metrics_namespace = 'BeamML_PyTorch'
-        super().__init__(metrics_namespace=self.metrics_namespace)
+        super().__init__(
+            metrics_namespace=self.metrics_namespace,
+            pcollection='PostProcess.out0'
+        )
 
     def test(self):
         extra_opts = {}
