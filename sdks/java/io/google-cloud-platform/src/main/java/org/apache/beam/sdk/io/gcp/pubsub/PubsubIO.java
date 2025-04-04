@@ -27,9 +27,18 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,6 +59,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.OpenTelemetryTracingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -855,6 +865,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsMessageId();
 
+    abstract boolean isEnableOpenTelemetryTracing();
+
     abstract boolean getNeedsOrderingKey();
 
     abstract BadRecordRouter getBadRecordRouter();
@@ -875,6 +887,7 @@ public class PubsubIO {
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setValidate(false);
+      builder.setEnableOpenTelemetryTracing(false);
       return builder;
     }
 
@@ -896,6 +909,8 @@ public class PubsubIO {
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
       abstract Builder<T> setIdAttribute(String idAttribute);
+
+      abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
@@ -1080,6 +1095,50 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    public Read<T> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).setNeedsAttributes(true).build();
+    }
+
+    static class OpenTelemetryHeaderConsumer extends DoFn<PubsubMessage, PubsubMessage> {
+      Context extractSpanContext(PubsubMessage message) {
+        TextMapGetter<PubsubMessage> extractMessageAttributes =
+            new TextMapGetter<PubsubMessage>() {
+              @Override
+              public String get(@Nullable PubsubMessage carrier, String key) {
+                String attribute =
+                    Preconditions.checkArgumentNotNull(carrier).getAttribute("googclient_" + key);
+                return attribute == null ? "" : attribute;
+              }
+
+              @Override
+              public Iterable<String> keys(PubsubMessage carrier) {
+                Map<String, String> attributeMap = carrier.getAttributeMap();
+                return attributeMap == null ? ImmutableList.of() : attributeMap.keySet();
+              }
+            };
+        return W3CTraceContextPropagator.getInstance()
+            .extract(Context.current(), message, extractMessageAttributes);
+      }
+
+      @ProcessElement
+      public void processElement(
+          ProcessContext c,
+          @Element PubsubMessage message,
+          OutputReceiver<PubsubMessage> output,
+          PipelineOptions po) {
+        Context context = extractSpanContext(message);
+        TracerProvider tracerProvider =
+            po.as(OpenTelemetryTracingOptions.class).getTracerProvider();
+        Tracer tracer = Preconditions.checkArgumentNotNull(tracerProvider).get("PubSubIO");
+        Span psSub = tracer.spanBuilder("Process Element").setParent(context).startSpan();
+        try (Scope s = context.makeCurrent()) {
+          output.output(message);
+        } finally {
+          psSub.end();
+        }
+      }
+    }
+
     /**
      * Causes the source to return a PubsubMessage that includes Pubsub attributes, and uses the
      * given parsing function to transform the PubsubMessage into an output type. A Coder for the
@@ -1134,6 +1193,8 @@ public class PubsubIO {
         throw new IllegalArgumentException(
             "PubSubIO cannot be configured with both a dead letter topic and a bad record router");
       }
+
+      // validate need attribute and otel if someone flipped the swtich
 
       @Nullable
       ValueProvider<TopicPath> topicPath =
@@ -1206,6 +1267,14 @@ public class PubsubIO {
             }
           };
       PCollection<T> read;
+
+      if (isEnableOpenTelemetryTracing()) {
+        preParse =
+            preParse.apply(
+                "Extract OpenTelemetry context from Header",
+                ParDo.of(new OpenTelemetryHeaderConsumer()));
+      }
+
       if (getDeadLetterTopicProvider() == null
           && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
         read = preParse.apply(MapElements.into(typeDescriptor).via(parseFnWrapped));
@@ -1378,6 +1447,8 @@ public class PubsubIO {
 
     abstract @Nullable String getPubsubRootUrl();
 
+    abstract boolean isEnableOpenTelemetryTracing();
+
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
@@ -1394,6 +1465,7 @@ public class PubsubIO {
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setValidate(false);
+      builder.setEnableOpenTelemetryTracing(false);
       return builder;
     }
 
@@ -1418,6 +1490,8 @@ public class PubsubIO {
 
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
+      abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
+
       abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setFormatFn(
@@ -1433,6 +1507,44 @@ public class PubsubIO {
       abstract Builder<T> setValidate(boolean validation);
 
       abstract Write<T> build();
+    }
+
+    static class OpenTelemetryHeaderPropagator extends DoFn<PubsubMessage, PubsubMessage> {
+      void injectSpanContext(Map<String, String> attr) {
+        TextMapSetter<Map<String, String>> inject =
+            new TextMapSetter<Map<String, String>>() {
+              @Override
+              public void set(
+                  @javax.annotation.Nullable Map<String, String> attr, String key, String value) {
+                LOG.info("injecting " + key);
+                LOG.info("injecting " + value);
+                Preconditions.checkArgumentNotNull(attr).put("googclient_" + key, value);
+              }
+            };
+        LOG.info("injectSpanContext - " + Context.current());
+        W3CTraceContextPropagator.getInstance().inject(Context.current(), attr, inject);
+      }
+
+      @ProcessElement
+      public void processElement(
+          ProcessContext c,
+          @Element PubsubMessage message,
+          OutputReceiver<PubsubMessage> output,
+          PipelineOptions po) {
+        Map<String, String> attributeMap = message.getAttributeMap();
+        Map<String, String> attr = new HashMap<>(Objects.requireNonNull(attributeMap));
+        injectSpanContext(attr);
+        LOG.info("map" + attr.entrySet());
+
+        // copy the message, multiple fields
+        PubsubMessage ps =
+            new PubsubMessage(
+                message.getPayload(), attr, message.getMessageId(), message.getOrderingKey());
+
+        // topic is copied seperately, not via constructor
+        ps = ps.withTopic(message.getTopic());
+        output.output(ps);
+      }
     }
 
     /**
@@ -1508,6 +1620,10 @@ public class PubsubIO {
      */
     public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
       return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
+    }
+
+    public Write<T> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
     }
 
     /**
@@ -1599,6 +1715,11 @@ public class PubsubIO {
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
       PCollection<PubsubMessage> pubsubMessages =
           pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(PubsubMessageWithTopicCoder.of());
+      if (isEnableOpenTelemetryTracing()) {
+        pubsubMessages =
+            pubsubMessages.apply(
+                "Propagate OpenTelemetry Tracing", ParDo.of(new OpenTelemetryHeaderPropagator()));
+      }
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(
