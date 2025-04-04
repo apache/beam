@@ -41,6 +41,13 @@ Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '
   [END enrichment_with_bigtable]'''.splitlines()[1:-1]
   return expected
 
+def validate_enrichment_with_cloudsql():
+  expected = '''[START enrichment_with_cloudsql]
+Row(sale_id=1, customer_id=1, product_id=1, quantity=1, product={'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'})
+Row(sale_id=3, customer_id=3, product_id=2, quantity=3, product={'product_id': '2', 'product_name': 'pixel 6', 'product_stock': '4'})
+Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '4', 'product_name': 'pixel 8', 'product_stock': '10'})
+  [END enrichment_with_cloudsql]'''.splitlines()[1:-1]
+  return expected
 
 def validate_enrichment_with_vertex_ai():
   expected = '''[START enrichment_with_vertex_ai]
@@ -66,6 +73,13 @@ class EnrichmentTest(unittest.TestCase):
     enrichment_with_bigtable()
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_bigtable()
+    self.assertEqual(output, expected)
+
+  def test_enrichment_with_cloudsql(self, mock_stdout):
+    from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_cloudsql
+    enrichment_with_cloudsql()
+    output = mock_stdout.getvalue().splitlines()
+    expected = validate_enrichment_with_cloudsql()
     self.assertEqual(output, expected)
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
