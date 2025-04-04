@@ -188,7 +188,7 @@ def run(argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult
     )
 
     result = pipeline.run()
-    result.wait_until_finish(duration=10800000)  # 3 hour
+    result.wait_until_finish(duration=1800000)  # 30 min
 
     cleanup_pubsub_resources(
         project=known_args.project,
