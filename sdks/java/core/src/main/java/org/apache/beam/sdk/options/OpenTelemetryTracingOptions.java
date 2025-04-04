@@ -28,7 +28,7 @@ public interface OpenTelemetryTracingOptions extends PipelineOptions {
   @Default.Boolean(false)
   boolean getEnableOpenTelemetryTracing();
 
-  void setEnableOpenTelemetryTracing(String enableOpenTelemetryTracing);
+  void setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
   @Description("OpenTelemetry resource service name.")
   String getServiceName();
