@@ -70,21 +70,26 @@ def pipeline_schema(strictness):
   return pipeline_schema
 
 
-def _closest_line(o, path):
+def _closest_line_and_key(o, path):
+  best_key = '<root>'
   best_line = SafeLineLoader.get_line(o)
   for step in path:
     o = o[step]
     maybe_line = SafeLineLoader.get_line(o)
+    best_key = step
     if maybe_line != 'unknown':
       best_line = maybe_line
-  return best_line
+  return best_line, best_key
 
 
 def validate_against_schema(pipeline, strictness):
   try:
     jsonschema.validate(pipeline, pipeline_schema(strictness))
   except jsonschema.ValidationError as exn:
-    exn.message += f" around line {_closest_line(pipeline, exn.path)}"
+    line, key = _closest_line_and_key(pipeline, exn.path)
+    exn.message = (
+        f"Error found on key '{key}' around line {line}. "
+        f"Cause: {exn.message}.")
     raise exn
 
 
