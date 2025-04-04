@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int TARGET_COMMIT_BATCH_KEYS = 5;
   private static final String NO_BACKEND_WORKER_TOKEN = "";
@@ -153,7 +154,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   private void streamingCommitLoop() {
     @Nullable Commit initialCommit = null;
-    try {
+    try (CloseableStream<CommitWorkStream> closeableCommitStream = commitWorkStreamFactory.get()) {
       while (isRunning.get()) {
         if (initialCommit == null) {
           try {
@@ -174,19 +175,18 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           continue;
         }
 
-        try (CloseableStream<CommitWorkStream> closeableCommitStream =
-                commitWorkStreamFactory.get();
-            CommitWorkStream.RequestBatcher batcher = closeableCommitStream.stream().batcher()) {
+        try (CommitWorkStream.RequestBatcher batcher = closeableCommitStream.stream().batcher()) {
           if (!tryAddToCommitBatch(initialCommit, batcher)) {
             throw new AssertionError("Initial commit on flushed stream should always be accepted.");
           }
           // Batch additional commits to the stream and possibly make an un-batched commit the
           // next initial commit.
           initialCommit = expandBatch(batcher);
-        } catch (Exception e) {
-          LOG.error("Error occurred sending commits.", e);
         }
       }
+    } catch (Exception e) {
+      LOG.error("Error occurred sending commits.", e);
+      throw new RuntimeException(e);
     } finally {
       if (initialCommit != null) {
         failCommit(initialCommit);
@@ -255,6 +255,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @AutoBuilder
   public interface Builder {
+
     Builder setCommitWorkStreamFactory(
         Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory);
 

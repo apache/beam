@@ -69,6 +69,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -160,6 +161,7 @@ public final class StreamingDataflowWorker {
 
   private static final long THREAD_EXPIRATION_TIME_SEC = 60;
   private static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
+  private static final int NUM_COMMIT_STREAMS_PER_SENDER = 1;
   private static final Duration GET_DATA_STREAM_TIMEOUT = Duration.standardSeconds(30);
   private static final int DEFAULT_STATUS_PORT = 8081;
   private static final Random CLIENT_ID_GENERATOR = new Random();
@@ -321,11 +323,17 @@ public final class StreamingDataflowWorker {
         workCommitter =
             StreamingEngineWorkCommitter.builder()
                 .setCommitWorkStreamFactory(
-                    WindmillStreamPool.create(
-                            numCommitThreads,
-                            COMMIT_STREAM_TIMEOUT,
-                            windmillServer::commitWorkStream)
-                        ::getCloseableStream)
+                    () -> {
+                      // Create a new pool eveytime the factory is called
+                      // Each commit sender will have its own stream pool and
+                      // not share underlying streams
+                      WindmillStreamPool<CommitWorkStream> streamPool =
+                          WindmillStreamPool.create(
+                              NUM_COMMIT_STREAMS_PER_SENDER,
+                              COMMIT_STREAM_TIMEOUT,
+                              windmillServer::commitWorkStream);
+                      return streamPool.getCloseableStream();
+                    })
                 .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
                 .setNumCommitSenders(numCommitThreads)
                 .setOnCommitComplete(this::onCompleteCommit)
@@ -928,6 +936,7 @@ public final class StreamingDataflowWorker {
 
   @FunctionalInterface
   private interface StreamingWorkerStatusReporterFactory {
+
     StreamingWorkerStatusReporter createStatusReporter(ThrottledTimeTracker throttledTimeTracker);
   }
 
@@ -951,6 +960,7 @@ public final class StreamingDataflowWorker {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setConfigFetcher(ComputationConfig.Fetcher value);
 
       abstract Builder setComputationStateCache(ComputationStateCache value);
