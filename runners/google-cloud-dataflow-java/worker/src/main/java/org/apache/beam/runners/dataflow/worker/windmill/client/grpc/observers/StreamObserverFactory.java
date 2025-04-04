@@ -29,8 +29,8 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
  */
 public abstract class StreamObserverFactory {
   public static StreamObserverFactory direct(
-      long deadlineSeconds, int messagesBetweenIsReadyChecks) {
-    return new Direct(deadlineSeconds, messagesBetweenIsReadyChecks);
+      long inactivityTimeout, int messagesBetweenIsReadyChecks) {
+    return new Direct(inactivityTimeout, messagesBetweenIsReadyChecks);
   }
 
   public abstract <ResponseT, RequestT> TerminatingStreamObserver<RequestT> from(
@@ -38,11 +38,11 @@ public abstract class StreamObserverFactory {
       StreamObserver<ResponseT> responseObserver);
 
   private static class Direct extends StreamObserverFactory {
-    private final long deadlineSeconds;
+    private final long inactivityTimeout;
     private final int messagesBetweenIsReadyChecks;
 
-    Direct(long deadlineSeconds, int messagesBetweenIsReadyChecks) {
-      this.deadlineSeconds = deadlineSeconds;
+    Direct(long inactivityTimeout, int messagesBetweenIsReadyChecks) {
+      this.inactivityTimeout = inactivityTimeout;
       this.messagesBetweenIsReadyChecks = messagesBetweenIsReadyChecks;
     }
 
@@ -57,7 +57,7 @@ public abstract class StreamObserverFactory {
                   new ForwardingClientResponseObserver<ResponseT, RequestT>(
                       inboundObserver, phaser::arrive, phaser::forceTermination));
       return new DirectStreamObserver<>(
-          phaser, outboundObserver, deadlineSeconds, messagesBetweenIsReadyChecks);
+          phaser, outboundObserver, inactivityTimeout, messagesBetweenIsReadyChecks);
     }
   }
 }

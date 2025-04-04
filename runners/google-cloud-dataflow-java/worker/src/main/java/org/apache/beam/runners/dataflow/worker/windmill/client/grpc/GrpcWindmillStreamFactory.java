@@ -189,6 +189,16 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return stub.withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
   }
 
+  /**
+   * Set a longer deadline for directpath since we have explicit semantics on when to open and close
+   * the streams w/ the fan out metadata.
+   */
+  private static <T extends AbstractStub<T>> T withDirectPathDeadline(T stub) {
+    // Deadlines are absolute points in time, so generate a new one everytime this function is
+    // called.
+    return stub.withDeadlineAfter(1, TimeUnit.HOURS);
+  }
+
   private static void printSummaryHtmlForWorker(
       String workerToken, Collection<AbstractWindmillStream<?, ?>> streams, PrintWriter writer) {
     writer.write(
@@ -230,7 +240,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().getWorkStream(responseObserver),
+        responseObserver ->
+            withDirectPathDeadline(connection.stub()).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),
@@ -265,7 +276,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().getDataStream(responseObserver),
+        responseObserver ->
+            withDirectPathDeadline(connection.stub()).getDataStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -297,7 +309,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer commitWorkThrottleTimer) {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().commitWorkStream(responseObserver),
+        responseObserver ->
+            withDirectPathDeadline(connection.stub()).commitWorkStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -340,7 +353,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   @VisibleForTesting
-  final ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
+  ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
     return ImmutableSet.copyOf(streamRegistry);
   }
 
