@@ -159,6 +159,58 @@ func (h minRAMHint) String() string {
 	return fmt.Sprintf("min_ram=%v", humanize.Bytes(uint64(h.value)))
 }
 
+// MaxParallelismPerWorker hints that this scope should be worked by max this number of messages in parallel on the
+// same machine.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func MaxParallelismPerWorker(v int64) Hint {
+	return maxActiveDoFnPerWorkerHint{value: v}
+}
+
+type maxActiveDoFnPerWorkerHint struct {
+	value int64
+}
+
+func (h maxActiveDoFnPerWorkerHint) URN() string {
+	return "beam:resources:max_active_dofn_per_worker:v1"
+}
+
+func (h maxActiveDoFnPerWorkerHint) Payload() []byte {
+	// Go strings are utf8, and if the string is ascii,
+	// byte conversion handles that directly.
+	return []byte(strconv.FormatInt(h.value, 10))
+}
+
+func (h maxActiveDoFnPerWorkerHint) MergeWithOuter(outer Hint) Hint {
+	// Intentional runtime panic from type assertion to catch hint merge errors.
+	if outer.(maxActiveDoFnPerWorkerHint).value < h.value {
+		return outer
+	}
+	return h
+}
+
+func (h maxActiveDoFnPerWorkerHint) String() string {
+	return fmt.Sprintf("max_parallelism_per_worker=%v", uint64(h.value))
+}
+
+// ParseMaxParallelismPerWorker converts an int in string form into a hint.
+// An invalid size format will cause ParseMaxParallelismPerWorker to panic.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func ParseMaxParallelismPerWorker(v string) Hint {
+	b, err := strconv.Atoi(v)
+	if err != nil {
+		panic(fmt.Sprintf("resource.ParseMaxParallelismPerWorker: unable to parse %q: %v", v, err))
+	}
+	return MaxParallelismPerWorker(int64(b))
+}
+
 // Accelerator hints that this scope should be put in a machine with a given accelerator.
 //
 // Hints for accelerators will have formats that are runner specific.

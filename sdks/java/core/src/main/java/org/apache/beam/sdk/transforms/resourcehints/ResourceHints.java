@@ -48,8 +48,9 @@ public class ResourceHints {
   private static final Logger LOG = LoggerFactory.getLogger(ResourceHints.class);
   private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
-
   private static final String CPU_COUNT_URN = "beam:resources:cpu_count:v1";
+  private static final String MAX_ACTIVE_DOFN_PER_WORKER =
+      "beam:resources:max_active_dofn_per_worker:v1";
 
   // TODO: reference this from a common location in all packages that use this.
   private static String getUrn(ProtocolMessageEnum value) {
@@ -60,6 +61,9 @@ public class ResourceHints {
     checkState(MIN_RAM_URN.equals(getUrn(StandardResourceHints.Enum.MIN_RAM_BYTES)));
     checkState(ACCELERATOR_URN.equals(getUrn(StandardResourceHints.Enum.ACCELERATOR)));
     checkState(CPU_COUNT_URN.equals(getUrn(StandardResourceHints.Enum.CPU_COUNT)));
+    checkState(
+        MAX_ACTIVE_DOFN_PER_WORKER.equals(
+            (getUrn(StandardResourceHints.Enum.MAX_ACTIVE_DOFN_PER_WORKER))));
   }
 
   private static ImmutableMap<String, String> hintNameToUrn =
@@ -69,6 +73,9 @@ public class ResourceHints {
           .put("accelerator", ACCELERATOR_URN)
           .put("cpuCount", CPU_COUNT_URN)
           .put("cpu_count", CPU_COUNT_URN) // Courtesy alias.
+          .put("max_active_dofn_per_worker", MAX_ACTIVE_DOFN_PER_WORKER)
+          .put("maxActiveDoFnPerWorker", MAX_ACTIVE_DOFN_PER_WORKER) // Courtesy alias.
+          .put("max_active_dofns_per_worker", MAX_ACTIVE_DOFN_PER_WORKER) // Courtesy alias.
           .build();
 
   private static ImmutableMap<String, Function<String, ResourceHint>> parsers =
@@ -76,6 +83,7 @@ public class ResourceHints {
           .put(MIN_RAM_URN, s -> new BytesHint(BytesHint.parse(s)))
           .put(ACCELERATOR_URN, s -> new StringHint(s))
           .put(CPU_COUNT_URN, s -> new IntHint(IntHint.parse(s)))
+          .put(MAX_ACTIVE_DOFN_PER_WORKER, s -> new IntHint(IntHint.parse(s)))
           .build();
 
   private static final ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
@@ -173,8 +181,10 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer) {
-      return new BytesHint(Math.max(value, ((BytesHint) outer).value));
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_inverse) {
+      return is_inverse
+          ? new BytesHint(Math.min(value, ((BytesHint) outer).value))
+          : new BytesHint(Math.max(value, ((BytesHint) outer).value));
     }
 
     @Override
@@ -248,8 +258,10 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer) {
-      return new IntHint(Math.max(value, ((IntHint) outer).value));
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_inverse) {
+      return is_inverse
+          ? new IntHint(Math.min(value, ((IntHint) outer).value))
+          : new IntHint(Math.max(value, ((IntHint) outer).value));
     }
 
     @Override
@@ -327,6 +339,17 @@ public class ResourceHints {
     return withHint(CPU_COUNT_URN, new IntHint(cpuCount));
   }
 
+  public ResourceHints withMaxActiveDoFnPerWorker(int maxActiveDoFnPerWorker) {
+    if (maxActiveDoFnPerWorker <= 0) {
+      LOG.error(
+          "Encountered invalid non-positive max active dofn per worker hint value {}.\n"
+              + "The value is ignored.",
+          maxActiveDoFnPerWorker);
+      return this;
+    }
+    return withHint(MAX_ACTIVE_DOFN_PER_WORKER, new IntHint(maxActiveDoFnPerWorker));
+  }
+
   public Map<String, ResourceHint> hints() {
     return hints;
   }
@@ -339,10 +362,15 @@ public class ResourceHints {
     } else {
       ImmutableMap.Builder<String, ResourceHint> newHints = ImmutableMap.builder();
       for (Map.Entry<String, ResourceHint> outerHint : outer.hints().entrySet()) {
-        if (hints.containsKey(outerHint.getKey())) {
+        String key = outerHint.getKey();
+        if (hints.containsKey(key)) {
           newHints.put(
-              outerHint.getKey(),
-              hints.get(outerHint.getKey()).mergeWithOuter(outerHint.getValue()));
+              key,
+              hints
+                  .get(key)
+                  .mergeWithOuter(
+                      outerHint.getValue(),
+                      /*is_inverse*/ outerHint.getKey().equals(MAX_ACTIVE_DOFN_PER_WORKER)));
         } else {
           newHints.put(outerHint);
         }
