@@ -102,7 +102,7 @@ public class VarInt {
   /** Decodes an integer value from the given stream. */
   public static int decodeInt(InputStream stream) throws IOException {
     long r = decodeLong(stream);
-    if (r < 0 || r >= 1L << 32) {
+    if (r >= 1L << 32) {
       throw new IOException("varint overflow " + r);
     }
     return (int) r;
