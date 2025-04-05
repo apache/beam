@@ -124,5 +124,13 @@ public interface WindmillStream {
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
   @ThreadSafe
-  interface GetWorkerMetadataStream extends WindmillStream {}
+  interface GetWorkerMetadataStream extends WindmillStream {
+
+    /**
+     * Returns the latest {@link
+     * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse} that has
+     * been received on the stream.
+     */
+    Windmill.WorkerMetadataResponse currentWorkerMetadata();
+  }
 }
