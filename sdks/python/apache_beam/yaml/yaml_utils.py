@@ -17,6 +17,7 @@
 
 import json
 import os
+import re
 import uuid
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -86,6 +87,9 @@ def patch_yaml(original_str: str, updated):
   This only changes the portions of original_str that differ between
   original_str and updated in an attempt to preserve comments and formatting.
   """
+  if not original_str and updated:
+    return yaml.dump(updated, sort_keys=False)
+
   if original_str[-1] != '\n':
     # Add a trialing newline to avoid having to constantly check this edge case.
     # (It's also a good idea generally...)
@@ -136,7 +140,7 @@ def patch_yaml(original_str: str, updated):
   SafeMarkLoader.add_constructor(
       'tag:yaml.org,2002:map',
       record_yaml_scalar(SafeMarkLoader.construct_mapping))
-  for typ in ('null', 'bool', 'int', 'float', 'binary', 'timestamp', 'str'):
+  for typ in ('bool', 'int', 'float', 'binary', 'timestamp', 'str'):
     SafeMarkLoader.add_constructor(
         f'tag:yaml.org,2002:{typ}',
         record_yaml_scalar(getattr(SafeMarkLoader, f'construct_yaml_{typ}')))
@@ -154,10 +158,43 @@ def patch_yaml(original_str: str, updated):
           all(id(v) in spans for v in a.values())):
       for k, v in a.items():
         yield from diff(v, b[k])
-    elif (isinstance(a, list) and isinstance(b, list) and len(a) == len(b) and
+    elif (isinstance(a, list) and isinstance(b, list) and a and b and
           all(id(v) in spans for v in a)):
+      # Diff the matching entries.
       for va, vb in zip(a, b):
         yield from diff(va, vb)
+      if len(b) < len(a):
+        # Remove extra entries
+        yield (
+            # End of last preserved element.
+            pos(spans[id(a[len(b) - 1])][1]),
+            # End of last original element.
+            pos(spans[id(a[-1])][1]),
+            '')
+      elif len(b) > len(a):
+        # Add extra entries
+        list_start, list_end = spans[id(a)]
+        start_char = original_str[pos(list_start)]
+        if start_char == '[':
+          for v in b[len(a):]:
+            yield pos(list_end) - 1, pos(list_end) - 1, ', ' + json.dumps(v)
+        else:
+          assert start_char == '-'
+          indent = original_str[pos(list_start.line):pos(list_start)] + '- '
+          content = original_str[pos(list_start):pos(list_end)].rstrip()
+          actual_end_pos = pos(list_start) + len(content)
+          for v in b[len(a):]:
+            if isinstance(v, (list, dict)):
+              v_str = (
+                  yaml.dump(v, sort_keys=False)
+                  # Indent.
+                  .replace('\n', '\n' + ' ' * len(indent))
+                  # Remove blank line indents.
+                  .replace(' ' * len(indent) + '\n', '\n').rstrip())
+            else:
+              v_str = json.dumps(v)
+            yield actual_end_pos, actual_end_pos, '\n' + indent + v_str
+
     else:
       start, end = spans[id(a)]
       indent = original_str[pos(start.line):pos(start)]
@@ -167,23 +204,27 @@ def patch_yaml(original_str: str, updated):
       actual_end_pos = pos(start) + len(content)
       trailing = original_str[actual_end_pos:original_str.
                               find('\n', actual_end_pos)]
-      if indent.strip() in ('', '-') and not trailing.strip():
-        # This element wholly occupies its set of lines, so it is safe to use
-        # a multi-line yaml representation (appropriately indented).
-        yield (
-            pos(start),
-            actual_end_pos,
-            yaml.dump(b)
-            # Indent.
-            .replace('\n', '\n' + ' ' * len(indent))
-            # Remove blank line indents.
-            .replace(' ' * len(indent) + '\n', '\n').rstrip())
-      elif isinstance(b, (list, dict)):
-        # Force flow style.
-        yield (
-            pos(start),
-            actual_end_pos,
-            yaml.dump(b, default_flow_style=True, line_break=False).strip())
+      if isinstance(b, (list, dict)):
+        if indent.strip() in ('', '-') and not trailing.strip():
+          # This element wholly occupies its set of lines, so it is safe to use
+          # a multi-line yaml representation (appropriately indented).
+          yield (
+              pos(start),
+              actual_end_pos,
+              yaml.dump(b, sort_keys=False)
+              # Indent.
+              .replace('\n', '\n' + ' ' * len(indent))
+              # Remove blank line indents.
+              .replace(' ' * len(indent) + '\n', '\n').rstrip())
+        else:
+          # Force flow style.
+          yield (
+              pos(start),
+              actual_end_pos,
+              yaml.dump(b, default_flow_style=True, line_break=False).strip())
+      elif isinstance(b, str) and re.match('^[A-Za-z0-9_]+$', b):
+        # A simple string literal.
+        yield pos(start), actual_end_pos, b
       else:
         # A scalar.
         yield pos(start), actual_end_pos, json.dumps(b)

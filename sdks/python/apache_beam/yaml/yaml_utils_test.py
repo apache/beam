@@ -94,12 +94,6 @@ outer:
 
 '''
 
-# _BASIC_YAML = '''
-# a: [1, 2, 3]
-# b: 3
-#
-# '''
-
 
 class PatchYamlTest(unittest.TestCase):
   def test_unchanged(self):
@@ -146,15 +140,78 @@ class PatchYamlTest(unittest.TestCase):
     k0: out_of_order
 '''.strip(),
             '''
-  - k0: out_of_order
-    k1: v1
+  - k1: v1
     k2: v2
     k3:
     - 1
     - 2
     - x: y
+    k0: out_of_order
     k4: 500
 '''.strip()))
+
+  def test_inline_list_shorten(self):
+    obj = yaml.load(_BASIC_YAML, Loader=yaml.SafeLoader)
+    obj['a'] = [100, 2]
+    self.assertEqual(
+        patch_yaml(_BASIC_YAML, obj),
+        _BASIC_YAML.replace('[1, 2, 3]', '[100, 2]'))
+
+  def test_bullet_list_shorten(self):
+    obj = yaml.load(_BASIC_YAML, Loader=yaml.SafeLoader)
+    obj['b'] = [100, 2]
+    self.assertEqual(
+        patch_yaml(_BASIC_YAML, obj),
+        _BASIC_YAML.replace(
+            '''
+  - 1
+  - 2
+  - 3
+        '''.strip(),
+            '''
+  - 100
+  - 2
+        '''.strip()))
+
+  def test_inline_list_extend(self):
+    obj = yaml.load(_BASIC_YAML, Loader=yaml.SafeLoader)
+    obj['a'] = [100, 2, 3, 4]
+    self.assertEqual(
+        patch_yaml(_BASIC_YAML, obj),
+        _BASIC_YAML.replace('[1, 2, 3]', '[100, 2, 3, 4]'))
+
+  def test_bullet_list_extend(self):
+    obj = yaml.load(_BASIC_YAML, Loader=yaml.SafeLoader)
+    obj['b'] = [100, 2, 3, 4]
+    self.assertEqual(
+        patch_yaml(_BASIC_YAML, obj),
+        _BASIC_YAML.replace(
+            '''
+  - 1
+  - 2
+  - 3
+        '''.strip(),
+            '''
+  - 100
+  - 2
+  - 3
+  - 4
+        '''.strip()))
+
+  def test_bullet_list_map_extend(self):
+    obj = yaml.load(_BASIC_YAML, Loader=yaml.SafeLoader)
+    obj['outer'].append({'a': 'A', 'b': 'B'})
+    self.assertEqual(
+        patch_yaml(_BASIC_YAML, obj),
+        _BASIC_YAML.replace(
+            '''
+  - item
+        '''.strip(),
+            '''
+  - item
+  - a: A
+    b: B
+        '''.strip()))
 
 
 if __name__ == '__main__':
