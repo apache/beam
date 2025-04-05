@@ -41,10 +41,6 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class MetricsHttpSink implements MetricsSink {
   private final String urlString;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -112,6 +108,7 @@ public class MetricsHttpSink implements MetricsSink {
       super(t);
     }
 
+    @SuppressWarnings("nullness") // gen.writeObjectField expects nulls but is unannotated
     public void inline(MetricKey value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
       gen.writeObjectField("name", value.metricName());
@@ -131,24 +128,30 @@ public class MetricsHttpSink implements MetricsSink {
    * JSON serializer for {@link MetricResult}; conform to an older format where the {@link MetricKey
    * key's} {@link MetricName name} and "step" (ptransform) are inlined.
    */
-  public static class MetricResultSerializer extends StdSerializer<MetricResult> {
+  public static class MetricResultSerializer extends StdSerializer<MetricResult<?>> {
     private final MetricKeySerializer keySerializer;
 
-    public MetricResultSerializer(Class<MetricResult> t) {
+    public MetricResultSerializer(Class<MetricResult<?>> t) {
       super(t);
       keySerializer = new MetricKeySerializer(MetricKey.class);
     }
 
     @Override
-    public void serialize(MetricResult value, JsonGenerator gen, SerializerProvider provider)
+    public void serialize(MetricResult<?> value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
       gen.writeStartObject();
+      writeAttemptedAndCommitted(value, gen);
+      keySerializer.inline(value.getKey(), gen, provider);
+      gen.writeEndObject();
+    }
+
+    @SuppressWarnings("nullness") // gen.writeObjectField expects nulls but is unannotated
+    private void writeAttemptedAndCommitted(MetricResult<?> value, JsonGenerator gen)
+        throws IOException {
       gen.writeObjectField("attempted", value.getAttempted());
       if (value.hasCommitted()) {
         gen.writeObjectField("committed", value.getCommitted());
       }
-      keySerializer.inline(value.getKey(), gen, provider);
-      gen.writeEndObject();
     }
   }
 
@@ -156,7 +159,10 @@ public class MetricsHttpSink implements MetricsSink {
     SimpleModule module = new JodaModule();
     module.addSerializer(new MetricNameSerializer(MetricName.class));
     module.addSerializer(new MetricKeySerializer(MetricKey.class));
-    module.addSerializer(new MetricResultSerializer(MetricResult.class));
+    // This odd cast converts from rawtype Class<MetricResult> to Class<MetricResult<?>>
+    // so the rest of the file can be properly typed
+    module.addSerializer(
+        new MetricResultSerializer((Class<MetricResult<?>>) (Object) MetricResult.class));
     objectMapper.registerModule(module);
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
@@ -171,6 +177,7 @@ public class MetricsHttpSink implements MetricsSink {
       result = objectMapper.writeValueAsString(metricQueryResults);
     } catch (JsonMappingException exception) {
       if ((exception.getCause() instanceof UnsupportedOperationException)
+          && exception.getCause().getMessage() != null
           && exception.getCause().getMessage().contains("committed metrics")) {
         filterProvider.removeFilter("committedMetrics");
         filter = SimpleBeanPropertyFilter.serializeAllExcept("committed");
