@@ -31,9 +31,8 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
-import org.apache.beam.runners.spark.util.CachedSideInputReader;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.runners.spark.util.SideInputReaderUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -66,6 +65,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final MetricsContainerStepMapAccumulator metricsAccum;
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
+  private final boolean useStreamingSideInput;
   private transient boolean wasSetupCalled;
   private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
@@ -106,7 +106,8 @@ public class MultiDoFnFunction<InputT, OutputT>
       boolean stateful,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
-      boolean useBoundedConcurrentOutput) {
+      boolean useBoundedConcurrentOutput,
+      boolean useStreamingSideInput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -121,6 +122,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
     this.useBoundedConcurrentOutput = useBoundedConcurrentOutput;
+    this.useStreamingSideInput = useStreamingSideInput;
   }
 
   @Override
@@ -178,7 +180,7 @@ public class MultiDoFnFunction<InputT, OutputT>
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            CachedSideInputReader.of(new SparkSideInputReader(sideInputs)),
+            SideInputReaderUtils.getSideInputReader(this.useStreamingSideInput, this.sideInputs),
             processor.getOutputManager(),
             mainOutputTag,
             additionalOutputTags,

@@ -46,7 +46,7 @@ public class SparkPCollectionView implements Serializable {
       new LinkedHashMap<>();
 
   // Driver only - during evaluation stage
-  void putPView(
+  public void putPView(
       PCollectionView<?> view,
       Iterable<WindowedValue<?>> value,
       Coder<Iterable<WindowedValue<?>>> coder) {

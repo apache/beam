@@ -19,8 +19,10 @@ package org.apache.beam.runners.spark.util;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -68,7 +71,9 @@ public class SparkSideInputReader implements SideInputReader {
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
     Iterable<WindowedValue<?>> availableSideInputs =
         (Iterable<WindowedValue<?>>) windowedBroadcastHelper.getValue().getValue();
-    Iterable<?> sideInputForWindow =
+
+    final List<?> sideInputForWindow;
+    final Stream<WindowedValue<?>> stream =
         StreamSupport.stream(availableSideInputs.spliterator(), false)
             .filter(
                 sideInputCandidate -> {
@@ -76,11 +81,27 @@ public class SparkSideInputReader implements SideInputReader {
                     return false;
                   }
                   return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
-                })
-            .collect(Collectors.toList())
-            .stream()
-            .map(WindowedValue::getValue)
-            .collect(Collectors.toList());
+                });
+
+    if (this.isIterableView(view)) {
+      sideInputForWindow = stream.map(WindowedValue::getValue).collect(Collectors.toList());
+    } else {
+      sideInputForWindow =
+          stream
+              .flatMap(
+                  (WindowedValue<?> windowedValue) -> {
+                    final Object value = windowedValue.getValue();
+                    // Streaming side inputs arrive as List collections.
+                    // These lists need to be flattened to process each element individually.
+                    if (value instanceof List) {
+                      final List<?> list = (List) value;
+                      return list.stream();
+                    } else {
+                      return Stream.of(value);
+                    }
+                  })
+              .collect(Collectors.toList());
+    }
 
     switch (view.getViewFn().getMaterialization().getUrn()) {
       case Materializations.ITERABLE_MATERIALIZATION_URN:
@@ -101,6 +122,17 @@ public class SparkSideInputReader implements SideInputReader {
                 "Unknown side input materialization format requested '%s'",
                 view.getViewFn().getMaterialization().getUrn()));
     }
+  }
+
+  /**
+   * Checks if the view is an iterable view type.
+   *
+   * @param <T> the type parameter of the PCollectionView
+   * @param view the view to check
+   * @return true if the view is an iterable view, false otherwise
+   */
+  private <T> boolean isIterableView(PCollectionView<T> view) {
+    return view.getViewFn() instanceof PCollectionViews.IterableViewFn2;
   }
 
   @Override
