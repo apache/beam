@@ -29,6 +29,7 @@ Run the following in 'sdks/python' directory to run these tests manually:
 # pytype: skip-file
 
 import logging
+import time
 import unittest
 import uuid
 import zlib
@@ -221,6 +222,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
     if existing_bucket:
       try:
         existing_bucket.delete()
+        time.sleep(10)
       except NotFound:
         # Bucket existence check from get_bucket may be inaccurate due to gcs
         # cache or delay
