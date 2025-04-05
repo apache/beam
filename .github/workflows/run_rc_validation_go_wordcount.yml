@@ -43,9 +43,6 @@ env:
 jobs:
   setup:
     runs-on: self-hosted
-    outputs:
-      rc_tag: ${{ github.event.inputs.rc_tag }}
-      container_tag: ${{ github.event.inputs.container_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,7 +50,7 @@ jobs:
       - name: Set up environment
         uses: ./.github/actions/setup-environment-action
         with:
-          go-version: default, otherwise remove if default is 1.21
+          go-version: default
 
       - name: Fetch Go SDK RC and Tidy Modules
         working-directory: ./sdks/go/examples/wordcount
@@ -61,16 +58,6 @@ jobs:
           go get -d github.com/apache/beam/sdks/v2@${{ github.event.inputs.rc_tag }}
           go mod tidy
 
-      # Cache Go modules to speed up subsequent jobs
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
   validate-go-rc-prism:
     needs: setup
@@ -84,16 +71,6 @@ jobs:
         with:
           go-version: default
 
-      # Restore cached Go modules
-      - name: Restore Go modules cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       # Assuming gcloud/gsutil is available and authenticated on the self-hosted runner
       - name: Download Input File from GCS (Prism)
@@ -108,7 +85,7 @@ jobs:
             --output ./output_prism.txt \
             --runner=PrismRunner \
             --environment_type=DOCKER \
-            --environment_config=apache/beam_go_sdk:${{ needs.setup.outputs.container_tag }}
+            --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
 
       - name: Check output file
         working-directory: ./sdks/go/examples/wordcount
@@ -136,23 +113,13 @@ jobs:
         with:
           go-version: default
 
-      # Restore cached Go modules
-      - name: Restore Go modules cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       # Assuming gcloud is available and authenticated on the self-hosted runner
       - name: Run Go WordCount with DataflowRunner
         working-directory: ./sdks/go/examples/wordcount
         env:
           # Define output path based on constant prefix and RC tag for uniqueness
-          GCS_OUTPUT_PATH: ${{ env.GCS_OUTPUT_PREFIX }}/${{ needs.setup.outputs.rc_tag }}/dataflow/output
+          GCS_OUTPUT_PATH: ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output
         run: |
           echo "Using output path: $GCS_OUTPUT_PATH"
           go run wordcount.go \
@@ -163,10 +130,10 @@ jobs:
             --region=${{ env.GCP_REGION }} \
             --temp_location=${{ env.GCS_TEMP_LOCATION }} \
             --environment_type=DOCKER \
-            --environment_config=apache/beam_go_sdk:${{ needs.setup.outputs.container_tag }}
+            --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
 
       # Note: Checking Dataflow output requires gcloud storage commands and depends on job completion.
       # This basic workflow focuses on submission. A more robust check would poll the job status
       # and then verify GCS output, which is significantly more complex.
       - name: Log Dataflow Job Submission Info
-        run: echo "Dataflow job submitted. Check GCP console (project ${{ env.GCP_PROJECT_ID }}) for status and output at ${{ env.GCS_OUTPUT_PREFIX }}/${{ needs.setup.outputs.rc_tag }}/dataflow/output"
+        run: echo "Dataflow job submitted. Check GCP console (project ${{ env.GCP_PROJECT_ID }}) for status and output at ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output"
