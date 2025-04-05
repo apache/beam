@@ -22,20 +22,19 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.ads.googleads.lib.GoogleAdsClient;
-import com.google.ads.googleads.v17.errors.GoogleAdsError;
-import com.google.ads.googleads.v17.errors.GoogleAdsException;
-import com.google.ads.googleads.v17.errors.GoogleAdsFailure;
-import com.google.ads.googleads.v17.errors.InternalErrorEnum;
-import com.google.ads.googleads.v17.errors.QuotaErrorEnum;
-import com.google.ads.googleads.v17.services.GoogleAdsRow;
-import com.google.ads.googleads.v17.services.GoogleAdsServiceClient;
-import com.google.ads.googleads.v17.services.SearchGoogleAdsStreamRequest;
-import com.google.ads.googleads.v17.services.SearchGoogleAdsStreamResponse;
+import com.google.ads.googleads.v19.errors.GoogleAdsError;
+import com.google.ads.googleads.v19.errors.GoogleAdsException;
+import com.google.ads.googleads.v19.errors.GoogleAdsFailure;
+import com.google.ads.googleads.v19.errors.InternalErrorEnum;
+import com.google.ads.googleads.v19.errors.QuotaErrorEnum;
+import com.google.ads.googleads.v19.services.GoogleAdsRow;
+import com.google.ads.googleads.v19.services.GoogleAdsServiceClient;
+import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamRequest;
+import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamResponse;
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.Durations;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -58,7 +57,10 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.joda.time.Duration;
 
 /**
- * {@link GoogleAdsV17} provides an API to read Google Ads API v17 reports.
+ * {@link GoogleAdsV19} provides an API to read Google Ads API v19 reports.
+ *
+ * <p>No backward compatibility guaranteed. Do not use directly. Use {@link GoogleAdsIO#current()}
+ * to access GoogleAdsIO instead.
  *
  * <p>The Google Ads API does not use service account credentials in the same way as Google Cloud
  * Platform APIs do. Service account credentials are typically only used to delegate (using
@@ -77,15 +79,15 @@ import org.joda.time.Duration;
  *   --googleAdsDeveloperToken=your-developer-token
  * </pre>
  *
- * <p>Use {@link GoogleAdsV17#read()} to read either a bounded or unbounded {@link PCollection} of
+ * <p>Use {@link GoogleAdsV19#read()} to read either a bounded or unbounded {@link PCollection} of
  * {@link GoogleAdsRow} from a single <a
  * href="https://developers.google.com/google-ads/api/docs/query/overview">Google Ads Query
  * Language</a> query using {@link Read#withQuery(String)} and a {@link PCollection} of customer
- * IDs. Alternatively, use {@link GoogleAdsV17#readAll()} to read either a bounded or unbounded
+ * IDs. Alternatively, use {@link GoogleAdsV19#readAll()} to read either a bounded or unbounded
  * {@link PCollection} of {@link GoogleAdsRow} from a {@link PCollection} of {@link
  * SearchGoogleAdsStreamRequest} potentially containing many different queries.
  *
- * <p>For example, using {@link GoogleAdsV17#read()}:
+ * <p>For example, using {@link GoogleAdsV19#read()}:
  *
  * <pre>{@code
  * Pipeline p = Pipeline.create();
@@ -93,7 +95,7 @@ import org.joda.time.Duration;
  *     p.apply(Create.of(Long.toString(1234567890L)));
  * PCollection<GoogleAdsRow> rows =
  *     customerIds.apply(
- *         GoogleAdsIO.v17()
+ *         GoogleAdsIO.current()
  *             .read()
  *             .withRateLimitPolicy(MY_RATE_LIMIT_POLICY)
  *             .withQuery(
@@ -105,7 +107,7 @@ import org.joda.time.Duration;
  * p.run();
  * }</pre>
  *
- * <p>Alternatively, using {@link GoogleAdsV17#readAll()} to execute requests from a {@link
+ * <p>Alternatively, using {@link GoogleAdsV19#readAll()} to execute requests from a {@link
  * PCollection} of {@link SearchGoogleAdsStreamRequest}:
  *
  * <pre>{@code
@@ -124,13 +126,13 @@ import org.joda.time.Duration;
  *                             + "FROM campaign")
  *                     .build())));
  * PCollection<GoogleAdsRow> rows =
- *     requests.apply(GoogleAdsIO.v17().readAll().withRateLimitPolicy(MY_RATE_LIMIT_POLICY));
+ *     requests.apply(GoogleAdsIO.current().readAll().withRateLimitPolicy(MY_RATE_LIMIT_POLICY));
  * p.run();
  * }</pre>
  *
  * <h2>Client-side rate limiting</h2>
  *
- * On construction of a {@link GoogleAdsV17#read()} or {@link GoogleAdsV17#readAll()} transform a
+ * On construction of a {@link GoogleAdsV19#read()} or {@link GoogleAdsV19#readAll()} transform a
  * rate limiting policy must be specified to stay well under the assigned quota for the Google Ads
  * API. The Google Ads API enforces global rate limits from the developer token down to the customer
  * ID and depending on the access level of the developer token a limit on the total number of
@@ -154,24 +156,26 @@ import org.joda.time.Duration;
  * Functionality</a> and <a href="https://developers.google.com/google-ads/api/docs/rate-sheet">Rate
  * sheet & non-compliance fees</a> in the Google Ads API documentation for more details.
  *
- * @see GoogleAdsIO#v17()
+ * @see GoogleAdsIO#current()
  * @see GoogleAdsOptions
  * @see <a href="https://developers.google.com/google-ads/api/docs/best-practices/overview">Best
  *     Practices in the Google Ads documentation</a>
  */
-public class GoogleAdsV17 {
-  static final GoogleAdsV17 INSTANCE = new GoogleAdsV17();
+public class GoogleAdsV19 extends GoogleAdsIO<GoogleAdsRow, SearchGoogleAdsStreamRequest> {
+  static final GoogleAdsV19 INSTANCE = new GoogleAdsV19();
 
-  private GoogleAdsV17() {}
+  private GoogleAdsV19() {}
 
+  @Override
   public Read read() {
-    return new AutoValue_GoogleAdsV17_Read.Builder()
+    return new AutoValue_GoogleAdsV19_Read.Builder()
         .setGoogleAdsClientFactory(DefaultGoogleAdsClientFactory.getInstance())
         .build();
   }
 
+  @Override
   public ReadAll readAll() {
-    return new AutoValue_GoogleAdsV17_ReadAll.Builder()
+    return new AutoValue_GoogleAdsV19_ReadAll.Builder()
         .setGoogleAdsClientFactory(DefaultGoogleAdsClientFactory.getInstance())
         .build();
   }
@@ -180,7 +184,7 @@ public class GoogleAdsV17 {
    * A {@link PTransform} that reads the results of a Google Ads query as {@link GoogleAdsRow}
    * objects.
    *
-   * @see GoogleAdsIO#v17()
+   * @see GoogleAdsIO#current()
    * @see #readAll()
    */
   @AutoValue
@@ -194,7 +198,7 @@ public class GoogleAdsV17 {
 
     abstract GoogleAdsClientFactory getGoogleAdsClientFactory();
 
-    abstract @Nullable RateLimitPolicyFactory getRateLimitPolicyFactory();
+    abstract @Nullable RateLimitPolicyFactory<GoogleAdsError> getRateLimitPolicyFactory();
 
     abstract Builder toBuilder();
 
@@ -208,7 +212,8 @@ public class GoogleAdsV17 {
 
       abstract Builder setGoogleAdsClientFactory(GoogleAdsClientFactory googleAdsClientFactory);
 
-      abstract Builder setRateLimitPolicyFactory(RateLimitPolicyFactory rateLimitPolicyFactory);
+      abstract Builder setRateLimitPolicyFactory(
+          RateLimitPolicyFactory<GoogleAdsError> rateLimitPolicyFactory);
 
       abstract Read build();
     }
@@ -282,7 +287,7 @@ public class GoogleAdsV17 {
      * @return A new {@link Read} transform with the specified rate limit policy factory.
      * @see GoogleAdsClient
      */
-    public Read withRateLimitPolicy(RateLimitPolicyFactory rateLimitPolicyFactory) {
+    public Read withRateLimitPolicy(RateLimitPolicyFactory<GoogleAdsError> rateLimitPolicyFactory) {
       checkArgumentNotNull(rateLimitPolicyFactory, "rateLimitPolicyFactory cannot be null");
 
       return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
@@ -291,7 +296,7 @@ public class GoogleAdsV17 {
     @Override
     public PCollection<GoogleAdsRow> expand(PCollection<String> input) {
       String query = getQuery();
-      RateLimitPolicyFactory rateLimitPolicyFactory = getRateLimitPolicyFactory();
+      RateLimitPolicyFactory<GoogleAdsError> rateLimitPolicyFactory = getRateLimitPolicyFactory();
       checkArgumentNotNull(query, "withQuery() is required");
       checkArgumentNotNull(rateLimitPolicyFactory, "withRateLimitPolicy() is required");
 
@@ -325,7 +330,7 @@ public class GoogleAdsV17 {
    * A {@link PTransform} that reads the results of many {@link SearchGoogleAdsStreamRequest}
    * objects as {@link GoogleAdsRow} objects. *
    *
-   * @see GoogleAdsIO#v17()
+   * @see GoogleAdsIO#current()
    * @see #readAll()
    */
   @AutoValue
@@ -337,7 +342,7 @@ public class GoogleAdsV17 {
 
     abstract GoogleAdsClientFactory getGoogleAdsClientFactory();
 
-    abstract @Nullable RateLimitPolicyFactory getRateLimitPolicyFactory();
+    abstract @Nullable RateLimitPolicyFactory<GoogleAdsError> getRateLimitPolicyFactory();
 
     abstract Builder toBuilder();
 
@@ -349,7 +354,8 @@ public class GoogleAdsV17 {
 
       abstract Builder setGoogleAdsClientFactory(GoogleAdsClientFactory googleAdsClientFactory);
 
-      abstract Builder setRateLimitPolicyFactory(RateLimitPolicyFactory rateLimitPolicyFactory);
+      abstract Builder setRateLimitPolicyFactory(
+          RateLimitPolicyFactory<GoogleAdsError> rateLimitPolicyFactory);
 
       abstract ReadAll build();
     }
@@ -408,7 +414,8 @@ public class GoogleAdsV17 {
      * @return A new {@link ReadAll} transform with the specified rate limit policy factory.
      * @see GoogleAdsClient
      */
-    public ReadAll withRateLimitPolicy(RateLimitPolicyFactory rateLimitPolicyFactory) {
+    public ReadAll withRateLimitPolicy(
+        RateLimitPolicyFactory<GoogleAdsError> rateLimitPolicyFactory) {
       checkArgumentNotNull(rateLimitPolicyFactory, "rateLimitPolicyFactory cannot be null");
 
       return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
@@ -443,13 +450,13 @@ public class GoogleAdsV17 {
 
       @VisibleForTesting static Sleeper sleeper = Sleeper.DEFAULT;
 
-      private final GoogleAdsV17.ReadAll spec;
+      private final GoogleAdsV19.ReadAll spec;
 
       private transient @Nullable GoogleAdsClient googleAdsClient;
       private transient @Nullable GoogleAdsServiceClient googleAdsServiceClient;
-      private transient @Nullable RateLimitPolicy rateLimitPolicy;
+      private transient @Nullable RateLimitPolicy<GoogleAdsError> rateLimitPolicy;
 
-      ReadAllFn(GoogleAdsV17.ReadAll spec) {
+      ReadAllFn(GoogleAdsV19.ReadAll spec) {
         this.spec = spec;
       }
 
@@ -463,8 +470,8 @@ public class GoogleAdsV17 {
                 .newGoogleAdsClient(
                     adsOptions, spec.getDeveloperToken(), null, spec.getLoginCustomerId());
         final GoogleAdsServiceClient googleAdsServiceClient =
-            googleAdsClient.getVersion17().createGoogleAdsServiceClient();
-        final RateLimitPolicy rateLimitPolicy =
+            googleAdsClient.getVersion19().createGoogleAdsServiceClient();
+        final RateLimitPolicy<GoogleAdsError> rateLimitPolicy =
             checkStateNotNull(spec.getRateLimitPolicyFactory()).getRateLimitPolicy();
 
         this.googleAdsClient = googleAdsClient;
@@ -477,7 +484,7 @@ public class GoogleAdsV17 {
       public void processElement(ProcessContext c) throws IOException, InterruptedException {
         final GoogleAdsClient googleAdsClient = this.googleAdsClient;
         final GoogleAdsServiceClient googleAdsServiceClient = this.googleAdsServiceClient;
-        final RateLimitPolicy rateLimitPolicy = this.rateLimitPolicy;
+        final RateLimitPolicy<GoogleAdsError> rateLimitPolicy = this.rateLimitPolicy;
 
         BackOff backoff = BACKOFF.backoff();
         BackOff nextBackoff = backoff;
@@ -566,80 +573,31 @@ public class GoogleAdsV17 {
   }
 
   /**
-   * Implement this interface to create a {@link RateLimitPolicy}. This should be used to limit all
-   * traffic sent to the Google Ads API for a pair of developer token and customer ID and any other
-   * relevant attributes for the specific Google Ads API service being called.
-   */
-  public interface RateLimitPolicyFactory extends Serializable {
-    RateLimitPolicy getRateLimitPolicy();
-  }
-
-  /**
-   * This interface can be used to implement custom client-side rate limiting policies. Custom
-   * policies should follow best practices for interacting with the Google Ads API.
-   *
-   * @see <a href="https://developers.google.com/google-ads/api/docs/best-practices/overview">Best
-   *     Practices in the Google Ads documentation</a>
-   */
-  public interface RateLimitPolicy {
-    /**
-     * Called before a request is sent.
-     *
-     * @param developerToken The developer token used for the request.
-     * @param customerId The customer ID specified on the request.
-     * @param request Any Google Ads API request.
-     * @throws InterruptedException
-     */
-    void onBeforeRequest(@Nullable String developerToken, String customerId, Message request)
-        throws InterruptedException;
-
-    /**
-     * Called after a request succeeds.
-     *
-     * @param developerToken The developer token used for the request.
-     * @param customerId The customer ID specified on the request.
-     * @param request Any Google Ads API request.
-     */
-    void onSuccess(@Nullable String developerToken, String customerId, Message request);
-
-    /**
-     * Called after a request fails with a retryable error.
-     *
-     * @param developerToken The developer token used for the request.
-     * @param customerId The customer ID specified on the request.
-     * @param request Any Google Ads API request.
-     * @param error A retryable error.
-     */
-    void onError(
-        @Nullable String developerToken, String customerId, Message request, GoogleAdsError error);
-  }
-
-  /**
    * This rate limit policy wraps a {@link RateLimiter} and can be used in low volume and
    * development use cases as a client-side rate limiting policy. This policy does not enforce a
    * global (per pipeline or otherwise) rate limit to requests and should not be used in deployments
    * where the Google Ads API quota is shared between multiple applications.
    *
-   * <p>This policy can be used to limit requests across all {@link GoogleAdsV17.Read} or {@link
-   * GoogleAdsV17.ReadAll} transforms by defining and using a {@link
-   * GoogleAdsV17.RateLimitPolicyFactory} which holds a shared static {@link
-   * GoogleAdsV17.SimpleRateLimitPolicy}. Note that the desired rate must be divided by the expected
+   * <p>This policy can be used to limit requests across all {@link GoogleAdsV19.Read} or {@link
+   * GoogleAdsV19.ReadAll} transforms by defining and using a {@link
+   * GoogleAdsV19.RateLimitPolicyFactory} which holds a shared static {@link
+   * GoogleAdsV19.SimpleRateLimitPolicy}. Note that the desired rate must be divided by the expected
    * maximum number of workers for the pipeline, otherwise the pipeline may exceed the desired rate
    * after an upscaling event.
    *
    * <pre>{@code
-   * public class SimpleRateLimitPolicyFactory implements GoogleAdsV17.RateLimitPolicyFactory {
-   *   private static final GoogleAdsV17.RateLimitPolicy POLICY =
-   *       new GoogleAdsV17.SimpleRateLimitPolicy(1.0 / 1000.0);
+   * public class SimpleRateLimitPolicyFactory implements GoogleAdsIO.RateLimitPolicyFactory {
+   *   private static final GoogleAdsIO.RateLimitPolicy POLICY =
+   *       new GoogleAdsV19.SimpleRateLimitPolicy(1.0 / 1000.0);
    *
    *   @Override
-   *   public GoogleAdsV17.RateLimitPolicy getRateLimitPolicy() {
+   *   public GoogleAdsIO.RateLimitPolicy getRateLimitPolicy() {
    *     return POLICY;
    *   }
    * }
    * }</pre>
    */
-  public static class SimpleRateLimitPolicy implements RateLimitPolicy {
+  public static class SimpleRateLimitPolicy implements RateLimitPolicy<GoogleAdsError> {
     private final RateLimiter rateLimiter;
 
     public SimpleRateLimitPolicy(double permitsPerSecond) {

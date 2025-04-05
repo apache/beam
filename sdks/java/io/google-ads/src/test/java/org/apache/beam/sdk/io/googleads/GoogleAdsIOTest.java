@@ -20,18 +20,18 @@ package org.apache.beam.sdk.io.googleads;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
-import com.google.ads.googleads.v17.errors.AuthenticationErrorEnum.AuthenticationError;
-import com.google.ads.googleads.v17.errors.ErrorCode;
-import com.google.ads.googleads.v17.errors.ErrorDetails;
-import com.google.ads.googleads.v17.errors.GoogleAdsError;
-import com.google.ads.googleads.v17.errors.GoogleAdsException;
-import com.google.ads.googleads.v17.errors.GoogleAdsFailure;
-import com.google.ads.googleads.v17.errors.InternalErrorEnum.InternalError;
-import com.google.ads.googleads.v17.errors.QuotaErrorDetails;
-import com.google.ads.googleads.v17.errors.QuotaErrorEnum.QuotaError;
-import com.google.ads.googleads.v17.services.GoogleAdsRow;
-import com.google.ads.googleads.v17.services.SearchGoogleAdsStreamRequest;
-import com.google.ads.googleads.v17.services.SearchGoogleAdsStreamResponse;
+import com.google.ads.googleads.v19.errors.AuthenticationErrorEnum.AuthenticationError;
+import com.google.ads.googleads.v19.errors.ErrorCode;
+import com.google.ads.googleads.v19.errors.ErrorDetails;
+import com.google.ads.googleads.v19.errors.GoogleAdsError;
+import com.google.ads.googleads.v19.errors.GoogleAdsException;
+import com.google.ads.googleads.v19.errors.GoogleAdsFailure;
+import com.google.ads.googleads.v19.errors.InternalErrorEnum.InternalError;
+import com.google.ads.googleads.v19.errors.QuotaErrorDetails;
+import com.google.ads.googleads.v19.errors.QuotaErrorEnum.QuotaError;
+import com.google.ads.googleads.v19.services.GoogleAdsRow;
+import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamRequest;
+import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamResponse;
 import com.google.api.gax.grpc.GrpcStatusCode;
 import com.google.api.gax.rpc.ApiException;
 import com.google.protobuf.Duration;
@@ -41,7 +41,7 @@ import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
-import org.apache.beam.sdk.io.googleads.GoogleAdsV17.RateLimitPolicyFactory;
+import org.apache.beam.sdk.io.googleads.GoogleAdsIO.RateLimitPolicyFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,8 +61,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(Enclosed.class)
-public class GoogleAdsV17Test {
-  static final RateLimitPolicyFactory TEST_POLICY_FACTORY = () -> new DummyRateLimitPolicy();
+public class GoogleAdsIOTest {
+  static final RateLimitPolicyFactory<GoogleAdsError> TEST_POLICY_FACTORY =
+      () -> new DummyRateLimitPolicy();
 
   @RunWith(JUnit4.class)
   public static class ConstructionTests {
@@ -73,7 +74,7 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
           .apply(
-              GoogleAdsIO.v17()
+              GoogleAdsIO.current()
                   .readAll()
                   .withRateLimitPolicy(TEST_POLICY_FACTORY)
                   .withDeveloperToken("abc"));
@@ -84,7 +85,7 @@ public class GoogleAdsV17Test {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
       pipeline
           .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-          .apply(GoogleAdsIO.v17().readAll().withRateLimitPolicy(TEST_POLICY_FACTORY));
+          .apply(GoogleAdsIO.current().readAll().withRateLimitPolicy(TEST_POLICY_FACTORY));
     }
 
     @Test
@@ -93,7 +94,7 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
           .apply(
-              GoogleAdsIO.v17()
+              GoogleAdsIO.current()
                   .readAll()
                   .withRateLimitPolicy(TEST_POLICY_FACTORY)
                   .withDeveloperToken(null));
@@ -107,7 +108,7 @@ public class GoogleAdsV17Test {
           () ->
               pipeline
                   .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-                  .apply(GoogleAdsIO.v17().readAll().withRateLimitPolicy(TEST_POLICY_FACTORY)));
+                  .apply(GoogleAdsIO.current().readAll().withRateLimitPolicy(TEST_POLICY_FACTORY)));
     }
 
     @Test
@@ -118,7 +119,7 @@ public class GoogleAdsV17Test {
           () ->
               pipeline
                   .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-                  .apply(GoogleAdsIO.v17().readAll().withDeveloperToken("abc")));
+                  .apply(GoogleAdsIO.current().readAll().withDeveloperToken("abc")));
     }
 
     @Test
@@ -130,7 +131,7 @@ public class GoogleAdsV17Test {
               pipeline
                   .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
                   .apply(
-                      GoogleAdsIO.v17()
+                      GoogleAdsIO.current()
                           .readAll()
                           .withRateLimitPolicy(TEST_POLICY_FACTORY)
                           .withGoogleAdsClientFactory(null)));
@@ -144,7 +145,7 @@ public class GoogleAdsV17Test {
           () ->
               pipeline
                   .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-                  .apply(GoogleAdsIO.v17().readAll().withRateLimitPolicy(null)));
+                  .apply(GoogleAdsIO.current().readAll().withRateLimitPolicy(null)));
     }
 
     @Test
@@ -152,7 +153,7 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
           .apply(
-              GoogleAdsIO.v17()
+              GoogleAdsIO.current()
                   .read()
                   .withRateLimitPolicy(TEST_POLICY_FACTORY)
                   .withDeveloperToken("abc")
@@ -161,7 +162,10 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
           .apply(
-              GoogleAdsIO.v17().read().withRateLimitPolicy(TEST_POLICY_FACTORY).withQuery("GAQL"));
+              GoogleAdsIO.current()
+                  .read()
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                  .withQuery("GAQL"));
     }
 
     @Test
@@ -170,7 +174,10 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
           .apply(
-              GoogleAdsIO.v17().read().withRateLimitPolicy(TEST_POLICY_FACTORY).withQuery("GAQL"));
+              GoogleAdsIO.current()
+                  .read()
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                  .withQuery("GAQL"));
     }
 
     @Test
@@ -179,7 +186,7 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
           .apply(
-              GoogleAdsIO.v17()
+              GoogleAdsIO.current()
                   .read()
                   .withRateLimitPolicy(TEST_POLICY_FACTORY)
                   .withDeveloperToken(null)
@@ -195,7 +202,7 @@ public class GoogleAdsV17Test {
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
                   .apply(
-                      GoogleAdsIO.v17()
+                      GoogleAdsIO.current()
                           .read()
                           .withRateLimitPolicy(TEST_POLICY_FACTORY)
                           .withQuery("GAQL")));
@@ -209,7 +216,7 @@ public class GoogleAdsV17Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v17().read().withRateLimitPolicy(TEST_POLICY_FACTORY)));
+                  .apply(GoogleAdsIO.current().read().withRateLimitPolicy(TEST_POLICY_FACTORY)));
     }
 
     @Test
@@ -220,7 +227,7 @@ public class GoogleAdsV17Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v17().read().withDeveloperToken("abc").withQuery("GAQL")));
+                  .apply(GoogleAdsIO.current().read().withDeveloperToken("abc").withQuery("GAQL")));
     }
 
     @Test
@@ -232,7 +239,7 @@ public class GoogleAdsV17Test {
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
                   .apply(
-                      GoogleAdsIO.v17()
+                      GoogleAdsIO.current()
                           .read()
                           .withRateLimitPolicy(TEST_POLICY_FACTORY)
                           .withQuery("GAQL")
@@ -248,7 +255,7 @@ public class GoogleAdsV17Test {
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
                   .apply(
-                      GoogleAdsIO.v17()
+                      GoogleAdsIO.current()
                           .read()
                           .withRateLimitPolicy(TEST_POLICY_FACTORY)
                           .withQuery(null)));
@@ -260,7 +267,7 @@ public class GoogleAdsV17Test {
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
                   .apply(
-                      GoogleAdsIO.v17()
+                      GoogleAdsIO.current()
                           .read()
                           .withRateLimitPolicy(TEST_POLICY_FACTORY)
                           .withQuery("")));
@@ -274,7 +281,7 @@ public class GoogleAdsV17Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v17().read().withQuery("GAQL").withRateLimitPolicy(null)));
+                  .apply(GoogleAdsIO.current().read().withQuery("GAQL").withRateLimitPolicy(null)));
     }
   }
 
@@ -286,15 +293,15 @@ public class GoogleAdsV17Test {
     public void init() {
       GoogleAdsOptions options = pipeline.getOptions().as(GoogleAdsOptions.class);
       options.setGoogleAdsCredentialFactoryClass(NoopCredentialFactory.class);
-      synchronized (GoogleAdsV17.ReadAll.ReadAllFn.class) {
-        GoogleAdsV17.ReadAll.ReadAllFn.sleeper = (long millis) -> {};
+      synchronized (GoogleAdsV19.ReadAll.ReadAllFn.class) {
+        GoogleAdsV19.ReadAll.ReadAllFn.sleeper = (long millis) -> {};
       }
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testRead() {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V17
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class))
               .iterator())
@@ -309,7 +316,7 @@ public class GoogleAdsV17Test {
           pipeline
               .apply(Create.of("123"))
               .apply(
-                  GoogleAdsIO.v17()
+                  GoogleAdsIO.current()
                       .read()
                       .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
                       .withRateLimitPolicy(TEST_POLICY_FACTORY)
@@ -323,7 +330,7 @@ public class GoogleAdsV17Test {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithFailureFromMaxRetriesExceeded() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V17
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class)))
           .thenThrow(
@@ -341,7 +348,7 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.of("123"))
           .apply(
-              GoogleAdsIO.v17()
+              GoogleAdsIO.current()
                   .read()
                   .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
                   .withRateLimitPolicy(TEST_POLICY_FACTORY)
@@ -362,7 +369,7 @@ public class GoogleAdsV17Test {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithFailureFromNonRetryableError() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V17
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class)))
           .thenThrow(
@@ -381,7 +388,7 @@ public class GoogleAdsV17Test {
       pipeline
           .apply(Create.of("123"))
           .apply(
-              GoogleAdsIO.v17()
+              GoogleAdsIO.current()
                   .read()
                   .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
                   .withRateLimitPolicy(TEST_POLICY_FACTORY)
@@ -395,7 +402,7 @@ public class GoogleAdsV17Test {
               pipeline::run);
       Assert.assertEquals(IOException.class, exception.getCause().getClass());
       Assert.assertEquals(
-          "com.google.ads.googleads.v17.errors.GoogleAdsException: errors {\n"
+          "com.google.ads.googleads.v19.errors.GoogleAdsException: errors {\n"
               + "  error_code {\n"
               + "    authentication_error: OAUTH_TOKEN_REVOKED\n"
               + "  }\n"
@@ -406,7 +413,7 @@ public class GoogleAdsV17Test {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithRecoveryFromInternalError() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V17
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class))
               .iterator())
@@ -443,7 +450,7 @@ public class GoogleAdsV17Test {
           pipeline
               .apply(Create.of("123"))
               .apply(
-                  GoogleAdsIO.v17()
+                  GoogleAdsIO.current()
                       .read()
                       .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
                       .withRateLimitPolicy(TEST_POLICY_FACTORY)
@@ -457,7 +464,7 @@ public class GoogleAdsV17Test {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithRecoveryFromQuotaErrorWithRetryDelay() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V17
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class))
               .iterator())
@@ -505,7 +512,7 @@ public class GoogleAdsV17Test {
           pipeline
               .apply(Create.of("123"))
               .apply(
-                  GoogleAdsIO.v17()
+                  GoogleAdsIO.current()
                       .read()
                       .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
                       .withRateLimitPolicy(TEST_POLICY_FACTORY)

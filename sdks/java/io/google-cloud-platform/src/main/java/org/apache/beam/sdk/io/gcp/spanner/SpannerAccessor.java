@@ -220,7 +220,10 @@ public class SpannerAccessor implements AutoCloseable {
     }
     ValueProvider<String> host = spannerConfig.getHost();
     if (host != null) {
-      builder.setHost(host.get());
+      String hostValue = host.get();
+      if (hostValue != null && !hostValue.trim().isEmpty()) {
+        builder.setHost(host.get());
+      }
     }
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
