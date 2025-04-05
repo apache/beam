@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
@@ -36,6 +37,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 public final class WindmillChannelFactory {
   public static final String LOCALHOST = "localhost";
   private static final int MAX_REMOTE_TRACE_EVENTS = 100;
+  // 1MiB.
+  private static final int MAX_INBOUND_METADATA_SIZE_BYTES = 1024 * 1024;
   // 10MiB.
   private static final int WINDMILL_MAX_FLOW_CONTROL_WINDOW =
       NettyChannelBuilder.DEFAULT_FLOW_CONTROL_WINDOW * 10;
@@ -54,7 +57,9 @@ public final class WindmillChannelFactory {
   }
 
   public static ManagedChannel remoteChannel(
-      WindmillServiceAddress windmillServiceAddress, int windmillServiceRpcChannelTimeoutSec) {
+      WindmillServiceAddress windmillServiceAddress,
+      int windmillServiceRpcChannelTimeoutSec,
+      UserWorkerGrpcFlowControlSettings flowControlSettings) {
     switch (windmillServiceAddress.getKind()) {
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
@@ -62,7 +67,8 @@ public final class WindmillChannelFactory {
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
         return remoteDirectChannel(
             windmillServiceAddress.authenticatedGcpServiceAddress(),
-            windmillServiceRpcChannelTimeoutSec);
+            windmillServiceRpcChannelTimeoutSec,
+            flowControlSettings);
       default:
         throw new UnsupportedOperationException(
             "Only GCP_SERVICE_ADDRESS and AUTHENTICATED_GCP_SERVICE_ADDRESS are supported"
@@ -72,16 +78,22 @@ public final class WindmillChannelFactory {
 
   private static ManagedChannel remoteDirectChannel(
       AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress,
-      int windmillServiceRpcChannelTimeoutSec) {
-    return withDefaultChannelOptions(
+      int windmillServiceRpcChannelTimeoutSec,
+      UserWorkerGrpcFlowControlSettings flowControlSettings) {
+    NettyChannelBuilder channelBuilder =
+        withDefaultChannelOptions(
             NettyChannelBuilder.forAddress(
                     authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
                     // Ports are required for direct channels.
                     authenticatedGcpServiceAddress.gcpServiceAddress().getPort(),
                     new AltsChannelCredentials.Builder().build())
                 .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
-            windmillServiceRpcChannelTimeoutSec)
-        .build();
+            windmillServiceRpcChannelTimeoutSec);
+    int flowControlWindowSizeBytes =
+        Math.max(WINDMILL_MAX_FLOW_CONTROL_WINDOW, flowControlSettings.getFlowControlWindowBytes());
+    return flowControlSettings.getEnableAutoFlowControl()
+        ? channelBuilder.initialFlowControlWindow(flowControlWindowSizeBytes).build()
+        : channelBuilder.flowControlWindow(flowControlWindowSizeBytes).build();
   }
 
   public static ManagedChannel remoteChannel(
@@ -95,6 +107,7 @@ public final class WindmillChannelFactory {
             windmillServiceRpcChannelTimeoutSec)
         .negotiationType(NegotiationType.TLS)
         .sslContext(dataflowGrpcSslContext(endpoint))
+        .flowControlWindow(WINDMILL_MAX_FLOW_CONTROL_WINDOW)
         .build();
   }
 
@@ -122,8 +135,7 @@ public final class WindmillChannelFactory {
         .maxInboundMessageSize(Integer.MAX_VALUE)
         .maxTraceEvents(MAX_REMOTE_TRACE_EVENTS)
         // 1MiB
-        .maxInboundMetadataSize(1024 * 1024)
-        .flowControlWindow(WINDMILL_MAX_FLOW_CONTROL_WINDOW);
+        .maxInboundMetadataSize(MAX_INBOUND_METADATA_SIZE_BYTES);
   }
 
   private static class WindmillChannelCreationException extends IllegalStateException {

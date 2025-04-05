@@ -66,6 +66,7 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
@@ -273,7 +274,7 @@ public final class StreamingDataflowWorker {
                                 processingContext,
                                 getWorkStreamLatencies);
                           }),
-              createFanOutStubFactory(options),
+              createFanOutStubFactory(options, configFetcher),
               GetWorkBudgetDistributors.distributeEvenly(),
               Preconditions.checkNotNull(dispatcherClient),
               commitWorkStream ->
@@ -621,18 +622,40 @@ public final class StreamingDataflowWorker {
   }
 
   private static ChannelCachingStubFactory createFanOutStubFactory(
-      DataflowWorkerHarnessOptions workerOptions) {
-    return ChannelCachingRemoteStubFactory.create(
-        workerOptions.getGcpCredential(),
+      DataflowWorkerHarnessOptions workerOptions, ComputationConfig.Fetcher configFetcher) {
+    ChannelCache channelCache =
         ChannelCache.create(
-            serviceAddress ->
-                // IsolationChannel will create and manage separate RPC channels to the same
-                // serviceAddress.
-                IsolationChannel.create(
-                    () ->
-                        remoteChannel(
-                            serviceAddress,
-                            workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec()))));
+            serviceAddress -> {
+              // Always fetch the current flow control settings when we go to create the channel.
+              UserWorkerGrpcFlowControlSettings currentFlowControlSettings =
+                  configFetcher
+                      .getGlobalConfigHandle()
+                      .getConfig()
+                      .userWorkerJobSettings()
+                      .getFlowControlSettings();
+              // IsolationChannel will create and manage separate RPC channels to the same
+              // serviceAddress.
+              return IsolationChannel.create(
+                  () ->
+                      remoteChannel(
+                          serviceAddress,
+                          workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                          currentFlowControlSettings),
+                  currentFlowControlSettings.getOnReadyThresholdBytes());
+            },
+            configFetcher
+                .getGlobalConfigHandle()
+                .getConfig()
+                .userWorkerJobSettings()
+                .getFlowControlSettings());
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config ->
+                channelCache.consumeFlowControlSettings(
+                    config.userWorkerJobSettings().getFlowControlSettings()));
+
+    return ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
   }
 
   @VisibleForTesting

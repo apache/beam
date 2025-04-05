@@ -164,15 +164,6 @@ public class GrpcDispatcherClient {
     return stubs.get(rand.nextInt(stubs.size()));
   }
 
-  /**
-   * Returns whether the {@link DispatcherStubs} have been set. Once initially set, {@link
-   * #dispatcherStubs} will always have a value as empty updates will trigger an {@link
-   * IllegalStateException}.
-   */
-  public boolean hasInitializedEndpoints() {
-    return dispatcherStubs.get().hasInitializedEndpoints();
-  }
-
   public void onJobConfig(StreamingGlobalConfig config) {
     if (config.windmillServiceEndpoints().isEmpty()) {
       LOG.warn("Dispatcher client received empty windmill service endpoints from global config");
@@ -280,14 +271,6 @@ public class GrpcDispatcherClient {
 
       return windmillStubFactory.createWindmillMetadataServiceStub(
           WindmillServiceAddress.create(endpoint));
-    }
-
-    private int size() {
-      return dispatcherEndpoints().size();
-    }
-
-    private boolean hasInitializedEndpoints() {
-      return size() > 0;
     }
 
     abstract ImmutableSet<HostAndPort> dispatcherEndpoints();

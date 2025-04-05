@@ -22,8 +22,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -50,10 +52,14 @@ public final class ChannelCache implements StatusDataProvider {
   private static final Logger LOG = LoggerFactory.getLogger(ChannelCache.class);
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
+  @GuardedBy("this")
+  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings;
+
   private ChannelCache(
       Function<WindmillServiceAddress, ManagedChannel> channelFactory,
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved,
-      Executor channelCloser) {
+      Executor channelCloser,
+      UserWorkerGrpcFlowControlSettings currentFlowControlSettings) {
     this.channelCache =
         CacheBuilder.newBuilder()
             .removalListener(RemovalListeners.asynchronous(onChannelRemoved, channelCloser))
@@ -64,16 +70,24 @@ public final class ChannelCache implements StatusDataProvider {
                     return channelFactory.apply(key);
                   }
                 });
+    this.currentFlowControlSettings = currentFlowControlSettings;
   }
 
   public static ChannelCache create(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
+      UserWorkerGrpcFlowControlSettings initialFlowControlSettings) {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         notification -> shutdownChannel(notification.getValue()),
         Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()));
+            new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()),
+        initialFlowControlSettings);
+  }
+
+  public static ChannelCache create(
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
+    return create(channelFactory, UserWorkerGrpcFlowControlSettings.getDefaultInstance());
   }
 
   @VisibleForTesting
@@ -90,7 +104,8 @@ public final class ChannelCache implements StatusDataProvider {
         // Run the removal synchronously on the calling thread to prevent waiting on asynchronous
         // tasks to run and make unit tests deterministic. In testing, we verify that things are
         // removed from the cache.
-        MoreExecutors.directExecutor());
+        MoreExecutors.directExecutor(),
+        UserWorkerGrpcFlowControlSettings.getDefaultInstance());
   }
 
   private static void shutdownChannel(ManagedChannel channel) {
@@ -98,13 +113,30 @@ public final class ChannelCache implements StatusDataProvider {
     try {
       channel.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
-      LOG.error("Couldn't close gRPC channel={}", channel, e);
+      LOG.error("Couldn't gracefully close gRPC channel={}", channel, e);
     }
     channel.shutdownNow();
   }
 
   public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
     return channelCache.getUnchecked(windmillServiceAddress);
+  }
+
+  public synchronized void consumeFlowControlSettings(
+      UserWorkerGrpcFlowControlSettings flowControlSettings) {
+    if (!flowControlSettings.equals(currentFlowControlSettings)) {
+      // Refreshing the cache will asynchronously terminate the old channels via the removalListener
+      // and return a newly created one on the next Cache.load(address). This could be expensive so
+      // only do it when we have received new flow control settings.
+      LOG.debug("Updating flow control settings {}.", flowControlSettings);
+      currentFlowControlSettings = flowControlSettings;
+      channelCache.asMap().keySet().stream()
+          .filter(
+              address ->
+                  address.getKind()
+                      == WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS)
+          .forEach(channelCache::refresh);
+    }
   }
 
   public void remove(WindmillServiceAddress windmillServiceAddress) {
