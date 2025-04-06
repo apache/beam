@@ -24,7 +24,6 @@ from __future__ import absolute_import
 from typing import Sequence
 from typing import Tuple
 
-import tenacity
 from google.api_core.retry import Retry
 
 from apache_beam import pvalue
@@ -34,6 +33,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import GroupIntoBatches
+from apache_beam.utils import retry
 from cachetools.func import ttl_cache
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -54,6 +54,7 @@ __all__ = [
 ]
 
 FAILED_CATALOG_ITEMS = "failed_catalog_items"
+MAX_RETRIES=5
 
 
 @ttl_cache(maxsize=128, ttl=3600)
@@ -155,10 +156,9 @@ class _CreateCatalogItemFn(DoFn):
     request = recommendationengine.CreateCatalogItemRequest(
         parent=self.parent, catalog_item=catalog_item)
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(multiplier=1, min=1, max=10),
-        stop=tenacity.stop_after_attempt(5),
-        reraise=True)
+    @retry.with_exponential_backoff(
+        num_retries=MAX_RETRIES,
+        retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
     def create_item():
       return self._client.create_catalog_item(
           request=request,

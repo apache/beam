@@ -24,7 +24,7 @@ import base64
 import datetime
 import logging
 import secrets
-import time as mod_time
+import time
 import unittest
 import uuid
 from decimal import Decimal
@@ -99,7 +99,7 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
 
     cls.bigquery_client = BigQueryWrapper()
     cls.dataset_id = '%s%d%s' % (
-        cls.BIG_QUERY_DATASET_ID, int(mod_time.time()), secrets.token_hex(3))
+        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     cls.bigquery_client.get_or_create_dataset(cls.project, cls.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", cls.dataset_id, cls.project)
@@ -158,9 +158,11 @@ class ReadTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(
+        cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
-    mod_time.sleep(10)
 
   @skip(['PortableRunner', 'FlinkRunner'])
   @pytest.mark.it_postcommit
@@ -333,7 +335,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   def setUpClass(cls):
     super(ReadUsingStorageApiTests, cls).setUpClass()
     cls.table_name = '%s%d%s' % (
-        cls.BIG_QUERY_DATASET_ID, int(mod_time.time()), secrets.token_hex(3))
+        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     cls._create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
@@ -396,9 +398,11 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(
+        cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
-    mod_time.sleep(10)
 
   @classmethod
   def _setup_temporary_dataset(cls, project, query):
@@ -411,7 +415,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
         'materializing_table_before_reading',
         str(uuid.uuid4())[0:10],
         bigquery_tools.BigQueryJobTypes.QUERY,
-        '%d_%s' % (int(mod_time.time()), secrets.token_hex(3)))
+        '%d_%s' % (int(time.time()), secrets.token_hex(3)))
     cls._setup_temporary_dataset(cls.project, cls.query)
     job = cls.bigquery_client._start_query_job(
         project,
@@ -658,6 +662,9 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(
+        cls.project, cls.dataset_id, table_name)
     row_data = {
         'float': 0.33,
         'numeric': Decimal('10'),
@@ -676,7 +683,6 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
 
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, table_data)
-    mod_time.sleep(10)
 
   def get_expected_data(self, native=True):
     byts = b'\xab\xac'
@@ -782,9 +788,11 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(
+        cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, data)
-    mod_time.sleep(10)
     return table_schema
 
   @classmethod

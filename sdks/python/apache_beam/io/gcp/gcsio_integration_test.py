@@ -60,6 +60,9 @@ except ImportError:
   NotFound = None
 
 
+# Number of seconds to wait for bucket deletion to propagate.
+WAIT_DELETE_BUCKET_PROPAGATION_SECONDS = 10
+
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
 @parameterized_class(
     ('no_gcsio_throttling_counter', 'enable_gcsio_blob_generation'),
@@ -222,7 +225,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
     if existing_bucket:
       try:
         existing_bucket.delete()
-        time.sleep(10)
+        time.sleep(WAIT_DELETE_BUCKET_PROPAGATION_SECONDS)
       except NotFound:
         # Bucket existence check from get_bucket may be inaccurate due to gcs
         # cache or delay
