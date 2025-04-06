@@ -54,7 +54,7 @@ __all__ = [
 ]
 
 FAILED_CATALOG_ITEMS = "failed_catalog_items"
-MAX_RETRIES=5
+MAX_RETRIES = 5
 
 
 @ttl_cache(maxsize=128, ttl=3600)
@@ -158,7 +158,8 @@ class _CreateCatalogItemFn(DoFn):
 
     @retry.with_exponential_backoff(
         num_retries=MAX_RETRIES,
-        retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
+        retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter
+    )
     def create_item():
       return self._client.create_catalog_item(
           request=request,

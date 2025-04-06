@@ -59,9 +59,9 @@ try:
 except ImportError:
   NotFound = None
 
-
 # Number of seconds to wait for bucket deletion to propagate.
 WAIT_DELETE_BUCKET_PROPAGATION_SECONDS = 10
+
 
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
 @parameterized_class(

@@ -159,8 +159,7 @@ class ReadTests(BigQueryReadIntegrationTests):
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
     # Call get_table so that we wait until the table is visible.
-    _ = cls.bigquery_client.get_table(
-        cls.project, cls.dataset_id, table_name)
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
@@ -399,8 +398,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
     # Call get_table so that we wait until the table is visible.
-    _ = cls.bigquery_client.get_table(
-        cls.project, cls.dataset_id, table_name)
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
@@ -663,8 +661,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
     # Call get_table so that we wait until the table is visible.
-    _ = cls.bigquery_client.get_table(
-        cls.project, cls.dataset_id, table_name)
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     row_data = {
         'float': 0.33,
         'numeric': Decimal('10'),
@@ -789,8 +786,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
     # Call get_table so that we wait until the table is visible.
-    _ = cls.bigquery_client.get_table(
-        cls.project, cls.dataset_id, table_name)
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, data)
     return table_schema

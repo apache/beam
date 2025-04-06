@@ -133,7 +133,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.bigquery_client.client.tables.Insert(request)
 
     # Call get_table so that we wait until the table is visible.
-    _ = self.bigquery_client.get_table(self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE)
+    _ = self.bigquery_client.get_table(
+        self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE)
 
     table_data = [{
         'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'
