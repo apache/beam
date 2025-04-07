@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class TFRecordSchemaTransformTranslation {
-  public static class TFRecordStorageReadSchemaTransformTranslator
+  public static class TFRecordReadSchemaTransformTranslator
       extends SchemaTransformTranslation.SchemaTransformPayloadTranslator<
           TFRecordReadSchemaTransform> {
     @Override
