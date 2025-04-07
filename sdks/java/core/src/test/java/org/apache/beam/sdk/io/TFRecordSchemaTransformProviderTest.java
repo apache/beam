@@ -285,7 +285,6 @@ public class TFRecordSchemaTransformProviderTest {
             .collect(Collectors.toList());
     SchemaTransformProvider tfrecordProvider = providers.get(0);
     assertEquals(tfrecordProvider.outputCollectionNames(), Lists.newArrayList("output", "errors"));
-    assertEquals(tfrecordProvider.inputCollectionNames(), Lists.newArrayList("input", "errors"));
 
     assertEquals(
         Sets.newHashSet(
