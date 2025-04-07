@@ -137,7 +137,7 @@ public class TFRecordWriteSchemaTransformProvider
       }
 
       // Obtain input schema and verify only one field and its bytes
-      Schema inputSchema = input.get("input").getSchema();
+      Schema inputSchema = input.get(INPUT).getSchema();
       int numFields = inputSchema.getFields().size();
       if (numFields != 1) {
         throw new IllegalArgumentException("Expecting exactly one field, found " + numFields);
