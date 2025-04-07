@@ -26,18 +26,26 @@ import unittest
 from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
-from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.coders import proto2_coder_test_messages_pb2
 
 
 class PicklerTest(unittest.TestCase):
 
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
 
-  def test_pickle_enum_descriptor(self):
-    TimeDomain = beam_runner_api_pb2.TimeDomain.Enum
+  def test_pickle_nested_enum_descriptor(self):
+    NestedEnum = proto2_coder_test_messages_pb2.MessageD.NestedEnum
 
     def fn():
-      return TimeDomain.EVENT_TIME
+      return NestedEnum.TWO
+
+    self.assertEqual(fn(), loads(dumps(fn))())
+
+  def test_pickle_top_level_enum_descriptor(self):
+    TopLevelEnum = proto2_coder_test_messages_pb2.TopLevelEnum
+
+    def fn():
+      return TopLevelEnum.ONE
 
     self.assertEqual(fn(), loads(dumps(fn))())
 
