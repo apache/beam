@@ -171,7 +171,6 @@ def delete_bigquery_table_data(project: str, table: str):
 
 def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
-  """Main pipeline logic to read, analyze, and write sentiment data in streaming mode."""
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
