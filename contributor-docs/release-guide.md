@@ -916,7 +916,7 @@ Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-In
      * Click "Run Workflow".
      * Set `RELEASE` to `2.xx.0`, and set `SNAPSHOT_URL` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
      * Click "Build".
-- [ ] [Optional] Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
+- [ ] Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
 - [ ] Vote in the release thread.
 
 ### Finalize the vote
