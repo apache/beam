@@ -72,7 +72,7 @@ public class TFRecordSchemaTransformTranslation {
       return ImmutableMap
           .<Class<? extends PTransform>, PTransformTranslation.TransformPayloadTranslator>builder()
           .put(
-              TFRecordReadSchemaTransform.class, new TFRecordStorageReadSchemaTransformTranslator())
+              TFRecordReadSchemaTransform.class, new TFRecordReadSchemaTransformTranslator())
           .put(TFRecordWriteSchemaTransform.class, new TFRecordWriteSchemaTransformTranslator())
           .build();
     }
