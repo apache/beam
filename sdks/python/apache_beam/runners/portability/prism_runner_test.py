@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Run as
 #
@@ -177,6 +178,19 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     with self.create_pipeline() as p:
       lines = p | beam.io.ReadFromText('/etc/profile')
       assert_that(lines, lambda lines: len(lines) > 0)
+
+  def test_create_transform(self):
+    with self.create_pipeline() as p:
+      out = (p | beam.Create([1]))
+      assert_that(out, equal_to([1]))
+
+    with self.create_pipeline() as p:
+      out = (p | beam.Create([1, 2], reshuffle=False))
+      assert_that(out, equal_to([1, 2]))
+
+    with self.create_pipeline() as p:
+      out = (p | beam.Create([1, 2], reshuffle=True))
+      assert_that(out, equal_to([1, 2]))
 
   def test_external_transform(self):
     raise unittest.SkipTest("Requires an expansion service to execute.")
