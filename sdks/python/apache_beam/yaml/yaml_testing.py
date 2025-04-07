@@ -352,12 +352,12 @@ def create_test(
 
   def get_name(transform):
     if 'name' in transform:
-      return transform['name']
+      return str(transform['name'])
     else:
       if sum(1 for t in transform_spec['transforms']
              if t['type'] == transform['type']) > 1:
         raise ValueError('Ambiguous unnamed transform {transform["type"]}')
-      return transform['type']
+      return str(transform['type'])
 
   input_transforms = [
       t for t in transform_spec['transforms'] if t['type'] != 'Create' and

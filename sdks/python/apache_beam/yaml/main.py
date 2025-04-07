@@ -18,6 +18,7 @@
 import argparse
 import contextlib
 import json
+import os
 import sys
 import unittest
 
@@ -104,6 +105,12 @@ def _parse_arguments(argv):
       action=argparse.BooleanOptionalAction,
       help='Update failing test expectations to match the actual ouput.')
   parser.add_argument(
+      '--create_test',
+      action=argparse.BooleanOptionalAction,
+      help='Automatically creates a regression test for the given pipeline, '
+      'adding it to the pipeline spec or test suite dependon on whether '
+      '--test_suite is given.')
+  parser.add_argument(
       '--test_suite',
       help='Run the given tests against the given pipeline, rather than the '
       'pipeline itself. '
@@ -154,49 +161,68 @@ def run_tests(argv=None, exit=True):
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
   options = _build_pipeline_options(pipeline_spec, pipeline_args)
 
-  if known_args.test_suite:
-    with open(known_args.test_suite) as fin:
-      test_suite = yaml.load(fin, Loader=yaml_transform.SafeLineLoader)
-    if 'tests' not in test_suite or not isinstance(test_suite['tests'], list):
-      raise TypeError('tests attribute must be a list of test specifications')
-    test_specs = test_suite['tests']
+  if known_args.create_test and not known_args.fix_tests:
+    result = unittest.TestResult()
   else:
-    test_specs = pipeline_spec.get('tests', [])
-    if not isinstance(test_specs, list):
-      raise TypeError('tests attribute must be a list of test specifications')
-  if not test_specs:
-    raise RuntimeError('No tests found.')
+    if known_args.test_suite:
+      with open(known_args.test_suite) as fin:
+        test_suite = yaml.load(fin, Loader=yaml_transform.SafeLineLoader) or {}
+      if 'tests' not in test_suite or not isinstance(test_suite['tests'], list):
+        raise TypeError('tests attribute must be a list of test specifications')
+      test_specs = test_suite['tests']
+    else:
+      test_specs = pipeline_spec.get('tests', [])
+      if not isinstance(test_specs, list):
+        raise TypeError('tests attribute must be a list of test specifications')
+    if not test_specs:
+      raise RuntimeError('No tests found.')
 
-  with _fix_xlang_instant_coding():
-    tests = [
-        _YamlTestCase(pipeline_spec, test_spec, options, known_args.fix_tests)
-        for test_spec in test_specs
-    ]
-    suite = unittest.TestSuite(tests)
-    result = unittest.TextTestRunner().run(suite)
+    with _fix_xlang_instant_coding():
+      tests = [
+          _YamlTestCase(
+              pipeline_spec, test_spec, options, known_args.fix_tests)
+          for test_spec in test_specs
+      ]
+      suite = unittest.TestSuite(tests)
+      result = unittest.TextTestRunner().run(suite)
 
-  if known_args.fix_tests:
+  if known_args.fix_tests or known_args.create_test:
     if known_args.test_suite:
       path = known_args.test_suite
+      if not os.path.exists(path) and known_args.create_test:
+        with open(path, 'w') as fout:
+          fout.write('tests: []')
     elif known_args.yaml_pipeline_file:
       path = known_args.yaml_pipeline_file
     else:
-      raise RuntimeError('Test fixing only supported for file-backed tests.')
+      raise RuntimeError(
+          'Test fixing only supported for file-backed tests. '
+          'Please use the --test_suite flag.')
     with open(path) as fin:
       original_yaml = fin.read()
-    if path == known_args.yaml_pipeline_file and pipeline_yaml == content:
-      raise RuntimeError('In-file test fixing not yet supported for templated pipelines.')
-    updated_spec = yaml.load(original_yaml, Loader=yaml.SafeLoader)
+    if path == known_args.yaml_pipeline_file and pipeline_yaml.strip(
+    ) != original_yaml.strip():
+      raise RuntimeError(
+          'In-file test fixing not yet supported for templated pipelines. '
+          'Please use the --test_suite flag.')
+    updated_spec = yaml.load(original_yaml, Loader=yaml.SafeLoader) or {}
 
-    for ix, test in enumerate(tests):
-      if test.fixes:
-        test_spec = yaml_transform.SafeLineLoader.strip_metadata(test.spec())
-        assert test_spec == updated_spec['tests'][ix]
-        for (loc, name), values in test.fixes.items():
-          for expectation in updated_spec['tests'][ix][loc]:
-            if expectation['name'] == name:
-              expectation['elements'] = sorted(values, key=json.dumps)
-              break
+    if known_args.fix_tests:
+      for ix, test in enumerate(tests):
+        if test.fixes:
+          test_spec = yaml_transform.SafeLineLoader.strip_metadata(test.spec())
+          assert test_spec == updated_spec['tests'][ix]
+          for (loc, name), values in test.fixes.items():
+            for expectation in updated_spec['tests'][ix][loc]:
+              if expectation['name'] == name:
+                expectation['elements'] = sorted(values, key=json.dumps)
+                break
+
+    if known_args.create_test:
+      if 'tests' not in updated_spec:
+        updated_spec['tests'] = []
+      updated_spec['tests'].append(
+          yaml_testing.create_test(pipeline_spec, options))
 
     updated_yaml = yaml_utils.patch_yaml(original_yaml, updated_spec)
     with open(path, 'w') as fout:

@@ -200,6 +200,34 @@ class MainTest(unittest.TestCase):
       with open(test_suite) as fin:
         self.assertEqual(fin.read(), PASSING_TEST_SUITE)
 
+  def test_create_test(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_suite = os.path.join(tmpdir, 'tests.yaml')
+      with open(test_suite, 'w') as fout:
+        fout.write('')
+
+      main.run_tests([
+          '--yaml_pipeline',
+          TEST_PIPELINE.replace('ELEMENT', 'x'),
+          '--test_suite',
+          test_suite,
+          '--create_test'
+      ],
+                     exit=False)
+
+      with open(test_suite) as fin:
+        self.assertEqual(
+            fin.read(),
+            '''
+tests:
+- mock_outputs: []
+  expected_inputs:
+  - name: WriteToText
+    elements:
+    - element: x
+'''.lstrip())
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
