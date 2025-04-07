@@ -23,21 +23,20 @@ from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostB
 
 
 class PytorchSentimentBenchmarkTest(DataflowCostBenchmark):
-    def __init__(self):
-        self.metrics_namespace = 'BeamML_PyTorch'
-        super().__init__(
-            metrics_namespace=self.metrics_namespace,
-            pcollection='PostProcess.out0'
-        )
+  def __init__(self):
+    self.metrics_namespace = 'BeamML_PyTorch'
+    super().__init__(
+        metrics_namespace=self.metrics_namespace,
+        pcollection='PostProcess.out0')
 
-    def test(self):
-        extra_opts = {}
-        extra_opts['input'] = self.pipeline.get_option('input_file')
-        self.result = pytorch_sentiment_streaming.run(
-            self.pipeline.get_full_options_as_args(**extra_opts),
-            test_pipeline=self.pipeline)
+  def test(self):
+    extra_opts = {}
+    extra_opts['input'] = self.pipeline.get_option('input_file')
+    self.result = pytorch_sentiment_streaming.run(
+        self.pipeline.get_full_options_as_args(**extra_opts),
+        test_pipeline=self.pipeline)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    PytorchSentimentBenchmarkTest().run()
+  logging.basicConfig(level=logging.INFO)
+  PytorchSentimentBenchmarkTest().run()
