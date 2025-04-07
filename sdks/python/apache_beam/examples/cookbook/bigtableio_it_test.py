@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
 EXISTING_INSTANCES: list['google.cloud.bigtable.instance.Instance'] = []
 LABEL_KEY = 'python-bigtable-beam'
-label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
+label_stamp = datetime.datetime.now(datetime.timezone.utc)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
 LABELS = {LABEL_KEY: str(label_stamp_micros)}
 
@@ -156,7 +156,7 @@ class BigtableIOWriteTest(unittest.TestCase):
 
     def age_in_hours(micros):
       return (
-          datetime.datetime.utcnow().replace(tzinfo=UTC) -
+          datetime.datetime.now(datetime.timezone.utc) -
           (_datetime_from_microseconds(micros))).total_seconds() // 3600
 
     CLEAN_INSTANCE = [
