@@ -904,9 +904,9 @@ Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-In
 
 #### Run validation workflows
 
-- [ ] Java Quickstart Validation: https://github.com/apache/beam/blob/master/.github/workflows/run_rc_validation_java_quickstart.yml
-- [ ] Java Mobile Gaming RC Validation (~60min): https://github.com/apache/beam/blob/master/.github/workflows/run_rc_validation_java_mobile_gaming.yml
-- [ ] Python Mobile Gaming RC Validation (~90min): https://github.com/apache/beam/blob/master/.github/workflows/run_rc_validation_python_mobile_gaming.yml
+- [ ] Java Quickstart Validation: https://github.com/apache/beam/actions/workflows/run_rc_validation_java_quickstart.yml
+- [ ] Java Mobile Gaming RC Validation (~60min): https://github.com/apache/beam/actions/workflows/run_rc_validation_java_mobile_gaming.yml
+- [ ] Python Mobile Gaming RC Validation (~90min): https://github.com/apache/beam/actions/workflows/run_rc_validation_python_mobile_gaming.yml
 
 ### Checklist to proceed to the next phase
 
