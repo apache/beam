@@ -23,6 +23,7 @@ import glob
 import gzip
 import logging
 import os
+import platform
 import shutil
 import tempfile
 import unittest
@@ -42,6 +43,7 @@ from apache_beam.io.textio import ReadAllFromTextContinuously
 from apache_beam.io.textio import ReadFromText
 from apache_beam.io.textio import ReadFromTextWithFilename
 from apache_beam.io.textio import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
@@ -191,6 +193,37 @@ class TextSourceTest(unittest.TestCase):
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
     self.assertCountEqual(expected_data, read_data)
+
+  @unittest.skipIf(platform.system() == 'Windows', 'Skipping on Windows')
+  def test_read_from_text_file_pattern_with_dot_slash(self):
+    cwd = os.getcwd()
+    expected = ['abc', 'de']
+    with TempDir() as temp_dir:
+      temp_dir.create_temp_file(suffix='.txt', lines=[b'a', b'b', b'c'])
+      temp_dir.create_temp_file(suffix='.txt', lines=[b'd', b'e'])
+
+      os.chdir(temp_dir.get_path())
+      with TestPipeline() as p:
+        dot_slash = p | 'ReadDotSlash' >> ReadFromText('./*.txt')
+        no_dot_slash = p | 'ReadNoSlash' >> ReadFromText('*.txt')
+
+        assert_that(dot_slash, equal_to(expected))
+        assert_that(no_dot_slash, equal_to(expected))
+      os.chdir(cwd)
+
+  def test_read_from_text_with_value_provider(self):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--file_pattern',
+            help='This keyword argument is a value provider',
+            default='some value')
+
+    options = UserDefinedOptions(['--file_pattern', 'abc'])
+    with self.assertRaises(OSError):
+      with TestPipeline(options=options) as pipeline:
+        _ = pipeline | 'Read' >> ReadFromText(options.file_pattern)
 
   def test_read_single_file(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
