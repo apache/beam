@@ -26,21 +26,23 @@ import argparse
 import logging
 from collections.abc import Iterable
 
+from google.cloud import bigquery
+from google.cloud import pubsub_v1
+
 import apache_beam as beam
 import torch
 import torch.nn.functional as F
-from apache_beam.ml.inference.base import (
-    KeyedModelHandler, PredictionResult, RunInference)
-from apache_beam.ml.inference.pytorch_inference import (
-    PytorchModelHandlerKeyedTensor)
-from apache_beam.options.pipeline_options import (
-    PipelineOptions, SetupOptions, StandardOptions)
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineResult
-from google.cloud import pubsub_v1, bigquery
-from transformers import (
-    DistilBertTokenizerFast,
-    DistilBertForSequenceClassification,
-    DistilBertConfig)
+from transformers import DistilBertConfig
+from transformers import DistilBertForSequenceClassification
+from transformers import DistilBertTokenizerFast
 
 
 class SentimentPostProcessor(beam.DoFn):
