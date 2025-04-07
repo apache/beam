@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -57,12 +56,6 @@ public class TFRecordReadSchemaTransformProvider
   private static final Logger LOG =
       LoggerFactory.getLogger(TFRecordReadSchemaTransformProvider.class);
 
-  /** Returns the expected class of the configuration. */
-  @Override
-  protected Class<TFRecordReadSchemaTransformConfiguration> configurationClass() {
-    return TFRecordReadSchemaTransformConfiguration.class;
-  }
-
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(TFRecordReadSchemaTransformConfiguration configuration) {
@@ -73,15 +66,6 @@ public class TFRecordReadSchemaTransformProvider
   @Override
   public String identifier() {
     return IDENTIFIER;
-  }
-
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
-   * no input is expected, this returns an empty list.
-   */
-  @Override
-  public List<String> inputCollectionNames() {
-    return Collections.emptyList();
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. */
@@ -135,7 +119,7 @@ public class TFRecordReadSchemaTransformProvider
       PCollection<byte[]> tfRecordValues = input.getPipeline().apply(readTransform);
 
       // Define the schema for the row
-      Schema schema = Schema.of(Schema.Field.of("record", Schema.FieldType.BYTES));
+      final Schema schema = Schema.of(Schema.Field.of("record", Schema.FieldType.BYTES));
       Schema errorSchema = ErrorHandling.errorSchemaBytes();
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
 
@@ -167,11 +151,7 @@ public class TFRecordReadSchemaTransformProvider
     return new SimpleFunction<byte[], Row>() {
       @Override
       public Row apply(byte[] input) {
-        Row row = Row.withSchema(schema).addValues(input).build();
-        if (row == null) {
-          throw new NullPointerException();
-        }
-        return row;
+        return Row.withSchema(schema).addValues(input).build();
       }
     };
   }

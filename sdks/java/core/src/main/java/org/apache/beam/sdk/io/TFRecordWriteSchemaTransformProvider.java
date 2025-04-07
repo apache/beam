@@ -31,7 +31,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -56,12 +55,6 @@ public class TFRecordWriteSchemaTransformProvider
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   private static final Logger LOG =
       LoggerFactory.getLogger(TFRecordWriteSchemaTransformProvider.class);
-
-  /** Returns the expected class of the configuration. */
-  @Override
-  protected Class<TFRecordWriteSchemaTransformConfiguration> configurationClass() {
-    return TFRecordWriteSchemaTransformConfiguration.class;
-  }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
@@ -193,20 +186,6 @@ public class TFRecordWriteSchemaTransformProvider
       PCollection<Row> errorOutput =
           byteArrays.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
       return PCollectionRowTuple.of(handleErrors ? output : "errors", errorOutput);
-    }
-  }
-
-  public static class RowToBytesDoFn extends DoFn<Row, byte[]> {
-    private final SerializableFunction<Row, byte[]> rowToBytesFn;
-
-    public RowToBytesDoFn(SerializableFunction<Row, byte[]> rowToBytesFn) {
-      this.rowToBytesFn = rowToBytesFn;
-    }
-
-    @ProcessElement
-    public void processElement(@Element Row row, OutputReceiver<byte[]> out) {
-      byte[] bytes = rowToBytesFn.apply(row);
-      out.output(bytes);
     }
   }
 

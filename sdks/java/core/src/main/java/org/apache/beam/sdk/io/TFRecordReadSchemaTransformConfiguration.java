@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -47,15 +46,9 @@ public abstract class TFRecordReadSchemaTransformConfiguration implements Serial
 
   public void validate() {
     String invalidConfigMessage = "Invalid TFRecord Read configuration: ";
-    checkNotNull(getValidate(), "To read from TFRecord, validation must be specified.");
-    checkNotNull(getCompression(), "To read from TFRecord, compression must be specified.");
 
-    String filePattern = getFilePattern();
-    if (filePattern == null || filePattern.isEmpty()) {
-      throw new IllegalStateException(
-          "Need to set the filepattern of a TFRecordReadSchema transform");
-    }
     if (getValidate()) {
+      String filePattern = getFilePattern();
       try {
         MatchResult matches = FileSystems.match(filePattern);
         checkState(
@@ -86,7 +79,7 @@ public abstract class TFRecordReadSchemaTransformConfiguration implements Serial
   public abstract String getCompression();
 
   @SchemaFieldDescription("Filename or file pattern used to find input files.")
-  public abstract @Nullable String getFilePattern();
+  public abstract String getFilePattern();
 
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
   public abstract @Nullable ErrorHandling getErrorHandling();

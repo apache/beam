@@ -59,7 +59,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -107,29 +106,6 @@ public class TFRecordSchemaTransformProviderTest {
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
-
-  private static TFRecordReadSchemaTransformConfiguration readConfig;
-  private static TFRecordWriteSchemaTransformConfiguration writeConfig;
-
-  @Before
-  public void setUp() throws IOException {
-    readConfig =
-        TFRecordReadSchemaTransformConfiguration.builder()
-            .setValidate(false)
-            .setCompression("AUTO")
-            .setFilePattern("foo.*")
-            .build();
-
-    writeConfig =
-        TFRecordWriteSchemaTransformConfiguration.builder()
-            .setOutputPrefix(tempFolder.getRoot().toPath().toString())
-            .setFilenameSuffix("bar")
-            .setShardTemplate("xyz")
-            .setNumShards(10)
-            .setCompression("UNCOMPRESSED")
-            .setNoSpilling(true)
-            .build();
-  }
 
   @Test
   public void testReadInvalidConfigurations() {
@@ -258,13 +234,26 @@ public class TFRecordSchemaTransformProviderTest {
   @Test
   public void testReadBuildTransform() {
     TFRecordReadSchemaTransformProvider provider = new TFRecordReadSchemaTransformProvider();
-    provider.from(readConfig);
+    provider.from(
+        TFRecordReadSchemaTransformConfiguration.builder()
+            .setValidate(false)
+            .setCompression("AUTO")
+            .setFilePattern("foo.*")
+            .build());
   }
 
   @Test
   public void testWriteBuildTransform() {
     TFRecordWriteSchemaTransformProvider provider = new TFRecordWriteSchemaTransformProvider();
-    provider.from(writeConfig);
+    provider.from(
+        TFRecordWriteSchemaTransformConfiguration.builder()
+            .setOutputPrefix(tempFolder.getRoot().toPath().toString())
+            .setFilenameSuffix("bar")
+            .setShardTemplate("xyz")
+            .setNumShards(10)
+            .setCompression("UNCOMPRESSED")
+            .setNoSpilling(true)
+            .build());
   }
 
   @Test
@@ -317,7 +306,15 @@ public class TFRecordSchemaTransformProviderTest {
   public void testReadNamed() {
     readPipeline.enableAbandonedNodeEnforcement(false);
     PCollectionRowTuple begin = PCollectionRowTuple.empty(readPipeline);
-    SchemaTransform transform = new TFRecordReadSchemaTransformProvider().from(readConfig);
+    SchemaTransform transform =
+        new TFRecordReadSchemaTransformProvider()
+            .from(
+                TFRecordReadSchemaTransformConfiguration.builder()
+                    .setValidate(false)
+                    .setCompression("AUTO")
+                    .setFilePattern("foo.*")
+                    .build());
+
     PCollectionRowTuple reads = begin.apply(transform);
     String name = reads.get("output").getName();
     assertThat(name, startsWith("TFRecordReadSchemaTransformProvider.TFRecordReadSchemaTransform"));

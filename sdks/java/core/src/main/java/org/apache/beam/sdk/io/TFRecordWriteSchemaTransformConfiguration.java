@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -45,10 +44,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class TFRecordWriteSchemaTransformConfiguration {
 
   public void validate() {
-    checkNotNull(getNumShards(), "To write to TFRecord, numShards must be specified.");
-    checkNotNull(getCompression(), "To write to TFRecord, compression must be specified.");
-    checkNotNull(getNoSpilling(), "To write to TFRecord, noSpilling must be specified.");
-
     String invalidConfigMessage = "Invalid TFRecord Write configuration: ";
 
     String outputPrefix = getOutputPrefix();
