@@ -20,9 +20,10 @@ import unittest
 
 from apache_beam.yaml import yaml_testing
 
+SIMPLE_PIPELINE = '''
 # Note that executing this pipeline will actually fail if the untested
 # transforms are not in fact elided.
-SIMPLE_PIPELINE = '''
+
 pipeline:
   type: chain
   transforms:
