@@ -988,7 +988,9 @@ Merge all of the website pull requests
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
 
-Note: when API docs are not updated after 6 hours, you can create the infra ticket to ask for helps (e.g., https://issues.apache.org/jira/browse/INFRA-26708).
+Note: If API documentation updates are not reflected after 6 hours, it may be due to a large number of file changes.
+In this case, try making a trivial commit to the release-docs branch of the https://github.com/apache/beam-site repository.
+If the issue persists, create an infrastructure ticket for assistance (e.g., https://issues.apache.org/jira/browse/INFRA-26708).
 
 ### Publish the Github Release page
 
