@@ -106,21 +106,16 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 
 			// If there's an unknown urn, and it's not composite, simply add it to the leaves.
 			if len(t.GetSubtransforms()) == 0 {
-				shouldAdd := true
-
 				// However, if it is an empty transform with identical input/output pcollections,
 				// it will be discarded.
 				if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
 					inputID := getOnlyValue(t.GetInputs())
 					outputID := getOnlyValue(t.GetOutputs())
 					if inputID == outputID {
-						shouldAdd = false
+						continue
 					}
 				}
-
-				if shouldAdd {
-					leaves[tid] = struct{}{}
-				}
+				leaves[tid] = struct{}{}
 			}
 			continue
 		}
