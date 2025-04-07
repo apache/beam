@@ -2055,15 +2055,21 @@ public class KafkaIO {
             public @Nullable String get(@Nullable KafkaRecord<K, V> carrier, String key) {
 
               Headers headers = Preconditions.checkArgumentNotNull(carrier).getHeaders();
-              if (headers == null) return null;
+              if (headers == null) {
+                return null;
+              }
               Header header = headers.lastHeader(key);
-              if (header == null) return null;
+              if (header == null) {
+                return null;
+              }
               return new String(header.value(), UTF_8);
             }
 
             @Override
             public Iterable<String> keys(KafkaRecord<K, V> carrier) {
-              if (carrier.getHeaders() == null) return ImmutableList.of();
+              if (carrier.getHeaders() == null) {
+                return ImmutableList.of();
+              }
               return StreamSupport.stream(carrier.getHeaders().spliterator(), false)
                   .map(Header::key)
                   .collect(Collectors.toList());
