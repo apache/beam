@@ -239,7 +239,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// as well as the deprecated "beam:transform:read:v1", but they are composites.
 			// We don't do anything special with these high level composites, but
 			// we may be dealing with their internal subgraph already, so we ignore this transform.
-			if len(t.GetSubtransforms()) > 0 {
+			if len(t.GetSubtransforms()) >= 0 {
 				continue
 			}
 			// This may be an "empty" composite without subtransforms or a payload.

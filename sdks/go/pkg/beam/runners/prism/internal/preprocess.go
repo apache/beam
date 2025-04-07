@@ -101,12 +101,19 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 		// composite should have enough information to produce the new sub transforms.
 		// In particular, the inputs and outputs need to all be connected and matched up
 		// so the topological sort still works out.
-		h := p.transformPreparers[spec.GetUrn()]
+		urn := spec.GetUrn()
+		h := p.transformPreparers[urn]
 		if h == nil {
 
 			// If there's an unknown urn, and it's not composite, simply add it to the leaves.
 			if len(t.GetSubtransforms()) == 0 {
-				leaves[tid] = struct{}{}
+				switch urn {
+				case "beam:transform:generic_composite:v1", "beam:transform:pickled_python:v1":
+					// Skip empty composite transforms
+					continue
+				default:
+					leaves[tid] = struct{}{}
+				}
 			}
 			continue
 		}
