@@ -184,9 +184,12 @@ func launchSDKProcess() error {
 	}
 
 	dir := filepath.Join(*semiPersistDir, "staged")
+	logger.Printf(ctx, "Attempting to materialize artifacts from endpoint '%s' to directory '%s'", *artifactEndpoint, dir)
+	logger.Printf(ctx, "Dependencies to materialize: %d", len(info.GetDependencies()))
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
+		logger.Errorf(ctx, "Error materializing artifacts: %v", fmtErr)
 		// Send error message to logging service before returning up the call stack
 		logger.Errorf(ctx, fmtErr.Error())
 		// No need to fail the job if submission_environment_dependencies.txt cannot be loaded
@@ -195,6 +198,8 @@ func launchSDKProcess() error {
 		} else {
 			return fmtErr
 		}
+	} else {
+		logger.Printf(ctx, "Successfully materialized %d artifacts", len(files))
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It

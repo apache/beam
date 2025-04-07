@@ -58,16 +58,31 @@ const (
 // TODO(https://github.com/apache/beam/issues/20267): Return a mapping of filename to dependency, rather than []*jobpb.ArtifactMetadata.
 // TODO(https://github.com/apache/beam/issues/20267): Leverage richness of roles rather than magic names to understand artifacts.
 func Materialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
+	log.Printf("Materialize called: endpoint=%s, num_dependencies=%d, retrieval_token=%s, dest=%s", endpoint, len(dependencies), rt, dest)
+	var artifacts []*pipepb.ArtifactInformation
+	var err error
+
 	if len(dependencies) > 0 {
-		return newMaterialize(ctx, endpoint, dependencies, dest)
+		log.Printf("Using new artifact materialization logic (dependencies provided).")
+		artifacts, err = newMaterialize(ctx, endpoint, dependencies, dest)
 	} else if rt == "" || rt == NoArtifactsStaged {
-		return []*pipepb.ArtifactInformation{}, nil
+		log.Printf("No artifacts to materialize (empty retrieval token or special value).")
+		artifacts, err = []*pipepb.ArtifactInformation{}, nil
 	} else {
-		return legacyMaterialize(ctx, endpoint, rt, dest)
+		log.Printf("Using legacy artifact materialization logic (retrieval token provided).")
+		artifacts, err = legacyMaterialize(ctx, endpoint, rt, dest)
 	}
+
+	if err != nil {
+		log.Printf("Materialize finished with error: %v", err)
+	} else {
+		log.Printf("Materialize finished successfully, returning %d artifacts.", len(artifacts))
+	}
+	return artifacts, err
 }
 
 func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
+	log.Printf("newMaterialize: Dialing artifact endpoint %s", endpoint)
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
@@ -78,10 +93,13 @@ func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb
 }
 
 func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrievalServiceClient, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
+	log.Printf("newMaterializeWithClient: Resolving %d artifacts", len(dependencies))
 	resolution, err := client.ResolveArtifacts(ctx, &jobpb.ResolveArtifactsRequest{Artifacts: dependencies})
 	if err != nil {
+		log.Printf("newMaterializeWithClient: Error resolving artifacts: %v", err)
 		return nil, err
 	}
+	log.Printf("newMaterializeWithClient: Resolved %d replacements", len(resolution.Replacements))
 
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
@@ -134,7 +152,14 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 		})
 	}
 
-	return artifacts, MultiRetrieve(ctx, 10, list, dest)
+	log.Printf("newMaterializeWithClient: Preparing to retrieve %d artifacts via MultiRetrieve", len(list))
+	err = MultiRetrieve(ctx, 10, list, dest)
+	if err != nil {
+		log.Printf("newMaterializeWithClient: MultiRetrieve failed: %v", err)
+	} else {
+		log.Printf("newMaterializeWithClient: MultiRetrieve succeeded.")
+	}
+	return artifacts, err
 }
 
 // Used for generating unique IDs. We assign uniquely generated names to staged files without staging names.
@@ -255,19 +280,24 @@ func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.W
 }
 
 func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
+	log.Printf("legacyMaterialize: Dialing artifact endpoint %s", endpoint)
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
+		log.Printf("legacyMaterialize: Error dialing endpoint: %v", err)
 		return nil, err
 	}
 	defer cc.Close()
 
 	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 
+	log.Printf("legacyMaterialize: Getting manifest with retrieval token %s", rt)
 	m, err := client.GetManifest(ctx, &jobpb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
+		log.Printf("legacyMaterialize: Error getting manifest: %v", err)
 		return nil, errors.Wrap(err, "failed to get manifest")
 	}
 	mds := m.GetManifest().GetArtifact()
+	log.Printf("legacyMaterialize: Got manifest with %d artifacts", len(mds))
 
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
@@ -298,13 +328,22 @@ func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest str
 		})
 	}
 
-	return artifacts, MultiRetrieve(ctx, 10, list, dest)
+	log.Printf("legacyMaterialize: Preparing to retrieve %d artifacts via MultiRetrieve", len(list))
+	err = MultiRetrieve(ctx, 10, list, dest)
+	if err != nil {
+		log.Printf("legacyMaterialize: MultiRetrieve failed: %v", err)
+	} else {
+		log.Printf("legacyMaterialize: MultiRetrieve succeeded.")
+	}
+	return artifacts, err
 }
 
 // MultiRetrieve retrieves multiple artifacts concurrently, using at most 'cpus'
 // goroutines. It retries each artifact a few times. Convenience wrapper.
 func MultiRetrieve(ctx context.Context, cpus int, list []retrievable, dest string) error {
+	log.Printf("MultiRetrieve: Starting retrieval of %d artifacts with %d workers to %s", len(list), cpus, dest)
 	if len(list) == 0 {
+		log.Printf("MultiRetrieve: No artifacts to retrieve.")
 		return nil
 	}
 	if cpus < 1 {
@@ -337,17 +376,29 @@ func MultiRetrieve(ctx context.Context, cpus int, list []retrievable, dest strin
 					}
 					failures = append(failures, err.Error())
 					if len(failures) > attempts {
-						permErr.TrySetError(errors.Errorf("failed to retrieve %v in %v attempts: %v", dest, attempts, strings.Join(failures, "; ")))
+						errMsg := errors.Errorf("failed to retrieve artifact in %v attempts: %v", attempts, strings.Join(failures, "; "))
+						log.Printf("MultiRetrieve worker: Giving up after %d attempts: %v", attempts, errMsg)
+						permErr.TrySetError(errMsg)
 						break // give up
 					}
-					time.Sleep(time.Duration(rand.Intn(5)+1) * time.Second)
+					sleepDuration := time.Duration(rand.Intn(5)+1) * time.Second
+					log.Printf("MultiRetrieve worker: Retrying after error (%d/%d attempts), sleeping for %v: %v", len(failures), attempts, sleepDuration, err)
+					time.Sleep(sleepDuration)
+				} else {
+					log.Printf("MultiRetrieve worker: Successfully retrieved artifact.")
 				}
 			}
 		}()
 	}
 	wg.Wait()
 
-	return permErr.Error()
+	finalErr := permErr.Error()
+	if finalErr != nil {
+		log.Printf("MultiRetrieve: Finished with error: %v", finalErr)
+	} else {
+		log.Printf("MultiRetrieve: Finished successfully.")
+	}
+	return finalErr
 }
 
 type retrievable interface {
