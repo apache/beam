@@ -225,7 +225,8 @@ def inject_test_tranforms(spec, test_spec, fix_failures):
   def create_mocked_input(transform_id: str) -> str:
     transform = create_create(
         f'MockInput[{mocked_inputs_by_id[transform_id]["name"]}]',
-        mocked_inputs_by_id[transform_id]['elements'])
+        mocked_inputs_by_id[transform_id]['elements'],
+        mocked_inputs_by_id[transform_id]['name'])
     transforms.append(transform)
     return transform['__uuid__']
 
@@ -233,13 +234,15 @@ def inject_test_tranforms(spec, test_spec, fix_failures):
   def create_mocked_output(transform_id: str, tag: str) -> str:
     transform = create_create(
         f'MockOutput[{mocked_outputs_by_id[transform_id][tag]["name"]}]',
-        mocked_outputs_by_id[transform_id][tag]['elements'])
+        mocked_outputs_by_id[transform_id][tag]['elements'],
+        mocked_outputs_by_id[transform_id][tag]['name'])
     transforms.append(transform)
     return transform['__uuid__']
 
-  def create_create(name, elements):
+  def create_create(name, elements, line_source):
     return {
         '__uuid__': yaml_utils.SafeLineLoader.create_uuid(),
+        '__line__': yaml_utils.SafeLineLoader.get_line(line_source),
         'name': name,
         'type': 'Create',
         'config': {
@@ -247,9 +250,10 @@ def inject_test_tranforms(spec, test_spec, fix_failures):
         },
     }
 
-  def create_assertion(name, inputs, elements, recording_id=None):
+  def create_assertion(name, inputs, elements, recording_id, line_source):
     return {
         '__uuid__': yaml_utils.SafeLineLoader.create_uuid(),
+        '__line__': yaml_utils.SafeLineLoader.get_line(line_source),
         'name': name,
         'input': inputs,
         'type': 'AssertEqualAndRecord',
@@ -272,7 +276,8 @@ def inject_test_tranforms(spec, test_spec, fix_failures):
             f'CheckExpectedOutput[{expected_output["name"]}]',
             expected_output['name'],
             expected_output['elements'],
-            recording_id))
+            recording_id,
+            expected_output['name']))
 
   for expected_input in test_spec.get('expected_inputs', []):
     if fix_failures:
@@ -287,10 +292,12 @@ def inject_test_tranforms(spec, test_spec, fix_failures):
             f'CheckExpectedInput[{expected_input["name"]}]',
             create_inputs(transform_id),
             expected_input['elements'],
-            recording_id))
+            recording_id,
+            expected_input['name']))
 
   return {
       '__uuid__': yaml_utils.SafeLineLoader.create_uuid(),
+      '__line__': 0,
       'type': 'composite',
       'transforms': transforms,
   }, recording_ids
