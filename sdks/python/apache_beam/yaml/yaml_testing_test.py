@@ -16,6 +16,8 @@
 #
 
 import logging
+import os
+import tempfile
 import unittest
 
 from apache_beam.yaml import yaml_testing
@@ -191,6 +193,35 @@ class YamlTestingTest(unittest.TestCase):
              dict(element=2, square=4),
              dict(element=3, square=9),
          ]})
+
+  def test_create(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      input_path = os.path.join(tmpdir, 'input.csv')
+      input_path = os.path.join('.', 'input.csv')
+      with open(input_path, 'w') as fout:
+        fout.write('a,b,c\n')
+        for ix in range(1000):
+          fout.write(f'{ix % 5},{ix},Ccc\n')
+      pipeline = f'''
+      pipeline:
+        type: chain
+        transforms:
+          - type: ReadFromCsv
+            config:
+              path: {input_path}
+          - type: Filter
+            config:
+              language: python
+              keep: a == 1
+          - type: WriteToSink
+      '''
+      test_spec = yaml_testing.create_test(
+          pipeline, max_num_inputs=100, min_num_outputs=5)
+
+    self.assertEqual(len(test_spec['mock_outputs']), 1)
+    self.assertEqual(len(test_spec['expected_inputs']), 1)
+    self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 5)
+    yaml_testing.run_test(pipeline, test_spec)
 
 
 if __name__ == '__main__':

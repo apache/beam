@@ -17,6 +17,7 @@
 
 import collections
 import functools
+import random
 import uuid
 from typing import Dict
 from typing import List
@@ -40,8 +41,10 @@ def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=yaml_utils.SafeLineLoader)
 
+  pipeline_spec = _preprocess_for_testing(pipeline_spec)
+
   transform_spec, recording_ids = inject_test_tranforms(
-      yaml_transform.pipeline_as_composite(pipeline_spec['pipeline']),
+      pipeline_spec,
       test_spec,
       fix_failures)
 
@@ -71,11 +74,26 @@ def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
     for recording_id in recording_ids:
       if AssertEqualAndRecord.has_recorded_result(recording_id):
         fixes[recording_id[1:]] = [
-            row._asdict() if isinstance(row, beam.Row) else row
+            _try_row_as_dict(row)
             for row in AssertEqualAndRecord.get_recorded_result(recording_id)
         ]
         AssertEqualAndRecord.remove_recorded_result(recording_id)
     return fixes
+
+
+def _preprocess_for_testing(pipeline_spec):
+  spec = yaml_transform.pipeline_as_composite(pipeline_spec['pipeline'])
+  # These are idempotent, so it's OK to do them preemptively.
+  for phase in [
+      yaml_transform.ensure_transforms_have_types,
+      yaml_transform.preprocess_source_sink,
+      yaml_transform.preprocess_chain,
+      yaml_transform.tag_explicit_inputs,
+      yaml_transform.normalize_inputs_outputs,
+  ]:
+    spec = yaml_transform.apply_phase(phase, spec)
+
+  return spec
 
 
 def validate_test_spec(test_spec):
@@ -141,16 +159,6 @@ def validate_test_spec(test_spec):
 
 def inject_test_tranforms(spec, test_spec, fix_failures):
   validate_test_spec(test_spec)
-  # These are idempotent, so it's OK to do them preemptively.
-  for phase in [
-      yaml_transform.ensure_transforms_have_types,
-      yaml_transform.preprocess_source_sink,
-      yaml_transform.preprocess_chain,
-      yaml_transform.tag_explicit_inputs,
-      yaml_transform.normalize_inputs_outputs,
-  ]:
-    spec = yaml_transform.apply_phase(phase, spec)
-
   scope = yaml_transform.LightweightScope(spec['transforms'])
 
   mocked_inputs_by_id = {
@@ -329,6 +337,131 @@ class AssertEqualAndRecord(beam.PTransform):
         pcoll | beam.Map(lambda row: beam.Row(**row._asdict())), matcher)
 
 
+def create_test(
+    pipeline_spec, options=None, max_num_inputs=40, min_num_outputs=3):
+  if isinstance(pipeline_spec, str):
+    pipeline_spec = yaml.load(pipeline_spec, Loader=yaml_utils.SafeLineLoader)
+
+  transform_spec = _preprocess_for_testing(pipeline_spec)
+
+  if options is None:
+    options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle',
+        **yaml_transform.SafeLineLoader.strip_metadata(
+            pipeline_spec.get('options', {})))
+
+  def get_name(transform):
+    if 'name' in transform:
+      return transform['name']
+    else:
+      if sum(1 for t in transform_spec['transforms']
+             if t['type'] == transform['type']) > 1:
+        raise ValueError('Ambiguous unnamed transform {transform["type"]}')
+      return transform['type']
+
+  input_transforms = [
+      t for t in transform_spec['transforms'] if t['type'] != 'Create' and
+      not yaml_transform.empty_if_explicitly_empty(t.get('input', []))
+  ]
+
+  mock_outputs = [{
+      'name': get_name(t),
+      'elements': [
+          _try_row_as_dict(row) for row in _first_n(t, options, max_num_inputs)
+      ],
+  } for t in input_transforms]
+
+  output_transforms = [
+      t for t in transform_spec['transforms'] if t['type'] == 'LogForTesting' or
+      yaml_transform.empty_if_explicitly_empty(t.get('output', [])) or
+      t['type'].startswith('Write')
+  ]
+
+  expected_inputs = [{
+      'name': get_name(t),
+      'elements': [],
+  } for t in output_transforms]
+
+  if not expected_inputs:
+    # TODO: Optionally take this as a parameter.
+    raise ValueError('No output transforms detected.')
+
+  num_inputs = min_num_outputs
+  while True:
+    test_spec = {
+        'mock_outputs': [{
+            'name': t['name'],
+            'elements': random.sample(
+                t['elements'], min(len(t['elements']), num_inputs)),
+        } for t in mock_outputs],
+        'expected_inputs': expected_inputs,
+    }
+    fixes = run_test(pipeline_spec, test_spec, options, fix_failures=True)
+    if len(fixes) < len(output_transforms):
+      actual_output_size = 0
+    else:
+      actual_output_size = min(len(e) for e in fixes.values())
+    if actual_output_size >= min_num_outputs:
+      break
+    elif num_inputs == max_num_inputs:
+      break
+    else:
+      num_inputs = min(2 * num_inputs, max_num_inputs)
+
+  for expected_input in test_spec['expected_inputs']:
+    if ('expected_inputs', expected_input['name']) in fixes:
+      expected_input['elements'] = fixes['expected_inputs',
+                                         expected_input['name']]
+
+  return test_spec
+
+
+class _DoneException(Exception):
+  pass
+
+
+class RecordElements(beam.PTransform):
+  _recorded_results = collections.defaultdict(list)
+
+  def __init__(self, n):
+    self._n = n
+    self._id = str(uuid.uuid4())
+
+  def get_and_remove(self):
+    listing = RecordElements._recorded_results[self._id]
+    del RecordElements._recorded_results[self._id]
+    return listing
+
+  def expand(self, pcoll):
+    def record(element):
+      listing = RecordElements._recorded_results[self._id]
+      if len(listing) < self._n:
+        listing.append(element)
+      else:
+        raise _DoneException()
+
+    return pcoll | beam.Map(record)
+
+
+def _first_n(transform_spec, options, n):
+  recorder = RecordElements(n)
+  try:
+    with beam.Pipeline(options=options) as p:
+      _ = (
+          p
+          | yaml_transform.YamlTransform(
+              transform_spec,
+              providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+          | recorder)
+  except _DoneException:
+    pass
+  except Exception as exn:
+    # Runners don't always raise a faithful exception type.
+    if not '_DoneException' in str(exn):
+      raise
+  return recorder.get_and_remove()
+
+
 K1 = TypeVar('K1')
 K2 = TypeVar('K2')
 V = TypeVar('V')
@@ -342,3 +475,10 @@ def _composite_key_to_nested(
   for (k1, k2), v in d.items():
     nested[k1][k2] = v
   return nested
+
+
+def _try_row_as_dict(row):
+  try:
+    return row._asdict()
+  except AttributeError:
+    return row
