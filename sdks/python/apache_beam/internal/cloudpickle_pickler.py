@@ -86,6 +86,11 @@ def _reconstruct_enum_descriptor(full_name):
     if not hasattr(module, 'DESCRIPTOR'):
       continue
 
+    if hasattr(module.DESCRIPTOR, 'enum_types_by_name'):
+      for (_, enum_desc) in module.DESCRIPTOR.enum_types_by_name.items():
+        if enum_desc.full_name == full_name:
+          return enum_desc
+
     for _, attr_value in vars(module).items():
       if not hasattr(attr_value, 'DESCRIPTOR'):
         continue
