@@ -69,7 +69,7 @@ it(`renders info message about no inspectable
       inspectables.setState({ inspectables: {} });
     }
   });
-  const infoElement: Element = container.firstElementChild;
+  const infoElement = container.firstElementChild as Element;
   expect(infoElement.tagName).toBe('DIV');
   expect(infoElement.textContent).toBe(
     'No inspectable pipeline nor pcollection has been defined.'
@@ -119,11 +119,11 @@ it('renders inspectables as a list of collapsible lists', async () => {
   });
 
   await waitFor(() => {
-    const listElement: Element = container.firstElementChild;
+    const listElement = container.firstElementChild as Element;
     expect(listElement.tagName).toBe('UL');
     expect(listElement.getAttribute('class')).toContain('mdc-list');
-    // Only checks the length of dummy InspectableList items. Each InspectableList
-    // has its own unit tests.
+    // Only checks the length of dummy InspectableList items.
+    // Each InspectableList has its own unit tests.
     expect(listElement.children).toHaveLength(2);
-  })
+  });
 });

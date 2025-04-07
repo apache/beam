@@ -75,7 +75,7 @@ it('renders the top app bar and drawer wrapped inspectables', async () => {
       />
     );
   });
-  const topAppBarHeader: Element = container.firstElementChild;
+  const topAppBarHeader = container.firstElementChild as Element;
   expect(topAppBarHeader.tagName).toBe('HEADER');
   expect(topAppBarHeader.getAttribute('class')).toContain('mdc-top-app-bar');
   expect(topAppBarHeader.getAttribute('class')).toContain(
@@ -86,17 +86,18 @@ it('renders the top app bar and drawer wrapped inspectables', async () => {
   );
   expect(topAppBarHeader.innerHTML).toContain('menu');
   expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:no kernel]');
-  const topAppBarFixedAdjust: Element = container.children[1];
+  const topAppBarFixedAdjust = container.children[1] as Element;
   expect(topAppBarFixedAdjust.tagName).toBe('DIV');
   expect(topAppBarFixedAdjust.getAttribute('class')).toContain(
     'mdc-top-app-bar--fixed-adjust'
   );
-  const interactiveInspectorDiv: Element = container.children[2];
+  const interactiveInspectorDiv = container.children[2] as Element;
   expect(interactiveInspectorDiv.tagName).toBe('DIV');
   expect(interactiveInspectorDiv.getAttribute('class')).toContain(
     'InteractiveInspector'
   );
-  const inspectablesAside: Element = interactiveInspectorDiv.firstElementChild;
+  const inspectablesAside =
+    interactiveInspectorDiv.firstElementChild as Element;
   expect(inspectablesAside.tagName).toBe('ASIDE');
   expect(inspectablesAside.innerHTML).toContain(
     '<div>No inspectable pipeline nor pcollection has been defined.</div>'
@@ -104,8 +105,8 @@ it('renders the top app bar and drawer wrapped inspectables', async () => {
   expect(inspectablesAside.firstElementChild.getAttribute('class')).toContain(
     'mdc-drawer__content'
   );
-  const inspectableViewAsAppContent: Element =
-    interactiveInspectorDiv.children[1];
+  const inspectableViewAsAppContent = interactiveInspectorDiv
+    .children[1] as Element;
   expect(inspectableViewAsAppContent.tagName).toBe('DIV');
   expect(inspectableViewAsAppContent.getAttribute('class')).toContain(
     'mdc-drawer-app-content'
@@ -127,7 +128,7 @@ it('renders the drawer open by default', async () => {
       />
     );
   });
-  const inspectablesAside: Element = container.children[2].firstElementChild;
+  const inspectablesAside = container.children[2].firstElementChild as Element;
   expect(inspectablesAside.getAttribute('class')).toContain('mdc-drawer--open');
 });
 
@@ -190,8 +191,10 @@ it('updates session info on change', async () => {
   });
 
   await waitFor(() => {
-    const topAppBarHeader: Element =
-      container.firstElementChild.firstElementChild.firstElementChild.children[1];
-    expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:new kernel]');
+    const topAppBarHeader = container.firstElementChild.firstElementChild
+      .firstElementChild.children[1] as Element;
+    expect(topAppBarHeader.innerHTML).toContain(
+      'Inspector [kernel:new kernel]'
+    );
   });
 });

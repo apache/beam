@@ -18,7 +18,7 @@ import { act } from 'react';
 
 import { InterruptKernelButton } from '../../kernel/InterruptKernelButton';
 
-import { waitFor } from '@testing-library/react'
+import { waitFor } from '@testing-library/react';
 
 const fakeKernelModel = {
   isDone: true,
@@ -73,18 +73,17 @@ it(`displays a button when the kernel model
   await act(async () => {
     fakeKernelModel.isDone = false;
     button?.updateRender();
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   await waitFor(() => {
     const button = container.firstElementChild;
     expect(button).not.toBeNull();
     expect(button?.tagName).toBe('BUTTON');
-  })
-  const buttonElement: null | Element = container.firstElementChild;
+  });
+  const buttonElement = container.firstElementChild as Element;
   expect(buttonElement.getAttribute('class')).toContain('mdc-button');
   expect(buttonElement.getAttribute('class')).toContain('mdc-button--raised');
-  const labelElement: Element = buttonElement.children[1];
+  const labelElement = buttonElement.children[1] as Element;
   expect(labelElement.tagName).toBe('SPAN');
   expect(labelElement.getAttribute('class')).toContain('mdc-button__label');
   expect(labelElement.innerHTML).toBe('stop');

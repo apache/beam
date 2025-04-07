@@ -69,7 +69,7 @@ describe('HtmlView', () => {
     });
 
     await waitFor(() => {
-      const htmlViewElement: Element = container.firstElementChild;
+      const htmlViewElement = container.firstElementChild as Element;
       expect(htmlViewElement.tagName).toBe('DIV');
       expect(htmlViewElement.innerHTML).toBe('<div>Test</div>');
     });
@@ -81,7 +81,7 @@ describe('HtmlView', () => {
 
   it(
     'only executes incrementally updated Javascript ' +
-    'as html provider updated',
+      'as html provider updated',
     async () => {
       const htmlViewRef: React.RefObject<HtmlView> =
         React.createRef<HtmlView>();
@@ -122,7 +122,7 @@ describe('Function importHtml', () => {
     await act(async () => {
       importHtml([]);
     });
-    const scriptElement: Element = document.head.firstElementChild;
+    const scriptElement = document.head.firstElementChild as Element;
     expect(scriptElement.tagName).toBe('SCRIPT');
     expect(scriptElement.getAttribute('src')).toBe(
       'https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js'

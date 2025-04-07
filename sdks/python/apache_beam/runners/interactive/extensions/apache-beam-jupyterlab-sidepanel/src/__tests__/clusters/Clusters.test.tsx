@@ -55,7 +55,7 @@ it('renders info message about no clusters being available', async () => {
       clusters.setState({ clusters: {} });
     }
   });
-  const infoElement: Element = container.firstElementChild;
+  const infoElement = container.firstElementChild as Element;
   expect(infoElement.tagName).toBe('DIV');
   expect(infoElement.textContent).toBe('No clusters detected.');
 });
@@ -84,7 +84,7 @@ it('renders a data-table', async () => {
     expect(container.querySelector('.mdc-data-table__table')).toBeTruthy()
   );
 
-  const topAppBarHeader: Element = container.firstElementChild;
+  const topAppBarHeader = container.firstElementChild as Element;
   expect(topAppBarHeader.tagName).toBe('HEADER');
   expect(topAppBarHeader.getAttribute('class')).toContain('mdc-top-app-bar');
   expect(topAppBarHeader.getAttribute('class')).toContain(
@@ -94,42 +94,42 @@ it('renders a data-table', async () => {
     'mdc-top-app-bar--dense'
   );
   expect(topAppBarHeader.innerHTML).toContain('Clusters [kernel:no kernel]');
-  const topAppBarFixedAdjust: Element = container.children[1];
+  const topAppBarFixedAdjust = container.children[1] as Element;
   expect(topAppBarFixedAdjust.tagName).toBe('DIV');
   expect(topAppBarFixedAdjust.getAttribute('class')).toContain(
     'mdc-top-app-bar--fixed-adjust'
   );
-  const selectBar: Element = container.children[2];
+  const selectBar = container.children[2] as Element;
   expect(selectBar.tagName).toBe('DIV');
   expect(selectBar.getAttribute('class')).toContain('mdc-select');
-  const dialogBox: Element = container.children[3];
+  const dialogBox = container.children[3] as Element;
   expect(dialogBox.tagName).toBe('DIV');
   expect(dialogBox.getAttribute('class')).toContain('mdc-dialog');
-  const clustersComponent: Element = container.children[4];
+  const clustersComponent = container.children[4] as Element;
   expect(clustersComponent.tagName).toBe('DIV');
   expect(clustersComponent.getAttribute('class')).toContain('Clusters');
-  const dataTableDiv: Element = clustersComponent.children[0];
+  const dataTableDiv = clustersComponent.children[0] as Element;
   expect(dataTableDiv.tagName).toBe('DIV');
   expect(dataTableDiv.getAttribute('class')).toContain('mdc-data-table');
-  const dataTable: Element = dataTableDiv.children[0].firstElementChild;
+  const dataTable = dataTableDiv.children[0].firstElementChild as Element;
   expect(dataTable.tagName).toBe('TABLE');
   expect(dataTable.getAttribute('class')).toContain('mdc-data-table__table');
-  const dataTableHead: Element = dataTable.children[0];
+  const dataTableHead = dataTable.children[0] as Element;
   expect(dataTableHead.tagName).toBe('THEAD');
   expect(dataTableHead.getAttribute('class')).toContain(
     'rmwc-data-table__head'
   );
-  const dataTableHeaderRow: Element = dataTableHead.children[0];
+  const dataTableHeaderRow = dataTableHead.children[0] as Element;
   expect(dataTableHeaderRow.tagName).toBe('TR');
   expect(dataTableHeaderRow.getAttribute('class')).toContain(
     'mdc-data-table__header-row'
   );
-  const dataTableBody: Element = dataTable.children[1];
+  const dataTableBody = dataTable.children[1] as Element;
   expect(dataTableBody.tagName).toBe('TBODY');
   expect(dataTableBody.getAttribute('class')).toContain(
     'mdc-data-table__content'
   );
-  const dataTableBodyRow: Element = dataTableBody.children[0];
+  const dataTableBodyRow = dataTableBody.children[0] as Element;
   expect(dataTableBodyRow.tagName).toBe('TR');
   expect(dataTableBodyRow.getAttribute('class')).toContain(
     'mdc-data-table__row'

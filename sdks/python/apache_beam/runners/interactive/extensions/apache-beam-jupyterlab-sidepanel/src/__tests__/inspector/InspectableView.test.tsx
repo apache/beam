@@ -89,31 +89,31 @@ it('renders options if inspecting a pcollection', async () => {
       });
     }
   });
-  const inspectableViewElement: Element = container.firstElementChild;
-  const optionsElement: Element = inspectableViewElement.firstElementChild;
+  const optionsElement = container.firstElementChild
+    .firstElementChild as Element;
   expect(optionsElement.tagName).toBe('DIV');
-  const includeWindowInfoCheckbox: Element =
-    optionsElement.firstElementChild.firstElementChild;
+  const includeWindowInfoCheckbox = optionsElement.firstElementChild
+    .firstElementChild as Element;
   expect(
     includeWindowInfoCheckbox.firstElementChild.getAttribute('class')
   ).toContain('mdc-checkbox');
   expect(
     includeWindowInfoCheckbox.firstElementChild.getAttribute('class')
   ).not.toContain('mdc-checkbox--selected');
-  const visualizeInFacetsCheckbox: Element =
-    optionsElement.firstElementChild.children[1];
+  const visualizeInFacetsCheckbox = optionsElement.firstElementChild
+    .children[1] as Element;
   expect(
     visualizeInFacetsCheckbox.firstElementChild.getAttribute('class')
   ).toContain('mdc-checkbox');
   expect(
     visualizeInFacetsCheckbox.firstElementChild.getAttribute('class')
   ).toContain('mdc-checkbox--selected');
-  const durationTextField: Element =
-    optionsElement.firstElementChild.children[2];
+  const durationTextField = optionsElement.firstElementChild
+    .children[2] as Element;
   expect(durationTextField.getAttribute('class')).toContain(
     'mdc-text-field--outlined'
   );
-  const nTextField: Element = optionsElement.firstElementChild.children[3];
+  const nTextField = optionsElement.firstElementChild.children[3] as Element;
   expect(nTextField.getAttribute('class')).toContain(
     'mdc-text-field--outlined'
   );
@@ -130,6 +130,6 @@ it('renders an html view', async () => {
   await act(async () => {
     root.render(<InspectableView model={fakeModel} />);
   });
-  const inspectableViewElement: Element = container.firstElementChild;
+  const inspectableViewElement = container.firstElementChild as Element;
   expect(inspectableViewElement.innerHTML).toContain('<div>fake html</div>');
 });

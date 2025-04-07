@@ -75,23 +75,23 @@ it('renders a list', async () => {
       />
     );
   });
-  const listElement: Element = container.firstElementChild;
-  const listHandle: Element = listElement.firstElementChild;
+  const listElement = container.firstElementChild as Element;
+  const listHandle = listElement.firstElementChild as Element;
   expect(listHandle.tagName).toBe('DIV');
   expect(listHandle.getAttribute('class')).toContain(
     'rmwc-collapsible-list__handle'
   );
-  const listHandleItem: Element = listHandle.firstElementChild;
+  const listHandleItem = listHandle.firstElementChild as Element;
   expect(listHandleItem.tagName).toBe('LI');
   expect(listHandleItem.getAttribute('class')).toContain('mdc-list-item');
-  const listHandleText: Element = listHandleItem.children[2];
+  const listHandleText = listHandleItem.children[2] as Element;
   expect(listHandleText.getAttribute('class')).toContain('mdc-list-item__text');
-  const listHandlePrimaryText: Element = listHandleText.firstElementChild;
+  const listHandlePrimaryText = listHandleText.firstElementChild as Element;
   expect(listHandlePrimaryText.getAttribute('class')).toContain(
     'mdc-list-item__primary-text'
   );
   expect(listHandlePrimaryText.textContent).toBe('pipeline_name');
-  const listHandleMetaIcon: Element = listHandleItem.children[3];
+  const listHandleMetaIcon = listHandleItem.children[3] as Element;
   expect(listHandleMetaIcon.tagName).toBe('I');
   expect(listHandleMetaIcon.getAttribute('class')).toContain(
     'mdc-list-item__meta'
@@ -99,12 +99,12 @@ it('renders a list', async () => {
   expect(listHandleMetaIcon.textContent).toBe('chevron_right');
   // Only check existence of collapsible list children because each child is an
   // individual list item that has its own unit tests.
-  const listChildren: Element = listElement.children[1];
+  const listChildren = listElement.children[1] as Element;
   expect(listChildren.tagName).toBe('DIV');
   expect(listChildren.getAttribute('class')).toContain(
     'rmwc-collapsible-list__children'
   );
-  const listChildItems: HTMLCollection =
-    listChildren.firstElementChild.children;
+  const listChildItems = listChildren.firstElementChild
+    .children as HTMLCollection;
   expect(listChildItems).toHaveLength(2);
 });

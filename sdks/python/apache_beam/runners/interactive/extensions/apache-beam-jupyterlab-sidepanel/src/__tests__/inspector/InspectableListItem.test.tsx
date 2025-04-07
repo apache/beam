@@ -58,17 +58,17 @@ it('renders an item', async () => {
       />
     );
   });
-  const liElement: Element = container.firstElementChild;
+  const liElement = container.firstElementChild as Element;
   expect(liElement.tagName).toBe('LI');
   expect(liElement.getAttribute('class')).toBe('mdc-list-item');
-  const textElement: Element = liElement.children[1];
+  const textElement = liElement.children[1] as Element;
   expect(textElement.getAttribute('class')).toBe('mdc-list-item__text');
-  const primaryTextElement: Element = textElement.firstElementChild;
+  const primaryTextElement = textElement.firstElementChild as Element;
   expect(primaryTextElement.getAttribute('class')).toBe(
     'mdc-list-item__primary-text'
   );
   expect(primaryTextElement.textContent).toBe('name');
-  const secondaryTextElement: Element = textElement.children[1];
+  const secondaryTextElement = textElement.children[1] as Element;
   expect(secondaryTextElement.getAttribute('class')).toBe(
     'mdc-list-item__secondary-text'
   );
