@@ -138,7 +138,7 @@ class KafkaIOReadImplementationCompatibility {
       }
     },
     OFFSET_DEDUPLICATION(LEGACY),
-    OTEL_TRACING {
+    ENABLE_OPEN_TELEMETRY_TRACING {
       @Override
       Object getDefaultValue() {
         return false;

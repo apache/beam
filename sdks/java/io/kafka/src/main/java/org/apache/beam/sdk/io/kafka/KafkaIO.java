@@ -647,7 +647,6 @@ public class KafkaIO {
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setWriteRecordsTransform(writeRecords())
-        .setOtelTracing(false)
         .build();
   }
 
@@ -870,6 +869,9 @@ public class KafkaIO {
 
         // Set committing offset configuration.
         builder.setCommitOffsetsInFinalizeEnabled(config.commitOffsetInFinalize);
+
+        // temporarily turn off otel.
+        builder.setEnableOpenTelemetryTracing(false);
 
         // Set timestamp policy with built-in types.
         String timestampPolicy = config.timestampPolicy;
@@ -1195,10 +1197,6 @@ public class KafkaIO {
 
     public Read<K, V> withValueDeserializer(DeserializerProvider<V> deserializerProvider) {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
-    }
-
-    public Read<K, V> withOtelTracing() {
-      return toBuilder().setEnableOpenTelemetryTracing(true).build();
     }
 
     public Read<K, V> withValueDeserializerProviderAndCoder(
@@ -3129,7 +3127,7 @@ public class KafkaIO {
       return toBuilder().setValueSerializer(valueSerializer).build();
     }
 
-    public WriteRecords<K, V> withOtelTracing() {
+    public WriteRecords<K, V> withEnableOpenTelemetryTracing() {
       return toBuilder().setEnableOpenTelemetryTracing(true).build();
     }
 
@@ -3364,8 +3362,6 @@ public class KafkaIO {
 
     public abstract WriteRecords<K, V> getWriteRecordsTransform();
 
-    abstract boolean isOtelTracing();
-
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -3373,8 +3369,6 @@ public class KafkaIO {
         implements ExternalTransformBuilder<
             Write.External.Configuration, PCollection<KV<K, V>>, PDone> {
       abstract Builder<K, V> setTopic(String topic);
-
-      abstract Builder<K, V> setOtelTracing(boolean otelTracing);
 
       abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
 
@@ -3503,8 +3497,8 @@ public class KafkaIO {
       return withWriteRecordsTransform(getWriteRecordsTransform().withInputTimestamp());
     }
 
-    public Write<K, V> withOtelTracing() {
-      return withWriteRecordsTransform(getWriteRecordsTransform().withOtelTracing());
+    public Write<K, V> withEnableOpenTelemetryTracing() {
+      return withWriteRecordsTransform(getWriteRecordsTransform().withEnableOpenTelemetryTracing());
     }
 
     /**

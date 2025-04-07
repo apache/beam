@@ -263,9 +263,6 @@ public class FnHarness {
    * @param processWideCache
    * @throws Exception
    */
-  @SuppressWarnings({
-    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
-  })
   public static void main(
       String id,
       PipelineOptions options,
@@ -296,16 +293,7 @@ public class FnHarness {
             options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
       LOG.info("Fn Harness started");
 
-      OpenTelemetryTracingOptions openTelemetryTracingOptions =
-          options.as(OpenTelemetryTracingOptions.class);
-      Class<? extends Function<OpenTelemetryTracingOptions, TracerProvider>>
-          tracerProviderFactoryClass = openTelemetryTracingOptions.getTracerProviderFactory();
-      if (tracerProviderFactoryClass != null) {
-        Function tracerProviderFactory =
-            InstanceBuilder.ofType(Function.class).fromClass(tracerProviderFactoryClass).build();
-        openTelemetryTracingOptions.setTracerProvider(
-            (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
-      }
+      setupOpenTelemetryTracing(options);
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();
@@ -445,6 +433,22 @@ public class FnHarness {
       LOG.info("Shutting SDK harness down.");
       executionStateSampler.stop();
       executorService.shutdown();
+    }
+  }
+
+  @SuppressWarnings({
+    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
+  })
+  private static void setupOpenTelemetryTracing(PipelineOptions options) {
+    OpenTelemetryTracingOptions openTelemetryTracingOptions =
+        options.as(OpenTelemetryTracingOptions.class);
+    Class<? extends Function<OpenTelemetryTracingOptions, TracerProvider>>
+        tracerProviderFactoryClass = openTelemetryTracingOptions.getTracerProviderFactory();
+    if (tracerProviderFactoryClass != null) {
+      Function tracerProviderFactory =
+          InstanceBuilder.ofType(Function.class).fromClass(tracerProviderFactoryClass).build();
+      openTelemetryTracingOptions.setTracerProvider(
+          (TracerProvider) tracerProviderFactory.apply(openTelemetryTracingOptions));
     }
   }
 }

@@ -112,6 +112,10 @@ dependencies {
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_http_client
   implementation library.java.gcp_otel_trace
+  implementation library.java.otel_api
+  implementation library.java.otel_sdk_common
+  implementation library.java.otel_sdk_trace
+  implementation library.java.otel_sdk
   implementation library.java.google_http_client_gson
   permitUnusedDeclared library.java.google_http_client_gson // BEAM-11761
   implementation library.java.hamcrest
