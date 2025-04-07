@@ -71,7 +71,7 @@ public class TFRecordWriteSchemaTransformProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. */
   @Override
   public List<String> inputCollectionNames() {
-    return Arrays.asList(INPUT, ERROR);
+    return Arrays.asList(INPUT);
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. */
