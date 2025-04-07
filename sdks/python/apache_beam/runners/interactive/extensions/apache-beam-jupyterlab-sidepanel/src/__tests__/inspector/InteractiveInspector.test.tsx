@@ -19,6 +19,7 @@ import { act } from 'react';
 import { InteractiveInspector } from '../../inspector/InteractiveInspector';
 
 import { InspectableViewModel } from '../../inspector/InspectableViewModel';
+import { waitFor } from '@testing-library/dom';
 
 const fakeSessionContext = {
   session: {
@@ -151,17 +152,15 @@ it('closes the drawer on flip from open state', async () => {
     if (inspector) {
       inspector.flipDrawer();
     }
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   // react test renderer does not re-render the drawer component even if the
   // state is changed. Test the state change instead of DOM change.
-  await act(async () => {
-    const inspector = inspectorRef.current;
-    if (inspector) {
-      expect(inspector.state.drawerOpen).toBe(false);
+  await waitFor(() => {
+    const updatedInspector = inspectorRef.current;
+    if (updatedInspector) {
+      expect(updatedInspector.state.drawerOpen).toBe(false); // 确保抽屉被打开
     }
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
 });
 
@@ -188,10 +187,11 @@ it('updates session info on change', async () => {
       fakeSessionContext.kernelDisplayName = 'new kernel';
       inspector.updateSessionInfo();
     }
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
-  const topAppBarHeader: Element =
-    container.firstElementChild.firstElementChild.firstElementChild.children[1];
-  expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:new kernel]');
+  await waitFor(() => {
+    const topAppBarHeader: Element =
+      container.firstElementChild.firstElementChild.firstElementChild.children[1];
+    expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:new kernel]');
+  });
 });

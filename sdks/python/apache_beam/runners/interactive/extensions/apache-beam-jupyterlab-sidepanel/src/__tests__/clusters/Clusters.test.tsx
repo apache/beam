@@ -18,6 +18,8 @@ import { act } from 'react';
 
 import { Clusters } from '../../clusters/Clusters';
 
+import { waitFor } from '@testing-library/dom';
+
 let container: null | Element = null;
 let root: Root | null = null;
 beforeEach(() => {
@@ -76,8 +78,11 @@ it('renders a data-table', async () => {
 
   await act(async () => {
     clustersRef.current?.setState({ clusters: testData });
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
+
+  await waitFor(() =>
+    expect(container.querySelector('.mdc-data-table__table')).toBeTruthy()
+  );
 
   const topAppBarHeader: Element = container.firstElementChild;
   expect(topAppBarHeader.tagName).toBe('HEADER');

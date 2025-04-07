@@ -17,6 +17,7 @@ import { createRoot, Root } from 'react-dom/client';
 import { act } from 'react';
 
 import { Inspectables } from '../../inspector/Inspectables';
+import { waitFor } from '@testing-library/dom';
 
 jest.mock('../../inspector/InspectableList', () => {
   const FakeInspectableList = function (): React.ReactNode {
@@ -115,13 +116,14 @@ it('renders inspectables as a list of collapsible lists', async () => {
 
   await act(async () => {
     inspectablesRef.current?.setState({ inspectables: testData });
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
-  const listElement: Element = container.firstElementChild;
-  expect(listElement.tagName).toBe('UL');
-  expect(listElement.getAttribute('class')).toContain('mdc-list');
-  // Only checks the length of dummy InspectableList items. Each InspectableList
-  // has its own unit tests.
-  expect(listElement.children).toHaveLength(2);
+  await waitFor(() => {
+    const listElement: Element = container.firstElementChild;
+    expect(listElement.tagName).toBe('UL');
+    expect(listElement.getAttribute('class')).toContain('mdc-list');
+    // Only checks the length of dummy InspectableList items. Each InspectableList
+    // has its own unit tests.
+    expect(listElement.children).toHaveLength(2);
+  })
 });

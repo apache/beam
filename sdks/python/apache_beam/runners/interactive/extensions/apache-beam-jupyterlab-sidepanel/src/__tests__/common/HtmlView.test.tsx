@@ -21,6 +21,7 @@ import { createRoot, Root } from 'react-dom/client';
 import { act } from 'react';
 
 import { HtmlView, IHtmlProvider, importHtml } from '../../common/HtmlView';
+import { waitFor } from '@testing-library/dom';
 
 let container: null | Element = null;
 let root: Root | null = null;
@@ -65,11 +66,14 @@ describe('HtmlView', () => {
     });
     await act(async () => {
       htmlViewRef.current?.updateRender();
-      await new Promise(resolve => setTimeout(resolve, 100));
     });
-    const htmlViewElement: Element = container.firstElementChild;
-    expect(htmlViewElement.tagName).toBe('DIV');
-    expect(htmlViewElement.innerHTML).toBe('<div>Test</div>');
+
+    await waitFor(() => {
+      const htmlViewElement: Element = container.firstElementChild;
+      expect(htmlViewElement.tagName).toBe('DIV');
+      expect(htmlViewElement.innerHTML).toBe('<div>Test</div>');
+    });
+
     expect(spiedConsole).toHaveBeenCalledWith(1);
     expect(spiedConsole).toHaveBeenCalledWith(2);
     expect(spiedConsole).toHaveBeenCalledTimes(2);
@@ -77,7 +81,7 @@ describe('HtmlView', () => {
 
   it(
     'only executes incrementally updated Javascript ' +
-      'as html provider updated',
+    'as html provider updated',
     async () => {
       const htmlViewRef: React.RefObject<HtmlView> =
         React.createRef<HtmlView>();
@@ -93,11 +97,15 @@ describe('HtmlView', () => {
       });
       await act(async () => {
         htmlViewRef.current?.updateRender();
-        await new Promise(resolve => setTimeout(resolve, 100));
       });
-      expect(spiedConsole).toHaveBeenCalledWith(1);
-      expect(spiedConsole).toHaveBeenCalledTimes(1);
+
+      await waitFor(() => {
+        expect(spiedConsole).toHaveBeenCalledWith(1);
+        expect(spiedConsole).toHaveBeenCalledTimes(1);
+      });
+
       fakeHtmlProvider.script.push('console.log(2);');
+
       await act(async () => {
         const htmlView = htmlViewRef.current;
         if (htmlView) {

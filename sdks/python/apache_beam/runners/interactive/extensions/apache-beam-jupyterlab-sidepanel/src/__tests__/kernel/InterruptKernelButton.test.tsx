@@ -18,6 +18,8 @@ import { act } from 'react';
 
 import { InterruptKernelButton } from '../../kernel/InterruptKernelButton';
 
+import { waitFor } from '@testing-library/react'
+
 const fakeKernelModel = {
   isDone: true,
   interruptKernel: function (): void {
@@ -56,6 +58,7 @@ afterEach(async () => {
 it(`displays a button when the kernel model
    is not done with execution`, async () => {
   let button: InterruptKernelButton;
+
   await act(async () => {
     root.render(
       <InterruptKernelButton
@@ -66,13 +69,19 @@ it(`displays a button when the kernel model
       />
     );
   });
+
   await act(async () => {
     fakeKernelModel.isDone = false;
     button?.updateRender();
     await new Promise(resolve => setTimeout(resolve, 100));
   });
+
+  await waitFor(() => {
+    const button = container.firstElementChild;
+    expect(button).not.toBeNull();
+    expect(button?.tagName).toBe('BUTTON');
+  })
   const buttonElement: null | Element = container.firstElementChild;
-  expect(buttonElement.tagName).toBe('BUTTON');
   expect(buttonElement.getAttribute('class')).toContain('mdc-button');
   expect(buttonElement.getAttribute('class')).toContain('mdc-button--raised');
   const labelElement: Element = buttonElement.children[1];
@@ -92,7 +101,7 @@ it(`renders nothing when the kernel
 
 it('interrupts the kernel when clicked', async () => {
   let button: InterruptKernelButton;
-  const spiedInterrruptCall = jest.spyOn(fakeKernelModel, 'interruptKernel');
+  const spiedInterruptCall = jest.spyOn(fakeKernelModel, 'interruptKernel');
   await act(async () => {
     root.render(
       <InterruptKernelButton
@@ -105,7 +114,8 @@ it('interrupts the kernel when clicked', async () => {
   });
   await act(async () => {
     button?.onClick();
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await waitFor(() => {
+      expect(spiedInterruptCall).toHaveBeenCalledTimes(1);
+    });
   });
-  expect(spiedInterrruptCall).toHaveBeenCalledTimes(1);
 });
