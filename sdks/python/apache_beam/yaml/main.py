@@ -163,6 +163,7 @@ def run_tests(argv=None, exit=True):
 
   if known_args.create_test and not known_args.fix_tests:
     result = unittest.TestResult()
+    tests = []
   else:
     if known_args.test_suite:
       with open(known_args.test_suite) as fin:
@@ -187,46 +188,7 @@ def run_tests(argv=None, exit=True):
       result = unittest.TextTestRunner().run(suite)
 
   if known_args.fix_tests or known_args.create_test:
-    if known_args.test_suite:
-      path = known_args.test_suite
-      if not os.path.exists(path) and known_args.create_test:
-        with open(path, 'w') as fout:
-          fout.write('tests: []')
-    elif known_args.yaml_pipeline_file:
-      path = known_args.yaml_pipeline_file
-    else:
-      raise RuntimeError(
-          'Test fixing only supported for file-backed tests. '
-          'Please use the --test_suite flag.')
-    with open(path) as fin:
-      original_yaml = fin.read()
-    if path == known_args.yaml_pipeline_file and pipeline_yaml.strip(
-    ) != original_yaml.strip():
-      raise RuntimeError(
-          'In-file test fixing not yet supported for templated pipelines. '
-          'Please use the --test_suite flag.')
-    updated_spec = yaml.load(original_yaml, Loader=yaml.SafeLoader) or {}
-
-    if known_args.fix_tests:
-      for ix, test in enumerate(tests):
-        if test.fixes:
-          test_spec = yaml_transform.SafeLineLoader.strip_metadata(test.spec())
-          assert test_spec == updated_spec['tests'][ix]
-          for (loc, name), values in test.fixes.items():
-            for expectation in updated_spec['tests'][ix][loc]:
-              if expectation['name'] == name:
-                expectation['elements'] = sorted(values, key=json.dumps)
-                break
-
-    if known_args.create_test:
-      if 'tests' not in updated_spec:
-        updated_spec['tests'] = []
-      updated_spec['tests'].append(
-          yaml_testing.create_test(pipeline_spec, options))
-
-    updated_yaml = yaml_utils.patch_yaml(original_yaml, updated_spec)
-    with open(path, 'w') as fout:
-      fout.write(updated_yaml)
+    update_tests(known_args, pipeline_spec, options, tests)
 
   if exit:
     # emulates unittest.main()
@@ -234,6 +196,49 @@ def run_tests(argv=None, exit=True):
   else:
     if not result.wasSuccessful():
       raise RuntimeError(result)
+
+
+def update_tests(known_args, pipeline_spec, options, tests):
+  if known_args.test_suite:
+    path = known_args.test_suite
+    if not os.path.exists(path) and known_args.create_test:
+      with open(path, 'w') as fout:
+        fout.write('tests: []')
+  elif known_args.yaml_pipeline_file:
+    path = known_args.yaml_pipeline_file
+  else:
+    raise RuntimeError(
+        'Test fixing only supported for file-backed tests. '
+        'Please use the --test_suite flag.')
+  with open(path) as fin:
+    original_yaml = fin.read()
+  if path == known_args.yaml_pipeline_file and pipeline_yaml.strip(
+  ) != original_yaml.strip():
+    raise RuntimeError(
+        'In-file test fixing not yet supported for templated pipelines. '
+        'Please use the --test_suite flag.')
+  updated_spec = yaml.load(original_yaml, Loader=yaml.SafeLoader) or {}
+
+  if known_args.fix_tests:
+    for ix, test in enumerate(tests):
+      if test.fixes:
+        test_spec = yaml_transform.SafeLineLoader.strip_metadata(test.spec())
+        assert test_spec == updated_spec['tests'][ix]
+        for (loc, name), values in test.fixes.items():
+          for expectation in updated_spec['tests'][ix][loc]:
+            if expectation['name'] == name:
+              expectation['elements'] = sorted(values, key=json.dumps)
+              break
+
+  if known_args.create_test:
+    if 'tests' not in updated_spec:
+      updated_spec['tests'] = []
+    updated_spec['tests'].append(
+        yaml_testing.create_test(pipeline_spec, options))
+
+  updated_yaml = yaml_utils.patch_yaml(original_yaml, updated_spec)
+  with open(path, 'w') as fout:
+    fout.write(updated_yaml)
 
 
 def _build_pipeline_yaml_from_argv(argv):
