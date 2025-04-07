@@ -433,7 +433,8 @@ public final class StreamingTransformTranslator {
                   CoderHelpers.fromByteArrays(collect, (Coder) coderInternal);
 
               if (!Iterables.isEmpty(iterable)) {
-                pViews.putPView(output, (Iterable) iterable, IterableCoder.of(coderInternal));
+                pViews.putStreamingPView(
+                    output, (Iterable) iterable, IterableCoder.of(coderInternal));
               }
             });
 

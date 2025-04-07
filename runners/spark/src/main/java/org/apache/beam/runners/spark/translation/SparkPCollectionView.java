@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
+import scala.Tuple3;
 
 /** SparkPCollectionView is used to pass serialized views to lambdas. */
 @SuppressWarnings({
@@ -41,17 +41,40 @@ public class SparkPCollectionView implements Serializable {
   // Holds the view --> broadcast mapping. Transient so it will be null from resume
   private transient volatile Map<PCollectionView<?>, SideInputBroadcast> broadcastHelperMap = null;
 
-  // Holds the Actual data of the views in serialize form
-  private final Map<PCollectionView<?>, Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
-      new LinkedHashMap<>();
+  /** Type of side input. */
+  public enum Type {
+    /** for fixed inputs. */
+    STATIC,
+    /** for dynamically updated inputs. */
+    STREAMING
+  }
 
-  // Driver only - during evaluation stage
+  // Holds the Actual data of the views in serialize form
+  private final Map<PCollectionView<?>, Tuple3<byte[], Type, Coder<Iterable<WindowedValue<?>>>>>
+      pviews = new LinkedHashMap<>();
+
   public void putPView(
       PCollectionView<?> view,
       Iterable<WindowedValue<?>> value,
       Coder<Iterable<WindowedValue<?>>> coder) {
+    this.putPView(view, value, coder, Type.STATIC);
+  }
 
-    pviews.put(view, new Tuple2<>(CoderHelpers.toByteArray(value, coder), coder));
+  public void putStreamingPView(
+      PCollectionView<?> view,
+      Iterable<WindowedValue<?>> value,
+      Coder<Iterable<WindowedValue<?>>> coder) {
+    this.putPView(view, value, coder, Type.STREAMING);
+  }
+
+  // Driver only - during evaluation stage
+  private void putPView(
+      PCollectionView<?> view,
+      Iterable<WindowedValue<?>> value,
+      Coder<Iterable<WindowedValue<?>>> coder,
+      Type type) {
+
+    pviews.put(view, new Tuple3<>(CoderHelpers.toByteArray(value, coder), type, coder));
 
     // Currently unsynchronized unpersist, if needed can be changed to blocking
     if (broadcastHelperMap != null) {
@@ -90,8 +113,8 @@ public class SparkPCollectionView implements Serializable {
 
   private SideInputBroadcast createBroadcastHelper(
       PCollectionView<?> view, JavaSparkContext context) {
-    Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>> tuple2 = pviews.get(view);
-    SideInputBroadcast helper = SideInputBroadcast.create(tuple2._1, tuple2._2);
+    Tuple3<byte[], Type, Coder<Iterable<WindowedValue<?>>>> tuple3 = pviews.get(view);
+    SideInputBroadcast helper = SideInputBroadcast.create(tuple3._1(), tuple3._2(), tuple3._3());
     String pCollectionName =
         view.getPCollection() != null ? view.getPCollection().getName() : "UNKNOWN";
     LOG.debug(
