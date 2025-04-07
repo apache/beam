@@ -80,8 +80,11 @@ no vote requirements, and no timing requirements. A committer must be
 identified to be the Release Manager. In practice, most often a committer both
 proposes to release and volunteers themselves as Release Manager.
 
-Note: For any steps marked "Google Internal", please request assistance from
-Googlers via the `dev@` mailing list.
+Note: For any steps marked "<company> Internal", please request assistance from
+employees of that company via the `dev@` mailing list.
+This is best effort, and you should not block the release waiting on these steps.
+These steps are designed to help validate the release and allow owners to
+perform any runner-specific steps needed to release.
 
 **Template:**
 
