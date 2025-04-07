@@ -371,9 +371,14 @@ func MultiRetrieve(ctx context.Context, cpus int, list []retrievable, dest strin
 				var failures []string
 				for {
 					err := a.retrieve(ctx, dest)
-					if err == nil || permErr.Error() != nil {
-						break // done or give up
+					if err == nil {
+						log.Printf("MultiRetrieve worker: Successfully retrieved artifact.")
+						break // done
 					}
+					if permErr.Error() != nil {
+						break // give up if another worker already failed permanently
+					}
+
 					failures = append(failures, err.Error())
 					if len(failures) > attempts {
 						errMsg := errors.Errorf("failed to retrieve artifact in %v attempts: %v", attempts, strings.Join(failures, "; "))
@@ -384,8 +389,6 @@ func MultiRetrieve(ctx context.Context, cpus int, list []retrievable, dest strin
 					sleepDuration := time.Duration(rand.Intn(5)+1) * time.Second
 					log.Printf("MultiRetrieve worker: Retrying after error (%d/%d attempts), sleeping for %v: %v", len(failures), attempts, sleepDuration, err)
 					time.Sleep(sleepDuration)
-				} else {
-					log.Printf("MultiRetrieve worker: Successfully retrieved artifact.")
 				}
 			}
 		}()
