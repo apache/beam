@@ -55,7 +55,7 @@ jobs:
       - name: Fetch Go SDK RC and Tidy Modules
         working-directory: ./sdks/go/examples/wordcount
         run: |
-          go get -d github.com/apache/beam/sdks/v2@${{ github.event.inputs.rc_tag }}
+          go get -d github.com/apache/beam/sdks/go@${{ github.event.inputs.rc_tag }}
           go mod tidy
 
 
