@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.remoteChannel;
 
 import com.google.auth.Credentials;
 import java.util.function.Function;
@@ -44,7 +44,7 @@ public class WindmillStubFactoryFactoryImpl implements WindmillStubFactoryFactor
                 serviceAddress.getServiceAddress(), windmillServiceRpcChannelAliveTimeoutSec);
     ChannelCache channelCache =
         ChannelCache.create(
-            serviceAddress ->
+            (ignored, serviceAddress) ->
                 // IsolationChannel will create and manage separate RPC channels to the same
                 // serviceAddress via calling the channelFactory, else just directly return the
                 // RPC channel.

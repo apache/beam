@@ -82,7 +82,7 @@ public class WindmillStreamSenderTest {
     grpcCleanup.register(inProcessChannel);
     connection =
         WindmillConnection.builder()
-            .setStubFactory(() -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+            .setStubSupplier(() -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
             .build();
   }
 

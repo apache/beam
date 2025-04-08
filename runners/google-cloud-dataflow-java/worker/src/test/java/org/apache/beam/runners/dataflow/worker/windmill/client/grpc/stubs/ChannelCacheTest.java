@@ -49,7 +49,7 @@ public class ChannelCacheTest {
 
   private static ChannelCache newCache(
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
-    return ChannelCache.forTesting(channelFactory, () -> {});
+    return ChannelCache.forTesting((ignored, address) -> channelFactory.apply(address), () -> {});
   }
 
   @After
@@ -60,7 +60,7 @@ public class ChannelCacheTest {
   }
 
   private ManagedChannel newChannel(String channelName) {
-    return WindmillChannelFactory.inProcessChannel(channelName);
+    return WindmillChannels.inProcessChannel(channelName);
   }
 
   @Test
@@ -112,7 +112,7 @@ public class ChannelCacheTest {
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            (a, b) -> newChannel(channelName), notifyWhenChannelClosed::countDown);
 
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
@@ -136,7 +136,7 @@ public class ChannelCacheTest {
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            (a, b) -> newChannel(channelName), notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.clear();
@@ -152,7 +152,7 @@ public class ChannelCacheTest {
     AtomicInteger newChannelsCreated = new AtomicInteger();
     cache =
         ChannelCache.forTesting(
-            ignored -> {
+            (a, b) -> {
               ManagedChannel channel = newChannel(channelName);
               newChannelsCreated.incrementAndGet();
               return channel;
@@ -178,7 +178,7 @@ public class ChannelCacheTest {
   }
 
   @Test
-  public void testConsumeFlowControlSettings_sameFlowControlSettings() throws InterruptedException {
+  public void testConsumeFlowControlSettings_sameFlowControlSettings() {
     String channelName = "channel";
     AtomicInteger newChannelsCreated = new AtomicInteger();
     UserWorkerGrpcFlowControlSettings flowControlSettings =
@@ -189,7 +189,7 @@ public class ChannelCacheTest {
             .build();
     cache =
         ChannelCache.forTesting(
-            ignored -> {
+            (a, b) -> {
               ManagedChannel channel = newChannel(channelName);
               newChannelsCreated.incrementAndGet();
               return channel;

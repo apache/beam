@@ -51,7 +51,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.Throttlin
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -81,7 +81,7 @@ import org.junit.runners.JUnit4;
 public class FanOutStreamingEngineWorkerHarnessTest {
   private static final String CHANNEL_NAME = "FanOutStreamingEngineWorkerHarnessTest";
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
-      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
+      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannels.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
       ImmutableMap.of(
           "global_data",
@@ -107,7 +107,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final ChannelCachingStubFactory stubFactory =
       new FakeWindmillStubFactory(
-          () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(CHANNEL_NAME)));
+          () -> grpcCleanup.register(WindmillChannels.inProcessChannel(CHANNEL_NAME)));
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class),

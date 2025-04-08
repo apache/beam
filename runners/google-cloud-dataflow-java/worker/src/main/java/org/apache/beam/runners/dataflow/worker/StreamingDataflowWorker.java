@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.remoteChannel;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
@@ -90,6 +90,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
@@ -625,14 +626,7 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions workerOptions, ComputationConfig.Fetcher configFetcher) {
     ChannelCache channelCache =
         ChannelCache.create(
-            serviceAddress -> {
-              // Always fetch the current flow control settings when we go to create the channel.
-              UserWorkerGrpcFlowControlSettings currentFlowControlSettings =
-                  configFetcher
-                      .getGlobalConfigHandle()
-                      .getConfig()
-                      .userWorkerJobSettings()
-                      .getFlowControlSettings();
+            (currentFlowControlSettings, serviceAddress) -> {
               // IsolationChannel will create and manage separate RPC channels to the same
               // serviceAddress.
               return IsolationChannel.create(
@@ -642,12 +636,8 @@ public final class StreamingDataflowWorker {
                           workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                           currentFlowControlSettings),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
-            },
-            configFetcher
-                .getGlobalConfigHandle()
-                .getConfig()
-                .userWorkerJobSettings()
-                .getFlowControlSettings());
+            });
+    channelCache.consumeFlowControlSettings(resolveInitialFlowControlSettings(configFetcher));
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
@@ -656,6 +646,22 @@ public final class StreamingDataflowWorker {
                     config.userWorkerJobSettings().getFlowControlSettings()));
 
     return ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
+  }
+
+  private static UserWorkerGrpcFlowControlSettings resolveInitialFlowControlSettings(
+      ComputationConfig.Fetcher configFetcher) {
+    // Default flow control settings will limit directpath throughput. If it is not explicitly
+    // configured, ignore them.
+    UserWorkerGrpcFlowControlSettings configuredFlowControlSettings =
+        configFetcher
+            .getGlobalConfigHandle()
+            .getConfig()
+            .userWorkerJobSettings()
+            .getFlowControlSettings();
+    return configuredFlowControlSettings.equals(
+            UserWorkerGrpcFlowControlSettings.getDefaultInstance())
+        ? WindmillChannels.getDefaultDirectpathFlowControlSettings()
+        : configuredFlowControlSettings;
   }
 
   @VisibleForTesting

@@ -230,7 +230,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.newStub().getWorkStream(responseObserver),
+        responseObserver -> connection.currentStub().getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),
@@ -265,7 +265,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.newStub().getDataStream(responseObserver),
+        responseObserver -> connection.currentStub().getDataStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -297,7 +297,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection, ThrottleTimer commitWorkThrottleTimer) {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.newStub().commitWorkStream(responseObserver),
+        responseObserver -> connection.currentStub().commitWorkStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,

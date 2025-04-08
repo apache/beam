@@ -53,13 +53,12 @@ public final class ChannelCache implements StatusDataProvider {
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
   @GuardedBy("this")
-  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings;
+  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings = null;
 
   private ChannelCache(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
+      WindmillChannelFactory channelFactory,
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved,
-      Executor channelCloser,
-      UserWorkerGrpcFlowControlSettings currentFlowControlSettings) {
+      Executor channelCloser) {
     this.channelCache =
         CacheBuilder.newBuilder()
             .removalListener(RemovalListeners.asynchronous(onChannelRemoved, channelCloser))
@@ -67,32 +66,41 @@ public final class ChannelCache implements StatusDataProvider {
                 new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
                   @Override
                   public ManagedChannel load(WindmillServiceAddress key) {
-                    return channelFactory.apply(key);
+                    return channelFactory.create(resolveFlowControlSettings(key.getKind()), key);
+                  }
+
+                  private UserWorkerGrpcFlowControlSettings resolveFlowControlSettings(
+                      WindmillServiceAddress.Kind addressType) {
+                    synchronized (ChannelCache.this) {
+                      if (currentFlowControlSettings == null) {
+                        return addressType
+                                == WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS
+                            ? WindmillChannels.getDefaultDirectpathFlowControlSettings()
+                            : WindmillChannels.getDefaultCloudpathFlowControlSettings();
+                      }
+                      return currentFlowControlSettings;
+                    }
                   }
                 });
-    this.currentFlowControlSettings = currentFlowControlSettings;
   }
 
-  public static ChannelCache create(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
-      UserWorkerGrpcFlowControlSettings initialFlowControlSettings) {
+  public static ChannelCache create(WindmillChannelFactory channelFactory) {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         notification -> shutdownChannel(notification.getValue()),
         Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()),
-        initialFlowControlSettings);
+            new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()));
   }
 
   public static ChannelCache create(
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
-    return create(channelFactory, UserWorkerGrpcFlowControlSettings.getDefaultInstance());
+    return create((settings, address) -> channelFactory.apply(address));
   }
 
   @VisibleForTesting
   public static ChannelCache forTesting(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory, Runnable onChannelShutdown) {
+      WindmillChannelFactory channelFactory, Runnable onChannelShutdown) {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
@@ -104,8 +112,7 @@ public final class ChannelCache implements StatusDataProvider {
         // Run the removal synchronously on the calling thread to prevent waiting on asynchronous
         // tasks to run and make unit tests deterministic. In testing, we verify that things are
         // removed from the cache.
-        MoreExecutors.directExecutor(),
-        UserWorkerGrpcFlowControlSettings.getDefaultInstance());
+        MoreExecutors.directExecutor());
   }
 
   private static void shutdownChannel(ManagedChannel channel) {
@@ -160,6 +167,12 @@ public final class ChannelCache implements StatusDataProvider {
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {
+    synchronized (this) {
+      if (currentFlowControlSettings != null) {
+        writer.format(
+            "Current gRPC flow control settings:<br>[%s]<br>", currentFlowControlSettings);
+      }
+    }
     writer.write("Active gRPC Channels:<br>");
     channelCache
         .asMap()
