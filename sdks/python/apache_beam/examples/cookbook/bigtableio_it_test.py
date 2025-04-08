@@ -41,7 +41,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from google.cloud._helpers import _datetime_from_microseconds
   from google.cloud._helpers import _microseconds_from_datetime
-  from google.cloud._helpers import UTC
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
