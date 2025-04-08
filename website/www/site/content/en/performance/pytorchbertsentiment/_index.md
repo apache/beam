@@ -18,8 +18,14 @@ limitations under the License.
 
 # PyTorch Sentiment Analysis DistilBERT base Performance
 
+**Model**: PyTorch Sentiment Analysis — DistilBERT (base-uncased)
+**Accelerator**: CPU only
+**Host**: 20 × n1-standard-2 (2 vCPUs, 7.5 GB RAM)
+
 The following graphs show various metrics when running PyTorch Sentiment Analysis using Hugging Face DistilBERT base uncased model pipeline.
 See the [glossary](/performance/glossary) for definitions.
+
+Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_sentiment_streaming.py).
 
 ## What is the estimated cost to run the pipeline?
 

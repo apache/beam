@@ -43,10 +43,15 @@ writing to various Beam IOs.
 
 See the following pages for performance measures recorded when running various Beam ML pipelines.
 
+## Streaming
+
+- [PyTorch Sentiment Analysis DistilBERT base](/performance/pytorchbertsentiment)
+
+## Batch
+
 - [PyTorch Language Modeling BERT base](/performance/pytorchbertbase)
 - [PyTorch Language Modeling BERT large](/performance/pytorchbertlarge)
 - [PyTorch Vision Classification Resnet 101](/performance/pytorchresnet101)
 - [PyTorch Vision Classification Resnet 152](/performance/pytorchresnet152)
 - [PyTorch Vision Classification Resnet 152 Tesla T4 GPU](/performance/pytorchresnet152tesla)
 - [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
-- [PyTorch Sentiment Analysis DistilBERT base](/performance/pytorchbertsentiment)
