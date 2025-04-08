@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.service.AutoService;
 import java.util.List;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO;
 import org.apache.beam.sdk.io.aws2.sqs.SqsMessage;
 import org.apache.beam.sdk.schemas.Schema;
@@ -92,10 +94,17 @@ public class SqsReadSchemaTransformProvider
           input.getAll().isEmpty(),
           String.format("Input to %s should be empty but it is not.", getClass().getSimpleName()));
 
+      AwsOptions options = input.getPipeline().getOptions().as(AwsOptions.class);
+
       SqsIO.Read sqsRead =
           SqsIO.read()
               .withQueueUrl(configuration.getQueueUrl())
-              .withMaxNumRecords(configuration.maxNumRecords());
+              .withMaxNumRecords(configuration.maxNumRecords())
+              .withClientConfiguration(
+                  ClientConfiguration.create(
+                      options.getAwsCredentialsProvider(),
+                      options.getAwsRegion(),
+                      options.getEndpoint()));
 
       Long maxReadtimeSecs = configuration.getMaxReadTimeSecs();
 
