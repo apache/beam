@@ -23,10 +23,10 @@ import threading
 import types
 import unittest
 
+from apache_beam.coders import proto2_coder_test_messages_pb2
 from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
-from apache_beam.coders import proto2_coder_test_messages_pb2
 
 
 class PicklerTest(unittest.TestCase):
