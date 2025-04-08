@@ -41,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
@@ -75,7 +76,8 @@ final class GrpcCommitWorkStream
       ThrottleTimer commitWorkThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      WindmillStreamTTL streamTimeout) {
     super(
         LOG,
         "CommitWorkStream",
@@ -84,7 +86,8 @@ final class GrpcCommitWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        streamTimeout);
     pending = new ConcurrentHashMap<>();
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
@@ -103,7 +106,8 @@ final class GrpcCommitWorkStream
       ThrottleTimer commitWorkThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      WindmillStreamTTL streamTimeout) {
     return new GrpcCommitWorkStream(
         backendWorkerToken,
         startCommitWorkRpcFn,
@@ -114,7 +118,8 @@ final class GrpcCommitWorkStream
         commitWorkThrottleTimer,
         jobHeader,
         idGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        streamTimeout);
   }
 
   @Override

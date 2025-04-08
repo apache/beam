@@ -30,6 +30,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
@@ -72,7 +73,8 @@ final class GrpcGetWorkStream
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
-      WorkItemReceiver receiver) {
+      WorkItemReceiver receiver,
+      WindmillStreamTTL streamTimeout) {
     super(
         LOG,
         "GetWorkStream",
@@ -81,7 +83,8 @@ final class GrpcGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        streamTimeout);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.receiver = receiver;
@@ -104,7 +107,8 @@ final class GrpcGetWorkStream
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
-      WorkItemReceiver receiver) {
+      WorkItemReceiver receiver,
+      WindmillStreamTTL streamTimeout) {
     return new GrpcGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -115,7 +119,8 @@ final class GrpcGetWorkStream
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
         getWorkThrottleTimer,
-        receiver);
+        receiver,
+        streamTimeout);
   }
 
   private void sendRequestExtension(long moreItems, long moreBytes) {

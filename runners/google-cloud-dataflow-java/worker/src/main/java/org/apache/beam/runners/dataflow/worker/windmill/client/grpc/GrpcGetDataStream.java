@@ -51,6 +51,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDat
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -95,7 +96,8 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
+      WindmillStreamTTL streamTimeout) {
     super(
         LOG,
         "GetDataStream",
@@ -104,7 +106,8 @@ final class GrpcGetDataStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        streamTimeout);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
@@ -128,7 +131,8 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
+      WindmillStreamTTL streamTimeout) {
     return new GrpcGetDataStream(
         backendWorkerToken,
         startGetDataRpcFn,
@@ -141,7 +145,8 @@ final class GrpcGetDataStream
         idGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        streamTimeout);
   }
 
   private static WindmillStreamShutdownException shutdownExceptionFor(QueuedBatch batch) {

@@ -30,6 +30,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
@@ -60,7 +61,8 @@ public final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
-      Consumer<WindmillEndpoints> serverMappingConsumer) {
+      Consumer<WindmillEndpoints> serverMappingConsumer,
+      WindmillStreamTTL streamTimeout) {
     super(
         LOG,
         "GetWorkerMetadataStream",
@@ -69,7 +71,8 @@ public final class GrpcGetWorkerMetadataStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        "");
+        "",
+        streamTimeout);
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
     this.serverMappingConsumer = serverMappingConsumer;
@@ -86,7 +89,8 @@ public final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
-      Consumer<WindmillEndpoints> serverMappingUpdater) {
+      Consumer<WindmillEndpoints> serverMappingUpdater,
+      WindmillStreamTTL streamTimeout) {
     return new GrpcGetWorkerMetadataStream(
         startGetWorkerMetadataRpcFn,
         backoff,
@@ -95,7 +99,8 @@ public final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         jobHeader,
         getWorkerMetadataThrottleTimer,
-        serverMappingUpdater);
+        serverMappingUpdater,
+        streamTimeout);
   }
 
   /**

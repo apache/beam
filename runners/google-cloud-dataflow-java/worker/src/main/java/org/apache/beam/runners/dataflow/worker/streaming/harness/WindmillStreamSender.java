@@ -188,9 +188,9 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     workCommitter.stop();
     commitWorkStream.shutdown();
     try {
-      if (!Preconditions.checkNotNull(streamStarter)
+      if (!Preconditions.checkNotNull(streamManagerExecutor)
           .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-        streamStarter.shutdownNow();
+        streamManagerExecutor.shutdownNow();
       }
       Preconditions.checkNotNull(getDataStream)
           .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);

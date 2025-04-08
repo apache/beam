@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -72,6 +73,11 @@ import org.joda.time.Instant;
 public class GrpcWindmillStreamFactory implements StatusDataProvider {
 
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
+
+  // 15 minutes less than DIRECT_PATH_STREAM_DEADLINE to allow for drains.
+  private static final WindmillStreamTTL DIRECT_PATH_STREAM_TIMEOUT =
+      WindmillStreamTTL.create(45, TimeUnit.MINUTES);
+
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration DEFAULT_MAX_BACKOFF = Duration.standardSeconds(30);
   private static final int DEFAULT_LOG_EVERY_N_STREAM_FAILURES = 1;
@@ -229,7 +235,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
         getWorkThrottleTimer,
-        processWorkItem);
+        processWorkItem,
+        WindmillStreamTTL.noTtl());
   }
 
   public GetWorkStream createDirectGetWorkStream(
@@ -254,7 +261,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         heartbeatSender,
         getDataClient,
         workCommitter,
-        workItemScheduler);
+        workItemScheduler,
+        DIRECT_PATH_STREAM_TIMEOUT);
   }
 
   public GetDataStream createGetDataStream(
@@ -271,7 +279,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamIdGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        WindmillStreamTTL.noTtl());
   }
 
   public GetDataStream createDirectGetDataStream(
@@ -289,7 +298,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamIdGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        DIRECT_PATH_STREAM_TIMEOUT);
   }
 
   public CommitWorkStream createCommitWorkStream(
@@ -304,7 +314,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         commitWorkThrottleTimer,
         jobHeader,
         streamIdGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        WindmillStreamTTL.noTtl());
   }
 
   public CommitWorkStream createDirectCommitWorkStream(
@@ -320,7 +331,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         commitWorkThrottleTimer,
         jobHeader,
         streamIdGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        DIRECT_PATH_STREAM_TIMEOUT);
   }
 
   public GetWorkerMetadataStream createGetWorkerMetadataStream(
@@ -335,7 +347,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         jobHeader,
         getWorkerMetadataThrottleTimer,
-        onNewWindmillEndpoints);
+        onNewWindmillEndpoints,
+        WindmillStreamTTL.noTtl());
   }
 
   private StreamObserverFactory newStreamObserverFactory() {
