@@ -115,10 +115,7 @@ public class TFRecordWriteSchemaTransformProvider
           TFRecordIO.write().withCompression(Compression.valueOf(configuration.getCompression()));
 
       // Add more parameters if not null
-      String outputPrefix = configuration.getOutputPrefix();
-      if (outputPrefix != null) {
-        writeTransform = writeTransform.to(outputPrefix);
-      }
+      writeTransform = writeTransform.to(configuration.getOutputPrefix());
       String shardTemplate = configuration.getShardTemplate();
       if (shardTemplate != null) {
         writeTransform = writeTransform.withShardNameTemplate(shardTemplate);

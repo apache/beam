@@ -46,19 +46,13 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
   public void validate() {
     String invalidConfigMessage = "Invalid TFRecord Write configuration: ";
 
-    String outputPrefix = getOutputPrefix();
-    if (outputPrefix != null) {
-      String filePath = outputPrefix.toString();
-      if (filePath != null) {
-        try {
-          MatchResult matches = FileSystems.match(filePath);
-          checkState(
-              !matches.metadata().isEmpty(), "Unable to find any files matching %s", filePath);
-        } catch (IOException e) {
-          throw new IllegalStateException(
-              String.format(invalidConfigMessage + "Failed to validate %s", filePath), e);
-        }
-      }
+    String filePath = getOutputPrefix();
+    try {
+      MatchResult matches = FileSystems.match(filePath);
+      checkState(!matches.metadata().isEmpty(), "Unable to find any files matching %s", filePath);
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format(invalidConfigMessage + "Failed to validate %s", filePath), e);
     }
 
     ErrorHandling errorHandling = getErrorHandling();
@@ -75,7 +69,6 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
   }
 
   @SchemaFieldDescription("The directory to which files will be written.")
-  @Nullable
   public abstract String getOutputPrefix();
 
   @SchemaFieldDescription(
