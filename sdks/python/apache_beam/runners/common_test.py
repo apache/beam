@@ -17,6 +17,10 @@
 
 # pytype: skip-file
 
+import hashlib
+import os
+import random
+import tempfile
 import unittest
 
 import hamcrest as hc
@@ -26,10 +30,12 @@ from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.common import PerWindowInvoker
 from apache_beam.runners.common import merge_common_environments
+from apache_beam.runners.common import merge_superset_dep_environments
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
@@ -631,6 +637,111 @@ class UtilitiesTest(unittest.TestCase):
                 w.environment_id for w in
                 pipeline_proto.components.windowing_strategies.values())),
         1)
+
+  def _make_dep(self, path):
+    hasher = hashlib.sha256()
+    if os.path.exists(path):
+      with open(path, 'rb') as fin:
+        hasher.update(fin.read())
+    else:
+      # A fake file, identified only by its path.
+      hasher.update(path.encode('utf-8'))
+    return beam_runner_api_pb2.ArtifactInformation(
+        type_urn=common_urns.artifact_types.FILE.urn,
+        type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+            path=path, sha256=hasher.hexdigest()).SerializeToString(),
+        role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+        role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+            staged_name=os.path.basename(path)).SerializeToString())
+
+  def _docker_env(self, id, deps=()):
+    return beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=id.encode('utf8'),
+        dependencies=[self._make_dep(path) for path in deps],
+    )
+
+  def test_subset_deps_environments_merged(self):
+    environments = {
+        'A': self._docker_env('A'),
+        'Ax': self._docker_env('A', ['x']),
+        'Ay': self._docker_env('A', ['y']),
+        'Axy': self._docker_env('A', ['x', 'y']),
+        'Bx': self._docker_env('B', ['x']),
+        'Bxy': self._docker_env('B', ['x', 'y']),
+        'Byz': self._docker_env('B', ['y', 'z']),
+    }
+    transforms = {
+        env_id: beam_runner_api_pb2.PTransform(
+            unique_name=env_id, environment_id=env_id)
+        for env_id in environments.keys()
+    }
+    pipeline_proto = merge_superset_dep_environments(
+        beam_runner_api_pb2.Pipeline(
+            components=beam_runner_api_pb2.Components(
+                environments=environments, transforms=transforms)))
+
+    # These can all be merged into the same environment.
+    self.assertEqual(
+        pipeline_proto.components.transforms['A'].environment_id, 'Axy')
+    self.assertEqual(
+        pipeline_proto.components.transforms['Ax'].environment_id, 'Axy')
+    self.assertEqual(
+        pipeline_proto.components.transforms['Ay'].environment_id, 'Axy')
+    self.assertEqual(
+        pipeline_proto.components.transforms['Axy'].environment_id, 'Axy')
+    # Despite having the same dependencies, these must be merged into their own.
+    self.assertEqual(
+        pipeline_proto.components.transforms['Bx'].environment_id, 'Bxy')
+    self.assertEqual(
+        pipeline_proto.components.transforms['Bxy'].environment_id, 'Bxy')
+    # This is not a subset of any, must be left alone.
+    self.assertEqual(
+        pipeline_proto.components.transforms['Byz'].environment_id, 'Byz')
+
+  def test_subset_deps_environments_merged_with_requirements_txt(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+
+      def make_file(basename, content):
+        subdir = tempfile.TemporaryDirectory(dir=tmpdir, delete=False).name
+        path = os.path.join(subdir, basename)
+        with open(path, 'w') as fout:
+          fout.write(content)
+        return path
+
+      def make_py_deps(*pkgs):
+        return [
+            make_file('requirements.txt', '\n'.join(pkgs)),
+            make_file(
+                'submission_environment_dependencies.txt', str(
+                    random.random())),
+        ] + [make_file(pkg, pkg) for pkg in pkgs]
+
+      environments = {
+          'A': self._docker_env('A'),
+          'Ax': self._docker_env('A', make_py_deps('x')),
+          'Ay': self._docker_env('A', make_py_deps('y')),
+          'Axy': self._docker_env('A', make_py_deps('x', 'y')),
+      }
+      transforms = {
+          env_id: beam_runner_api_pb2.PTransform(
+              unique_name=env_id, environment_id=env_id)
+          for env_id in environments.keys()
+      }
+      pipeline_proto = merge_superset_dep_environments(
+          beam_runner_api_pb2.Pipeline(
+              components=beam_runner_api_pb2.Components(
+                  environments=environments, transforms=transforms)))
+
+      # These can all be merged into the same environment.
+      self.assertEqual(
+          pipeline_proto.components.transforms['A'].environment_id, 'Axy')
+      self.assertEqual(
+          pipeline_proto.components.transforms['Ax'].environment_id, 'Axy')
+      self.assertEqual(
+          pipeline_proto.components.transforms['Ay'].environment_id, 'Axy')
+      self.assertEqual(
+          pipeline_proto.components.transforms['Axy'].environment_id, 'Axy')
 
   def test_external_merged(self):
     p = beam.Pipeline()

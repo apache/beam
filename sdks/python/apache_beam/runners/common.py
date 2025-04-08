@@ -2008,43 +2008,65 @@ def validate_pipeline_graph(pipeline_proto):
     validate_transform(t)
 
 
-def merge_common_environments(pipeline_proto, inplace=False):
-  def dep_key(dep):
-    if dep.type_urn == common_urns.artifact_types.FILE.urn:
-      payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
-          dep.type_payload)
-      if payload.sha256:
-        type_info = 'sha256', payload.sha256
-      else:
-        type_info = 'path', payload.path
-    elif dep.type_urn == common_urns.artifact_types.URL.urn:
-      payload = beam_runner_api_pb2.ArtifactUrlPayload.FromString(
-          dep.type_payload)
-      if payload.sha256:
-        type_info = 'sha256', payload.sha256
-      else:
-        type_info = 'url', payload.url
+def _dep_key(dep):
+  if dep.type_urn == common_urns.artifact_types.FILE.urn:
+    payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+        dep.type_payload)
+    if payload.sha256:
+      type_info = 'sha256', payload.sha256
     else:
-      type_info = dep.type_urn, dep.type_payload
-    return type_info, dep.role_urn, dep.role_payload
+      type_info = 'path', payload.path
+  elif dep.type_urn == common_urns.artifact_types.URL.urn:
+    payload = beam_runner_api_pb2.ArtifactUrlPayload.FromString(
+        dep.type_payload)
+    if payload.sha256:
+      type_info = 'sha256', payload.sha256
+    else:
+      type_info = 'url', payload.url
+  else:
+    type_info = dep.type_urn, dep.type_payload
+  return type_info, dep.role_urn, dep.role_payload
 
-  def base_env_key(env):
-    return (
-        env.urn,
-        env.payload,
-        tuple(sorted(env.capabilities)),
-        tuple(sorted(env.resource_hints.items())),
-        tuple(sorted(dep_key(dep) for dep in env.dependencies)))
 
-  def env_key(env):
-    return tuple(
-        sorted(
-            base_env_key(e)
-            for e in environments.expand_anyof_environments(env)))
+def _expanded_dep_keys(dep):
+  if (dep.type_urn == common_urns.artifact_types.FILE.urn and
+      dep.role_urn == common_urns.artifact_roles.STAGING_TO.urn):
+    payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+        dep.type_payload)
+    role = beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+        dep.role_payload)
+    if role.staged_name == 'submission_environment_dependencies.txt':
+      return
+    elif role.staged_name == 'requirements.txt':
+      with open(payload.path) as fin:
+        for line in fin:
+          yield 'requirements.txt', line.strip()
+      return
 
+  yield _dep_key(dep)
+
+
+def _base_env_key(env, include_deps=True):
+  return (
+      env.urn,
+      env.payload,
+      tuple(sorted(env.capabilities)),
+      tuple(sorted(env.resource_hints.items())),
+      tuple(sorted(_dep_key(dep)
+                   for dep in env.dependencies)) if include_deps else None)
+
+
+def _env_key(env):
+  return tuple(
+      sorted(
+          _base_env_key(e)
+          for e in environments.expand_anyof_environments(env)))
+
+
+def merge_common_environments(pipeline_proto, inplace=False):
   canonical_environments = collections.defaultdict(list)
   for env_id, env in pipeline_proto.components.environments.items():
-    canonical_environments[env_key(env)].append(env_id)
+    canonical_environments[_env_key(env)].append(env_id)
 
   if len(canonical_environments) == len(pipeline_proto.components.environments):
     # All environments are already sufficiently distinct.
@@ -2055,6 +2077,55 @@ def merge_common_environments(pipeline_proto, inplace=False):
       for es in canonical_environments.values() for e in es
   }
 
+  return update_environments(pipeline_proto, environment_remappings, inplace)
+
+
+def merge_superset_dep_environments(pipeline_proto):
+  """Merges all environemnts A and B where A and B are equivalent except that
+  A has a superset of the dependencies of B.
+  """
+  docker_envs = {}
+  for env_id, env in pipeline_proto.components.environments.items():
+    docker_env = environments.resolve_anyof_environment(
+        env, common_urns.environments.DOCKER.urn)
+    if docker_env.urn == common_urns.environments.DOCKER.urn:
+      docker_envs[env_id] = docker_env
+
+  has_base_and_dep = collections.defaultdict(set)
+  env_scores = {
+      env_id: (len(env.dependencies), env_id)
+      for (env_id, env) in docker_envs.items()
+  }
+
+  for env_id, env in docker_envs.items():
+    base_key = _base_env_key(env, include_deps=False)
+    has_base_and_dep[base_key, None].add(env_id)
+    for dep in env.dependencies:
+      for dep_key in _expanded_dep_keys(dep):
+        has_base_and_dep[base_key, dep_key].add(env_id)
+
+  environment_remappings = {}
+  for env_id, env in docker_envs.items():
+    base_key = _base_env_key(env, include_deps=False)
+    # This is the set of all environments that have at least all of env's deps.
+    candidates = set.intersection(
+        has_base_and_dep[base_key, None],
+        *[
+            has_base_and_dep[base_key, dep_key] for dep in env.dependencies
+            for dep_key in _expanded_dep_keys(dep)
+        ])
+    # Choose the maximal one.
+    best = max(candidates, key=env_scores.get)
+    if best != env_id:
+      environment_remappings[env_id] = best
+
+  return update_environments(pipeline_proto, environment_remappings)
+
+
+def update_environments(pipeline_proto, environment_remappings, inplace=False):
+  if not environment_remappings:
+    return pipeline_proto
+
   if not inplace:
     pipeline_proto = copy.copy(pipeline_proto)
 
@@ -2063,16 +2134,16 @@ def merge_common_environments(pipeline_proto, inplace=False):
       # TODO(https://github.com/apache/beam/issues/30876): Remove this
       #  workaround.
       continue
-    if t.environment_id:
+    if t.environment_id and t.environment_id in environment_remappings:
       t.environment_id = environment_remappings[t.environment_id]
   for w in pipeline_proto.components.windowing_strategies.values():
     if w.environment_id not in pipeline_proto.components.environments:
       # TODO(https://github.com/apache/beam/issues/30876): Remove this
       #  workaround.
       continue
-    if w.environment_id:
+    if w.environment_id and w.environment_id in environment_remappings:
       w.environment_id = environment_remappings[w.environment_id]
-  for e in set(pipeline_proto.components.environments.keys()) - set(
+  for e in set(environment_remappings.keys()) - set(
       environment_remappings.values()):
     del pipeline_proto.components.environments[e]
   return pipeline_proto
