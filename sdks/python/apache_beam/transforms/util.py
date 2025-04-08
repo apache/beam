@@ -258,9 +258,24 @@ class _CoGBKImpl(PTransform):
         grouped_values[tag].append(value)
       return key, grouped_values
 
+    # Tuple[output_key_type, Dict[str, Union[Iterable...] or Any]]
+    output_type_hint = self.get_type_hints().output_types[0][0]
+    output_key_type, output_value_type = output_type_hint.tuple_types
+
+    # Union[Iterable...] or Any
+    output_union_iterable_types = output_value_type.value_type
+    if output_union_iterable_types != typehints.Any:
+      output_union_value_type = typehints.Union[(
+          (iterable_type.inner_type or typehints.Any)
+          for iterable_type in output_union_iterable_types.inner_types())]
+    else:
+      output_union_value_type = typehints.Any
+
     return ([
         pcoll
-        | 'Tag[%s]' % tag >> MapTuple(add_tag(tag))
+        | 'Tag[%s]' % tag >> MapTuple(add_tag(tag)).with_output_types(
+            typehints.Tuple[output_key_type,
+                            typehints.Tuple[str, output_union_value_type]])
         for (tag, pcoll) in pcolls.items()
     ]
             | Flatten(pipeline=self.pipeline)
