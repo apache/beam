@@ -34,11 +34,8 @@ python setup.py nosetests \
 """
 
 import argparse
-import json
 import logging
-import time
 import unittest
-import uuid
 
 import apache_beam as beam
 from apache_beam.io.aws.sqsio import ReadFromSQS
@@ -64,223 +61,220 @@ except ImportError:
 LOCALSTACK_VERSION = '3.8.1'
 NUM_RECORDS = 10
 
+
 @unittest.skipUnless(DockerContainer, 'testcontainers is not installed.')
 @unittest.skipUnless(boto3, 'boto3 is not installed.')
 @unittest.skipUnless(
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner,
     'Do not run this test on precommit suites.')
+@pytest.mark.uses_testcontainer
 class CrossLanguageSqsIOTest(unittest.TestCase):
-    
-    def test_sqs_read(self):
-        messages = [f'data{str(i)}' for i in range(NUM_RECORDS)]
-        self.sqs_helper.write_to_queue(messages)
-        
-        queue_url = self.sqs_helper.queue_url(self.aws_sqs_topic_name)
-        
-        with TestPipeline(options=self.options) as p:
-            results = (p
-                | 'Read messages from SQS' >> ReadFromSQS(
-                    queue_url = queue_url, 
-                    max_num_records = NUM_RECORDS)
-                | 'Keep only msg body' >> beam.Map(lambda msg: msg.body))
-            assert_that(results, equal_to(messages))
-        
-    def set_localstack(self):
-        self.localstack = (
-            DockerContainer('localstack/localstack:{}'.format(LOCALSTACK_VERSION))
-                .with_bind_ports(4566, 4566))
+  def test_sqs_read(self):
+    messages = [f'data{str(i)}' for i in range(NUM_RECORDS)]
+    self.sqs_helper.write_to_queue(messages)
 
-        for i in range(4510, 4560):
-            self.localstack = self.localstack.with_bind_ports(i, i)
+    queue_url = self.sqs_helper.queue_url(self.aws_sqs_topic_name)
 
-        # Repeat if ReadTimeout is raised.
-        for i in range(4):
-            try:
-                self.localstack.start()
-                break
-            except Exception as e:  # pylint: disable=bare-except
-                if i == 3:
-                    logging.error('Could not initialize localstack container')
-                    raise e
+    with TestPipeline(options=self.options) as p:
+      results = (
+          p
+          | 'Read messages from SQS' >> ReadFromSQS(
+              queue_url=queue_url, max_num_records=NUM_RECORDS)
+          | 'Keep only msg body' >> beam.Map(lambda msg: msg.body))
+      assert_that(results, equal_to(messages))
 
-        return 'http://{}:{}'.format(
-            self.localstack.get_container_host_ip(),
-            self.localstack.get_exposed_port('4566'),
-        )
+  def set_localstack(self):
+    self.localstack = (
+        DockerContainer('localstack/localstack:{}'.format(
+            LOCALSTACK_VERSION)).with_bind_ports(4566, 4566))
 
-    def setUp(self):
-        parser = argparse.ArgumentParser()
+    for i in range(4510, 4560):
+      self.localstack = self.localstack.with_bind_ports(i, i)
 
-        parser.add_argument(
-            '--aws_sqs_topic_name',
-            default='beam_sqs_xlang',
-            help='SQS topic name',
-        )
-        parser.add_argument(
-            '--aws_access_key',
-            default='accesskey',
-            help=('Aws access key'),
-        )
-        parser.add_argument(
-            '--aws_secret_key',
-            default='secretkey',
-            help='Aws secret key',
-        )
-        parser.add_argument(
-            '--aws_region',
-            default='us-east-1',
-            help='Aws region',
-        )
-        parser.add_argument(
-            '--aws_service_endpoint',
-            default=None,
-            help='Url to external aws endpoint',
-        )
-        parser.add_argument(
-            '--use_real_aws',
-            default=False,
-            dest='use_real_aws',
-            action='store_true',
-            help='Flag whether to use real aws for the tests purpose',
-        )
-        
-        pipeline = TestPipeline()
-        argv = pipeline.get_full_options_as_args()
+    # Repeat if ReadTimeout is raised.
+    for i in range(4):
+      try:
+        self.localstack.start()
+        break
+      except Exception as e:  # pylint: disable=bare-except
+        if i == 3:
+          logging.error('Could not initialize localstack container')
+          raise e
 
-        known_args, _ = parser.parse_known_args(argv)
-        
-        self.aws_sqs_topic_name = known_args.aws_sqs_topic_name
-        self.use_localstack = not known_args.use_real_aws
-        
-        aws_access_key = known_args.aws_access_key
-        aws_secret_key = known_args.aws_secret_key
-        aws_region = known_args.aws_region
-        aws_service_endpoint = known_args.aws_service_endpoint
-        
-        if self.use_localstack:
-            aws_service_endpoint = self.set_localstack()
+    return 'http://{}:{}'.format(
+        self.localstack.get_container_host_ip(),
+        self.localstack.get_exposed_port('4566'),
+    )
 
-        self.sqs_helper = SqsHelper(
-            aws_access_key,
-            aws_secret_key,
-            aws_region,
-            aws_service_endpoint,
-        )
+  def setUp(self):
+    parser = argparse.ArgumentParser()
 
-        if self.use_localstack:
-            self.sqs_helper.create_topic(self.aws_sqs_topic_name)
-                
-        options = TestSqsReadOptions()
-        options.aws_credentials_provider = {
-            "@type": "StaticCredentialsProvider",
-            "accessKeyId": aws_access_key,
-            "secretAccessKey": aws_secret_key
-        }
-        options.aws_region = aws_region
-        options.endpoint = aws_service_endpoint
-        self.options = options
+    parser.add_argument(
+        '--aws_sqs_topic_name',
+        default='beam_sqs_xlang',
+        help='SQS topic name',
+    )
+    parser.add_argument(
+        '--aws_access_key',
+        default='accesskey',
+        help=('Aws access key'),
+    )
+    parser.add_argument(
+        '--aws_secret_key',
+        default='secretkey',
+        help='Aws secret key',
+    )
+    parser.add_argument(
+        '--aws_region',
+        default='us-east-1',
+        help='Aws region',
+    )
+    parser.add_argument(
+        '--aws_service_endpoint',
+        default=None,
+        help='Url to external aws endpoint',
+    )
+    parser.add_argument(
+        '--use_real_aws',
+        default=False,
+        dest='use_real_aws',
+        action='store_true',
+        help='Flag whether to use real aws for the tests purpose',
+    )
 
-        logging.info(f"options {options}")
-        
-    def tearDown(self):
-        if self.use_localstack:
-            self.sqs_helper.delete_topic()
-            try:
-                self.localstack.stop()
-            except:  # pylint: disable=bare-except
-                logging.error('Could not stop the localstack container')
+    pipeline = TestPipeline()
+    argv = pipeline.get_full_options_as_args()
+
+    known_args, _ = parser.parse_known_args(argv)
+
+    self.aws_sqs_topic_name = known_args.aws_sqs_topic_name
+    self.use_localstack = not known_args.use_real_aws
+
+    aws_access_key = known_args.aws_access_key
+    aws_secret_key = known_args.aws_secret_key
+    aws_region = known_args.aws_region
+    aws_service_endpoint = known_args.aws_service_endpoint
+
+    if self.use_localstack:
+      aws_service_endpoint = self.set_localstack()
+
+    self.sqs_helper = SqsHelper(
+        aws_access_key,
+        aws_secret_key,
+        aws_region,
+        aws_service_endpoint,
+    )
+
+    if self.use_localstack:
+      self.sqs_helper.create_topic(self.aws_sqs_topic_name)
+
+    options = TestSqsReadOptions()
+    options.aws_credentials_provider = {
+        "@type": "StaticCredentialsProvider",
+        "accessKeyId": aws_access_key,
+        "secretAccessKey": aws_secret_key
+    }
+    options.aws_region = aws_region
+    options.endpoint = aws_service_endpoint
+    self.options = options
+
+  def tearDown(self):
+    if self.use_localstack:
+      self.sqs_helper.delete_topic()
+      try:
+        self.localstack.stop()
+      except:  # pylint: disable=bare-except
+        logging.error('Could not stop the localstack container')
 
 
 class TestSqsReadOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-        parser.add_argument(
-            "--endpoint",
-            help="SQS URL",
-            required=False
-        )
-        parser.add_argument(
-            "--aws_credentials_provider",
-            help="String JSON representation for the AWS credential provider, see Java SDK AwsOptions.",
-            required=False
-        )
-        parser.add_argument(
-            "--aws_region",
-            help="AWS region in use, see Java SDK AwsOptions.",
-            required=False
-        )
-        
-        
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument("--endpoint", help="SQS URL", required=False)
+    parser.add_argument(
+        "--aws_credentials_provider",
+        help=(
+            "String JSON representation for the AWS credential provider,",
+            "see Java SDK AwsOptions."),
+        required=False)
+    parser.add_argument(
+        "--aws_region",
+        help="AWS region in use, see Java SDK AwsOptions.",
+        required=False)
+
+
 class SqsHelper:
-    def __init__(self, access_key, secret_key, region, service_endpoint):
-        self.sqs_client = boto3.client(
-            service_name='sqs',
-            region_name=region,
-            endpoint_url=service_endpoint,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
+  def __init__(self, access_key, secret_key, region, service_endpoint):
+    self.sqs_client = boto3.client(
+        service_name='sqs',
+        region_name=region,
+        endpoint_url=service_endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+    )
+    self.queue = None
+
+  def create_topic(self, queue_name):
+    # localstack could not have initialized in the container yet so repeat
+    retries = 10
+    for i in range(retries):
+      try:
+        self.queue = self.sqs_client.create_queue(
+            QueueName=queue_name,
+            Attributes={},
         )
-        self.queue = None
+        logging.info(
+            "Created queue '%s' with URL=%s",
+            queue_name,
+            self.queue['QueueUrl'])
+        break
+      except Exception as e:
+        if i == retries - 1:
+          logging.error('Could not create SQS topic')
+          raise e
 
-    def create_topic(self, queue_name):
-        # localstack could not have initialized in the container yet so repeat
-        retries = 10
-        for i in range(retries):
-            try:
-                self.queue = self.sqs_client.create_queue(
-                    QueueName=queue_name,
-                    Attributes={},
-                )
-                logging.info("Created queue '%s' with URL=%s", queue_name, self.queue['QueueUrl'])
-                break
-            except Exception as e:
-                if i == retries - 1:
-                    logging.error('Could not create SQS topic')
-                    raise e
+  def queue_url(self, queue_name=None):
+    if not self.queue:
+      self.queue = self.sqs_client.get_queue_by_name(QueueName=queue_name)
+    return self.queue['QueueUrl']
 
-    def queue_url(self, queue_name=None):
-        if not self.queue:
-            self.queue = self.sqs_client.get_queue_by_name(QueueName=queue_name)
-        return self.queue['QueueUrl']
-   
-    def delete_topic(self):
-        retries = 10
-        for i in range(retries):
-            try:
-                self.sqs_client.delete_queue(QueueUrl=self.queue['QueueUrl'])
-                break
-            except Exception as e:
-                if i == retries - 1:
-                    logging.error('Could not delete SQS topic')
-                    raise e
+  def delete_topic(self):
+    retries = 10
+    for i in range(retries):
+      try:
+        self.sqs_client.delete_queue(QueueUrl=self.queue['QueueUrl'])
+        break
+      except Exception as e:
+        if i == retries - 1:
+          logging.error('Could not delete SQS topic')
+          raise e
 
-    def write_to_queue(self, messages):
-        try:
-            entries = [
-                {
-                    "Id": str(ind),
-                    "MessageBody": msg,
-                    "MessageAttributes": {},
-                }
-                for ind, msg in enumerate(messages)
-            ]
-            response = self.sqs_client.send_message_batch(
-                QueueUrl=self.queue['QueueUrl'], Entries=entries)
-            if "Successful" in response:
-                for msg_meta in response["Successful"]:
-                    logging.info(
-                        "Message sent: %s: %s", msg_meta["MessageId"], msg_meta["Id"])
-            if "Failed" in response:
-                for msg_meta in response["Failed"]:
-                    logging.warning(
-                        "Failed to send: %s: %s", msg_meta["MessageId"], msg_meta["Id"])
-        except ClientError as error:
-            logging.exception("Send messages failed to queue: %s", self.queue['QueueUrl'])
-            raise error
-        else:
-            return response
-        
+  def write_to_queue(self, messages):
+    try:
+      entries = [{
+          "Id": str(ind),
+          "MessageBody": msg,
+          "MessageAttributes": {},
+      } for ind,
+                 msg in enumerate(messages)]
+      response = self.sqs_client.send_message_batch(
+          QueueUrl=self.queue['QueueUrl'], Entries=entries)
+      if "Successful" in response:
+        for msg_meta in response["Successful"]:
+          logging.info(
+              "Message sent: %s: %s", msg_meta["MessageId"], msg_meta["Id"])
+      if "Failed" in response:
+        for msg_meta in response["Failed"]:
+          logging.warning(
+              "Failed to send: %s: %s", msg_meta["MessageId"], msg_meta["Id"])
+    except ClientError as error:
+      logging.exception(
+          "Send messages failed to queue: %s", self.queue['QueueUrl'])
+      raise error
+    else:
+      return response
+
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-    unittest.main()
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
