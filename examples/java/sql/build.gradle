@@ -26,7 +26,7 @@ plugins {
 
 applyJavaNature(
   exportJavadoc: false,
-  automaticModuleName: 'org.apache.beam.examples',
+  automaticModuleName: 'org.apache.beam.examples.sql',
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -61,15 +61,12 @@ dependencies {
   }
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:python")
+  implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:io:google-cloud-platform")
-  implementation project(":sdks:java:io:kafka")
-  runtimeOnly project(":sdks:java:io:iceberg")
   implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:ml")
-  implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.google_api_client
   implementation library.java.google_api_services_bigquery
@@ -92,11 +89,6 @@ dependencies {
   implementation library.java.vendored_grpc_1_69_0
   implementation library.java.vendored_guava_32_1_2_jre
   implementation "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
-  implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
-    // It depends on "spotbugs-annotations:3.1.9" which clashes with current
-    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
-    exclude group: "org.apache.zookeeper", module: "zookeeper"
-  }
   implementation "org.apache.commons:commons-lang3:3.9"
   implementation "org.apache.httpcomponents:httpclient:4.5.13"
   implementation "org.apache.httpcomponents:httpcore:4.4.13"
@@ -111,7 +103,6 @@ dependencies {
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  testImplementation library.java.testcontainers_kafka
   testImplementation library.java.testcontainers_gcloud
 
   // Add dependencies for the PreCommit configurations
@@ -150,10 +141,6 @@ for (String runner : preCommitRunners) {
        "--runner=" + preCommitRunnerClass[runner],
     ]
     classpath = configurations."${runner}PreCommit"
-    include "**/WordCountIT.class"
-    if (!"sparkRunner".equals(runner)) {
-      include "**/WindowedWordCountIT.class"
-    }
     forkEvery 1
     maxParallelForks 4
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
@@ -172,13 +159,4 @@ tasks.create(name:"execute", type:JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   systemProperties System.getProperties()
   args project.hasProperty("exec.args") ? project.getProperty("exec.args").split() : []
-}
-
-// Run this task to validate the Java environment setup for contributors
-task wordCount(type:JavaExec) {
-  description "Run the Java word count example"
-  mainClass = "org.apache.beam.examples.WordCount"
-  classpath = sourceSets.main.runtimeClasspath
-  systemProperties = System.getProperties()
-  args = ["--output=/tmp/output.txt"]
 }

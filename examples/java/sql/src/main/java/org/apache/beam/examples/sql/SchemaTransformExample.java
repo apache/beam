@@ -15,54 +15,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
+package org.apache.beam.examples.sql;
 
 // beam-playground:
-//   name: SqlTransform
-//   description: Demonstration of SQL transform usage.
+//   name: Group.ByFields
+//   description: Demonstration of Schema transform usage.
 //   multifile: false
 //   default_example: false
 //   context_line: 60
 //   categories:
-//     - SQL
+//     - Schemas
 //     - Combiners
 //   complexity: BASIC
 //   tags:
 //     - transforms
 //     - numbers
 
-// gradle clean execute -DmainClass=org.apache.beam.examples.SqlTransformExample
+// gradle clean execute -DmainClass=org.apache.beam.examples.SchemaTransformExample
 // --args="--runner=DirectRunner" -Pdirect-runner
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Group;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An example that uses Beam SQL transformation to apply multiple combiners (Min, Max, Sum) on the
- * input PCollection.
+ * An example that uses Schema transforms to apply multiple combiners (Sum, Min, Max) on the input
+ * PCollection.
  *
- * <p>Using SQL syntax to define a transform than can be integrated in a Java pipeline.
- *
- * <p>For a detailed documentation of Beam SQL, see <a
- * href="https://beam.apache.org/documentation/dsls/sql/overview/">
- * https://beam.apache.org/documentation/dsls/sql/overview/ </a>
+ * <p>For a detailed documentation of Schemas, see <a
+ * href="https://beam.apache.org/documentation/programming-guide/#schemas">
+ * https://beam.apache.org/documentation/programming-guide/#schemas </a>
  */
-public class SqlTransformExample {
+public class SchemaTransformExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    // define the input row format
+    // define the input row schema
     Schema inputSchema = Schema.builder().addInt32Field("k").addInt32Field("n").build();
     // Create input
     PCollection<Row> input =
@@ -77,12 +79,16 @@ public class SqlTransformExample {
             .setRowSchema(inputSchema);
 
     PCollection<Row> result =
-        input.apply(
-            SqlTransform.query(
-                "select k, min(n) as min_n, max(n) as max_n, sum(n) as sum_n from PCOLLECTION group by k"));
+        input
+            .apply(Select.fieldNames("n", "k"))
+            .apply(
+                Group.<Row>byFieldNames("k")
+                    .aggregateField("n", Min.ofIntegers(), "min_n")
+                    .aggregateField("n", Max.ofIntegers(), "max_n")
+                    .aggregateField("n", Sum.ofIntegers(), "sum_n"));
     // [END main_section]
     // Log values
-    result.apply(ParDo.of(new LogOutput<>("PCollection values after SQL transform: ")));
+    result.apply(ParDo.of(new LogOutput<>("PCollection values after Schema transform: ")));
     pipeline.run();
   }
 
