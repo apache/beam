@@ -49,15 +49,15 @@ public abstract class StreamObserverFactory {
     @Override
     public <ResponseT, RequestT> TerminatingStreamObserver<RequestT> from(
         Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
-        StreamObserver<ResponseT> inboundObserver) {
+        StreamObserver<ResponseT> responseObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      CallStreamObserver<RequestT> outboundObserver =
+      CallStreamObserver<RequestT> wrappedResponseObserver =
           (CallStreamObserver<RequestT>)
               clientFactory.apply(
                   new ForwardingClientResponseObserver<ResponseT, RequestT>(
-                      inboundObserver, phaser::arrive, phaser::forceTermination));
+                      responseObserver, phaser::arrive, phaser::forceTermination));
       return new DirectStreamObserver<>(
-          phaser, outboundObserver, inactivityTimeout, messagesBetweenIsReadyChecks);
+          phaser, wrappedResponseObserver, inactivityTimeout, messagesBetweenIsReadyChecks);
     }
   }
 }

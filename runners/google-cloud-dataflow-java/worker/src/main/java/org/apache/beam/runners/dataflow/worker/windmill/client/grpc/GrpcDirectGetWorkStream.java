@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
@@ -107,7 +108,8 @@ final class GrpcDirectGetWorkStream
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
-      WorkItemScheduler workItemScheduler) {
+      WorkItemScheduler workItemScheduler,
+      WindmillStreamTTL streamTimeout) {
     super(
         LOG,
         "GetWorkStream",
@@ -116,7 +118,8 @@ final class GrpcDirectGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        streamTimeout);
     this.requestHeader = requestHeader;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
@@ -150,7 +153,8 @@ final class GrpcDirectGetWorkStream
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
-      WorkItemScheduler workItemScheduler) {
+      WorkItemScheduler workItemScheduler,
+      WindmillStreamTTL streamTimeout) {
     return new GrpcDirectGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -164,7 +168,8 @@ final class GrpcDirectGetWorkStream
         heartbeatSender,
         getDataClient,
         workCommitter,
-        workItemScheduler);
+        workItemScheduler,
+        streamTimeout);
   }
 
   private static Watermarks createWatermarks(
