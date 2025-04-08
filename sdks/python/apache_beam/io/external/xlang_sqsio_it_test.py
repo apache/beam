@@ -37,6 +37,8 @@ import argparse
 import logging
 import unittest
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.io.aws.sqsio import ReadFromSQS
 from apache_beam.options.pipeline_options import PipelineOptions
