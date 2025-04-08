@@ -204,17 +204,17 @@ looks:
           title: AvgThroughputElementsPerSec by Version
   pytorchbertsentiment:
     write:
-      folder: 81
+      folder: 82
       cost:
-        - id: TBD
+        - id: z4t9TV5tQ8FsbkGD2n5J3hJXb3Dqqmws
           title: RunTime and EstimatedCost
       date:
-        - id: TBD
+        - id: fYKCv726FKRPmqvmdGb84dqmCr6F4b27
           title: AvgThroughputBytesPerSec by Date
-        - id: TBD
+        - id: KD756kCJwwhbmszMmrCHFRWcNPXc7DSd
           title: AvgThroughputElementsPerSec by Date
       version:
-        - id: TBD
+        - id: YpwpPBYhPdsGqqM7YH4SCMhk7m5CX5Kw
           title: AvgThroughputBytesPerSec by Version
-        - id: TBD
+        - id: ZvpwR8FqmsXZR3Bywj6QG6wBSF2dPDyG
           title: AvgThroughputElementsPerSec by Version
