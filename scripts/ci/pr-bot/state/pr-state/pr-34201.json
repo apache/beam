@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "m-trieu",
-    "build": "damccorm",
+    "java": "robertwb",
+    "build": "Abacn",
     "io": "johnjcasey",
-    "kafka": "fozzie15"
+    "kafka": "jrmccluskey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
