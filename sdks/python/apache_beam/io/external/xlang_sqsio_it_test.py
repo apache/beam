@@ -37,8 +37,6 @@ import argparse
 import logging
 import unittest
 
-import pytest
-
 import apache_beam as beam
 from apache_beam.io.aws.sqsio import ReadFromSQS
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -69,7 +67,6 @@ NUM_RECORDS = 10
 @unittest.skipUnless(
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner,
     'Do not run this test on precommit suites.')
-@pytest.mark.uses_testcontainer
 class CrossLanguageSqsIOTest(unittest.TestCase):
   def test_sqs_read(self):
     messages = [f'data{str(i)}' for i in range(NUM_RECORDS)]

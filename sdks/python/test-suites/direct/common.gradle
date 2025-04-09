@@ -56,6 +56,31 @@ tasks.register("postCommitIT") {
   }
 }
 
+tasks.register("xlangAwsIOIT") {
+  dependsOn = [
+          'setupVirtualenv',
+          'installGcpTest',
+          ':sdks:java:io:amazon-web-services2:expansion-service:shadowJar',
+  ]
+
+  // Run AWS IO IT tests with TestDirectRunner in batch in Python 3.
+  doLast {
+    def tests = [
+        "apache_beam/io/external/xlang_sqsio_it_test.py",
+    ]
+    def testOpts = basicTestOpts + ["${tests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+                  ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
 tasks.register("spannerioIT") {
   dependsOn 'installGcpTest'
 

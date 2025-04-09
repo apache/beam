@@ -31,6 +31,12 @@ tasks.register("examplesPostCommit") {
   }
 }
 
+task awsPostCommit {
+  getVersionsAsList('cross_language_validates_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:xlangAwsIOIT")
+  }
+}
+
 task gcpCrossLanguagePostCommit {
   getVersionsAsList('cross_language_validates_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
