@@ -814,6 +814,9 @@ def _Partition(
     mapping_transform = mapping_transform.with_outputs(*output_set)
   splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
   result = {out: getattr(splits, out) for out in output_set}
+  for tag, out in result.items():
+    if tag != error_output:
+      out.element_type = pcoll.element_type
   if error_output:
     result[error_output] = result[error_output] | map_errors_to_standard_format(
         pcoll.element_type)
