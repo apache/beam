@@ -352,7 +352,6 @@
         file_name_suffix: 'filename_suffix'
         num_shards: 'num_shards'
         compression_type: 'compression'
-        no_spilling: 'no_spilling'
     underlying_provider:
       type: beamJar
       transforms:

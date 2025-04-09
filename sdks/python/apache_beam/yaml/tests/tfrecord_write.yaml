@@ -65,8 +65,3 @@ pipelines:
           config:
             elements:
               - {record: "foo"}
-
-
-
-
-

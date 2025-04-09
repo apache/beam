@@ -610,11 +610,9 @@ def write_to_tfrecord(
     file_name_suffix: Optional[str] = "",
     num_shards: Optional[int] = 0,
     shard_name_template: Optional[str] = None,
-    compression_type: str = "AUTO",
-    no_spilling: Optional[bool] = None):
+    compression_type: str = "AUTO"):
   """Writes data to TFRecord.
 
-  public abstract Builder setNoSpilling(boolean value);
   Args:
     file_path_prefix: The file path to write to. The files written will begin
       with this prefix, followed by a shard identifier (see num_shards), and
