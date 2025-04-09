@@ -17,7 +17,8 @@
 
 import apache_beam as beam
 
-from apache_beam.transforms.external import BeamJarExpansionService, SchemaAwareExternalTransform
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 
 __all__ = ['ReadFromSQS']
 
