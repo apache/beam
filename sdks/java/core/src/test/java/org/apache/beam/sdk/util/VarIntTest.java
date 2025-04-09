@@ -254,6 +254,14 @@ public class VarIntTest {
   }
 
   @Test
+  public void decodeThrowsExceptionForIntUnderflow() throws IOException {
+    byte[] encoded = encodeLong(-1);
+
+    thrown.expect(IOException.class);
+    decodeInt(encoded);
+  }
+
+  @Test
   public void decodeThrowsExceptionForNonterminated() throws IOException {
     final byte[] nonTerminatedNumber = {(byte) 0xff, (byte) 0xff};
 
