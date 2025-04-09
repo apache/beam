@@ -38,6 +38,7 @@ env:
   GCP_PROJECT_ID: apache-beam-testing
   GCP_REGION: us-central1
   GCS_TEMP_LOCATION: gs://rc-validation-migration-tests/temp/
+  GCS_STAGING_LOCATION: gs://rc-validation-migration-tests/staging/
   GCS_INPUT_PATH: gs://apache-beam-samples/shakespeare/kinglear.txt
 
 jobs:
@@ -86,9 +87,7 @@ jobs:
           go run wordcount.go \
             --input ./kinglear.txt \
             --output ./output_prism.txt \
-            --runner=PrismRunner \
-            --environment_type=DOCKER \
-            --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
+            --runner=PrismRunner
 
       - name: Check output file
         working-directory: ./sdks/go/examples/wordcount
@@ -132,6 +131,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --region=${{ env.GCP_REGION }} \
             --temp_location=${{ env.GCS_TEMP_LOCATION }} \
+            --staging_location=${{ env.GCS_STAGING_LOCATION }} \
             --environment_type=DOCKER \
             --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
 
