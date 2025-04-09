@@ -17,7 +17,9 @@
 
 import collections
 import functools
+import json
 import random
+import unittest
 import uuid
 from typing import Dict
 from typing import List
@@ -35,6 +37,38 @@ from apache_beam.testing.util import equal_to
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml import yaml_utils
+
+
+class YamlTestCase(unittest.TestCase):
+  def __init__(self, pipeline_spec, test_spec, options, fix_tests):
+    super().__init__()
+    self._pipeline_spec = pipeline_spec
+    self._test_spec = test_spec
+    self._options = options
+    self._fix_tests = fix_tests
+
+  def runTest(self):
+    self._fixes = run_test(
+        self._pipeline_spec, self._test_spec, self._options, self._fix_tests)
+
+  def fixed_test(self):
+    fixed_test_spec = yaml_transform.SafeLineLoader.strip_metadata(
+        self._test_spec)
+    if self._fixes:
+      expectation_by_id = {(loc, expectation['name']): expectation
+                           for loc in ('expected_inputs', 'expected_outputs')
+                           for expectation in fixed_test_spec.get(loc, [])}
+      for name_loc, values in self._fixes.items():
+        expectation_by_id[name_loc]['elements'] = sorted(values, key=json.dumps)
+    return fixed_test_spec
+
+  def id(self):
+    return (
+        self._test_spec.get('name', 'unknown') +
+        f' (line {yaml_transform.SafeLineLoader.get_line(self._test_spec)})')
+
+  def __str__(self):
+    return self.id()
 
 
 def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):

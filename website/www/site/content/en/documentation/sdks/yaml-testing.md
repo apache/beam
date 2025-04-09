@@ -191,7 +191,22 @@ executed, while the named transform of an `expected_outputs` necessarily is.
 
 In an effort to make tests as easy to write and maintain as possible,
 Beam YAML provides utilities to compute the expected outputs for your tests.
+
+
 Running
+
+```
+python -m apache_beam.yaml.main \
+    --yaml_pipeline_file=wordcount.yaml \
+    --tests \
+    [--test_suite=...] \
+    --create_test
+```
+
+will create an entirely new test by sampling all the sources and
+constructing a test accordingly.
+
+One can also keep tests up to date by running
 
 ```
 python -m apache_beam.yaml.main \
@@ -201,17 +216,13 @@ python -m apache_beam.yaml.main \
     --fix_tests
 ```
 
-will update any existing `expected_input` and `expected_output` blocks of your
-pipeline to contain the actual values computed during the test.
-(Of course, it is on any user of this flag to verify that the produced values
-are as expected.)
+which will update any existing `expected_input` and `expected_output` blocks
+of your pipeline to contain the actual values computed during the test.
 This can be useful in authoring tests as well--one can simply specify a
 nonsensical or empty elements block in the expectation and the `--fix_tests`
 flag will populate it for you.
-
-Beam YAML also has a `--create_test` flag which can be used to create an
-entirely new test by sampling all the sources and constructing a test
-accordingly.
+(Of course, it is on any user of these flags to verify that the produced values
+are meaningful and as expected.)
 
 
 ## Branching pipelines

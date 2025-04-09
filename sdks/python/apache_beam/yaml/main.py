@@ -103,13 +103,15 @@ def _parse_arguments(argv):
   parser.add_argument(
       '--fix_tests',
       action=argparse.BooleanOptionalAction,
-      help='Update failing test expectations to match the actual ouput.')
+      help='Update failing test expectations to match the actual ouput. '
+      'Requires --test_suite if the pipeline uses jinja formatting.')
   parser.add_argument(
       '--create_test',
       action=argparse.BooleanOptionalAction,
       help='Automatically creates a regression test for the given pipeline, '
       'adding it to the pipeline spec or test suite dependon on whether '
-      '--test_suite is given.')
+      '--test_suite is given. '
+      'Requires --test_suite if the pipeline uses jinja formatting.')
   parser.add_argument(
       '--test_suite',
       help='Run the given tests against the given pipeline, rather than the '
@@ -161,26 +163,31 @@ def run_tests(argv=None, exit=True):
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
   options = _build_pipeline_options(pipeline_spec, pipeline_args)
 
-  if known_args.create_test and not known_args.fix_tests:
+  if known_args.create_test and known_args.fix_tests:
+    raise ValueError(
+        'At most one of --create_test and --fix_tests may be specified.')
+  elif known_args.create_test:
     result = unittest.TestResult()
     tests = []
   else:
     if known_args.test_suite:
       with open(known_args.test_suite) as fin:
-        test_suite = yaml.load(fin, Loader=yaml_transform.SafeLineLoader) or {}
-      if 'tests' not in test_suite or not isinstance(test_suite['tests'], list):
-        raise TypeError('tests attribute must be a list of test specifications')
-      test_specs = test_suite['tests']
+        test_suite_holder = yaml.load(
+            fin, Loader=yaml_transform.SafeLineLoader) or {}
     else:
-      test_specs = pipeline_spec.get('tests', [])
-      if not isinstance(test_specs, list):
-        raise TypeError('tests attribute must be a list of test specifications')
-    if not test_specs:
-      raise RuntimeError('No tests found.')
+      test_suite_holder = pipeline_spec
+    test_specs = test_suite_holder.get('tests', [])
+    if not isinstance(test_specs, list):
+      raise TypeError('tests attribute must be a list of test specifications.')
+    elif not test_specs:
+      raise RuntimeError(
+          'No tests found. '
+          "If you haven't added a set of tests yet, you can get started by "
+          'running your pipeline with the --create_test flag enabled.')
 
     with _fix_xlang_instant_coding():
       tests = [
-          _YamlTestCase(
+          yaml_testing.YamlTestCase(
               pipeline_spec, test_spec, options, known_args.fix_tests)
           for test_spec in test_specs
       ]
@@ -220,15 +227,7 @@ def update_tests(known_args, pipeline_spec, options, tests):
   updated_spec = yaml.load(original_yaml, Loader=yaml.SafeLoader) or {}
 
   if known_args.fix_tests:
-    for ix, test in enumerate(tests):
-      if test.fixes:
-        test_spec = yaml_transform.SafeLineLoader.strip_metadata(test.spec())
-        assert test_spec == updated_spec['tests'][ix]
-        for (loc, name), values in test.fixes.items():
-          for expectation in updated_spec['tests'][ix][loc]:
-            if expectation['name'] == name:
-              expectation['elements'] = sorted(values, key=json.dumps)
-              break
+    updated_spec['tests'] = [test.fixed_test() for test in tests]
 
   if known_args.create_test:
     if 'tests' not in updated_spec:
@@ -296,30 +295,6 @@ def build_pipeline_components_from_yaml(
     )
 
   return options, constructor
-
-
-class _YamlTestCase(unittest.TestCase):
-  def __init__(self, pipeline_spec, test_spec, options, fix_tests):
-    super().__init__()
-    self._pipeline_spec = pipeline_spec
-    self._test_spec = test_spec
-    self._options = options
-    self._fix_tests = fix_tests
-
-  def runTest(self):
-    self.fixes = yaml_testing.run_test(
-        self._pipeline_spec, self._test_spec, self._options, self._fix_tests)
-
-  def id(self):
-    return (
-        self._test_spec.get('name', 'unknown') +
-        f' (line {yaml_transform.SafeLineLoader.get_line(self._test_spec)})')
-
-  def __str__(self):
-    return self.id()
-
-  def spec(self):
-    return self._test_spec
 
 
 if __name__ == '__main__':
