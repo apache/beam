@@ -22,7 +22,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-fileimport collections
 
-
 import collections
 import copy
 

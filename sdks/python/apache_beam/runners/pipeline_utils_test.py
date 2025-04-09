@@ -141,7 +141,7 @@ class PipelineUtilitiesTest(unittest.TestCase):
     with tempfile.TemporaryDirectory() as tmpdir:
 
       def make_file(basename, content):
-        subdir = tempfile.TemporaryDirectory(dir=tmpdir, delete=False).name
+        subdir = tempfile.mkdtemp(dir=tmpdir)
         path = os.path.join(subdir, basename)
         with open(path, 'w') as fout:
           fout.write(content)
