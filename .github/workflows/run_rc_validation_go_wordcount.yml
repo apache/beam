@@ -45,6 +45,9 @@ jobs:
   validate-rc-package:
     runs-on: self-hosted
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up environment
         uses: ./.github/actions/setup-environment-action
         with:
