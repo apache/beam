@@ -27,7 +27,7 @@ Beam SQL uses Calcite SQL based on [Apache Calcite](https://calcite.apache.org),
 a dialect widespread in big data processing.
 
 <!-- TODO: Remove deprecation statement when ZetaSQL dialect is removed. -->
-**Note:** Beam SQL supports for [ZetaSQL dialect]((/documentation/dsls/sql/zetasql/overview) has been deprecated.
+**Note:** Beam SQL supports for [ZetaSQL dialect](/documentation/dsls/sql/zetasql/overview) has been deprecated.
 
 To change dialects, pass [the dialect's full package name](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/package-summary.html) to the [`setPlannerName`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/impl/BeamSqlPipelineOptions.html#setPlannerName-java.lang.String-) method in the [`PipelineOptions`](https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html) interface.
 
