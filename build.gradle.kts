@@ -382,7 +382,6 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
-  dependsOn(":sdks:java:extensions:sql:shell:build")
   dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
   dependsOn(":sdks:java:extensions:sql:udf:build")
   dependsOn(":sdks:java:extensions:sql:zetasql:build")
