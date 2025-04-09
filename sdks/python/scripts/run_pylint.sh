@@ -101,6 +101,7 @@ ISORT_EXCLUDED=(
   "render_test.py"
   "yaml/main.py"
   "main_test.py"
+  "yaml_testing_test.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
