@@ -42,7 +42,7 @@ env:
   GCS_INPUT_PATH: gs://apache-beam-samples/shakespeare/kinglear.txt
 
 jobs:
-  setup:
+  validate-rc-package:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -54,17 +54,13 @@ jobs:
           go-version: default
 
       - name: Fetch Go SDK RC and Tidy Modules
-        working-directory: ./sdks/go/examples/wordcount
         run: |
-          mkdir -p beam-test
-          cd beam-test
-          go mod init beam-test
           go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ github.event.inputs.rc_tag }}
           go mod tidy
 
 
   validate-go-rc-prism:
-    needs: setup
+    needs: validate-rc-package
     runs-on: self-hosted # Changed to self-hosted
     steps:
       - name: Checkout repository
@@ -80,6 +76,12 @@ jobs:
       - name: Download Input File from GCS (Prism)
         working-directory: ./sdks/go/examples/wordcount
         run: gsutil cp ${{ env.GCS_INPUT_PATH }} ./kinglear.txt
+
+      - name: Fetch Go SDK RC and Tidy Modules
+        working-directory: ./sdks/go/examples/wordcount
+        run: |
+          go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ github.event.inputs.rc_tag }}
+          go mod tidy
 
       - name: Run Go WordCount with PrismRunner
         working-directory: ./sdks/go/examples/wordcount
@@ -104,7 +106,7 @@ jobs:
           fi
 
   validate-go-rc-dataflow:
-    needs: setup
+    needs: validate-rc-package
     runs-on: self-hosted # Changed to self-hosted
     steps:
       - name: Checkout repository
@@ -115,6 +117,12 @@ jobs:
         with:
           go-version: default
 
+
+      - name: Fetch Go SDK RC and Tidy Modules
+        working-directory: ./sdks/go/examples/wordcount
+        run: |
+          go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ github.event.inputs.rc_tag }}
+          go mod tidy
 
       # Assuming gcloud is available and authenticated on the self-hosted runner
       - name: Run Go WordCount with DataflowRunner
@@ -135,8 +143,20 @@ jobs:
             --environment_type=DOCKER \
             --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
 
-      # Note: Checking Dataflow output requires gcloud storage commands and depends on job completion.
-      # This basic workflow focuses on submission. A more robust check would poll the job status
-      # and then verify GCS output, which is significantly more complex.
-      - name: Log Dataflow Job Submission Info
-        run: echo "Dataflow job submitted. Check GCP console (project ${{ env.GCP_PROJECT_ID }}) for status and output at ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output"
+      - name: Check Dataflow Output in GCS
+        env:
+          # Re-define the output path pattern for checking
+          GCS_OUTPUT_PATH_PATTERN: ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output*
+        run: |
+          echo "Checking for Dataflow output files in GCS at: $GCS_OUTPUT_PATH_PATTERN"
+          # Use gsutil stat. The -q flag suppresses errors for non-existent files,
+          # allowing us to check the exit code. Exit code 0 means found, 1 means not found.
+          if gsutil -q stat $GCS_OUTPUT_PATH_PATTERN; then
+            echo "Output files found in GCS."
+            # Optional: Add a basic content check like non-emptiness or line count
+            # FILE_COUNT=$(gsutil ls $GCS_OUTPUT_PATH_PATTERN | wc -l)
+            # if [ "$FILE_COUNT" -gt 0 ]; then echo "Found $FILE_COUNT output file(s)."; else echo "Error: Output path exists but contains no files."; exit 1; fi
+          else
+            echo "Error: Output files not found in GCS at $GCS_OUTPUT_PATH_PATTERN"
+            exit 1
+          fi
