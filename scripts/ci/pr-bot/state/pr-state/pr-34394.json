@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "liferoad",
-    "java": "kennknowles",
-    "build": "Abacn",
+    "python": "jrmccluskey",
+    "java": "chamikaramj",
+    "build": "damccorm",
     "io": "shunping"
   },
   "nextAction": "Reviewers",
