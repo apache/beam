@@ -195,7 +195,7 @@ def run_tests(argv=None, exit=True):
       result = unittest.TextTestRunner().run(suite)
 
   if known_args.fix_tests or known_args.create_test:
-    update_tests(known_args, pipeline_spec, options, tests)
+    update_tests(known_args, pipeline_yaml, pipeline_spec, options, tests)
 
   if exit:
     # emulates unittest.main()
@@ -205,7 +205,7 @@ def run_tests(argv=None, exit=True):
       raise RuntimeError(result)
 
 
-def update_tests(known_args, pipeline_spec, options, tests):
+def update_tests(known_args, pipeline_yaml, pipeline_spec, options, tests):
   if known_args.test_suite:
     path = known_args.test_suite
     if not os.path.exists(path) and known_args.create_test:
