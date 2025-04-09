@@ -96,6 +96,10 @@ tasks.rat {
     // Ignore CPython LICENSE file
     "LICENSE.python",
 
+    // Ignore vendored cloudpickle files
+    "sdks/python/apache_beam/internal/cloudpickle/**",
+    "LICENCE.cloudpickle",
+
     // Json doesn't support comments.
     "**/*.json",
 
@@ -245,6 +249,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":beam-validate-runner:build")
   dependsOn(":examples:java:build")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:sql:build")
+  dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":examples:multi-language:build")
