@@ -41,7 +41,6 @@ pipelines:
             file_path_prefix: "{TEMP_DIR}"
             file_name_suffix: ".tfrecords"
             compression_type: "UNCOMPRESSED"
-            no_spilling: true
             num_shards: 1
 
   - pipeline:
