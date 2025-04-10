@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.2"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
 }
 
 
@@ -78,6 +78,7 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:sql")
 include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
@@ -197,7 +198,6 @@ include(":sdks:java:extensions:sql")
 include(":sdks:java:extensions:sql:payloads")
 include(":sdks:java:extensions:sql:perf-tests")
 include(":sdks:java:extensions:sql:jdbc")
-include(":sdks:java:extensions:sql:shell")
 include(":sdks:java:extensions:sql:hcatalog")
 include(":sdks:java:extensions:sql:datacatalog")
 include(":sdks:java:extensions:sql:zetasql")

@@ -43,9 +43,10 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.common import group_by_key_input_visitor
-from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
+from apache_beam.runners.pipeline_utils import merge_common_environments
+from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -434,7 +435,8 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline.components.environments[env_id].CopyFrom(
           environments.resolve_anyof_environment(
               env, common_urns.environments.DOCKER.urn))
-    self.proto_pipeline = merge_common_environments(self.proto_pipeline)
+    self.proto_pipeline = merge_common_environments(
+        merge_superset_dep_environments(self.proto_pipeline))
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
