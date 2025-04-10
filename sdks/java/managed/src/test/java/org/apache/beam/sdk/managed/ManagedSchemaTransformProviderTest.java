@@ -25,9 +25,13 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
@@ -39,6 +43,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ManagedSchemaTransformProviderTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+  private static final Row EMPTY_ROW = Row.nullRow(EMPTY_SCHEMA);
 
   @Test
   public void testFailWhenNoConfigSpecified() {
@@ -75,7 +81,12 @@ public class ManagedSchemaTransformProviderTest {
     thrown.expectMessage(TestSchemaTransformProvider.IDENTIFIER);
     thrown.expectMessage("Contains unknown fields");
     thrown.expectMessage("unknown_field");
-    new ManagedSchemaTransformProvider(null).from(managedConfig);
+    Pipeline p = Pipeline.create();
+    new ManagedSchemaTransformProvider(null)
+        .from(managedConfig)
+        .expand(
+            PCollectionRowTuple.of(
+                "input", p.apply(Create.of(EMPTY_ROW).withRowSchema(EMPTY_SCHEMA))));
   }
 
   @Test
@@ -92,7 +103,12 @@ public class ManagedSchemaTransformProviderTest {
     thrown.expectMessage(TestSchemaTransformProvider.IDENTIFIER);
     thrown.expectMessage("Missing required fields");
     thrown.expectMessage("extra_integer");
-    new ManagedSchemaTransformProvider(null).from(managedConfig);
+    Pipeline p = Pipeline.create();
+    new ManagedSchemaTransformProvider(null)
+        .from(managedConfig)
+        .expand(
+            PCollectionRowTuple.of(
+                "input", p.apply(Create.of(EMPTY_ROW).withRowSchema(EMPTY_SCHEMA))));
   }
 
   @Test
@@ -104,7 +120,40 @@ public class ManagedSchemaTransformProviderTest {
             .setConfig(YamlUtils.yamlStringFromMap(config))
             .build();
 
-    new ManagedSchemaTransformProvider(null).from(managedConfig);
+    Pipeline p = Pipeline.create();
+    new ManagedSchemaTransformProvider(null)
+        .from(managedConfig)
+        .expand(
+            PCollectionRowTuple.of(
+                "input", p.apply(Create.of(EMPTY_ROW).withRowSchema(EMPTY_SCHEMA))));
+  }
+
+  @Test
+  public void testSkipConfigValidationWithUnknownFields() {
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "extra_string",
+            "str",
+            "extra_integer",
+            123,
+            "toggle_uppercase",
+            true,
+            "unknown_field",
+            "unknown");
+    ManagedSchemaTransformProvider.ManagedConfig managedConfig =
+        ManagedSchemaTransformProvider.ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfig(YamlUtils.yamlStringFromMap(config))
+            .build();
+
+    ManagedOptions options = PipelineOptionsFactory.as(ManagedOptions.class);
+    options.setSkipManagedConfigValidation(true);
+    Pipeline p = Pipeline.create(options);
+    new ManagedSchemaTransformProvider(null)
+        .from(managedConfig)
+        .expand(
+            PCollectionRowTuple.of(
+                "input", p.apply(Create.of(EMPTY_ROW).withRowSchema(EMPTY_SCHEMA))));
   }
 
   @Test
@@ -123,7 +172,8 @@ public class ManagedSchemaTransformProviderTest {
             .build();
 
     Row returnedRow =
-        ManagedSchemaTransformProvider.getRowConfig(config, TestSchemaTransformProvider.SCHEMA);
+        ManagedSchemaTransformProvider.getRowConfig(
+            config, TestSchemaTransformProvider.SCHEMA, PipelineOptionsFactory.create());
 
     assertEquals(expectedRow, returnedRow);
   }
@@ -146,7 +196,8 @@ public class ManagedSchemaTransformProviderTest {
             .withFieldValue("extra_integer", 123)
             .build();
     Row configRow =
-        ManagedSchemaTransformProvider.getRowConfig(config, TestSchemaTransformProvider.SCHEMA);
+        ManagedSchemaTransformProvider.getRowConfig(
+            config, TestSchemaTransformProvider.SCHEMA, PipelineOptionsFactory.create());
 
     assertEquals(expectedRow, configRow);
   }
