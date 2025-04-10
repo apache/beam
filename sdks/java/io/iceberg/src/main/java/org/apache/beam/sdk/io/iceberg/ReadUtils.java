@@ -69,13 +69,14 @@ public class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static CloseableIterable<Record> createReader(FileScanTask task, Table table) {
+  static ParquetReader<Record> createReader(FileScanTask task, Table table) {
     String filePath = task.file().path().toString();
     InputFile inputFile;
-    FileIO io = table.io();
-    EncryptedInputFile encryptedInput =
-        EncryptedFiles.encryptedInput(io.newInputFile(filePath), task.file().keyMetadata());
-    inputFile = table.encryption().decrypt(encryptedInput);
+    try (FileIO io = table.io()) {
+      EncryptedInputFile encryptedInput =
+              EncryptedFiles.encryptedInput(io.newInputFile(filePath), task.file().keyMetadata());
+      inputFile = table.encryption().decrypt(encryptedInput);
+    }
     Map<Integer, ?> idToConstants =
         ReadUtils.constantsMap(task, IdentityPartitionConverters::convertConstant, table.schema());
 
@@ -99,23 +100,17 @@ public class ReadUtils {
     NameMapping mapping =
         nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
-    ParquetReader<Record> records =
-        new ParquetReader<>(
+    return new ParquetReader<>(
             inputFile,
             table.schema(),
             optionsBuilder.build(),
-            // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader,
-            //  bypassing conversion to Iceberg Record
-            fileSchema ->
-                GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
+            // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
+            // Record
+            fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
             mapping,
             task.residual(),
             false,
             true);
-
-    GenericDeleteFilter deleteFilter =
-        new GenericDeleteFilter(io, task, task.schema(), table.schema());
-    return deleteFilter.filter(records);
   }
 
   static Map<Integer, ?> constantsMap(
