@@ -42,6 +42,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -143,7 +144,7 @@ public class GrpcDirectGetWorkStreamTest {
                 .build()
                 .createDirectGetWorkStream(
                     WindmillConnection.builder()
-                        .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+                        .setStub(CloudWindmillServiceV1Alpha1CustomStub.newStub(inProcessChannel))
                         .build(),
                     Windmill.GetWorkRequest.newBuilder()
                         .setClientId(TEST_JOB_HEADER.getClientId())
