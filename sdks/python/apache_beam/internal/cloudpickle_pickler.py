@@ -82,7 +82,7 @@ LOCK_TYPE = type(threading.Lock())
 
 
 def _reconstruct_enum_descriptor(full_name):
-  for _, module in sys.modules.items():
+  for _, module in list(sys.modules.items()):
     if not hasattr(module, 'DESCRIPTOR'):
       continue
 
