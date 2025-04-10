@@ -631,8 +631,6 @@ def write_to_tfrecord(
     compression_type: Used to handle compressed output files. Typical value
       is CompressionTypes.AUTO, in which case the file_path's extension will
       be used to detect the compression.
-    no_splling: Used to skip the spilling of data caused by having 
-      maxNumWritersPerBundle.
 
   Returns:
     A WriteToTFRecord transform object.

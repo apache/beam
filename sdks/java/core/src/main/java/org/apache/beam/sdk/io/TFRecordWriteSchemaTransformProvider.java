@@ -129,7 +129,7 @@ public class TFRecordWriteSchemaTransformProvider
       } else {
         writeTransform = writeTransform.withoutSharding();
       }
-      if (configuration.getNoSpilling()) {
+      if (Boolean.TRUE.equals(configuration.getNoSpilling())) {
         writeTransform = writeTransform.withNoSpilling();
       }
 

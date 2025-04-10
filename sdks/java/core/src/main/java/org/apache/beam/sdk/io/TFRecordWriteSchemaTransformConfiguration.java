@@ -89,7 +89,8 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
 
   @SchemaFieldDescription(
       "Whether to skip the spilling of data caused by having maxNumWritersPerBundle.")
-  public abstract boolean getNoSpilling();
+  @Nullable
+  public abstract Boolean getNoSpilling();
 
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
   @Nullable
@@ -108,7 +109,7 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
 
     public abstract Builder setCompression(String value);
 
-    public abstract Builder setNoSpilling(boolean value);
+    public abstract Builder setNoSpilling(Boolean value);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
