@@ -303,6 +303,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sketching:build")
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
+  dependsOn(":sdks:java:extensions:yaml:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
