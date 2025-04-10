@@ -81,6 +81,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FanOutStreamingEngineWorkerHarnessTest {
   private static final String CHANNEL_NAME = "FanOutStreamingEngineWorkerHarnessTest";
+  private static final long WAIT_FOR_METADATA_INJECTIONS_SECONDS = 5;
+  private static final long SERVER_SHUTDOWN_TIMEOUT_SECONDS = 30;
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
       WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
@@ -102,7 +104,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           .build();
 
   @Rule
-  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(10, TimeUnit.MINUTES);
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(3, TimeUnit.MINUTES);
 
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
@@ -116,7 +118,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           new ArrayList<>(),
           new ArrayList<>(),
           new HashSet<>());
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -171,9 +173,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   public void cleanUp() throws InterruptedException {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     stubFactory.shutdown();
-    fakeStreamingEngineServer.shutdownNow();
-    if (!fakeStreamingEngineServer.awaitTermination(5, TimeUnit.MINUTES)) {
-      fail("Server did not terminate in time after force shutdown");
+    fakeStreamingEngineServer.shutdown();
+    if (!Preconditions.checkNotNull(fakeStreamingEngineServer.awaitTermination(
+        SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS))) {
+      fakeStreamingEngineServer.shutdownNow();
     }
   }
 
@@ -333,8 +336,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
   }
 
   private static class WindmillServiceFakeStub
