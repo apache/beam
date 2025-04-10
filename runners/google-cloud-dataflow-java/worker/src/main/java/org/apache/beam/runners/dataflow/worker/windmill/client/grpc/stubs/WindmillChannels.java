@@ -42,28 +42,28 @@ public final class WindmillChannels {
   // 10MiB. Roughly 2x max message size.
   private static final int WINDMILL_MIN_FLOW_CONTROL_WINDOW =
       NettyChannelBuilder.DEFAULT_FLOW_CONTROL_WINDOW * 10;
-
+  public static final UserWorkerGrpcFlowControlSettings DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS =
+      UserWorkerGrpcFlowControlSettings.newBuilder()
+          .setFlowControlWindowBytes(WINDMILL_MIN_FLOW_CONTROL_WINDOW)
+          .setEnableAutoFlowControl(false)
+          .build();
+  // 100MiB.
+  private static final int DIRECTPATH_MIN_FLOW_CONTROL_WINDOW =
+      WINDMILL_MIN_FLOW_CONTROL_WINDOW * 10;
+  // 100MiB.
+  private static final int DIRECTPATH_ON_READY_THRESHOLD = WINDMILL_MIN_FLOW_CONTROL_WINDOW * 10;
   // User a bigger flow control window and onready threshold for directpath to prevent churn when
   // gRPC is trying to flush gRPCs over the wire. If onReadyThreshold and flowControlWindowBytes are
   // too low, it was observed in testing that the gRPC channel can get stuck in a "not-ready" state
   // until stream deadline.
-  private static final UserWorkerGrpcFlowControlSettings DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS =
+  public static final UserWorkerGrpcFlowControlSettings DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS =
       UserWorkerGrpcFlowControlSettings.newBuilder()
-          // 100MiB.
-          .setFlowControlWindowBytes(WINDMILL_MIN_FLOW_CONTROL_WINDOW * 10)
-          // 100MiB.
-          .setOnReadyThresholdBytes(WINDMILL_MIN_FLOW_CONTROL_WINDOW * 10)
+          .setFlowControlWindowBytes(DIRECTPATH_MIN_FLOW_CONTROL_WINDOW)
+          .setOnReadyThresholdBytes(DIRECTPATH_ON_READY_THRESHOLD)
           // Prevent gRPC from automatically resizing the window. If we have things to send/receive
-          // from Windmill we want to do it right way. There are internal pushback mechanisms in the
-          // user worker and Windmill that attempt to guard the process from OOMing (i.e
+          // from Windmill we want to do it right away. There are internal pushback mechanisms in
+          // the user worker and Windmill that attempt to guard the process from OOMing (i.e
           // MemoryMonitor.java).
-          .setEnableAutoFlowControl(false)
-          .build();
-
-  private static final UserWorkerGrpcFlowControlSettings DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS =
-      UserWorkerGrpcFlowControlSettings.newBuilder()
-          .setFlowControlWindowBytes(WINDMILL_MIN_FLOW_CONTROL_WINDOW)
-          .setOnReadyThresholdBytes(WINDMILL_MIN_FLOW_CONTROL_WINDOW)
           .setEnableAutoFlowControl(false)
           .build();
 
@@ -87,7 +87,9 @@ public final class WindmillChannels {
     switch (windmillServiceAddress.getKind()) {
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
-            windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
+            windmillServiceAddress.gcpServiceAddress(),
+            windmillServiceRpcChannelTimeoutSec,
+            flowControlSettings);
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
         return remoteDirectChannel(
             windmillServiceAddress.authenticatedGcpServiceAddress(),
@@ -98,14 +100,6 @@ public final class WindmillChannels {
             "Only GCP_SERVICE_ADDRESS and AUTHENTICATED_GCP_SERVICE_ADDRESS are supported"
                 + " WindmillServiceAddresses.");
     }
-  }
-
-  public static UserWorkerGrpcFlowControlSettings getDefaultDirectpathFlowControlSettings() {
-    return DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS;
-  }
-
-  public static UserWorkerGrpcFlowControlSettings getDefaultCloudpathFlowControlSettings() {
-    return DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS;
   }
 
   private static ManagedChannel remoteDirectChannel(
@@ -121,26 +115,43 @@ public final class WindmillChannels {
                     new AltsChannelCredentials.Builder().build())
                 .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
             windmillServiceRpcChannelTimeoutSec);
-    int flowControlWindowSizeBytes =
-        Math.max(WINDMILL_MIN_FLOW_CONTROL_WINDOW, flowControlSettings.getFlowControlWindowBytes());
-    return flowControlSettings.getEnableAutoFlowControl()
-        ? channelBuilder.initialFlowControlWindow(flowControlWindowSizeBytes).build()
-        : channelBuilder.flowControlWindow(flowControlWindowSizeBytes).build();
+
+    return withFlowControlSettings(
+            channelBuilder, flowControlSettings, DIRECTPATH_MIN_FLOW_CONTROL_WINDOW)
+        .build();
   }
 
   public static ManagedChannel remoteChannel(
-      HostAndPort endpoint, int windmillServiceRpcChannelTimeoutSec) {
-    return withDefaultChannelOptions(
-            NettyChannelBuilder.forAddress(
-                endpoint.getHost(),
-                endpoint.hasPort()
-                    ? endpoint.getPort()
-                    : WindmillEndpoints.DEFAULT_WINDMILL_SERVICE_PORT),
-            windmillServiceRpcChannelTimeoutSec)
-        .negotiationType(NegotiationType.TLS)
-        .sslContext(dataflowGrpcSslContext(endpoint))
-        .flowControlWindow(WINDMILL_MIN_FLOW_CONTROL_WINDOW)
+      HostAndPort endpoint,
+      int windmillServiceRpcChannelTimeoutSec,
+      UserWorkerGrpcFlowControlSettings flowControlSettings) {
+    NettyChannelBuilder channelBuilder =
+        withDefaultChannelOptions(
+                NettyChannelBuilder.forAddress(
+                    endpoint.getHost(),
+                    endpoint.hasPort()
+                        ? endpoint.getPort()
+                        : WindmillEndpoints.DEFAULT_WINDMILL_SERVICE_PORT),
+                windmillServiceRpcChannelTimeoutSec)
+            .negotiationType(NegotiationType.TLS)
+            .sslContext(dataflowGrpcSslContext(endpoint));
+
+    return withFlowControlSettings(
+            channelBuilder, flowControlSettings, WINDMILL_MIN_FLOW_CONTROL_WINDOW)
         .build();
+  }
+
+  private static NettyChannelBuilder withFlowControlSettings(
+      NettyChannelBuilder channelBuilder,
+      UserWorkerGrpcFlowControlSettings flowControlSettings,
+      int defaultFlowControlBytes) {
+    int flowControlWindowSizeBytes =
+        Math.max(defaultFlowControlBytes, flowControlSettings.getFlowControlWindowBytes());
+    return flowControlSettings.getEnableAutoFlowControl()
+        // Enable auto flow control with an initial window of flowControlWindowSizeBytes. gRPC may
+        // resize this value based on throughput.
+        ? channelBuilder.initialFlowControlWindow(flowControlWindowSizeBytes)
+        : channelBuilder.flowControlWindow(flowControlWindowSizeBytes);
   }
 
   @SuppressWarnings("nullness")

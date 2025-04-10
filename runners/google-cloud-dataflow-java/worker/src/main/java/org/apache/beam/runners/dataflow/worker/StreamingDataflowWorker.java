@@ -66,7 +66,6 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
@@ -90,7 +89,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
@@ -637,7 +635,6 @@ public final class StreamingDataflowWorker {
                           currentFlowControlSettings),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
-    channelCache.consumeFlowControlSettings(resolveInitialFlowControlSettings(configFetcher));
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
@@ -646,22 +643,6 @@ public final class StreamingDataflowWorker {
                     config.userWorkerJobSettings().getFlowControlSettings()));
 
     return ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
-  }
-
-  private static UserWorkerGrpcFlowControlSettings resolveInitialFlowControlSettings(
-      ComputationConfig.Fetcher configFetcher) {
-    // Default flow control settings will limit directpath throughput. If it is not explicitly
-    // configured, ignore them.
-    UserWorkerGrpcFlowControlSettings configuredFlowControlSettings =
-        configFetcher
-            .getGlobalConfigHandle()
-            .getConfig()
-            .userWorkerJobSettings()
-            .getFlowControlSettings();
-    return configuredFlowControlSettings.equals(
-            UserWorkerGrpcFlowControlSettings.getDefaultInstance())
-        ? WindmillChannels.getDefaultDirectpathFlowControlSettings()
-        : configuredFlowControlSettings;
   }
 
   @VisibleForTesting

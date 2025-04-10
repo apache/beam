@@ -28,12 +28,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -112,7 +116,8 @@ public class ChannelCacheTest {
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            (a, b) -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            (ignoredFlowControlSettings, ignoredServiceAddress) -> newChannel(channelName),
+            notifyWhenChannelClosed::countDown);
 
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
@@ -136,7 +141,8 @@ public class ChannelCacheTest {
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            (a, b) -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            (ignoredFlowControlSettings, ignoredServiceAddress) -> newChannel(channelName),
+            notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.clear();
@@ -150,24 +156,34 @@ public class ChannelCacheTest {
     String channelName = "channel";
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     AtomicInteger newChannelsCreated = new AtomicInteger();
+    AtomicReference<UserWorkerGrpcFlowControlSettings> consumedFlowControlSettings =
+        new AtomicReference<>();
     cache =
         ChannelCache.forTesting(
-            (a, b) -> {
+            (newFlowControlSettings, ignoredServiceAddress) -> {
               ManagedChannel channel = newChannel(channelName);
               newChannelsCreated.incrementAndGet();
+              consumedFlowControlSettings.set(newFlowControlSettings);
               return channel;
             },
             notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     when(someAddress.getKind())
         .thenReturn(WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS);
+
+    // Load the cache w/ this first get.
     ManagedChannel cachedChannel = cache.get(someAddress);
-    cache.consumeFlowControlSettings(
+
+    // Load flow control settings.
+    UserWorkerGrpcFlowControlSettings flowControlSettings =
         UserWorkerGrpcFlowControlSettings.newBuilder()
             .setEnableAutoFlowControl(true)
             .setOnReadyThresholdBytes(1)
             .setFlowControlWindowBytes(1)
-            .build());
+            .build();
+    cache.consumeFlowControlSettings(flowControlSettings);
+
+    // This get should reload the cache, since flow control settings have changed.
     ManagedChannel reloadedChannel = cache.get(someAddress);
     notifyWhenChannelClosed.await();
     assertThat(cachedChannel).isNotSameInstanceAs(reloadedChannel);
@@ -175,6 +191,7 @@ public class ChannelCacheTest {
     assertFalse(reloadedChannel.isShutdown());
     assertThat(newChannelsCreated.get()).isEqualTo(2);
     assertThat(cache.get(someAddress)).isSameInstanceAs(reloadedChannel);
+    assertThat(consumedFlowControlSettings.get()).isEqualTo(flowControlSettings);
   }
 
   @Test
@@ -187,11 +204,14 @@ public class ChannelCacheTest {
             .setOnReadyThresholdBytes(1)
             .setFlowControlWindowBytes(1)
             .build();
+    Queue<UserWorkerGrpcFlowControlSettings> consumedFlowControlSettings =
+        new LinkedBlockingQueue<>();
     cache =
         ChannelCache.forTesting(
-            (a, b) -> {
+            (newFlowControlSettings, ignoredServiceAddress) -> {
               ManagedChannel channel = newChannel(channelName);
               newChannelsCreated.incrementAndGet();
+              consumedFlowControlSettings.add(newFlowControlSettings);
               return channel;
             },
             () -> {});
@@ -211,5 +231,8 @@ public class ChannelCacheTest {
     assertThat(cachedChannel).isSameInstanceAs(reloadedChannel);
     assertFalse(cachedChannel.isShutdown());
     assertThat(newChannelsCreated.get()).isEqualTo(1);
+    assertThat(consumedFlowControlSettings.size()).isEqualTo(1);
+    assertThat(Iterables.getOnlyElement(consumedFlowControlSettings))
+        .isEqualTo(flowControlSettings);
   }
 }
