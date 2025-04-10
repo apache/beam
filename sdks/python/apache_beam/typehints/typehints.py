@@ -1517,7 +1517,6 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   elif getattr(base, '__module__', None) == 're':
-    print("here")
     return regex_consistency(sub, base)
   elif is_typing_generic(base):
     # Cannot check unsupported parameterized generic which will cause issubclass
