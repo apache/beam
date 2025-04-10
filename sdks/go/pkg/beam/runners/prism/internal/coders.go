@@ -36,10 +36,10 @@ import (
 // In particular, ones that won't be a problem to parse, in general
 // because they have a known total size.
 //
-// Important: The 'leafCoders' and 'knownCompositeCoders' lists are not mutually
-// exclusive, nor do they necessarily cover all possible standard coder types.
-// For example, CoderLengthPrefix is a leaf coder even though it is also a
-// known composite coder, and coderRow is neither a leaf coder nor a composite coder.
+// Important: The 'leafCoders' and 'knownCompositeCoders' do not necessarily
+// cover all possible standard coder types.
+// For example, coderRow is neither a leaf coder nor a composite coder (so it
+// will have to be LP'd).
 var leafCoders = map[string]struct{}{
 	urns.CoderBytes:          {},
 	urns.CoderStringUTF8:     {},
@@ -62,13 +62,15 @@ var knownCompositeCoders = map[string]struct{}{
 	urns.CoderKV:                  {},
 	urns.CoderIterable:            {},
 	urns.CoderTimer:               {},
-	urns.CoderLengthPrefix:        {},
 	urns.CoderWindowedValue:       {},
 	urns.CoderParamWindowedValue:  {},
 	urns.CoderStateBackedIterable: {},
 	urns.CoderCustomWindow:        {},
 	urns.CoderShardedKey:          {},
 	urns.CoderNullable:            {},
+	// Exclude CoderLengthPrefix from the list. Even though it is a composite coder,
+	// we never need to introspect its component.
+	// urns.CoderLengthPrefix:     {},
 }
 
 func isKnownCompositeCoder(c *pipepb.Coder) bool {
