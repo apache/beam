@@ -84,11 +84,8 @@ class CrossLanguageSqsIOTest(unittest.TestCase):
 
   def set_localstack(self):
     self.localstack = (
-        DockerContainer('localstack/localstack:{}'.format(
-            LOCALSTACK_VERSION)).with_bind_ports(4566, 4566))
-
-    for i in range(4510, 4560):
-      self.localstack = self.localstack.with_bind_ports(i, i)
+        DockerContainer(f'localstack/localstack:{LOCALSTACK_VERSION}').
+        with_exposed_ports(4566))
 
     # Repeat if ReadTimeout is raised.
     for i in range(4):
@@ -102,8 +99,7 @@ class CrossLanguageSqsIOTest(unittest.TestCase):
 
     return 'http://{}:{}'.format(
         self.localstack.get_container_host_ip(),
-        self.localstack.get_exposed_port('4566'),
-    )
+        self.localstack.get_exposed_port(4566))
 
   def setUp(self):
     parser = argparse.ArgumentParser()
