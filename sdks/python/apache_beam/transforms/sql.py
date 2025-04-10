@@ -82,8 +82,9 @@ class SqlTransform(ExternalTransform):
       self,
       query: typing.Optional[str] = None,
       dialect: typing.Optional[str] = None,
+      expansion_service: typing.Optional[str] = None,
       sql_transform_schema: typing.Optional[typing.NamedTuple] = None,
-      expansion_service: typing.Optional[str] = None):
+  ):
     """Creates a SqlTransform which will be expanded to Java's SqlTransform.
 
     (See class docs).
@@ -93,11 +94,11 @@ class SqlTransform(ExternalTransform):
         provided. Ignored if sql_transform_schema is provided.
       dialect: (Optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
         Ignored if sql_transform_schema is provided.
+      expansion_service: (Optional) The URL of the expansion service to use.
       sql_transform_schema: (Optional) A NamedTuple instance containing the
         query and dialect information. If provided, it must have a 'query'
         field (str) and an optional 'dialect' field (str or None). Takes
         precedence over the 'query' and 'dialect' arguments.
-      expansion_service: (Optional) The URL of the expansion service to use.
     """
     expansion_service = expansion_service or BeamJarExpansionService(
         ':sdks:java:extensions:sql:expansion-service:shadowJar')

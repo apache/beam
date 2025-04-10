@@ -209,6 +209,49 @@ class SqlTransformTest(unittest.TestCase):
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE shopper = 'alice'"))
       assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
 
+  def test_sql_transform_schema_parameter(self):
+    # Define the schema using the actual SqlTransformSchema
+    from apache_beam.transforms.sql import SqlTransformSchema
+    schema = SqlTransformSchema(
+        query="""SELECT
+                 CAST(2 AS INT) AS `id`,
+                 CAST('bar' AS VARCHAR) AS `str`,
+                 CAST(1.618 AS DOUBLE) AS `flt`""",
+        dialect=None,
+        ddl=None
+    )
+
+    with TestPipeline() as p:
+      out = p | SqlTransform(sql_transform_schema=schema)
+      # Verify the output matches the query defined in the schema
+      assert_that(out, equal_to([(2, "bar", 1.618)]))
+
+  def test_sql_transform_schema_parameter_with_warning(self):
+    from apache_beam.transforms.sql import SqlTransformSchema
+    schema = SqlTransformSchema(
+        query="SELECT CAST(3 AS INT) AS `id`",
+        dialect=None
+    )
+
+    # Test that providing query/dialect alongside schema raises a warning
+    # and that the schema takes precedence.
+    with self.assertWarns(UserWarning) as cm:
+      with TestPipeline() as p:
+        out = p | SqlTransform(
+            sql_transform_schema=schema,
+            query="SELECT CAST(99 AS INT) AS `id`", # This should be ignored
+            dialect="zetasql" # This should be ignored
+        )
+        # Verify the output matches the query defined in the schema, not the
+        # ignored query parameter.
+        assert_that(out, equal_to([(3,)]))
+
+    # Check that the warning message is as expected
+    self.assertIn(
+        "'query' and 'dialect' parameters are ignored", str(cm.warning))
+    self.assertIn(
+        "'sql_transform_schema' is provided", str(cm.warning))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
