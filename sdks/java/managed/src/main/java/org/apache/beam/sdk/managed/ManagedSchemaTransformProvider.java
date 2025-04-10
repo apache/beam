@@ -37,6 +37,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -156,21 +157,21 @@ public class ManagedSchemaTransformProvider
 
   static class ManagedSchemaTransform extends SchemaTransform {
     private final ManagedConfig managedConfig;
-    private final Row underlyingRowConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
         ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
-      // parse config before expansion to check if it matches underlying transform's config schema
-      Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
-
-      this.underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
       this.underlyingTransformProvider = underlyingTransformProvider;
       this.managedConfig = managedConfig;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      Row underlyingRowConfig =
+          getRowConfig(
+              managedConfig,
+              underlyingTransformProvider.configurationSchema(),
+              input.getPipeline().getOptions());
       LOG.debug(
           "Building transform \"{}\" with configuration: {}",
           underlyingTransformProvider.identifier(),
@@ -202,7 +203,8 @@ public class ManagedSchemaTransformProvider
   // May return an empty row (perhaps the underlying transform doesn't have any required
   // parameters)
   @VisibleForTesting
-  static Row getRowConfig(ManagedConfig config, Schema transformConfigSchema) {
+  static Row getRowConfig(
+      ManagedConfig config, Schema transformConfigSchema, PipelineOptions options) {
     Map<String, Object> configMap = config.resolveUnderlyingConfig();
     // Build a config Row that will be used to build the underlying SchemaTransform.
     // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
@@ -220,8 +222,12 @@ public class ManagedSchemaTransformProvider
       configMap = remappedConfig;
     }
 
-    validateUserConfig(
-        config.getTransformIdentifier(), new HashSet<>(configMap.keySet()), transformConfigSchema);
+    if (!options.as(ManagedOptions.class).isSkipManagedConfigValidation()) {
+      validateUserConfig(
+          config.getTransformIdentifier(),
+          new HashSet<>(configMap.keySet()),
+          transformConfigSchema);
+    }
 
     return YamlUtils.toBeamRow(configMap, transformConfigSchema, false);
   }
