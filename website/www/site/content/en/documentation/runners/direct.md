@@ -18,7 +18,7 @@ limitations under the License.
 -->
 # Using the Direct Runner
 
-{{< language-switcher java py >}}
+{{< language-switcher java py go >}}
 
 The Direct Runner executes pipelines on your machine and is designed to validate that pipelines adhere to the Apache Beam model as closely as possible. Instead of focusing on efficient pipeline execution, the Direct Runner performs additional checks to ensure that users do not rely on semantics that are not guaranteed by the model. Some of these checks include:
 
@@ -41,6 +41,10 @@ Here are some resources with information about how to test your pipelines.
   <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <code>assert_that</code>.</li>
 </ul>
 
+  <!-- Go specific links -->
+  <li class="language-go">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam Go SDK WordCount Walkthrough</a> contains an example of testing a pipeline with <code>beamx.Run</code> and checking output collections.</li>
+</ul>
+
 The Direct Runner is not designed for production pipelines, because it's optimized for correctness rather than performance. The Direct Runner must fit all user data in memory, whereas the Flink and Spark runners can spill data to disk if it doesn't fit in memory. Consequently, Flink and Spark runners are able to run larger pipelines and are better suited to production workloads.
 
 ## Direct Runner prerequisites and setup
@@ -59,6 +63,8 @@ The Direct Runner is not designed for production pipelines, because it's optimiz
 
 <span class="language-py">This section is not applicable to the Beam SDK for Python.</span>
 
+<span class="language-go">No additional dependency setup is required. The Go SDK uses the Direct Runner by default via `beamx.Run()` for local execution.</span>
+
 ## Pipeline options for the Direct Runner
 
 For general instructions on how to set pipeline options, see the [programming guide](/documentation/programming-guide/#configuring-pipeline-options).
@@ -74,12 +80,26 @@ interface for defaults and additional pipeline configuration options.
 
 ### Memory considerations
 
-Local execution is limited by the memory available in your local environment. It is highly recommended that you run your pipeline with data sets small enough to fit in local memory. You can create a small in-memory data set using a <span class="language-java">[`Create`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Create.html)</span><span class="language-py">[`Create`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> transform, or you can use a <span class="language-java">[`Read`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/io/Read.html)</span><span class="language-py">[`Read`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py)</span> transform to work with small local or remote files.
+Local execution is limited by the memory available in your local environment. It is highly recommended that you run your pipeline with data sets small enough to fit in local memory. You can create a small in-memory data set using a
+<span class="language-java">[`Create`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Create.html)</span>
+<span class="language-py">[`Create`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-go">[`beam.Create`](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#Create)</span>
+transform, or you can use a
+<span class="language-java">[`Read`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/io/Read.html)</span>
+<span class="language-py">[`Read`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py)</span>
+<span class="language-go">[`textio.Read`](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#Read)</span>
+transform to work with small local or remote files.
 
 ### Streaming execution
 
 {{< paragraph class="language-py" >}}
-Streaming support for Python DirectRunner is limited. For known issues, see: https://github.com/apache/beam/issues/24528.
+Streaming support for Python DirectRunner is limited. For known issues, see: <https://github.com/apache/beam/issues/24528>.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+The Go SDK does not currently support streaming execution with the Direct Runner. For the latest updates, refer to [Beam Go SDK GitHub issues](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+%22Go+SDK%22).
+</span>
+
 {{< /paragraph >}}
 
 If your pipeline uses an unbounded data source or sink, you must set the `streaming` option to `true`.
@@ -90,38 +110,28 @@ If your pipeline uses an unbounded data source or sink, you must set the `stream
 Python [FnApiRunner](/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing mode.
 {{< /paragraph >}}
 
-#### Setting parallelism
+### Setting parallelism
 
-{{< paragraph class="language-java" >}}
-The number of worker threads is defined by the `targetParallelism` pipeline option.
-By default, `targetParallelism` is the greater of the number of available processors and 3.
-{{< /paragraph >}}
+{{< paragraph class="language-java" >}} The number of worker threads is defined by the targetParallelism pipeline option.
+By default, targetParallelism is the greater of the number of available processors and 3. {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
-Number of threads or subprocesses is defined by setting the `direct_num_workers` pipeline option.
-From 2.22.0, `direct_num_workers = 0` is supported. When `direct_num_workers` is set to 0, it will set the number of threads/subprocess to the number of cores of the machine where the pipeline is running.
-{{< /paragraph >}}
+{{< paragraph class="language-py" >}} Number of threads or subprocesses is defined by setting the direct_num_workers pipeline option.
+From 2.22.0, direct_num_workers = 0 is supported. When direct_num_workers is set to 0, it will set the number of threads/subprocesses to the number of cores of the machine where the pipeline is running. {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
-<strong>Setting running mode</strong>
-{{< /paragraph >}}
+{{< paragraph class="language-py" >}} <strong>Setting running mode</strong> {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
-In Beam 2.19.0 and newer, you can use the `direct_running_mode` pipeline option to set the running mode.
-`direct_running_mode` can be one of [`'in_memory'`, `'multi_threading'`, `'multi_processing'`].
-{{< /paragraph >}}
+{{< paragraph class="language-py" >}} In Beam 2.19.0 and newer, you can use the direct_running_mode pipeline option to set the running mode.
+direct_running_mode can be one of ['in_memory', 'multi_threading', 'multi_processing']. {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
-<b>in_memory</b>: Runner and workers' communication happens in memory (not through gRPC). This is a default mode.
-{{< /paragraph >}}
+{{< paragraph class="language-py" >}} <b>in_memory</b>: Runner and workers' communication happens in memory (not through gRPC). This is the default mode. {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
-<b>multi_threading</b>: Runner and workers communicate through gRPC and each worker runs in a thread.
-{{< /paragraph >}}
+{{< paragraph class="language-py" >}} <b>multi_threading</b>: Runner and workers communicate through gRPC and each worker runs in a thread. {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
-<b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess.
-{{< /paragraph >}}
+{{< paragraph class="language-py" >}} <b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess. {{< /paragraph >}}
+
+{{< paragraph class="language-go" >}} The Go Direct Runner currently uses a single-threaded in-memory execution model.
+Parallelism in Go pipelines depends on how concurrency is handled within the pipeline code itself (e.g., via ParDo functions that use goroutines internally).
+There are no exposed pipeline options (like in Java or Python) to explicitly configure parallel worker threads in the Go SDK at this time. {{< /paragraph >}}
 
 ### Before deploying pipeline to remote runner
 
