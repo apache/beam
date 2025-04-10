@@ -37,14 +37,12 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.data.GenericDeleteFilter;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.EncryptedInputFile;
 import org.apache.iceberg.hadoop.HadoopInputFile;
-import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
@@ -74,7 +72,7 @@ public class ReadUtils {
     InputFile inputFile;
     try (FileIO io = table.io()) {
       EncryptedInputFile encryptedInput =
-              EncryptedFiles.encryptedInput(io.newInputFile(filePath), task.file().keyMetadata());
+          EncryptedFiles.encryptedInput(io.newInputFile(filePath), task.file().keyMetadata());
       inputFile = table.encryption().decrypt(encryptedInput);
     }
     Map<Integer, ?> idToConstants =
@@ -101,16 +99,16 @@ public class ReadUtils {
         nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
     return new ParquetReader<>(
-            inputFile,
-            table.schema(),
-            optionsBuilder.build(),
-            // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
-            // Record
-            fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
-            mapping,
-            task.residual(),
-            false,
-            true);
+        inputFile,
+        table.schema(),
+        optionsBuilder.build(),
+        // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
+        // Record
+        fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
+        mapping,
+        task.residual(),
+        false,
+        true);
   }
 
   static Map<Integer, ?> constantsMap(
