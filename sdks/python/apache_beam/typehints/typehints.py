@@ -1516,6 +1516,9 @@ def is_consistent_with(sub, base):
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object
+  elif getattr(base, '__module__', None) == 're':
+    print("here")
+    return regex_consistency(sub, base)
   elif is_typing_generic(base):
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
@@ -1523,8 +1526,31 @@ def is_consistent_with(sub, base):
   return issubclass(sub, base)
 
 
+def regex_consistency(sub, base) -> bool:
+  """Checks whether two regular expression (re) type hints are consistent
+  with each other.
+
+  Either the sub or base hint can be parameterized generics since the set of
+  possible parameters is restricted to str | bytes. A base hint without a
+  parameter is treated as re.Class[str|bytes] so any sub param with a matching
+  base class is consistent. On the flip side, a sub hint without a parameter is
+  treated as inconsistent with a parameterized base hint.
+  """
+  base_generic = getattr(base, '__origin__', None)
+  sub_class = getattr(sub, '__origin__', sub)
+  if base_generic:
+    if sub_class == sub:
+      # if the sub hint is not parameterized but the base hint is we
+      # auto-fail
+      return False
+    return issubclass(sub_class,
+                      base_generic) and (sub.__args__ == base.__args__)
+  else:
+    return issubclass(sub_class, base)
+
+
 def get_yielded_type(type_hint):
-  """Obtains the type of elements yielded by an iterable.
+  """Obtains the type of elements yielded by an iterable.s
 
   Note that "iterable" here means: can be iterated over in a for loop, excluding
   strings and dicts.
