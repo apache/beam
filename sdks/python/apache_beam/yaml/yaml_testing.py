@@ -523,3 +523,6 @@ def _try_row_as_dict(row):
     return row._asdict()
   except AttributeError:
     return row
+
+
+# Linter: No need for unittest.main here.
