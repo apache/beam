@@ -151,12 +151,16 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     workCommitter.stop();
     commitWorkStream.shutdown();
     try {
-      if (!Preconditions.checkNotNull(streamStarter).awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      if (!Preconditions.checkNotNull(streamStarter)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         streamStarter.shutdownNow();
       }
-      Preconditions.checkNotNull(getWorkStream).awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      Preconditions.checkNotNull(getDataStream).awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      Preconditions.checkNotNull(commitWorkStream).awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(getWorkStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(getDataStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(commitWorkStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException("Interrupted while waiting for streams to terminate", e);

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
@@ -174,8 +173,9 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     stubFactory.shutdown();
     fakeStreamingEngineServer.shutdown();
-    if (!Preconditions.checkNotNull(fakeStreamingEngineServer.awaitTermination(
-        SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS))) {
+    if (!Preconditions.checkNotNull(
+        fakeStreamingEngineServer.awaitTermination(
+            SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS))) {
       fakeStreamingEngineServer.shutdownNow();
     }
   }
