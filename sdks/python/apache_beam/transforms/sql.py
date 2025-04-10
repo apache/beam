@@ -19,7 +19,10 @@
 
 # pytype: skip-file
 
+import collections.abc
+import inspect
 import typing
+import warnings
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -75,18 +78,71 @@ class SqlTransform(ExternalTransform):
   """
   URN = 'beam:external:java:sql:v1'
 
-  def __init__(self, query, dialect=None, expansion_service=None):
-    """
-    Creates a SqlTransform which will be expanded to Java's SqlTransform.
+  def __init__(
+      self,
+      query: typing.Optional[str] = None,
+      dialect: typing.Optional[str] = None,
+      sql_transform_schema: typing.Optional[typing.NamedTuple] = None,
+      expansion_service: typing.Optional[str] = None):
+    """Creates a SqlTransform which will be expanded to Java's SqlTransform.
+
     (See class docs).
-    :param query: The SQL query.
-    :param dialect: (optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
-    :param expansion_service: (optional) The URL of the expansion service to use
+
+    Args:
+      query: The SQL query string. Required if sql_transform_schema is not
+        provided. Ignored if sql_transform_schema is provided.
+      dialect: (Optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
+        Ignored if sql_transform_schema is provided.
+      sql_transform_schema: (Optional) A NamedTuple instance containing the
+        query and dialect information. If provided, it must have a 'query'
+        field (str) and an optional 'dialect' field (str or None). Takes
+        precedence over the 'query' and 'dialect' arguments.
+      expansion_service: (Optional) The URL of the expansion service to use.
     """
     expansion_service = expansion_service or BeamJarExpansionService(
         ':sdks:java:extensions:sql:expansion-service:shadowJar')
+
+    schema_to_use = None
+    if sql_transform_schema is not None:
+      # Validate the provided schema
+      if not (isinstance(sql_transform_schema, tuple) and
+              hasattr(sql_transform_schema, '_fields') and
+              hasattr(sql_transform_schema, '_asdict') and
+              isinstance(getattr(sql_transform_schema, '_fields', None),
+                         collections.abc.Sequence) and
+              'query' in sql_transform_schema._fields):
+        raise TypeError(
+            "sql_transform_schema must be a NamedTuple-like object with at "
+            f"least a 'query' field, but got {type(sql_transform_schema)}.")
+      if not isinstance(sql_transform_schema.query, str):
+        raise TypeError(
+            "The 'query' field in the provided sql_transform_schema must be a "
+            f"string, but got {type(sql_transform_schema.query)}.")
+
+      schema_to_use = sql_transform_schema
+
+      # Warn if query or dialect are also provided
+      if query is not None or dialect is not None:
+        caller_frame = inspect.currentframe().f_back
+        caller_info = inspect.getframeinfo(caller_frame)
+        # TODO(BEAM-12900): Convert this to a warning category BeamDeprecationWarning
+        # once available.
+        warnings.warn(
+            f"'query' and 'dialect' parameters are ignored when "
+            f"'sql_transform_schema' is provided. Called from "
+            f"{caller_info.filename}:{caller_info.lineno}",
+            UserWarning)
+
+    elif query is not None:
+      if not isinstance(query, str):
+        raise TypeError(
+            f"Parameter 'query' must be a string, but got {type(query)}.")
+      schema_to_use = SqlTransformSchema(query=query, dialect=dialect)
+    else:
+      raise ValueError(
+          "Either 'query' or 'sql_transform_schema' must be provided.")
+
     super().__init__(
         self.URN,
-        NamedTupleBasedPayloadBuilder(
-            SqlTransformSchema(query=query, dialect=dialect)),
+        NamedTupleBasedPayloadBuilder(schema_to_use),
         expansion_service=expansion_service)
