@@ -99,8 +99,8 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
             workItemScheduler);
     // 3 threads, 1 for each stream type (GetWork, GetData, CommitWork).
     this.streamStarter =
-        Executors.newFixedThreadPool(
-            3, new ThreadFactoryBuilder().setNameFormat(STREAM_STARTER_THREAD_NAME).build());
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat(STREAM_STARTER_THREAD_NAME).build());
   }
 
   static WindmillStreamSender create(

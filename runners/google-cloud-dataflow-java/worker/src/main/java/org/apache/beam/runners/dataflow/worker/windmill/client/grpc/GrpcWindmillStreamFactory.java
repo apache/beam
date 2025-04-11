@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamTTL;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -72,6 +73,11 @@ import org.joda.time.Instant;
 public class GrpcWindmillStreamFactory implements StatusDataProvider {
 
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
+
+  // 15 minutes less than DIRECT_PATH_STREAM_DEADLINE to allow for drains.
+  private static final WindmillStreamTTL DIRECT_PATH_STREAM_TIMEOUT =
+      WindmillStreamTTL.create(45, TimeUnit.MINUTES);
+
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration DEFAULT_MAX_BACKOFF = Duration.standardSeconds(30);
   private static final int DEFAULT_LOG_EVERY_N_STREAM_FAILURES = 1;
@@ -189,6 +195,16 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return stub.withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
   }
 
+  /**
+   * Set a longer deadline for directpath since we have explicit semantics on when to open and close
+   * the streams w/ the fan out metadata.
+   */
+  private static <T extends AbstractStub<T>> T withDirectPathDeadline(T stub) {
+    // Deadlines are absolute points in time, so generate a new one everytime this function is
+    // called.
+    return stub.withDeadlineAfter(1, TimeUnit.HOURS);
+  }
+
   private static void printSummaryHtmlForWorker(
       String workerToken, Collection<AbstractWindmillStream<?, ?>> streams, PrintWriter writer) {
     writer.write(
@@ -217,7 +233,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
         getWorkThrottleTimer,
-        processWorkItem);
+        processWorkItem,
+        WindmillStreamTTL.noTtl());
   }
 
   public GetWorkStream createDirectGetWorkStream(
@@ -230,7 +247,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().getWorkStream(responseObserver),
+        responseObserver ->
+            withDirectPathDeadline(connection.stub()).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),
@@ -241,7 +259,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         heartbeatSender,
         getDataClient,
         workCommitter,
-        workItemScheduler);
+        workItemScheduler,
+        DIRECT_PATH_STREAM_TIMEOUT);
   }
 
   public GetDataStream createGetDataStream(
@@ -258,14 +277,16 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamIdGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        WindmillStreamTTL.noTtl());
   }
 
   public GetDataStream createDirectGetDataStream(
       WindmillConnection connection, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().getDataStream(responseObserver),
+        responseObserver ->
+            withDirectPathDeadline(connection.stub()).getDataStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -275,7 +296,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamIdGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        DIRECT_PATH_STREAM_TIMEOUT);
   }
 
   public CommitWorkStream createCommitWorkStream(
@@ -290,14 +312,16 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         commitWorkThrottleTimer,
         jobHeader,
         streamIdGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        WindmillStreamTTL.noTtl());
   }
 
   public CommitWorkStream createDirectCommitWorkStream(
       WindmillConnection connection, ThrottleTimer commitWorkThrottleTimer) {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
-        responseObserver -> connection.stub().commitWorkStream(responseObserver),
+        responseObserver ->
+            withDirectPathDeadline(connection.stub()).commitWorkStream(responseObserver),
         grpcBackOff.get(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -305,7 +329,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         commitWorkThrottleTimer,
         jobHeader,
         streamIdGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        DIRECT_PATH_STREAM_TIMEOUT);
   }
 
   public GetWorkerMetadataStream createGetWorkerMetadataStream(
@@ -320,7 +345,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         jobHeader,
         getWorkerMetadataThrottleTimer,
-        onNewWindmillEndpoints);
+        onNewWindmillEndpoints,
+        WindmillStreamTTL.noTtl());
   }
 
   private StreamObserverFactory newStreamObserverFactory() {
@@ -340,7 +366,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   @VisibleForTesting
-  final ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
+  ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
     return ImmutableSet.copyOf(streamRegistry);
   }
 
