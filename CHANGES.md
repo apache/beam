@@ -20,6 +20,10 @@
 <!--
 # [2.XX.X] - Unreleased
 
+## Beam 3.0.0 Development Highlights
+
+* New highly anticipated feature ([X](https://github.com/apache/beam/issues/X)) to address Milestone Y ([#Y](https://github.com/apache/beam/issues/Y)).
+
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
@@ -46,7 +50,7 @@
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Known Issues
 
@@ -78,6 +82,8 @@
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for streaming side-inputs in the Spark Classic runner ([#18136](https://github.com/apache/beam/issues/18136)).
+* Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 ([#34423](https://github.com/apache/beam/issues/34423)).
+  Users are recommended to switch to [Calcite SQL](https://beam.apache.org/documentation/dsls/sql/calcite/overview/) dialect.
 
 ## Bugfixes
 
@@ -85,7 +91,8 @@
 * Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
 
 ## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-2025-30065](https://www.cve.org/CVERecord?id=CVE-2025-30065) (Java) ([#34573](https://github.com/apache/beam/pull/34573))
 
 ## Known Issues
 
