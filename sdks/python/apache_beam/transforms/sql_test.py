@@ -210,20 +210,36 @@ class SqlTransformTest(unittest.TestCase):
       assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
 
   def test_sql_transform_schema_parameter(self):
-    # Define the schema using the actual SqlTransformSchema
-    from apache_beam.transforms.sql import SqlTransformSchema
-    schema = SqlTransformSchema(
-        query="""SELECT
-                 CAST(2 AS INT) AS `id`,
-                 CAST('bar' AS VARCHAR) AS `str`,
-                 CAST(1.618 AS DOUBLE) AS `flt`""",
-        dialect=None,
-        ddl=None)
-
+    # Test DDL
     with TestPipeline() as p:
-      out = p | SqlTransform(sql_transform_schema=schema)
+      input_data = [
+          beam.Row(id=1, name='Alice'),
+          beam.Row(id=2, name='Bob'),
+          beam.Row(id=3, name='Charlie')
+      ]
+      ddl_statement_pcoll = """
+          CREATE EXTERNAL TABLE PCOLLECTION (
+              id INT,
+              name VARCHAR
+          )
+          TYPE 'beam'
+          LOCATION 'pcollection'
+      """
+      query_statement_pcoll = "SELECT id, name FROM PCOLLECTION WHERE id > 1"
+
+      schema = typing.NamedTuple(
+          'SqlTransformSchema', [('query', query_statement_pcoll),
+                                 ('ddl', ddl_statement_pcoll)])
+
+      out = (
+          p | beam.Create(input_data)
+          | SqlTransform(sql_transform_schema=schema))
+
       # Verify the output matches the query defined in the schema
-      assert_that(out, equal_to([(2, "bar", 1.618)]))
+      assert_that(
+          out,
+          equal_to([beam.Row(id=2, name='Bob'), beam.Row(id=3,
+                                                         name='Charlie')]))
 
   def test_sql_transform_schema_parameter_with_warning(self):
     from apache_beam.transforms.sql import SqlTransformSchema

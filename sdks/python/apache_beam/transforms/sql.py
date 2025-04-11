@@ -70,6 +70,9 @@ class SqlTransform(ExternalTransform):
   `apache_beam.examples.wordcount_xlang_sql`, `apache_beam.examples.sql_taxi`,
   and `apache_beam.transforms.sql_test`.
 
+  Full list of options for `sql_transform_schema` can be found in `configurationSchema` at
+  https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/expansion/SqlTransformSchemaTransformProvider.html.
+
   For more details about Beam SQL in general, see the `Java transform
   <https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html>`_,
   and the `documentation
@@ -81,7 +84,8 @@ class SqlTransform(ExternalTransform):
       self,
       query: typing.Optional[str] = None,
       dialect: typing.Optional[str] = None,
-      expansion_service: typing.Optional[typing.Union[str, BeamJarExpansionService]] = None,
+      expansion_service: typing.Optional[typing.Union[
+          str, BeamJarExpansionService]] = None,
       sql_transform_schema: typing.Optional[typing.NamedTuple] = None,
   ):
     """Creates a SqlTransform which will be expanded to Java's SqlTransform.
