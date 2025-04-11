@@ -52,6 +52,7 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.typehints import trivial_inference
+from apache_beam.utils.interactive_utils import is_in_ipython
 
 __all__ = ['BundleBasedDirectRunner', 'DirectRunner', 'SwitchingDirectRunner']
 
@@ -114,7 +115,11 @@ class SwitchingDirectRunner(PipelineRunner):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
       def accept(self, pipeline):
         self.supported_by_prism_runner = True
-        pipeline.visit(self)
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently does not support interactive mode
+        if is_in_ipython():
+          self.supported_by_prism_runner = False
+        else:
+          pipeline.visit(self)
         return self.supported_by_prism_runner
 
       def visit_transform(self, applied_ptransform):
@@ -141,7 +146,34 @@ class SwitchingDirectRunner(PipelineRunner):
               if timer.time_domain == TimeDomain.REAL_TIME:
                 self.supported_by_prism_runner = False
 
-    tryingPrism = False
+    # Use BundleBasedDirectRunner if other runners are missing needed features.
+    runner = BundleBasedDirectRunner()
+
+    # Check whether all transforms used in the pipeline are supported by the
+    # PrismRunner
+    if _PrismRunnerSupportVisitor().accept(pipeline):
+      _LOGGER.info('Running pipeline with PrismRunner.')
+      from apache_beam.runners.portability import prism_runner
+      runner = prism_runner.PrismRunner()
+
+      try:
+        pr = runner.run_pipeline(pipeline, options)
+        # This is non-blocking, so if the state is *already* finished, something
+        # probably failed on job submission.
+        if pr.state.is_terminal() and pr.state != PipelineState.DONE:
+          _LOGGER.info(
+              'Pipeline failed on PrismRunner, falling back to DirectRunner.')
+          runner = BundleBasedDirectRunner()
+        else:
+          return pr
+      except Exception as e:
+        # If prism fails in Preparing the portable job, then the PortableRunner
+        # code raises an exception. Catch it, log it, and use the Direct runner
+        # instead.
+        _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
+        _LOGGER.info('Falling back to DirectRunner')
+        runner = BundleBasedDirectRunner()
+  
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
@@ -154,32 +186,6 @@ class SwitchingDirectRunner(PipelineRunner):
           beam_provision_api_pb2.ProvisionInfo(
               pipeline_options=encoded_options))
       runner = fn_runner.FnApiRunner(provision_info=provision_info)
-    elif _PrismRunnerSupportVisitor().accept(pipeline):
-      _LOGGER.info('Running pipeline with PrismRunner.')
-      from apache_beam.runners.portability import prism_runner
-      runner = prism_runner.PrismRunner()
-      tryingPrism = True
-    else:
-      runner = BundleBasedDirectRunner()
-
-    if tryingPrism:
-      try:
-        pr = runner.run_pipeline(pipeline, options)
-        # This is non-blocking, so if the state is *already* finished, something
-        # probably failed on job submission.
-        if pr.state.is_terminal() and pr.state != PipelineState.DONE:
-          _LOGGER.info(
-              'Pipeline failed on PrismRunner, falling back toDirectRunner.')
-          runner = BundleBasedDirectRunner()
-        else:
-          return pr
-      except Exception as e:
-        # If prism fails in Preparing the portable job, then the PortableRunner
-        # code raises an exception. Catch it, log it, and use the Direct runner
-        # instead.
-        _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
-        _LOGGER.info('Falling back to DirectRunner')
-        runner = BundleBasedDirectRunner()
 
     return runner.run_pipeline(pipeline, options)
 
