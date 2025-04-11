@@ -146,7 +146,6 @@ class SwitchingDirectRunner(PipelineRunner):
               if timer.time_domain == TimeDomain.REAL_TIME:
                 self.supported_by_prism_runner = False
 
-    tryingPrism = False
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _PrismRunnerSupportVisitor().accept(pipeline):
