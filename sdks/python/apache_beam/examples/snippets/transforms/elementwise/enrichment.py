@@ -50,6 +50,7 @@ def enrichment_with_bigtable():
         | "Print" >> beam.Map(print))
   # [END enrichment_with_bigtable]
 
+
 def enrichment_with_cloudsql():
   # [START enrichment_with_cloudsql]
   import apache_beam as beam
@@ -57,14 +58,14 @@ def enrichment_with_cloudsql():
   from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler, DatabaseTypeAdapter
   import os
 
-  project_id = 'apache-beam-testing'
-  region_id = 'us-east1'
-  instance_id = 'beam-test'
-  table_id = 'cloudsql-enrichment-test'
-  database_id = 'test-database'
-  database_user = os.getenv("BEAM_TEST_CLOUDSQL_PG_USER")
-  database_password = os.getenv("BEAM_TEST_CLOUDSQL_PG_PASSWORD")
-  row_key = 'product_id'
+  database_type_adapter = DatabaseTypeAdapter.POSTGRESQL
+  database_address = "10.0.0.42:5432"
+  database_user = "test"
+  database_password = os.getenv("DB_PASSWORD")
+  database_id = "test"
+  table_id = "products"
+  where_clause_template = "product_id = {}"
+  where_clause_fields = ["id"]
 
   data = [
       beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
@@ -73,16 +74,14 @@ def enrichment_with_cloudsql():
   ]
 
   cloudsql_handler = CloudSQLEnrichmentHandler(
-      project_id=project_id,
-      region_id=region_id,
-      instance_id=instance_id,
-      table_id=table_id,
-      database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-      database_id=database_id,
+      database_type_adapter=database_type_adapter,
+      database_address=database_address,
       database_user=database_user,
       database_password=database_password,
-      row_key=row_key
-  )
+      database_id=database_id,
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
   with beam.Pipeline() as p:
     _ = (
         p
@@ -90,6 +89,7 @@ def enrichment_with_cloudsql():
         | "Enrich W/ CloudSQL" >> Enrichment(cloudsql_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_cloudsql]
+
 
 def enrichment_with_vertex_ai():
   # [START enrichment_with_vertex_ai]
