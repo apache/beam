@@ -20,9 +20,12 @@ from parameterized import parameterized
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler, DatabaseTypeAdapter
-  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import where_clause_value_fn
-  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import query_fn
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler, DatabaseTypeAdapter)
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
+      query_fn,
+      where_clause_value_fn,
+  )
 except ImportError:
   raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
 

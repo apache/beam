@@ -55,22 +55,23 @@ def enrichment_with_cloudsql():
   # [START enrichment_with_cloudsql]
   import apache_beam as beam
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler, DatabaseTypeAdapter
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler, DatabaseTypeAdapter)
   import os
 
-  database_type_adapter = DatabaseTypeAdapter.POSTGRESQL
-  database_address = "10.0.0.42:5432"
-  database_user = "test"
-  database_password = os.getenv("DB_PASSWORD")
-  database_id = "test"
-  table_id = "products"
+  database_type_adapter = DatabaseTypeAdapter[os.environ.get("SQL_DB_TYPE")]
+  database_address = os.environ.get("SQL_DB_ADDRESS")
+  database_user = os.environ.get("SQL_DB_USER")
+  database_password = os.environ.get("SQL_DB_PASSWORD")
+  database_id = os.environ.get("SQL_DB_ID")
+  table_id = os.environ.get("SQL_TABLE_ID")
   where_clause_template = "product_id = {}"
-  where_clause_fields = ["id"]
+  where_clause_fields = ["product_id"]
 
   data = [
-      beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
-      beam.Row(sale_id=3, customer_id=3, product_id=2, quantity=3),
-      beam.Row(sale_id=5, customer_id=5, product_id=4, quantity=2),
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
   ]
 
   cloudsql_handler = CloudSQLEnrichmentHandler(

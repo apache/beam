@@ -21,11 +21,11 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
+from sqlalchemy import text
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
-from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
 
 QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
@@ -44,8 +44,8 @@ def _validate_cloudsql_metadata(
             where_clause_value_fn]):
       raise ValueError(
           "Please provide either `query_fn` or the parameters `table_id`, "
-          "`where_clause_template`, and `where_clause_fields/where_clause_value_fn` "
-          "together.")
+          "`where_clause_template`, and "
+          "`where_clause_fields/where_clause_value_fn` together.")
   else:
     if not (table_id and where_clause_template):
       raise ValueError(
@@ -147,24 +147,25 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       where_clause_template (str): A template string for the `WHERE` clause
         in the SQL query with placeholders (`{}`) for dynamic filtering
         based on input data.
-      where_clause_fields (Optional[list[str]]): List of field names from the input
-        `beam.Row` used to construct the `WHERE` clause if `where_clause_value_fn`
-        is not provided.
+      where_clause_fields (Optional[list[str]]): List of field names from the
+        input `beam.Row` used to construct the `WHERE` clause if
+        `where_clause_value_fn` is not provided.
       where_clause_value_fn (Optional[Callable[[beam.Row], Any]]): Function that
         takes a `beam.Row` and returns a list of values to populate the
         placeholders `{}` in the `WHERE` clause.
       query_fn (Optional[Callable[[beam.Row], str]]): Function that takes a
         `beam.Row` and returns a complete SQL query string.
-      column_names (Optional[list[str]]): List of column names to select from the
-        Cloud SQL table. If not provided, all columns (`*`) are selected.
+      column_names (Optional[list[str]]): List of column names to select from
+        the Cloud SQL table. If not provided, all columns (`*`) are selected.
       min_batch_size (int): Minimum number of rows to batch together when
         querying the database. Defaults to 1 if `query_fn` is not used.
       max_batch_size (int): Maximum number of rows to batch together. Defaults
         to 10,000 if `query_fn` is not used.
-      **kwargs: Additional keyword arguments for database connection or query handling.
+      **kwargs: Additional keyword arguments for database connection or query
+        handling.
 
     Note:
-      * `min_batch_size` and `max_batch_size` cannot be used if `query_fn` is provided.
+      * Cannot use `min_batch_size` or `max_batch_size` with `query_fn`.
       * Either `where_clause_fields` or `where_clause_value_fn` must be provided
         for query construction if `query_fn` is not provided.
       * Ensure that the database user has the necessary permissions to query the
@@ -183,11 +184,15 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._database_address = database_address
     self._table_id = table_id
     self._where_clause_template = where_clause_template
-    self._where_clause_fields = where_clause_fields
     self._where_clause_value_fn = where_clause_value_fn
     self._query_fn = query_fn
+    fields = where_clause_fields if where_clause_fields else []
+    self._where_clause_fields = fields
     self._column_names = ",".join(column_names) if column_names else "*"
-    self.query_template = f"SELECT {self._column_names} FROM {self._table_id} WHERE {self._where_clause_template}"
+    self.query_template = (
+        f"SELECT {self._column_names} "
+        f"FROM {self._table_id} "
+        f"WHERE {self._where_clause_template}")
     self.kwargs = kwargs
     self._batching_kwargs = {}
     if not query_fn:
@@ -201,8 +206,10 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def _get_db_url(self) -> str:
     dialect = self._database_type_adapter.to_sqlalchemy_dialect()
-    string = f"{dialect}://{self._database_user}:{self._database_password}@{self._database_address}/{self._database_id}"
-    return string
+    url = (
+        f"{dialect}://{self._database_user}:{self._database_password}"
+        f"@{self._database_address}/{self._database_id}")
+    return url
 
   def _execute_query(self, query: str, is_batch: bool, **params):
     try:

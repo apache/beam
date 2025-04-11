@@ -18,16 +18,22 @@
 # pytype: skip-file
 # pylint: disable=line-too-long
 
+import os
 import unittest
 from io import StringIO
 
 import mock
+import pytest
 
 # pylint: disable=unused-import
 try:
-  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable, \
-  enrichment_with_vertex_ai_legacy
-  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_vertex_ai
+  from sqlalchemy import Column, Integer, String, Engine
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
+      enrichment_with_bigtable, enrichment_with_vertex_ai_legacy)
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
+      enrichment_with_vertex_ai, enrichment_with_cloudsql)
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
+      CloudSQLEnrichmentTestHelper, SQLDBContainerInfo)
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -44,9 +50,9 @@ Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '
 
 def validate_enrichment_with_cloudsql():
   expected = '''[START enrichment_with_cloudsql]
-Row(sale_id=1, customer_id=1, product_id=1, quantity=1, product={'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'})
-Row(sale_id=3, customer_id=3, product_id=2, quantity=3, product={'product_id': '2', 'product_name': 'pixel 6', 'product_stock': '4'})
-Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '4', 'product_name': 'pixel 8', 'product_stock': '10'})
+Row(product_id=1, name='A', quantity=2, region_id=3)
+Row(product_id=2, name='B', quantity=3, region_id=1)
+Row(product_id=3, name='C', quantity=10, region_id=4)
   [END enrichment_with_cloudsql]'''.splitlines()[1:-1]
   return expected
 
@@ -70,6 +76,7 @@ Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
 
 
 @mock.patch('sys.stdout', new_callable=StringIO)
+@pytest.mark.uses_testcontainer
 class EnrichmentTest(unittest.TestCase):
   def test_enrichment_with_bigtable(self, mock_stdout):
     enrichment_with_bigtable()
@@ -78,11 +85,18 @@ class EnrichmentTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
   def test_enrichment_with_cloudsql(self, mock_stdout):
-    from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_cloudsql
-    enrichment_with_cloudsql()
-    output = mock_stdout.getvalue().splitlines()
-    expected = validate_enrichment_with_cloudsql()
-    self.assertEqual(output, expected)
+    db, engine = None, None
+    try:
+      db, engine = self.pre_cloudsql_enrichment_test()
+      enrichment_with_cloudsql()
+      output = mock_stdout.getvalue().splitlines()
+      expected = validate_enrichment_with_cloudsql()
+      self.assertEqual(output, expected)
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
+    finally:
+      if db and engine:
+        self.post_cloudsql_enrichment_test(db, engine)
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
@@ -98,6 +112,51 @@ class EnrichmentTest(unittest.TestCase):
     expected = validate_enrichment_with_vertex_ai_legacy()
     self.maxDiff = None
     self.assertEqual(output, expected)
+
+  def pre_cloudsql_enrichment_test(self):
+    columns = [
+        Column("product_id", Integer, primary_key=True),
+        Column("name", String, nullable=False),
+        Column("quantity", Integer, nullable=False),
+        Column("region_id", Integer, nullable=False),
+    ]
+    table_data = [
+        {
+            "product_id": 1, "name": "A", 'quantity': 2, 'region_id': 3
+        },
+        {
+            "product_id": 2, "name": "B", 'quantity': 3, 'region_id': 1
+        },
+        {
+            "product_id": 3, "name": "C", 'quantity': 10, 'region_id': 4
+        },
+    ]
+    db = CloudSQLEnrichmentTestHelper.start_sql_db_container()
+    os.environ['SQL_DB_TYPE'] = db.adapter.name
+    os.environ['SQL_DB_ADDRESS'] = db.address
+    os.environ['SQL_DB_USER'] = db.user
+    os.environ['SQL_DB_PASSWORD'] = db.password
+    os.environ['SQL_DB_ID'] = db.id
+    os.environ['SQL_DB_URL'] = db.url
+    os.environ['SQL_TABLE_ID'] = "products"
+    engine = CloudSQLEnrichmentTestHelper.create_table(
+        table_id=os.environ.get("SQL_TABLE_ID"),
+        db_url=os.environ.get("SQL_DB_URL"),
+        columns=columns,
+        table_data=table_data)
+    return db, engine
+
+  def post_cloudsql_enrichment_test(
+      self, db: SQLDBContainerInfo, engine: Engine):
+    engine.dispose(close=True)
+    CloudSQLEnrichmentTestHelper.stop_sql_db_container(db.container)
+    os.environ.pop('SQL_DB_TYPE', None)
+    os.environ.pop('SQL_DB_ADDRESS', None)
+    os.environ.pop('SQL_DB_USER', None)
+    os.environ.pop('SQL_DB_PASSWORD', None)
+    os.environ.pop('SQL_DB_ID', None)
+    os.environ.pop('SQL_DB_URL', None)
+    os.environ.pop('SQL_TABLE_ID', None)
 
 
 if __name__ == '__main__':
