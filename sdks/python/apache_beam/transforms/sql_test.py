@@ -211,6 +211,9 @@ class SqlTransformTest(unittest.TestCase):
 
   def test_sql_transform_schema_parameter(self):
     # Test DDL
+    custom_schema = typing.NamedTuple(
+        'SqlTransformSchema', [('query', str), ('ddl', str)])
+
     with TestPipeline() as p:
       input_data = [
           beam.Row(id=1, name='Alice'),
@@ -227,9 +230,8 @@ class SqlTransformTest(unittest.TestCase):
       """
       query_statement_pcoll = "SELECT id, name FROM PCOLLECTION WHERE id > 1"
 
-      schema = typing.NamedTuple(
-          'SqlTransformSchema', [('query', query_statement_pcoll),
-                                 ('ddl', ddl_statement_pcoll)])
+      schema = custom_schema(
+          query=query_statement_pcoll, ddl=ddl_statement_pcoll)
 
       out = (
           p | beam.Create(input_data)
