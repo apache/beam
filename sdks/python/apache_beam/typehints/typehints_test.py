@@ -21,6 +21,7 @@
 
 import collections.abc
 import functools
+import re
 import sys
 import typing
 import unittest
@@ -1218,6 +1219,35 @@ class GeneratorHintTestCase(TypeHintTestCase):
         "of type <class \'int\'>. Instead received a iterator of type "
         "str.",
         e.exception.args[0])
+
+
+class RegexTestCase(TypeHintTestCase):
+  def test_pattern(self):
+    self.assertCompatible(re.Pattern, re.Pattern)
+    self.assertCompatible(re.Pattern, re.Pattern[str])
+    self.assertCompatible(re.Pattern, re.Pattern[bytes])
+    self.assertCompatible(re.Pattern[str], re.Pattern[str])
+    self.assertCompatible(re.Pattern[bytes], re.Pattern[bytes])
+    self.assertNotCompatible(re.Pattern[str], re.Pattern)
+    self.assertNotCompatible(re.Pattern[bytes], re.Pattern)
+    self.assertNotCompatible(re.Pattern[str], re.Pattern[bytes])
+    self.assertNotCompatible(re.Pattern[bytes], re.Pattern[str])
+
+  def test_match(self):
+    self.assertCompatible(re.Match, re.Match)
+    self.assertCompatible(re.Match, re.Match[str])
+    self.assertCompatible(re.Match, re.Match[bytes])
+    self.assertCompatible(re.Match[str], re.Match[str])
+    self.assertCompatible(re.Match[bytes], re.Match[bytes])
+    self.assertNotCompatible(re.Match[str], re.Match)
+    self.assertNotCompatible(re.Match[bytes], re.Match)
+    self.assertNotCompatible(re.Match[str], re.Match[bytes])
+    self.assertNotCompatible(re.Match[bytes], re.Match[str])
+
+  def test_mix_fails(self):
+    self.assertNotCompatible(re.Pattern, re.Match)
+    self.assertNotCompatible(re.Match, re.Pattern)
+    self.assertNotCompatible(re.Pattern[str], re.Match[str])
 
 
 class TakesDecoratorTestCase(TypeHintTestCase):

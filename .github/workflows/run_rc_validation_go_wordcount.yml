@@ -38,10 +38,11 @@ env:
   GCP_PROJECT_ID: apache-beam-testing
   GCP_REGION: us-central1
   GCS_TEMP_LOCATION: gs://rc-validation-migration-tests/temp/
+  GCS_STAGING_LOCATION: gs://rc-validation-migration-tests/staging/
   GCS_INPUT_PATH: gs://apache-beam-samples/shakespeare/kinglear.txt
 
 jobs:
-  setup:
+  validate-rc-package:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -52,43 +53,33 @@ jobs:
         with:
           go-version: default
 
-      - name: Fetch Go SDK RC and Tidy Modules
-        working-directory: ./sdks/go/examples/wordcount
+      - name: Setup Go Module and Fetch RC
+        id: setup_go
         run: |
-          go get -d github.com/apache/beam/sdks/v2@${{ github.event.inputs.rc_tag }}
+          TEMP_DIR="go-rc-test-${{ github.run_id }}"
+          mkdir $TEMP_DIR
+          wget -O $TEMP_DIR/wordcount.go https://raw.githubusercontent.com/apache/beam/refs/heads/master/sdks/go/examples/wordcount/wordcount.go
+          cd $TEMP_DIR
+          go mod init rc-test
+          go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ github.event.inputs.rc_tag }}
           go mod tidy
+          echo "work_dir=$TEMP_DIR" >> $GITHUB_OUTPUT # Output relative path
 
-
-  validate-go-rc-prism:
-    needs: setup
-    runs-on: self-hosted # Changed to self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up environment
-        uses: ./.github/actions/setup-environment-action
-        with:
-          go-version: default
-
-
-      # Assuming gcloud/gsutil is available and authenticated on the self-hosted runner
+      # --- Prism Steps ---
       - name: Download Input File from GCS (Prism)
-        working-directory: ./sdks/go/examples/wordcount
+        working-directory: ./${{ steps.setup_go.outputs.work_dir }}
         run: gsutil cp ${{ env.GCS_INPUT_PATH }} ./kinglear.txt
 
       - name: Run Go WordCount with PrismRunner
-        working-directory: ./sdks/go/examples/wordcount
+        working-directory: ./${{ steps.setup_go.outputs.work_dir }}
         run: |
           go run wordcount.go \
             --input ./kinglear.txt \
             --output ./output_prism.txt \
-            --runner=PrismRunner \
-            --environment_type=DOCKER \
-            --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
+            --runner=PrismRunner
 
-      - name: Check output file
-        working-directory: ./sdks/go/examples/wordcount
+      - name: Check Prism output file
+        working-directory: ./${{ steps.setup_go.outputs.work_dir }}
         run: |
           echo "--- PrismRunner WordCount Output ---"
           cat output_prism.txt* # Output might be sharded
@@ -101,22 +92,9 @@ jobs:
              exit 1
           fi
 
-  validate-go-rc-dataflow:
-    needs: setup
-    runs-on: self-hosted # Changed to self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up environment
-        uses: ./.github/actions/setup-environment-action
-        with:
-          go-version: default
-
-
-      # Assuming gcloud is available and authenticated on the self-hosted runner
+      # --- Dataflow Steps ---
       - name: Run Go WordCount with DataflowRunner
-        working-directory: ./sdks/go/examples/wordcount
+        working-directory: ./${{ steps.setup_go.outputs.work_dir }}
         env:
           # Define output path based on constant prefix and RC tag for uniqueness
           GCS_OUTPUT_PATH: ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output
@@ -129,11 +107,31 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --region=${{ env.GCP_REGION }} \
             --temp_location=${{ env.GCS_TEMP_LOCATION }} \
+            --staging_location=${{ env.GCS_STAGING_LOCATION }} \
             --environment_type=DOCKER \
             --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
 
-      # Note: Checking Dataflow output requires gcloud storage commands and depends on job completion.
-      # This basic workflow focuses on submission. A more robust check would poll the job status
-      # and then verify GCS output, which is significantly more complex.
-      - name: Log Dataflow Job Submission Info
-        run: echo "Dataflow job submitted. Check GCP console (project ${{ env.GCP_PROJECT_ID }}) for status and output at ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output"
+      - name: Check Dataflow Output in GCS
+        working-directory: ./${{ steps.setup_go.outputs.work_dir }} # Added working directory for consistency, though not strictly needed for gsutil
+        env:
+          # Re-define the output path pattern for checking
+          GCS_OUTPUT_PATH_PATTERN: ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output*
+        run: |
+          echo "Checking for Dataflow output files in GCS at: $GCS_OUTPUT_PATH_PATTERN"
+          # Use gsutil stat. The -q flag suppresses errors for non-existent files,
+          # allowing us to check the exit code. Exit code 0 means found, 1 means not found.
+          if gsutil -q stat $GCS_OUTPUT_PATH_PATTERN; then
+            echo "Output files found in GCS."
+            FILE_COUNT=$(gsutil ls $GCS_OUTPUT_PATH_PATTERN | wc -l)
+            if [ "$FILE_COUNT" -gt 0 ]; then echo "Found $FILE_COUNT output file(s)."; else echo "Error: Output path exists but contains no files."; exit 1; fi
+          else
+            echo "Error: Output files not found in GCS at $GCS_OUTPUT_PATH_PATTERN"
+            exit 1
+          fi
+
+      - name: Cleanup Temporary Directory
+        if: always() # Ensure cleanup runs even if previous steps fail
+        working-directory: ./ # Run from the root workspace dir
+        run: |
+          echo "Cleaning up temporary directory: ${{ steps.setup_go.outputs.work_dir }}"
+          rm -rf ${{ steps.setup_go.outputs.work_dir }}
