@@ -22,32 +22,6 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
-# TODO(yaml): Tests are assuming python providers are before java ones, hence 
-# the order below.  This should be fixed in the future.
-
-# Python Providers
-- type: python
-  transforms:
-    'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
-    # Disable until https://github.com/apache/beam/issues/28162 is resolved.
-    # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
-    'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
-    'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
-    'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
-    'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
-    'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
-    'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
-    'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
-    'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
-
-# BeamJar Providers
-- type: beamJar
-  transforms:
-    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
-    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
-  config:
-    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
-
 # BigQuery
 - type: renaming
   transforms:
@@ -149,6 +123,24 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# TODO(yaml): Tests are assuming python providers are before java ones, hence 
+# the order below.  This should be fixed in the future.
+
+# Python Providers
+- type: python
+  transforms:
+    'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
+    # Disable until https://github.com/apache/beam/issues/28162 is resolved.
+    # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+    'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
+    'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
+    'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
+    'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
+    'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
+    'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
+    'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
+    'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
+
 # General File Formats
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java
@@ -202,6 +194,14 @@
         'WriteToParquet': 'apache_beam.io.WriteToParquet'
         'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
         'WriteToAvro': 'apache_beam.io.WriteToAvro'
+
+# BeamJar Providers
+- type: beamJar
+  transforms:
+    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
+    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
 # Databases
 - type: renaming
