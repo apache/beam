@@ -37,6 +37,8 @@ dependencies {
   provided library.java.vendored_grpc_1_69_0
   provided library.java.vendored_guava_32_1_2_jre
 
+  provided library.java.otel_api
+
   provided library.java.jamm
 }
 
