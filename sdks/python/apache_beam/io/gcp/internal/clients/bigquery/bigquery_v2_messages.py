@@ -935,12 +935,29 @@ class BigqueryTablesGetRequest(_messages.Message):
     selectedFields: List of fields to return (comma-separated). If
       unspecified, all fields are returned
     tableId: Table ID of the requested table
+    view: table information parameter
   """
 
   datasetId = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
   selectedFields = _messages.StringField(3)
   tableId = _messages.StringField(4, required=True)
+  view = _messages.EnumField('ViewValueValuesEnum', 5, default='BASIC')
+  # @@protoc_insertion_point(class_scope:google.cloud.bigquery_v2.BigqueryTablesGetRequest)
+  # @@protoc_insertion_point(enum_scope:google.cloud.bigquery_v2.BigqueryTablesGetRequest.ViewValueValuesEnum)
+  class ViewValueValuesEnum(_messages.Enum):
+    r"""table information parameter
+
+    Values:
+    TABLE_METADATA_VIEW_UNSPECIFIED: The default value. Default to the STORAGE_STATS view.
+    BASIC: Includes basic table information, such as schema and partitioning specification. This view does not include storage statistics like `numRows` or `numBytes`. It is significantly more efficient and suitable for high query rates.
+    STORAGE_STATS: Includes all information from the BASIC view, along with additional storage statistics such as numBytes, numLongTermBytes, numRows, and lastModifiedTime.
+    FULL: Includes all table information, including storage statistics. It returns same information as STORAGE_STATS view, but may contain additional information in the future.
+    """
+    TABLE_METADATA_VIEW_UNSPECIFIED = 0
+    BASIC = 1
+    STORAGE_STATS = 2
+    FULL = 3
 
 
 class BigqueryTablesInsertRequest(_messages.Message):
