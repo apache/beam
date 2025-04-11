@@ -791,7 +791,7 @@ class BigQueryWrapper(object):
         projectId=project_id,
         datasetId=dataset_id,
         tableId=table_id,
-        view='BASIC')
+        view=view)
     response = self.client.tables.Get(request)
     return response
 
