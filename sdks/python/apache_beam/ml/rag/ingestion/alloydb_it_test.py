@@ -33,6 +33,7 @@ from apache_beam.coders import registry
 from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBConnectionConfig
+from apache_beam.ml.rag.ingestion.alloydb import AlloyDBLanguageConnectorConfig
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBVectorWriterConfig
 from apache_beam.ml.rag.ingestion.alloydb import ColumnSpec
 from apache_beam.ml.rag.ingestion.alloydb import ColumnSpecsBuilder
@@ -291,6 +292,93 @@ class AlloyDBVectorWriterConfigTest(unittest.TestCase):
               username=self.username,
               password=self.password,
               query=read_query))
+
+      count_result = rows | "Count All" >> beam.combiners.Count.Globally()
+      assert_that(count_result, equal_to([num_records]), label='count_check')
+
+      chunks = (rows | "To Chunks" >> beam.Map(row_to_chunk))
+      chunk_hashes = chunks | "Hash Chunks" >> beam.CombineGlobally(HashingFn())
+      assert_that(
+          chunk_hashes,
+          equal_to([generate_expected_hash(num_records)]),
+          label='hash_check')
+
+      # Sample validation
+      first_n = (
+          chunks
+          | "Key on Index" >> beam.Map(key_on_id)
+          | f"Get First {sample_size}" >> beam.transforms.combiners.Top.Of(
+              sample_size, key=lambda x: x[0], reverse=True)
+          | "Remove Keys 1" >> beam.Map(lambda xs: [x[1] for x in xs]))
+      expected_first_n = ChunkTestUtils.get_expected_values(0, sample_size)
+      assert_that(
+          first_n,
+          equal_to([expected_first_n]),
+          label=f"first_{sample_size}_check")
+
+      last_n = (
+          chunks
+          | "Key on Index 2" >> beam.Map(key_on_id)
+          | f"Get Last {sample_size}" >> beam.transforms.combiners.Top.Of(
+              sample_size, key=lambda x: x[0])
+          | "Remove Keys 2" >> beam.Map(lambda xs: [x[1] for x in xs]))
+      expected_last_n = ChunkTestUtils.get_expected_values(
+          num_records - sample_size, num_records)[::-1]
+      assert_that(
+          last_n,
+          equal_to([expected_last_n]),
+          label=f"last_{sample_size}_check")
+
+  def test_language_connector(self):
+    """Test language connector."""
+    self.skip_if_dataflow_runner()
+
+    connector_options = AlloyDBLanguageConnectorConfig(
+        database_name=self.database,
+        instance_name="projects/apache-beam-testing/locations/us-central1/\
+            clusters/testing-psc/instances/testing-psc-1",
+        ip_type="PSC")
+    connection_config = AlloyDBConnectionConfig.with_language_connector(
+        connector_options=connector_options,
+        username=self.username,
+        password=self.password)
+    config = AlloyDBVectorWriterConfig(
+        connection_config=connection_config, table_name=self.default_table_name)
+
+    # Create test chunks
+    num_records = 150
+    sample_size = min(500, num_records // 2)
+    chunks = ChunkTestUtils.get_expected_values(0, num_records)
+
+    self.write_test_pipeline.not_use_test_runner_api = True
+
+    with self.write_test_pipeline as p:
+      _ = (p | beam.Create(chunks) | config.create_write_transform())
+
+    self.read_test_pipeline.not_use_test_runner_api = True
+    read_query = f"""
+          SELECT 
+              CAST(id AS VARCHAR(255)),
+              CAST(content AS VARCHAR(255)),
+              CAST(embedding AS text),
+              CAST(metadata AS text)
+          FROM {self.default_table_name}
+          """
+
+    with self.read_test_pipeline as p:
+      rows = (
+          p
+          | ReadFromJdbc(
+              table_name=self.default_table_name,
+              driver_class_name="org.postgresql.Driver",
+              jdbc_url=connector_options.to_jdbc_url(),
+              username=self.username,
+              password=self.password,
+              query=read_query,
+              classpath=[
+                  "org.postgresql:postgresql:42.2.16",
+                  "com.google.cloud:alloydb-jdbc-connector:1.2.0"
+              ]))
 
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
       assert_that(count_result, equal_to([num_records]), label='count_check')

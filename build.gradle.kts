@@ -44,6 +44,7 @@ tasks.rat {
 
     "**/package-list",
     "**/test.avsc",
+    "**/logical-types.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
@@ -94,6 +95,10 @@ tasks.rat {
 
     // Ignore CPython LICENSE file
     "LICENSE.python",
+
+    // Ignore vendored cloudpickle files
+    "sdks/python/apache_beam/internal/cloudpickle/**",
+    "LICENCE.cloudpickle",
 
     // Json doesn't support comments.
     "**/*.json",
@@ -244,6 +249,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":beam-validate-runner:build")
   dependsOn(":examples:java:build")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:sql:build")
+  dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":examples:multi-language:build")
@@ -304,6 +311,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
+  dependsOn(":sdks:java:io:kafka:jmh:build")
   dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
@@ -374,7 +382,6 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
-  dependsOn(":sdks:java:extensions:sql:shell:build")
   dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
   dependsOn(":sdks:java:extensions:sql:udf:build")
   dependsOn(":sdks:java:extensions:sql:zetasql:build")

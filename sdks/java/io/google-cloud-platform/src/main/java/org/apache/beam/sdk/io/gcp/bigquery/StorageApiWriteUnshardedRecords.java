@@ -581,8 +581,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             appendClientInfo = getAppendClientInfo(true, null);
           }
           @Nullable TableRow unknownFields = payload.getUnknownFields();
-          if (unknownFields != null) {
+          if (unknownFields != null && !unknownFields.isEmpty()) {
             try {
+              // TODO(34145, radoslaws): concat will work for unknownFields that are primitive type,
+              //  will cause issues with nested and repeated fields
               payloadBytes =
                   payloadBytes.concat(
                       Preconditions.checkStateNotNull(appendClientInfo)

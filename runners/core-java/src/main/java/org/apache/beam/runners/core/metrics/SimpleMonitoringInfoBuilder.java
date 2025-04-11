@@ -24,6 +24,7 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Histogram;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -32,6 +33,7 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.sdk.util.HistogramData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -167,6 +169,15 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder setBoundedTrieValue(BoundedTrieData value) {
     this.builder.setPayload(encodeBoundedTrie(value));
     this.builder.setType(MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE);
+    return this;
+  }
+
+  /**
+   * Encodes the value and sets the type to {@link MonitoringInfoConstants.TypeUrns#HISTOGRAM_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setInt64HistogramValue(HistogramData data) {
+    this.builder.setPayload(encodeInt64Histogram(data));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE);
     return this;
   }
 

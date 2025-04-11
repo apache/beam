@@ -525,7 +525,9 @@ public class ProcessBundleHandler {
             boolean inputFinished =
                 bundleProcessor
                     .getInboundObserver()
-                    .multiplexElements(request.getProcessBundle().getElements());
+                    .multiplexElements(
+                        request.getProcessBundle().getElements().getDataList().iterator(),
+                        request.getProcessBundle().getElements().getTimersList().iterator());
             if (!inputFinished) {
               throw new RuntimeException(
                   "Elements embedded in ProcessBundleRequest do not contain stream terminators for "

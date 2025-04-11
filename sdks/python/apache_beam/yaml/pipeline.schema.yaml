@@ -27,6 +27,8 @@ $defs:
       name: { type: string }
       windowing:
         $ref: '#/$defs/windowing'
+      resource_hints:
+        $ref: '#/$defs/resource_hints'
       input:
         oneOf:
           - type: string
@@ -56,6 +58,7 @@ $defs:
           input: {}
           output: {}
           windowing: {}
+          resource_hints: {}
           transforms:
             type: array
             items:
@@ -127,12 +130,16 @@ $defs:
             input: {}
             output: {}
             windowing: {}
+            resource_hints: {}
             config: { type: object }
             __line__: {}
             __uuid__: {}
           additionalProperties: false
 
   windowing: {}  # TODO
+
+  resource_hints:
+    type: object
 
   provider:
     # TODO(robertwb): Consider enumerating the provider types along with
@@ -190,6 +197,8 @@ properties:
               - { const: chain }
           windowing:
             $ref: '#/$defs/windowing'
+          resource_hints:
+            $ref: '#/$defs/resource_hints'
           transforms: {}
           extra_transforms: {}
           sink: {}

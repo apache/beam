@@ -83,7 +83,7 @@ jobs:
       matrix:
         job_name: ["beam_PreCommit_Java_GCP_IO_Direct"]
         job_phrase: ["Run Java_GCP_IO_Direct PreCommit"]
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
