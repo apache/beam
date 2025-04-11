@@ -87,7 +87,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
@@ -243,10 +242,11 @@ public final class StreamingDataflowWorker {
     @Nullable ChannelzServlet channelzServlet = null;
     Consumer<PrintWriter> getDataStatusProvider;
     Supplier<Long> currentActiveCommitBytesProvider;
-
+    ChannelCache channelCache = null;
     if (options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled()) {
       // Direct path pipelines.
       WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
+      channelCache = createChannelCache(options, configFetcher);
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
               createJobHeader(options, clientId),
@@ -273,7 +273,7 @@ public final class StreamingDataflowWorker {
                                 processingContext,
                                 getWorkStreamLatencies);
                           }),
-              createFanOutStubFactory(options, configFetcher),
+              ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
               GetWorkBudgetDistributors.distributeEvenly(),
               Preconditions.checkNotNull(dispatcherClient),
               commitWorkStream ->
@@ -384,6 +384,7 @@ public final class StreamingDataflowWorker {
             .setChannelzServlet(channelzServlet)
             .setGetDataStatusProvider(getDataStatusProvider)
             .setCurrentActiveCommitBytes(currentActiveCommitBytesProvider)
+            .setChannelCache(channelCache)
             .build();
 
     LOG.debug("isDirectPathEnabled: {}", options.getIsWindmillServiceDirectPathEnabled());
@@ -620,7 +621,7 @@ public final class StreamingDataflowWorker {
         StreamingDataflowWorker.class.getSimpleName());
   }
 
-  private static ChannelCachingStubFactory createFanOutStubFactory(
+  private static ChannelCache createChannelCache(
       DataflowWorkerHarnessOptions workerOptions, ComputationConfig.Fetcher configFetcher) {
     ChannelCache channelCache =
         ChannelCache.create(
@@ -641,8 +642,7 @@ public final class StreamingDataflowWorker {
             config ->
                 channelCache.consumeFlowControlSettings(
                     config.userWorkerJobSettings().getFlowControlSettings()));
-
-    return ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
+    return channelCache;
   }
 
   @VisibleForTesting
