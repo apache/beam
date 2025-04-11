@@ -217,11 +217,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         "Requires Prism to support Custom Window Coders." +
         " https://github.com/apache/beam/issues/31921")
 
-  def test_pack_combiners(self):
-    raise unittest.SkipTest(
-        "Requires Prism to support coder:" +
-        " 'beam:coder:tuple:v1'. https://github.com/apache/beam/issues/32636")
-
   def test_metrics(self):
     super().test_metrics(check_bounded_trie=False)
 
