@@ -22,13 +22,8 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
-# BeamJar Providers
-- type: beamJar
-  transforms:
-    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
-    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
-  config:
-    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+# TODO(yaml): Tests are assuming python providers are before java ones, hence 
+# the order below.  This should be fixed in the future.
 
 # Python Providers
 - type: python
@@ -44,6 +39,14 @@
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
+
+# BeamJar Providers
+- type: beamJar
+  transforms:
+    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
+    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
 # BigQuery
 - type: renaming
