@@ -146,10 +146,11 @@ class SwitchingDirectRunner(PipelineRunner):
               if timer.time_domain == TimeDomain.REAL_TIME:
                 self.supported_by_prism_runner = False
 
+    # Use BundleBasedDirectRunner if other runners are missing needed features.
     runner = BundleBasedDirectRunner()
 
     # Check whether all transforms used in the pipeline are supported by the
-    # FnApiRunner, and the pipeline was not meant to be run as streaming.
+    # PrismRunner
     if _PrismRunnerSupportVisitor().accept(pipeline):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
@@ -173,6 +174,8 @@ class SwitchingDirectRunner(PipelineRunner):
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
   
+    # Check whether all transforms used in the pipeline are supported by the
+    # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
       from apache_beam.portability.api import beam_provision_api_pb2
       from apache_beam.runners.portability.fn_api_runner import fn_runner
