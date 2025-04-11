@@ -143,8 +143,8 @@ public class JdbcSchemaIOProviderTest {
             .withFieldValue("password", "")
             .withFieldValue("partitionColumn", "id")
             .withFieldValue("partitions", (short) 5)
-            .withFieldValue("longLowerBound", 0L)
-            .withFieldValue("longUpperBound", (long) EXPECTED_ROW_COUNT / 2)
+            .withFieldValue("lowerBound", 0L)
+            .withFieldValue("upperBound", (long) EXPECTED_ROW_COUNT / 2)
             .build();
 
     JdbcSchemaIOProvider.JdbcSchemaIO schemaIO =

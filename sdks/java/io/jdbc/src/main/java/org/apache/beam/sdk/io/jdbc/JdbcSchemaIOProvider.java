@@ -72,8 +72,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         // readQuery
         .addNullableField("partitionColumn", FieldType.STRING)
         .addNullableField("partitions", FieldType.INT16)
-        .addNullableField("longLowerBound", FieldType.INT64)
-        .addNullableField("longUpperBound", FieldType.INT64)
+        .addNullableField("lowerBound", FieldType.INT64)
+        .addNullableField("upperBound", FieldType.INT64)
         .addNullableField("maxConnections", FieldType.INT16)
         .addNullableField("driverJars", FieldType.STRING)
         .addNullableField("writeBatchSize", FieldType.INT64)
@@ -141,16 +141,16 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
               readRows = readRows.withNumPartitions(partitions);
             }
 
-            if (config.getSchema().hasField("longLowerBound")
-                && config.getSchema().hasField("longUpperBound")
-                && config.getInt64("longLowerBound") != null
-                && config.getInt64("longUpperBound") != null) {
+            if (config.getSchema().hasField("lowerBound")
+                && config.getSchema().hasField("upperBound")
+                && config.getInt64("lowerBound") != null
+                && config.getInt64("upperBound") != null) {
               readRows =
                   ((JdbcIO.ReadWithPartitions<Row, Long>) readRows)
                       .withLowerBound(
-                          Preconditions.checkStateNotNull(config.getInt64("longLowerBound")))
+                          Preconditions.checkStateNotNull(config.getInt64("lowerBound")))
                       .withUpperBound(
-                          Preconditions.checkStateNotNull(config.getInt64("longUpperBound")));
+                          Preconditions.checkStateNotNull(config.getInt64("upperBound")));
             }
 
             @Nullable Short fetchSize = config.getInt16("fetchSize");
