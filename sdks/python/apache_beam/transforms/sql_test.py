@@ -218,8 +218,7 @@ class SqlTransformTest(unittest.TestCase):
                  CAST('bar' AS VARCHAR) AS `str`,
                  CAST(1.618 AS DOUBLE) AS `flt`""",
         dialect=None,
-        ddl=None
-    )
+        ddl=None)
 
     with TestPipeline() as p:
       out = p | SqlTransform(sql_transform_schema=schema)
@@ -229,9 +228,7 @@ class SqlTransformTest(unittest.TestCase):
   def test_sql_transform_schema_parameter_with_warning(self):
     from apache_beam.transforms.sql import SqlTransformSchema
     schema = SqlTransformSchema(
-        query="SELECT CAST(3 AS INT) AS `id`",
-        dialect=None
-    )
+        query="SELECT CAST(3 AS INT) AS `id`", dialect=None)
 
     # Test that providing query/dialect alongside schema raises a warning
     # and that the schema takes precedence.
@@ -244,13 +241,12 @@ class SqlTransformTest(unittest.TestCase):
         )
         # Verify the output matches the query defined in the schema, not the
         # ignored query parameter.
-        assert_that(out, equal_to([(3,)]))
+        assert_that(out, equal_to([(3, )]))
 
     # Check that the warning message is as expected
     self.assertIn(
         "'query' and 'dialect' parameters are ignored", str(cm.warning))
-    self.assertIn(
-        "'sql_transform_schema' is provided", str(cm.warning))
+    self.assertIn("'sql_transform_schema' is provided", str(cm.warning))
 
 
 if __name__ == "__main__":

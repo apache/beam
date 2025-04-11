@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import collections.abc
-import inspect
 import typing
 import warnings
 
@@ -82,7 +81,7 @@ class SqlTransform(ExternalTransform):
       self,
       query: typing.Optional[str] = None,
       dialect: typing.Optional[str] = None,
-      expansion_service: typing.Optional[str] = None,
+      expansion_service: typing.Optional[typing.Union[str, BeamJarExpansionService]] = None,
       sql_transform_schema: typing.Optional[typing.NamedTuple] = None,
   ):
     """Creates a SqlTransform which will be expanded to Java's SqlTransform.
@@ -124,14 +123,9 @@ class SqlTransform(ExternalTransform):
 
       # Warn if query or dialect are also provided
       if query is not None or dialect is not None:
-        caller_frame = inspect.currentframe().f_back
-        caller_info = inspect.getframeinfo(caller_frame)
-        # TODO(BEAM-12900): Convert this to a warning category BeamDeprecationWarning
-        # once available.
         warnings.warn(
             f"'query' and 'dialect' parameters are ignored when "
-            f"'sql_transform_schema' is provided. Called from "
-            f"{caller_info.filename}:{caller_info.lineno}",
+            f"'sql_transform_schema' is provided. ",
             UserWarning)
 
     elif query is not None:
