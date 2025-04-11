@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform Language Modeling with Bert.
+"""A pipeline that uses RunInference to perform Language Modeling with Bert.
 
 This pipeline takes sentences from a custom text file, converts the last word
 of the sentence into a [MASK] token, and then uses the BertForMaskedLM from

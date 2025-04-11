@@ -43,6 +43,12 @@ writing to various Beam IOs.
 
 See the following pages for performance measures recorded when running various Beam ML pipelines.
 
+## Streaming
+
+- [PyTorch Sentiment Analysis DistilBERT base](/performance/pytorchbertsentiment)
+
+## Batch
+
 - [PyTorch Language Modeling BERT base](/performance/pytorchbertbase)
 - [PyTorch Language Modeling BERT large](/performance/pytorchbertlarge)
 - [PyTorch Vision Classification Resnet 101](/performance/pytorchresnet101)
