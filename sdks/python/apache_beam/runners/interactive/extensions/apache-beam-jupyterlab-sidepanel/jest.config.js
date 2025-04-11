@@ -28,5 +28,7 @@ module.exports = {
   // Use identity-obj-proxy to load css and less files in tests.
   "moduleNameMapper": {
     "\\.(css|less)$": "identity-obj-proxy"
-  }
+  },
+  "testEnvironment": "jsdom",
+  "setupFilesAfterEnv": ['<rootDir>/jest.setup.js']
 }

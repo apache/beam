@@ -129,5 +129,5 @@ export class InteractiveInspector extends React.Component<
     );
   }
 
-  private _updateSessionInfoTimerId: number;
+  private _updateSessionInfoTimerId: ReturnType<typeof setInterval>;
 }
