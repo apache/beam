@@ -453,8 +453,12 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
 
       assert_that(
           errors[BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
-          | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2])),
-          equal_to(bq_result_errors))
+          | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2]))
+          | 'ToList' >> beam.combiners.ToList()
+          | 'SortErrors' >> beam.Map(
+              lambda errs: sorted(errs, key=lambda x: x[0].get("number", 0))),
+          equal_to(
+              [sorted(bq_result_errors, key=lambda x: x[0].get("number", 0))]))
 
   @pytest.mark.it_postcommit
   def test_big_query_write_insert_non_transient_api_call_error(self):

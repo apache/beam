@@ -95,13 +95,13 @@ tasks.register("generateYamlDocs") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2"
+  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2 virtualenv-clone"
 
   doLast {
     exec {
       executable 'sh'
       args '-c', "${envdir}/bin/pip install $extraPackages && " +
-              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html --examples_file=${buildDir}/yaml-examples"
+              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html --examples_file=${buildDir}/yaml-examples.html"
     }
   }
   outputs.file "${buildDir}/yaml-ref.html"

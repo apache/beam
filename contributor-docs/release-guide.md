@@ -80,6 +80,42 @@ no vote requirements, and no timing requirements. A committer must be
 identified to be the Release Manager. In practice, most often a committer both
 proposes to release and volunteers themselves as Release Manager.
 
+Note: For any steps marked "<company> Internal", please request assistance from
+employees of that company via the `dev@` mailing list.
+This is best effort, and you should not block the release waiting on these steps.
+These steps are designed to help validate the release and allow owners to
+perform any runner-specific steps needed to release.
+
+**Template:**
+
+    From: Release Manager
+    To: dev@beam.apache.org
+    Subject: Beam 2.xx.0 Release
+
+    Hey everyone,
+
+    The next release (2.xx.0) branch cut is scheduled for MM DD, YYYY,  x weeks from today, according to the release calendar[1]. I'd like to perform this release; I will cut the branch on that date, and cherrypick release-blocking fixes afterwards, if any.
+
+    Please help with the release by:
+    Making sure that any unresolved release blocking issues have their "Milestone" marked as "2.xx.0 Release" as soon as possible.
+    Reviewing the current release blockers [2] and remove the Milestone if they don't meet the criteria at [3].
+
+    Let me know if you have any comments/objections/questions.
+
+    Thanks,
+
+    Release Manager
+
+    [1]
+    https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com
+
+    [2] https://github.com/apache/beam/milestone/xx
+
+    [3] https://beam.apache.org/contribute/release-blocking/
+
+- [ ] Regularly check [the health status of the GitHub workflows](https://github.com/apache/beam/blob/master/.github/workflows/README.md#workflows) before the release branch is cut.
+- [ ] [Google Internal] You have informed the Google internal groups about this incoming release.
+
 -------
 
 ### Create a new milestone in GitHub for the next release
@@ -200,6 +236,7 @@ The following must be manually done or confirmed:
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
+- [ ] [Google Internal] The Google internal updates have been performed.
 
 #### Inform the mailing list
 
@@ -208,6 +245,22 @@ Alongside with this note, a list of pending issues and to-be-triaged issues
 should be included.  Afterwards, this list can be refined and updated by the
 release manager and the Beam community.
 
+**Template:**
+
+    From: Release Manager
+    To: dev@beam.apache.org
+    Subject: 2.xx.0 Branch Cut
+
+    Hey everyone,
+
+    The Beam 2.xx.0 release branch has been cut! There are currently x open
+    issues on the milestone <https://github.com/apache/beam/milestone/xx>.
+
+    I will now start working on stabilizing the release branch (https://github.com/apache/beam/tree/release-2.xx) and work towards RC1.
+
+    Thanks,
+
+    Release Manager
 
 ### Checklist to proceed to the next phase
 
@@ -244,6 +297,8 @@ issues that would block the creation of the release candidate.
 - **Script:**
   [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
 
+Note: Only these variables need to be set in your local repository: RELEASE_VER, INSTALL_HUB, GITHUB_USERNAME, GITHUB_TOKEN.
+
 - **Usage**
     1. Create a personal access token from your Github account.
        See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
@@ -257,6 +312,8 @@ issues that would block the creation of the release candidate.
     4. Trigger all Github Action jobs from the PR created by the previous step.
        For GitHub Action jobs, they should be triggered by the pull_request_target event of a specific placeholder file
        added to the PR (`release/trigger_all_tests.json`), so no additional action should be needed.
+  **NOTE**
+  The GitHub Action jobs triggered by this script often run for several hours, and concurrency issues may cause some to fail. These, and any flaky tests, should be retried. Test failures related to unreleased container images (e.g., see https://github.com/apache/beam/pull/34381#issuecomment-2745245273) can be temporarily ignored, but these workflows must be revisited after the container images are released.
 
 - **Tasks included in the script**
    - Installs `hub` with your agreement and setup local git repo;
@@ -405,7 +462,6 @@ occur during voting phase).
 - [ ] There are no release blocking GitHub issues.
 - [ ] There are no open pull requests to release branch.
 - [ ] Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus.
-- [ ] Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`).
 - [ ] Have Java 11 installed.
 
 ### Tag a chosen commit for the RC
@@ -427,6 +483,28 @@ the repo, adjust the version, and add the tag locally. If it looks good, run it
 again with `--push-tag`.  If you already have a clone that includes the
 `${COMMIT_REF}` then you can omit `--clone`. This is perfectly safe since the
 script does not depend on the current working tree.
+
+For example,
+
+```bash
+export RELEASE_VERSION=2.64.0
+export COMMIT_REF=014e77d
+export RC_NUM=1
+# dry-run
+./release/src/main/scripts/choose_rc_commit.sh \
+      --release "${RELEASE_VERSION}" \
+      --rc "${RC_NUM}" \
+      --commit "${COMMIT_REF}" \
+      --clone
+
+# real run
+./release/src/main/scripts/choose_rc_commit.sh \
+      --release "${RELEASE_VERSION}" \
+      --rc "${RC_NUM}" \
+      --commit "${COMMIT_REF}" \
+      --clone \
+      --push-tag
+```
 
 See the source of the script for more details, or to run commands manually in
 case of a problem.
@@ -471,7 +549,7 @@ The following should be confirmed:
 ### Run build_release_candidate GitHub Action to create a release candidate
 
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
-and update the JSON configuration fields with "yes".
+and update all the JSON configuration fields with "yes" if it is the first time to run this workflow. It is safe to retry the failed workflows, e.g.,  “build_and_stage_prism”.
 
 **The action will:**
 
@@ -726,7 +804,8 @@ You can (optionally) also do additional verification by:
 - [ ] `grep` for legal headers in each file.
 - [ ] Run all jenkins suites and include links to passing tests in the voting
   email.
-- [ ] Pull docker images to make sure they are pullable. (e.g. `docker pull apache/beam_python3.7_sdk:2.39.0rc1`
+- [ ] Pull docker images to make sure they are pullable. (e.g. `docker pull apache/beam_python3.12_sdk:2.64.0rc2`)
+- [ ] [Google Internal] You have performed the internal Dataflow container release workflows (these take ~3 hours).
 
 **********
 
@@ -823,261 +902,23 @@ Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-In
 > downstream tests. It also includes double checking that our human-language
 > instructions actually still correspond to the automation that we have built.
 
-#### Run validations using run_rc_validation.sh
+#### Run validation workflows
 
-**Script:** [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
+- [ ] Java Quickstart Validation: https://github.com/apache/beam/actions/workflows/run_rc_validation_java_quickstart.yml
+- [ ] Java Mobile Gaming RC Validation (~60min): https://github.com/apache/beam/actions/workflows/run_rc_validation_java_mobile_gaming.yml
+- [ ] Python Mobile Gaming RC Validation (~90min): https://github.com/apache/beam/actions/workflows/run_rc_validation_python_mobile_gaming.yml
+- [ ] Go SDK Release Candidate Validation: https://github.com/apache/beam/actions/workflows/run_rc_validation_go_wordcount.yml
 
-**Usage**
-  1. First update required configurations listed in `RC_VALIDATE_CONFIGS` in
-     [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
-  2. Then run
-      ```
-      ./release/src/main/scripts/run_rc_validation.sh
-      ```
+### Checklist to proceed to the next phase
 
-**Note:** running the validations requires the ability to do the following in your GCP account: start pipelines,
-write to BigQuery, and create a cluster of machines for running containers (for x-lang validation).
-
-**Tasks included**
-  1. Create a PR to trigger Python validation job, including
-     * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
-     * Python Mobile Games(UserScore, HourlyTeamScore) with direct runner and Dataflow runner.
-  2. Run Python Streaming MobileGames, includes
-     * Start a new terminal to run Java Pubsub injector.
-     * Start a new terminal to run Python LeaderBoard with Direct Runner.
-     * Start a new terminal to run Python LeaderBoard with Dataflow Runner.
-     * Start a new terminal to run Python GameStats with Direct Runner.
-     * Start a new terminal to run Python GameStats with Dataflow Runner.
-  3. Multi-language pipelines validation, includes
-     * Running the Python quickstart example using Python portable DirectRunner. This will start a new terminal for the Java expansion service.
-     * Running the Java quickstart example using Python portable DirectRunner. This will start new terminals for the Python expansion service and the job server.
-     * Start a new terminal to run Python multi-language Java kafka validation with Dataflow Runner.
-     * Start a new terminal to run Python multi-language Java sql validation with Dataflow Runner.
-
-* **Tasks you need to do manually**.
-
-- [ ] Check whether validations succeed by following console output instructions.
-- [ ] Terminate streaming jobs and java injector.
-- [ ] Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on GitHub Actions.
-
-- Other manual validation will follow, but this will at least validate that the staged artifacts can be used.
+- [ ] Rerun all the previous tests that need the released containers
+- [ ] Validate that the staged artifacts can be used.
      * Go to https://github.com/apache/beam/actions/workflows/beam_PostRelease_NightlySnapshot.yml/.
      * Click "Run Workflow".
      * Set `RELEASE` to `2.xx.0`, and set `SNAPSHOT_URL` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
      * Click "Build".
 - [ ] Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
 - [ ] Vote in the release thread.
-
-#### Run validations manually
-
-> **Note**
-> `-Prepourl` and `-Pver` can be found in the RC vote email sent by Release Manager.
-
-* **Java Quickstart Validation**
-
-  **Direct Runner**
-  ```
-  ./gradlew :runners:direct-java:runQuickstartJavaDirect \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver=${RELEASE_VERSION}
-  ```
-  **Flink Local Runner**
-  ```
-  ./gradlew :runners:flink:1.19:runQuickstartJavaFlinkLocal \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver=${RELEASE_VERSION}
-  ```
-  **Spark Local Runner**
-  ```
-  ./gradlew :runners:spark:3:runQuickstartJavaSpark \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver=${RELEASE_VERSION}
-  ```
-  **Dataflow Runner**
-  ```
-  ./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver=${RELEASE_VERSION} \
-  -PgcpProject=${YOUR_GCP_PROJECT} \
-  -PgcsBucket=${YOUR_GCP_BUCKET}
-  ```
-* **Java Mobile Game(UserScore, HourlyTeamScore, Leaderboard)**
-
-  **Prerequisites**
-  * **Create your own BigQuery dataset**
-    ```
-    bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
-    ```
-  * **Create your PubSub topic**
-    ```
-    gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC}
-    ```
-  * **Setup your service account**
-
-    Goto IAM console in your project to create a service account as `project owner`, then run
-
-    ```
-    gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
-    export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
-    ```
-  **Run**
-  ```
-  ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-   -Pver=${RELEASE_VERSION} \
-   -PgcpProject=${YOUR_GCP_PROJECT} \
-   -PgcsBucket=${YOUR_GCP_BUCKET} \
-   -PbqDataset=${YOUR_DATASET} -PpubsubTopic=${YOUR_PROJECT_PUBSUB_TOPIC}
-  ```
-* **Python Quickstart(batch & streaming), MobileGame(UserScore, HourlyTeamScore)**
-
-  Create a new PR in apache/beam.
-
-  In comment area, type in `Run Python ReleaseCandidate` to trigger validation.
-
-* **Python Leaderboard & GameStats**
-  * **Get staging RC** `wget https://dist.apache.org/repos/dist/dev/beam/2.XX.0/* `
-  * **Verify the hashes**
-
-    ```
-    sha512sum -c apache_beam-2.XX.0-python.tar.gz.sha512
-    sha512sum -c apache_beam-2.XX.0-source-release.tar.gz.sha512
-    ```
-  * **Build SDK**
-
-    ```
-    sudo apt-get install unzip
-    unzip apache_beam-2.XX.0-source-release.tar.gz
-    python setup.py sdist
-    ```
-  * **Setup virtual environment**
-
-    ```
-    python3 -m venv beam_env
-    . ./beam_env/bin/activate
-    pip install --upgrade pip setuptools wheel
-    ```
-  * **Install SDK**
-
-    ```
-    pip install dist/apache_beam-2.XX.0.tar.gz
-    pip install dist/apache_beam-2.XX.0.tar.gz[gcp]
-    ```
-  * **Setup GCP**
-
-    Please repeat following steps for every following test.
-
-    ```
-    bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
-    bq mk --project_id=${YOUR_PROJECT} ${USER}_test
-    gsutil rm -rf ${YOUR_GS_STORAGE]
-    gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
-    gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
-    ```
-    Setup your service account as described in ```Java Mobile Game``` section above.
-
-  * **Produce data by using java injector:**
-
-    Configure your ~/.m2/settings.xml as following:
-    ```
-    <settings>
-      <profiles>
-        <profile>
-          <id>release-repo</id>
-          <activation>
-            <activeByDefault>true</activeByDefault>
-          </activation>
-          <repositories>
-            <repository>
-              <id>Release 2.4.0 RC3</id>
-              <name>Release 2.4.0 RC3</name>
-              <url>https://repository.apache.org/content/repositories/orgapachebeam-1031/</url>
-            </repository>
-          </repositories>
-        </profile>
-      </profiles>
-    </settings>
-    ```
-    __Note__: You can found the latest  ```id```, ```name``` and ```url``` for one RC in the vote email thread sent out by Release Manager.
-
-    Run
-    ```
-    mvn archetype:generate \
-          -DarchetypeGroupId=org.apache.beam \
-          -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-          -DarchetypeVersion=${RELEASE_VERSION} \
-          -DgroupId=org.example \
-          -DartifactId=word-count-beam \
-          -Dversion="0.1" \
-          -Dpackage=org.apache.beam.examples \
-          -DinteractiveMode=false
-          -DarchetypeCatalog=internal
-
-    mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
-      -Dexec.args="${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none"
-    ```
-  * **Run Leaderboard with Direct Runner**
-    ```
-    python -m apache_beam.examples.complete.game.leader_board \
-    --project=${YOUR_PROJECT} \
-    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
-    --dataset ${USER}_test
-    ```
-    Inspect results:
-    * Check whether there is any error messages in console.
-    * Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.
-    * bq head -n 10 ${USER}_test.leader_board_users
-    * bq head -n 10 ${USER}_test.leader_board_teams
-
-  * **Run Leaderboard with Dataflow Runner**
-    ```
-    python -m apache_beam.examples.complete.game.leader_board \
-    --project=${YOUR_PROJECT} \
-    --region=${GCE_REGION} \
-    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
-    --dataset ${USER}_test \
-    --runner DataflowRunner \
-    --temp_location=${YOUR_GS_BUCKET}/temp/ \
-    --sdk_location dist/*
-    ```
-    Inspect results:
-    * Goto your Dataflow job console and check whether there is any error.
-    * Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.
-    * bq head -n 10 ${USER}_test.leader_board_users
-    * bq head -n 10 ${USER}_test.leader_board_teams
-
-  * **Run GameStats with Direct Runner**
-    ```
-    python -m apache_beam.examples.complete.game.game_stats \
-    --project=${YOUR_PROJECT} \
-    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
-    --dataset ${USER}_test \
-    --fixed_window_duration ${SOME_SMALL_DURATION}
-    ```
-    Inspect results:
-    * Check whether there is any error messages in console.
-    * Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.
-    * bq head -n 10 ${USER}_test.game_stats_teams
-    * bq head -n 10 ${USER}_test.game_stats_sessions
-
-  * **Run GameStats with Dataflow Runner**
-    ```
-    python -m apache_beam.examples.complete.game.game_stats \
-    --project=${YOUR_PROJECT} \
-    --region=${GCE_REGION} \
-    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
-    --dataset ${USER}_test \
-    --runner DataflowRunner \
-    --temp_location=${YOUR_GS_BUCKET}/temp/ \
-    --sdk_location dist/* \
-    --fixed_window_duration ${SOME_SMALL_DURATION}
-    ```
-    Inspect results:
-    * Goto your Dataflow job console and check whether there is any error.
-    * Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.
-    * bq head -n 10 ${USER}_test.game_stats_teams
-    * bq head -n 10 ${USER}_test.game_stats_sessions
-
 
 ### Finalize the vote
 
@@ -1148,6 +989,10 @@ Merge all of the website pull requests
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
 
+Note: If API documentation updates are not reflected after 6 hours, it may be due to a large number of file changes.
+In this case, try making a trivial commit to the release-docs branch of the https://github.com/apache/beam-site repository.
+If the issue persists, create an infrastructure ticket for assistance (e.g., https://issues.apache.org/jira/browse/INFRA-26708).
+
 ### Publish the Github Release page
 
 Once the tag is uploaded, update the page with the final release tag, and publish the release notes to Github.
@@ -1199,6 +1044,10 @@ This should happen automatically: [dev@ thread](https://lists.apache.org/thread.
 
 Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to seed the information about the release into future project reports.
 
+#### Post on LinkedIn
+
+Add a short post on LinkedIn promoting the release.
+
 ### Checklist to proceed to the next step
 
 - [ ] Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
@@ -1223,15 +1072,64 @@ Announce on the dev@ mailing list that the release has been finished.
 
 Announce on the release on the user@ mailing list, listing major improvements and contributions.
 
-Announce the release on the announce@apache.org mailing list.
+**Template**
+
+    From: Release Manager
+    To: dev@beam.apache.org, user@beam.apache.org
+
+    Subject:  Beam 2.xx.0 Release
+
+    Hi,
+
+    I am happy to announce that Beam 2.xx.0 has been fully released. For
+    more information about the release, check out the release notes -
+    https://github.com/apache/beam/releases/tag/v2.xx.0.
+
+    Thanks,
+    Release Manager
+
+
+Announce the release on the announce@apache.org mailing list with highlights and the download page.
 __NOTE__: This can only be done from `@apache.org` email address. This email has to be in plain text (no HTML tags).
+
+**Example**
+
+    From: Release Manager
+    To: announce@apache.org
+
+    Subject:  Apache Beam 2.64.0 Released!
+
+    Hi everyone,
+
+    We are pleased to announce the release of Apache Beam version 2.64.0.
+
+    This release brings several improvements, new features, and important fixes.
+
+    You can download the release here: https://beam.apache.org/get-started/downloads/
+
+    Key Highlights:
+
+    Managed API: Now available for Java and Python, supporting key I/O connectors: Iceberg, Kafka, and BigQuery.
+    IcebergIO: Added a new CDC source for batch and streaming (Managed.ICEBERG_CDC).
+    Python: Support for custom coders in Reshuffle.
+    Java: Upgraded SLF4J (2.0.16) and default Spark version (3.5.0).
+
+
+    This release includes breaking changes, particularly for Python Reshuffle type hints and Java SparkReceiver users. Please review the full release notes carefully.
+
+    For detailed information on all changes, improvements, breaking changes, and bug fixes, please see the full release notes:
+    https://github.com/apache/beam/releases/tag/v2.64.0
+
+    Thank you to everyone who contributed to this release!
+
+    Best regards,
+
+    The Apache Beam Team
+
 
 ### Social media
 
-Tweet, post on Facebook, LinkedIn, and other platforms.
-Ask other contributors to do the same.
-
-Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
+Update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
 
 ### Checklist to declare the process completed
 
@@ -1351,6 +1249,12 @@ https://github.com/apache/beam/blob/master/playground/terraform/infrastructure/c
     1. Click on the trigger name to open its settings
     2. Set the value for the _BEAM_VERSION variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g., 2.47.0)
     3. Click the Save button. Click the Save button. The settings window should close without any errors
+
+### [Google Internal] Post release tasks for Dataflow
+
+- [ ] Dataflow Notebooks
+- [ ] Dataflow Templates
+- [ ] Dataflow Managed IO
 
 ### Improve the process
 

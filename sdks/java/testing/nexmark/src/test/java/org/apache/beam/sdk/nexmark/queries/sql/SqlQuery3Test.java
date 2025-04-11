@@ -107,14 +107,6 @@ public class SqlQuery3Test {
     }
   }
 
-  @RunWith(JUnit4.class)
-  public static class SqlQuery3TestZetaSql extends SqlQuery3TestCases {
-    @Override
-    protected SqlQuery3 getQuery(NexmarkConfiguration configuration) {
-      return SqlQuery3.calciteSqlQuery3(configuration);
-    }
-  }
-
   private static Person newPerson(long id, String state) {
     return new Person(
         id,

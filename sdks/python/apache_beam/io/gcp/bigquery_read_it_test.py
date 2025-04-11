@@ -158,6 +158,8 @@ class ReadTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
@@ -395,6 +397,8 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
@@ -656,6 +660,8 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     row_data = {
         'float': 0.33,
         'numeric': Decimal('10'),
@@ -760,8 +766,8 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     cls.table_name2 = 'python_rd_table_2'
     cls.table_schema2 = cls.create_table(
         cls.table_name2, cls.TABLE_DATA_2, cls.SCHEMA_BQ)
-    table_id2 = '{}.{}'.format(cls.dataset_id, cls.table_name2)
-    cls.query2 = 'SELECT number, str FROM %s' % table_id2
+    cls.query2 = 'SELECT number, str FROM [%s:%s.%s]' % (
+        cls.project, cls.dataset_id, cls.table_name2)
 
     cls.table_name3 = 'python_rd_table_3'
     cls.table_schema3 = cls.create_table(
@@ -779,6 +785,8 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, data)
     return table_schema
