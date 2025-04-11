@@ -212,6 +212,7 @@ class YamlMappingTest(unittest.TestCase):
             language: python
             outputs: [even, odd]
           ''')
+      self.assertEqual(result['even'].element_type, elements.element_type)
       assert_that(
           result['even'] | beam.Map(lambda x: x.element),
           equal_to(['banana', 'orange']),
