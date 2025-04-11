@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.remoteChannel;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
@@ -87,7 +87,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
@@ -243,10 +242,11 @@ public final class StreamingDataflowWorker {
     @Nullable ChannelzServlet channelzServlet = null;
     Consumer<PrintWriter> getDataStatusProvider;
     Supplier<Long> currentActiveCommitBytesProvider;
-
+    ChannelCache channelCache = null;
     if (options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled()) {
       // Direct path pipelines.
       WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
+      channelCache = createChannelCache(options, configFetcher);
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
               createJobHeader(options, clientId),
@@ -273,7 +273,7 @@ public final class StreamingDataflowWorker {
                                 processingContext,
                                 getWorkStreamLatencies);
                           }),
-              createFanOutStubFactory(options),
+              ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
               GetWorkBudgetDistributors.distributeEvenly(),
               Preconditions.checkNotNull(dispatcherClient),
               commitWorkStream ->
@@ -384,6 +384,7 @@ public final class StreamingDataflowWorker {
             .setChannelzServlet(channelzServlet)
             .setGetDataStatusProvider(getDataStatusProvider)
             .setCurrentActiveCommitBytes(currentActiveCommitBytesProvider)
+            .setChannelCache(channelCache)
             .build();
 
     LOG.debug("isDirectPathEnabled: {}", options.getIsWindmillServiceDirectPathEnabled());
@@ -620,19 +621,28 @@ public final class StreamingDataflowWorker {
         StreamingDataflowWorker.class.getSimpleName());
   }
 
-  private static ChannelCachingStubFactory createFanOutStubFactory(
-      DataflowWorkerHarnessOptions workerOptions) {
-    return ChannelCachingRemoteStubFactory.create(
-        workerOptions.getGcpCredential(),
+  private static ChannelCache createChannelCache(
+      DataflowWorkerHarnessOptions workerOptions, ComputationConfig.Fetcher configFetcher) {
+    ChannelCache channelCache =
         ChannelCache.create(
-            serviceAddress ->
-                // IsolationChannel will create and manage separate RPC channels to the same
-                // serviceAddress.
-                IsolationChannel.create(
-                    () ->
-                        remoteChannel(
-                            serviceAddress,
-                            workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec()))));
+            (currentFlowControlSettings, serviceAddress) -> {
+              // IsolationChannel will create and manage separate RPC channels to the same
+              // serviceAddress.
+              return IsolationChannel.create(
+                  () ->
+                      remoteChannel(
+                          serviceAddress,
+                          workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                          currentFlowControlSettings),
+                  currentFlowControlSettings.getOnReadyThresholdBytes());
+            });
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config ->
+                channelCache.consumeFlowControlSettings(
+                    config.userWorkerJobSettings().getFlowControlSettings()));
+    return channelCache;
   }
 
   @VisibleForTesting

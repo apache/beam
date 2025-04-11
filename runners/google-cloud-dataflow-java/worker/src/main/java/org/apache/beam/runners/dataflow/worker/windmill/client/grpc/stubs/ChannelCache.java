@@ -17,13 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import static org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS;
+import static org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.Kind.GCP_SERVICE_ADDRESS;
+
 import java.io.PrintWriter;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerGrpcFlowControlSettings;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -34,6 +38,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalL
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListeners;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,10 +53,16 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class ChannelCache implements StatusDataProvider {
   private static final Logger LOG = LoggerFactory.getLogger(ChannelCache.class);
+  private static final String DIRECTPATH = "Directpath";
+  private static final String CLOUDPATH = "Cloudpath";
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
+  @GuardedBy("this")
+  @MonotonicNonNull
+  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings = null;
+
   private ChannelCache(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
+      WindmillChannelFactory channelFactory,
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved,
       Executor channelCloser) {
     this.channelCache =
@@ -61,13 +72,12 @@ public final class ChannelCache implements StatusDataProvider {
                 new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
                   @Override
                   public ManagedChannel load(WindmillServiceAddress key) {
-                    return channelFactory.apply(key);
+                    return channelFactory.create(resolveFlowControlSettings(key.getKind()), key);
                   }
                 });
   }
 
-  public static ChannelCache create(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
+  public static ChannelCache create(WindmillChannelFactory channelFactory) {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
@@ -78,7 +88,7 @@ public final class ChannelCache implements StatusDataProvider {
 
   @VisibleForTesting
   public static ChannelCache forTesting(
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory, Runnable onChannelShutdown) {
+      WindmillChannelFactory channelFactory, Runnable onChannelShutdown) {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
@@ -98,13 +108,25 @@ public final class ChannelCache implements StatusDataProvider {
     try {
       channel.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
-      LOG.error("Couldn't close gRPC channel={}", channel, e);
+      LOG.error("Couldn't gracefully close gRPC channel={}", channel, e);
     }
     channel.shutdownNow();
   }
 
   public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
     return channelCache.getUnchecked(windmillServiceAddress);
+  }
+
+  public synchronized void consumeFlowControlSettings(
+      UserWorkerGrpcFlowControlSettings flowControlSettings) {
+    if (!flowControlSettings.equals(currentFlowControlSettings)) {
+      // Refreshing the cache will asynchronously terminate the old channels via the removalListener
+      // and return a newly created one on the next Cache.load(address). This could be expensive so
+      // only do it when we have received new flow control settings.
+      LOG.debug("Updating flow control settings {}.", flowControlSettings);
+      currentFlowControlSettings = flowControlSettings;
+      channelCache.asMap().keySet().forEach(channelCache::refresh);
+    }
   }
 
   public void remove(WindmillServiceAddress windmillServiceAddress) {
@@ -128,13 +150,34 @@ public final class ChannelCache implements StatusDataProvider {
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {
+    writer.format(
+        "Directpath gRPC flow control settings: [%s]",
+        resolveFlowControlSettings(AUTHENTICATED_GCP_SERVICE_ADDRESS));
+    writer.format(
+        "Cloudpath gRPC flow control settings: [%s]",
+        resolveFlowControlSettings(GCP_SERVICE_ADDRESS));
     writer.write("Active gRPC Channels:<br>");
     channelCache
         .asMap()
         .forEach(
             (address, channel) -> {
-              writer.format("Address: [%s]; Channel: [%s].", address, channel);
+              writer.format(
+                  "Address: [%s]; Channel: [%s]; AddressType:[%s].",
+                  address,
+                  channel,
+                  address.getKind() == AUTHENTICATED_GCP_SERVICE_ADDRESS ? DIRECTPATH : CLOUDPATH);
               writer.write("<br>");
             });
+  }
+
+  private synchronized UserWorkerGrpcFlowControlSettings resolveFlowControlSettings(
+      WindmillServiceAddress.Kind addressType) {
+    if (currentFlowControlSettings == null) {
+      return addressType == AUTHENTICATED_GCP_SERVICE_ADDRESS
+          ? WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS
+          : WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS;
+    }
+
+    return currentFlowControlSettings;
   }
 }
