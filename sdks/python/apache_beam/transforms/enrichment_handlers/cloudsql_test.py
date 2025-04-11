@@ -18,28 +18,52 @@ import unittest
 
 from parameterized import parameterized
 
+# pylint: disable=ungrouped-imports
 try:
   from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler, DatabaseTypeAdapter
-  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import _row_key_fn
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import where_clause_value_fn
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import query_fn
 except ImportError:
-  raise unittest.SkipTest('Cloud SQL test dependencies are not installed.')
+  raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
 
 
-class TestCloudSQLEnrichmentHandler(unittest.TestCase):
-  @parameterized.expand([('product_id', _row_key_fn), ('', None)])
-  def test_cloud_sql_enrichment_invalid_args(self, row_key, row_key_fn):
+class TestCloudSQLEnrichment(unittest.TestCase):
+  @parameterized.expand([
+      ("", "", [], None, None, 1, 2),
+      ("table", "", ["id"], where_clause_value_fn, None, 2, 10),
+      ("table", "id='{}'", ["id"], where_clause_value_fn, None, 2, 10),
+      ("table", "id='{}'", ["id"], None, query_fn, 2, 10),
+  ])
+  def test_valid_params(
+      self,
+      table_id,
+      where_clause_template,
+      where_clause_fields,
+      where_clause_value_fn,
+      query_fn,
+      min_batch_size,
+      max_batch_size):
+    """
+    TC 1: Only batch size are provided. It should raise an error.
+    TC 2: Either of `where_clause_template` or `query_fn` is not provided.
+    TC 3: Both `where_clause_fields` and `where_clause_value_fn` are provided.
+    TC 4: Query construction details are provided along with `query_fn`.
+    """
     with self.assertRaises(ValueError):
       _ = CloudSQLEnrichmentHandler(
-          project_id='apache-beam-testing',
-          region_id='us-east1',
-          instance_id='beam-test',
-          table_id='cloudsql-enrichment-test',
           database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-          database_id='',
+          database_address='',
           database_user='',
           database_password='',
-          row_key=row_key,
-          row_key_fn=row_key_fn)
+          database_id='',
+          table_id=table_id,
+          where_clause_template=where_clause_template,
+          where_clause_fields=where_clause_fields,
+          where_clause_value_fn=where_clause_value_fn,
+          query_fn=query_fn,
+          min_batch_size=min_batch_size,
+          max_batch_size=max_batch_size,
+      )
 
 
 if __name__ == '__main__':
