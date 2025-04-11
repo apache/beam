@@ -14,381 +14,402 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import functools
 import logging
 import unittest
 from unittest.mock import MagicMock
+
 import pytest
+
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import BeamAssertException
-from apache_beam.transforms.enrichment import Enrichment
-from apache_beam.transforms.enrichment_handlers.cloudsql import (
-    CloudSQLEnrichmentHandler,
-    DatabaseTypeAdapter,
-    ExceptionLevel,
-)
-from testcontainers.redis import RedisContainer
-from google.cloud.sql.connector import Connector
-import os
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+# pylint: disable=ungrouped-imports
+try:
+  from testcontainers.postgres import PostgresContainer
+  from testcontainers.redis import RedisContainer
+  from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler, DatabaseTypeAdapter, DatabaseTypeAdapter)
+except ImportError:
+  raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _row_key_fn(request: beam.Row, key_id="product_id") -> tuple[str]:
-  key_value = str(getattr(request, key_id))
-  return (key_id, key_value)
+def where_clause_value_fn(row: beam.Row):
+  return [row.id]  # type: ignore[attr-defined]
 
 
-class ValidateResponse(beam.DoFn):
-  """ValidateResponse validates if a PCollection of `beam.Row`
-    has the required fields."""
-  def __init__(
-      self,
-      n_fields: int,
-      fields: list[str],
-      enriched_fields: dict[str, list[str]],
-  ):
-    self.n_fields = n_fields
-    self._fields = fields
-    self._enriched_fields = enriched_fields
-
-  def process(self, element: beam.Row, *args, **kwargs):
-    element_dict = element.as_dict()
-    if len(element_dict.keys()) != self.n_fields:
-      raise BeamAssertException(
-          "Expected %d fields in enriched PCollection:" % self.n_fields)
-
-    for field in self._fields:
-      if field not in element_dict or element_dict[field] is None:
-        raise BeamAssertException(f"Expected a not None field: {field}")
-
-    for key in self._enriched_fields:
-      if key not in element_dict:
-        raise BeamAssertException(
-            f"Response from Cloud SQL should contain {key} column.")
-
-
-def create_rows(cursor):
-  """Insert test rows into the Cloud SQL database table."""
-  cursor.execute(
-      """
-        CREATE TABLE IF NOT EXISTS products (
-            product_id SERIAL PRIMARY KEY,
-            product_name VARCHAR(255),
-            product_stock INT
-        )
-        """)
-  cursor.execute(
-      """
-        INSERT INTO products (product_name, product_stock)
-        VALUES
-        ('pixel 5', 2),
-        ('pixel 6', 4),
-        ('pixel 7', 20),
-        ('pixel 8', 10),
-        ('iphone 11', 3),
-        ('iphone 12', 7),
-        ('iphone 13', 8),
-        ('iphone 14', 3)
-        ON CONFLICT DO NOTHING
-        """)
+def query_fn(table, row: beam.Row):
+  return f"SELECT * FROM `{table}` WHERE id = {row.id}"  # type: ignore[attr-defined]
 
 
 @pytest.mark.uses_testcontainer
-class TestCloudSQLEnrichment(unittest.TestCase):
+class CloudSQLEnrichmentIT(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
-    cls.project_id = "apache-beam-testing"
-    cls.region_id = "us-central1"
-    cls.instance_id = "beam-test"
-    cls.database_id = "postgres"
-    cls.database_user = os.getenv("BEAM_TEST_CLOUDSQL_PG_USER")
-    cls.database_password = os.getenv("BEAM_TEST_CLOUDSQL_PG_PASSWORD")
-    cls.table_id = "products"
-    cls.row_key = "product_id"
-    cls.database_type_adapter = DatabaseTypeAdapter.POSTGRESQL
-    cls.req = [
-        beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
-        beam.Row(sale_id=3, customer_id=3, product_id=2, quantity=3),
-        beam.Row(sale_id=5, customer_id=5, product_id=3, quantity=2),
-        beam.Row(sale_id=7, customer_id=7, product_id=4, quantity=1),
-    ]
-    cls.connector = Connector()
-    cls.client = cls.connector.connect(
-        f"{cls.project_id}:{cls.region_id}:{cls.instance_id}",
-        driver=cls.database_type_adapter.value,
-        db=cls.database_id,
-        user=cls.database_user,
-        password=cls.database_password,
-    )
-    cls.cursor = cls.client.cursor()
-    create_rows(cls.cursor)
-    cls.cache_client_retries = 3
+    cls._sql_client_retries = 3
+    cls._start_sql_db_container()
 
-  def _start_cache_container(self):
-    for i in range(self.cache_client_retries):
+  @classmethod
+  def tearDownClass(cls):
+    cls._stop_sql_db_container()
+
+  @classmethod
+  def _start_sql_db_container(cls):
+    for i in range(cls._sql_client_retries):
       try:
-        self.container = RedisContainer(image="redis:7.2.4")
-        self.container.start()
-        self.host = self.container.get_container_host_ip()
-        self.port = self.container.get_exposed_port(6379)
-        self.cache_client = self.container.get_client()
+        cls._sql_db_container = PostgresContainer(image="postgres:16")
+        cls._sql_db_container.start()
+        cls.sql_db_container_host = cls._sql_db_container.get_container_host_ip(
+        )
+        cls.sql_db_container_port = cls._sql_db_container.get_exposed_port(5432)
+        cls.database_type_adapter = DatabaseTypeAdapter.POSTGRESQL
+        cls.sql_db_user, cls.sql_db_password, cls.sql_db_id = "test", "test", "test"
+        _LOGGER.info(
+            f"PostgreSQL container started successfully on {cls.get_db_address()}."
+        )
         break
       except Exception as e:
-        if i == self.cache_client_retries - 1:
+        _LOGGER.warning(
+            f"Retry {i + 1}/{cls._sql_client_retries}: Failed to start PostgreSQL container. Reason: {e}"
+        )
+        if i == cls._sql_client_retries - 1:
           _LOGGER.error(
-              f"Unable to start redis container for RRIO tests after {self.cache_client_retries} retries."
+              f"Unable to start PostgreSQL container for IO tests after {cls._sql_client_retries} retries. Tests cannot proceed."
           )
           raise e
 
   @classmethod
-  def tearDownClass(cls):
-    cls.cursor.close()
-    cls.client.close()
-    cls.connector.close()
-    cls.cursor, cls.client, cls.connector = None, None, None
-
-  def test_enrichment_with_cloudsql(self):
-    expected_fields = [
-        "sale_id",
-        "customer_id",
-        "product_id",
-        "quantity",
-        "product_name",
-        "product_stock",
-    ]
-    expected_enriched_fields = ["product_id", "product_name", "product_stock"]
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
-        database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=self.table_id,
-        row_key=self.row_key,
-    )
-    with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(self.req)
-          | "Enrich W/ CloudSQL" >> Enrichment(cloudsql)
-          | "Validate Response" >> beam.ParDo(
-              ValidateResponse(
-                  len(expected_fields),
-                  expected_fields,
-                  expected_enriched_fields,
-              )))
-
-  def test_enrichment_with_cloudsql_no_enrichment(self):
-    expected_fields = ["sale_id", "customer_id", "product_id", "quantity"]
-    expected_enriched_fields = {}
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
-        database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=self.table_id,
-        row_key=self.row_key,
-    )
-    req = [beam.Row(sale_id=1, customer_id=1, product_id=99, quantity=1)]
-    with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(req)
-          | "Enrich W/ CloudSQL" >> Enrichment(cloudsql)
-          | "Validate Response" >> beam.ParDo(
-              ValidateResponse(
-                  len(expected_fields),
-                  expected_fields,
-                  expected_enriched_fields,
-              )))
-
-  def test_enrichment_with_cloudsql_raises_key_error(self):
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
-        database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=self.table_id,
-        row_key="car_name",
-    )
-    with self.assertRaises(KeyError):
-      test_pipeline = TestPipeline()
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(self.req)
-          | "Enrich W/ CloudSQL" >> Enrichment(cloudsql))
-      res = test_pipeline.run()
-      res.wait_until_finish()
-
-  def test_enrichment_with_cloudsql_raises_not_found(self):
-    """Raises a database error when the GCP Cloud SQL table doesn't exist."""
-    table_id = "invalid_table"
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
-        database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=table_id,
-        row_key=self.row_key,
-    )
+  def _stop_sql_db_container(cls):
     try:
-      test_pipeline = beam.Pipeline()
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(self.req)
-          | "Enrich W/ CloudSQL" >> Enrichment(cloudsql))
-      res = test_pipeline.run()
-      res.wait_until_finish()
-    except (PgDatabaseError, RuntimeError) as e:
-      self.assertIn(f'relation "{table_id}" does not exist', str(e))
+      _LOGGER.info("Stopping PostgreSQL container.")
+      cls._sql_db_container.stop()
+      cls._sql_db_container = None
+      _LOGGER.info("PostgreSQL container stopped successfully.")
+    except Exception as e:
+      _LOGGER.warning(
+          f"Error encountered while stopping PostgreSQL container: {e}")
 
-  def test_enrichment_with_cloudsql_exception_level(self):
-    """raises a `ValueError` exception when the GCP Cloud SQL query returns
-        an empty row."""
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
-        database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=self.table_id,
-        row_key=self.row_key,
-        exception_level=ExceptionLevel.RAISE,
-    )
-    req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
-    with self.assertRaises(ValueError):
-      test_pipeline = beam.Pipeline()
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(req)
-          | "Enrich W/ CloudSQL" >> Enrichment(cloudsql))
-      res = test_pipeline.run()
-      res.wait_until_finish()
+  @classmethod
+  def get_db_address(cls):
+    return f"{cls.sql_db_container_host}:{cls.sql_db_container_port}"
 
-  def test_cloudsql_enrichment_with_lambda(self):
-    expected_fields = [
-        "sale_id",
-        "customer_id",
-        "product_id",
-        "quantity",
-        "product_name",
-        "product_stock",
-    ]
-    expected_enriched_fields = ["product_id", "product_name", "product_stock"]
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
-        database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=self.table_id,
-        row_key_fn=_row_key_fn,
+
+@pytest.mark.uses_testcontainer
+class TestCloudSQLEnrichment(CloudSQLEnrichmentIT):
+  _table_id = "product_details"
+  _table_data = [
+      {
+          "id": 1, "name": "A", 'quantity': 2, 'distribution_center_id': 3
+      },
+      {
+          "id": 2, "name": "B", 'quantity': 3, 'distribution_center_id': 1
+      },
+      {
+          "id": 3, "name": "C", 'quantity': 10, 'distribution_center_id': 4
+      },
+      {
+          "id": 4, "name": "D", 'quantity': 1, 'distribution_center_id': 3
+      },
+      {
+          "id": 5, "name": "C", 'quantity': 100, 'distribution_center_id': 4
+      },
+      {
+          "id": 6, "name": "D", 'quantity': 11, 'distribution_center_id': 3
+      },
+      {
+          "id": 7, "name": "C", 'quantity': 7, 'distribution_center_id': 1
+      },
+      {
+          "id": 8, "name": "D", 'quantity': 4, 'distribution_center_id': 1
+      },
+  ]
+
+  @classmethod
+  def setUpClass(cls):
+    super(TestCloudSQLEnrichment, cls).setUpClass()
+    cls.create_table(cls._table_id)
+    cls._cache_client_retries = 3
+
+  @classmethod
+  def create_table(cls, table_id):
+    cls._engine = create_engine(cls._get_db_url())
+
+    # Define the table schema.
+    metadata = MetaData()
+    table = Table(
+        table_id,
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("name", String, nullable=False),
+        Column("quantity", Integer, nullable=False),
+        Column("distribution_center_id", Integer, nullable=False),
     )
-    with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(self.req)
-          | "Enrich W/ CloudSQL" >> Enrichment(cloudsql)
-          | "Validate Response" >> beam.ParDo(
-              ValidateResponse(
-                  len(expected_fields),
-                  expected_fields,
-                  expected_enriched_fields)))
+
+    # Create the table in the database.
+    metadata.create_all(cls._engine)
+
+    # Insert data into the table.
+    with cls._engine.connect() as connection:
+      transaction = connection.begin()
+      try:
+        connection.execute(table.insert(), cls._table_data)
+        transaction.commit()
+      except Exception as e:
+        transaction.rollback()
+        raise e
+
+  @classmethod
+  def _get_db_url(cls):
+    dialect = cls.database_type_adapter.to_sqlalchemy_dialect()
+    db_url = f"{dialect}://{cls.sql_db_user}:{cls.sql_db_password}@{cls.get_db_address()}/{cls.sql_db_id}"
+    return db_url
 
   @pytest.fixture
   def cache_container(self):
-    # Setup phase: start the container.
     self._start_cache_container()
 
     # Hand control to the test.
     yield
 
-    # Cleanup phase: stop the container. It runs after the test completion
-    # even if it failed.
-    self.container.stop()
-    self.container = None
+    self._cache_container.stop()
+    self._cache_container = None
+
+  def _start_cache_container(self):
+    for i in range(self._cache_client_retries):
+      try:
+        self._cache_container = RedisContainer(image="redis:7.2.4")
+        self._cache_container.start()
+        self._cache_container_host = self._cache_container.get_container_host_ip(
+        )
+        self._cache_container_port = self._cache_container.get_exposed_port(
+            6379)
+        self._cache_client = self._cache_container.get_client()
+        break
+      except Exception as e:
+        if i == self._cache_client_retries - 1:
+          _LOGGER.error(
+              f"Unable to start redis container for RRIO tests after {self._cache_client_retries} retries."
+          )
+          raise e
+
+  @classmethod
+  def tearDownClass(cls):
+    cls._engine.dispose(close=True)
+    super(TestCloudSQLEnrichment, cls).tearDownClass()
+    cls._engine = None
+
+  def test_cloudsql_enrichment(self):
+    expected_rows = [
+        beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
+        beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
+    ]
+    fields = ['id']
+    requests = [
+        beam.Row(id=1, name='A'),
+        beam.Row(id=2, name='B'),
+    ]
+    handler = CloudSQLEnrichmentHandler(
+        database_type_adapter=self.database_type_adapter,
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_fields=fields,
+        min_batch_size=1,
+        max_batch_size=100,
+    )
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
+
+      assert_that(pcoll, equal_to(expected_rows))
+
+  def test_cloudsql_enrichment_batched(self):
+    expected_rows = [
+        beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
+        beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
+    ]
+    fields = ['id']
+    requests = [
+        beam.Row(id=1, name='A'),
+        beam.Row(id=2, name='B'),
+    ]
+    handler = CloudSQLEnrichmentHandler(
+        database_type_adapter=self.database_type_adapter,
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_fields=fields,
+        min_batch_size=2,
+        max_batch_size=100,
+    )
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
+
+      assert_that(pcoll, equal_to(expected_rows))
+
+  def test_cloudsql_enrichment_batched_multiple_fields(self):
+    expected_rows = [
+        beam.Row(id=1, distribution_center_id=3, name="A", quantity=2),
+        beam.Row(id=2, distribution_center_id=1, name="B", quantity=3)
+    ]
+    fields = ['id', 'distribution_center_id']
+    requests = [
+        beam.Row(id=1, distribution_center_id=3),
+        beam.Row(id=2, distribution_center_id=1),
+    ]
+    handler = CloudSQLEnrichmentHandler(
+        database_type_adapter=self.database_type_adapter,
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        table_id=self._table_id,
+        where_clause_template="id = {} AND distribution_center_id = {}",
+        where_clause_fields=fields,
+        min_batch_size=8,
+        max_batch_size=100,
+    )
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
+
+      assert_that(pcoll, equal_to(expected_rows))
+
+  def test_cloudsql_enrichment_with_query_fn(self):
+    expected_rows = [
+        beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
+        beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
+    ]
+    requests = [
+        beam.Row(id=1, name='A'),
+        beam.Row(id=2, name='B'),
+    ]
+    fn = functools.partial(query_fn, self._table_id)
+    handler = CloudSQLEnrichmentHandler(
+        database_type_adapter=self.database_type_adapter,
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        query_fn=fn)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
+
+      assert_that(pcoll, equal_to(expected_rows))
+
+  def test_cloudsql_enrichment_with_condition_value_fn(self):
+    expected_rows = [
+        beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
+        beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
+    ]
+    requests = [
+        beam.Row(id=1, name='A'),
+        beam.Row(id=2, name='B'),
+    ]
+    handler = CloudSQLEnrichmentHandler(
+        database_type_adapter=self.database_type_adapter,
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_value_fn=where_clause_value_fn,
+        min_batch_size=2,
+        max_batch_size=100)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
+
+      assert_that(pcoll, equal_to(expected_rows))
+
+  def test_cloudsql_enrichment_table_nonexistent_runtime_error_raised(self):
+    requests = [
+        beam.Row(id=1, name='A'),
+        beam.Row(id=2, name='B'),
+    ]
+    handler = CloudSQLEnrichmentHandler(
+        database_type_adapter=self.database_type_adapter,
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_value_fn=where_clause_value_fn,
+        column_names=["wrong_column"],
+    )
+    with self.assertRaises(RuntimeError):
+      test_pipeline = beam.Pipeline()
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(requests)
+          | "Enrichment" >> Enrichment(handler))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
   @pytest.mark.usefixtures("cache_container")
   def test_cloudsql_enrichment_with_redis(self):
-    expected_fields = [
-        "sale_id",
-        "customer_id",
-        "product_id",
-        "quantity",
-        "product_name",
-        "product_stock",
+    requests = [
+        beam.Row(id=1, name='A'),
+        beam.Row(id=2, name='B'),
     ]
-    expected_enriched_fields = ["product_id", "product_name", "product_stock"]
-    cloudsql = CloudSQLEnrichmentHandler(
-        region_id=self.region_id,
-        project_id=self.project_id,
-        instance_id=self.instance_id,
+    expected_rows = [
+        beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
+        beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
+    ]
+    handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.database_type_adapter,
-        database_id=self.database_id,
-        database_user=self.database_user,
-        database_password=self.database_password,
-        table_id=self.table_id,
-        row_key_fn=_row_key_fn,
-    )
+        database_address=self.get_db_address(),
+        database_user=self.sql_db_user,
+        database_password=self.sql_db_password,
+        database_id=self.sql_db_id,
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_value_fn=where_clause_value_fn,
+        min_batch_size=2,
+        max_batch_size=100)
     with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
+      pcoll_populate_cache = (
           test_pipeline
-          | "Create1" >> beam.Create(self.req)
-          | "Enrich W/ CloudSQL1" >> Enrichment(cloudsql).with_redis_cache(
-              self.host, self.port, 300)
-          | "Validate Response" >> beam.ParDo(
-              ValidateResponse(
-                  len(expected_fields),
-                  expected_fields,
-                  expected_enriched_fields,
-              )))
+          | beam.Create(requests)
+          | Enrichment(handler).with_redis_cache(self.host, self.port))
+
+      assert_that(pcoll_populate_cache, equal_to(expected_rows))
 
     # Manually check cache entry to verify entries were correctly stored.
     c = coders.StrUtf8Coder()
-    for req in self.req:
-      key = cloudsql.get_cache_key(req)
-      response = self.cache_client.get(c.encode(key))
+    for req in requests:
+      key = handler.get_cache_key(req)
+      response = self._cache_client.get(c.encode(key))
       if not response:
         raise ValueError("No cache entry found for %s" % key)
 
-    # Mock the CloudSQL handler to avoid actual database calls.
+    # Mock the CloudSQL enrichment handler to avoid actual database calls.
     # This simulates a cache hit scenario by returning predefined data.
     actual = CloudSQLEnrichmentHandler.__call__
-    CloudSQLEnrichmentHandler.__call__ = MagicMock(
-        return_value=(
-            beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
-            beam.Row(),
-        ))
+    CloudSQLEnrichmentHandler.__call__ = MagicMock(return_value=(beam.Row()))
 
     # Run a second pipeline to verify cache is being used.
     with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
+      pcoll_cached = (
           test_pipeline
-          | "Create2" >> beam.Create(self.req)
-          | "Enrich W/ CloudSQL2" >> Enrichment(cloudsql).with_redis_cache(
-              self.host, self.port)
-          | "Validate Response" >> beam.ParDo(
-              ValidateResponse(
-                  len(expected_fields),
-                  expected_fields,
-                  expected_enriched_fields)))
+          | beam.Create(requests)
+          | Enrichment(handler).with_redis_cache(self.host, self.port))
+
+      assert_that(pcoll_cached, equal_to(expected_rows))
+
+    # Restore the original CloudSQL enrichment handler implementation.
     CloudSQLEnrichmentHandler.__call__ = actual
 
 
