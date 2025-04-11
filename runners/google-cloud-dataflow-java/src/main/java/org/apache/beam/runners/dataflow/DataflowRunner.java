@@ -201,6 +201,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
+ *
+ * <p>DataflowRunner now supports creating job templates using the {@code --templateLocation}
+ * option. If this option is set, the runner will generate a template instead of running the
+ * pipeline immediately.
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * --runner=DataflowRunner
+ * --templateLocation=gs://your-bucket/templates/my-template
+ * }</pre>
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -595,6 +606,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class AlwaysCreateViaRead<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+
     @Override
     public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
         getReplacementTransform(
@@ -775,7 +787,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PTransformOverride.of(
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
-    */
+         */
     overridesBuilder
         .add(
             PTransformOverride.of(
@@ -790,10 +802,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
 
+    boolean usesAtLeastOnceStreamingMode =
+        options.getDataflowServiceOptions() != null
+            && options.getDataflowServiceOptions().contains("streaming_mode_at_least_once");
     overridesBuilder.add(
         PTransformOverride.of(
             PTransformMatchers.classEqualTo(RedistributeByKey.class),
-            new RedistributeByKeyOverrideFactory()));
+            new RedistributeByKeyOverrideFactory(usesAtLeastOnceStreamingMode)));
 
     if (streaming) {
       // For update compatibility, always use a Read for Create in streaming mode.
@@ -949,7 +964,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       The PCollectionView itself must have the same tag since that tag may have been embedded in serialized DoFns
       previously and cannot easily be rewired. The PCollection may differ, so we rewire it, even if the rewiring
       is a noop.
-      */
+             */
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1179,6 +1194,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static boolean isMultiLanguagePipeline(Pipeline pipeline) {
     class IsMultiLanguageVisitor extends PipelineVisitor.Defaults {
+
       private boolean isMultiLanguage = false;
 
       private void performMultiLanguageTest(Node node) {
@@ -1656,6 +1672,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @AutoValue
   abstract static class EnvironmentInfo {
+
     static EnvironmentInfo create(
         String environmentId, String containerUrl, List<String> capabilities) {
       return new AutoValue_DataflowRunner_EnvironmentInfo(
@@ -1954,7 +1971,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // ================================================================================
   // PubsubIO translations
   // ================================================================================
-
   private static class StreamingPubsubIOReadOverrideFactory
       implements PTransformOverrideFactory<
           PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
@@ -2113,6 +2129,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class StreamingPubsubSinkTranslators {
+
     /** Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node. */
     static class StreamingPubsubIOWriteTranslator
         implements TransformTranslator<StreamingPubsubIOWrite> {
@@ -2166,9 +2183,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   // ================================================================================
-
   private static class SingleOutputExpandableTransformTranslator
       implements TransformTranslator<External.SingleOutputExpandableTransform> {
+
     @Override
     public void translate(
         External.SingleOutputExpandableTransform transform, TranslationContext context) {
@@ -2186,6 +2203,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class MultiOutputExpandableTransformTranslator
       implements TransformTranslator<External.MultiOutputExpandableTransform> {
+
     @Override
     public void translate(
         External.MultiOutputExpandableTransform transform, TranslationContext context) {
@@ -2734,6 +2752,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class DataflowPayloadTranslator
       implements TransformPayloadTranslator<PTransform<?, ?>> {
+
     @Override
     public String getUrn(PTransform transform) {
       return "dataflow_stub:" + transform.getClass().getName();
@@ -2758,6 +2777,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   })
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {

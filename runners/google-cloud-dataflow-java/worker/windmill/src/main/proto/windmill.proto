@@ -455,6 +455,7 @@ message ComputationWorkItems {
   optional int64 input_data_watermark = 3 [default = -0x8000000000000000];
   optional int64 dependent_realtime_input_watermark = 4
   [default = -0x8000000000000000];
+  optional bool drain_mode = 6;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -802,6 +803,7 @@ message ComputationWorkItemMetadata {
   optional int64 input_data_watermark = 2 [default = -0x8000000000000000];
   optional int64 dependent_realtime_input_watermark = 3
   [default = -0x8000000000000000];
+  optional bool drain_mode = 5;
 }
 
 message StreamingGetDataRequest {
@@ -938,6 +940,24 @@ message WorkerMetadataResponse {
   reserved 4;
 }
 
+
+// Client-side settings for gRPC flow control set on the user worker when
+// constructing the channels and stubs.
+message UserWorkerGrpcFlowControlSettings {
+  // If true, the user worker will use gRPCs automatic flow control for
+  // windmill RPCs.
+  optional bool enable_auto_flow_control = 1 [default = false];
+
+  // The flow control window size for windmill RPCs. If
+  // enable_auto_flow_control is true, this is the initial window size and may
+  // be resized by the gRPC framework. Default and minimum is 10MiB.
+  optional int32 flow_control_window_bytes = 2 [default = 10485760];
+
+  // Specifies how many bytes must be queued before the call is considered not
+  // ready to send more messages.
+  optional int32 on_ready_threshold_bytes = 3;
+}
+
 // Settings to control runtime behavior of the java runner v1 user worker.
 message UserWorkerRunnerV1Settings {
   // If true, use separate channels for each windmill RPC.
@@ -945,6 +965,8 @@ message UserWorkerRunnerV1Settings {
 
   // If true, use separate streaming RPC for windmill heartbeats and state reads.
   optional bool use_separate_windmill_heartbeat_streams = 2 [default = true];
+
+  optional UserWorkerGrpcFlowControlSettings flow_control_settings = 3;
 }
 
 service WindmillAppliance {

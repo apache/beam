@@ -37,6 +37,8 @@ The guide contains the following sections:
   for Python development, running unit and integration tests, and running a pipeline
   with modified Beam code.
 
+For instructions regarding testing code changes for Go SDK, please see the Go SDK's [README file](https://github.com/apache/beam/tree/master/sdks/go).
+
 ## Repository structure
 
 The Apache Beam GitHub repository (Beam repo) is, for the most part, a "mono repo".
