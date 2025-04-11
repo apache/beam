@@ -153,28 +153,14 @@ class SwitchingDirectRunner(PipelineRunner):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()
-      tryingPrism = True
-    elif _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.portability.api import beam_provision_api_pb2
-      from apache_beam.runners.portability.fn_api_runner import fn_runner
-      from apache_beam.runners.portability.portable_runner import JobServiceHandle
-      all_options = options.get_all_options()
-      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
-      provision_info = fn_runner.ExtendedProvisionInfo(
-          beam_provision_api_pb2.ProvisionInfo(
-              pipeline_options=encoded_options))
-      runner = fn_runner.FnApiRunner(provision_info=provision_info)
-    else:
-      runner = BundleBasedDirectRunner()
 
-    if tryingPrism:
       try:
         pr = runner.run_pipeline(pipeline, options)
         # This is non-blocking, so if the state is *already* finished, something
         # probably failed on job submission.
         if pr.state.is_terminal() and pr.state != PipelineState.DONE:
           _LOGGER.info(
-              'Pipeline failed on PrismRunner, falling back toDirectRunner.')
+              'Pipeline failed on PrismRunner, falling back to DirectRunner.')
           runner = BundleBasedDirectRunner()
         else:
           return pr
@@ -185,6 +171,17 @@ class SwitchingDirectRunner(PipelineRunner):
         _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
+  
+    if _FnApiRunnerSupportVisitor().accept(pipeline):
+      from apache_beam.portability.api import beam_provision_api_pb2
+      from apache_beam.runners.portability.fn_api_runner import fn_runner
+      from apache_beam.runners.portability.portable_runner import JobServiceHandle
+      all_options = options.get_all_options()
+      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
+      provision_info = fn_runner.ExtendedProvisionInfo(
+          beam_provision_api_pb2.ProvisionInfo(
+              pipeline_options=encoded_options))
+      runner = fn_runner.FnApiRunner(provision_info=provision_info)
 
     return runner.run_pipeline(pipeline, options)
 
