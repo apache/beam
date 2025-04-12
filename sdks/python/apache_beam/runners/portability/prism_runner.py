@@ -94,16 +94,30 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._job_port = job_options.job_port
 
   @classmethod
-  def maybe_unzip_and_make_executable(cls, url: str, bin_cache: str) -> str:
-    if zipfile.is_zipfile(url):
-      z = zipfile.ZipFile(url)
-      url = z.extract(
-          os.path.splitext(os.path.basename(url))[0], path=bin_cache)
+  def maybe_unzip_and_make_executable(
+      cls, url: str, bin_cache: str, ignore_cache: bool = True) -> str:
+    assert (os.path.isfile(url))
 
+    if zipfile.is_zipfile(url):
+      target = os.path.splitext(os.path.basename(url))[0]
+      target_url = os.path.join(bin_cache, target)
+      if not ignore_cache and os.path.exists(target_url):
+        _LOGGER.info(
+            'Using cached prism binary from %s for %s' % (target_url, url))
+      else:
+        # Only unzip the zip file if the url is a zip file and ignore_cache is
+        # True (cache disabled)
+        _LOGGER.info("Unzipping prism from %s to %s" % (url, target_url))
+        z = zipfile.ZipFile(url)
+        target_url = z.extract(target, path=bin_cache)
+    else:
+      target_url = url
+
+    _LOGGER.info("Prism binary path resolved to: %s", target_url)
     # Make sure the binary is executable.
-    st = os.stat(url)
-    os.chmod(url, st.st_mode | stat.S_IEXEC)
-    return url
+    st = os.stat(target_url)
+    os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    return target_url
 
   # Finds the bin or zip in the local cache, and if not, fetches it.
   @classmethod
@@ -114,14 +128,15 @@ class PrismJobServer(job_server.SubprocessJobServer):
     if bin_cache == '':
       bin_cache = cls.BIN_CACHE
     if os.path.exists(url):
-      _LOGGER.info('Using local prism binary from %s' % url)
-      return cls.maybe_unzip_and_make_executable(url, bin_cache=bin_cache)
+      _LOGGER.info('Using local prism binary/zip from %s' % url)
+      cached_file = url
     else:
-      cached_bin = os.path.join(bin_cache, os.path.basename(url))
-      if os.path.exists(cached_bin) and not ignore_cache:
-        _LOGGER.info('Using cached prism binary from %s' % url)
+      cached_file = os.path.join(bin_cache, os.path.basename(url))
+      if os.path.exists(cached_file) and not ignore_cache:
+        _LOGGER.info(
+            'Using cached prism binary/zip from %s for %s' % (cached_file, url))
       else:
-        _LOGGER.info('Downloading prism binary from %s' % url)
+        _LOGGER.info('Downloading prism from %s' % url)
         if not os.path.exists(bin_cache):
           os.makedirs(bin_cache)
         try:
@@ -129,14 +144,22 @@ class PrismJobServer(job_server.SubprocessJobServer):
             url_read = FileSystems.open(url)
           except ValueError:
             url_read = urlopen(url)
-          with open(cached_bin + '.tmp', 'wb') as zip_write:
+          with open(cached_file + '.tmp', 'wb') as zip_write:
             shutil.copyfileobj(url_read, zip_write, length=1 << 20)
-          os.rename(cached_bin + '.tmp', cached_bin)
+          if os.path.isfile(cached_file):
+            # Remove existing binary to prevent exception on Windows during
+            # os.rename.
+            # See: https://docs.python.org/3/library/os.html#os.rename
+            os.remove(cached_file)
+          os.rename(cached_file + '.tmp', cached_file)
         except URLError as e:
           raise RuntimeError(
               'Unable to fetch remote prism binary at %s: %s' % (url, e))
-      return cls.maybe_unzip_and_make_executable(
-          cached_bin, bin_cache=bin_cache)
+        # If we download a new prism, then we should always use it but not
+        # the cached one.
+        ignore_cache = True
+    return cls.maybe_unzip_and_make_executable(
+        cached_file, bin_cache=bin_cache, ignore_cache=ignore_cache)
 
   def construct_download_url(self, root_tag: str, sys: str, mach: str) -> str:
     """Construct the prism download URL with the appropriate release tag.
