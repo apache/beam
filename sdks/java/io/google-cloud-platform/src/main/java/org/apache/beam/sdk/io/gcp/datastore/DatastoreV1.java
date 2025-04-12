@@ -2373,18 +2373,17 @@ public class DatastoreV1 {
      */
     private synchronized void flushBatch(ContextAdapter<OutT> context)
         throws DatastoreException, IOException, InterruptedException {
-      Map<com.google.datastore.v1.Key,Mutation> uniqueMutations = new HashMap<>();
+      Map<com.google.datastore.v1.Key, Mutation> uniqueMutations = new HashMap<>();
 
       mutations.forEach(mutation -> uniqueMutations.put(getKey(mutation), mutation));
       mutations.clear();
       mutationsSize = 0;
-      if(uniqueMutations.isEmpty()) {
+      if (uniqueMutations.isEmpty()) {
         return;
       }
       LOG.debug("Writing batch of {} mutations", uniqueMutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
-
 
       String databaseIdOrDefaultDatabase = databaseId == null ? DEFAULT_DATABASE : databaseId.get();
       CommitResponse response;
@@ -2395,7 +2394,7 @@ public class DatastoreV1 {
         // Batch upsert entities.
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
         commitRequest.addAllMutations(
-        uniqueMutations.values().stream().collect(Collectors.toList()));
+            uniqueMutations.values().stream().collect(Collectors.toList()));
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         commitRequest.setProjectId(projectId.get());
         commitRequest.setDatabaseId(databaseIdOrDefaultDatabase);
