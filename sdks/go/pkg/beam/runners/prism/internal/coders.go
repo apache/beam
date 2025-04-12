@@ -281,6 +281,9 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 		}
 	case urns.CoderIterable:
 		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 1 {
+			panic(fmt.Sprintf("Iterable coder must have only one component: %s", prototext.Format(c)))
+		}
 		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		return func(r io.Reader) {
 			l, _ := coder.DecodeInt32(r)
@@ -288,7 +291,6 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 				ed(r)
 			}
 		}
-
 	case urns.CoderKV:
 		ccids := c.GetComponentCoderIds()
 		if len(ccids) != 2 {
