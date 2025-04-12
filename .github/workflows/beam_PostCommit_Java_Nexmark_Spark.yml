@@ -80,7 +80,7 @@ jobs:
         job_name: [beam_PostCommit_Java_Nexmark_Spark]
         job_phrase: [Run Spark Runner Nexmark Tests]
         runner: [SparkRunner, SparkStructuredStreamingRunner --skipQueries=3]
-        queryLanguage: [sql, zetasql, none]
+        queryLanguage: [sql, none]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||

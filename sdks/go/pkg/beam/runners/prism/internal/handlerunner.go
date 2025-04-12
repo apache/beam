@@ -21,6 +21,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -32,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 )
 
 // This file retains the logic for the pardo handler
@@ -107,12 +109,40 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 		// they're written out to the runner in the same fashion.
 		// This may stop being necessary once Flatten Unzipping happens in the optimizer.
 		outPCol := comps.GetPcollections()[outColID]
-		outCoder := comps.GetCoders()[outPCol.GetCoderId()]
+		outCoderID := outPCol.CoderId
+		outCoder := comps.GetCoders()[outCoderID]
 		coderSubs := map[string]*pipepb.Coder{}
+		pcollSubs := map[string]*pipepb.PCollection{}
+
+		if !strings.HasPrefix(outCoderID, "cf_") {
+			// Create a new coder id for the flatten output PCollection and use
+			// this coder id for all input PCollections
+			outCoderID = "cf_" + outColID
+			outCoder = proto.Clone(outCoder).(*pipepb.Coder)
+			coderSubs[outCoderID] = outCoder
+
+			pcollSubs[outColID] = proto.Clone(outPCol).(*pipepb.PCollection)
+			pcollSubs[outColID].CoderId = outCoderID
+
+			outPCol = pcollSubs[outColID]
+		}
+
 		for _, p := range t.GetInputs() {
 			inPCol := comps.GetPcollections()[p]
 			if inPCol.CoderId != outPCol.CoderId {
-				coderSubs[inPCol.CoderId] = outCoder
+				if strings.HasPrefix(inPCol.CoderId, "cf_") {
+					// The input pcollection is the output of another flatten:
+					//     e.g. [[a, b] | Flatten], c] | Flatten
+					// In this case, we just point the input coder id to the new flatten
+					// output coder, so any upstream input pcollections will use the new
+					// output coder.
+					coderSubs[inPCol.CoderId] = outCoder
+				} else {
+					// Create a substitute PCollection for this input with the flatten
+					// output coder id
+					pcollSubs[p] = proto.Clone(inPCol).(*pipepb.PCollection)
+					pcollSubs[p].CoderId = outPCol.CoderId
+				}
 			}
 		}
 
@@ -123,7 +153,8 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 				Transforms: map[string]*pipepb.PTransform{
 					tid: t,
 				},
-				Coders: coderSubs,
+				Pcollections: pcollSubs,
+				Coders:       coderSubs,
 			},
 			RemovedLeaves: nil,
 			ForcedRoots:   forcedRoots,

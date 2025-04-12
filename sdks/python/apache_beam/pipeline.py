@@ -87,8 +87,8 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import PipelineRunner
-from apache_beam.runners import common
 from apache_beam.runners import create_runner
+from apache_beam.runners import pipeline_utils
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import DisplayData
@@ -1019,7 +1019,7 @@ class Pipeline(HasDisplayData):
 
     Mutates proto as contexts may have references to proto.components.
     """
-    common.merge_common_environments(proto, inplace=True)
+    pipeline_utils.merge_common_environments(proto, inplace=True)
 
   @staticmethod
   def from_runner_api(

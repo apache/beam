@@ -32,6 +32,7 @@ import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.data.GenericDeleteFilter;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.avro.DataReader;
@@ -175,7 +176,9 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
         default:
           throw new UnsupportedOperationException("Cannot read format: " + file.format());
       }
-      currentIterator = iterable.iterator();
+      GenericDeleteFilter deleteFilter =
+          new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
+      currentIterator = deleteFilter.filter(iterable).iterator();
 
     } while (true);
 

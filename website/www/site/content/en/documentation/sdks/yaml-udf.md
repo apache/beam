@@ -336,6 +336,9 @@ It is also possible to store the function logic in a file and point to the funct
       name: my_filter
 ```
 
+This allows the logic of the UDF itself to be more easily developed and tested
+using standard software engineering practices.
+
 Currently, in addition to Python, Java, SQL, and JavaScript (experimental)
 expressions are supported as well
 
