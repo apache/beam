@@ -2375,7 +2375,7 @@ public class DatastoreV1 {
         throws DatastoreException, IOException, InterruptedException {
       Map<com.google.datastore.v1.Key, Mutation> uniqueMutations = new HashMap<>();
 
-      mutations.forEach(mutation -> uniqueMutations.put(getKey(mutation), mutation));
+      mutations.forEach(kv -> uniqueMutations.put(getKey(kv.getKey()), kv.getKey()));
       mutations.clear();
       mutationsSize = 0;
       if (uniqueMutations.isEmpty()) {
