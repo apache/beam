@@ -110,8 +110,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
     // Java side dying during execution.
-    // https://github.com/apache/beam/issues/32930
-    'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders',
     // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
     // Likely due to prism't coder changes.
     'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
