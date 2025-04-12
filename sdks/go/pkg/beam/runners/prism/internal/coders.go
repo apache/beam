@@ -250,6 +250,11 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 			ioutilx.ReadN(r, int(l))
 		}
 	case urns.CoderNullable:
+		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 1 {
+			panic(fmt.Sprintf("Nullable coder must have only one component: %s", prototext.Format(c)))
+		}
+		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		return func(r io.Reader) {
 			b, _ := ioutilx.ReadN(r, 1)
 			if len(b) == 0 {
@@ -260,8 +265,7 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 			if prefix == 0 {
 				return
 			}
-			l, _ := coder.DecodeVarInt(r)
-			ioutilx.ReadN(r, int(l))
+			ed(r)
 		}
 	case urns.CoderVarInt:
 		return func(r io.Reader) {
