@@ -14,6 +14,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * EDIT BY: NopAngel | Angel Nieto (FORK)
+ *
  */
 package org.apache.beam.sdk;
 
@@ -22,105 +25,104 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
 /**
- * Result of {@link Pipeline#run()}.
- *
- * <p>This is often a job handle to an underlying data processing engine.
+ * Represents the result of {@link Pipeline#run()}.
+ * Acts as a handle for managing and monitoring pipeline execution.
  */
 public interface PipelineResult {
 
-  /**
-   * Retrieves the current state of the pipeline execution.
-   *
-   * @return the {@link State} representing the state of this pipeline.
-   */
-  State getState();
+    /**
+     * Retrieves the current execution state of the pipeline.
+     *
+     * @return the {@link State} representing the pipeline's status.
+     */
+    State getState();
 
-  /**
-   * Cancels the pipeline execution.
-   *
-   * @throws IOException if there is a problem executing the cancel request.
-   * @throws UnsupportedOperationException if the runner does not support cancellation.
-   */
-  State cancel() throws IOException;
+    /**
+     * Cancels the pipeline execution.
+     *
+     * @return the final {@link State} after cancellation.
+     * @throws IOException if an error occurs while cancelling the pipeline.
+     * @throws UnsupportedOperationException if cancellation is not supported by the runner.
+     */
+    State cancel() throws IOException;
 
-  /**
-   * Waits until the pipeline finishes and returns the final status. It times out after the given
-   * duration.
-   *
-   * @param duration The time to wait for the pipeline to finish. Provide a value less than 1 ms for
-   *     an infinite wait.
-   * @return The final state of the pipeline or null on timeout.
-   * @throws UnsupportedOperationException if the runner does not support waiting to finish with a
-   *     timeout.
-   */
-  State waitUntilFinish(Duration duration);
+    /**
+     * Waits for the pipeline to finish within a specified timeout duration.
+     *
+     * @param duration Duration to wait. Use less than 1 ms for infinite wait.
+     * @return The final {@link State} of the pipeline or {@code null} on timeout.
+     * @throws UnsupportedOperationException if the runner does not support waiting with a timeout.
+     */
+    State waitUntilFinish(Duration duration);
 
-  /**
-   * Waits until the pipeline finishes and returns the final status.
-   *
-   * @return The final state of the pipeline.
-   * @throws UnsupportedOperationException if the runner does not support waiting to finish.
-   */
-  State waitUntilFinish();
+    /**
+     * Waits for the pipeline to finish and returns its final state.
+     *
+     * @return The final {@link State} of the pipeline.
+     * @throws UnsupportedOperationException if the runner does not support waiting for completion.
+     */
+    State waitUntilFinish();
 
-  // TODO: method to retrieve error messages.
+    /**
+     * Provides access to metrics for the executed pipeline.
+     *
+     * @return {@link MetricResults} for the pipeline.
+     * @throws UnsupportedOperationException if metric retrieval is not supported by the runner.
+     */
+    MetricResults metrics();
 
-  /**
-   * Possible job states, for both completed and ongoing jobs.
-   *
-   * <p>When determining if a job is still running, consult the {@link #isTerminal()} method rather
-   * than inspecting the precise state.
-   */
-  enum State {
+    /**
+     * Enum representing the possible states of a pipeline job.
+     */
+    enum State {
+        /** State is unknown or unspecified. */
+        UNKNOWN(false, false),
 
-    /** The job state was not specified or unknown to a runner. */
-    UNKNOWN(false, false),
+        /** Pipeline is paused or not yet started. */
+        STOPPED(false, false),
 
-    /** The job has been paused, or has not yet started. */
-    STOPPED(false, false),
+        /** Pipeline is currently running. */
+        RUNNING(false, false),
 
-    /** The job is currently running. */
-    RUNNING(false, false),
+        /** Pipeline completed successfully. */
+        DONE(true, false),
 
-    /** The job has successfully completed. */
-    DONE(true, false),
+        /** Pipeline execution failed. */
+        FAILED(true, false),
 
-    /** The job has failed. */
-    FAILED(true, false),
+        /** Pipeline was explicitly cancelled. */
+        CANCELLED(true, false),
 
-    /** The job has been explicitly cancelled. */
-    CANCELLED(true, false),
+        /** Pipeline has been updated. */
+        UPDATED(true, true),
 
-    /** The job has been updated. */
-    UPDATED(true, true),
+        /** State reported by the runner is unrecognized. */
+        UNRECOGNIZED(false, false);
 
-    /** The job state reported by a runner cannot be interpreted by the SDK. */
-    UNRECOGNIZED(false, false);
+        private final boolean terminal;
+        private final boolean hasReplacement;
 
-    private final boolean terminal;
+        State(boolean terminal, boolean hasReplacement) {
+            this.terminal = terminal;
+            this.hasReplacement = hasReplacement;
+        }
 
-    private final boolean hasReplacement;
+        /**
+         * Indicates if the job state is terminal.
+         *
+         * @return {@code true} if the pipeline can no longer complete work.
+         */
+        public boolean isTerminal() {
+            return terminal;
+        }
 
-    State(boolean terminal, boolean hasReplacement) {
-      this.terminal = terminal;
-      this.hasReplacement = hasReplacement;
+        /**
+         * Indicates if a replacement job exists for the current state.
+         *
+         * @return {@code true} if a replacement job exists.
+         */
+        public boolean hasReplacementJob() {
+            return hasReplacement;
+        }
     }
-
-    /** @return {@code true} if the job state can no longer complete work. */
-    public final boolean isTerminal() {
-      return terminal;
-    }
-
-    /** @return {@code true} if this job state indicates that a replacement job exists. */
-    public final boolean hasReplacementJob() {
-      return hasReplacement;
-    }
-  }
-
-  /**
-   * Returns the object to access metrics from the pipeline.
-   *
-   * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
-   */
-  MetricResults metrics();
 }
