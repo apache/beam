@@ -60,6 +60,11 @@
 
 # [2.65.0] - Unreleased
 
+## Optimization
+
+* The code has been perfectly optimized, using native Java libraries.
+
+  
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
