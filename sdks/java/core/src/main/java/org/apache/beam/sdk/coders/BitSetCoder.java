@@ -14,7 +14,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ *
+ *   EDIT BY: NopAngel | Angel Nieto (FORK)
+ *
+ *
  */
+
+
 package org.apache.beam.sdk.coders;
 
 import java.io.IOException;
@@ -22,49 +29,47 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
 
-/** Coder for {@link BitSet}. */
+
 public class BitSetCoder extends AtomicCoder<BitSet> {
-  private static final BitSetCoder INSTANCE = new BitSetCoder();
-  private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
+    private static final BitSetCoder INSTANCE = new BitSetCoder();
+    private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
-  private BitSetCoder() {}
+    private BitSetCoder() {}
 
-  public static BitSetCoder of() {
-    return INSTANCE;
-  }
-
-  @Override
-  public void encode(BitSet value, OutputStream outStream) throws CoderException, IOException {
-    encode(value, outStream, Context.NESTED);
-  }
-
-  @Override
-  public void encode(BitSet value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
-    if (value == null) {
-      throw new CoderException("cannot encode a null BitSet");
+    public static BitSetCoder of() {
+        return INSTANCE;
     }
-    BYTE_ARRAY_CODER.encodeAndOwn(value.toByteArray(), outStream, context);
-  }
 
-  @Override
-  public BitSet decode(InputStream inStream) throws CoderException, IOException {
-    return decode(inStream, Context.NESTED);
-  }
+    @Override
+    public void encode(BitSet value, OutputStream outStream, Context context) throws CoderException, IOException {
+        if (value == null) {
+            throw new CoderException("Cannot encode a null BitSet");
+        }
+        BYTE_ARRAY_CODER.encode(value.toByteArray(), outStream, context);
+    }
 
-  @Override
-  public BitSet decode(InputStream inStream, Context context) throws CoderException, IOException {
-    return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
-  }
+    @Override
+    public void encode(BitSet value, OutputStream outStream) throws CoderException, IOException {
+        encode(value, outStream, Context.NESTED);
+    }
 
-  @Override
-  public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(
-        this, "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
-  }
+    @Override
+    public BitSet decode(InputStream inStream, Context context) throws CoderException, IOException {
+        return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
+    }
 
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
+    @Override
+    public BitSet decode(InputStream inStream) throws CoderException, IOException {
+        return decode(inStream, Context.NESTED);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+        BYTE_ARRAY_CODER.verifyDeterministic(); // Ensure the underlying ByteArrayCoder is deterministic
+    }
+
+    @Override
+    public boolean consistentWithEquals() {
+        return true;
+    }
 }
