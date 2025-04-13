@@ -150,7 +150,7 @@ final class GrpcCommitWorkStream
   }
 
   @Override
-  public void sendHealthCheck() throws WindmillStreamShutdownException {
+  protected void sendHealthCheck() throws WindmillStreamShutdownException {
     if (hasPendingRequests()) {
       StreamingCommitWorkRequest.Builder builder = StreamingCommitWorkRequest.newBuilder();
       builder.addCommitChunkBuilder().setRequestId(HEARTBEAT_REQUEST_ID);

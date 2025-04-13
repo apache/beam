@@ -47,8 +47,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.datastore.v1.CommitRequest;
@@ -983,7 +983,7 @@ public class DatastoreV1Test {
                 any(Datastore.class),
                 eq(readTimeProto));
       }
-      verifyZeroInteractions(mockDatastore);
+      verifyNoInteractions(mockDatastore);
     }
 
     /** Tests {@link SplitQueryFn} when no query splits is specified. */

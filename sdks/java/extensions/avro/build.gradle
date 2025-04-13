@@ -67,6 +67,7 @@ dependencies {
   implementation library.java.error_prone_annotations
   implementation library.java.avro
   implementation library.java.joda_time
+  implementation library.java.commons_lang3
   testImplementation(project(path: ":sdks:java:core", configuration: "shadowTest")) {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
@@ -143,9 +144,11 @@ avroVersions.each { k, v ->
     main = "org.apache.avro.tool.Main"
     args = [
         "compile",
+        "-bigDecimal", // Use BigDecimal for logical type decimal, similarly to what gradle-avro-plugin does
         "schema",
         "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
         "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
+        "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/logicaltypes/logical-types.avsc",
         "build/generated/sources/avro$k/test/java"
     ]
   }

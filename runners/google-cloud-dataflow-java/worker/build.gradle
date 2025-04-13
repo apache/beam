@@ -87,7 +87,7 @@ applyJavaNature(
                 // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
                 "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
                 // Allow slf4j implementation worker for logging during pipeline execution
-                "org/slf4j/impl/**"
+                "org/slf4j/jul/**"
         ],
         generatedClassPatterns: [
                 /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/,
@@ -228,7 +228,6 @@ dependencies {
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
-    shadowTest library.java.powermock
 }
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
@@ -240,7 +239,7 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     doLast {
         project.configurations.shadow.artifacts.files.each {
             FileTree slf4jImpl = project.zipTree(it).matching {
-                include "org/slf4j/impl/JDK14LoggerAdapter.class"
+                include "org/slf4j/jul/JDK14LoggerAdapter.class"
             }
             outFile.text = slf4jImpl.files
             if (slf4jImpl.files.isEmpty()) {

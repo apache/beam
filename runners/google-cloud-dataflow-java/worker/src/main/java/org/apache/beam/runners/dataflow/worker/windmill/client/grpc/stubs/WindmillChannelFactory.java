@@ -17,26 +17,28 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
-import java.net.Inet6Address;
-import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ForwardingChannelBuilder2;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.alts.AltsChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.alts.AltsChannelCredentials;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.netty.GrpcSslContexts;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.netty.NegotiationType;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.netty.handler.ssl.SslContext;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Utility class used to create different RPC Channels. */
 public final class WindmillChannelFactory {
   public static final String LOCALHOST = "localhost";
   private static final int MAX_REMOTE_TRACE_EVENTS = 100;
+  // 10MiB.
+  private static final int WINDMILL_MAX_FLOW_CONTROL_WINDOW =
+      NettyChannelBuilder.DEFAULT_FLOW_CONTROL_WINDOW * 10;
 
   private WindmillChannelFactory() {}
 
@@ -57,7 +59,6 @@ public final class WindmillChannelFactory {
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
-        // switch is exhaustive will never happen.
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
         return remoteDirectChannel(
             windmillServiceAddress.authenticatedGcpServiceAddress(),
@@ -69,13 +70,15 @@ public final class WindmillChannelFactory {
     }
   }
 
-  static ManagedChannel remoteDirectChannel(
+  private static ManagedChannel remoteDirectChannel(
       AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress,
       int windmillServiceRpcChannelTimeoutSec) {
     return withDefaultChannelOptions(
-            AltsChannelBuilder.forAddress(
+            NettyChannelBuilder.forAddress(
                     authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
-                    authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
+                    // Ports are required for direct channels.
+                    authenticatedGcpServiceAddress.gcpServiceAddress().getPort(),
+                    new AltsChannelCredentials.Builder().build())
                 .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
             windmillServiceRpcChannelTimeoutSec)
         .build();
@@ -83,41 +86,31 @@ public final class WindmillChannelFactory {
 
   public static ManagedChannel remoteChannel(
       HostAndPort endpoint, int windmillServiceRpcChannelTimeoutSec) {
+    return withDefaultChannelOptions(
+            NettyChannelBuilder.forAddress(
+                endpoint.getHost(),
+                endpoint.hasPort()
+                    ? endpoint.getPort()
+                    : WindmillEndpoints.DEFAULT_WINDMILL_SERVICE_PORT),
+            windmillServiceRpcChannelTimeoutSec)
+        .negotiationType(NegotiationType.TLS)
+        .sslContext(dataflowGrpcSslContext(endpoint))
+        .build();
+  }
+
+  @SuppressWarnings("nullness")
+  private static SslContext dataflowGrpcSslContext(HostAndPort endpoint) {
     try {
-      return createRemoteChannel(
-          NettyChannelBuilder.forAddress(endpoint.getHost(), endpoint.getPort()),
-          windmillServiceRpcChannelTimeoutSec);
+      // Set ciphers(null) to not use GCM, which is disabled for Dataflow
+      // due to it being horribly slow.
+      return GrpcSslContexts.forClient().ciphers(null).build();
     } catch (SSLException sslException) {
       throw new WindmillChannelCreationException(endpoint, sslException);
     }
   }
 
-  public static Channel remoteChannel(
-      Inet6Address directEndpoint, int port, int windmillServiceRpcChannelTimeoutSec) {
-    try {
-      return createRemoteChannel(
-          NettyChannelBuilder.forAddress(new InetSocketAddress(directEndpoint, port)),
-          windmillServiceRpcChannelTimeoutSec);
-    } catch (SSLException sslException) {
-      throw new WindmillChannelCreationException(directEndpoint.toString(), sslException);
-    }
-  }
-
-  @SuppressWarnings("nullness")
-  private static ManagedChannel createRemoteChannel(
-      NettyChannelBuilder channelBuilder, int windmillServiceRpcChannelTimeoutSec)
-      throws SSLException {
-    return withDefaultChannelOptions(channelBuilder, windmillServiceRpcChannelTimeoutSec)
-        .flowControlWindow(10 * 1024 * 1024)
-        .negotiationType(NegotiationType.TLS)
-        // Set ciphers(null) to not use GCM, which is disabled for Dataflow
-        // due to it being horribly slow.
-        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-        .build();
-  }
-
-  private static <T extends ForwardingChannelBuilder2<T>> T withDefaultChannelOptions(
-      T channelBuilder, int windmillServiceRpcChannelTimeoutSec) {
+  private static NettyChannelBuilder withDefaultChannelOptions(
+      NettyChannelBuilder channelBuilder, int windmillServiceRpcChannelTimeoutSec) {
     if (windmillServiceRpcChannelTimeoutSec > 0) {
       channelBuilder
           .keepAliveTime(windmillServiceRpcChannelTimeoutSec, TimeUnit.SECONDS)
@@ -128,22 +121,15 @@ public final class WindmillChannelFactory {
     return channelBuilder
         .maxInboundMessageSize(Integer.MAX_VALUE)
         .maxTraceEvents(MAX_REMOTE_TRACE_EVENTS)
-        .maxInboundMetadataSize(1024 * 1024);
+        // 1MiB
+        .maxInboundMetadataSize(1024 * 1024)
+        .flowControlWindow(WINDMILL_MAX_FLOW_CONTROL_WINDOW);
   }
 
-  public static class WindmillChannelCreationException extends IllegalStateException {
+  private static class WindmillChannelCreationException extends IllegalStateException {
     private WindmillChannelCreationException(HostAndPort endpoint, SSLException sourceException) {
       super(
-          String.format(
-              "Exception thrown when trying to create channel to endpoint={host:%s; port:%d}",
-              endpoint.getHost(), endpoint.getPort()),
-          sourceException);
-    }
-
-    WindmillChannelCreationException(String directEndpoint, Throwable sourceException) {
-      super(
-          String.format(
-              "Exception thrown when trying to create channel to endpoint={%s}", directEndpoint),
+          String.format("Exception thrown when trying to create channel to %s", endpoint),
           sourceException);
     }
   }

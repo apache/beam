@@ -1081,6 +1081,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
+  def test_windowed_combine_per_key(self):
+    with self.create_pipeline() as p:
+      input = (
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t)))
+
+      fixed = input | 'Fixed' >> (
+          beam.WindowInto(beam.transforms.window.FixedWindows(10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(fixed, equal_to([('k', 1.5), ('k', 12)]))
+
+      sliding = input | 'Sliding' >> (
+          beam.WindowInto(beam.transforms.window.SlidingWindows(20, 10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sliding, equal_to([('k', 1.5), ('k', 5.0), ('k', 12)]))
+
+      sessions = input | 'Sessions' >> (
+          beam.WindowInto(beam.transforms.window.Sessions(5))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sessions, equal_to([('k', 1.5), ('k', 12)]))
+
   def test_read(self):
     # Can't use NamedTemporaryFile as a context
     # due to https://bugs.python.org/issue14243

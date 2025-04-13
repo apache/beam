@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -94,6 +95,22 @@ public class WaitTest implements Serializable {
           .add("element", element)
           .add("watermarkUpdate", watermarkUpdate)
           .toString();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(processingTime, element, watermarkUpdate);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof Event)) {
+        return false;
+      }
+      Event<?> otherEvent = (Event<?>) other;
+      return Objects.equals(processingTime, otherEvent.processingTime)
+          && Objects.equals(watermarkUpdate, otherEvent.watermarkUpdate)
+          && Objects.equals(element, otherEvent.element);
     }
   }
 
@@ -237,6 +254,21 @@ public class WaitTest implements Serializable {
     public WindowExpirationValue(@Nullable Instant watermarkAdvance, long value) {
       this.watermarkAdvance = watermarkAdvance;
       this.value = value;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof WindowExpirationValue)) {
+        return false;
+      }
+      WindowExpirationValue otherValue = (WindowExpirationValue) other;
+      return Objects.equals(watermarkAdvance, otherValue.watermarkAdvance)
+          && value == otherValue.value;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(watermarkAdvance, value);
     }
   }
 

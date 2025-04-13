@@ -114,6 +114,7 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
           setup.py
           main.py
           my_package/
+            __init__.py
             my_pipeline_launcher.py
             my_custom_dofns_and_transforms.py
             other_utils_and_helpers.py
@@ -163,7 +164,7 @@ Dataflow, see [Pre-building the python SDK custom container image with extra dep
 
 When the Python SDK submits the pipeline for execution to a remote runner, the pipeline contents, such as transform user code, is serialized (or pickled) into a bytecode using
 libraries that perform the serialization (also called picklers).  The default pickler library used by Beam is `dill`.
-To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipeline option. The `cloudpickle` support is currently [experimental](https://github.com/apache/beam/issues/21298).
+To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipeline option.
 
 By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
 Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by

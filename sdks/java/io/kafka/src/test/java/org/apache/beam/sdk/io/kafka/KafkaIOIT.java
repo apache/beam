@@ -37,6 +37,7 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -88,6 +89,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -110,6 +112,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -167,6 +170,8 @@ public class KafkaIOIT {
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   private static ExperimentalOptions sdfPipelineOptions;
 
   static {
@@ -209,6 +214,99 @@ public class KafkaIOIT {
     if (kafkaContainer != null) {
       kafkaContainer.stop();
     }
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidPartitions() throws IOException {
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Partition 1000 does not exist for topic "
+            + options.getKafkaTopic()
+            + ". Please check Kafka configuration.");
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        readFromKafka().withTopicPartitions(ImmutableList.of(invalidPartition)));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidTopics() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Could not find any partitions info for topic invalid_topic. Please check Kafka configuration"
+            + " and make sure that provided topics exist.");
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidTopicsAndDynamicRead() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Could not find any partitions info for topic invalid_topic. Please check Kafka configuration"
+            + " and make sure that provided topics exist.");
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withDynamicRead(Duration.standardSeconds(5))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
   }
 
   @Test

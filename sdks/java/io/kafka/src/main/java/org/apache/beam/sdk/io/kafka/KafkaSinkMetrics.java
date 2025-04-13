@@ -24,6 +24,8 @@ import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper class to create per worker metrics for Kafka Sink stages.
@@ -69,23 +71,11 @@ public class KafkaSinkMetrics {
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     nameBuilder.addLabel(TOPIC_LABEL, topic);
 
+    nameBuilder.addMetricLabel("PER_WORKER_METRIC", "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
+
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
-
-    return new DelegatingHistogram(metricName, buckets, false, true);
-  }
-
-  /**
-   * Creates a {@link Gauge} metric to record per partition backlog with the name
-   *
-   * <p>'EstimatedBacklogSize*topic_name:{topic};partitionId:{partitionId};'.
-   *
-   * @param topic Kafka topic associated with this metric.
-   * @param partitionId partition id associated with this metric.
-   * @return Counter.
-   */
-  public static Gauge createBacklogGauge(String topic, int partitionId) {
-    return new DelegatingGauge(getMetricGaugeName(topic, partitionId), false, true);
+    return new DelegatingHistogram(metricName, buckets, false);
   }
 
   /**
@@ -97,7 +87,10 @@ public class KafkaSinkMetrics {
    * @return Counter.
    */
   public static Gauge createBacklogGauge(MetricName name) {
-    return new DelegatingGauge(name, false, true);
+    // TODO(#34195): Unify metrics collection path.
+    // Currently KafkaSink metrics only supports aggregated per worker metrics.
+    Preconditions.checkState(isPerWorkerMetric(name));
+    return new DelegatingGauge(name, false);
   }
 
   /**
@@ -114,6 +107,7 @@ public class KafkaSinkMetrics {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
     nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
     nameBuilder.addLabel(TOPIC_LABEL, topic);
+    nameBuilder.addMetricLabel("PER_WORKER_METRIC", "true");
     return nameBuilder.build(METRICS_NAMESPACE);
   }
 
@@ -131,5 +125,13 @@ public class KafkaSinkMetrics {
 
   public static void setSupportKafkaMetrics(boolean supportKafkaMetrics) {
     KafkaSinkMetrics.supportKafkaMetrics = supportKafkaMetrics;
+  }
+
+  private static boolean isPerWorkerMetric(MetricName metricName) {
+    @Nullable String value = metricName.getLabels().get("PER_WORKER_METRIC");
+    if (value != null && value.equals("true")) {
+      return true;
+    }
+    return false;
   }
 }

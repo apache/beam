@@ -30,6 +30,7 @@ from apache_beam import version as beam_version
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.pipeline import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
@@ -712,7 +713,13 @@ class TestGCSIO(unittest.TestCase):
     mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
         _make_credentials("test-project"))
 
-    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    options = PipelineOptions([
+        "--job_name=test-job-name",
+        "--gcs_custom_audit_entry=user=test-user-id",
+        "--gcs_custom_audit_entries={\"id\": \"1234\", \"status\": \"ok\"}"
+    ])
+
+    gcs = gcsio.GcsIO(pipeline_options=options)
     # no HTTP request when initializing GcsIO
     mock_do_request.assert_not_called()
 
@@ -732,6 +739,9 @@ class TestGCSIO(unittest.TestCase):
     beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
     self.assertIn(beam_user_agent, actual_headers['User-Agent'])
     self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+    self.assertEqual(actual_headers['x-goog-custom-audit-user'], 'test-user-id')
+    self.assertEqual(actual_headers['x-goog-custom-audit-id'], '1234')
+    self.assertEqual(actual_headers['x-goog-custom-audit-status'], 'ok')
 
   @mock.patch('google.cloud._http.JSONConnection._do_request')
   @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')

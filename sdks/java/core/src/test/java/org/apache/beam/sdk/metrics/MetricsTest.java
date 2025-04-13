@@ -264,6 +264,7 @@ public class MetricsTest implements Serializable {
       assertFalse(Metrics.MetricsFlag.counterDisabled());
       assertFalse(Metrics.MetricsFlag.stringSetDisabled());
       assertFalse(Metrics.MetricsFlag.boundedTrieDisabled());
+      assertFalse(Metrics.MetricsFlag.lineageRollupEnabled());
       PipelineOptions options =
           PipelineOptionsFactory.fromArgs("--experiments=disableCounterMetrics").create();
       Metrics.setDefaultPipelineOptions(options);
@@ -280,6 +281,13 @@ public class MetricsTest implements Serializable {
       assertFalse(Metrics.MetricsFlag.counterDisabled());
       assertFalse(Metrics.MetricsFlag.stringSetDisabled());
       assertTrue(Metrics.MetricsFlag.boundedTrieDisabled());
+      Metrics.resetDefaultPipelineOptions();
+      options = PipelineOptionsFactory.fromArgs("--experiments=enableLineageRollup").create();
+      Metrics.setDefaultPipelineOptions(options);
+      assertFalse(Metrics.MetricsFlag.counterDisabled());
+      assertFalse(Metrics.MetricsFlag.stringSetDisabled());
+      assertFalse(Metrics.MetricsFlag.boundedTrieDisabled());
+      assertTrue(Metrics.MetricsFlag.lineageRollupEnabled());
       Metrics.resetDefaultPipelineOptions();
     }
   }

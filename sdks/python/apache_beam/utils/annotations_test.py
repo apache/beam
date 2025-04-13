@@ -47,6 +47,22 @@ class AnnotationTests(unittest.TestCase):
           annotation_type='deprecated',
           label_check_list=[('since', True), ('instead', True),
                             ('Do this', True)])
+      self.assertIn(
+          '.. deprecated::',
+          fnc_test_deprecated_with_since_current_message.__doc__)
+
+  def test_deprecated_with_class(self):
+    @deprecated(since='v.1', current='multiply', extra_message='Do this')
+    class MyClass():
+      """This is a test."""
+      def __init__(self):
+        pass
+
+      def foo(self):
+        pass
+
+    self.assertIn('.. deprecated::', MyClass.__doc__)
+    self.assertIn('This is a test', MyClass.__doc__)
 
   def test_deprecated_with_since_current(self):
     with warnings.catch_warnings(record=True) as w:
