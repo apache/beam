@@ -64,7 +64,7 @@ def enrichment_with_cloudsql():
   database_user = os.environ.get("SQL_DB_USER")
   database_password = os.environ.get("SQL_DB_PASSWORD")
   database_id = os.environ.get("SQL_DB_ID")
-  table_id = os.environ.get("SQL_TABLE_ID")
+  table_id = "products"
   where_clause_template = "product_id = {}"
   where_clause_fields = ["product_id"]
 

@@ -114,6 +114,7 @@ class EnrichmentTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
   def pre_cloudsql_enrichment_test(self):
+    table_id ="products"
     columns = [
         Column("product_id", Integer, primary_key=True),
         Column("name", String, nullable=False),
@@ -138,10 +139,9 @@ class EnrichmentTest(unittest.TestCase):
     os.environ['SQL_DB_PASSWORD'] = db.password
     os.environ['SQL_DB_ID'] = db.id
     os.environ['SQL_DB_URL'] = db.url
-    os.environ['SQL_TABLE_ID'] = "products"
     engine = CloudSQLEnrichmentTestHelper.create_table(
-        table_id=os.environ.get("SQL_TABLE_ID"),
         db_url=os.environ.get("SQL_DB_URL"),
+        table_id=table_id,
         columns=columns,
         table_data=table_data)
     return db, engine
@@ -156,7 +156,6 @@ class EnrichmentTest(unittest.TestCase):
     os.environ.pop('SQL_DB_PASSWORD', None)
     os.environ.pop('SQL_DB_ID', None)
     os.environ.pop('SQL_DB_URL', None)
-    os.environ.pop('SQL_TABLE_ID', None)
 
 
 if __name__ == '__main__':
