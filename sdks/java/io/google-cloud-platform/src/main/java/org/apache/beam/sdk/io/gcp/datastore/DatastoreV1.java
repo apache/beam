@@ -2216,8 +2216,6 @@ public class DatastoreV1 {
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
-    private final Distribution batchSize =
-        Metrics.distribution(DatastoreWriterFn.class, "batchSize");
     private final Counter entitiesMutated =
         Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesMutated");
     private final Distribution latencyMsPerMutation =
