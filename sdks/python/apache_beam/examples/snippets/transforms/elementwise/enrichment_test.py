@@ -114,7 +114,7 @@ class EnrichmentTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
   def pre_cloudsql_enrichment_test(self):
-    table_id ="products"
+    table_id = "products"
     columns = [
         Column("product_id", Integer, primary_key=True),
         Column("name", String, nullable=False),
