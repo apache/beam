@@ -93,6 +93,11 @@ jobs:
         with:
           ref: ${{ env.RC_TAG }}
 
+      - name: Download validate_table.sh from master branch
+        run: |
+          curl -o ./scripts/tools/validate_table.sh https://raw.githubusercontent.com/apache/beam/master/scripts/tools/validate_table.sh
+          chmod +x ./scripts/tools/validate_table.sh
+
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
