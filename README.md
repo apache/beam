@@ -15,11 +15,18 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+    Edited by: NopAngel | Angel Nieto (FORK)
 -->
 
 # Apache Beam
 
 [Apache Beam](http://beam.apache.org/) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends, including [Apache Flink](http://flink.apache.org/), [Apache Spark](http://spark.apache.org/), [Google Cloud Dataflow](http://cloud.google.com/dataflow/), and [Hazelcast Jet](https://jet.hazelcast.org/).
+
+## Settings
+
+Some code has been changed in some files to optimize [Apache-Beam](https://bean.apache.org/) performance. You can see the changed files (mostly Java) in the commits/branch.
+This FORK is made by: Angel Nieto | [NopAngel](https://github.com/NopAngel/)
 
 ## Status
 
