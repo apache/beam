@@ -133,13 +133,6 @@ class CloudSQLEnrichmentTestHelper:
       metadata: MetaData = MetaData()) -> Engine:
     engine = create_engine(db_url)
     table = Table(table_id, metadata, *columns)
-
-    # metadata = MetaData()
-    # Column("id", Integer, primary_key=True),
-    # Column("name", String, nullable=False),
-    # Column("quantity", Integer, nullable=False),
-    # Column("distribution_center_id", Integer, nullable=False),
-    # Create the table in the database.
     metadata.create_all(engine)
 
     # Insert data into the table.
