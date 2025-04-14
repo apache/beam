@@ -39,6 +39,7 @@ from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import subprocess_server
 
 # Run as
 #
@@ -389,37 +390,28 @@ class PrismRunnerSingletonTest(unittest.TestCase):
     else:
       options = DebugOptions()
 
+    runner = prism_runner.PrismRunner()
     with mock.patch(
-        'apache_beam.runners.portability.job_server.subprocess_server.SubprocessServer.start'  # pylint: disable=line-too-long
-    ) as mock_start:
+        'apache_beam.runners.portability.prism_runner.PrismJobServer'
+    ) as mock_prism_server:
+
       # Reset the class-level singleton for every fresh run
       prism_runner.PrismRunner._PrismRunner__singleton = None
 
-      try:
-        with beam.Pipeline(options=options,
-                           runner=prism_runner.PrismRunner()) as p:
-          _ = p | "Create Elements" >> beam.Create(
-              range(5)) | "Squares" >> beam.Map(lambda x: x**2)
-      except:  # pylint: disable=bare-except
-        pass
+      runner = prism_runner.PrismRunner()
+      runner.default_job_server(options)
 
-      mock_start.assert_called_once()
-      mock_start.reset_mock()
+      mock_prism_server.assert_called_once()
+      mock_prism_server.reset_mock()
 
-      try:
-        with beam.Pipeline(options=options,
-                           runner=prism_runner.PrismRunner()) as p:
-          _ = p | "Create Elements" >> beam.Create(
-              range(5)) | "Squares" >> beam.Map(lambda x: x**2)
-      except:  # pylint: disable=bare-except
-        pass
-
+      runner = prism_runner.PrismRunner()
+      runner.default_job_server(options)
       if enable_singleton:
-        # If singleton is enabled, we won't try to start a new server for the
+        # If singleton is enabled, we won't try to create a new server for the
         # second run.
-        mock_start.assert_not_called()
+        mock_prism_server.assert_not_called()
       else:
-        mock_start.assert_called_once()
+        mock_prism_server.assert_called_once()
 
 
 if __name__ == '__main__':
