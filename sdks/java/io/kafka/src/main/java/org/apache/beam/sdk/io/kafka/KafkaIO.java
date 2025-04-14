@@ -1908,15 +1908,7 @@ public class KafkaIO {
               }
             } else {
               for (String topic : topics) {
-                List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
-                checkState(
-                    partitionInfoList != null && !partitionInfoList.isEmpty(),
-                    "Could not find any partitions info for topic "
-                        + topic
-                        + ". Please check Kafka configuration and make sure "
-                        + "that provided topics exist.");
-
-                for (PartitionInfo p : partitionInfoList) {
+                for (PartitionInfo p : consumer.partitionsFor(topic)) {
                   partitions.add(new TopicPartition(p.topic(), p.partition()));
                 }
               }
