@@ -15,15 +15,20 @@
 #  limitations under the License.
 
 --region=us-central1
---temp_location=gs://temp-storage-for-perf-tests/loadtests
---staging_location=gs://temp-storage-for-perf-tests/loadtests
---influx_namespace=dataflow
---influx_measurement=go_batch_gbk_5
---input_options=''{\"num_records\":1000000,\"key_size\":10,\"value_size\":90}''
---iterations=1
---fanout=8
---num_workers=16
+--machine_type=n1-standard-2
+--num_workers=20
+--disk_size_gb=50
 --autoscaling_algorithm=NONE
---environment_type=DOCKER
---environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
+--staging_location=gs://temp-storage-for-perf-tests/loadtests
+--temp_location=gs://temp-storage-for-perf-tests/loadtests
+--requirements_file=apache_beam/ml/inference/torch_tests_requirements.txt
+--publish_to_big_query=true
+--metrics_dataset=beam_run_inference
+--metrics_table=torch_sentiment_distilbert_base_uncased
+--input_options={}
+--influx_measurement=torch_sentiment_distilbert_base_uncased
+--device=CPU
+--input_file=gs://apache-beam-ml/testing/inputs/sentences_50k.txt
 --runner=DataflowRunner
+--model_path=distilbert-base-uncased-finetuned-sst-2-english
+--model_state_dict_path=gs://apache-beam-ml/models/huggingface.sentiment.distilbert-base-uncased.pth

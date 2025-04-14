@@ -72,10 +72,15 @@ configurations {
 }
 
 dependencies {
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:core")
+  implementation project(path: ":sdks:java:harness")
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core") // for autoservice filesystems
+  permitUnusedDeclared project(":sdks:java:harness")
+  permitUnusedDeclared project(":sdks:java:core")
 
+  testImplementation project(path: ":sdks:java:core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:harness", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
 
@@ -117,6 +122,10 @@ plugins.withType(JavaPlugin).configureEach{
   java {
     modularity.inferModulePath = true
   }
+}
+
+tasks.withType(JavaCompile).configureEach {
+  options.incremental = false
 }
 
 // JPMS requires JDK > 8. Test tasks enabled when either

@@ -132,7 +132,7 @@ InjectorThread.stop()
 LeaderBoardThread.stop()
 
 if(!isSuccess){
-  t.error("FAILED: Failed running LeaderBoard on DirectRunner")
+    t.error("FAILED: Failed running LeaderBoard on DirectRunner")
 }
 t.success("LeaderBoard successfully run on DirectRunner.")
 

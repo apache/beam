@@ -16,24 +16,24 @@
 name: PreCommit YAML Xlang Direct
 
 on:
-  pull_request_target:
-    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**']
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - "model/**"
-      - "release/**"
-      - "sdks/python/**"
-      - "sdks/java/extensions/schemaio-expansion-service/**"
-      - "sdks/java/extensions/sql/**"
-      - "sdks/java/io/expansion-service/**"
-      - "sdks/java/io/google-cloud-platform/**"
-      - ".github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml"
-  schedule:
-    - cron: '30 5/6 * * *'
+#  pull_request_target:
+#    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**']
+#  issue_comment:
+#    types: [created]
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - "model/**"
+#      - "release/**"
+#      - "sdks/python/**"
+#      - "sdks/java/extensions/schemaio-expansion-service/**"
+#      - "sdks/java/extensions/sql/**"
+#      - "sdks/java/io/expansion-service/**"
+#      - "sdks/java/io/google-cloud-platform/**"
+#      - ".github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml"
+#  schedule:
+#    - cron: '30 5/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

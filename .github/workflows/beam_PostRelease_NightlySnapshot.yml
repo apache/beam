@@ -20,11 +20,11 @@ on:
     inputs:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
-        required: true
-        default: '2.XX.0'
+        required: false
+        default: ''
       SNAPSHOT_URL:
         description: Location of the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
-        required: true
+        required: false
   schedule:
     - cron: '15 16 * * *'
 

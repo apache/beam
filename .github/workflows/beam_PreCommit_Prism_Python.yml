@@ -16,24 +16,24 @@
 name: PreCommit Prism Python
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/go/pkg/beam/runners/prism/**'
-      - 'sdks/python/**'
-      - 'release/**'
-      - '.github/workflows/beam_PreCommit_Prism_Python.yml'
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/go/pkg/beam/runners/prism/**'
-      - 'sdks/python/**'
-      - 'release/**'
-      - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Prism_Python.json'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'model/**'
+#      - 'sdks/go/pkg/beam/runners/prism/**'
+#      - 'sdks/python/**'
+#      - 'release/**'
+#      - '.github/workflows/beam_PreCommit_Prism_Python.yml'
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'model/**'
+#      - 'sdks/go/pkg/beam/runners/prism/**'
+#      - 'sdks/python/**'
+#      - 'release/**'
+#      - 'release/trigger_all_tests.json'
+#      - '.github/trigger_files/beam_PreCommit_Prism_Python.json'
   issue_comment:
     types: [created]
   schedule:

@@ -16,7 +16,7 @@
 # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite
 # on cron and add release/trigger_all_tests.json to trigger path once fixed.
 
-name: PostCommit XVR GoUsingJava Dataflow (DISABLED)
+name: PostCommit XVR GoUsingJava Dataflow
 
 on:
   # schedule:
@@ -59,7 +59,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run XVR_GoUsingJava_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 100
+    timeout-minutes: 300
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -77,15 +77,33 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+#      - name: Java container
+#        uses: ./.github/actions/gradle-command-self-hosted-action
+#        with:
+#          gradle-command: :sdks:java:container:java11:docker
+#      - name: Java expansion service
+#        uses: ./.github/actions/gradle-command-self-hosted-action
+#        with:
+#          gradle-command: :sdks:java:testing:expansion-service:buildTestExpansionServiceJar
+#      - name: Python container
+#        uses: ./.github/actions/gradle-command-self-hosted-action
+#        with:
+#          gradle-command: :sdks:python:container:py39:docker
+#      - name: Go container
+#        uses: ./.github/actions/gradle-command-self-hosted-action
+#        with:
+#          gradle-command: :sdks:go:container:docker
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+#        with:
+#          install: true
+#          driver: 'docker-container'  # Required for multi-platform builds
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
-      - name: run XVR GoUsingJava Dataflow script
+      - name: run PostCommit XVR GoUsingJava Dataflow script
         env:
-          USER: github-actions
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
+          USER: jenkins
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava

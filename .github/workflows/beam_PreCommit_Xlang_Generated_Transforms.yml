@@ -16,34 +16,34 @@
 name: PreCommit Xlang Generated Transforms
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/python/**'
-      - 'sdks/java/expansion-service/**'
-      - 'sdks/java/core/**'
-      - 'sdks/java/io/**'
-      - 'sdks/java/extensions/sql/**'
-      - 'release/**'
-      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/python/**'
-      - 'sdks/java/expansion-service/**'
-      - 'sdks/java/core/**'
-      - 'sdks/java/io/**'
-      - 'sdks/java/extensions/sql/**'
-      - 'release/**'
-      - 'release/trigger_all_tests.json'
-      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '30 2/6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'model/**'
+#      - 'sdks/python/**'
+#      - 'sdks/java/expansion-service/**'
+#      - 'sdks/java/core/**'
+#      - 'sdks/java/io/**'
+#      - 'sdks/java/extensions/sql/**'
+#      - 'release/**'
+#      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'model/**'
+#      - 'sdks/python/**'
+#      - 'sdks/java/expansion-service/**'
+#      - 'sdks/java/core/**'
+#      - 'sdks/java/io/**'
+#      - 'sdks/java/extensions/sql/**'
+#      - 'release/**'
+#      - 'release/trigger_all_tests.json'
+#      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#    - cron: '30 2/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

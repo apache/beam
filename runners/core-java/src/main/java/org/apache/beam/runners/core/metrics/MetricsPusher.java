@@ -45,6 +45,7 @@ public class MetricsPusher implements Serializable {
   private transient @Nullable ScheduledFuture<?> scheduledFuture;
   private transient PipelineResult pipelineResult;
   private MetricsContainerStepMap metricsContainerStepMap;
+  private ScheduledExecutorService scheduler;
 
   public MetricsPusher(
       MetricsContainerStepMap metricsContainerStepMap,
@@ -64,7 +65,7 @@ public class MetricsPusher implements Serializable {
 
   public void start() {
     if (!(metricsSink instanceof NoOpMetricsSink)) {
-      ScheduledExecutorService scheduler =
+      scheduler =
           Executors.newSingleThreadScheduledExecutor(
               new ThreadFactoryBuilder()
                   .setDaemon(true)
@@ -76,8 +77,11 @@ public class MetricsPusher implements Serializable {
 
   private void tearDown() {
     pushMetrics();
-    if (!scheduledFuture.isCancelled()) {
+    if (scheduledFuture != null && !scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
+    }
+    if (scheduler != null && !scheduler.isShutdown()) {
+      scheduler.shutdownNow();
     }
   }
 

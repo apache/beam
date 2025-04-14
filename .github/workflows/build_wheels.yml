@@ -22,13 +22,13 @@ name: Build python source distribution and wheels
 on:
   schedule:
     - cron: '10 2 * * *'
-  push:
-    branches: ['master', 'release-*']
-    tags: 'v*'
-  pull_request:
-    branches: ['master', 'release-*']
-    tags: 'v*'
-    paths: ['sdks/python/**', 'model/**', 'release/**']
+#  push:
+#    branches: ['master', 'release-*']
+#    tags: 'v*'
+#  pull_request:
+#    branches: ['master', 'release-*']
+#    tags: 'v*'
+#    paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs

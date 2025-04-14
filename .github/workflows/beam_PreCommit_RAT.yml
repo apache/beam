@@ -16,15 +16,15 @@
 name: PreCommit RAT
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-  pull_request_target:
-    branches: ['master', 'release-*']
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '0 3/6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#    - cron: '0 3/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

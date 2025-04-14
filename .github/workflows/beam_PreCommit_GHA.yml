@@ -16,17 +16,17 @@
 name: PreCommit GHA
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ['.github/**/*.yml']
-  pull_request_target:
-    branches: ['master', 'release-*' ]
-    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_GHA.json']
-  issue_comment:
-    types: [created]
-  schedule:
-  - cron: '0 */6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths: ['.github/**/*.yml']
+#  pull_request_target:
+#    branches: ['master', 'release-*' ]
+#    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_GHA.json']
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#  - cron: '0 */6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

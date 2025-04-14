@@ -16,48 +16,48 @@
 name: PreCommit Java Hadoop IO Direct
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - "sdks/java/io/hadoop-file-system/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
-      - "examples/java/**"
-      - "sdks/java/testing/test-utils/**"
-      - "sdks/java/io/hadoop-common/**"
-      - "sdks/java/io/hadoop-format/**"
-      - ".github/workflows/beam_PreCommit_Java_Hadoop_IO_Direct.yml"
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - "sdks/java/io/hadoop-file-system/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
-      - "examples/java/**"
-      - "sdks/java/testing/test-utils/**"
-      - "sdks/java/io/hadoop-common/**"
-      - "sdks/java/io/hadoop-format/**"
-      - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Java_Hadoop_IO_Direct.json'
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '45 1/6 * * *'
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - "sdks/java/io/hadoop-file-system/**"
+#      - "sdks/java/io/common/**"
+#      - "sdks/java/core/src/main/**"
+#      - "build.gradle"
+#      - "buildSrc/**"
+#      - "gradle/**"
+#      - "gradle.properties"
+#      - "gradlew"
+#      - "gradle.bat"
+#      - "settings.gradle.kts"
+#      - "examples/java/**"
+#      - "sdks/java/testing/test-utils/**"
+#      - "sdks/java/io/hadoop-common/**"
+#      - "sdks/java/io/hadoop-format/**"
+#      - ".github/workflows/beam_PreCommit_Java_Hadoop_IO_Direct.yml"
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths:
+#      - "sdks/java/io/hadoop-file-system/**"
+#      - "sdks/java/io/common/**"
+#      - "sdks/java/core/src/main/**"
+#      - "build.gradle"
+#      - "buildSrc/**"
+#      - "gradle/**"
+#      - "gradle.properties"
+#      - "gradlew"
+#      - "gradle.bat"
+#      - "settings.gradle.kts"
+#      - "examples/java/**"
+#      - "sdks/java/testing/test-utils/**"
+#      - "sdks/java/io/hadoop-common/**"
+#      - "sdks/java/io/hadoop-format/**"
+#      - 'release/trigger_all_tests.json'
+#      - '.github/trigger_files/beam_PreCommit_Java_Hadoop_IO_Direct.json'
+#  issue_comment:
+#    types: [created]
+#  schedule:
+#    - cron: '45 1/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

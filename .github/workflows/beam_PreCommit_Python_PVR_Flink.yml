@@ -16,34 +16,38 @@
 name: PreCommit Python PVR Flink
 
 on:
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/python/**'
-      - 'release/**'
-      - 'sdks/java/io/kafka/**'
-      - 'runners/core-java/**'
-      - 'runners/extensions-java/**'
-      - 'runners/flink/**'
-      - 'runners/java-fn-execution/**'
-      - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Python_PVR_Flink.json'
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/python/**'
-      - 'release/**'
-      - 'sdks/java/io/kafka/**'
-      - 'runners/core-java/**'
-      - 'runners/extensions-java/**'
-      - 'runners/flink/**'
-      - 'runners/java-fn-execution/**'
-      - '.github/workflows/beam_PreCommit_Python_PVR_Flink.yml'
+#  pull_request_target:
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'model/**'
+#      - 'sdks/python/**'
+#      - 'release/**'
+#      - 'sdks/java/io/kafka/**'
+#      - 'runners/core-construction-java/**'
+#      - 'runners/core-java/**'
+#      - 'runners/extensions-java/**'
+#      - 'runners/flink/**'
+#      - 'runners/java-fn-execution/**'
+#      - 'runners/reference/**'
+#      - 'release/trigger_all_tests.json'
+#      - '.github/trigger_files/beam_PreCommit_Python_PVR_Flink.json'
+#  issue_comment:
+#    types: [created]
+#  push:
+#    tags: ['v*']
+#    branches: ['master', 'release-*']
+#    paths:
+#      - 'model/**'
+#      - 'sdks/python/**'
+#      - 'release/**'
+#      - 'sdks/java/io/kafka/**'
+#      - 'runners/core-construction-java/**'
+#      - 'runners/core-java/**'
+#      - 'runners/extensions-java/**'
+#      - 'runners/flink/**'
+#      - 'runners/java-fn-execution/**'
+#      - 'runners/reference/**'
+#      - '.github/workflows/beam_PreCommit_Python_PVR_Flink.yml'
   schedule:
     - cron: '45 2/6 * * *'
   workflow_dispatch:
