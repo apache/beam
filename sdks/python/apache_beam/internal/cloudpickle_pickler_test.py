@@ -23,6 +23,7 @@ import threading
 import types
 import unittest
 
+from apache_beam.coders import proto2_coder_test_messages_pb2
 from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
@@ -31,6 +32,22 @@ from apache_beam.internal.cloudpickle_pickler import loads
 class PicklerTest(unittest.TestCase):
 
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
+
+  def test_pickle_nested_enum_descriptor(self):
+    NestedEnum = proto2_coder_test_messages_pb2.MessageD.NestedEnum
+
+    def fn():
+      return NestedEnum.TWO
+
+    self.assertEqual(fn(), loads(dumps(fn))())
+
+  def test_pickle_top_level_enum_descriptor(self):
+    TopLevelEnum = proto2_coder_test_messages_pb2.TopLevelEnum
+
+    def fn():
+      return TopLevelEnum.ONE
+
+    self.assertEqual(fn(), loads(dumps(fn))())
 
   def test_basics(self):
     self.assertEqual([1, 'a', ('z', )], loads(dumps([1, 'a', ('z', )])))
@@ -96,6 +113,12 @@ class PicklerTest(unittest.TestCase):
     rlock_type = type(rlock_instance)
 
     self.assertIsInstance(loads(dumps(rlock_instance)), rlock_type)
+
+  def test_pickle_lock(self):
+    lock_instance = threading.Lock()
+    lock_type = type(lock_instance)
+
+    self.assertIsInstance(loads(dumps(lock_instance)), lock_type)
 
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
   def test_dump_and_load_mapping_proxy(self):

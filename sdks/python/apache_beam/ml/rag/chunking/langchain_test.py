@@ -167,7 +167,7 @@ class LangChainChunkingTest(unittest.TestCase):
       def check_token_lengths(chunks):
         for chunk in chunks:
           # Verify each chunk's token length is within limits
-          num_tokens = len(tokenizer.encode(chunk.content.text))
+          num_tokens = len(tokenizer.tokenize(chunk.content.text))
           if not num_tokens <= 10:
             raise BeamAssertException(
                 f"Chunk has {num_tokens} tokens, expected <= 10")
