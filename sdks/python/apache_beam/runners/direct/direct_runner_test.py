@@ -47,9 +47,10 @@ class DirectPipelineResultTest(unittest.TestCase):
   def test_waiting_on_result_stops_executor_threads(self):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
-    for runner in ['DirectRunner',
-                   'BundleBasedDirectRunner',
-                   'SwitchingDirectRunner']:
+    for runner in [
+      'BundleBasedDirectRunner',
+      'apache_beam.runners.portability.fn_api_runner.fn_runner.FnApiRunner'
+      ]:
       pipeline = test_pipeline.TestPipeline(runner=runner)
       _ = (pipeline | beam.Create([{'foo': 'bar'}]))
       result = pipeline.run()
