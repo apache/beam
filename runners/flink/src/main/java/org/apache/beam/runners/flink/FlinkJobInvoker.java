@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
@@ -80,7 +80,8 @@ public class FlinkJobInvoker extends JobInvoker {
           new FlinkPipelineRunner(
               flinkOptions,
               serverConfig.getFlinkConfDir(),
-              detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader(), flinkOptions));
+              detectClassPathResourcesToStage(
+                  FlinkJobInvoker.class.getClassLoader(), flinkOptions));
     } else {
       pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
     }
