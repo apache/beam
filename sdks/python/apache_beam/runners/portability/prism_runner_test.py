@@ -381,6 +381,47 @@ class PrismJobServerTest(unittest.TestCase):
             mock_zipfile_init.assert_called_once()
 
 
+class PrismRunnerSingletonTest(unittest.TestCase):
+  @parameterized.expand([True, False])
+  def test_singleton(self, enable_singleton):
+    if enable_singleton:
+      options = DebugOptions(["--experiment=enable_prism_server_singleton"])
+    else:
+      options = DebugOptions()
+
+    with mock.patch(
+        'apache_beam.runners.portability.job_server.subprocess_server.SubprocessServer.start'  # pylint: disable=line-too-long
+    ) as mock_start:
+      # Reset the class-level singleton for every fresh run
+      prism_runner.PrismRunner._PrismRunner__singleton = None
+
+      try:
+        with beam.Pipeline(options=options,
+                           runner=prism_runner.PrismRunner()) as p:
+          _ = p | "Create Elements" >> beam.Create(
+              range(5)) | "Squares" >> beam.Map(lambda x: x**2)
+      except:  # pylint: disable=bare-except
+        pass
+
+      mock_start.assert_called_once()
+      mock_start.reset_mock()
+
+      try:
+        with beam.Pipeline(options=options,
+                           runner=prism_runner.PrismRunner()) as p:
+          _ = p | "Create Elements" >> beam.Create(
+              range(5)) | "Squares" >> beam.Map(lambda x: x**2)
+      except:  # pylint: disable=bare-except
+        pass
+
+      if enable_singleton:
+        # If singleton is enabled, we won't try to start a new server for the
+        # second run.
+        mock_start.assert_not_called()
+      else:
+        mock_start.assert_called_once()
+
+
 if __name__ == '__main__':
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
