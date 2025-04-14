@@ -26,7 +26,6 @@ import argparse
 import logging
 from collections.abc import Iterable
 
-from google.cloud import bigquery
 from google.cloud import pubsub_v1
 
 import apache_beam as beam
@@ -157,20 +156,6 @@ def cleanup_pubsub_resources(
     print(f"Failed to delete topic: {e}")
 
 
-def delete_bigquery_table_data(project: str, table: str):
-  """Deletes all rows from the specified BigQuery table
-     with known sentiment values."""
-  client = bigquery.Client(project=project)
-  query = (
-      f"DELETE FROM `{table}` "
-      f"WHERE sentiment IN ('POSITIVE', 'NEGATIVE')")
-  try:
-    client.query(query).result()
-    print(f"Deleted all rows with sentiment from BigQuery table: {table}")
-  except Exception as e:
-    print(f"Failed to delete BigQuery table rows: {e}")
-
-
 def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   known_args, pipeline_args = parse_known_args(argv)
@@ -229,8 +214,6 @@ def run(
       project=known_args.project,
       topic_path=known_args.pubsub_topic,
       subscription_path=known_args.pubsub_subscription)
-  delete_bigquery_table_data(
-      project=known_args.project, table=known_args.output_table)
   return result
 
 
