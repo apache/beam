@@ -202,12 +202,25 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             dispatcherClient,
             ignored -> mock(WorkCommitter.class),
             new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)),
-            mock(WorkCommitter.class),
-            mock(GetDataClient.class),
-            mock(HeartbeatSender.class),
-            mock(StreamingWorkScheduler.class),
-            () -> {},
-            ignored -> Optional.empty());
+            (connection) ->
+                WindmillStreamPoolSender.create(
+                    connection,
+                    GetWorkRequest.newBuilder()
+                        .setClientId(JOB_HEADER.getClientId())
+                        .setJobId(JOB_HEADER.getJobId())
+                        .setProjectId(JOB_HEADER.getProjectId())
+                        .setWorkerId(JOB_HEADER.getWorkerId())
+                        .setMaxItems(getWorkBudget.items())
+                        .setMaxBytes(getWorkBudget.bytes())
+                        .build(),
+                    getWorkBudget,
+                    streamFactory,
+                    mock(WorkCommitter.class),
+                    mock(GetDataClient.class),
+                    mock(HeartbeatSender.class),
+                    mock(StreamingWorkScheduler.class),
+                    () -> {},
+                    ignored -> Optional.empty()));
     getWorkerMetadataReady.await();
     return harness;
   }
@@ -233,7 +246,6 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             .setMetadataVersion(1)
             .addWorkEndpoints(metadataResponseEndpoint(workerToken))
             .addWorkEndpoints(metadataResponseEndpoint(workerToken2))
-            // .setExternalEndpoint(AUTHENTICATING_SERVICE)
             .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build());
@@ -327,7 +339,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken)
                     .build())
+<<<<<<< HEAD
              .setExternalEndpoint(AUTHENTICATING_SERVICE)
+=======
+>>>>>>> f41b9b0b231 (Addressing review comments)
             .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();

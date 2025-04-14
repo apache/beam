@@ -56,7 +56,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
  */
 @Internal
 @ThreadSafe
-final class WindmillDirectStreamSender implements WindmillStreamSender, StreamSender {
+final class WindmillDirectStreamSender implements WindmillStreamSender {
   private static final String STREAM_STARTER_THREAD_NAME = "StartWindmillStreamThread-%d";
   private static final int TERMINATION_TIMEOUT_SECONDS = 5;
   private final AtomicBoolean started;

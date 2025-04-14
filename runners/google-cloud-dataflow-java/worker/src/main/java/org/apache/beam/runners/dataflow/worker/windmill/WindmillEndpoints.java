@@ -24,9 +24,9 @@ import com.google.auto.value.AutoValue;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse.EndpointType;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -73,16 +73,16 @@ public abstract class WindmillEndpoints {
                 endpointProto ->
                     Endpoint.from(endpointProto, workerMetadataResponseProto.getExternalEndpoint()))
             .collect(toImmutableSet());
-    EndpointType endpointType =
-        Arrays.stream(EndpointType.values())
-            .filter(e -> e.name().equals(workerMetadataResponseProto.getEndpointType().name()))
-            .findFirst()
-            .orElse(EndpointType.UNKNOWN);
+    // EndpointType endpointType =
+    //     Arrays.stream(EndpointType.values())
+    //         .filter(e -> e.name().equals(workerMetadataResponseProto.getEndpointType().name()))
+    //         .findFirst()
+    //         .orElse(EndpointType.UNKNOWN);
     return WindmillEndpoints.builder()
         .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
         .setWindmillEndpoints(windmillServers)
-        .setEndpointType(endpointType)
+        .setEndpointType(workerMetadataResponseProto.getEndpointType())
         .build();
   }
 
@@ -165,12 +165,12 @@ public abstract class WindmillEndpoints {
 
   public abstract EndpointType endpointType();
 
-  public enum EndpointType {
-    UNKNOWN,
-    CLOUDPATH,
-    BORG,
-    DIRECTPATH
-  }
+  // public enum EndpointType {
+  //   UNKNOWN,
+  //   CLOUDPATH,
+  //   BORG,
+  //   DIRECTPATH
+  // }
 
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
