@@ -37,6 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -95,7 +96,7 @@ public class TFRecordSchemaTransformProviderTest {
   private static final String[] FOO_BAR_RECORDS = {"foo", "bar"};
 
   private static final Iterable<String> EMPTY = Collections.emptyList();
-  private static final Iterable<String> SMALL = makeLines(1, 4);
+  private static final Iterable<String> SMALL = makeLines(10, 4);
   private static final Iterable<String> LARGE = makeLines(1000, 4);
   private static final Iterable<String> LARGE_RECORDS = makeLines(100, 100000);
 
@@ -164,26 +165,10 @@ public class TFRecordSchemaTransformProviderTest {
   @Test
   public void testWriteInvalidConfigurations() throws Exception {
     String fileName = "foo";
-    String nonExistentPath = "abc";
     String filenameSuffix = "bar";
     String shardTemplate = "xyz";
     String compression = "AUTO";
     Integer numShards = 10;
-
-    // Invalid outputPrefix
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          TFRecordWriteSchemaTransformConfiguration.builder()
-              .setOutputPrefix(tempFolder.getRoot().toPath().toString() + nonExistentPath)
-              .setFilenameSuffix(filenameSuffix)
-              .setShardTemplate(shardTemplate)
-              .setNumShards(numShards)
-              .setCompression(compression)
-              .setNoSpilling(true)
-              .build()
-              .validate();
-        });
 
     // NumShards unset
     assertThrows(
@@ -196,8 +181,7 @@ public class TFRecordSchemaTransformProviderTest {
               // .setNumShards(numShards) // NumShards is mandatory
               .setCompression(compression)
               .setNoSpilling(true)
-              .build()
-              .validate();
+              .build();
         });
 
     // Compression unset
@@ -211,8 +195,7 @@ public class TFRecordSchemaTransformProviderTest {
               .setNumShards(numShards)
               // .setCompression(compression) // Compression is mandatory
               .setNoSpilling(true)
-              .build()
-              .validate();
+              .build();
         });
 
     // NoSpilling unset
@@ -220,14 +203,13 @@ public class TFRecordSchemaTransformProviderTest {
         IllegalStateException.class,
         () -> {
           TFRecordWriteSchemaTransformConfiguration.builder()
-              .setOutputPrefix(tempFolder.getRoot().toPath().toString() + fileName)
+              // .setOutputPrefix(tempFolder.getRoot().toPath().toString() + fileName) //
+              // outputPrefix is mandatory
               .setFilenameSuffix(filenameSuffix)
               .setShardTemplate(shardTemplate)
               .setNumShards(numShards)
               .setCompression(compression)
-              // .setNoSpilling(true) // NoSpilling is mandatory
-              .build()
-              .validate();
+              .build();
         });
   }
 
@@ -530,10 +512,10 @@ public class TFRecordSchemaTransformProviderTest {
       Compression readCompression)
       throws IOException {
 
-    // Create tmp file for writing to
-    File tmpFile =
-        Files.createTempFile(tempFolder.getRoot().toPath(), "file", ".tfrecords").toFile();
-    String baseFilenameViaWrite = tmpFile.getPath();
+    // Create directory for files to be written to
+    Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "test-rt");
+    String outputNameViaWrite = "via-write";
+    String baseFilenameViaWrite = baseDir.resolve(outputNameViaWrite).toString();
 
     // Create beam row schema
     Schema schema = Schema.of(Schema.Field.of("record", Schema.FieldType.BYTES));

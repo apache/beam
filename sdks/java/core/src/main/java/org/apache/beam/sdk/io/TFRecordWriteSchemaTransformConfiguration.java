@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
-import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
@@ -45,15 +42,6 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
 
   public void validate() {
     String invalidConfigMessage = "Invalid TFRecord Write configuration: ";
-
-    String filePath = getOutputPrefix();
-    try {
-      MatchResult matches = FileSystems.match(filePath);
-      checkState(!matches.metadata().isEmpty(), "Unable to find any files matching %s", filePath);
-    } catch (IOException e) {
-      throw new IllegalStateException(
-          String.format(invalidConfigMessage + "Failed to validate %s", filePath), e);
-    }
 
     ErrorHandling errorHandling = getErrorHandling();
     if (errorHandling != null) {
