@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
@@ -100,7 +101,7 @@ public class GrpcGetDataStreamTest {
                 .setSendKeyedGetDataRequests(false)
                 .build()
                 .createGetDataStream(
-                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel),
+                    CloudWindmillServiceV1Alpha1CustomStub.newStub(inProcessChannel),
                     new ThrottleTimer());
     getDataStream.start();
     return getDataStream;

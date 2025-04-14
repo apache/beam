@@ -19,10 +19,10 @@ package org.apache.beam.runners.dataflow.worker.windmill.testing;
 
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -35,9 +35,9 @@ public final class FakeWindmillStubFactory implements ChannelCachingStubFactory 
   }
 
   @Override
-  public CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub
-      createWindmillServiceStub(WindmillServiceAddress serviceAddress) {
-    return CloudWindmillServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress));
+  public CloudWindmillServiceV1Alpha1CustomStub createWindmillServiceStub(
+      WindmillServiceAddress serviceAddress) {
+    return CloudWindmillServiceV1Alpha1CustomStub.newStub(channelCache.get(serviceAddress));
   }
 
   @Override

@@ -35,7 +35,6 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -49,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.CloudWindmillServiceV1Alpha1CustomStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -203,7 +203,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   public GetWorkStream createGetWorkStream(
-      CloudWindmillServiceV1Alpha1Stub stub,
+      CloudWindmillServiceV1Alpha1CustomStub stub,
       GetWorkRequest request,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver processWorkItem) {
@@ -245,7 +245,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   public GetDataStream createGetDataStream(
-      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
+      CloudWindmillServiceV1Alpha1CustomStub stub, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
@@ -279,7 +279,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   public CommitWorkStream createCommitWorkStream(
-      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer commitWorkThrottleTimer) {
+      CloudWindmillServiceV1Alpha1CustomStub stub, ThrottleTimer commitWorkThrottleTimer) {
+
     return GrpcCommitWorkStream.create(
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).commitWorkStream(responseObserver),
