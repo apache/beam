@@ -28,9 +28,9 @@ public abstract class ResourceHint {
    * environment. Override this method for a custom reconciliation logic. If is_inverse is true the
    * merge result will be flipped.
    */
-  public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_inverse) {
+  public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_sum) {
     // Defaults to the inner value as it is the most specific one.
-    return is_inverse ? outer : this;
+    return this;
   }
 
   /** Defines how to represent the as bytestring. */

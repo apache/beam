@@ -181,9 +181,9 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_inverse) {
-      return is_inverse
-          ? new BytesHint(Math.min(value, ((BytesHint) outer).value))
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_sum) {
+      return is_sum
+          ? new BytesHint(value + ((BytesHint) outer).value)
           : new BytesHint(Math.max(value, ((BytesHint) outer).value));
     }
 
