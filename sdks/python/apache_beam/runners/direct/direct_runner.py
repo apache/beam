@@ -173,7 +173,7 @@ class SwitchingDirectRunner(PipelineRunner):
         _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
-  
+
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):

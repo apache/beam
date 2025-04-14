@@ -48,9 +48,9 @@ class DirectPipelineResultTest(unittest.TestCase):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
     for runner in [
-      'BundleBasedDirectRunner',
-      'apache_beam.runners.portability.fn_api_runner.fn_runner.FnApiRunner'
-      ]:
+        'BundleBasedDirectRunner',
+        'apache_beam.runners.portability.fn_api_runner.fn_runner.FnApiRunner'
+    ]:
       pipeline = test_pipeline.TestPipeline(runner=runner)
       _ = (pipeline | beam.Create([{'foo': 'bar'}]))
       result = pipeline.run()
