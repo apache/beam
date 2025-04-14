@@ -39,7 +39,7 @@ from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.utils import subprocess_server
+from apache_beam.utils import shared
 
 # Run as
 #
@@ -396,7 +396,7 @@ class PrismRunnerSingletonTest(unittest.TestCase):
     ) as mock_prism_server:
 
       # Reset the class-level singleton for every fresh run
-      prism_runner.PrismRunner._PrismRunner__singleton = None
+      prism_runner.PrismRunner.shared_handle = shared.Shared()
 
       runner = prism_runner.PrismRunner()
       runner.default_job_server(options)
