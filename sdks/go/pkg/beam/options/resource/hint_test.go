@@ -143,19 +143,20 @@ func TestCPUCountHint_Payload(t *testing.T) {
 	}
 }
 
-func TestMaxActiveDoFnPerWorkerHint_MergeWith(t *testing.T) {
+func TestMaxActiveBundlesPerWorkerHint_MergeWith(t *testing.T) {
 	low := maxActiveBundlesPerWorkerHint{value: 2}
 	high := maxActiveBundlesPerWorkerHint{value: 4}
+	expected := maxActiveBundlesPerWorkerHint{value: 6}
 
-	if got, want := low.MergeWithOuter(high), low; got != want {
+	if got, want := low.MergeWithOuter(high), expected; got != want {
 		t.Errorf("%v.MergeWith(%v) = %v, want %v", low, high, got, want)
 	}
-	if got, want := high.MergeWithOuter(low), low; got != want {
+	if got, want := high.MergeWithOuter(low), expected; got != want {
 		t.Errorf("%v.MergeWith(%v) = %v, want %v", high, low, got, want)
 	}
 }
 
-func TestMaxParallelismPerWorkerHint_Payload(t *testing.T) {
+func TestMaxActiveBundlesPerWorkerHint_Payload(t *testing.T) {
 	tests := []struct {
 		value   uint64
 		payload string

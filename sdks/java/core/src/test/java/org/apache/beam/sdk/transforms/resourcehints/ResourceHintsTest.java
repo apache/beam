@@ -80,6 +80,19 @@ public class ResourceHintsTest implements Serializable {
   }
 
   @Test
+  public void testMaxBundlesPerWorkerMergesCorrectly() {
+    assertEquals(
+            "some_gpu",
+            new String(
+                    ResourceHints.create()
+                            .withAccelerator("some_gpu")
+                            .hints()
+                            .get("beam:resources:accelerator:v1")
+                            .toBytes(),
+                    StandardCharsets.US_ASCII));
+  }
+
+  @Test
   public void testFromOptions() {
     ResourceHintsOptions options =
         PipelineOptionsFactory.fromArgs(

@@ -185,28 +185,25 @@ func (h maxActiveBundlesPerWorkerHint) Payload() []byte {
 }
 
 func (h maxActiveBundlesPerWorkerHint) MergeWithOuter(outer Hint) Hint {
-	// Intentional runtime panic from type assertion to catch hint merge errors.
-	if outer.(maxActiveBundlesPerWorkerHint).value < h.value {
-		return outer
-	}
-	return h
+	// Max active bundles merge should be summed instead of taking the max.
+	return MaxActiveBundlesPerWorker(outer.(maxActiveBundlesPerWorkerHint).value + h.value)
 }
 
 func (h maxActiveBundlesPerWorkerHint) String() string {
-	return fmt.Sprintf("max_parallelism_per_worker=%v", uint64(h.value))
+	return fmt.Sprintf("max_active_bundles_per_worker=%v", uint64(h.value))
 }
 
-// ParseMaxParallelismPerWorker converts an int in string form into a hint.
-// An invalid size format will cause ParseMaxParallelismPerWorker to panic.
+// ParseMaxActiveBundlesPerWorker converts an int in string form into a hint.
+// An invalid size format will cause ParseMaxActiveBundlesPerWorker to panic.
 //
 // Hints are advisory only and runners may not respect them.
 //
 // See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
 // resource hints.
-func ParseMaxParallelismPerWorker(v string) Hint {
+func ParseMaxActiveBundlesPerWorker(v string) Hint {
 	b, err := strconv.Atoi(v)
 	if err != nil {
-		panic(fmt.Sprintf("resource.ParseMaxParallelismPerWorker: unable to parse %q: %v", v, err))
+		panic(fmt.Sprintf("resource.ParseMaxActiveBundlesPerWorker: unable to parse %q: %v", v, err))
 	}
 	return MaxActiveBundlesPerWorker(int64(b))
 }

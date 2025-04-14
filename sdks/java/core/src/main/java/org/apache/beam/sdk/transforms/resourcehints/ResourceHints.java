@@ -258,9 +258,9 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_inverse) {
-      return is_inverse
-          ? new IntHint(Math.min(value, ((IntHint) outer).value))
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_sum) {
+      return is_sum
+          ? new IntHint(value + ((IntHint) outer).value)
           : new IntHint(Math.max(value, ((IntHint) outer).value));
     }
 
@@ -370,7 +370,7 @@ public class ResourceHints {
                   .get(key)
                   .mergeWithOuter(
                       outerHint.getValue(),
-                      /*is_inverse*/ outerHint.getKey().equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
+                      /*is_sum*/ outerHint.getKey().equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
         } else {
           newHints.put(outerHint);
         }
