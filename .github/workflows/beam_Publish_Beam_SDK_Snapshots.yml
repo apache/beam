@@ -101,6 +101,10 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+      - name: Activate service account
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' > /tmp/key.json
+          gcloud auth activate-service-account --key-file=/tmp/key.json
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
