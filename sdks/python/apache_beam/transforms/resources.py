@@ -144,6 +144,7 @@ class ResourceHint:
   @staticmethod
   def _use_max(v1, v2):
     return str(max(int(v1), int(v2))).encode('ascii')
+
   @staticmethod
   def _use_sum(v1, v2):
     return str(int(v1) + int(v2)).encode('ascii')
@@ -190,7 +191,10 @@ ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
 
 
 class MaxActiveBundlesPerWorkerHint(ResourceHint):
-  """Describes max active bundles processed in parallel in transform's execution environment."""
+  """
+  Describes max active bundles processed in parallel
+  in transform's execution environment.
+  """
   urn = resource_hints.MAX_ACTIVE_BUNDLES_PER_WORKER.urn
 
   @classmethod
@@ -198,12 +202,16 @@ class MaxActiveBundlesPerWorkerHint(ResourceHint):
     return ResourceHint._use_sum(outer_value, inner_value)
 
 
-ResourceHint.register_resource_hint('max_active_bundles_per_worker', MaxActiveBundlesPerWorkerHint)
+ResourceHint.register_resource_hint(
+    'max_active_bundles_per_worker', MaxActiveBundlesPerWorkerHint)
 # Alias for interoperability with SDKs preferring camelCase.
-ResourceHint.register_resource_hint('MaxActiveBundlesPerWorker', MaxActiveBundlesPerWorkerHint)
+ResourceHint.register_resource_hint(
+    'MaxActiveBundlesPerWorker', MaxActiveBundlesPerWorkerHint)
 # Alias for common typo.
-ResourceHint.register_resource_hint('max_active_bundle_per_worker', MaxActiveBundlesPerWorkerHint)
-ResourceHint.register_resource_hint('MaxActiveBundlePerWorker', MaxActiveBundlesPerWorkerHint)
+ResourceHint.register_resource_hint(
+    'max_active_bundle_per_worker', MaxActiveBundlesPerWorkerHint)
+ResourceHint.register_resource_hint(
+    'MaxActiveBundlePerWorker', MaxActiveBundlesPerWorkerHint)
 
 
 

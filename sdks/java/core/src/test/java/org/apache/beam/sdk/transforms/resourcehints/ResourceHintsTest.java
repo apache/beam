@@ -82,14 +82,15 @@ public class ResourceHintsTest implements Serializable {
   @Test
   public void testMaxBundlesPerWorkerMergesCorrectly() {
     assertEquals(
-            "some_gpu",
-            new String(
-                    ResourceHints.create()
-                            .withAccelerator("some_gpu")
-                            .hints()
-                            .get("beam:resources:accelerator:v1")
-                            .toBytes(),
-                    StandardCharsets.US_ASCII));
+        "6",
+        new String(
+            ResourceHints.create()
+                .withMaxActiveBundlesPerWorker(2)
+                .mergeWithOuter(ResourceHints.create().withMaxActiveBundlesPerWorker(4))
+                .hints()
+                .get("beam:resources:max_active_bundles_per_worker:v1")
+                .toBytes(),
+            StandardCharsets.US_ASCII));
   }
 
   @Test

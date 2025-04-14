@@ -181,8 +181,8 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_sum) {
-      return is_sum
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean isSum) {
+      return isSum
           ? new BytesHint(value + ((BytesHint) outer).value)
           : new BytesHint(Math.max(value, ((BytesHint) outer).value));
     }
@@ -258,8 +258,8 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer, boolean is_sum) {
-      return is_sum
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean isSum) {
+      return isSum
           ? new IntHint(value + ((IntHint) outer).value)
           : new IntHint(Math.max(value, ((IntHint) outer).value));
     }
@@ -370,7 +370,7 @@ public class ResourceHints {
                   .get(key)
                   .mergeWithOuter(
                       outerHint.getValue(),
-                      /*is_sum*/ outerHint.getKey().equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
+                      /*isSum*/ outerHint.getKey().equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
         } else {
           newHints.put(outerHint);
         }
