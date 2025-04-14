@@ -17,11 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.function.Supplier;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -39,33 +43,23 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.Streamin
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Owns and maintains a set of streams used to communicate with a specific Windmill worker.
- * Underlying streams are "cached" in a threadsafe manner so that once {@link Supplier#get} is
- * called, a stream that is already started is returned.
- *
- * <p>Holds references to {@link
- * Supplier<org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream>} because
- * initializing the streams automatically start them, and we want to do so lazily here once the
- * {@link GetWorkBudget} is set.
- *
- * <p>Once started, the underlying streams are "alive" until they are manually closed via {@link
- * #closeAllStreams()}.
- *
- * <p>If closed, it means that the backend endpoint is no longer in the worker set. Once closed,
- * these instances are not reused.
- *
- * @implNote Does not manage streams for fetching {@link
- *     org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData} for side inputs.
+ * Owns and maintains a pool of streams used to fetch {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) from a specific source.
  */
 @Internal
 @ThreadSafe
-final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSender {
-  // private static final java.util.logging.Logger LOG =
-  //     LoggerFactory.getLogger(WindmillStreamPoolSender.class);
+public final class WindmillStreamPoolSender implements WindmillStreamSender {
+  private static final Logger LOG = LoggerFactory.getLogger(WindmillStreamPoolSender.class);
+  private static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
-  private final GetWorkStream getWorkStream;
+  private final WindmillConnection connection;
+  private final GetWorkRequest getWorkRequest;
+  private final GrpcWindmillStreamFactory streamingEngineStreamFactory;
   private final WorkCommitter workCommitter;
   private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
   private final GetDataClient getDataClient;
@@ -73,9 +67,9 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
   private final StreamingWorkScheduler streamingWorkScheduler;
   private final Runnable waitForResources;
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
-
-  @GuardedBy("this")
-  private boolean started;
+  private final ExecutorService workProviderExecutor;
+  private final AtomicBoolean started;
+  private GetWorkStream getWorkStream;
 
   private WindmillStreamPoolSender(
       WindmillConnection connection,
@@ -88,8 +82,11 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher) {
-    this.started = false;
+    this.started = new AtomicBoolean(false);
+    this.connection = connection;
+    this.getWorkRequest = getWorkRequest;
     this.getWorkBudget = getWorkBudget;
+    this.streamingEngineStreamFactory = streamingEngineStreamFactory;
     this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
     this.getDataClient = getDataClient;
     this.heartbeatSender = heartbeatSender;
@@ -97,8 +94,14 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
     this.waitForResources = waitForResources;
     this.computationStateFetcher = computationStateFetcher;
     this.workCommitter = workCommitter;
-
-    WorkItemReceiver processWorkItem =
+    this.workProviderExecutor =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setPriority(Thread.MIN_PRIORITY)
+                .setNameFormat("DispatchThread")
+                .build());
+    WorkItemReceiver workItemReceiver =
         (computationId,
             inputDataWatermark,
             synchronizedProcessingTime,
@@ -131,10 +134,10 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
             connection.stub(),
             getWorkRequest,
             streamingEngineThrottleTimers.getWorkThrottleTimer(),
-            processWorkItem);
+            workItemReceiver);
   }
 
-  static WindmillStreamPoolSender create(
+  public static WindmillStreamPoolSender create(
       WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
@@ -158,23 +161,85 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
         computationStateFetcher);
   }
 
+  private void dispatchLoop() {
+    while (started.get()) {
+      this.getWorkStream =
+          streamingEngineStreamFactory.createGetWorkStream(
+              connection.stub(),
+              getWorkRequest,
+              streamingEngineThrottleTimers.getWorkThrottleTimer(),
+              getWorkItemReceiver());
+      try {
+        // Reconnect every now and again to enable better load balancing.
+        // If at any point the server closes the stream, we will reconnect immediately;
+        // otherwise
+        // we half-close the stream after some time and create a new one.
+        if (!this.getWorkStream.awaitTermination(
+            GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+          this.getWorkStream.halfClose();
+        }
+      } catch (InterruptedException e) {
+        // Continue processing
+      }
+    }
+  }
+
+  private WorkItemReceiver getWorkItemReceiver() {
+    return (computationId,
+        inputDataWatermark,
+        synchronizedProcessingTime,
+        workItem,
+        serializedWorkItemSize,
+        getWorkStreamLatencies) ->
+        this.computationStateFetcher
+            .apply(computationId)
+            .ifPresent(
+                computationState -> {
+                  this.waitForResources.run();
+                  this.streamingWorkScheduler.scheduleWork(
+                      computationState,
+                      workItem,
+                      serializedWorkItemSize,
+                      Watermarks.builder()
+                          .setInputDataWatermark(Preconditions.checkNotNull(inputDataWatermark))
+                          .setSynchronizedProcessingTime(synchronizedProcessingTime)
+                          .setOutputDataWatermark(workItem.getOutputDataWatermark())
+                          .build(),
+                      Work.createProcessingContext(
+                          computationId,
+                          this.getDataClient,
+                          workCommitter::commit,
+                          this.heartbeatSender),
+                      getWorkStreamLatencies);
+                });
+  }
+
   @SuppressWarnings("ReturnValueIgnored")
   @Override
   public synchronized void start() {
-    // LOG.info("Starting Stream Pool Sender");
-    if (!started) {
-      getWorkStream.start();
+    if (!started.get()) {
+      checkState(
+          !workProviderExecutor.isShutdown(),
+          "WindmillStreamPoolSender has already been shutdown.");
       workCommitter.start();
+      workProviderExecutor.execute(
+          () -> {
+            LOG.info("Starting dispatch.");
+            dispatchLoop();
+            LOG.info("Dispatch done");
+          });
 
-      started = true;
+      started.set(true);
     }
   }
 
   @Override
   public synchronized void close() {
-    if (started) {
+    if (started.get()) {
       getWorkStream.shutdown();
+      workProviderExecutor.shutdownNow();
       workCommitter.stop();
+      started.set(false);
     }
   }
 
@@ -182,7 +247,7 @@ final class WindmillStreamPoolSender implements WindmillStreamSender, StreamSend
   public synchronized void setBudget(long items, long bytes) {
     GetWorkBudget budget = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
     getWorkBudget.set(budget);
-    if (started) {
+    if (started.get()) {
       getWorkStream.setBudget(budget);
     }
   }
