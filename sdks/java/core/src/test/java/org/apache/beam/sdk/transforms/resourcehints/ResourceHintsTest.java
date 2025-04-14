@@ -95,7 +95,7 @@ public class ResourceHintsTest implements Serializable {
                 "--resourceHints=min_ram=1KB",
                 "--resourceHints=accelerator=foo",
                 "--resourceHints=cpu_count=4",
-                "--resourceHints=max_active_dofn_per_worker=2")
+                "--resourceHints=max_active_bundles_per_worker=2")
             .as(ResourceHintsOptions.class);
     ResourceHints fromOptions = ResourceHints.fromOptions(options);
     ResourceHints expect =
@@ -103,7 +103,7 @@ public class ResourceHintsTest implements Serializable {
             .withMinRam(1000)
             .withAccelerator("foo")
             .withCPUCount(4)
-            .withMaxActiveDoFnPerWorker(2);
+            .withMaxActiveBundlesPerWorker(2);
     assertEquals(fromOptions, expect);
   }
 }

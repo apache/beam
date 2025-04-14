@@ -49,8 +49,8 @@ public class ResourceHints {
   private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
   private static final String CPU_COUNT_URN = "beam:resources:cpu_count:v1";
-  private static final String MAX_ACTIVE_DOFN_PER_WORKER =
-      "beam:resources:max_active_dofn_per_worker:v1";
+  private static final String MAX_ACTIVE_BUNDLES_PER_WORKER =
+      "beam:resources:max_active_bundles_per_worker:v1";
 
   // TODO: reference this from a common location in all packages that use this.
   private static String getUrn(ProtocolMessageEnum value) {
@@ -62,8 +62,8 @@ public class ResourceHints {
     checkState(ACCELERATOR_URN.equals(getUrn(StandardResourceHints.Enum.ACCELERATOR)));
     checkState(CPU_COUNT_URN.equals(getUrn(StandardResourceHints.Enum.CPU_COUNT)));
     checkState(
-        MAX_ACTIVE_DOFN_PER_WORKER.equals(
-            (getUrn(StandardResourceHints.Enum.MAX_ACTIVE_DOFN_PER_WORKER))));
+        MAX_ACTIVE_BUNDLES_PER_WORKER.equals(
+            (getUrn(StandardResourceHints.Enum.MAX_ACTIVE_BUNDLES_PER_WORKER))));
   }
 
   private static ImmutableMap<String, String> hintNameToUrn =
@@ -73,9 +73,9 @@ public class ResourceHints {
           .put("accelerator", ACCELERATOR_URN)
           .put("cpuCount", CPU_COUNT_URN)
           .put("cpu_count", CPU_COUNT_URN) // Courtesy alias.
-          .put("max_active_dofn_per_worker", MAX_ACTIVE_DOFN_PER_WORKER)
-          .put("maxActiveDoFnPerWorker", MAX_ACTIVE_DOFN_PER_WORKER) // Courtesy alias.
-          .put("max_active_dofns_per_worker", MAX_ACTIVE_DOFN_PER_WORKER) // Courtesy alias.
+          .put("max_active_bundles_per_worker", MAX_ACTIVE_BUNDLES_PER_WORKER)
+          .put("maxActiveBundlesPerWorker", MAX_ACTIVE_BUNDLES_PER_WORKER) // Courtesy alias.
+          .put("max_active_bundle_per_worker", MAX_ACTIVE_BUNDLES_PER_WORKER) // Courtesy alias.
           .build();
 
   private static ImmutableMap<String, Function<String, ResourceHint>> parsers =
@@ -83,7 +83,7 @@ public class ResourceHints {
           .put(MIN_RAM_URN, s -> new BytesHint(BytesHint.parse(s)))
           .put(ACCELERATOR_URN, s -> new StringHint(s))
           .put(CPU_COUNT_URN, s -> new IntHint(IntHint.parse(s)))
-          .put(MAX_ACTIVE_DOFN_PER_WORKER, s -> new IntHint(IntHint.parse(s)))
+          .put(MAX_ACTIVE_BUNDLES_PER_WORKER, s -> new IntHint(IntHint.parse(s)))
           .build();
 
   private static final ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
@@ -339,15 +339,15 @@ public class ResourceHints {
     return withHint(CPU_COUNT_URN, new IntHint(cpuCount));
   }
 
-  public ResourceHints withMaxActiveDoFnPerWorker(int maxActiveDoFnPerWorker) {
-    if (maxActiveDoFnPerWorker <= 0) {
+  public ResourceHints withMaxActiveBundlesPerWorker(int maxActiveBundlesPerWorker) {
+    if (maxActiveBundlesPerWorker <= 0) {
       LOG.error(
-          "Encountered invalid non-positive max active dofn per worker hint value {}.\n"
+          "Encountered invalid non-positive max active bundles per worker hint value {}.\n"
               + "The value is ignored.",
-          maxActiveDoFnPerWorker);
+          maxActiveBundlesPerWorker);
       return this;
     }
-    return withHint(MAX_ACTIVE_DOFN_PER_WORKER, new IntHint(maxActiveDoFnPerWorker));
+    return withHint(MAX_ACTIVE_BUNDLES_PER_WORKER, new IntHint(maxActiveBundlesPerWorker));
   }
 
   public Map<String, ResourceHint> hints() {
@@ -370,7 +370,7 @@ public class ResourceHints {
                   .get(key)
                   .mergeWithOuter(
                       outerHint.getValue(),
-                      /*is_inverse*/ outerHint.getKey().equals(MAX_ACTIVE_DOFN_PER_WORKER)));
+                      /*is_inverse*/ outerHint.getKey().equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
         } else {
           newHints.put(outerHint);
         }
