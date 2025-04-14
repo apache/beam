@@ -40,20 +40,18 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse.EndpointType;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.EndpointType;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.StreamGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
@@ -62,8 +60,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -104,12 +100,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final ExecutorService windmillStreamManager;
   private final ExecutorService workerMetadataConsumer;
   private final Object metadataLock = new Object();
-  private final WorkCommitter streamPoolWorkCommitter;
-  private final GetDataClient streamPoolGetDataClient;
-  private final HeartbeatSender streamPoolHeartbeatSender;
-  private final StreamingWorkScheduler streamingWorkScheduler;
-  private final Runnable waitForResources;
-  private final Function<String, Optional<ComputationState>> computationStateFetcher;
+  private final Function<WindmillConnection, WindmillStreamSender> windmillStreamPoolSenderFactory;
 
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineBackends> backends;
@@ -140,12 +131,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
       ExecutorService workerMetadataConsumer,
-      WorkCommitter streamPoolWorkCommitter,
-      GetDataClient streamPoolGetDataClient,
-      HeartbeatSender streamPoolHeartbeatSender,
-      StreamingWorkScheduler streamingWorkScheduler,
-      Runnable waitForResources,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      Function<WindmillConnection, WindmillStreamSender> windmillStreamPoolSenderFactory) {
     this.jobHeader = jobHeader;
     this.getDataMetricTracker = getDataMetricTracker;
     this.started = false;
@@ -162,12 +148,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
-    this.streamPoolWorkCommitter = streamPoolWorkCommitter;
-    this.streamPoolGetDataClient = streamPoolGetDataClient;
-    this.streamPoolHeartbeatSender = streamPoolHeartbeatSender;
-    this.streamingWorkScheduler = streamingWorkScheduler;
-    this.waitForResources = waitForResources;
-    this.computationStateFetcher = computationStateFetcher;
+    this.windmillStreamPoolSenderFactory = windmillStreamPoolSenderFactory;
   }
 
   /**
@@ -185,12 +166,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
-      WorkCommitter streamPoolWorkCommitter,
-      GetDataClient streamPoolGetDataClient,
-      HeartbeatSender streamPoolHeartbeatSender,
-      StreamingWorkScheduler streamingWorkScheduler,
-      Runnable waitForResources,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      Function<WindmillConnection, WindmillStreamSender> windmillStreamPoolSenderFactory) {
     return new FanOutStreamingEngineWorkerHarness(
         jobHeader,
         totalGetWorkBudget,
@@ -203,12 +179,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         getDataMetricTracker,
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build()),
-        streamPoolWorkCommitter,
-        streamPoolGetDataClient,
-        streamPoolHeartbeatSender,
-        streamingWorkScheduler,
-        waitForResources,
-        computationStateFetcher);
+        windmillStreamPoolSenderFactory);
   }
 
   @VisibleForTesting
@@ -222,12 +193,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
-      WorkCommitter streamPoolWorkCommitter,
-      GetDataClient streamPoolGetDataClient,
-      HeartbeatSender streamPoolHeartbeatSender,
-      StreamingWorkScheduler streamingWorkScheduler,
-      Runnable waitForResources,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      Function<WindmillConnection, WindmillStreamSender> windmillStreamPoolSenderFactory) {
     FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider =
         new FanOutStreamingEngineWorkerHarness(
             jobHeader,
@@ -245,12 +211,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             // environments and non-determinism has lead to past flakiness. See
             // https://github.com/apache/beam/issues/28957.
             MoreExecutors.newDirectExecutorService(),
-            streamPoolWorkCommitter,
-            streamPoolGetDataClient,
-            streamPoolHeartbeatSender,
-            streamingWorkScheduler,
-            waitForResources,
-            computationStateFetcher);
+            windmillStreamPoolSenderFactory);
     fanOutStreamingEngineWorkProvider.start();
     return fanOutStreamingEngineWorkProvider;
   }
@@ -379,7 +340,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 entry ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(entry.getKey(), (StreamSender) entry.getValue()),
+                        () ->
+                            closeStreamSender(
+                                entry.getKey(), (WindmillStreamSender) entry.getValue()),
                         windmillStreamManager));
 
     Set<Endpoint> newGlobalDataEndpoints =
@@ -390,7 +353,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 sender ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(sender.endpoint(), (StreamSender) sender),
+                        () -> closeStreamSender(sender.endpoint(), (WindmillStreamSender) sender),
                         windmillStreamManager));
 
     return CompletableFuture.allOf(
@@ -398,7 +361,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .toArray(CompletableFuture[]::new));
   }
 
-  private void closeStreamSender(Endpoint endpoint, StreamSender sender) {
+  private void closeStreamSender(Endpoint endpoint, WindmillStreamSender sender) {
     LOG.debug("Closing streams to endpoint={}, sender={}", endpoint, sender);
     try {
       sender.close();
@@ -497,24 +460,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                     StreamGetDataClient.create(
                         getDataStream, this::getGlobalDataStream, getDataMetricTracker),
                 workCommitterFactory)
-            : WindmillStreamPoolSender.create(
-                WindmillConnection.from(endpoint, this::createWindmillStub),
-                GetWorkRequest.newBuilder()
-                    .setClientId(jobHeader.getClientId())
-                    .setJobId(jobHeader.getJobId())
-                    .setProjectId(jobHeader.getProjectId())
-                    .setWorkerId(jobHeader.getWorkerId())
-                    .setMaxItems(totalGetWorkBudget.items())
-                    .setMaxBytes(totalGetWorkBudget.bytes())
-                    .build(),
-                GetWorkBudget.noBudget(),
-                streamFactory,
-                streamPoolWorkCommitter,
-                streamPoolGetDataClient,
-                streamPoolHeartbeatSender,
-                streamingWorkScheduler,
-                waitForResources,
-                computationStateFetcher);
+            : windmillStreamPoolSenderFactory.apply(
+                WindmillConnection.from(endpoint, this::createWindmillStub));
     windmillStreamSender.start();
     return windmillStreamSender;
   }

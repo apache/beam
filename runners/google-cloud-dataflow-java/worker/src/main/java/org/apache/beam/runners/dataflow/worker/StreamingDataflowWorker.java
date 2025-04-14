@@ -61,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusReporter;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.WindmillStreamPoolSender;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
@@ -269,7 +270,6 @@ public final class StreamingDataflowWorker {
               .setItems(chooseMaxBundlesOutstanding(options))
               .setBytes(MAX_GET_WORK_FETCH_BYTES)
               .build();
-
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
               jobHeader,
@@ -306,6 +306,7 @@ public final class StreamingDataflowWorker {
                       .setCommitWorkStreamFactory(
                           () -> CloseableStream.create(commitWorkStream, () -> {}))
                       .build(),
+                      getDataMetricTracker,
               (connection) ->
                   WindmillStreamPoolSender.create(
                       connection,
@@ -410,7 +411,7 @@ public final class StreamingDataflowWorker {
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
   }
 
-  private static GetDataClient createGetDataClient(
+  private GetDataClient createGetDataClient(
       DataflowWorkerHarnessOptions options,
       WindmillServerStub windmillServer,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
