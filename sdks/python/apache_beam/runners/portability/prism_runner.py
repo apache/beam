@@ -39,8 +39,8 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import environments
-from apache_beam.utils import subprocess_server
 from apache_beam.utils import shared
+from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
 # pytype: skip-file
