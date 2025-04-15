@@ -132,6 +132,13 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
           }
           Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, providedTopic));
         }
+      } catch (KafkaException exception) {
+        LOG.warn(
+            "WARN: Failed to connect to kafka for running pre-submit validation of kafka "
+                + "topic and partition configuration. This may be due to local permissions or "
+                + "connectivity to the kafka bootstrap server, or due to misconfiguration of "
+                + "KafkaIO. This validation is not required, and this warning may be ignored "
+                + "if the Beam job runs successfully.");
       }
     }
 

@@ -97,6 +97,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -266,6 +267,31 @@ public class KafkaIOIT {
             .withValueDeserializer(ByteArrayDeserializer.class));
 
     PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIODoesNotErrorAtValidationWithBadBootstrapServer() throws IOException {
+    // expect an error during execution that the bootstrap server is bad, not during validation
+    // steps in
+    // KafakUnboundedSource.
+    thrown.expect(KafkaException.class);
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.readBytes()
+            .withBootstrapServers("bootstrap.invalid-name.fake-region.bad-project:invalid-port")
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withTopicPartitions(ImmutableList.of(invalidPartition)));
+
+    PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
