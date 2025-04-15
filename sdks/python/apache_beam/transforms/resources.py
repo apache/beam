@@ -214,7 +214,6 @@ ResourceHint.register_resource_hint(
     'MaxActiveBundlePerWorker', MaxActiveBundlesPerWorkerHint)
 
 
-
 def parse_resource_hints(hints: dict[Any, Any]) -> dict[str, bytes]:
   parsed_hints = {}
   for hint, value in hints.items():
