@@ -141,9 +141,13 @@ class SwitchingDirectRunner(PipelineRunner):
           if userstate.is_stateful_dofn(dofn):
             # https://github.com/apache/beam/issues/32786 -
             # Remove once Real time clock is used.
-            _, timer_specs = userstate.get_dofn_specs(dofn)
+            state_specs, timer_specs = userstate.get_dofn_specs(dofn)
             for timer in timer_specs:
               if timer.time_domain == TimeDomain.REAL_TIME:
+                self.supported_by_prism_runner = False
+
+            for state in state_specs:
+              if isinstance(state, userstate.CombiningValueStateSpec):
                 self.supported_by_prism_runner = False
 
     # Use BundleBasedDirectRunner if other runners are missing needed features.
