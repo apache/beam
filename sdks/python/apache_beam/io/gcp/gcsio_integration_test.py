@@ -216,7 +216,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
     overridden_bucket_name = 'gcsio-it-%d-%s-%s-%d' % (
         random.randint(0, 999),
         google_cloud_options.region,
-        blake2b(google_cloud_options.project.encode('utf8'), digest_size=4).hexdigest(),
+        blake2b(google_cloud_options.project.encode('utf8'),
+                digest_size=4).hexdigest(),
         int(time.time()))
 
     mock_default_gcs_bucket_name.return_value = overridden_bucket_name
