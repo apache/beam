@@ -180,7 +180,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
 
-    table_name = 'python_write_table'
+    table_name = 'python_write_table_schema_autodetect'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [
@@ -383,7 +383,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     Test that errors returned by beam.io.WriteToBigQuery
     contain both the failed rows and the reason for it failing.
     """
-    table_name = 'python_write_table'
+    table_name = 'python_write_table_insert_errors'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [{
