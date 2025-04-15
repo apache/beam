@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import static org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS;
-import static org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.Kind.GCP_SERVICE_ADDRESS;
 
 import java.io.PrintWriter;
 import java.util.concurrent.Executor;
@@ -73,6 +72,19 @@ public final class ChannelCache implements StatusDataProvider {
                   @Override
                   public ManagedChannel load(WindmillServiceAddress key) {
                     return channelFactory.create(resolveFlowControlSettings(key.getKind()), key);
+                  }
+
+                  private UserWorkerGrpcFlowControlSettings resolveFlowControlSettings(
+                      WindmillServiceAddress.Kind addressType) {
+                    synchronized (ChannelCache.this) {
+                      if (currentFlowControlSettings == null) {
+                        return addressType == AUTHENTICATED_GCP_SERVICE_ADDRESS
+                            ? WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS
+                            : WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS;
+                      }
+
+                      return currentFlowControlSettings;
+                    }
                   }
                 });
   }
@@ -150,12 +162,18 @@ public final class ChannelCache implements StatusDataProvider {
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {
-    writer.format(
-        "Directpath gRPC flow control settings: [%s]",
-        resolveFlowControlSettings(AUTHENTICATED_GCP_SERVICE_ADDRESS));
-    writer.format(
-        "Cloudpath gRPC flow control settings: [%s]",
-        resolveFlowControlSettings(GCP_SERVICE_ADDRESS));
+    synchronized (this) {
+      if (currentFlowControlSettings == null) {
+        writer.format(
+            "Directpath gRPC flow control settings: [%s]",
+            WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS);
+        writer.format(
+            "Cloudpath gRPC flow control settings: [%s]",
+            WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS);
+      } else {
+        writer.format("gRPC flow control settings: [%s]", currentFlowControlSettings);
+      }
+    }
     writer.write("Active gRPC Channels:<br>");
     channelCache
         .asMap()
@@ -168,16 +186,5 @@ public final class ChannelCache implements StatusDataProvider {
                   address.getKind() == AUTHENTICATED_GCP_SERVICE_ADDRESS ? DIRECTPATH : CLOUDPATH);
               writer.write("<br>");
             });
-  }
-
-  private synchronized UserWorkerGrpcFlowControlSettings resolveFlowControlSettings(
-      WindmillServiceAddress.Kind addressType) {
-    if (currentFlowControlSettings == null) {
-      return addressType == AUTHENTICATED_GCP_SERVICE_ADDRESS
-          ? WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS
-          : WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS;
-    }
-
-    return currentFlowControlSettings;
   }
 }
