@@ -138,7 +138,12 @@ class KafkaIOReadImplementationCompatibility {
       }
     },
     OFFSET_DEDUPLICATION(LEGACY),
-    ;
+    ENABLE_OPEN_TELEMETRY_TRACING {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    };
 
     private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
 
