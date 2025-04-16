@@ -142,6 +142,11 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # https://github.com/apache/beam/issues/20984
     super().test_flattened_side_input(with_transcoding=False)
 
+  def test_flatten_and_gbk(self):
+    # Blocked on support for transcoding
+    # https://github.com/apache/beam/issues/20984
+    super().test_flatten_and_gbk(with_transcoding=False)
+
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused
     # by translations.greedily_fuse, which prevent the stages
