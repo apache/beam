@@ -1255,9 +1255,17 @@ class RegexTestCase(TypeHintTestCase):
 class CallableTestCase(TypeHintTestCase):
   def test_callable(self):
     self.assertCompatible(collections.abc.Callable, collections.abc.Callable)
+    self.assertCompatible(
+        collections.abc.Callable[[str], int],
+        collections.abc.Callable[[str], int])
 
-  def test_normalize_to_any(self):
+  def test_normalize_to_any_bare(self):
     input = collections.abc.Callable
+    output = typehints.normalize(input)
+    self.assertEqual(Any, output)
+
+  def test_normalize_to_any_parameterized(self):
+    input = collections.abc.Callable[[str], int]
     output = typehints.normalize(input)
     self.assertEqual(Any, output)
 
