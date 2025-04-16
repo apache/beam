@@ -729,6 +729,8 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
 
 
 class ReadAllBQTests(BigQueryReadIntegrationTests):
+  TABLE_DATA_AVAILABILITY_WAIT_SECONDS = 30
+
   TABLE_DATA_1 = [{
       'number': 1, 'str': 'abc'
   }, {
@@ -789,6 +791,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, data)
+    time.sleep(cls.TABLE_DATA_AVAILABILITY_WAIT_SECONDS)
     return table_schema
 
   @classmethod

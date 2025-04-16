@@ -20,6 +20,7 @@ package org.apache.beam.runners.jobsubmission;
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
@@ -38,11 +39,11 @@ public abstract class JobInvoker {
   protected abstract JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      String retrievalToken,
+      @Nullable String retrievalToken,
       ListeningExecutorService executorService)
       throws IOException;
 
-  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, String retrievalToken)
+  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
       throws IOException {
     return invokeWithExecutor(pipeline, options, retrievalToken, this.executorService);
   }
