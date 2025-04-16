@@ -263,6 +263,16 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             collections.defaultdict[str, int],
             typehints.Dict[str, int]),
         ('count', collections.Counter[str, int], typehints.Dict[str, int]),
+        (
+            'bare callable',
+            collections.abc.Callable,
+            collections.abc.Callable,
+        ),
+        (
+            'parameterized callable',
+            collections.abc.Callable[[str], int],
+            collections.abc.Callable[[str], int],
+        ),
     ]
 
     for test_case in test_cases:
