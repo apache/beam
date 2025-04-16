@@ -60,9 +60,9 @@
     'beam:schematransform:org.apache.beam:aws:sqs_read:v1':
       name: 'ReadFromSqs'
   skip_transforms:
-    - 'beam:transform:org.apache.beam:kinesis_write:v2'
-    - 'beam:transform:org.apache.beam:kinesis_read_data:v2'
     - 'beam:schematransform:org.apache.beam:generate_sequence:v1'
+    - 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
+    - 'beam:schematransform:org.apache.beam:tfrecord_read:v1'
 
 # TODO(ahmedabu98): Enable this service in a future PR
 #- gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

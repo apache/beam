@@ -38,13 +38,13 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
-from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
