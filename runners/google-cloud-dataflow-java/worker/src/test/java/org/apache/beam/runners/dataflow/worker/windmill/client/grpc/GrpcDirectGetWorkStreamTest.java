@@ -143,7 +143,8 @@ public class GrpcDirectGetWorkStreamTest {
                 .build()
                 .createDirectGetWorkStream(
                     WindmillConnection.builder()
-                        .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+                        .setStubSupplier(
+                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
                         .build(),
                     Windmill.GetWorkRequest.newBuilder()
                         .setClientId(TEST_JOB_HEADER.getClientId())
