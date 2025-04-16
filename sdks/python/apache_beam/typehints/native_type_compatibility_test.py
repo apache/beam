@@ -21,6 +21,7 @@
 
 import collections.abc
 import enum
+import re
 import typing
 import unittest
 
@@ -300,16 +301,17 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
 
   def test_pattern(self):
-    # TODO(https://github.com/apache/beam/issues/20489): Unsupported.
-    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern))
-    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[str]))
-    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[bytes]))
+    self.assertEqual(re.Pattern, convert_to_beam_type(re.Pattern))
+    self.assertEqual(re.Pattern[str], convert_to_beam_type(re.Pattern[str]))
+    self.assertEqual(re.Pattern[bytes], convert_to_beam_type(re.Pattern[bytes]))
+    self.assertNotEqual(
+        re.Pattern[bytes], convert_to_beam_type(re.Pattern[str]))
 
   def test_match(self):
-    # TODO(https://github.com/apache/beam/issues/20489): Unsupported.
-    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match))
-    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[str]))
-    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[bytes]))
+    self.assertEqual(re.Match, convert_to_beam_type(re.Match))
+    self.assertEqual(re.Match[str], convert_to_beam_type(re.Match[str]))
+    self.assertEqual(re.Match[bytes], convert_to_beam_type(re.Match[bytes]))
+    self.assertNotEqual(re.Match[bytes], convert_to_beam_type(re.Match[str]))
 
   def test_forward_reference(self):
     self.assertEqual(typehints.Any, convert_to_beam_type('int'))

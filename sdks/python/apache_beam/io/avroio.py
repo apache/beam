@@ -43,7 +43,6 @@ that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
 # pytype: skip-file
-import ctypes
 import os
 from functools import partial
 from typing import Any
@@ -629,37 +628,11 @@ def avro_dict_to_beam_row(
           to_row)
 
 
-def avro_atomic_value_to_beam_atomic_value(avro_type: str, value):
-  """convert an avro atomic value to a beam atomic value
-
-  if the avro type is an int or long, convert the value into from signed to
-  unsigned because VarInt.java expects the number to be unsigned when
-  decoding the number.
-
-  Args:
-    avro_type: the avro type of the corresponding value.
-    value: the avro atomic value.
-
-  Returns:
-    the converted beam atomic value.
-  """
-  if value is None:
-    return value
-  elif avro_type == "int":
-    return ctypes.c_uint32(value).value
-  elif avro_type == "long":
-    return ctypes.c_uint64(value).value
-  else:
-    return value
-
-
 def avro_value_to_beam_value(
     beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
-    avro_type = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
-    return lambda value: avro_atomic_value_to_beam_atomic_value(
-        avro_type, value)
+    return lambda value: value
   elif type_info == "array_type":
     element_converter = avro_value_to_beam_value(
         beam_type.array_type.element_type)
@@ -767,37 +740,11 @@ def beam_row_to_avro_dict(
     return lambda row: convert(row[0])
 
 
-def beam_atomic_value_to_avro_atomic_value(avro_type: str, value):
-  """convert a beam atomic value to an avro atomic value
-
-  since numeric values are converted to unsigned in
-  avro_atomic_value_to_beam_atomic_value we need to convert
-  back to a signed number.
-
-  Args:
-    avro_type: avro type of the corresponding value.
-    value: the beam atomic value.
-
-  Returns:
-    the converted avro atomic value.
-  """
-  if value is None:
-    return value
-  elif avro_type == "int":
-    return ctypes.c_int32(value).value
-  elif avro_type == "long":
-    return ctypes.c_int64(value).value
-  else:
-    return value
-
-
 def beam_value_to_avro_value(
     beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
-    avro_type = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
-    return lambda value: beam_atomic_value_to_avro_atomic_value(
-        avro_type, value)
+    return lambda value: value
   elif type_info == "array_type":
     element_converter = beam_value_to_avro_value(
         beam_type.array_type.element_type)

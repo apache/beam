@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -190,14 +189,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {
       if (topics != null && !topics.isEmpty()) {
         for (String topic : topics) {
-          List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);
-          checkState(
-              partitionInfoList != null && !partitionInfoList.isEmpty(),
-              "Could not find any partitions info for topic "
-                  + topic
-                  + ". Please check Kafka configuration and make sure "
-                  + "that provided topics exist.");
-          for (PartitionInfo partition : partitionInfoList) {
+          for (PartitionInfo partition : kafkaConsumer.partitionsFor(topic)) {
             current.add(new TopicPartition(topic, partition.partition()));
           }
         }
