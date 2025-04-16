@@ -73,6 +73,7 @@ tasks.register("generateExternalTransformsConfig") {
   // Need to build all expansion services listed in sdks/standard_expansion_services.yaml
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"
   // Keep this in-sync with pyproject.toml
   def PyYaml = "'pyyaml>=3.12,<7.0.0'"
 

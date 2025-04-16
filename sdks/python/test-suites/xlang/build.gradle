@@ -25,6 +25,7 @@ project.evaluationDependsOn(":sdks:python")
 // relevant fields as done here, then add it to `xlangTasks`.
 def gcpExpansionPath = project.project(':sdks:java:io:google-cloud-platform:expansion-service').getPath()
 def ioExpansionPath = project.project(':sdks:java:io:expansion-service').getPath()
+def awsExpansionPath = project.project(':sdks:java:io:amazon-web-services2:expansion-service').getPath()
 // Properties that are common across runners.
 // Used to launch the expansion service, collect the right tests, and cleanup afterwards
 def gcpXlang = new CrossLanguageTask().tap {
@@ -42,7 +43,7 @@ def ioXlang = new CrossLanguageTask().tap {
 }
 
 // This list should include all expansion service targets in sdks/python/standard_expansion_services.yaml
-def servicesToGenerateFrom = [ioExpansionPath, gcpExpansionPath]
+def servicesToGenerateFrom = [ioExpansionPath, gcpExpansionPath, awsExpansionPath]
 def xlangWrapperValidation = new CrossLanguageTask().tap {
     name = "xlangWrapperValidation"
     expansionProjectPaths = servicesToGenerateFrom

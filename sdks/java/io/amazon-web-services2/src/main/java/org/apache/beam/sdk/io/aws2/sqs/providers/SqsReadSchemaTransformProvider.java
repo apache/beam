@@ -67,7 +67,7 @@ public class SqsReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:aws:sqs_read:v1";
+    return "beam:schematransform:org.apache.beam:sqs_read:v1";
   }
 
   @Override

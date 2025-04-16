@@ -38,7 +38,8 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.io.aws.sqsio import ReadFromSQS
+from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
+from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -74,10 +75,14 @@ class CrossLanguageSqsIOTest(unittest.TestCase):
 
     queue_url = self.sqs_helper.queue_url(self.aws_sqs_topic_name)
 
+    provider = ExternalTransformProvider(
+        BeamJarExpansionService(
+            "sdks:java:io:amazon-web-services2:expansion-service:shadowJar"))
+
     with TestPipeline(options=self.options) as p:
       results = (
           p
-          | 'Read messages from SQS' >> ReadFromSQS(
+          | 'Read messages from SQS' >> provider.SqsRead(
               queue_url=queue_url, max_num_records=NUM_RECORDS)
           | 'Keep only msg body' >> beam.Map(lambda msg: msg.body))
       assert_that(results, equal_to(messages))
