@@ -18,6 +18,8 @@ name: Publish Beam SDK Snapshots
 on:
   schedule:
     - cron: '0 */4 * * *'
+  pull_request_target:
+    paths: [ '.github/trigger_files/beam_Publish_Beam_SDK_Snapshots.json' ]
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -99,6 +101,9 @@ jobs:
         with:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Show service account email
+        run: |
+          echo "Using service account: ${{ secrets.GCP_SA_EMAIL }}"
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       - name: GCloud Docker credential helper
