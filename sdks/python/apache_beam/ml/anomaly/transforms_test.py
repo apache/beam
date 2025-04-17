@@ -287,21 +287,9 @@ class FakeNumpyModel():
     return [input_vector[0][0] * 10 - input_vector[0][1]]
 
 
-def alternate_numpy_inference_fn(
-    model: BaseEstimator,
-    batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
-  return [0]
-
-
 def _to_keyed_numpy_array(t: Tuple[Any, beam.Row]):
   """Converts an Apache Beam Row to a NumPy array."""
   return t[0], numpy.array(list(t[1]))
-
-
-def _from_keyed_numpy_array(t: Tuple[Any, PredictionResult]):
-  assert isinstance(t[1].inference, SupportsFloat)
-  return t[0], float(t[1].inference)
 
 
 class TestOfflineDetector(unittest.TestCase):
@@ -330,7 +318,8 @@ class TestOfflineDetector(unittest.TestCase):
 
     keyed_model_handler = KeyedModelHandler(
         SklearnModelHandlerNumpy(model_uri=temp_file_name)).with_preprocess_fn(
-            _to_keyed_numpy_array).with_postprocess_fn(_from_keyed_numpy_array)
+            _to_keyed_numpy_array).with_postprocess_fn(
+                OfflineDetector.score_prediction_adapter)
 
     detector = OfflineDetector(keyed_model_handler=keyed_model_handler)
     detector_spec = detector.to_spec()
@@ -354,7 +343,7 @@ class TestOfflineDetector(unittest.TestCase):
                                 type='_to_keyed_numpy_array', config=None)
                         }),
                     'postprocess_fn': Spec(
-                        type='_from_keyed_numpy_array', config=None)
+                        type='score_prediction_adapter', config=None)
                 })
         })
     self.assertEqual(detector_spec, expected_spec)
@@ -363,7 +352,7 @@ class TestOfflineDetector(unittest.TestCase):
     self.assertEqual(_spec_type_to_subspace('_PreProcessingModelHandler'), '*')
     self.assertEqual(_spec_type_to_subspace('_PostProcessingModelHandler'), '*')
     self.assertEqual(_spec_type_to_subspace('_to_keyed_numpy_array'), '*')
-    self.assertEqual(_spec_type_to_subspace('_from_keyed_numpy_array'), '*')
+    self.assertEqual(_spec_type_to_subspace('score_prediction_adapter'), '*')
 
     # Make sure the spec from the detector can be used to reconstruct the same
     # detector
