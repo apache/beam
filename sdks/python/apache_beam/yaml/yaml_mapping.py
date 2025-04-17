@@ -544,6 +544,7 @@ class _Explode(beam.PTransform):
           `cross_product` is set to `true` but only the two rows
           `('a', 1)` and `('b', 2)` when it is set to `false`.
           Only meaningful (and required) if multiple rows are specified.
+      error_handling: Whether and how to handle errors during iteration.
   """  # pylint: disable=line-too-long
 
   def __init__(
@@ -563,7 +564,10 @@ class _Explode(beam.PTransform):
         cross_product = True
     self._fields = fields
     self._cross_product = cross_product
-    # TODO(yaml): Support standard error handling argument.
+    # TODO(yaml):
+    # 1. Support standard error handling argument.
+    # 2. Supposedly error_handling parameter is not an accepted parameter when
+    #    executing.  Needs further investigation.
     self._exception_handling_args = exception_handling_args(error_handling)
 
   @maybe_with_exception_handling
