@@ -17,8 +17,9 @@
 --region=us-central1
 --machine_type=n1-standard-2
 --num_workers=20
+--max_num_workers=250
 --disk_size_gb=50
---autoscaling_algorithm=NONE
+--autoscaling_algorithm=THROUGHPUT_BASED
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
 --requirements_file=apache_beam/ml/inference/torch_tests_requirements.txt
