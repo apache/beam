@@ -544,7 +544,6 @@ class _Explode(beam.PTransform):
           `cross_product` is set to `true` but only the two rows
           `('a', 1)` and `('b', 2)` when it is set to `false`.
           Only meaningful (and required) if multiple rows are specified.
-      error_handling: Whether and how to handle errors during iteration.
   """  # pylint: disable=line-too-long
 
   def __init__(
@@ -750,7 +749,7 @@ def _Partition(
     outputs: list[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
-    language: Optional[str] = 'generic'):
+    language: str = 'generic'):
   """Splits an input into several distinct outputs.
 
   Each input element will go to a distinct output based on the field or
@@ -767,7 +766,7 @@ def _Partition(
         parameter.
       error_handling: (Optional) Whether and how to handle errors during
         partitioning.
-      language: (Optional) The language of the `by` expression.
+      language: The language of the `by` expression.
   """
   split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
   try:
