@@ -263,6 +263,16 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             collections.defaultdict[str, int],
             typehints.Dict[str, int]),
         ('count', collections.Counter[str, int], typehints.Dict[str, int]),
+        (
+            'bare callable',
+            collections.abc.Callable,
+            collections.abc.Callable,
+        ),
+        (
+            'parameterized callable',
+            collections.abc.Callable[[str], int],
+            collections.abc.Callable[[str], int],
+        ),
     ]
 
     for test_case in test_cases:
@@ -360,6 +370,50 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         (
             'bare generator',
             typing.Generator,
+            typehints.Generator[typehints.TypeVariable('T_co')]),
+    ]
+    for test_case in test_cases:
+      description = test_case[0]
+      typing_type = test_case[1]
+      expected_beam_type = test_case[2]
+      converted_beam_type = convert_to_beam_type(typing_type)
+      self.assertEqual(expected_beam_type, converted_beam_type, description)
+
+  def test_convert_bare_collections_types(self):
+    # Conversions for unsubscripted types that have implicit subscripts.
+    test_cases = [
+        ('bare list', list, typehints.List[typehints.TypeVariable('T')]),
+        (
+            'bare dict',
+            dict,
+            typehints.Dict[typehints.TypeVariable('KT'),
+                           typehints.TypeVariable('VT')]),
+        (
+            'bare tuple',
+            tuple,
+            typehints.Tuple[typehints.TypeVariable('T'), ...]),
+        ('bare set', typing.Set, typehints.Set[typehints.TypeVariable('T')]),
+        (
+            'bare frozenset',
+            frozenset,
+            typehints.FrozenSet[typehints.TypeVariable(
+                'T', use_name_in_eq=False)]),
+        (
+            'bare iterator',
+            collections.abc.Iterator,
+            typehints.Iterator[typehints.TypeVariable('T_co')]),
+        (
+            'bare iterable',
+            collections.abc.Iterable,
+            typehints.Iterable[typehints.TypeVariable('T_co')]),
+        (
+            'nested bare',
+            tuple[collections.abc.Iterator],
+            typehints.Tuple[typehints.Iterator[typehints.TypeVariable('T_co')]]
+        ),
+        (
+            'bare generator',
+            collections.abc.Generator,
             typehints.Generator[typehints.TypeVariable('T_co')]),
     ]
     for test_case in test_cases:
