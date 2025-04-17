@@ -45,7 +45,7 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  docker_registry: gcr.io
+  docker_registry: us-central1-docker.pkg.dev
 
 jobs:
   beam_Publish_Beam_SDK_Snapshots:
@@ -100,19 +100,9 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      - name: Locate and export ADC file path
-        id: auth_file
-        run: |
-          echo "adc_file=$(find "${GITHUB_WORKSPACE}" -name 'gha-creds-*.json')" >> $GITHUB_OUTPUT
       - name: GCloud Docker credential helper
         run: |
-          export CREDENTIALS_FILE="${{ steps.auth_file.outputs.adc_file }}"
-          gcloud config set account "$(jq -r '.client_email' "$CREDENTIALS_FILE")"
           gcloud auth configure-docker ${{ env.docker_registry }}
-      - name: Debug active gcloud auth
-        run: |
-          gcloud auth list
-          gcloud config list account
       - name: Setup Java environment
         if: ${{ startsWith(matrix.container_task, 'java') }}
         uses: ./.github/actions/setup-environment-action
@@ -129,7 +119,7 @@ jobs:
           gradle-command: :sdks:${{ matrix.container_task }}:docker
           arguments: |
             -Pjava11Home=$JAVA_HOME_11_X64 \
-            -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
+            -Pdocker-repository-root=us-central1-docker.pkg.dev/apache-beam-testing/beam-sdk \
             -Pdocker-tag-list=${{ github.sha }},${BEAM_VERSION},latest \
             -Pcontainer-architecture-list=arm64,amd64 \
             -Ppush-containers \
