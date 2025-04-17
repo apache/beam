@@ -427,8 +427,8 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
   def __init__(self, offline_detector: OfflineDetector):
     self._offline_detector = offline_detector
 
-  def unnest_and_convert(
-      self, nested: Tuple[Tuple[Any, Any], dict[str, List]]) -> KeyedOutputT:
+  def restore_and_convert(
+      self, elem: Tuple[Tuple[Any, Any, beam.Row], float]) -> KeyedOutputT:
     """Unnests and converts the model output to AnomalyResult.
 
     Args:
@@ -438,15 +438,14 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     Returns:
       A tuple containing the original key and AnomalyResult.
     """
-    key, value_dict = nested
-    score = value_dict['output'][0]
+    (orig_key, temp_key, row), score = elem
     result = AnomalyResult(
-        example=value_dict['input'][0],
+        example=row,
         predictions=[
             AnomalyPrediction(
                 model_id=self._offline_detector._model_id, score=score)
         ])
-    return key[0], (key[1], result)
+    return orig_key, (temp_key, result)
 
   def expand(
       self,
@@ -458,23 +457,18 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
         self._offline_detector._keyed_model_handler,
         **self._offline_detector._run_inference_args)
 
-    # ((orig_key, temp_key), beam.Row)
+    # ((orig_key, temp_key, beam.Row), beam.Row)
     rekeyed_model_input = input | "Rekey" >> beam.Map(
-        lambda x: ((x[0], x[1][0]), x[1][1]))
+        lambda x: ((x[0], x[1][0], x[1][1]), x[1][1]))
 
-    # ((orig_key, temp_key), float)
+    # ((orig_key, temp_key, beam.Row), float)
     rekeyed_model_output = (
         rekeyed_model_input
         | f"Call RunInference ({model_uuid})" >> run_inference)
 
-    # ((orig_key, temp_key), {'input':[row], 'output:[float]})
-    rekeyed_cogbk = {
-        'input': rekeyed_model_input, 'output': rekeyed_model_output
-    } | beam.CoGroupByKey()
-
     ret = (
-        rekeyed_cogbk |
-        "Unnest and convert model output" >> beam.Map(self.unnest_and_convert))
+        rekeyed_model_output | "Restore keys and convert model output" >>
+        beam.Map(self.restore_and_convert))
 
     if self._offline_detector._threshold_criterion:
       ret = (
