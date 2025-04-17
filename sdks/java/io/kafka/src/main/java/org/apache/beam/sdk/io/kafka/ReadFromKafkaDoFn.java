@@ -342,9 +342,42 @@ abstract class ReadFromKafkaDoFn<K, V>
     private final Executor executor;
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
+    // TODO(sjvanrossum): Use VarHandle.setOpaque/getOpaque when Java 8 support is dropped
     private long lastRefreshEndOffset;
+    // TODO(sjvanrossum): Use VarHandle.setOpaque/getOpaque when Java 8 support is dropped
     private long nextRefreshNanos;
     private volatile @Nullable Runnable currentRefreshTask;
+
+    /*
+    Periodic refreshes of lastRefreshEndOffset and nextRefreshNanos are guarded by the volatile
+    field currentRefreshTask. This guard's correctness depends on specific ordering of reads and
+    writes (loads and stores).
+
+    To validate the behavior of this guard please read the Java Memory Model (JMM) specification.
+    For the current context consider the following oversimplifications of the JMM:
+      - Writes to a non-volatile long or double field are non-atomic.
+      - Writes to a non-volatile field may never become visible to another core.
+      - Writes to a volatile field are atomic and will become visible to another core.
+      - Lazy writes to a volatile field are atomic and will become visible to another core for
+        reads of that volatile field.
+      - Writes preceeding writes or lazy writes to a volatile field are visible to another core.
+
+    In short, the contents of this class' guarded fields are visible if the guard field is (lazily)
+    written last and read first. The contents of the volatile guard may be stale in comparison to
+    the contents of the guarded fields. For this method it is important that no more than one
+    thread will schedule a refresh task. Using currentRefreshTask as the guard field ensures that
+    lastRefreshEndOffset and nextRefreshNanos are at least as stale as currentRefreshTask.
+    It's fine if lastRefreshEndOffset and nextRefreshNanos are less stale than currentRefreshTask.
+
+    Removing currentRefreshTask by guarding on nextRefreshNanos is possible, but executing
+    currentRefreshTask == null is practically free (measured in cycles) compared to executing
+    nextRefreshNanos < System.nanoTime() (measured in nanoseconds).
+
+    Note that the JMM specifies that writes to a long or double are not guaranteed to be atomic.
+    In practice, every 64-bit JVM will treat them as atomic (and the JMM encourages this).
+    There's no way to force atomicity without visibility in Java 8 so atomicity guards have been
+    omitted. Java 9 introduces VarHandle with "opaque" getters/setters which do provide this.
+    */
 
     KafkaLatestOffsetEstimator(
         final Consumer<byte[], byte[]> offsetConsumer, final TopicPartition topicPartition) {
