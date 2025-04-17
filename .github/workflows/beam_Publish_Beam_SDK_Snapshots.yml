@@ -52,7 +52,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 160
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:
@@ -100,10 +100,6 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      - name: Print Runner Time and Google Time
-        run: |
-          echo "Runner time (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          curl -s 'http://worldtimeapi.org/api/timezone/Etc/UTC' | jq '.datetime'
       - name: Login to Artifact Registry manually
         run: |
           gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
