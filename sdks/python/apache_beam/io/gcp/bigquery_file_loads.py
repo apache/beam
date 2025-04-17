@@ -37,6 +37,7 @@ import uuid
 
 import apache_beam as beam
 from apache_beam import pvalue
+from apache_beam.transforms import util
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
@@ -1101,6 +1102,16 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
+    # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
+    # fusion for inputs.
+    if not util.is_compat_version_prior_to(p.options, "2.65.0"):
+      partitions_using_temp_tables = (
+          partitions_using_temp_tables
+          | "ReshuffleBeforeLoadWithTempTables" >> beam.Reshuffle())
+      partitions_direct_to_destination = (
+          partitions_direct_to_destination
+          | "ReshuffleBeforeLoadWithoutTempTables" >> beam.Reshuffle())
+
     # Load data using temp tables
     trigger_loads_outputs = (
         partitions_using_temp_tables
