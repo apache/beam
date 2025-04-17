@@ -37,7 +37,6 @@ import uuid
 
 import apache_beam as beam
 from apache_beam import pvalue
-from apache_beam.transforms import util
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
@@ -45,8 +44,8 @@ from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
+from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.transforms.window import GlobalWindows
 
 # Protect against environments where bigquery library is not available.
@@ -1063,7 +1062,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         destination_data_kv_pc
         |
         'ToHashableTableRef' >> beam.Map(bigquery_tools.to_hashable_table_ref)
-        | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
+        | 'WithAutoSharding' >> util.GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
             max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,
             clock=clock)
@@ -1102,9 +1101,11 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
-    # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
-    # fusion for inputs.
-    if not util.is_compat_version_prior_to(p.options, "2.65.0"):
+    self.reshuffle_before_load = not util.is_compat_version_prior_to(
+        p.options, "2.65.0")
+    if self.reshuffle_before_load:
+      # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
+      # fusion for inputs.
       partitions_using_temp_tables = (
           partitions_using_temp_tables
           | "ReshuffleBeforeLoadWithTempTables" >> beam.Reshuffle())

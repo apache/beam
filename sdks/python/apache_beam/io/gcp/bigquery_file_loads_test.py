@@ -478,6 +478,44 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_before_load(self, compat_version):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = bigquery_api.Job()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+
+    transform = bqfl.BigQueryBatchFileLoads(
+        destination,
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    # Need to test this with the DirectRunner to avoid serializing mocks
+    with TestPipeline('DirectRunner', options=options) as p:
+      _ = p | beam.Create(_ELEMENTS) | transform
+
+    reshuffle_before_load = compat_version is None
+    assert transform.reshuffle_before_load == reshuffle_before_load
+
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
