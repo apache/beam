@@ -100,9 +100,9 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      - name: GCloud Docker credential helper
-        run: |
-          gcloud auth configure-docker ${{ env.docker_registry }}
+#      - name: GCloud Docker credential helper
+#        run: |
+#          gcloud auth configure-docker ${{ env.docker_registry }}
       - name: Setup Java environment
         if: ${{ startsWith(matrix.container_task, 'java') }}
         uses: ./.github/actions/setup-environment-action
@@ -119,7 +119,7 @@ jobs:
           gradle-command: :sdks:${{ matrix.container_task }}:docker
           arguments: |
             -Pjava11Home=$JAVA_HOME_11_X64 \
-            -Pdocker-repository-root=us-central1-docker.pkg.dev/apache-beam-testing/beam-sdk \
+            -Pdocker-repository-root=us-central1-docker.pkg.dev/apache-beam-testing/beam-docker \
             -Pdocker-tag-list=${{ github.sha }},${BEAM_VERSION},latest \
             -Pcontainer-architecture-list=arm64,amd64 \
             -Ppush-containers \
