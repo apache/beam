@@ -117,6 +117,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
@@ -1921,6 +1922,13 @@ public class KafkaIO {
                 }
               }
             }
+          } catch (KafkaException exception) {
+            LOG.warn(
+                "WARN: Failed to connect to kafka for running pre-submit validation of kafka "
+                    + "topic and partition configuration. This may be due to local permissions or "
+                    + "connectivity to the kafka bootstrap server, or due to misconfiguration of "
+                    + "KafkaIO. This validation is not required, and this warning may be ignored "
+                    + "if the Beam job runs successfully.");
           }
         }
         for (TopicPartition topicPartition : partitions) {
