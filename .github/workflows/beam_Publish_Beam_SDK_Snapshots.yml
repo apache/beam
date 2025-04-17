@@ -52,7 +52,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-22.04
     timeout-minutes: 160
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:
@@ -94,6 +94,11 @@ jobs:
           echo "BEAM_VERSION=${BEAM_VERSION_LINE#*sdk_version=}" >> $GITHUB_ENV
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+      - name: Inspect SA Key (private_key_id)
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' > /tmp/key.json
+          echo "Extracted private_key_id:"
+          jq -r '.private_key_id' /tmp/key.json
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v2
         with:
