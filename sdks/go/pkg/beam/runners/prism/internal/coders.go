@@ -217,7 +217,7 @@ func retrieveCoders(cID string, bundle, base map[string]*pipepb.Coder) error {
 	bundle[cID] = c
 
 	for i, cc := range c.GetComponentCoderIds() {
-		//
+		// now we need to retrieve the component coders as well
 		err := retrieveCoders(cc, bundle, base)
 		if err != nil {
 			return fmt.Errorf("retrieveCoders: couldn't handle component %d %q of %q %v:\n%w", i, cc, cID, prototext.Format(c), err)
