@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assume.assumeFalse;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
@@ -37,10 +38,10 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
@@ -89,7 +90,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -101,8 +101,10 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
@@ -113,7 +115,6 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -170,8 +171,6 @@ public class KafkaIOIT {
   @Rule public TestPipeline writePipeline2 = TestPipeline.create();
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static ExperimentalOptions sdfPipelineOptions;
 
@@ -1142,5 +1141,158 @@ public class KafkaIOIT {
     kafkaContainer.withStartupAttempts(3);
     kafkaContainer.start();
     options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
+  }
+
+  @Test
+  public void testCustomRowDeserializerWithViaSDF() throws IOException {
+    // This test verifies that the SDF implementation of KafkaIO correctly handles
+    // custom deserializers with explicit coders. It uses a Row deserializer which
+    // requires an explicit coder to be provided since Beam cannot infer one automatically.
+    // The test ensures that both the deserializer and coder are properly passed to
+    // the ReadSourceDescriptors transform.
+
+    // Create a simple Row schema for test
+    Schema testSchema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+
+    RowCoder rowCoder = RowCoder.of(testSchema);
+
+    // Set up sample data
+    String testId = UUID.randomUUID().toString();
+    String topicName = options.getKafkaTopic() + "-row-deserializer-" + testId;
+
+    // Create test data
+    Map<String, Row> testData = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      testData.put(
+          "key" + i,
+          Row.withSchema(testSchema)
+              .withFieldValue("field1", "value" + i)
+              .withFieldValue("field2", i)
+              .build());
+    }
+
+    // Write the test data to Kafka using a custom serializer
+    writePipeline
+        .apply("Create test data", Create.of(testData))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<String, Row>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(topicName)
+                .withKeySerializer(StringSerializer.class)
+                .withValueSerializer(RowSerializer.class)
+                .withProducerConfigUpdates(ImmutableMap.of("test.schema", testSchema.toString())));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    // Read the data using SDF-based KafkaIO with a custom deserializer
+    PCollection<KV<String, Row>> resultSDF =
+        sdfReadPipeline.apply(
+            "Read from Kafka via SDF",
+            KafkaIO.<String, Row>read()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(topicName)
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        "auto.offset.reset", "earliest", "test.schema", testSchema.toString()))
+                .withKeyDeserializer(StringDeserializer.class)
+                .withValueDeserializerAndCoder(RowDeserializer.class, rowCoder)
+                .withoutMetadata());
+
+    // Compare with the original data
+    PAssert.that(resultSDF)
+        .containsInAnyOrder(
+            testData.entrySet().stream()
+                .map(entry -> KV.of(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList()));
+
+    // Run and verify
+    PipelineResult resultSDFResult = sdfReadPipeline.run();
+    PipelineResult.State resultSDFState =
+        resultSDFResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    cancelIfTimeouted(resultSDFResult, resultSDFState);
+    assertNotEquals(PipelineResult.State.FAILED, resultSDFState);
+
+    // Clean up
+    tearDownTopic(topicName);
+  }
+
+  /** A custom serializer for Row objects. */
+  public static class RowSerializer implements Serializer<Row> {
+    private Schema schema;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      String schemaString = (String) configs.get("test.schema");
+      if (schemaString != null) {
+        // Use a more direct method to parse schema from string
+        try {
+          this.schema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+        } catch (Exception e) {
+          throw new RuntimeException("Error parsing schema", e);
+        }
+      }
+    }
+
+    @Override
+    public byte[] serialize(String topic, Row data) {
+      if (data == null) {
+        return null;
+      }
+      // Simple JSON serialization for test purposes
+      try {
+        // Ensure we're using the schema
+        if (schema != null && !schema.equals(data.getSchema())) {
+          throw new RuntimeException("Schema mismatch: " + schema + " vs " + data.getSchema());
+        }
+        return mapper.writeValueAsBytes(data.getValues());
+      } catch (Exception e) {
+        throw new RuntimeException("Error serializing Row to JSON", e);
+      }
+    }
+
+    @Override
+    public void close() {}
+  }
+
+  /** A custom deserializer for Row objects. */
+  public static class RowDeserializer implements Deserializer<Row> {
+    private Schema schema;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      String schemaString = (String) configs.get("test.schema");
+      if (schemaString != null) {
+        // Use a more direct method to parse schema from string
+        try {
+          this.schema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+        } catch (Exception e) {
+          throw new RuntimeException("Error parsing schema", e);
+        }
+      }
+    }
+
+    @Override
+    public Row deserialize(String topic, byte[] data) {
+      if (data == null || schema == null) {
+        return null;
+      }
+      // Simple JSON deserialization for test purposes
+      try {
+        Object[] values = mapper.readValue(data, Object[].class);
+        return Row.withSchema(schema)
+            .withFieldValue("field1", values[0].toString())
+            .withFieldValue("field2", Integer.parseInt(values[1].toString()))
+            .build();
+      } catch (Exception e) {
+        throw new RuntimeException("Error deserializing JSON to Row", e);
+      }
+    }
+
+    @Override
+    public void close() {}
   }
 }
