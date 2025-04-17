@@ -40,11 +40,14 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} for continuously querying Kafka for new partitions, and emitting those
@@ -59,6 +62,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
 
   private static final Duration DEFAULT_CHECK_DURATION = Duration.standardHours(1);
   private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
+  private static final Logger LOG = LoggerFactory.getLogger(WatchForKafkaTopicPartitions.class);
 
   private final Duration checkDuration;
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -211,6 +215,13 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
           }
         }
       }
+    } catch (KafkaException exception) {
+      LOG.warn(
+              "WARN: Failed to connect to kafka for running pre-submit validation of kafka "
+                      + "topic and partition configuration. This may be due to local permissions or "
+                      + "connectivity to the kafka bootstrap server, or due to misconfiguration of "
+                      + "KafkaIO. This validation is not required, and this warning may be ignored "
+                      + "if the Beam job runs successfully.");
     }
     return current;
   }
