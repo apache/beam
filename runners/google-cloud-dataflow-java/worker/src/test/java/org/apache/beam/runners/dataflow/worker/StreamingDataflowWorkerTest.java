@@ -134,7 +134,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -196,7 +195,6 @@ import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -313,28 +311,6 @@ public class StreamingDataflowWorkerTest {
     return null;
   }
 
-  private Iterable<CounterUpdate> buildCounters() {
-    return Iterables.concat(
-        streamingCounters
-            .pendingDeltaCounters()
-            .extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE),
-        streamingCounters
-            .pendingCumulativeCounters()
-            .extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
-  }
-
-  @Before
-  public void setUp() {
-    server.clearCommitsReceived();
-    streamingCounters = StreamingCounters.create();
-  }
-
-  @After
-  public void cleanUp() {
-    Optional.ofNullable(computationStateCache)
-        .ifPresent(ComputationStateCache::closeAndInvalidateAll);
-  }
-
   private static ExecutableWork createMockWork(
       ShardedKey shardedKey, long workToken, String computationId) {
     return createMockWork(shardedKey, workToken, computationId, ignored -> {});
@@ -362,6 +338,28 @@ public class StreamingDataflowWorkerTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             Instant::now),
         processWorkFn);
+  }
+
+  private Iterable<CounterUpdate> buildCounters() {
+    return Iterables.concat(
+        streamingCounters
+            .pendingDeltaCounters()
+            .extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE),
+        streamingCounters
+            .pendingCumulativeCounters()
+            .extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
+  }
+
+  @Before
+  public void setUp() {
+    server.clearCommitsReceived();
+    streamingCounters = StreamingCounters.create();
+  }
+
+  @After
+  public void cleanUp() {
+    Optional.ofNullable(computationStateCache)
+        .ifPresent(ComputationStateCache::closeAndInvalidateAll);
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -864,6 +862,9 @@ public class StreamingDataflowWorkerTest {
       StreamingDataflowWorkerTestParams streamingDataflowWorkerTestParams) {
     when(mockGlobalConfigHandle.getConfig())
         .thenReturn(streamingDataflowWorkerTestParams.streamingGlobalConfig());
+    FakeWindmillStubFactory stubFactory =
+        new FakeWindmillStubFactory(
+            () -> WindmillChannels.inProcessChannel("StreamingDataflowWorkerTestChannel"));
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
             streamingDataflowWorkerTestParams.stateNameMappings(),
@@ -880,10 +881,8 @@ public class StreamingDataflowWorkerTest {
             mockGlobalConfigHandle,
             streamingDataflowWorkerTestParams.localRetryTimeoutMs(),
             streamingCounters,
-            new FakeWindmillStubFactoryFactory(
-                new FakeWindmillStubFactory(
-                    () ->
-                        WindmillChannels.inProcessChannel("StreamingDataflowWorkerTestChannel"))));
+            stubFactory,
+            stubFactory.getChannelCache());
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
@@ -2930,64 +2929,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  @Ignore // Test is flaky on Jenkins (#27555)
-  public void testMaxThreadMetric() throws Exception {
-    int maxThreads = 2;
-    int threadExpiration = 60;
-    // setting up actual implementation of executor instead of mocking to keep track of
-    // active thread count.
-    BoundedQueueExecutor executor =
-        new BoundedQueueExecutor(
-            maxThreads,
-            threadExpiration,
-            TimeUnit.SECONDS,
-            maxThreads,
-            MAXIMUM_BYTES_OUTSTANDING,
-            new ThreadFactoryBuilder()
-                .setNameFormat("DataflowWorkUnits-%d")
-                .setDaemon(true)
-                .build(),
-            /*useFairMonitor=*/ false);
-
-    ComputationState computationState =
-        new ComputationState(
-            "computation",
-            defaultMapTask(Collections.singletonList(makeSourceInstruction(StringUtf8Coder.of()))),
-            executor,
-            ImmutableMap.of(),
-            null);
-
-    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
-
-    // overriding definition of MockWork to add sleep, which will help us keep track of how
-    // long each work item takes to process and therefore let us manipulate how long the time
-    // at which we're at max threads is.
-    Consumer<Work> sleepProcessWorkFn =
-        unused -> {
-          try {
-            Thread.sleep(1000);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
-        };
-
-    ExecutableWork m2 = createMockWork(key1Shard1, 2, sleepProcessWorkFn);
-    ExecutableWork m3 = createMockWork(key1Shard1, 3, sleepProcessWorkFn);
-
-    assertTrue(computationState.activateWork(m2));
-    assertTrue(computationState.activateWork(m3));
-    executor.execute(m2, m2.getWorkItem().getSerializedSize());
-
-    executor.execute(m3, m3.getWorkItem().getSerializedSize());
-
-    // Will get close to 1000ms that both work items are processing (sleeping, really)
-    // give or take a few ms.
-    long i = 990L;
-    assertTrue(executor.allThreadsActiveTime() >= i);
-    executor.shutdown();
-  }
-
-  @Test
   public void testActiveThreadMetric() throws Exception {
     int maxThreads = 5;
     int threadExpirationSec = 60;
@@ -4079,14 +4020,6 @@ public class StreamingDataflowWorkerTest {
         new AtomicReference<>(new CountDownLatch(1));
     public static AtomicReference<Semaphore> counter = new AtomicReference<>(new Semaphore(0));
     public static AtomicInteger callCounter = new AtomicInteger(0);
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws InterruptedException {
-      callCounter.incrementAndGet();
-      counter().release();
-      blocker().await();
-      c.output(c.element());
-    }
 
     public static CountDownLatch blocker() {
       return blocker.get();

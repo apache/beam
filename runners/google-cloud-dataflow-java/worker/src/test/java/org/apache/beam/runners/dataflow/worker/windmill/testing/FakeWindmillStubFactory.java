@@ -57,4 +57,8 @@ public final class FakeWindmillStubFactory implements ChannelCachingStubFactory 
   public void shutdown() {
     channelCache.clear();
   }
+
+  public ChannelCache getChannelCache() {
+    return channelCache;
+  }
 }
