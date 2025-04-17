@@ -100,6 +100,10 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+      - name: Print Runner Time and Google Time
+        run: |
+          echo "Runner time (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          curl -s 'http://worldtimeapi.org/api/timezone/Etc/UTC' | jq '.datetime'
       - name: Login to Artifact Registry manually
         run: |
           gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
