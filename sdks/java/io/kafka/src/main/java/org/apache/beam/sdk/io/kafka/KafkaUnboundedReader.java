@@ -268,8 +268,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                         p.nextOffset,
                         p.lastWatermark.getMillis()))
             .collect(Collectors.toList()),
-        this,
-        source.getSpec().isCommitOffsetsInFinalizeEnabled());
+        source.getSpec().isCommitOffsetsInFinalizeEnabled() || offsetBasedDeduplicationSupported()
+            ? Optional.of(this)
+            : Optional.empty());
   }
 
   @Override

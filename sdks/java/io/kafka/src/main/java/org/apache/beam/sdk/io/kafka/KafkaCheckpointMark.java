@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -38,20 +39,16 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private List<PartitionMark> partitions;
 
-  @AvroIgnore private KafkaUnboundedReader<?, ?> reader;
-
-  private boolean commitOffsetsInFinalize;
+  @AvroIgnore
+  private Optional<KafkaUnboundedReader<?, ?>> reader; // Present when offsets need to be committed.
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private KafkaCheckpointMark() {} // for Avro
 
   public KafkaCheckpointMark(
-      List<PartitionMark> partitions,
-      KafkaUnboundedReader<?, ?> reader,
-      boolean commitOffsetsInFinalize) {
+      List<PartitionMark> partitions, Optional<KafkaUnboundedReader<?, ?>> reader) {
     this.partitions = partitions;
     this.reader = reader;
-    this.commitOffsetsInFinalize = commitOffsetsInFinalize;
   }
 
   public List<PartitionMark> getPartitions() {
@@ -60,10 +57,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @Override
   public void finalizeCheckpoint() {
-    if (!commitOffsetsInFinalize) {
-      return;
-    }
-    reader.finalizeCheckpointMarkAsync(this);
+    reader.ifPresent(r -> r.finalizeCheckpointMarkAsync(this));
     // Is it ok to commit asynchronously, or should we wait till this (or newer) is committed?
     // Often multiple marks would be finalized at once, since we only need to finalize the latest,
     // it is better to wait a little while. Currently maximum delay is same as KAFKA_POLL_TIMEOUT
@@ -77,7 +71,11 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @Override
   public byte[] getOffsetLimit() {
-    if (!reader.offsetBasedDeduplicationSupported()) {
+    if (!reader.isPresent()) {
+      throw new RuntimeException(
+          "KafkaCheckpointMark reader is not present while calling getOffsetLimit().");
+    }
+    if (!reader.get().offsetBasedDeduplicationSupported()) {
       throw new RuntimeException(
           "Unexpected getOffsetLimit() called while KafkaUnboundedReader not configured for offset deduplication.");
     }
