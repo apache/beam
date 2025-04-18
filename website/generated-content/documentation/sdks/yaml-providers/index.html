@@ -47,7 +47,7 @@ that consumes and produces zero or more <a href=https://beam.apache.org/document
 <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/transforms/SchemaTransformProvider.html>SchemaTransformProvider</a>
 which provides an identifier used to refer to this transform later as well
 as metadata like a human-readable description and its configuration parameters.</li><li>Building a Jar that contains these classes and vends them via the
-<a href=https://github.com/Polber/beam-yaml-xlang/blob/95abf0864e313232a89f3c9e57b950d0fb478979/src/main/java/org/example/ToUpperCaseTransformProvider.java#L30>Service Loader</a>
+<a href=https://github.com/apache/beam-starter-java-provider/blob/main/src/main/java/org/example/ToUpperCaseTransformProvider.java#L47>Service Loader</a>
 infrastructure.</li><li>Writing a <a href=https://beam.apache.org/documentation/sdks/yaml/#providers>provider specification</a>
 that tells Beam YAML where to find this jar and what it contains.</li></ol><p>If the transform is already exposed as a
 <a href=https://beam.apache.org/documentation/sdks/python-multi-language-pipelines/>cross language transform</a>
