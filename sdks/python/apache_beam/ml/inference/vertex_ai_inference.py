@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import base64
+import json
 import logging
 from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
-from typing import List
+from typing import Dict
 
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
@@ -31,7 +30,6 @@ from google.cloud import aiplatform
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils import retry
 import numpy as np
 MSEC_TO_SEC = 1000
 from apache_beam.ml.inference.base import RemoteModelHandler
@@ -219,45 +217,42 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     return self._batching_kwargs
 
-InputT = Any
-class VertexAITritonModelHandler(ModelHandler[InputT,
-                                            PredictionResult,
-                                            aiplatform.Endpoint]):
-    """
-    A custom model handler for Vertex AI endpoints hosting Triton Inference Servers.
-    It constructs a payload that Triton expects and calls the raw predict endpoint.
-    """
-    
-    def __init__(self, 
-                 project_id: str,
-                 location: str,
-                 endpoint_name: str,
-                 input_name: str,
-                 input_datatype: str, 
-                 input_tensor_shape: List[int], 
-                 output_tensor_name: Optional[str] = None,
-                 network: Optional[str] = None,
-                 private: bool = False,
-                 experiment: Optional[str] = None,
-                 *, 
-                 min_batch_size: Optional[int] = None,
-                 max_batch_size: Optional[int] = None,
-                 max_batch_duration_secs: Optional[int] = None,
-                 **kwargs
-                 ):
-        self.project_id = project_id
-        self.location = location 
-        self.endpoint_name = endpoint_name
-        self.input_name = input_name
-        self.input_datatype = input_datatype
-        self.input_tensor_shape = input_tensor_shape 
-        self.output_tensor_name = output_tensor_name
-        self.network = network
-        self.private = private
-        self.experiment = experiment
+class VertexAITritonModelHandler(RemoteModelHandler[Any, PredictionResult, aiplatform.Endpoint]):
+    def __init__(
+        self,
+        endpoint_id: str,
+        project: str,
+        location: str,
+        input_name: str,
+        datatype: str,
+        experiment: Optional[str] = None,
+        network: Optional[str] = None,
+        private: bool = False,
+        min_batch_size: Optional[int] = None,
+        max_batch_size: Optional[int] = None,
+        max_batch_duration_secs: Optional[int] = None,
+        **kwargs
+    ):
+        """
+        Initialize the handler for Triton Inference Server on Vertex AI.
 
+        Args:
+            endpoint_id: Vertex AI endpoint ID.
+            project: GCP project name.
+            location: GCP location.
+            input_name: Name of the input tensor for Triton.
+            datatype: Data type of the input (e.g., 'FP32', 'BYTES').
+            experiment: Optional experiment label.
+            network: Optional VPC network for private endpoints.
+            private: Whether the endpoint is private.
+            min_batch_size: Minimum batch size for batching.
+            max_batch_size: Maximum batch size for batching.
+            max_batch_duration_secs: Max buffering time for batches.
+            **kwargs: Additional arguments passed to the base class.
+        """
+        self.input_name = input_name
+        self.datatype = datatype
         self._batching_kwargs = {}
-        self._env_vars = kwargs.get('env_vars', {}) 
         if min_batch_size is not None:
             self._batching_kwargs["min_batch_size"] = min_batch_size
         if max_batch_size is not None:
@@ -265,63 +260,38 @@ class VertexAITritonModelHandler(ModelHandler[InputT,
         if max_batch_duration_secs is not None:
             self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
 
-        if self.private and self.network is None:
-            raise ValueError(
-                "A VPC network must be provided ('network' arg) to use a private endpoint.")
-        try:
-             aiplatform.init(
-                project=self.project_id,
-                location=self.location,
-                experiment=self.experiment,
-                network=self.network)
-             LOGGER.info(
-                 "Initialized aiplatform client for project=%s, location=%s",
-                 self.project_id, self.location)
-        except Exception as e:
-            LOGGER.error("Failed to initialize aiplatform client: %s", e, exc_info=True)
-            raise RuntimeError(f"Could not initialize Google Cloud AI Platform client: {e}") from e
-        
-        try:
-            LOGGER.info("Performing initial liveness check for endpoint %s...", self.endpoint_name)
-            full_endpoint_id_for_check = self.endpoint_name
-            if not full_endpoint_id_for_check.startswith('projects/'):
-                full_endpoint_id_for_check = f"projects/{self.project_id}/locations/{self.location}/endpoints/{self.endpoint_name}"
-            _ = self._retrieve_endpoint(
-                endpoint_id=full_endpoint_id_for_check, 
-                project=self.project_id, 
-                location=self.location,
-                is_private=self.private)
-            LOGGER.info("Initial liveness check successful.")
-        except ValueError as e:
-            LOGGER.warning("Initial liveness check for endpoint %s failed: %s. "
-                           "Will retry in load_model.", self.endpoint_name, e)
-        except Exception as e:
-             LOGGER.warning("Unexpected error during initial liveness check for endpoint %s: %s. "
-                           "Will retry in load_model.", self.endpoint_name, e, exc_info=True)
-        # Configure AdaptiveThrottler and throttling metrics for client-side
-        # throttling behavior.
-        # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
-        # for more details.
-        self.throttled_secs = Metrics.counter(
-        VertexAITritonModelHandler, "cumulativeThrottlingSeconds")
-        self.throttler = AdaptiveThrottler(
-        window_ms=1, bucket_ms=1, overload_ratio=2) 
-    def load_model(self) -> aiplatform.Endpoint:
-        """Loads the Endpoint object for inference, performing liveness check."""
-        
-        endpoint_id_to_load = self.endpoint_name
-        if not endpoint_id_to_load.startswith('projects/'):
-             endpoint_id_to_load = f"projects/{self.project_id}/locations/{self.location}/endpoints/{self.endpoint_name}"
+        if private and network is None:
+            raise ValueError("A VPC network must be provided for a private endpoint.")
 
-        LOGGER.info("Loading/Retrieving Vertex AI endpoint: %s", endpoint_id_to_load)
-        ep = self._retrieve_endpoint(
-            endpoint_id=endpoint_id_to_load,
-            project=self.project_id,
-            location=self.location,
-            is_private=self.private)
-        LOGGER.info("Successfully retrieved endpoint object: %s", ep.name)
-        return ep
+        aiplatform.init(
+            project=project,
+            location=location,
+            experiment=experiment,
+            network=network
+        )
+        self.project = project
+        self.endpoint_name = endpoint_id
+        self.location = location
+        self.is_private = private
 
+        self.endpoint = self._retrieve_endpoint(  
+            self.endpoint_name, self.project, self.location, self.is_private
+        )
+
+        super().__init__(
+            namespace='VertexAITritonModelHandler',
+            retry_filter=_retry_on_appropriate_gcp_error,
+            **kwargs
+        )
+    def create_client(self) -> aiplatform.Endpoint:
+        """
+        Create the client for inference.
+
+        Returns:
+            aiplatform.Endpoint object.
+        """
+        return self.endpoint
+    
     def _retrieve_endpoint(
         self, endpoint_id: str, project: str, location: str,
         is_private: bool) -> aiplatform.Endpoint:
@@ -349,194 +319,75 @@ class VertexAITritonModelHandler(ModelHandler[InputT,
                              f"(according to Vertex AI).")
         return endpoint
 
-    @retry.with_exponential_backoff(
-        num_retries=5, 
-        retry_filter=_retry_on_appropriate_gcp_error)
-    def send_request(
+
+    def request(
         self,
-        batch: Sequence[InputT],
-        model: aiplatform.Endpoint, 
-        inference_args: Optional[Dict[str, Any]]): 
+        batch: Sequence[Any],
+        model: aiplatform.Endpoint,
+        inference_args: Optional[Dict[str, Any]] = None
+    ) -> Iterable[PredictionResult]:
         """
-        Sends a single rawPredict request to the endpoint.
-        Handles throttling, data formatting, and retries.
+        Send a prediction request to the Triton endpoint.
+
+        Args:
+            batch: Sequence of inputs.
+            model: Vertex AI endpoint object.
+            inference_args: Optional inference arguments (ignored for Triton).
+
+        Returns:
+            Iterable of PredictionResult objects.
+
+        Raises:
+            ValueError: If input type is unsupported or response lacks outputs.
         """
-        throttle_delay_secs = 5 
-
-
-        while self.throttler.throttle_request(time.time() * MSEC_TO_SEC):
-            LOGGER.info(
-                "Delaying request for %d seconds due to previous failures for endpoint %s",
-                throttle_delay_secs, model.name)
-            time.sleep(throttle_delay_secs)
-            self.throttled_secs.inc(throttle_delay_secs)
-
-        batch_size = len(batch)
-        tensor_shape = [batch_size] + self.input_tensor_shape
-
-        data_list = []
-        if self.input_datatype == "BYTES":
-            try:
-                data_list = [base64.b64encode(item).decode('utf-8') for item in batch]
-            except TypeError as e:
-                 LOGGER.error("Input data for BYTES tensor could not be base64 encoded. "
-                              "Ensure all elements in the batch are bytes-like. Error: %s", e)
-                 raise ValueError("Invalid input data type for BYTES tensor.") from e
-        elif self.input_datatype in ["FP64", "FP32", "FP16", "INT64", "INT32", "INT16", "INT8", "UINT64", "UINT32", "UINT16", "UINT8", "BOOL"]:
-            flat_list = []
-            try:
-                for item in batch:
-                    if isinstance(item, (np.ndarray, np.generic)):
-                        flat_list.extend(item.flatten().tolist())
-                    elif isinstance(item, list):
-                        if not item: continue 
-                        if isinstance(item[0], list): 
-                           for sub_list in item: flat_list.extend(sub_list)
-                        else: 
-                           flat_list.extend(item)
-                    elif isinstance(item, (int, float, bool, np.number)):
-                        flat_list.append(item)
-                    else:
-                        raise TypeError(f"Unsupported item type in batch for numerical tensor: {type(item)}")
-                data_list = flat_list
-            except Exception as e:
-                LOGGER.error("Failed to flatten batch data for numerical input '%s' (dtype %s): %s",
-                             self.input_name, self.input_datatype, e, exc_info=True)
-                raise ValueError(f"Input data could not be processed for {self.input_datatype} tensor.") from e
+      
+        if self.datatype == "BYTES":
+            if not all(isinstance(x, str) for x in batch):
+                raise ValueError("For BYTES datatype, batch must be a list of strings")
+            batch_shape = [len(batch)]
+            data = batch
         else:
-            raise NotImplementedError(
-                f"Data formatting for input datatype '{self.input_datatype}' "
-                "is not implemented.")
-
-        payload = {
+            first_instance = batch[0]
+            if np.isscalar(first_instance):
+                batch_shape = [len(batch)]
+                data = [float(x) for x in batch]
+            elif isinstance(first_instance, (list, np.ndarray)):
+                instance_shape = np.array(first_instance).shape
+                batch_shape = (len(batch),) + instance_shape
+                data = np.array(batch).flatten().tolist()
+            else:
+                raise ValueError("Unsupported input type")
+        client_options = {"api_endpoint": f"{self.location}-aiplatform.googleapis.com"}
+        prediction_client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
+        endpoint = endpoint = (
+          f"projects/{self.project}/locations/{self.location}/endpoints/"
+          f"{self.endpoint_name}"
+        )
+        triton_request = {
             "inputs": [
                 {
                     "name": self.input_name,
-                    "shape": tensor_shape,
-                    "datatype": self.input_datatype,
-                    "data": data_list,
+                    "shape": list(batch_shape),
+                    "datatype": self.datatype,
+                    "data": data,
                 }
             ]
         }
 
-        try:
-            start_time = time.time()
-            prediction_response = model.raw_predict(
-                body=payload, 
-                headers=None 
-            )
+        request_body = json.dumps(triton_request).encode('utf-8')
+        response = prediction_client.raw_predict(
+        endpoint=endpoint,
+        http_body=request_body
+        )
+        
+        response_json = json.loads(response.raw_response.data.decode('utf-8'))
+        outputs = response_json.get('outputs', [])
+        if not outputs:
+            raise ValueError("No outputs in response")
+        output_data = outputs[0]['data']
+        predictions = output_data  
 
-            latency_ms = (time.time() - start_time) * MSEC_TO_SEC
-            self.throttler.successful_request(int(latency_ms))
-            return prediction_response
-
-        except TooManyRequests as e:
-            LOGGER.warning("Request failed with TooManyRequests (429) for endpoint %s: %s. Will retry.", model.name, e)
-            raise
-        except ServerError as e:
-            LOGGER.warning("Request failed with ServerError (%s) for endpoint %s: %s. Will retry.", e.code, model.name, e)
-            raise
-        except GoogleAPICallError as e:
-            LOGGER.error("Request failed with GoogleAPICallError for endpoint %s: %s", model.name, e, exc_info=True)
-        except Exception as e:
-            LOGGER.error("Unexpected error during raw_predict for endpoint %s: %s", model.name, e, exc_info=True)
-            raise RuntimeError(f"Unexpected error during Vertex AI raw_predict call: {e}") from e
-
-    def run_inference(
-        self,
-        batch: Sequence[InputT],
-        model: aiplatform.Endpoint, 
-        inference_args: Optional[Dict[str, Any]] = None 
-    ) -> Iterable[PredictionResult]:
-        """
-        Sends a prediction request with the Triton-specific payload structure.
-
-        Args:
-            batch: A sequence of input examples.
-            model: The `aiplatform.Endpoint` object from `load_model`.
-            inference_args: Optional. Usually unused for Triton rawPredict.
-
-        Returns:
-            An iterable of PredictionResult objects.
-        """
-        if not batch:
-            return []
-
-        response_dict = self.send_request(batch, model, inference_args)
-
-        if not isinstance(response_dict, dict) or 'outputs' not in response_dict:
-            raise ValueError(f"Unexpected response format from raw_predict. "
-                             f"Expected dict with 'outputs' key, got: {type(response_dict)}")
-
-        outputs = response_dict.get('outputs', [])
-        if not isinstance(outputs, list) or not outputs:
-            raise ValueError(f"Expected 'outputs' to be a non-empty list, got: {outputs}")
-        output_data = None
-        found_output_tensor = None
-        if self.output_tensor_name:
-            for tensor in outputs:
-                if tensor.get('name') == self.output_tensor_name:
-                    found_output_tensor = tensor
-                    break
-            if not found_output_tensor:
-                raise ValueError(
-                    f"Output tensor named '{self.output_tensor_name}' not found in response: {outputs}")
-        else:
-            found_output_tensor = outputs[0]
-            LOGGER.debug("Using data from the first output tensor: %s",
-                         found_output_tensor.get('name', 'Unnamed'))
-
-        output_data = found_output_tensor.get('data')
-        if output_data is None:
-             raise ValueError(
-                f"Could not find 'data' in the selected output tensor: {found_output_tensor}")
-
-        output_datatype = found_output_tensor.get('datatype')
-        processed_predictions = []
-
-        if output_datatype == 'BYTES':
-            try:
-                processed_predictions = [base64.b64decode(item) for item in output_data]
-            except Exception as e:
-                LOGGER.error("Failed to base64 decode BYTES output data: %s", e, exc_info=True)
-                raise ValueError("Output data could not be base64 decoded.") from e
-        else:
-            output_shape = found_output_tensor.get('shape')
-            if not output_shape or output_shape[0] != len(batch):
-                 LOGGER.warning("Output shape %s in response does not match batch size %d. "
-                                "Attempting to proceed, but results may be incorrect.",
-                                output_shape, len(batch))
-                 if len(output_data) == len(batch):
-                     processed_predictions = output_data 
-                 else:
-                     raise ValueError(f"Cannot reconcile output shape {output_shape} "
-                                      f"and data length {len(output_data)} with batch size {len(batch)}")
-
-            else:
-                elements_per_item = 1
-                if len(output_shape) > 1:
-                    elements_per_item = int(np.prod(output_shape[1:]))
-                if len(output_data) != elements_per_item * len(batch):
-                    raise ValueError(f"Total elements in output data ({len(output_data)}) does not match "
-                                     f"expected based on shape ({output_shape}) and batch size ({len(batch)}).")
-                processed_predictions = []
-                for i in range(len(batch)):
-                    start_index = i * elements_per_item
-                    end_index = start_index + elements_per_item
-                    element_prediction = output_data[start_index:end_index]
-                    if elements_per_item == 1:
-                         processed_predictions.append(element_prediction[0])
-                    else:
-                         processed_predictions.append(element_prediction)
-        if len(processed_predictions) != len(batch):
-            raise ValueError(
-                f"Input batch size {len(batch)} does not match "
-                f"parsed output size {len(processed_predictions)}. Response: {response_dict}")
-        model_id_for_result = response_dict.get('model_name', 'unknown_triton_model')
-        if 'model_version' in response_dict:
-            model_id_for_result += f":{response_dict['model_version']}"
-
-        return utils._convert_to_result(batch, processed_predictions, model_id_for_result)
+        return utils._convert_to_result(batch, predictions, model.deployed_model_id)
     
     def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
         pass
