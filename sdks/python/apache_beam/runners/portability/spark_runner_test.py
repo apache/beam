@@ -180,7 +180,9 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flatten_and_gbk(self):
     # Blocked on support for transcoding
     # https://github.com/apache/beam/issues/19504
-    super().test_flatten_and_gbk(with_transcoding=False)
+    # Also blocked on support of flatten and groupby sharing the same input
+    # https://github.com/apache/beam/issues/34647
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34647")
 
   def test_custom_merging_window(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
