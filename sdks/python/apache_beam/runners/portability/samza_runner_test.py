@@ -145,7 +145,9 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flatten_and_gbk(self):
     # Blocked on support for transcoding
     # https://github.com/apache/beam/issues/20984
-    super().test_flatten_and_gbk(with_transcoding=False)
+    # Also blocked on support of flatten and groupby sharing the same input
+    # https://github.com/apache/beam/issues/34647
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34647")
 
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused
