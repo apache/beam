@@ -39,7 +39,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   private List<PartitionMark> partitions;
 
   @AvroIgnore
-  private KafkaUnboundedReader<?, ?> reader; // Present when offsets need to be committed.
+  private KafkaUnboundedReader<?, ?> reader;
 
   private boolean commitOffsetsInFinalize;
 
