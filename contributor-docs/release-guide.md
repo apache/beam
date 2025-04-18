@@ -908,6 +908,7 @@ Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-In
 - [ ] Java Mobile Gaming RC Validation (~60min): https://github.com/apache/beam/actions/workflows/run_rc_validation_java_mobile_gaming.yml
 - [ ] Python Mobile Gaming RC Validation (~90min): https://github.com/apache/beam/actions/workflows/run_rc_validation_python_mobile_gaming.yml
 - [ ] Go SDK Release Candidate Validation: https://github.com/apache/beam/actions/workflows/run_rc_validation_go_wordcount.yml
+- [ ] YAML Release Candidate Validation: https://github.com/apache/beam/actions/workflows/run_rc_validation_python_yaml.yml
 
 ### Checklist to proceed to the next phase
 
