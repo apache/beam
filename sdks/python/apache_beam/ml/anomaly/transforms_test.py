@@ -23,16 +23,11 @@ import shutil
 import tempfile
 import unittest
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import Optional
-from typing import Sequence
-from typing import SupportsFloat
 from typing import Tuple
 
 import mock
 import numpy
-from sklearn.base import BaseEstimator
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.aggregations import AnyVote
@@ -51,7 +46,6 @@ from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import _StatefulThresholdDoFn
 from apache_beam.ml.anomaly.transforms import _StatelessThresholdDoFn
 from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import _PostProcessingModelHandler
 from apache_beam.ml.inference.base import _PreProcessingModelHandler

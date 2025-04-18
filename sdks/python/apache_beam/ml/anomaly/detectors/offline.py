@@ -17,11 +17,11 @@
 
 from typing import Any
 from typing import Dict
+from typing import Optional
 from typing import SupportsFloat
 from typing import SupportsInt
 from typing import Tuple
 from typing import TypeVar
-from typing import Optional
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.base import AnomalyDetector
