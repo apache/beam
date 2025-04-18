@@ -370,7 +370,7 @@ public class ResourceHints {
                   .get(key)
                   .mergeWithOuter(
                       outerHint.getValue(),
-                      /*isSum*/ outerHint.getKey().equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
+                      /*isSum*/ key.equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
         } else {
           newHints.put(outerHint);
         }
