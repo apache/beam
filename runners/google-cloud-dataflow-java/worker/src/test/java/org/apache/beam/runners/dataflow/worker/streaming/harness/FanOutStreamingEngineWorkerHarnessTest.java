@@ -173,9 +173,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     stubFactory.shutdown();
     fakeStreamingEngineServer.shutdown();
-    if (!Preconditions.checkNotNull(
-        fakeStreamingEngineServer.awaitTermination(
-            SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS))) {
+    if (!fakeStreamingEngineServer.awaitTermination(
+        SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
       fakeStreamingEngineServer.shutdownNow();
     }
   }
