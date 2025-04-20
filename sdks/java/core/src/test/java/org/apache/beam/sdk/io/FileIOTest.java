@@ -125,6 +125,13 @@ public class FileIOTest implements Serializable {
 
     PAssert.that(
             p.apply(
+                    "Create existing without reshuffle",
+                    Create.of(tmpFolder.getRoot().getAbsolutePath() + "/*"))
+                .apply("MatchAll without reshuffle", FileIO.matchAll().withReshuffle(false)))
+        .containsInAnyOrder(firstMetadata, secondMetadata);
+
+    PAssert.that(
+            p.apply(
                 "Match non-existing ALLOW",
                 FileIO.match()
                     .filepattern(tmpFolder.getRoot().getAbsolutePath() + "/blah")

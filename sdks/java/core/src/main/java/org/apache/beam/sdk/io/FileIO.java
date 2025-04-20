@@ -26,6 +26,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -34,10 +35,14 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.List;
+import javax.naming.Context;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileIO.Sink;
+import org.apache.beam.sdk.io.FileIO.Write;
+import org.apache.beam.sdk.io.FileIO.Write.FileNaming;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MetadataCoderV2;
@@ -338,8 +343,8 @@ public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 
   /**
-   * Matches a filepattern using {@link FileSystems#match} and produces a collection of matched
-   * resources (both files and directories) as {@link MatchResult.Metadata}.
+   * Matches a filepattern using {@link org.apache.beam.sdk.io.FileSystems#match} and produces a
+   * collection of matched resources (both files and directories) as {@link MatchResult.Metadata}.
    *
    * <p>By default, matches the filepattern once and produces a bounded {@link PCollection}. To
    * continuously watch the filepattern for new matches, use {@link MatchAll#continuously(Duration,
@@ -373,6 +378,7 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .setReshuffle(true)
         .build();
   }
 
@@ -672,11 +678,20 @@ public class FileIO {
 
     abstract Builder toBuilder();
 
+    public abstract boolean getReshuffle();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
+      abstract Builder setReshuffle(boolean reshuffle);
+
       abstract MatchAll build();
+    }
+
+    /** Like {@link Match#withReshuffle}, allows disabling reshuffling of matched file metadata. */
+    public MatchAll withReshuffle(boolean reshuffle) {
+      return toBuilder().setReshuffle(reshuffle).build();
     }
 
     /** Like {@link Match#withConfiguration}. */
@@ -723,7 +738,10 @@ public class FileIO {
           res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
-      return res.apply(Reshuffle.viaRandomKey());
+      if (getReshuffle()) {
+        return res.apply(Reshuffle.viaRandomKey());
+      }
+      return res;
     }
 
     @Override
@@ -815,7 +833,10 @@ public class FileIO {
       abstract ReadMatches build();
     }
 
-    /** Reads files using the given {@link Compression}. Default is {@link Compression#AUTO}. */
+    /**
+     * Reads files using the given {@link org.apache.beam.sdk.io.Compression}. Default is {@link
+     * org.apache.beam.sdk.io.Compression#AUTO}.
+     */
     public ReadMatches withCompression(Compression compression) {
       checkArgument(compression != null, "compression can not be null");
       return toBuilder().setCompression(compression).build();
@@ -1247,8 +1268,9 @@ public class FileIO {
     }
 
     /**
-     * Specifies to compress all generated shard files using the given {@link Compression} and, by
-     * default, append the respective extension to the filename.
+     * Specifies to compress all generated shard files using the given {@link
+     * org.apache.beam.sdk.io.Compression} and, by default, append the respective extension to the
+     * filename.
      */
     public Write<DestinationT, UserT> withCompression(Compression compression) {
       checkArgument(compression != null, "compression can not be null");
