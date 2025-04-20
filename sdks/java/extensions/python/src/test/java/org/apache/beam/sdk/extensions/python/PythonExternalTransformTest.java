@@ -25,7 +25,6 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -380,15 +379,16 @@ public class PythonExternalTransformTest implements Serializable {
     PortablePipelineOptions options =
         PipelineOptionsFactory.create().as(PortablePipelineOptions.class);
     options.setDefaultEnvironmentType("LOOPBACK");
-    options.setRunner(DirectRunner.class);
 
     Pipeline p = Pipeline.create(options);
 
-    p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
-        .apply(
-            PythonExternalTransform
-                .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
-                    "apache_beam.GroupByKey"));
-    p.run().waitUntilFinish();
+    PCollection<String> output =
+        p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
+            .apply(
+                PythonExternalTransform
+                    .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
+                        from("apache_beam.GroupByKey"))
+            .apply(Keys.create());
+    PAssert.that(output).containsInAnyOrder("A", "B");
   }
 }
