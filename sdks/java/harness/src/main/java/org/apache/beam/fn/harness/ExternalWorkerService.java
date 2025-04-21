@@ -71,6 +71,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
 
     Endpoints.ApiServiceDescriptor loggingEndpoint = request.getLoggingEndpoint();
     Endpoints.ApiServiceDescriptor controlEndpoint = request.getControlEndpoint();
+    Endpoints.ApiServiceDescriptor artifactEndpoint = null; // Initialize artifactEndpoint
     Set<String> runnerCapabilites = Collections.emptySet();
     if (request.hasProvisionEndpoint()) {
       ManagedChannelFactory channelFactory =
@@ -93,17 +94,33 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
       if (provisionInfo.hasLoggingEndpoint()) {
         loggingEndpoint = provisionInfo.getLoggingEndpoint();
       }
+      // Extract artifact endpoint if available
+      if (provisionInfo.hasArtifactEndpoint()) {
+        artifactEndpoint = provisionInfo.getArtifactEndpoint();
+        LOG.debug("Found artifact endpoint: {}", artifactEndpoint.getUrl());
+      } else {
+        LOG.warn("No artifact endpoint found in ProvisionInfo.");
+      }
     }
     // Lambda closured variables must be final.
     final Endpoints.ApiServiceDescriptor logEndpoint = loggingEndpoint;
     final Endpoints.ApiServiceDescriptor ctrlEndpoint = controlEndpoint;
+    final Endpoints.ApiServiceDescriptor artEndpoint = artifactEndpoint; // Make it final for lambda
     final Set<String> capabilities = runnerCapabilites;
     Thread th =
         new Thread(
             () -> {
               try {
+                // Pass the artifact endpoint to FnHarness.main (requires modifying FnHarness.main
+                // signature)
                 FnHarness.main(
-                    request.getWorkerId(), options, capabilities, logEndpoint, ctrlEndpoint, null);
+                    request.getWorkerId(),
+                    options,
+                    capabilities,
+                    logEndpoint,
+                    ctrlEndpoint,
+                    null, // statusApiServiceDescriptor
+                    artEndpoint); // artifactApiServiceDescriptor
                 LOG.info("Successfully started worker {}.", request.getWorkerId());
               } catch (Exception exn) {
                 LOG.error(String.format("Failed to start worker %s.", request.getWorkerId()), exn);

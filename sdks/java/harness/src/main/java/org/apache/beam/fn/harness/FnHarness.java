@@ -19,6 +19,8 @@ package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,6 +29,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -48,7 +51,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -64,7 +70,10 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.construction.ArtifactResolver;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.util.construction.DefaultArtifactResolver;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
@@ -195,13 +204,16 @@ public class FnHarness {
             ? Collections.emptySet()
             : ImmutableSet.copyOf(runnerCapabilitesOrNull.split("\\s+"));
 
+    // Note: This main method overload doesn't receive the artifact endpoint.
+    // It likely relies on the other overload being called by ExternalWorkerService.
     main(
         id,
         options,
         runnerCapabilites,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
-        statusApiServiceDescriptor);
+        statusApiServiceDescriptor,
+        null); // Pass null for artifact endpoint here
   }
 
   /**
@@ -214,6 +226,7 @@ public class FnHarness {
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
    * @param statusApiServiceDescriptor
+   * @param artifactApiServiceDescriptor The endpoint for the ArtifactRetrievalService
    * @throws Exception
    */
   public static void main(
@@ -222,7 +235,9 @@ public class FnHarness {
       Set<String> runnerCapabilities,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
-      @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
+      @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
+      @Nullable
+          Endpoints.ApiServiceDescriptor artifactApiServiceDescriptor) // Added artifact endpoint
       throws Exception {
     ManagedChannelFactory channelFactory;
     if (ExperimentalOptions.hasExperiment(options, "beam_fn_api_epoll")) {
@@ -233,6 +248,7 @@ public class FnHarness {
     OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
 
+    // Call the main overload that includes the artifact endpoint
     main(
         id,
         options,
@@ -240,6 +256,7 @@ public class FnHarness {
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
         statusApiServiceDescriptor,
+        artifactApiServiceDescriptor, // Pass it along
         channelFactory,
         outboundObserverFactory,
         Caches.fromOptions(options));
@@ -251,10 +268,11 @@ public class FnHarness {
    *
    * @param id Harness ID
    * @param options The options for this pipeline
-   * @param runnerCapabilites
+   * @param runnerCapabilities
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
    * @param statusApiServiceDescriptor
+   * @param artifactApiServiceDescriptor The endpoint for the ArtifactRetrievalService
    * @param channelFactory
    * @param outboundObserverFactory
    * @param processWideCache
@@ -263,16 +281,94 @@ public class FnHarness {
   public static void main(
       String id,
       PipelineOptions options,
-      Set<String> runnerCapabilites,
+      Set<String> runnerCapabilities,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
+      @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
+      @Nullable
+          Endpoints.ApiServiceDescriptor artifactApiServiceDescriptor, // Added artifact endpoint
       ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory,
       Cache<Object, Object> processWideCache)
       throws Exception {
     channelFactory =
         channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)));
+
+    // Initialize network-based artifact resolution if endpoint is provided
+    if (artifactApiServiceDescriptor != null) {
+      LOG.info(
+          "Initializing network artifact retrieval from {}", artifactApiServiceDescriptor.getUrl());
+      try {
+        ManagedChannel artifactChannel = channelFactory.forDescriptor(artifactApiServiceDescriptor);
+        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub artifactClient =
+            ArtifactRetrievalServiceGrpc.newBlockingStub(artifactChannel);
+
+        // Define the ResolutionFn
+        ArtifactResolver.ResolutionFn networkResolver =
+            (info) -> {
+              // Only handle types that typically require remote fetching (FILE, URL, etc.)
+              // Let the default resolver handle EMBEDDED or unknown types.
+              String typeUrn = info.getTypeUrn();
+              if (BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE).equals(typeUrn)
+                  || BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL).equals(typeUrn)) {
+                try {
+                  LOG.debug("Attempting to resolve artifact via network: {}", info.getTypeUrn());
+                  // Create a temporary local file path
+                  // TODO: Use a more robust temp file creation mechanism if available
+                  Path tempPath = Files.createTempFile("beam_artifact_", info.getTypeUrn());
+                  tempPath.toFile().deleteOnExit(); // Ensure cleanup
+
+                  // Fetch artifact chunks using the gRPC client
+                  Iterator<ArtifactApi.GetArtifactResponse> responses =
+                      artifactClient.getArtifact(
+                          ArtifactApi.GetArtifactRequest.newBuilder().setArtifact(info).build());
+
+                  // Write chunks to the temporary file
+                  try (OutputStream outputStream = new FileOutputStream(tempPath.toFile())) {
+                    while (responses.hasNext()) {
+                      responses.next().getData().writeTo(outputStream);
+                    }
+                  }
+
+                  LOG.info(
+                      "Successfully resolved artifact {} to local file {}",
+                      info.getTypeUrn(),
+                      tempPath);
+
+                  // Return new ArtifactInformation pointing to the local file
+                  RunnerApi.ArtifactInformation resolvedInfo =
+                      info.toBuilder()
+                          .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+                          .setTypePayload(
+                              RunnerApi.ArtifactFilePayload.newBuilder()
+                                  .setPath(tempPath.toString())
+                                  .build()
+                                  .toByteString())
+                          .build();
+                  return Optional.of(ImmutableList.of(resolvedInfo));
+
+                } catch (Exception e) {
+                  LOG.error("Failed to resolve artifact {} via network", info.getTypeUrn(), e);
+                  // Fallback or rethrow? For now, let default handle it.
+                  return Optional.empty();
+                }
+              } // Close the 'if' statement for FILE/URL types
+              // Let the default resolver handle other types (like EMBEDDED)
+              return Optional.empty();
+            };
+
+        // Register the network resolver. It will be checked before the default file resolver.
+        DefaultArtifactResolver.INSTANCE.register(networkResolver);
+        LOG.info("Registered network artifact resolver.");
+
+      } catch (Exception e) {
+        LOG.error("Failed to initialize network artifact retrieval client", e);
+        // Proceed without network retrieval? Or fail hard?
+        // For now, log and continue, relying on default resolution.
+      }
+    } else {
+      LOG.warn("No artifact API service descriptor provided. Using default artifact resolution.");
+    }
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
@@ -336,7 +432,7 @@ public class FnHarness {
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
-              runnerCapabilites,
+              runnerCapabilities, // Use the corrected variable name
               getProcessBundleDescriptor,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,

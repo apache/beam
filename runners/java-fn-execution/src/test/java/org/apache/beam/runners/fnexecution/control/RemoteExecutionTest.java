@@ -237,9 +237,10 @@ public class RemoteExecutionTest implements Serializable {
                     WORKER_ID,
                     options,
                     Collections.emptySet(), // Runner capabilities.
-                    loggingServer.getApiServiceDescriptor(),
-                    controlServer.getApiServiceDescriptor(),
-                    null,
+                    loggingServer.getApiServiceDescriptor(), // Logging
+                    controlServer.getApiServiceDescriptor(), // Control
+                    null, // Status
+                    null, // Artifact
                     ManagedChannelFactory.createInProcess(),
                     OutboundObserverFactory.clientDirect(),
                     Caches.eternal());

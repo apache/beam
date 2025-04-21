@@ -178,7 +178,8 @@ public class ProcessBundleBenchmark {
                         runnerCapabilities,
                         loggingServer.getApiServiceDescriptor(),
                         controlServer.getApiServiceDescriptor(),
-                        null,
+                        null, // statusApiServiceDescriptor
+                        null, // artifactApiServiceDescriptor
                         ManagedChannelFactory.createDefault(),
                         OutboundObserverFactory.clientDirect(),
                         Caches.fromOptions(pipelineOptions));
