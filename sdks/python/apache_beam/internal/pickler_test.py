@@ -115,6 +115,11 @@ from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
 
+  def test_best_effort_determinism(self):
+    self.assertEqual(
+        dumps({'a', 'b', 'c'}, enable_best_effort_determinism=True),
+        dumps({'c', 'b', 'a'}, enable_best_effort_determinism=True))
+
 
 if __name__ == '__main__':
   unittest.main()

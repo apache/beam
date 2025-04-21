@@ -41,6 +41,7 @@ import zlib
 from typing import Any
 from typing import Dict
 from typing import Tuple
+from apache_beam.internal.set_pickler import save_frozenset, save_set
 
 import dill
 
@@ -376,9 +377,16 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
+def dumps(
+    o,
+    enable_trace=True,
+    use_zlib=False,
+    enable_best_effort_determinism=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
+    if enable_best_effort_determinism:
+      dill.dill.pickle(set, save_set)
+      dill.dill.pickle(frozenset, save_frozenset)
     try:
       s = dill.dumps(o, byref=settings['dill_byref'])
     except Exception:  # pylint: disable=broad-except
