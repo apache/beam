@@ -28,7 +28,6 @@ does not define a total order for all values.
 
 import enum
 import functools
-import types
 
 
 def compare(lhs, rhs):

@@ -164,7 +164,7 @@ class SortIfPossibleTest(unittest.TestCase):
     t2 = create_tuple_with_cycles()
     t3 = create_tuple_with_cycles()
 
-    actual = set([hash(t) for t in sort_if_possible({t1, t2, t3})])
+    actual = {hash(t) for t in sort_if_possible({t1, t2, t3})}
     expected = {hash(t1), hash(t2), hash(t3)}
     self.assertEqual(actual, expected)
 
