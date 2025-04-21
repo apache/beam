@@ -287,9 +287,19 @@ class PipelineTest(unittest.TestCase):
   def test_auto_unique_labels(self):
 
     opts = PipelineOptions(["--auto_unique_labels"])
-    with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
-      mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
-      mock_uuid_gen.side_effect = mock_uuids
+
+    mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
+    mock_uuid_gen = mock.Mock(side_effect=mock_uuids)
+
+    original_generate_unique_label = Pipeline._generate_unique_label
+
+    def patched_generate_unique_label(self, transform):
+      with mock.patch.object(uuid, 'uuid4', return_value=mock_uuid_gen()):
+        return original_generate_unique_label(self, transform)
+
+    with mock.patch.object(Pipeline,
+                           '_generate_unique_label',
+                           patched_generate_unique_label):
       with TestPipeline(options=opts) as pipeline:
         pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
 
