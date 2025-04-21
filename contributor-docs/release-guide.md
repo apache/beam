@@ -1337,3 +1337,7 @@ git checkout origin/release-2.62.0
 git revert 41215a3116b5e866d1e5b017611a479eeee72df1
 git push origin HEAD:release-2.62.0
 ```
+
+### How to create a cherry-pick
+
+More detailes are at https://cwiki.apache.org/confluence/display/BEAM/Git+Tips#GitTips-Howtocreateacherry-pickpullrequestforanongoingreleasebranch
