@@ -111,7 +111,7 @@ def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(file)
+      pickler = cloudpickle.PurePythonPickler(file)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
