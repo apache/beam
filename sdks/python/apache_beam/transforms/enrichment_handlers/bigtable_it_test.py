@@ -136,17 +136,17 @@ def create_rows(table):
         column_family_id,
         product_id.encode(),
         str(item[product_id]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_name.encode(),
         item[product_name],
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_stock.encode(),
         str(item[product_stock]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.commit()
 
 

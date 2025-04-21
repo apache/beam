@@ -492,6 +492,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 	}
 
 	stg.internalCols = internal
+	// Sort the keys of internal producers (from stageFacts.PcolProducers)
+	// to ensure deterministic order for stable tests.
+	sort.Strings(stg.internalCols)
 	stg.outputs = maps.Values(outputs)
 	stg.sideInputs = sideInputs
 

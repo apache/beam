@@ -46,6 +46,7 @@ import traceback
 import warnings
 from copy import copy
 from datetime import datetime
+from datetime import timezone
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -363,7 +364,7 @@ class Job(object):
     are removed. If necessary, the user_name is truncated to shorten
     the job name to 63 characters."""
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
-    date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+    date_component = datetime.now(timezone.utc).strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
     # append 8 random alphanumeric characters to avoid collisions.
     random_component = ''.join(
@@ -467,7 +468,7 @@ class Job(object):
 
     # Client Request ID
     self.proto.clientRequestId = '{}-{}'.format(
-        datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
+        datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f'),
         random.randrange(9000) + 1000)
 
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')

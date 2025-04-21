@@ -39,6 +39,7 @@ from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import shared
 
 # Run as
 #
@@ -379,6 +380,38 @@ class PrismJobServerTest(unittest.TestCase):
             mock_zipfile_init.assert_not_called()
           else:
             mock_zipfile_init.assert_called_once()
+
+
+class PrismRunnerSingletonTest(unittest.TestCase):
+  @parameterized.expand([True, False])
+  def test_singleton(self, enable_singleton):
+    if enable_singleton:
+      options = DebugOptions(["--experiment=enable_prism_server_singleton"])
+    else:
+      options = DebugOptions()
+
+    runner = prism_runner.PrismRunner()
+    with mock.patch(
+        'apache_beam.runners.portability.prism_runner.PrismJobServer'
+    ) as mock_prism_server:
+
+      # Reset the class-level singleton for every fresh run
+      prism_runner.PrismRunner.shared_handle = shared.Shared()
+
+      runner = prism_runner.PrismRunner()
+      runner.default_job_server(options)
+
+      mock_prism_server.assert_called_once()
+      mock_prism_server.reset_mock()
+
+      runner = prism_runner.PrismRunner()
+      runner.default_job_server(options)
+      if enable_singleton:
+        # If singleton is enabled, we won't try to create a new server for the
+        # second run.
+        mock_prism_server.assert_not_called()
+      else:
+        mock_prism_server.assert_called_once()
 
 
 if __name__ == '__main__':

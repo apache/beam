@@ -39,6 +39,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import environments
+from apache_beam.utils import shared
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
@@ -56,6 +57,8 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
+  shared_handle = shared.Shared()
+
   def default_environment(
       self,
       options: pipeline_options.PipelineOptions) -> environments.Environment:
@@ -66,7 +69,12 @@ class PrismRunner(portable_runner.PortableRunner):
     return super().default_environment(options)
 
   def default_job_server(self, options):
-    return job_server.StopOnExitJobServer(PrismJobServer(options))
+    debug_options = options.view_as(pipeline_options.DebugOptions)
+    get_job_server = lambda: job_server.StopOnExitJobServer(
+        PrismJobServer(options))
+    if debug_options.lookup_experiment("enable_prism_server_singleton"):
+      return PrismRunner.shared_handle.acquire(get_job_server)
+    return get_job_server()
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(

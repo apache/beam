@@ -29,7 +29,7 @@ pipeline can be expected to be well tested, it can be important to have tests
 that ensure the pipeline as a whole behaves as expected.  This is particularly
 true for transforms that contain non-trivial UDF logic.
 
-# Whole pipeline tests
+## Whole pipeline tests
 
 For example, consider the example word count pipeline.
 
@@ -126,10 +126,8 @@ python -m apache_beam.yaml.main \
     --test_suite=test_file.yaml
 ```
 
-Neither the actual Read transform nor Write transform from the original
-pipelines are executed when running the test, but all intermediate transforms
-are.  For hermeticity, we require that all inputs (with the exception of
-`Create` that are needed to compute the expected outputs are explicitly mocked;
+For hermeticity, we require that all inputs (with the exception of
+`Create`) that are needed to compute the expected outputs are explicitly mocked;
 to explicitly allow a sources to be executed as part of a test their names or
 types can be enumerated in an `allowed_sources` attribute of the test
 specification.
@@ -137,7 +135,7 @@ specification.
 
 ## Pipeline fragment tests
 
-One can also tests a portion of a pipeline using the `mock_inputs` and
+One can also test a portion of a pipeline using the `mock_inputs` and
 `expected_outputs` section of a test, for example
 
 ```
