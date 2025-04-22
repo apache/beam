@@ -441,7 +441,10 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     assert isinstance(prediction, AnomalyPrediction), (
       "Wrong model handler output type." +
       f"Expected: 'AnomalyPrediction', but got '{type(prediction).__name__}'. " +  # pylint: disable=line-too-long
-      "Consider adding a post-processing function via `with_postprocess_fn`.")
+      "Consider adding a post-processing function via `with_postprocess_fn` " +
+      f"to convert from '{type(prediction).__name__}' to 'AnomalyPrediction', " +  # pylint: disable=line-too-long
+      "or use `score_prediction_adapter` or `label_prediction_adapter` to " +
+      "perform the conversion.")
 
     result = AnomalyResult(
         example=row,
