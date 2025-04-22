@@ -178,8 +178,7 @@ class BigtableServiceImpl implements BigtableService {
       }
       try {
         if (bigtableReadOptions != null
-            && bigtableReadOptions.getExperimentalSkipLargeRows() != null
-            && bigtableReadOptions.getExperimentalSkipLargeRows() == true) {
+                && Boolean.TRUE.equals(bigtableReadOptions.getExperimentalSkipLargeRows())) {
           stream =
               client
                   .skipLargeRowsCallable(new BigtableRowProtoAdapter())

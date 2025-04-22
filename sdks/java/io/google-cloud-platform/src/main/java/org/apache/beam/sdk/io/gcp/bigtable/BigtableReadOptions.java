@@ -37,7 +37,7 @@ import org.joda.time.Duration;
 })
 abstract class BigtableReadOptions implements Serializable {
 
-  /** Returns the experimental skip large rows option value */
+  /** Returns the experimental skip large rows option value. */
   abstract @Nullable Boolean getExperimentalSkipLargeRows();
 
   /** Returns the table id. */
