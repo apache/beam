@@ -415,16 +415,19 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
 
     private void refresh() {
-      @Nullable
-      Long endOffset =
-          offsetConsumer.endOffsets(Collections.singleton(topicPartition)).get(topicPartition);
-      if (endOffset == null) {
-        LOG.warn("No end offset found for partition {}.", topicPartition);
-      } else {
-        lastRefreshEndOffset = endOffset; // normal store
+      try {
+        @Nullable
+        Long endOffset =
+            offsetConsumer.endOffsets(Collections.singleton(topicPartition)).get(topicPartition);
+        if (endOffset == null) {
+          LOG.warn("No end offset found for partition {}.", topicPartition);
+        } else {
+          lastRefreshEndOffset = endOffset; // normal store
+        }
+        nextRefreshNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(1); // normal store
+      } finally {
+        CURRENT_REFRESH_TASK.lazySet(this, null); // ordered store (release)
       }
-      nextRefreshNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(1); // normal store
-      CURRENT_REFRESH_TASK.lazySet(this, null); // ordered store (release)
     }
   }
 
