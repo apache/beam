@@ -37,8 +37,8 @@ from apache_beam.ml.inference.base import _PostProcessingModelHandler
 from apache_beam.ml.inference.utils import _convert_to_result
 
 # Turn the used ModelHandler into specifiable
-KeyedModelHandler = specifiable(KeyedModelHandler)
-_PostProcessingModelHandler = specifiable(_PostProcessingModelHandler)
+KeyedModelHandler = specifiable(KeyedModelHandler)  # type: ignore[misc]
+_PostProcessingModelHandler = specifiable(_PostProcessingModelHandler)  # type: ignore[misc]
 
 
 @specifiable
@@ -96,7 +96,9 @@ class PyODFactory():
     model_handler = KeyedModelHandler(
         PyODModelHandler(model_uri=model_uri)).with_postprocess_fn(
             OfflineDetector.score_prediction_adapter)
-    threshold = float(model_handler.load_model().threshold_)
+    m = model_handler.load_model()
+    assert (isinstance(m, PyODBaseDetector))
+    threshold = float(m.threshold_)
     detector = OfflineDetector(
-        model_handler, threshold_criterion=FixedThreshold(threshold), **kwargs)
+        model_handler, threshold_criterion=FixedThreshold(threshold), **kwargs)  # type: ignore[arg-type]
     return detector

@@ -459,7 +459,7 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     assert self._offline_detector._features is not None
     k, v = elem
     row_dict = v._asdict()
-    return k, beam.Row(**{k:row_dict[k] for k in self._offline_detector._features})  # pylint: disable=line-too-long
+    return k, beam.Row(**{k: row_dict[k] for k in self._offline_detector._features})  # pylint: disable=line-too-long
 
   def expand(
       self,
