@@ -34,12 +34,12 @@ class UnPicklable:
     return NotImplemented
 
 
-UNPICLABLE_INSTANCE = UnPicklable(5)
+UNPICKLABLE_INSTANCE = UnPicklable(5)
 
 
 def closure_contains_unpicklable():
   def inner():
-    return UNPICLABLE_INSTANCE
+    return UNPICKLABLE_INSTANCE
 
   return inner
 
@@ -47,13 +47,13 @@ def closure_contains_unpicklable():
 def closure_contains_unpicklable_imports_self():
   def inner():
     import apache_beam.internal.module_test as self_module
-    return self_module.UNPICLABLE_INSTANCE
+    return self_module.UNPICKLABLE_INSTANCE
 
   return inner
 
 
 def fn_returns_unpicklable():
-  return UNPICLABLE_INSTANCE
+  return UNPICKLABLE_INSTANCE
 
 
 class TopClass(object):

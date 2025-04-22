@@ -60,7 +60,7 @@ class PicklerTest(unittest.TestCase):
 
     self.assertIs(original_dict, unpickled_dict)
 
-  def test_globals_module_are_pickled_by_value_when_directly_referenced(self):
+  def test_module_globals_are_pickled_by_value_when_directly_referenced(self):
     global_dict = loads(dumps(module_test.GLOBAL_DICT))
 
     self.assertIsNot(module_test.GLOBAL_DICT, global_dict)
@@ -81,7 +81,7 @@ class PicklerTest(unittest.TestCase):
 
   def test_function_referencing_unpicklable_object_works_when_imported(self):
     self.assertEqual(
-        module_test.UNPICLABLE_INSTANCE,
+        module_test.UNPICKLABLE_INSTANCE,
         loads(dumps(module_test.fn_returns_unpicklable))())
 
   def test_closure_with_unpicklable_object_fails_when_imported(self):
@@ -93,22 +93,22 @@ class PicklerTest(unittest.TestCase):
   def test_closure_with_explicit_self_import_can_reference_unpicklable_objects(
       self):
     # The closure imports module_test within the function definition
-    # and returns self.UNPICLABLE_INSTANCE. This allows cloudpickle
-    # to use submimort to reference module_test.UNPICLABLE_INSTANCE
+    # and returns self.UNPICKLABLE_INSTANCE. This allows cloudpickle
+    # to use submimort to reference module_test.UNPICKLABLE_INSTANCE
     self.assertIs(
-        module_test.UNPICLABLE_INSTANCE,
+        module_test.UNPICKLABLE_INSTANCE,
         loads(dumps(module_test.closure_contains_unpicklable_imports_self()))())
 
   def test_closure_main_can_reference_unpicklable_module_objects(self):
     def outer():
       def inner():
-        return module_test.UNPICLABLE_INSTANCE
+        return module_test.UNPICKLABLE_INSTANCE
 
       return inner
 
-    # Uses subimport to reference module_test.UNPICLABLE_INSTANCE rather than
+    # Uses subimport to reference module_test.UNPICKLABLE_INSTANCE rather than
     # recreate.
-    self.assertIs(module_test.UNPICLABLE_INSTANCE, loads(dumps(outer()))())
+    self.assertIs(module_test.UNPICKLABLE_INSTANCE, loads(dumps(outer()))())
 
   def test_pickle_nested_enum_descriptor(self):
     NestedEnum = proto2_coder_test_messages_pb2.MessageD.NestedEnum
