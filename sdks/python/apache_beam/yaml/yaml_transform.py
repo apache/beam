@@ -88,8 +88,9 @@ def validate_against_schema(pipeline, strictness):
     # validation message for chain-type transform
     if exn.schema_path[-1] == 'not' and exn.schema_path[-2] in ['input',
                                                                 'output']:
-      exn.message = (f"'{exn.schema_path[-2]}' should not be used "
-                     "along with 'chain' type transforms. " + exn.message)
+      exn.message = (
+              f"'{exn.schema_path[-2]}' should not be used "
+              "along with 'chain' type transforms. " + exn.message)
     raise exn
 
 
